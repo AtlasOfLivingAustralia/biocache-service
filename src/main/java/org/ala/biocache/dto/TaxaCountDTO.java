@@ -27,6 +27,7 @@ public class TaxaCountDTO {
     protected String kingdom;
     protected String family;
     protected Long count;
+    protected String rank;
 
     public TaxaCountDTO() {}
 
@@ -41,7 +42,7 @@ public class TaxaCountDTO {
 
     @Override
     public String toString() {
-        return "TaxaCountDTO{" + "name=" + name + "; commonName=" + commonName + "; guid=" + guid + "; kingdom=" + kingdom + "; family=" + family + "; count=" + count + '}';
+        return "TaxaCountDTO{" + "name=" + name + "; commonName=" + commonName + "; guid=" + guid + "; kingdom=" + kingdom + "; family=" + family + "; count=" + count + "; rank=" + rank + '}';
     }
 
 
@@ -93,5 +94,12 @@ public class TaxaCountDTO {
     public void setKingdom(String kingdom) {
         this.kingdom = kingdom;
     }
-    
+
+    public String getRank() {
+        return rank;
+    }
+
+    public void setRank(String rank) {
+        this.rank = rank;
+    }
 }

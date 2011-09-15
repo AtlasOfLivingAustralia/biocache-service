@@ -27,6 +27,7 @@ public class SearchRequestParams {
 
     protected String q = "";
     protected String[] fq = {""}; // must not be null
+    protected String fl="";
     /**
      * The facets to be included by the search
      * Initialised with the default facets to use
@@ -74,7 +75,7 @@ public class SearchRequestParams {
      * @return request parameters string
      */
     @Override
-    public String toString() {
+    public String toString() {        
         StringBuilder req = new StringBuilder();
         req.append("q=").append(q);
         req.append("&fq=").append(StringUtils.join(fq, "&fq="));
@@ -88,6 +89,8 @@ public class SearchRequestParams {
             req.append("&facets=").append(StringUtils.join(facets, "&facets="));
         if (flimit != 30) 
             req.append("&flimit=").append(flimit);
+        if (fl.length() > 0)
+            req.append("&fl=").append(fl);
         return req.toString();
     }
 
@@ -229,5 +232,12 @@ public class SearchRequestParams {
 
     public void setQc(String qc) {
         this.qc = qc;
+    }
+    public String getFl() {
+        return fl;
+    }
+
+    public void setFl(String fl) {
+        this.fl = fl;
     }
 }

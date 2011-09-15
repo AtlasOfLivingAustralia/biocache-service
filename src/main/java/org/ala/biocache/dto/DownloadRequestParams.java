@@ -23,7 +23,7 @@ import org.apache.commons.lang.StringUtils;
  *
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
-public class DownloadRequestParams extends SearchRequestParams {
+public class DownloadRequestParams extends SpatialSearchRequestParams {
     protected String email="";
     protected String reason ="";
     protected String file="data";

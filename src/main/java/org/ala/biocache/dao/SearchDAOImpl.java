@@ -77,6 +77,10 @@ import javax.inject.Inject;
 import org.apache.commons.lang.ArrayUtils;
 import au.org.ala.biocache.IndexDAO;
 import au.org.ala.biocache.SolrIndexDAO;
+import java.util.Map.Entry;
+import org.ala.biocache.util.LegendItem;
+import org.ala.biocache.util.ParamsCache;
+import org.ala.biocache.util.ParamsCacheObject;
 import org.apache.solr.client.solrj.SolrServer;
 /**
  * SOLR implementation of SearchDao. Uses embedded SOLR server (can be a memory hog).
@@ -110,7 +114,8 @@ public class SearchDAOImpl implements SearchDAO {
     protected Pattern urnPattern = Pattern.compile("urn:[a-zA-Z0-9\\.:-]*");
     protected Pattern spacesPattern =Pattern.compile("[^\\s\"()\\[\\]']+|\"[^\"]*\"|'[^']*'");
     protected Pattern uidPattern = Pattern.compile("([a-z_]*_uid:)([a-z0-9]*)");
-    protected Pattern spatialPattern = Pattern.compile("\\{!spatial[a-z=\\-\\s0-9\\.\\,]*\\}");
+    protected Pattern spatialPattern = Pattern.compile("\\{!spatial[a-zA-Z=\\-\\s0-9\\.\\,():]*\\}");
+    protected Pattern qidPattern= Pattern.compile("qid:[0-9]*");
     
     protected String bieUri ="http://bie.ala.org.au";
 
@@ -397,8 +402,9 @@ public class SearchDAOImpl implements SearchDAO {
         
         try {
             logger.info("search query: " + downloadParams.getQ());
-            SolrQuery solrQuery = initSolrQuery(downloadParams);            
-            solrQuery.setQuery(downloadParams.getQ());
+            SolrQuery solrQuery = initSolrQuery(downloadParams);
+            formatSearchQuery(downloadParams);
+            solrQuery.setQuery(buildSpatialQueryString(downloadParams));
             //Only the fields specified below will be included in the results from the SOLR Query
             solrQuery.setFields("row_key", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid");
             
@@ -595,16 +601,16 @@ public class SearchDAOImpl implements SearchDAO {
     @Override
     public List<OccurrencePoint> getFacetPoints(SpatialSearchRequestParams searchParams, PointType pointType) throws Exception {
         List<OccurrencePoint> points = new ArrayList<OccurrencePoint>(); // new OccurrencePoint(PointType.POINT);
-         formatSearchQuery(searchParams);
+        formatSearchQuery(searchParams);
         logger.info("search query: " + searchParams.getQ());
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setQueryType("standard");
-        solrQuery.setQuery(searchParams.getQ());
+        solrQuery.setQuery(buildSpatialQueryString(searchParams));
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
         solrQuery.addFacetField(pointType.getLabel());
         solrQuery.setFacetMinCount(1);
-        solrQuery.setFacetLimit(MAX_DOWNLOAD_SIZE);  // unlimited = -1
+        solrQuery.setFacetLimit(-1);//MAX_DOWNLOAD_SIZE);  // unlimited = -1
 
         //add the context information
         updateQueryContext(searchParams);
@@ -1108,17 +1114,43 @@ public class SearchDAOImpl implements SearchDAO {
                 if (fq.isEmpty()) {
                     continue;
                 }
+                // use of AND/OR requires correctly formed fq.
+                // Can overlap with values containing the same,
+                // case sensitivity may help.
+                if(fq.contains(" OR ") || fq.contains(" AND ")) { 
+                    solrQuery.addFilterQuery(fq);
+                    logger.info("adding filter query: " + fq);
+                    continue;
+                }
                 String[] parts = fq.split(":", 2); // separate query field from query text
                 logger.debug("fq split into: " + parts.length + " parts: " + parts[0] + " & " + parts[1]);
                 String prefix = null;
                 String suffix = null;
-                // don't escape range queries
-                if (parts[1].contains(" TO ") || parts[0].contains("-(")) {
+                // don't escape range or '(multiple terms)' queries
+                if ((parts[1].contains("[") && parts[1].contains(" TO ") && parts[1].contains("]"))
+                        || parts[0].startsWith("-(") || parts[0].startsWith("(")) {
                     prefix = parts[0];
                     suffix = parts[1];
                 } else {
-                    prefix = ClientUtils.escapeQueryChars(parts[0]);
-                    suffix = ClientUtils.escapeQueryChars(parts[1]);
+                    if(parts[0].startsWith("-")) {
+                        prefix = "-" + ClientUtils.escapeQueryChars(parts[0].substring(1));
+                    } else {
+                        prefix = ClientUtils.escapeQueryChars(parts[0]);
+                    }
+                    if(parts[1].equals("*")) {
+                        suffix = parts[1];
+                    } else {
+                        boolean quoted = false;
+                        StringBuffer sb = new StringBuffer();
+                        if(parts[1].startsWith("\"") && parts[1].endsWith("\"")){
+                            quoted = true;
+                            parts[1] = parts[1].substring(1, parts[1].length()-1);
+                            sb.append("\"");
+                        }
+                        sb.append(ClientUtils.escapeQueryChars(parts[1]));
+                        if(quoted) sb.append("\"");
+                        suffix = sb.toString();
+                    }
                 }
 
                 //FIXME check for blank value and replace with constant
@@ -1255,15 +1287,17 @@ public class SearchDAOImpl implements SearchDAO {
     
     protected String buildSpatialQueryString(SpatialSearchRequestParams searchParams){
         if(searchParams != null){
-            StringBuilder sb = new StringBuilder("{!spatial ");
-            if(StringUtils.isEmpty(searchParams.getWkt())){
+            StringBuilder sb = new StringBuilder();
+            if(searchParams.getLat() != null){
+                sb.append("{!spatial ");
                 sb.append("circles=").append(searchParams.getLat().toString()).append(",");
                 sb.append(searchParams.getLon().toString()).append(",");
                 sb.append(searchParams.getRadius().toString()).append("}");
             }
-            else{
+            else if(!StringUtils.isEmpty(searchParams.getWkt())){
                 //format the wkt
-                sb.append("wkt=").append(searchParams.getWkt().replaceAll(" ", ":")).append("}");
+                sb.append("{!spatial ");
+                sb.append("wkt=").append(searchParams.getWkt()).append("}");
             }
 
             sb.append(searchParams.getQ());
@@ -1286,6 +1320,30 @@ public class SearchDAOImpl implements SearchDAO {
     protected void formatSearchQuery(SearchRequestParams searchParams) {
         // set the query
         String query =searchParams.getQ();
+        
+        //cached query parameters are already formatted
+        if(query.contains("qid:")) {            
+            Matcher matcher = qidPattern.matcher(query);
+            long qid = 0;
+            while(matcher.find()) {
+                String value = matcher.group();
+                try {
+                    qid = Long.parseLong(value.substring(4));
+                    ParamsCacheObject pco = ParamsCache.get(qid);
+                    if(pco != null) {
+                        searchParams.setQ(pco.getQ());
+                        searchParams.setDisplayString(pco.getDisplayString());
+                        if(searchParams instanceof SpatialSearchRequestParams) {
+                            ((SpatialSearchRequestParams) searchParams).setWkt(pco.getWkt());
+                        } else if(!StringUtils.isEmpty(pco.getWkt())) {                            
+                            searchParams.setQ(pco.getWkt() + "{!spatial wkt=" + pco.getWkt() + "}" + pco.getQ() );
+                        }
+                        return;
+                    }
+                } catch (NumberFormatException e) {
+                }
+            }
+        }
         StringBuffer queryString = new StringBuffer();
         StringBuffer displaySb = new StringBuffer();
         String displayString = query;
@@ -1327,22 +1385,22 @@ public class SearchDAOImpl implements SearchDAO {
             matcher.appendTail(queryString);
             query = queryString.toString();
         }
-        if(query.contains("{!spatial")){           
+        if(query.contains("{!spatial")){
             Matcher matcher = spatialPattern.matcher(query);
             if(matcher.find()){
-                String spatial = matcher.group();            
-                //format the search query of the remaining text only            
+                String spatial = matcher.group();
+                //format the search query of the remaining text only
                 searchParams.setQ(query.substring(matcher.regionStart() + spatial.length(), query.length()));
                 //format the remaining query
                 formatSearchQuery(searchParams);
                 //now append Q's together
-                queryString.setLength(0);
+            queryString.setLength(0);
                 queryString.append(spatial);
                 queryString.append(searchParams.getQ());
                 searchParams.setQ(queryString.toString());
             }
-            
-                
+
+
         }
         else{
             //escape reserved characters unless the colon represnts a field name colon
@@ -1354,7 +1412,7 @@ public class SearchDAOImpl implements SearchDAO {
 
                 //special cases to ignore from character escaping
                 //if the value is a single - or * it means that we don't want to escape it as it is likely to have occurred in the following situation -(occurrence_date:[* TO *]) or *:*
-                if(!value.equals("-") && !value.equals("*")  && !value.equals("*:*")){
+                if(!value.equals("-") && /*!value.equals("*")  && !value.equals("*:*") && */ !value.endsWith("*")){
 
                     //split on the colon
                     String[] bits = StringUtils.split(value, ":", 2);
@@ -1526,6 +1584,10 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setRows(10);
         solrQuery.setStart(0);
 
+        if (searchParams.getFl().length() > 0) {
+            solrQuery.setFields(searchParams.getFl());
+        }
+
 //        add highlights
 //        solrQuery.setHighlight(true);
 //        solrQuery.setHighlightFragsize(40);
@@ -1595,6 +1657,7 @@ public class SearchDAOImpl implements SearchDAO {
                                 tcDTO.setCommonName(values[2]);
                                 tcDTO.setKingdom(values[3]);
                                 tcDTO.setFamily(values[4]);
+                                tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
                             }
                             else{
                                 logger.debug("The values length: " + values.length + " :" + fcount.getName());
@@ -1728,5 +1791,165 @@ public class SearchDAOImpl implements SearchDAO {
         }
         
         return fieldList;
-    }   
+    }
+
+    /**
+     * @see org.ala.biocache.dao.SearchDAO#findByFulltext(SpatialSearchRequestParams)
+     */
+    @Override
+    public SolrDocumentList findByFulltext(SpatialSearchRequestParams searchParams) throws Exception {
+        SolrDocumentList sdl = null;
+
+        try {
+            //String queryString = formatSearchQuery(query);
+            formatSearchQuery(searchParams);
+            //add context information
+            updateQueryContext(searchParams);
+            String queryString = buildSpatialQueryString(searchParams);
+            SolrQuery solrQuery = new SolrQuery();
+            solrQuery.setQuery(queryString);
+            solrQuery.setFields(searchParams.getFl());
+            solrQuery.setFacet(false);
+            solrQuery.setRows(searchParams.getPageSize());
+
+            sdl = runSolrQuery(solrQuery, searchParams).getResults();
+        } catch (SolrServerException ex) {
+            logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
+        }
+
+        return sdl;
+    }
+
+    public List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facetField, String [] cutpoints) throws Exception {
+        List<LegendItem> legend = new ArrayList<LegendItem>();
+
+        formatSearchQuery(searchParams);
+        logger.info("search query: " + searchParams.getQ());
+        SolrQuery solrQuery = new SolrQuery();
+        solrQuery.setQueryType("standard");
+        solrQuery.setQuery(buildSpatialQueryString(searchParams));
+        solrQuery.setRows(0);
+        solrQuery.setFacet(true);
+
+        //is facet query?
+        if(cutpoints == null) {
+            solrQuery.addFacetField(facetField);
+        } else {
+            solrQuery.addFacetQuery(facetField + ":[* TO " + cutpoints[1] + "]");
+            for(int i=2;i<cutpoints.length-1;i++) {
+                solrQuery.addFacetQuery(facetField + ":[" + cutpoints[i-1] + " TO " + cutpoints[i] + "]");
+            }
+            solrQuery.addFacetQuery(facetField + ":[" + cutpoints[cutpoints.length - 2] + " TO *]");
+        }
+        
+        solrQuery.setFacetMinCount(1);
+        solrQuery.setFacetLimit(-1);//MAX_DOWNLOAD_SIZE);  // unlimited = -1
+
+        //add the context information
+        updateQueryContext(searchParams);
+
+        QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFq(), 1, 0, "score", "asc");
+        List<FacetField> facets = qr.getFacetFields();
+        if (facets != null) {
+            for (FacetField facet : facets) {
+                List<FacetField.Count> facetEntries = facet.getValues();
+                if (facet.getName().contains(facetField) && (facetEntries != null) && (facetEntries.size() > 0)) {
+                    int i = 0;
+                    for (i=0;i<facetEntries.size();i++) {
+                        FacetField.Count fcount = facetEntries.get(i);
+                        legend.add(new LegendItem(fcount.getName(), fcount.getCount(), 
+                                /*fcount.getAsFilterQuery()*/
+                                facetField + ":\"" + fcount.getName() + "\""));
+                    }
+                    break;
+                }
+            }
+        }
+
+        Map<String, Integer> facetq = qr.getFacetQuery();
+        if(facetq != null && facetq.size() > 0) {
+            for(Entry<String, Integer> es : facetq.entrySet()) {
+                legend.add(new LegendItem(es.getKey(), es.getValue(), es.getKey()));
+            }
+        }
+
+        //nulls
+        String fq = "-" + facetField + ":[* TO *]";
+        String [] fqs = {fq};
+        if(searchParams.getFq() != null && searchParams.getFq().length > 0) {
+            fqs = new String[searchParams.getFq().length + 1];
+            System.arraycopy(searchParams.getFq(), 0, fqs, 0, fqs.length-1);
+            fqs[fqs.length-1] = fq;
+        }
+        qr = runSolrQuery(solrQuery, fqs, 1, 0, "score", "asc");
+        if(qr.getResults() != null && qr.getResults().getNumFound() > 0) {
+            legend.add(new LegendItem(null, qr.getResults().getNumFound(), fq));
+        }
+
+        return legend;
+    }
+
+    public FacetField getFacet(SpatialSearchRequestParams searchParams, String facet) throws Exception {
+        formatSearchQuery(searchParams);
+        logger.info("search query: " + searchParams.getQ());
+        SolrQuery solrQuery = new SolrQuery();
+        solrQuery.setQueryType("standard");
+        solrQuery.setQuery(buildSpatialQueryString(searchParams));
+        solrQuery.setRows(0);
+        solrQuery.setFacet(true);
+        solrQuery.addFacetField(facet);
+        solrQuery.setFacetMinCount(1);
+        solrQuery.setFacetLimit(-1);//MAX_DOWNLOAD_SIZE);  // unlimited = -1
+
+        //add the context information
+        updateQueryContext(searchParams);
+
+        QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFq(), 1, 0, "score", "asc");
+        return qr.getFacetFields().get(0);
+    }
+
+    public List<DataProviderCountDTO> getDataProviderList(SpatialSearchRequestParams requestParams) throws Exception {
+        ArrayList<DataProviderCountDTO> dataProviderList = new ArrayList<DataProviderCountDTO>();
+        FacetField facet = getFacet(requestParams, "data_provider_uid");
+        String [] oldFq = requestParams.getFacets();
+        if(facet != null) {
+            String [] dp = new String [1];
+            List<FacetField.Count> facetEntries = facet.getValues();
+            if (facetEntries != null && facetEntries.size() > 0) {
+                for (int i=0;i<facetEntries.size();i++) {
+                    FacetField.Count fcount = facetEntries.get(i);
+
+                    //get data_provider value
+                    dp[0] = fcount.getAsFilterQuery();
+                    requestParams.setFq(dp);
+                    String dataProviderName = getFacet(requestParams, "data_provider").getValues().get(0).getName();
+
+                    dataProviderList.add(new DataProviderCountDTO(fcount.getName(), dataProviderName, fcount.getCount()));
+                }
+            }
+        }
+        requestParams.setFacets(oldFq);
+
+        return dataProviderList;
+    }
+
+    /**
+     * @see org.ala.biocache.dao.SearchDAO#findAllSpecies(SpatialSearchRequestParams)
+     */
+    @Override
+    public List<TaxaCountDTO> findAllSpecies(SpatialSearchRequestParams requestParams) throws Exception {
+        formatSearchQuery(requestParams);
+        //add the context information
+        List<String> facetFields = new ArrayList<String>();
+        facetFields.add(NAMES_AND_LSID);
+        logger.debug("The species count query " + requestParams.getQ());
+        List<String> fqList = new ArrayList<String>();
+        //only add the FQ's if they are not the default values
+        if(requestParams.getFq().length>0 && (requestParams.getFq()[0]).length()>0)
+            org.apache.commons.collections.CollectionUtils.addAll(fqList, requestParams.getFq());
+        String query = buildSpatialQueryString(requestParams);
+        List<TaxaCountDTO> speciesWithCounts = getSpeciesCounts(query, fqList, facetFields, requestParams.getPageSize(), requestParams.getStart(), requestParams.getSort(), requestParams.getDir());
+
+        return speciesWithCounts;
+    }
 }

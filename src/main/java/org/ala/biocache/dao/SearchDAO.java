@@ -35,6 +35,8 @@ import org.ala.biocache.dto.SearchResultDTO;
 import org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.ala.biocache.dto.TaxaCountDTO;
 import org.ala.biocache.dto.TaxaRankCountDTO;
+import org.ala.biocache.util.LegendItem;
+import org.apache.solr.common.SolrDocumentList;
 
 /**
  * DAO for searching occurrence records held in the biocache.
@@ -166,7 +168,7 @@ public interface SearchDAO {
     List<TaxaCountDTO> findAllSpeciesByCircleAreaAndHigherTaxa(SpatialSearchRequestParams requestParams, String speciesGroup) throws Exception;
 
     
-
+    
     /**
      * Find all the data providers with records.
      * 
@@ -201,5 +203,46 @@ public interface SearchDAO {
      * @throws Exception
      */
     TaxaRankCountDTO findTaxonCountForUid(BreakdownRequestParams breakdownParams,String query) throws Exception;
+
+    /**
+     * Find all species (and counts) for a given query.
+     * @param requestParams
+     * @return
+     * @throws Exception
+     */
+    List<TaxaCountDTO> findAllSpecies(SpatialSearchRequestParams requestParams) throws Exception;
+
+    /**
+     * Find all occurrences for a given query as SolrDocumentList
+     *
+     * @param searchParams
+     * @return
+     * @throws Exception
+     */
+    SolrDocumentList findByFulltext(SpatialSearchRequestParams searchParams) throws Exception;
+
+    /**
+     * Get legend items for a query and specified facet.
+     *
+     * Continous variable cutpoints can be specified.  Includes the minimum
+     * and maximum values.
+     *
+     * Returns an empty list if no valid values are found.
+     *
+     * @param searchParams
+     * @param facet
+     * @return
+     * @throws Exception
+     */
+    List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facet, String [] cutpoints) throws Exception;
+
+    /**
+     * Get a data provider list for a query.
+     *
+     * @param requestParams
+     * @return
+     * @throws Exception
+     */
+    List<DataProviderCountDTO> getDataProviderList(SpatialSearchRequestParams requestParams) throws Exception;
 }
 
