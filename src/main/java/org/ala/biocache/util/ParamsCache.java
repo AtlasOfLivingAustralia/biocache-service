@@ -25,9 +25,9 @@ public class ParamsCache {
     private final static Logger logger = Logger.getLogger(ParamsCache.class);
 
     //max number of cached params
-    final static int MAX_CACHE_SIZE = 10;
+    final static int MAX_CACHE_SIZE = 10000;
     //number of cached params to remove when reducing the size
-    final static int MIN_CACHE_SIZE = 5;
+    final static int MIN_CACHE_SIZE = 5000;
     //file store for params removed from cache
     final static String TEMP_FILE_PATH = System.getProperty("java.io.tmpdir");
     //stored file prefix
@@ -42,27 +42,34 @@ public class ParamsCache {
     static Object counterLock = new Object();
     static CountDownLatch counter = new CountDownLatch(MAX_CACHE_SIZE);
     //thread for cache size limitation
-    static Thread cacheCleaner = new Thread() {
+    final static Thread cacheCleaner;
 
-        @Override
-        public void run() {
-            try {
-                while(true) {
-                    counter.await();
+    static {
+        cacheCleaner = new Thread() {
+        
+            @Override
+            public void run() {
+                try {
+                    while(true) {
+                        counter.await();
 
-                    synchronized(counterLock) {
-                        counter = new CountDownLatch(MAX_CACHE_SIZE - MIN_CACHE_SIZE);
+                        synchronized(counterLock) {
+                            counter = new CountDownLatch(MAX_CACHE_SIZE - MIN_CACHE_SIZE);
+                        }
+
+                        cleanCache();
+
+                        removeOldParamFiles();
                     }
+                } catch (InterruptedException e) {
 
-                    cleanCache();
-
-                    removeOldParamFiles();
+                } catch (Exception e) {
+                    logger.error("params cache cleaner stopping");
                 }
-            } catch (InterruptedException e) {
-                
             }
-        }
-    };
+        };
+        cacheCleaner.start();
+    }
 
     /**
      * Store search params and return key.
