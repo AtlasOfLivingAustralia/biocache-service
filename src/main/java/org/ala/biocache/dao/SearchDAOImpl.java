@@ -499,7 +499,8 @@ public class SearchDAOImpl implements SearchDAO {
         logger.info("download query: " + downloadParams.getQ());
         SolrQuery solrQuery = initSolrQuery(downloadParams);
         solrQuery.setRows(MAX_DOWNLOAD_SIZE);
-        solrQuery.setQuery(downloadParams.getQ());
+        formatSearchQuery(downloadParams);
+        solrQuery.setQuery(buildSpatialQueryString(downloadParams));
         //Only the fields specified below will be included in the results from the SOLR Query
         solrQuery.setFields("row_key", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid");
         

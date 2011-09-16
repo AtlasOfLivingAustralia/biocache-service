@@ -235,7 +235,7 @@ public class WebportalController implements ServletConfigAware {
             } else if (cutpoints != null && i < cutpoints.length - 1) {    //only NULL should be >= cutpoints.length -1
                 colour = getRangedColour(i, cutpoints);
             }
-            sb.append("\n").append(name).append(",").append(getRGB(colour)) //repeat last colour if required
+            sb.append("\n\"").append(name.replace("\"","\"\"")).append("\",").append(getRGB(colour)) //repeat last colour if required
                     .append(",").append(legend.get(i).getCount());
         }
 
@@ -250,6 +250,7 @@ public class WebportalController implements ServletConfigAware {
      * @throws Exception
      */
     @RequestMapping(value = "/webportal/dataProviders", method = RequestMethod.GET)
+    @ResponseBody
     public List<DataProviderCountDTO> queryInfo(
             SpatialSearchRequestParams requestParams)
             throws Exception {
