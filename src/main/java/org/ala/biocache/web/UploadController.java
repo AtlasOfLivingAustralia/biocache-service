@@ -7,20 +7,20 @@ import au.org.ala.util.AdHocParser;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.ServletRequestUtils;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.StringReader;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -31,6 +31,8 @@ import java.util.Map;
 public class UploadController {
 
     private final static Logger logger = Logger.getLogger(UploadController.class);
+
+    protected String uploadStatusDir = "/data/biocache-upload";
 
     /**
      * Upload a dataset using a POST, returning a UID for this data
@@ -88,7 +90,7 @@ public class UploadController {
             List<String> terms = om.readValue(input, new TypeReference<List<String>>() {});
             input.close();
             String[] termArray = terms.toArray(new String[]{});
-            String[] matchedTerms = AdHocParser.guessColumnHeaders(termArray);
+            String[] matchedTerms = AdHocParser.mapColumnHeaders(termArray);
             //create a map and return this
             Map<String,String> map = new LinkedHashMap<String,String>();
             for(int i=0; i<termArray.length; i++){
@@ -109,15 +111,34 @@ public class UploadController {
             InputStream input = request.getInputStream();
             String json = IOUtils.toString(input);
             String utf8String = new String(json.getBytes(), "UTF-8");
-            Map<String,String> record = om.readValue(utf8String, new TypeReference<Map<String,String>>() {});
+            LinkedHashMap<String,String> record = om.readValue(utf8String, new TypeReference<LinkedHashMap<String,String>>() {});
             input.close();
-            String[] headers = AdHocParser.guessColumnHeaders(record.keySet().toArray(new String[]{}));
+            String[] headers = AdHocParser.mapColumnHeaders(record.keySet().toArray(new String[]{}));
             return AdHocParser.processLine(headers, record.values().toArray(new String[]{}));
         } catch(Exception e) {
             logger.error(e.getMessage(),e);
             response.sendError(HttpURLConnection.HTTP_BAD_REQUEST);
             return null;
         }
+    }
+
+    /**
+     * Upload a dataset using a POST, returning a UID for this data
+     *
+     * @return an identifier for this temporary dataset
+     */
+    @RequestMapping(value="/upload/status/{tempDataResourceUid}.json", method = RequestMethod.GET)
+    public @ResponseBody Map<String,String> uploadStatus(@PathVariable String tempDataResourceUid, HttpServletResponse response) throws Exception {
+       response.setContentType("application/json");
+       File file = new File(uploadStatusDir + File.separator + tempDataResourceUid);
+       if(file.exists()){
+         String value = FileUtils.readFileToString(file);
+         ObjectMapper om = new ObjectMapper();
+         return om.readValue(value, Map.class);
+       } else {
+         response.sendError(404);
+         return null;
+       }
     }
 
     /**
@@ -149,7 +170,6 @@ public class UploadController {
         logger.debug("######### Retrieved - separator (original): '" + separator + "'");
         logger.debug("######### Retrieved - separatorChar: '" + separatorChar + "'");
 
-        //PostMethod post = new PostMethod("http://woodfired.ala.org.au:8080/Collectory/ws/tempDataResource");
         PostMethod post = new PostMethod("http://collections.ala.org.au/ws/tempDataResource");
         ObjectMapper mapper = new ObjectMapper();
 
@@ -169,43 +189,162 @@ public class UploadController {
         String collectoryUrl = post.getResponseHeader("location").getValue();
 
         String tempUid = collectoryUrl.substring(collectoryUrl.lastIndexOf('/') + 1);
-        CSVReader csvReader = new CSVReader(new StringReader(csvData), separatorChar);
 
-        try {
-            String[] currentLine = csvReader.readNext();
-            boolean firstListAreHeaders = AdHocParser.areColumnHeaders(currentLine);
+        //do the upload asynchronously
+        UploaderThread ut = new UploaderThread();
+        ut.headers = headers;
+        ut.csvData = csvData;
+        ut.separatorChar = separatorChar;
+        ut.uploadStatusDir = uploadStatusDir;
+        ut.recordsToLoad = lineCount;
+        ut.tempUid = tempUid;
 
-            String[] headerArray = null;
+        Thread t = new Thread(ut);
+        t.start();
 
-            if(headers == null){
-                headerArray = AdHocParser.guessColumnHeaders(currentLine);
-            } else {
-                String[] unnormalised = headers.split(",");
-                headerArray = new String[unnormalised.length];
-                for(int i=0; i<headerArray.length; i++){
-                    headerArray[i] = unnormalised[i].trim();
-                }
-            }
-
-            if(!firstListAreHeaders){
-                addRecord(tempUid, currentLine, headerArray);
-                currentLine = csvReader.readNext();
-            }
-
-            while(currentLine!=null){
-                addRecord(tempUid, currentLine, headerArray);
-                currentLine = csvReader.readNext();
-            }
-        } catch(Exception e) {
-            e.printStackTrace();
-        } finally {
-            csvReader.close();
-        }
-        au.org.ala.biocache.Store.index(tempUid);
         logger.debug("######### Temporary UID being returned...." + tempUid);
         Map<String,String> details = new HashMap<String,String>();
         details.put("uid", tempUid);
         return details;
+    }
+}
+
+
+class UploadStatus {
+    protected String status;
+    protected Integer totalRecords;
+    protected Integer completed;
+    protected Integer percentage;
+
+    UploadStatus(){}
+
+    UploadStatus(String status, Integer completed, Integer percentage, Integer totalRecords) {
+        this.status = status;
+        this.completed = completed;
+        this.percentage = percentage;
+        this.totalRecords = totalRecords;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Integer getCompleted() {
+        return completed;
+    }
+
+    public void setCompleted(Integer completed) {
+        this.completed = completed;
+    }
+
+    public Integer getPercentage() {
+        return percentage;
+    }
+
+    public void setPercentage(Integer percentage) {
+        this.percentage = percentage;
+    }
+
+    public Integer getTotalRecords() {
+        return totalRecords;
+    }
+
+    public void setTotalRecords(Integer totalRecords) {
+        this.totalRecords = totalRecords;
+    }
+}
+
+class UploaderThread implements Runnable {
+
+    private final static Logger logger = Logger.getLogger(UploaderThread.class);
+    public Integer loadComplete = 0;
+    public String status = "LOADING";
+    protected String headers;
+    protected String csvData;
+    protected Character separatorChar;
+    protected String tempUid;
+    protected String uploadStatusDir;
+    protected Integer recordsToLoad = 0;
+
+    @Override
+    public void run(){
+        File statusDir = null;
+        File statusFile = null;
+        ObjectMapper om = new ObjectMapper();
+
+        try {
+            statusDir = new File(uploadStatusDir);
+            if(!statusDir.exists()){
+                FileUtils.forceMkdir(statusDir);
+            }
+            statusFile = new File(uploadStatusDir+File.separator+tempUid);
+            statusFile.createNewFile();
+        } catch (Exception e1){
+            logger.error(e1.getMessage(), e1);
+            throw new RuntimeException(e1);
+        }
+
+        try {
+
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("LOADING",0,0,recordsToLoad)));
+
+            Integer counter = 0;
+            CSVReader csvReader = new CSVReader(new StringReader(csvData), separatorChar);
+            try {
+                String[] currentLine = csvReader.readNext();
+                boolean firstListAreHeaders = AdHocParser.areColumnHeaders(currentLine);
+
+                String[] headerArray = null;
+
+                if(headers == null){
+                    headerArray = AdHocParser.guessColumnHeaders(currentLine);
+                } else {
+                    String[] unnormalised = headers.split(",");
+                    headerArray = new String[unnormalised.length];
+                    for(int i=0; i<headerArray.length; i++){
+                        headerArray[i] = unnormalised[i].trim();
+                    }
+                }
+
+                if(!firstListAreHeaders){
+                    addRecord(tempUid, currentLine, headerArray);
+                    currentLine = csvReader.readNext();
+                }
+
+                //write the data
+                while(currentLine!=null){
+                    counter++;
+                    System.out.println("Processing record: " + counter);
+                    //Thread.sleep(2000);
+                    loadComplete = (int) ((counter.floatValue() / recordsToLoad.floatValue()) * 100);
+                    FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("LOADING",counter,loadComplete,recordsToLoad)));
+                    addRecord(tempUid, currentLine, headerArray);
+                    currentLine = csvReader.readNext();
+                }
+            } catch(Exception e) {
+                e.printStackTrace();
+            } finally {
+                csvReader.close();
+            }
+
+            status = "INDEXING";
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("INDEXING",0,0, recordsToLoad)));
+            au.org.ala.biocache.Store.index(tempUid);
+            status = "COMPLETE";
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("COMPLETE",counter,100,recordsToLoad)));
+        } catch(Exception ex){
+          try {
+            status = "FAILED";
+            FileUtils.writeStringToFile(statusFile,status);
+          } catch (IOException ioe){
+            logger.error("Loading failed and failed to update the status: " + ex.getMessage(), ex);
+          }
+          logger.error("Loading failed: " + ex.getMessage(), ex);
+        }
     }
 
     private void addRecord(String tempUid, String[] currentLine, String[] headers) {
@@ -220,3 +359,4 @@ public class UploadController {
         }
     }
 }
+
