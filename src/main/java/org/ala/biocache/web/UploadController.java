@@ -316,12 +316,16 @@ class UploaderThread implements Runnable {
                 }
 
                 //write the data
+                Integer percentComplete  = 0;
+
                 while(currentLine!=null){
                     counter++;
-                    System.out.println("Processing record: " + counter);
-                    //Thread.sleep(2000);
+                    //System.out.println("Processing record: " + counter);
                     loadComplete = (int) ((counter.floatValue() / recordsToLoad.floatValue()) * 100);
-                    FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("LOADING",counter,loadComplete,recordsToLoad)));
+                    if(percentComplete.equals(loadComplete)){
+                        percentComplete = loadComplete;
+                        FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("LOADING",counter,loadComplete,recordsToLoad)));
+                    }
                     addRecord(tempUid, currentLine, headerArray);
                     currentLine = csvReader.readNext();
                 }
