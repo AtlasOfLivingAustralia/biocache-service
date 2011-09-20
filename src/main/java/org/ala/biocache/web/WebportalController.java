@@ -224,7 +224,7 @@ public class WebportalController implements ServletConfigAware {
         sb.append("name,red,green,blue,count");
         int i = 0;
         //add legend entries.
-        for (i = 0; i < legend.size() && i < colourList.length - 1; i++) {
+        for (i = 0; i < legend.size(); i++) {
             String name = legend.get(i).getName();
             if (name == null) {
                 name = NULL_NAME;
@@ -486,7 +486,11 @@ public class WebportalController implements ServletConfigAware {
                     //li.getFq() is of the form "-(...)"
                     forNulls.add(fqs[2].substring(1));
                 } else {
-                    forNulls.add("-" + fqs[2]);
+                    if(fqs[2].charAt(0) == '-'){
+                        forNulls.add(fqs[2].substring(1));
+                    } else {
+                        forNulls.add("-" + fqs[2]);
+                    }
                 }
                 requestParams.setFq(fqs);
                 points.add(searchDAO.getFacetPoints(requestParams, pointType));
@@ -498,7 +502,7 @@ public class WebportalController implements ServletConfigAware {
             requestParams.setFq(filterQuery); //only filter by bounding box
             points.add(searchDAO.getFacetPoints(requestParams, pointType));
             pColour.add(vars.colour);
-        } else if(colours.size() >= colourList.length) {
+        } else if(colours.size() >= colourList.length - 1) {
             fqs = new String[forNulls.size()];
             forNulls.toArray(fqs);
             requestParams.setFq(fqs);
@@ -621,15 +625,17 @@ public class WebportalController implements ServletConfigAware {
                             if (uncertaintyR[j] < 0) {
                                 uncertaintyRadius = (int) Math.ceil((Double) sdl.get(i).getFieldValue("coordinate_uncertainty") * hmult);
                             }
+                            
+                            lng = (Double) sdl.get(i).getFieldValue("longitude");
+                            lat = (Double) sdl.get(i).getFieldValue("latitude");
+
+                            x = (int) ((convertLngToPixel(lng) - pbbox[0]) * width_mult);
+                            y = (int) ((convertLatToPixel(lat) - pbbox[3]) * height_mult);
 
                             if (uncertaintyRadius > 0) {
-                                lng = (Double) sdl.get(i).getFieldValue("longitude");
-                                lat = (Double) sdl.get(i).getFieldValue("latitude");
-
-                                x = (int) ((convertLngToPixel(lng) - pbbox[0]) * width_mult);
-                                y = (int) ((convertLatToPixel(lat) - pbbox[3]) * height_mult);
-
                                 g.drawOval(x - uncertaintyRadius, y - uncertaintyRadius, uncertaintyRadius * 2, uncertaintyRadius * 2);
+                            } else {
+                                g.drawRect(x, y, 1, 1);
                             }
                         }
                     }
@@ -925,10 +931,12 @@ public class WebportalController implements ServletConfigAware {
             requestParams.setFl(sort[i]);
 
             SolrDocumentList sdl = searchDAO.findByFulltext(requestParams);
-            if (sdl != null && sdl.get(0) != null) {
-                bbox[i] = (Double) sdl.get(0).getFieldValue(sort[i]);
-            } else {
-                logger.error("searchDAO.findByFulltext returning SolrDocumentList with null records");
+            if (sdl != null && sdl.size() > 0) {
+                if (sdl.get(0) != null) {
+                    bbox[i] = (Double) sdl.get(0).getFieldValue(sort[i]);
+                } else {
+                    logger.error("searchDAO.findByFulltext returning SolrDocumentList with null records");
+                }
             }
         }
 

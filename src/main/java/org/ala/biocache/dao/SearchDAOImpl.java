@@ -1849,6 +1849,8 @@ public class SearchDAOImpl implements SearchDAO {
         //add the context information
         updateQueryContext(searchParams);
 
+        solrQuery.setFacetMissing(true);
+
         QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFq(), 1, 0, "score", "asc");
         List<FacetField> facets = qr.getFacetFields();
         if (facets != null) {
@@ -1858,9 +1860,11 @@ public class SearchDAOImpl implements SearchDAO {
                     int i = 0;
                     for (i=0;i<facetEntries.size();i++) {
                         FacetField.Count fcount = facetEntries.get(i);
-                        legend.add(new LegendItem(fcount.getName(), fcount.getCount(), 
-                                /*fcount.getAsFilterQuery()*/
-                                facetField + ":\"" + fcount.getName() + "\""));
+                        String fq = facetField + ":\"" + fcount.getName() + "\"";
+                        if(fcount.getName() == null) {
+                            fq = "-" + facetField + ":[* TO *]";
+                        }
+                        legend.add(new LegendItem(fcount.getName(), fcount.getCount(), fq));                                
                     }
                     break;
                 }
@@ -1872,19 +1876,6 @@ public class SearchDAOImpl implements SearchDAO {
             for(Entry<String, Integer> es : facetq.entrySet()) {
                 legend.add(new LegendItem(es.getKey(), es.getValue(), es.getKey()));
             }
-        }
-
-        //nulls
-        String fq = "-" + facetField + ":[* TO *]";
-        String [] fqs = {fq};
-        if(searchParams.getFq() != null && searchParams.getFq().length > 0) {
-            fqs = new String[searchParams.getFq().length + 1];
-            System.arraycopy(searchParams.getFq(), 0, fqs, 0, fqs.length-1);
-            fqs[fqs.length-1] = fq;
-        }
-        qr = runSolrQuery(solrQuery, fqs, 1, 0, "score", "asc");
-        if(qr.getResults() != null && qr.getResults().getNumFound() > 0) {
-            legend.add(new LegendItem(null, qr.getResults().getNumFound(), fq));
         }
 
         return legend;

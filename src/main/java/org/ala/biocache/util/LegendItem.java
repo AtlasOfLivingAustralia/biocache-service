@@ -48,16 +48,15 @@ public class LegendItem implements Comparable<LegendItem> {
      */
     @Override
     public int compareTo(LegendItem o) {
-//        if(name == null && o.name == null) {
-//            return 0;
-//        } else if(name == null) {
-//            return 1;
-//        } else if(o.name == null) {
-//            return -1;
-//        }
-
         long c = count - o.count;
         if(c == 0) {
+           if(name == null && o.name == null) {
+                return 0;
+            } else if(name == null) {
+                return 1;
+            } else if(o.name == null) {
+                return -1;
+            }
             return name.compareTo(o.name);
         } else {
             return (c>0)?-1:1;
