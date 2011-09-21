@@ -14,6 +14,7 @@
  ***************************************************************************/
 package org.ala.biocache.web;
 
+import au.org.ala.biocache.OccurrenceIndex;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -22,11 +23,14 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
+import org.apache.commons.io.FileUtils;
 
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
@@ -38,7 +42,9 @@ import javax.servlet.http.HttpServletResponse;
 import org.ala.biocache.dao.SearchDAO;
 import org.ala.biocache.dto.OccurrencePoint;
 import org.ala.biocache.dto.PointType;
+import org.ala.biocache.dto.SearchResultDTO;
 import org.ala.biocache.dto.SpatialSearchRequestParams;
+import org.ala.biocache.heatmap.HeatMap;
 import org.ala.biocache.util.SearchUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -47,6 +53,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.context.ServletConfigAware;
 
 /**
@@ -59,7 +66,6 @@ public class MapController implements ServletConfigAware {
 
     /** Logger initialisation */
     private final static Logger logger = Logger.getLogger(MapController.class);
-    
     private String baseMapPath = "/images/mapaus1_white.png";
     /** Fulltext search DAO */
     @Inject
@@ -67,10 +73,9 @@ public class MapController implements ServletConfigAware {
     /** Search Utils helper class */
     @Inject
     protected SearchUtils searchUtils;
-    
     private ServletConfig cfg;
 
-     @RequestMapping(value = "/occurrences/wms", method = RequestMethod.GET)
+    @RequestMapping(value = "/occurrences/wms", method = RequestMethod.GET)
     public void pointsWmsImage(SpatialSearchRequestParams requestParams,
             @RequestParam(value = "colourby", required = false, defaultValue = "0") Integer colourby,
             @RequestParam(value = "width", required = false, defaultValue = "256") Integer widthObj,
@@ -221,7 +226,7 @@ public class MapController implements ServletConfigAware {
             outStream.close();
 
         } catch (Exception e) {
-            logger.error("Unable to write image",e);
+            logger.error("Unable to write image", e);
         }
     }
 
@@ -248,7 +253,7 @@ public class MapController implements ServletConfigAware {
                 bbox[i] = Double.parseDouble(s);
                 i++;
             } catch (Exception e) {
-                logger.error(e.getMessage(),e);
+                logger.error(e.getMessage(), e);
             }
         }
 
@@ -371,7 +376,7 @@ public class MapController implements ServletConfigAware {
             outStream.close();
 
         } catch (Exception e) {
-            logger.error("Unable to write image.",e);
+            logger.error("Unable to write image.", e);
         }
     }
 
@@ -384,7 +389,7 @@ public class MapController implements ServletConfigAware {
             HttpServletResponse response)
             throws Exception {
 
-       
+
         if (callback != null && !callback.isEmpty()) {
             response.setContentType("text/javascript");
         } else {
@@ -555,11 +560,181 @@ public class MapController implements ServletConfigAware {
      * @return
      * @throws IOException
      */
-	private BufferedImage createBaseMapImage() throws IOException {
-    	InputStream in = this.cfg.getServletContext().getResourceAsStream(baseMapPath);
+    private BufferedImage createBaseMapImage() throws IOException {
+        InputStream in = this.cfg.getServletContext().getResourceAsStream(baseMapPath);
         return ImageIO.read(in);
-	}
+    }
+
+    /**
+     * This method creates and renders a density map for a species.
+     * 
+     * @param lsid
+     * @param model
+     * @return
+     * @throws Exception 
+     */
+    @RequestMapping(value = "/density/map", method = RequestMethod.GET)
+    public @ResponseBody
+    void speciesDensityMap(SpatialSearchRequestParams requestParams, Model model, HttpServletRequest request, HttpServletResponse response) throws Exception {
+        response.setContentType("image/png");
+        File baseDir = new File("/data/output/heatmap");
+        String outputHMFile = requestParams.getQ().replace(":", "_") + "_hm.png";
+        
+        //Does file exist on disk?
+        File f = new File(baseDir + "/" + outputHMFile);
+
+        if (!f.isFile()){
+        //If not, generate
+            generateStaticHeatmapImages(requestParams, model, request, response);
+        }
+        else{
+            logger.info("heatmap file already exists on disk, sending file back to user");
+        }
+            
+        try {
+            //read file off disk and send back to user
+            File file = new File(baseDir + "/" + outputHMFile);
+            BufferedImage img =  ImageIO.read(file);
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            ImageIO.write(img, "png", outputStream);
+            ServletOutputStream outStream = response.getOutputStream();
+            outStream.write(outputStream.toByteArray());
+            outStream.flush();
+            outStream.close();
+
+        } catch (Exception e) {
+            logger.error("Unable to write image.", e);
+        }    
+    }
     
+    /**
+     * This method creates and renders a density map legend for a species.
+     * 
+     * @param lsid
+     * @param model
+     * @return
+     * @throws Exception 
+     */
+    @RequestMapping(value = "/density/legend", method = RequestMethod.GET)
+    public @ResponseBody
+    void speciesDensityLegend(SpatialSearchRequestParams requestParams, Model model, HttpServletRequest request, HttpServletResponse response) throws Exception {
+        
+        response.setContentType("image/png");
+        File baseDir = new File("/data/output/heatmap");
+        String outputHMFile = requestParams.getQ().replace(":", "_") + "_hm.png";
+        
+        //Does file exist on disk?
+        File f = new File(baseDir + "/" + "legend_" + outputHMFile);
+
+        if (!f.isFile()){
+        //If not, generate
+            logger.info("generating heatmap (and optional legend) images to disk");
+            generateStaticHeatmapImages(requestParams, model, request, response);
+        }
+        else{
+            logger.info("legend file already exists on disk, sending file back to user");
+        }
+        
+        //read file off disk and send back to user
+        try {
+            File file = new File(baseDir + "/" + "legend_" + outputHMFile);
+            BufferedImage img =  ImageIO.read(file);
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            ImageIO.write(img, "png", outputStream);
+            ServletOutputStream outStream = response.getOutputStream();
+            outStream.write(outputStream.toByteArray());
+            outStream.flush();
+            outStream.close();
+
+        } catch (Exception e) {
+            logger.error("Unable to write image.", e);
+        }
+    }
+
+    /**
+     * Generate heatmap image (and associated legend if applicable)
+     * @param requestParams
+     * @param model
+     * @param request
+     * @param response 
+     */
+    public void generateStaticHeatmapImages(SpatialSearchRequestParams requestParams, Model model, HttpServletRequest request, HttpServletResponse response){
+        String baseDirStr = "/data/output/heatmap";
+        File baseDir = new File(baseDirStr);
+        boolean isHeatmap = true;        
+        String outputHMFile = requestParams.getQ().replace(":", "_") + "_hm.png";
+        requestParams.setPageSize(500000);
+        
+        SearchResultDTO searchResult = new SearchResultDTO();
+        try{
+            searchResult = searchDAO.findByFulltextQuery(requestParams);
+        }
+        catch (Exception e){
+            logger.error("an Error occurred searching biocache");
+        }
+        long count = searchResult.getTotalRecords();
+        
+        logger.info("Total occurence results returned is: " + count);
+        List<OccurrenceIndex> occurrences = searchResult.getOccurrences();
+
+        //Extract lat/longs from result set and populate an array doubles (passed through to HeatMap
+        ArrayList<Double> ar = new ArrayList();
+        Double latitude = new Double(0.0);
+        Double longitude = new Double(0.0);
+
+        for (Iterator<OccurrenceIndex> it = occurrences.iterator(); it.hasNext();) {
+            OccurrenceIndex occurrenceIndex = it.next();
+
+            String s = occurrenceIndex.getLatLong();
+            //ignore occurrences that don't have a lat/long
+            if (s != null) {
+                String[] results = s.split(",");
+                longitude = new Double(results[1]);
+                ar.add(longitude);
+                latitude = new Double(results[0]);
+                ar.add(latitude);
+            }
+        }
+        double[] points = new double[ar.size()];
+        int cnt = 0;
+        for (Iterator it = ar.iterator(); it.hasNext();) {
+            Double val = (Double) it.next();
+            points[cnt] = val.doubleValue();
+            cnt++;
+        }
+
+        if (points != null && points.length > 0) {
+            HeatMap hm = new HeatMap(baseDir, outputHMFile);
+
+            if ((points.length / 2) < 500) {
+                hm.generatePoints(points);
+                hm.drawOutput(baseDir + "/" + outputHMFile, false);
+                isHeatmap = false;
+            } else {
+                hm.generateClasses(points);
+                hm.drawOutput(baseDir + "/" + outputHMFile, true);
+                isHeatmap = true;
+            }
+        } else {
+            logger.info("No points provided, creating a blank map");
+            
+            File inMapFile = new File(baseDir + "/base/mapaus1_white.png");
+            File outMapFile = new File(baseDir + "/" + outputHMFile);
+
+            File inLegFile = new File(baseDir + "/base/blank.png");
+            File outLegFile = new File(baseDir + "/" + "legend_" + outputHMFile);
+            
+            try{
+                FileUtils.copyFile(inMapFile, outMapFile);
+                FileUtils.copyFile(inLegFile, outLegFile);
+            }catch (Exception e){
+                logger.error("Unable to create blank map/legend");
+            }
+            
+        }
+    }
+    
+ 
     public void setSearchDAO(SearchDAO searchDAO) {
         this.searchDAO = searchDAO;
     }
@@ -568,8 +743,8 @@ public class MapController implements ServletConfigAware {
         this.searchUtils = searchUtils;
     }
 
-	@Override
-	public void setServletConfig(ServletConfig cfg) {
-		this.cfg = cfg;
-	}
+    @Override
+    public void setServletConfig(ServletConfig cfg) {
+        this.cfg = cfg;
+    }
 }
