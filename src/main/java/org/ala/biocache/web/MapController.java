@@ -579,22 +579,21 @@ public class MapController implements ServletConfigAware {
         response.setContentType("image/png");
         File baseDir = new File("/data/output/heatmap");
         String outputHMFile = requestParams.getQ().replace(":", "_") + "_hm.png";
-        
+
         //Does file exist on disk?
         File f = new File(baseDir + "/" + outputHMFile);
 
-        if (!f.isFile()){
-        //If not, generate
+        if (!f.isFile()) {
+            //If not, generate
             generateStaticHeatmapImages(requestParams, model, request, response);
-        }
-        else{
+        } else {
             logger.info("heatmap file already exists on disk, sending file back to user");
         }
-            
+
         try {
             //read file off disk and send back to user
             File file = new File(baseDir + "/" + outputHMFile);
-            BufferedImage img =  ImageIO.read(file);
+            BufferedImage img = ImageIO.read(file);
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             ImageIO.write(img, "png", outputStream);
             ServletOutputStream outStream = response.getOutputStream();
@@ -604,9 +603,9 @@ public class MapController implements ServletConfigAware {
 
         } catch (Exception e) {
             logger.error("Unable to write image.", e);
-        }    
+        }
     }
-    
+
     /**
      * This method creates and renders a density map legend for a species.
      * 
@@ -618,27 +617,26 @@ public class MapController implements ServletConfigAware {
     @RequestMapping(value = "/density/legend", method = RequestMethod.GET)
     public @ResponseBody
     void speciesDensityLegend(SpatialSearchRequestParams requestParams, Model model, HttpServletRequest request, HttpServletResponse response) throws Exception {
-        
+
         response.setContentType("image/png");
         File baseDir = new File("/data/output/heatmap");
         String outputHMFile = requestParams.getQ().replace(":", "_") + "_hm.png";
-        
+
         //Does file exist on disk?
         File f = new File(baseDir + "/" + "legend_" + outputHMFile);
 
-        if (!f.isFile()){
-        //If not, generate
+        if (!f.isFile()) {
+            //If not, generate
             logger.info("generating heatmap (and optional legend) images to disk");
             generateStaticHeatmapImages(requestParams, model, request, response);
-        }
-        else{
+        } else {
             logger.info("legend file already exists on disk, sending file back to user");
         }
-        
+
         //read file off disk and send back to user
         try {
             File file = new File(baseDir + "/" + "legend_" + outputHMFile);
-            BufferedImage img =  ImageIO.read(file);
+            BufferedImage img = ImageIO.read(file);
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             ImageIO.write(img, "png", outputStream);
             ServletOutputStream outStream = response.getOutputStream();
@@ -658,51 +656,45 @@ public class MapController implements ServletConfigAware {
      * @param request
      * @param response 
      */
-    public void generateStaticHeatmapImages(SpatialSearchRequestParams requestParams, Model model, HttpServletRequest request, HttpServletResponse response){
+    public void generateStaticHeatmapImages(SpatialSearchRequestParams requestParams, Model model, HttpServletRequest request, HttpServletResponse response) {
         String baseDirStr = "/data/output/heatmap";
         File baseDir = new File(baseDirStr);
-        boolean isHeatmap = true;        
+        boolean isHeatmap = true;
         String outputHMFile = requestParams.getQ().replace(":", "_") + "_hm.png";
-        requestParams.setPageSize(500000);
-        
-        SearchResultDTO searchResult = new SearchResultDTO();
-        try{
-            searchResult = searchDAO.findByFulltextQuery(requestParams);
-        }
-        catch (Exception e){
-            logger.error("an Error occurred searching biocache");
-        }
-        long count = searchResult.getTotalRecords();
-        
-        logger.info("Total occurence results returned is: " + count);
-        List<OccurrenceIndex> occurrences = searchResult.getOccurrences();
 
-        //Extract lat/longs from result set and populate an array doubles (passed through to HeatMap
-        ArrayList<Double> ar = new ArrayList();
-        Double latitude = new Double(0.0);
-        Double longitude = new Double(0.0);
 
-        for (Iterator<OccurrenceIndex> it = occurrences.iterator(); it.hasNext();) {
-            OccurrenceIndex occurrenceIndex = it.next();
+        //PointType pointType = PointType.POINT_RAW;
+        PointType pointType = PointType.POINT_001;
 
-            String s = occurrenceIndex.getLatLong();
-            //ignore occurrences that don't have a lat/long
-            if (s != null) {
-                String[] results = s.split(",");
-                longitude = new Double(results[1]);
-                ar.add(longitude);
-                latitude = new Double(results[0]);
-                ar.add(latitude);
+        double[] points = null;
+
+        try {
+            List<OccurrencePoint> occ_points = searchDAO.getFacetPoints(requestParams, pointType);
+            logger.debug("Points search for " + pointType.getLabel() + " - found: " + occ_points.size());
+
+            ArrayList<Double> ar = new ArrayList();
+
+            int totalItems = 0;
+            for (int i = 0; i < occ_points.size(); i++) {
+                OccurrencePoint pt = occ_points.get(i);
+                totalItems = (int) (totalItems + pt.getCount());
             }
-        }
-        double[] points = new double[ar.size()];
-        int cnt = 0;
-        for (Iterator it = ar.iterator(); it.hasNext();) {
-            Double val = (Double) it.next();
-            points[cnt] = val.doubleValue();
-            cnt++;
-        }
+            logger.info("total number of occurrence points is " + totalItems);
 
+            points = new double[totalItems * 2];
+
+            int j = 0;
+            for (int i = 0; i < occ_points.size(); i++) {
+                OccurrencePoint pt = occ_points.get(i);
+                pt.getCount();
+                double lng = pt.getCoordinates().get(0).doubleValue();
+                double lat = pt.getCoordinates().get(1).doubleValue();
+                points[j] = lng;
+                points[j + 1] = lat;
+                j = j + 2;
+            }
+        } catch (Exception e) {
+        }
         if (points != null && points.length > 0) {
             HeatMap hm = new HeatMap(baseDir, outputHMFile);
 
@@ -717,24 +709,23 @@ public class MapController implements ServletConfigAware {
             }
         } else {
             logger.info("No points provided, creating a blank map");
-            
+
             File inMapFile = new File(baseDir + "/base/mapaus1_white.png");
             File outMapFile = new File(baseDir + "/" + outputHMFile);
 
             File inLegFile = new File(baseDir + "/base/blank.png");
             File outLegFile = new File(baseDir + "/" + "legend_" + outputHMFile);
-            
-            try{
+
+            try {
                 FileUtils.copyFile(inMapFile, outMapFile);
                 FileUtils.copyFile(inLegFile, outLegFile);
-            }catch (Exception e){
+            } catch (Exception e) {
                 logger.error("Unable to create blank map/legend");
             }
-            
+
         }
     }
-    
- 
+
     public void setSearchDAO(SearchDAO searchDAO) {
         this.searchDAO = searchDAO;
     }
