@@ -14,7 +14,6 @@
  ***************************************************************************/
 package org.ala.biocache.web;
 
-import au.org.ala.biocache.OccurrenceIndex;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -28,7 +27,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import org.apache.commons.io.FileUtils;
 
@@ -42,7 +40,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.ala.biocache.dao.SearchDAO;
 import org.ala.biocache.dto.OccurrencePoint;
 import org.ala.biocache.dto.PointType;
-import org.ala.biocache.dto.SearchResultDTO;
 import org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.ala.biocache.heatmap.HeatMap;
 import org.ala.biocache.util.SearchUtils;
@@ -67,6 +64,13 @@ public class MapController implements ServletConfigAware {
     /** Logger initialisation */
     private final static Logger logger = Logger.getLogger(MapController.class);
     private String baseMapPath = "/images/mapaus1_white.png";
+    
+    protected String heatmapBase = "/data/output/heatmap";
+    
+    public void setHeatmapBase(String heatmapBase) {
+        this.heatmapBase = heatmapBase;
+    }
+    
     /** Fulltext search DAO */
     @Inject
     protected SearchDAO searchDAO;
@@ -575,15 +579,18 @@ public class MapController implements ServletConfigAware {
      */
     @RequestMapping(value = "/density/map", method = RequestMethod.GET)
     public @ResponseBody
-    void speciesDensityMap(SpatialSearchRequestParams requestParams, Model model, HttpServletRequest request, HttpServletResponse response) throws Exception {
+    void speciesDensityMap(SpatialSearchRequestParams requestParams, Model model,
+            @RequestParam(value = "forceRefresh", required = false, defaultValue = "false") boolean forceRefresh,
+            HttpServletRequest request, HttpServletResponse response) throws Exception {
         response.setContentType("image/png");
-        File baseDir = new File("/data/output/heatmap");
+        File baseDir = new File(heatmapBase);
         String outputHMFile = requestParams.getQ().replace(":", "_") + "_hm.png";
 
         //Does file exist on disk?
         File f = new File(baseDir + "/" + outputHMFile);
 
-        if (!f.isFile()) {
+        if (!f.isFile() || forceRefresh) {
+            logger.info("regenerating heatmap images");
             //If not, generate
             generateStaticHeatmapImages(requestParams, model, request, response);
         } else {
@@ -616,18 +623,20 @@ public class MapController implements ServletConfigAware {
      */
     @RequestMapping(value = "/density/legend", method = RequestMethod.GET)
     public @ResponseBody
-    void speciesDensityLegend(SpatialSearchRequestParams requestParams, Model model, HttpServletRequest request, HttpServletResponse response) throws Exception {
+    void speciesDensityLegend(SpatialSearchRequestParams requestParams,
+            @RequestParam(value = "forceRefresh", required = false, defaultValue = "false") boolean forceRefresh,
+            Model model, HttpServletRequest request, HttpServletResponse response) throws Exception {
 
         response.setContentType("image/png");
-        File baseDir = new File("/data/output/heatmap");
+        File baseDir = new File(heatmapBase);
         String outputHMFile = requestParams.getQ().replace(":", "_") + "_hm.png";
 
         //Does file exist on disk?
         File f = new File(baseDir + "/" + "legend_" + outputHMFile);
-
-        if (!f.isFile()) {
+        
+        if (!f.isFile() || forceRefresh) {
             //If not, generate
-            logger.info("generating heatmap (and optional legend) images to disk");
+            logger.info("regenerating heatmap images");
             generateStaticHeatmapImages(requestParams, model, request, response);
         } else {
             logger.info("legend file already exists on disk, sending file back to user");
@@ -657,8 +666,9 @@ public class MapController implements ServletConfigAware {
      * @param response 
      */
     public void generateStaticHeatmapImages(SpatialSearchRequestParams requestParams, Model model, HttpServletRequest request, HttpServletResponse response) {
-        String baseDirStr = "/data/output/heatmap";
-        File baseDir = new File(baseDirStr);
+        
+        File baseDir = new File(heatmapBase);
+        logger.info("heatmap base is " + heatmapBase);
         boolean isHeatmap = true;
         String outputHMFile = requestParams.getQ().replace(":", "_") + "_hm.png";
 
@@ -669,6 +679,8 @@ public class MapController implements ServletConfigAware {
         double[] points = null;
 
         try {
+            //set the geospatial_kosher flag
+            requestParams.setQ(requestParams.getQ() + " AND geospatial_kosher:true");
             List<OccurrencePoint> occ_points = searchDAO.getFacetPoints(requestParams, pointType);
             logger.debug("Points search for " + pointType.getLabel() + " - found: " + occ_points.size());
 

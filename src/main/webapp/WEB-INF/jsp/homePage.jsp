@@ -66,7 +66,9 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             		<li><a href="/ws/occurrences/spatial?wkt=POLYGON((140:-37,151:-37,151:-26,140.1310:-26,140:-37))">/occurrences/spatial?wkt=POLYGON((140:-37,151:-37,151:-26,140.1310:-26,140:-37))</a></li>
             		<li><a href="/ws/occurrences/spatial?url=http://spatial.ala.org.au/gazetteer/lga/Acton_(Australian_Capital_Territory).xml">/occurrences/spatial?url=http://spatial.ala.org.au/gazetteer/lga/Acton_(Australian_Capital_Territory).xml</a></li>
             	</ul> 
-            </li>            
+            </li>
+            <li><strong>Static Species Density Heatmap </strong><a href="/ws/density/map?q=*:*">/density/map?q=*:*</a></li> - returns heatmap image (optional param forceRefresh=true will regenerate the image)
+            <li><strong>Static Species Density Legend: </strong><a href="/ws/density/legend?q=*:*">/density/legend?q=*:*</a></li> - returns associated legend image (optional param forceRefresh=true will regenerate the image)
         </ul>
 
         <h3>Assertions</h3>

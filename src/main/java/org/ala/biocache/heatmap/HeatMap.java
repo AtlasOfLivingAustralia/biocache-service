@@ -79,6 +79,7 @@ public class HeatMap {
             legendImage = ImageIO.read(new File(baseDir.getAbsolutePath() + "/base/heatmap_key.png"));
             dotImage = getDotImageFile();
         } catch (IOException e) {
+            
             e.printStackTrace();
         }
 
