@@ -30,7 +30,8 @@ public class RangeBasedFacets {
                 .put("coordinate_uncertainty:[501 TO 1000]", "between 500 and 1000")
                 .put("coordinate_uncertainty:[1001 TO 5000]", "between 1000 and 5000")
                 .put("coordinate_uncertainty:[5001 TO 10000]", "between 5000 and 10000")
-                .put("coordinate_uncertainty:[10001 TO *]", "greater than 10000").build();
+                .put("coordinate_uncertainty:[10001 TO *]", "greater than 10000")
+                .put("-coordinate_uncertainty:[* TO *]", "Unknown").build();
 
         rangeFacets.put("uncertainty", map);
     }
