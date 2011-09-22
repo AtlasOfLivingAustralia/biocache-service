@@ -73,6 +73,23 @@ public class AssertionController extends AbstractSecureController {
 	public @ResponseBody ErrorCode[] showUserCodes() throws Exception {
         return Store.retrieveUserAssertionCodes();
     }
+    /**
+     * This version of the method can handle the situation where we use rowKeys as Uuids. Thus
+     * URL style rowKeys can be correctly supported.
+     * 
+     * @param recordUuid
+     * @param request
+     * @param response
+     * @throws Exception
+     */
+    @RequestMapping(value={"/occurrences/assertions/add"}, method = RequestMethod.POST)
+    public void addAssertionWithParams(
+            @RequestParam(value="recordUuid", required=true) String recordUuid,
+            HttpServletRequest request,
+            HttpServletResponse response) throws Exception{
+            
+        addAssertion(recordUuid, request,response);
+    }
 
     /**
      * add an assertion
@@ -119,6 +136,26 @@ public class AssertionController extends AbstractSecureController {
             }
         }
 
+    }
+    /**
+     * Removes an assertion
+     * 
+     * This version of the method can handle the situation where we use rowKeys as Uuids. Thus
+     * URL style rowKeys can be correctly supported.
+     * 
+     * @param recordUuid
+     * @param assertionUuid
+     * @param request
+     * @param response
+     * @throws Exception
+     */
+    @RequestMapping(value = {"/occurrences/assertions/delete"}, method = RequestMethod.POST)
+    public void deleteAssertionWithParams(
+            @RequestParam(value="recordUuid", required=true) String recordUuid,
+            @RequestParam(value="assertionUuid", required=true) String assertionUuid,
+            HttpServletRequest request,
+            HttpServletResponse response) throws Exception {
+            deleteAssertion(recordUuid, assertionUuid, request, response);
     }
 
     /**
@@ -176,6 +213,16 @@ public class AssertionController extends AbstractSecureController {
 
             }
         }
+    }
+    @RequestMapping(value = {"/occurrences/assertions"}, method = RequestMethod.GET)
+    public @ResponseBody Object getAssertionWithParams(
+            @RequestParam(value="recordUuid", required=true) String recordUuid,
+            @RequestParam(value="assertionUuid",required=false) String assertionUuid,
+            HttpServletResponse response) throws Exception{
+        if(assertionUuid != null)
+            return getAssertion(recordUuid, assertionUuid, response);
+        else
+            return getAssertions(recordUuid);
     }
 
     /**

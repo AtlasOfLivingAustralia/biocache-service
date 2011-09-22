@@ -15,11 +15,12 @@
 package org.ala.biocache.web;
 
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletResponse;
 
 import org.ala.biocache.dao.SearchDAO;
-import org.ala.biocache.dto.BreakdownRequestParams;
-import org.ala.biocache.dto.TaxaRankCountDTO;
+import org.ala.biocache.dto.*;
 import org.ala.biocache.util.SearchUtils;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,8 +52,8 @@ public class BreakdownController {
 	 */
 	@RequestMapping(value = "/breakdown/collections/{uid}*")
 	public @ResponseBody TaxaRankCountDTO breakdownByCollection(BreakdownRequestParams requestParams,
-	            @PathVariable("uid") String uid) throws Exception{
-	    return performBreakdown("collection_uid", uid, requestParams);
+	            @PathVariable("uid") String uid, HttpServletResponse response) throws Exception{
+	    return performBreakdown("collection_uid", uid, requestParams, response);
 	}
 	/**
 	 * Performs a breakdown based on an institution
@@ -63,8 +64,8 @@ public class BreakdownController {
 	 */
 	@RequestMapping(value = "/breakdown/institutions/{uid}*")
     public @ResponseBody TaxaRankCountDTO breakdownByInstitution(BreakdownRequestParams requestParams,
-                @PathVariable("uid") String uid) throws Exception{
-        return performBreakdown("institution_uid", uid, requestParams);
+                @PathVariable("uid") String uid, HttpServletResponse response) throws Exception{
+        return performBreakdown("institution_uid", uid, requestParams, response);
     }
 	/**
 	 * Performs a breakdown based on a data resource
@@ -75,8 +76,8 @@ public class BreakdownController {
 	 */
 	@RequestMapping(value = "/breakdown/dataResources/{uid}*")
     public @ResponseBody TaxaRankCountDTO breakdownByDataResource(BreakdownRequestParams requestParams,
-                @PathVariable("uid") String uid) throws Exception{
-        return performBreakdown("data_resource_uid", uid, requestParams);
+                @PathVariable("uid") String uid, HttpServletResponse response) throws Exception{
+        return performBreakdown("data_resource_uid", uid, requestParams, response);
     }
 	/**
 	 * Performs a breakdown based on a data provider
@@ -87,8 +88,8 @@ public class BreakdownController {
 	 */
 	@RequestMapping(value = "/breakdown/dataProviders/{uid}*")
     public @ResponseBody TaxaRankCountDTO breakdownByDataProvider(BreakdownRequestParams requestParams,
-                @PathVariable("uid") String uid) throws Exception{
-        return performBreakdown("data_provider_uid", uid, requestParams);
+                @PathVariable("uid") String uid, HttpServletResponse response) throws Exception{
+        return performBreakdown("data_provider_uid", uid, requestParams, response);
     }
 	/**
 	 * Performs a breakdown based on a data hub
@@ -99,9 +100,24 @@ public class BreakdownController {
 	 */
 	@RequestMapping(value = "/breakdown/dataHubs/{uid}*")
     public @ResponseBody TaxaRankCountDTO breakdownByDataHub(BreakdownRequestParams requestParams,
-                @PathVariable("uid") String uid) throws Exception{
-        return performBreakdown("data_hub_uid", uid, requestParams);
+                @PathVariable("uid") String uid, HttpServletResponse response) throws Exception{
+        return performBreakdown("data_hub_uid", uid, requestParams, response);
     }
+	
+	@RequestMapping(value= "/breakdown*")
+	public @ResponseBody TaxaRankCountDTO breakdownByQuery(BreakdownRequestParams  breakdownParams,HttpServletResponse response) throws Exception {
+	    System.out.println(breakdownParams);
+	    if(StringUtils.isNotEmpty(breakdownParams.getQ())){
+	        if(breakdownParams.getMax() != null || StringUtils.isNotEmpty(breakdownParams.getRank()) || StringUtils.isNotEmpty(breakdownParams.getLevel()))
+	            return searchDAO.calculateBreakdown(breakdownParams);
+	        else
+	            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "No context provided for breakdown.  Please supply either max, rank or level as a minimum");
+	    }
+	    else{
+	        response.sendError(HttpServletResponse.SC_BAD_REQUEST, "No query provided for breakdown");
+	    }
+	    return null;
+	}
 	/**
 	 * performs the actual breakdown.  The type of breakdown will depend on which arguments were supplied to the webservice
 	 * @param source
@@ -110,7 +126,7 @@ public class BreakdownController {
 	 * @return
 	 * @throws Exception
 	 */
-	private TaxaRankCountDTO performBreakdown(String source, String uid, BreakdownRequestParams requestParams) throws Exception{
+	private TaxaRankCountDTO performBreakdown(String source, String uid, BreakdownRequestParams requestParams, HttpServletResponse response) throws Exception{
 	    StringBuilder sb = new StringBuilder("(");
 	    //support CSV list of uids
 	    for(String u:uid.split(",")){
@@ -120,20 +136,23 @@ public class BreakdownController {
 	    }
 	    sb.append(")");
 	    
-	    if(requestParams.getMax() != null && requestParams.getMax() >0){
-	        /*
-	          Returns a breakdown of collection,institution by a specific rank where the breakdown is limited to the
-              supplied max number. The rank that is returned depends on which rank contains closest to max
-              distinct values.
-	         */
-	        return searchDAO.findTaxonCountForUid(sb.toString(), requestParams.getQc(), requestParams.getMax());
-	    }
-	    else if(requestParams.getRank() != null){
-	        if(requestParams.getName() != null && requestParams.getRank() != null)
-	            sb.append(" AND ").append(requestParams.getRank()).append(":").append(requestParams.getName());
-	        return searchDAO.findTaxonCountForUid(requestParams,sb.toString());
-	    }
-	    return null;
+	    requestParams.setQ(sb.toString());
+	    return breakdownByQuery(requestParams, response);
+	    
+//	    if(requestParams.getMax() != null && requestParams.getMax() >0){
+//	        /*
+//	          Returns a breakdown of collection,institution by a specific rank where the breakdown is limited to the
+//              supplied max number. The rank that is returned depends on which rank contains closest to max
+//              distinct values.
+//	         */
+//	        return searchDAO.findTaxonCountForUid(sb.toString(), requestParams.getQc(), requestParams.getMax());
+//	    }
+//	    else if(requestParams.getRank() != null){
+//	        if(requestParams.getName() != null && requestParams.getRank() != null)
+//	            sb.append(" AND ").append(requestParams.getRank()).append(":").append(requestParams.getName());
+//	        return searchDAO.findTaxonCountForUid(requestParams,sb.toString());
+//	    }
+//	    return null;
 	}
 	
    
@@ -146,8 +165,8 @@ public class BreakdownController {
      * @throws Exception
      */
     @RequestMapping(value = {"/breakdown/institutions*","/breakdown/collections*", "/breakdown/data-resources*","/breakdowns/data-providers*","/breakdowns/data-hubs*"}, method = RequestMethod.GET)
-    public @ResponseBody TaxaRankCountDTO limitBreakdown(BreakdownRequestParams requestParams) throws Exception {
-        return performBreakdown("*", "*", requestParams);                
+    public @ResponseBody TaxaRankCountDTO limitBreakdown(BreakdownRequestParams requestParams, HttpServletResponse response) throws Exception {
+        return performBreakdown("*", "*", requestParams, response);                
     }
 
 

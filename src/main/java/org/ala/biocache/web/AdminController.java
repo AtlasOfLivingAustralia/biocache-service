@@ -1,5 +1,7 @@
 package org.ala.biocache.web;
 
+import java.util.List;
+
 import au.org.ala.biocache.Store;
 
 import javax.servlet.http.HttpServletRequest;
@@ -33,15 +35,38 @@ public class AdminController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping(value = "/admin/index/optimise", method = RequestMethod.POST)
-	public void changeSearcherMode(HttpServletRequest request, 
+	public void optimiseIndex(HttpServletRequest request, 
 	   HttpServletResponse response) throws Exception {
         String apiKey = request.getParameter("apiKey");
-        if(shouldPerformOperation(apiKey, response)){
+        if(shouldPerformOperation(apiKey, response)){            
             String message = Store.optimiseIndex();
             response.setStatus(HttpServletResponse.SC_OK);
             response.getWriter().write(message);
         }
 
+    }
+    /**
+     * Modifies the biocache-store:
+     * - reopen the index
+     * - enter/exit readonly mode.
+     * @param readOnly
+     * @param reopenIndex
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/admin/modify*", method = RequestMethod.GET)
+    public @ResponseBody List<String> modifyServer(@RequestParam(value = "ro", required = false) Boolean readOnly,
+            @RequestParam(value = "reopenIndex", required = false,defaultValue="false") Boolean reopenIndex) throws Exception {
+        List<String> actionsPerformed = new java.util.ArrayList<String>(); 
+        if(readOnly != null){
+            Store.setReadOnly(readOnly);
+            actionsPerformed.add("Set readonly = " + readOnly);
+        }
+        if(reopenIndex){
+            Store.reopenIndex();
+            actionsPerformed.add("Reopened the index");
+        }
+        return actionsPerformed;
     }
     /**
      * Reindexes the supplied dr based on modifications since the supplied date.

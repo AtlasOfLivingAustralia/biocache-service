@@ -75,8 +75,11 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                 <a href="/ws/assertions/codes">/assertions/codes</a>
             </li>
             <li><strong>Add an assertion:</strong> /occurrences/{uuid}/assertions/add</li>
+            <li><strong>Add an assertion using params:</strong> /occurrences/assertions/add?recordUuid={uuid}</li>
             <li><strong>Delete an assertion:</strong> /occurrences/{uuid}/assertions/{assertionUuid}/delete</li>
+            <li><strong>Delete an assertion using params:</strong> /occurrences/assertions/delete?recordUuid={uuid}&assertionUuid={assertioniUuid}</li>
             <li><strong>List assertions for occurrence:</strong> /occurrences/{uuid}/assertions/</li>
+            <li><strong>List assertions for occurrence with params:</strong> /occurrences/assertions?recordUuid={uuid}</li>
         </ul>
 
         <h3>Breakdowns</h3>
@@ -101,11 +104,25 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             </li>
         </ul>
         
+        <ul>
+        	<li><strong>Generic breakdown service is available for any query: </strong> /breakdown - available params
+        	 <ul>
+            	<li>q - the initial query on which to perform the breakdown</li>
+            	<li>fq - filters to be applied to the original query</li>
+            	<li>max - the maximum number of names to return for the breakdown.   The rank at which the breakdown will be determined based on this limit.</li>
+            	<li>rank - the rank at which to perform the breakdown - if a name is specified in conjunction to this the breakdown will be performed at the next level further limiting the query</li>
+            	<li>name - the scientific name to limit the breakdown to - needs a valid rank to be supplied</li>            	
+            </ul> 
+        	</li>
+        </ul>
+        
         <h3>Administration</h3>
         
         
         <ul>
-        	<li><strong>Check for Read Only Mode:</strong><a href="/ws/admin/isReadOnly">/admin/isReadOnly</a></li>
+        	<li><strong>Check for Read Only Mode: </strong><a href="/ws/admin/isReadOnly">/admin/isReadOnly</a></li>
+        	<li><strong>Modify Read Only Mode: </strong>/admin/modify?ro={true OR false}</li>
+        	<li><strong>Reopen Index: </strong> /admin/modify?reopenIndex=true</li>
         </ul>
         	The remaining services in the section only support POST. All services must supply apiKey as a parameter.
         <ul>
@@ -127,6 +144,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         
         <h3>Miscellaneous</h3>
         <ul>
+        	<li><strong>Retrieve i18n mappings: </strong><a href="/ws/facets/i18n">/facets/i18n</a></li>
         	<li><strong>Is Australian test:</strong> /australian/taxon/{guid} - tests to see if the supplied GUID; occurs in Australia, has an Australian LSID or is NOT Australian. Example:<br>
         	<a href="/ws/australian/taxon/urn:lsid:biodiversity.org.au:afd.taxon:aa745ff0-c776-4d0e-851d-369ba0e6f537">/australian/taxon/urn:lsid:biodiversity.org.au:afd.taxon:aa745ff0-c776-4d0e-851d-369ba0e6f537</a>
         	</li>

@@ -15,7 +15,7 @@ import org.apache.commons.math.util.MathUtils;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
-import atg.taglib.json.util.JSONObject;
+
 import au.org.ala.biocache.TaxonProfileDAO;
 import javax.inject.Inject;
 import org.ala.biocache.dto.SearchRequestParams;
@@ -371,6 +371,10 @@ public class SearchUtils {
 		if (start > 0)
 			return ranks.subList(start, ranks.size());
 		return ranks;
+	}
+	
+	public List<String> getRanks(){
+	    return ranks;
 	}
 
 	/**

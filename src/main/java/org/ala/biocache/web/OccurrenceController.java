@@ -15,6 +15,7 @@
 package org.ala.biocache.web;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -126,6 +127,25 @@ public class OccurrenceController {
 	    String[] facets = new SearchRequestParams().getFacets();
 	    return facets;
 	}
+	/**
+	 * Returns the content of the messages.properties file.
+	 * @param response
+	 * @throws Exception
+	 */
+	@RequestMapping("/facets/i18n")
+	public void writei18nPropertiesFile(HttpServletResponse response) throws Exception{	    
+        InputStream is = getClass().getResourceAsStream("/messages.properties");
+        OutputStream os = response.getOutputStream();
+        byte[] buffer = new byte[1024]; 
+        int bytesRead;
+        while ((bytesRead = is.read(buffer)) != -1)
+        {
+            os.write(buffer, 0, bytesRead);
+        }
+        os.flush();
+        os.close();
+	}
+	
 	/**
 	 * Returns a list with the details of the index field
 	 * @return
@@ -491,6 +511,15 @@ public class OccurrenceController {
         if(values.isEmpty())
             values = Store.getComparisonByRowKey(uuid);
         return values;
+    }
+    /**
+     * Returns a comparison of the occurrence versions.
+     * @param uuid
+     * @return
+     */
+    @RequestMapping(value = {"/occurrence/compare*"}, method = RequestMethod.GET)
+    public @ResponseBody Object compareOccurrenceVersions(@RequestParam(value = "uuid", required = true) String uuid){
+        return showOccurrence(uuid);
     }
     
 	/**

@@ -990,6 +990,84 @@ public class SearchDAOImpl implements SearchDAO {
         }
         return fDTOs;
     }
+    /**
+     * Calculates the breakdown of the supplied query based on the supplied params
+     */
+    public TaxaRankCountDTO calculateBreakdown(BreakdownRequestParams queryParams) throws Exception {
+        logger.debug("Attempting to find the counts for " + queryParams);
+        TaxaRankCountDTO trDTO = null;
+        SolrQuery solrQuery = new SolrQuery();
+        solrQuery.setQueryType("standard");
+        solrQuery.setQuery(queryParams.getQ());
+        queryParams.setPageSize(0);
+        solrQuery.setFacet(true);
+        solrQuery.setFacetMinCount(1);
+        solrQuery.setFacetSort("count");
+        solrQuery.setFacetLimit(-1);
+        //add the context information
+        updateQueryContext(queryParams);
+        //add the rank:name as a fq if necessary
+        if(StringUtils.isNotEmpty(queryParams.getName()) && StringUtils.isNotEmpty(queryParams.getRank())){
+            queryParams.setFq((String[])ArrayUtils.addAll(queryParams.getFq(), new String[]{queryParams.getRank() +":" + queryParams.getName()}));
+        }
+        //add the ranks as facets
+        if(queryParams.getLevel() == null){
+            List<String> ranks = queryParams.getRank()!= null?searchUtils.getNextRanks(queryParams.getRank(), queryParams.getName()==null) : searchUtils.getRanks();
+            for (String r : ranks) {
+                solrQuery.addFacetField(r);
+            }
+        }
+        else{
+            //the user has supplied the "exact" level at which to perform the breakdown
+            solrQuery.addFacetField(queryParams.getLevel());
+        }
+        QueryResponse qr = runSolrQuery(solrQuery, queryParams);        
+        if(queryParams.getMax() != null && queryParams.getMax() >0){
+            //need to get the return level that the number of facets are <=max ranks need to be processed in reverse order until max is satisfied
+            if (qr.getResults().getNumFound() > 0) {
+                List<FacetField> ffs =qr.getFacetFields();
+                //reverse the facets so that they are returned in rank reverse order species, genus, family etc
+                Collections.reverse(ffs);
+                for(FacetField ff : ffs){
+                    //logger.debug("Handling " + ff.getName());
+                    trDTO = new TaxaRankCountDTO(ff.getName());
+                    if (ff.getValues() != null && ff.getValues().size() <= queryParams.getMax()){
+                        List<FieldResultDTO> fDTOs = new ArrayList<FieldResultDTO>();
+                        for (Count count : ff.getValues()) {
+                            FieldResultDTO f = new FieldResultDTO(count.getName(), count.getCount());
+                            fDTOs.add(f);
+                        }
+                        trDTO.setTaxa(fDTOs);
+                        break;
+                    }
+                }
+                
+            }
+        }
+        else if(queryParams.getRank() != null || queryParams.getLevel() != null){
+            //just want to process normally the rank to facet on will start with the highest rank and then go down until one exists for 
+            if (qr.getResults().getNumFound() > 0) {
+                List<FacetField> ffs =qr.getFacetFields();
+                for (FacetField ff : ffs) {
+                    trDTO = new TaxaRankCountDTO(ff.getName());                    
+                    if (ff != null && ff.getValues() != null) {
+                        List<Count> counts = ff.getValues();
+                        if (counts.size() > 0) {
+                            List<FieldResultDTO> fDTOs = new ArrayList<FieldResultDTO>();
+                            for (Count count : counts) {
+                                FieldResultDTO f = new FieldResultDTO(count.getName(), count.getCount());
+                                fDTOs.add(f);
+                            }
+                            trDTO.setTaxa(fDTOs);
+                            break;
+                        }
+                    }
+                }
+            }
+            
+        }
+        return trDTO;
+    }
 
     /**
      * Finds the counts for the taxa starting at the family level.
@@ -997,12 +1075,14 @@ public class SearchDAOImpl implements SearchDAO {
      * If the number of distinct taxa is higher than maximumFacets then we
      * move up to the next level of the taxonomic hierarchy.
      *
+     *  @deprecated use {@link #calculateBreakdown(BreakdownRequestParams)} instead
      * @param query
      * @param maximumFacets
      * @return
      * @throws Exception
      */
     @Override
+    @Deprecated
     public TaxaRankCountDTO findTaxonCountForUid(String query, String queryContext, int maximumFacets) throws Exception {
         logger.debug("Attempting to find the counts for " + query);
         SolrQuery solrQuery = new SolrQuery();
@@ -1021,7 +1101,7 @@ public class SearchDAOImpl implements SearchDAO {
             QueryResponse qr = runSolrQuery(solrQuery, getQueryContextAsArray(queryContext), 1, 0, ffname, "asc");
             if (qr.getResults().size() > 0) {
                 FacetField ff = qr.getFacetField(ffname);
-                if (ff.getValues().size() <= maximumFacets) {
+                if (ff.getValues() != null && ff.getValues().size() <= maximumFacets) {
                     trDTO = new TaxaRankCountDTO(ffname);
                     List<FieldResultDTO> fDTOs = new ArrayList<FieldResultDTO>();
                     for (Count count : ff.getValues()) {
@@ -1039,7 +1119,9 @@ public class SearchDAOImpl implements SearchDAO {
 
     /**
      * @see org.ala.biocache.dao.SearchDAO#findTaxonCountForUid(java.lang.String, java.lang.String)
+     * @deprecated use {@link #calculateBreakdown(BreakdownRequestParams)} instead
      */
+    @Deprecated
     public TaxaRankCountDTO findTaxonCountForUid(BreakdownRequestParams breakdownParams,String query) throws Exception {
         TaxaRankCountDTO trDTO = null;
         List<String> ranks = breakdownParams.getLevel()== null?searchUtils.getNextRanks(breakdownParams.getRank(), breakdownParams.getName()==null) : new ArrayList<String>();
@@ -1399,6 +1481,20 @@ public class SearchDAOImpl implements SearchDAO {
                 queryString.append(spatial);
                 queryString.append(searchParams.getQ());
                 searchParams.setQ(queryString.toString());
+                //add the spatial information to the display string
+                if(spatial.contains("circles")){
+                    String[] values = spatial.substring(spatial.indexOf("=") +1 , spatial.indexOf("}")).split(",");
+                    if(values.length ==3){
+                        displaySb.setLength(0);
+                        displaySb.append(searchParams.getDisplayString());
+                        displaySb.append(" - within ").append(values[2]).append(" km of point(")
+                        .append(values[0]).append(",").append(values[1]).append(")");
+                        searchParams.setDisplayString(displaySb.toString());
+                    }
+                    
+                } else{
+                    searchParams.setDisplayString(searchParams.getDisplayString() + " - within supplied region");
+                }
             }
 
 

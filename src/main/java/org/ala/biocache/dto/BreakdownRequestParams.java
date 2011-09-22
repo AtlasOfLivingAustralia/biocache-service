@@ -6,16 +6,14 @@ package org.ala.biocache.dto;
  * @author Natasha Carter
  *
  */
-public class BreakdownRequestParams {
+public class BreakdownRequestParams extends SpatialSearchRequestParams {
     protected String rank=null;
-    protected String name=null;
-    protected String qc="";
+    protected String name=null;    
     protected Integer max = null;
     protected String level=null;
     
     public String toString(){
-        StringBuilder req = new StringBuilder("?qc");
-        req.append(qc);
+        StringBuilder req = new StringBuilder(super.toString());
         if(rank != null) req.append("&rank=").append(rank);
         if(name != null) req.append("&name=").append(name);
         if(max != null) req.append("&max=").append(max);
@@ -58,27 +56,7 @@ public class BreakdownRequestParams {
      */
     public void setName(String name) {
         this.name = name;
-    }
-
-
-
-    /**
-     * @return the qc
-     */
-    public String getQc() {
-        return qc;
-    }
-
-
-
-    /**
-     * @param qc the qc to set
-     */
-    public void setQc(String qc) {
-        this.qc = qc;
-    }
-
-
+    }   
 
     /**
      * @return the max
