@@ -549,7 +549,7 @@ public class WebportalController implements ServletConfigAware {
                     y = (int) ((convertLatToPixel(lat) - pbbox[3]) * grid_height_mult);
 
                     if (x >= 0 && x < divs && y >= 0 && y < divs) {
-                        gridCounts[x][y]++;
+                        gridCounts[x][y]+=pt.getCount();
                     }
                 }
             } else {
