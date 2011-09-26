@@ -28,11 +28,12 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             <li><strong>Occurrence for data provider:</strong> /occurrences/dataProviders/{uid}</li>
             <li><strong>Occurrence for data hub:</strong> /occurrences/dataHubs/{uid}</li>
             <li><strong>Occurrence download:</strong> /occurrences/download - needs request param definition<br>
-            The download will include all records that satisfy the q and fq parameters.  The number of records 
+            The download will include all records that satisfy the q, fq and wkt parameters.  The number of records
             for a data resource may be restricted based on a collectory configured download limit.  Params:
             <ul>
             	<li>q - the initial query</li>
             	<li>fq - filters to be applied to the original query</li>
+                <li>wkt - filter polygon area to be applied to the original query</li>
             	<li>email - the email address of the user requesting the download</li>
             	<li>reason - the reason for the download</li>
             	<li>file - the name to use for the file</li>
@@ -186,6 +187,94 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 {"assertions":[{"comment":"Missing basis of record","problemAsserted":true,"code":20001,"name":"missingBasisOfRecord","uuid":"bf9dc7a0-9918-4ae1-ac2c-2cd9729a1dc0"},{"comment":"No date information supplied","problemAsserted":true,"code":30008,"name":"missingCollectionDate","uuid":"fe473a55-89ca-4803-b8b3-c050b930d287"}],"values":[{"processed":"Macropus rufus","raw":"","name":"species"},{"processed":"urn:lsid:biodiversity.org.au:afd.taxon:065f1da4-53cd-40b8-a396-80fa5c74dedd","raw":"","name":"phylumID"},{"processed":"urn:lsid:biodiversity.org.au:afd.taxon:e9e7db31-04df-41fb-bd8d-e0b0f3c332d6","raw":"","name":"classID"},{"processed":"urn:lsid:biodiversity.org.au:afd.taxon:6d8079f1-edc9-4aab-aabd-232a32b42471","raw":"","name":"orderID"},{"processed":"Mammalia","raw":"","name":"classs"},{"processed":"urn:lsid:biodiversity.org.au:afd.taxon:72a1c39f-2435-4c28-a680-714b69ded6f9","raw":"","name":"familyID"},{"processed":"2161700","raw":"","name":"left"},{"processed":"Chordata","raw":"","name":"phylum"},{"processed":"species","raw":"","name":"taxonRank"},{"processed":"Animalia","raw":"","name":"kingdom"},{"processed":"Macropus rufus","raw":"Macropus rufus","name":"scientificName"},{"processed":"Macropus","raw":"","name":"genus"},{"processed":"7000","raw":"","name":"taxonRankID"},{"processed":"Diprotodontia","raw":"","name":"order"},{"processed":"urn:lsid:biodiversity.org.au:afd.taxon:aa745ff0-c776-4d0e-851d-369ba0e6f537","raw":"","name":"taxonConceptID"},{"processed":"[\"Animals\",\"Mammals\"]","raw":"","name":"speciesGroups"},{"processed":"Macropodidae","raw":"","name":"family"},{"processed":"urn:lsid:biodiversity.org.au:afd.taxon:aa745ff0-c776-4d0e-851d-369ba0e6f537","raw":"","name":"speciesID"},{"processed":"urn:lsid:biodiversity.org.au:afd.taxon:558a729a-789b-4b00-a685-8843dc447319","raw":"","name":"genusID"},{"processed":"2161701","raw":"","name":"right"},{"processed":"urn:lsid:biodiversity.org.au:afd.taxon:4647863b-760d-4b59-aaa1-502c8cdf8d3c","raw":"","name":"kingdomID"},{"processed":"Red Kangaroo","raw":"","name":"vernacularName"}]}
                     </span>
                 </li>
+                </ul>
+            </li>
+        </ul>
+        
+        <h3>Webportal Services</h3>
+        <ul>
+            These services will include all records that satisfy the q, fq and wkt parameters.  
+            <ul>
+            	<li>q - the initial query</li>
+            	<li>fq - filters to be applied to the original query</li>
+                <li>wkt - filter polygon area to be applied to the original query</li>
+            	<li>fl - a comma separated list of fields to include (contains a list of default)</li>
+                <li>pageSize - download limit (may be overridden)</li>
+            </ul>
+            
+            <li><strong>Short Query Parameters:</strong>
+                <ul>
+                    <li><strong>Construction:</strong> /webportal/params <br>
+                        POST service.<br>
+                        Stores q and wkt parameters.<br>
+                        Returns a short <b>value</b> that can be used as the initial q value in other services for webportal. e.g. q=qid:<b>value</b>
+                    </li>
+                    <li><strong>Test: </strong> /webportal/params/<b>value</b>
+                        Test if a short query parameter is valid.<br>
+                        Returns true or false</li>
+                </ul>
+                </li>
+             <li><strong>Occurrences Bounding Box:</strong> /webportal/bbox <br>
+                    Returns CSV of bounding box of occurrences</li>
+            <li><strong>Data Providers</strong> /webportal/dataProviders </li>
+            <li><strong>Species List:</strong>
+                <ul>
+                    <li><strong>Get species list:</strong> /webportal/species</li>
+                    <li><strong>Get species list as CSV:</strong> /webportal/species.csv</li>
+                </ul>
+            </li>
+            <li><strong>Occurrences:</strong>
+                <ul>
+                    <li><strong>Get occurrences:</strong> /webportal/occurrences</li>
+                    <li><strong>Get occurrences as gzipped CSV:</strong> /webportal/occurrences.gz</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>Webportal WMS Service</h3>
+        <ul>
+            <li><strong>Tile:</strong> /webportal/wms/reflect
+                <ul>
+                    <li>BBOX - EPSG900913 bounding box. e.g. &BBOX=12523443.0512,-2504688.2032,15028131.5936,0.3392000021413</li>
+                    <li>WIDTH - width in pixels</li>
+                    <li>HEIGHT - height in pixels</li>
+                    <li>CQL_FILTER - query parameter</li>
+                    <li>ENV - additional parameters. e.g. ENV=color%3Acd3844%3Bsize%3A3%3Bopacity%3A0.8
+                        <ul>
+                            <li>color - hex RGB values. e.g. colour:cd3844</li>
+                            <li>size - radius of points in pixels</li>
+                            <li>opacity - opacity value 0 - 1</li>
+                            <li>sel - fq parameter applied to CQL_FILTER.  Matching occurrences will be highlighted on the map in a Red circle</li>
+                            <li>uncertainty - presence of the uncertainty parameter draws uncertainty circles to a fixed maximum of 30km</li>
+                            <li>colormode - facet colouring type.  <br>
+                                <table>
+                                    <tr><td>colourmode</td><td>description</td></tr>
+                                    <tr><td>-1</td><td>(default) use color value</td></tr>
+                                    <tr><td>grid</td><td>map as density grid.  Grid cells drawn are not restricted to within any query WKT parameters.</td></tr>
+                                    <tr><td>facetname</td><td>colour as categories in a facet</td></tr>
+                                    <tr><td>facetname,cutpoints</td><td>colour as range in a facet using the supplied
+                                            comma separated cutpoints.  4 to 10 values are required.  Include minimum and maximum.
+                                            Minimum and maximum values do not need to be accurate.
+                                            e.g. colormode:year,1800,1900,1950,1970,1990,2010</td></tr>
+                                </table>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            <li><strong>Legend:</strong> /webportal/legend <br>
+                Get a CSV legend.<br>
+                Parameters:
+            <ul>
+                <li>q - CQL_FILTER value</li>
+                <li>cm - ENV colormode value</li>
+            </ul>
+                Contains columns:
+                <ul>
+                    <li>name - legend item name</li>
+                    <li>red - 0-255</li>
+                    <li>green - 0-255</li>
+                    <li>blue - 0-255</li>
+                    <li>count - number of occurrences for this legend category in the q parameter</li>
                 </ul>
             </li>
         </ul>

@@ -93,21 +93,25 @@ public class WebportalController implements ServletConfigAware {
     @RequestMapping(value = {"/webportal/params"}, method = RequestMethod.POST)
     public
     @ResponseBody
-    Long storeParams(SpatialSearchRequestParams requestParams) throws Exception {
+    Long storeParams(SpatialSearchRequestParams requestParams,
+            @RequestParam(value = "bbox", required = false, defaultValue = "false") String bbox) throws Exception {
         //cleanup Q by running a query
         //searchDAO.getSourcesForQuery(requestParams);
 
         //get bbox (also cleans up Q)
-        double[] bbox = getBBox(requestParams);
+        double[] bb = null;
+        if(bbox != null && bbox.equals("true")) {
+            bb = getBBox(requestParams);
+        }
 
         //store
-        return ParamsCache.put(requestParams.getQ(), requestParams.getDisplayString(), requestParams.getWkt(), bbox);
+        return ParamsCache.put(requestParams.getQ(), requestParams.getDisplayString(), requestParams.getWkt(), bb);
     }
 
     /**
      * Test presence of query params {id} in params store.
      */
-    @RequestMapping(value = {"/webportal/params/{id}"}, method = RequestMethod.POST)
+    @RequestMapping(value = {"/webportal/params/{id}"}, method = RequestMethod.GET)
     public
     @ResponseBody
     Boolean storeParams(@PathVariable("id") Long id) throws Exception {
@@ -456,8 +460,8 @@ public class WebportalController implements ServletConfigAware {
         //bounding box test (q must be 'qid:' + number)
         if (q.startsWith("qid:")) {
             double[] queryBBox = ParamsCache.get(Long.parseLong(q.substring(4))).getBbox();
-            if (queryBBox[0] > bbox[2] || queryBBox[2] < bbox[0]
-                    || queryBBox[1] > bbox[3] || queryBBox[3] < bbox[1]) {
+            if (queryBBox != null && (queryBBox[0] > bbox[2] || queryBBox[2] < bbox[0]
+                    || queryBBox[1] > bbox[3] || queryBBox[3] < bbox[1])) {
                 displayBlankImage(response);
                 return;
             }
