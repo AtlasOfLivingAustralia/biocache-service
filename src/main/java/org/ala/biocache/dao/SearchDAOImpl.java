@@ -51,6 +51,7 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.SolrQuery.ORDER;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
 import org.apache.solr.client.solrj.response.FacetField;
+import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.client.solrj.response.FacetField.Count;
 import org.apache.solr.client.solrj.util.ClientUtils;
@@ -1915,6 +1916,31 @@ public class SearchDAOImpl implements SearchDAO {
         }
 
         return sdl;
+    }
+    /**
+     * @see org.ala.biocache.dao.SearchDAO#getStatistics(SpatialSearchRequestParams)
+     */
+    public Map<String, FieldStatsInfo> getStatistics(SpatialSearchRequestParams searchParams) throws Exception{
+        String[] values = new String[2];
+        try{
+            formatSearchQuery(searchParams);
+          //add context information
+            updateQueryContext(searchParams);
+            String queryString = buildSpatialQueryString((SpatialSearchRequestParams)searchParams);
+            SolrQuery solrQuery = new SolrQuery();
+            solrQuery.setQuery(queryString);            
+            for(String field: searchParams.getFacets()){
+                solrQuery.setGetFieldStatistics(field);
+            }
+            QueryResponse qr = runSolrQuery(solrQuery, searchParams);
+            logger.debug(qr.getFieldStatsInfo());
+            return  qr.getFieldStatsInfo();
+            
+        }
+        catch (SolrServerException ex) {
+            logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
+        }
+        return null;
     }
 
     public List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facetField, String [] cutpoints) throws Exception {

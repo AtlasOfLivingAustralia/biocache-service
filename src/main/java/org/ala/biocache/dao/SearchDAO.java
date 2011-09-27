@@ -36,6 +36,7 @@ import org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.ala.biocache.dto.TaxaCountDTO;
 import org.ala.biocache.dto.TaxaRankCountDTO;
 import org.ala.biocache.util.LegendItem;
+import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.common.SolrDocumentList;
 
 /**
@@ -213,6 +214,8 @@ public interface SearchDAO {
      */
     List<TaxaCountDTO> findAllSpecies(SpatialSearchRequestParams requestParams) throws Exception;
 
+   
+    
     /**
      * Find all occurrences for a given query as SolrDocumentList
      *
@@ -221,6 +224,13 @@ public interface SearchDAO {
      * @throws Exception
      */
     SolrDocumentList findByFulltext(SpatialSearchRequestParams searchParams) throws Exception;
+    /**
+     * Statistics for each of the fields included as facets.  Statistics are only possible for numeric fields.
+     * @param searchParams
+     * @return
+     * @throws Exception
+     */
+    Map<String, FieldStatsInfo> getStatistics(SpatialSearchRequestParams searchParams) throws Exception;
 
     /**
      * Get legend items for a query and specified facet.

@@ -7,6 +7,7 @@ package org.ala.biocache.web;
 import java.util.*;
 import org.ala.biocache.dto.TaxaCountDTO;
 import org.ala.biocache.util.ParamsCache;
+import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.common.SolrDocumentList;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -919,29 +920,20 @@ public class WebportalController implements ServletConfigAware {
      */
     double[] getBBox(SpatialSearchRequestParams requestParams) throws Exception {
         double[] bbox = new double[4];
-        String[] sort = {"longitude", "latitude", "longitude", "latitude"};
-        String[] dir = {"asc", "asc", "desc", "desc"};
-
-        //remove instances of null longitude or latitude
-        String[] fq = {"longitude:[* TO *]", "latitude:[* TO *]"};
-        requestParams.setFq(fq);
-
+   
         requestParams.setPageSize(10);
-
-        String s = null;
-        for (int i = 0; i < sort.length; i++) {
-            requestParams.setSort(sort[i]);
-            requestParams.setDir(dir[i]);
-            requestParams.setFl(sort[i]);
-
-            SolrDocumentList sdl = searchDAO.findByFulltext(requestParams);
-            if (sdl != null && sdl.size() > 0) {
-                if (sdl.get(0) != null) {
-                    bbox[i] = (Double) sdl.get(0).getFieldValue(sort[i]);
-                } else {
-                    logger.error("searchDAO.findByFulltext returning SolrDocumentList with null records");
-                }
-            }
+        requestParams.setFacets(new String[]{"latitude", "longitude"});
+        Map<String, FieldStatsInfo> stats = searchDAO.getStatistics(requestParams);
+        if(stats != null){
+            //set the longitude values
+            FieldStatsInfo longValues = stats.get("longitude");
+            bbox[0] = longValues.getMin();
+            bbox[2] = longValues.getMax();
+            //set the longitude values
+            FieldStatsInfo latValues = stats.get("latitude");
+            bbox[1] = latValues.getMin();
+            bbox[3] = latValues.getMax();
+            
         }
 
         return bbox;
