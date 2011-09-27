@@ -37,6 +37,7 @@ import org.ala.biocache.dto.SearchResultDTO;
 import org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.ala.biocache.util.LegendItem;
 import org.ala.biocache.util.SearchUtils;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Controller;
@@ -920,20 +921,27 @@ public class WebportalController implements ServletConfigAware {
      */
     double[] getBBox(SpatialSearchRequestParams requestParams) throws Exception {
         double[] bbox = new double[4];
-   
-        requestParams.setPageSize(10);
-        requestParams.setFacets(new String[]{"latitude", "longitude"});
-        Map<String, FieldStatsInfo> stats = searchDAO.getStatistics(requestParams);
-        if(stats != null){
-            //set the longitude values
-            FieldStatsInfo longValues = stats.get("longitude");
-            bbox[0] = longValues.getMin();
-            bbox[2] = longValues.getMax();
-            //set the longitude values
-            FieldStatsInfo latValues = stats.get("latitude");
-            bbox[1] = latValues.getMin();
-            bbox[3] = latValues.getMax();
-            
+        String[] sort = {"longitude", "latitude", "longitude", "latitude"};
+        String[] dir = {"asc", "asc", "desc", "desc"};
+
+        //remove instances of null longitude or latitude
+        String[] fq = (String[])ArrayUtils.addAll(requestParams.getFq(),new String[]{"longitude:[* TO *]", "latitude:[* TO *]"});
+        requestParams.setFq(fq);        
+        requestParams.setPageSize(10);        
+        
+        for (int i = 0; i < sort.length; i++) {
+            requestParams.setSort(sort[i]);
+            requestParams.setDir(dir[i]);
+            requestParams.setFl(sort[i]);
+
+            SolrDocumentList sdl = searchDAO.findByFulltext(requestParams);
+            if (sdl != null && sdl.size() > 0) {
+                if (sdl.get(0) != null) {
+                    bbox[i] = (Double) sdl.get(0).getFieldValue(sort[i]);
+                } else {
+                    logger.error("searchDAO.findByFulltext returning SolrDocumentList with null records");
+                }
+            }
         }
 
         return bbox;
