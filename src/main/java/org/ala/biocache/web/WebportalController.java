@@ -97,17 +97,19 @@ public class WebportalController implements ServletConfigAware {
     @ResponseBody
     Long storeParams(SpatialSearchRequestParams requestParams,
             @RequestParam(value = "bbox", required = false, defaultValue = "false") String bbox) throws Exception {
-        //cleanup Q by running a query
-        //searchDAO.getSourcesForQuery(requestParams);
 
         //get bbox (also cleans up Q)
         double[] bb = null;
         if(bbox != null && bbox.equals("true")) {
             bb = getBBox(requestParams);
+        } else {
+            //get a formatted Q by running a query
+            requestParams.setPageSize(0);
+            searchDAO.findByFulltext(requestParams);
         }
 
         //store
-        return ParamsCache.put(requestParams.getQ(), requestParams.getDisplayString(), requestParams.getWkt(), bb);
+        return ParamsCache.put(requestParams.getFormattedQuery(), requestParams.getDisplayString(), requestParams.getWkt(), bb);
     }
 
     /**
