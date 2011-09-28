@@ -103,7 +103,7 @@ public class MapController implements ServletConfigAware {
         String query = requestParams.getQ();
         String[] filterQuery = requestParams.getFq();
 
-        if (StringUtils.isBlank(query)) {
+        if (StringUtils.isBlank(query) && StringUtils.isBlank(requestParams.getFormattedQuery())) {
             displayBlankImage(width, height, false, request, response);
             return;
         }
@@ -267,7 +267,7 @@ public class MapController implements ServletConfigAware {
         String query = requestParams.getQ();
         String[] filterQuery = requestParams.getFq();
 
-        if (StringUtils.isBlank(query)) {
+        if (StringUtils.isBlank(query) && StringUtils.isBlank(requestParams.getFormattedQuery())) {
             displayBlankImage(width, height, true, request, response);
             return;
         }

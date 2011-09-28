@@ -24,7 +24,8 @@ import org.apache.commons.lang.StringUtils;
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
 public class SearchRequestParams {
-
+    /** When supplied no formatting of the query string is performed.  Useful to be supplied when downloading **/
+    protected String formattedQuery =""; 
     protected String q = "";
     protected String[] fq = {""}; // must not be null
     protected String fl="";
@@ -91,6 +92,8 @@ public class SearchRequestParams {
             req.append("&flimit=").append(flimit);
         if (fl.length() > 0)
             req.append("&fl=").append(fl);
+        if(StringUtils.isNotEmpty(formattedQuery))
+            req.append("&formattedQuery=").append(formattedQuery);
         return req.toString();
     }
 
@@ -240,4 +243,19 @@ public class SearchRequestParams {
     public void setFl(String fl) {
         this.fl = fl;
     }
+
+    /**
+     * @return the formattedQuery
+     */
+    public String getFormattedQuery() {
+        return formattedQuery;
+    }
+
+    /**
+     * @param formattedQuery the formattedQuery to set
+     */
+    public void setFormattedQuery(String formattedQuery) {
+        this.formattedQuery = formattedQuery;
+    }
+    
 }

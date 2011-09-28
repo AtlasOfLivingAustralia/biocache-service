@@ -196,15 +196,15 @@ public class ExploreController {
      */
 	@RequestMapping(value = "/explore/group/{group}/download*", method = RequestMethod.GET)
 	public void yourAreaDownload(
-            SpatialSearchRequestParams requestParams,
+            DownloadRequestParams requestParams,
             @PathVariable(value="group") String group,
             HttpServletResponse response)
             throws Exception {
-
+	    String filename = requestParams.getFile() != null ? requestParams.getFile():"data"; 
         logger.debug("Downloading the species in your area... ");
         response.setHeader("Cache-Control", "must-revalidate");
         response.setHeader("Pragma", "must-revalidate");
-        response.setHeader("Content-Disposition", "attachment;filename=data");
+        response.setHeader("Content-Disposition", "attachment;filename="+filename);
         response.setContentType("application/vnd.ms-excel");
        
         ServletOutputStream out = response.getOutputStream();

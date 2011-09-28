@@ -171,13 +171,13 @@ public class SearchDAOImpl implements SearchDAO {
             //add the context information
             updateQueryContext(requestParams);
             SolrQuery solrQuery = initSolrQuery(requestParams); // general search settings
-            solrQuery.setQuery(requestParams.getQ());
+            solrQuery.setQuery(requestParams.getFormattedQuery());
             QueryResponse qr = runSolrQuery(solrQuery, requestParams);
             searchResults = processSolrResponse(qr, solrQuery);
             //set the title for the results
             searchResults.setQueryTitle(requestParams.getDisplayString());
 
-            logger.info("search query: " + requestParams.getQ());
+            logger.info("search query: " + requestParams.getFormattedQuery());
         } catch (SolrServerException ex) {
             logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
             searchResults.setStatus("ERROR"); // TODO also set a message field on this bean with the error message(?)
@@ -270,7 +270,7 @@ public class SearchDAOImpl implements SearchDAO {
         updateQueryContext(searchParams);
         SolrQuery solrQuery = initSolrQuery(searchParams);
         
-        solrQuery.setQuery(searchParams.getQ());
+        solrQuery.setQuery(searchParams.getFormattedQuery());
         //don't want any results returned
         solrQuery.setRows(0);
         solrQuery.setFacetLimit(FACET_PAGE_SIZE);        
@@ -402,9 +402,10 @@ public class SearchDAOImpl implements SearchDAO {
         Map<String, Integer> downloadLimit = new HashMap<String,Integer>();
         
         try {
-            logger.info("search query: " + downloadParams.getQ());
+            
             SolrQuery solrQuery = initSolrQuery(downloadParams);
             formatSearchQuery(downloadParams);
+            logger.info("search query: " + downloadParams.getFormattedQuery());
             solrQuery.setQuery(buildSpatialQueryString(downloadParams));
             //Only the fields specified below will be included in the results from the SOLR Query
             solrQuery.setFields("row_key", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid");
@@ -604,9 +605,10 @@ public class SearchDAOImpl implements SearchDAO {
     public List<OccurrencePoint> getFacetPoints(SpatialSearchRequestParams searchParams, PointType pointType) throws Exception {
         List<OccurrencePoint> points = new ArrayList<OccurrencePoint>(); // new OccurrencePoint(PointType.POINT);
         formatSearchQuery(searchParams);
-        logger.info("search query: " + searchParams.getQ());
+        logger.info("search query: " + searchParams.getFormattedQuery());
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setQueryType("standard");
+        formatSearchQuery(searchParams);
         solrQuery.setQuery(buildSpatialQueryString(searchParams));
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
@@ -668,7 +670,7 @@ public class SearchDAOImpl implements SearchDAO {
         String queryString = "";
         formatSearchQuery(searchParams);
         if (searchType == 0) {
-            queryString = searchParams.getQ();
+            queryString = searchParams.getFormattedQuery();
         } else if (searchType == 1) {
             queryString = buildSpatialQueryString(searchParams.getQ(), searchParams.getLat(), searchParams.getLon(), searchParams.getRadius());
         }
@@ -999,7 +1001,8 @@ public class SearchDAOImpl implements SearchDAO {
         TaxaRankCountDTO trDTO = null;
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setQueryType("standard");
-        solrQuery.setQuery(queryParams.getQ());
+        formatSearchQuery(queryParams);
+        solrQuery.setQuery(queryParams.getFormattedQuery());
         queryParams.setPageSize(0);
         solrQuery.setFacet(true);
         solrQuery.setFacetMinCount(1);
@@ -1338,7 +1341,7 @@ public class SearchDAOImpl implements SearchDAO {
         searchResult.setQr(qr);
 
         //add the URL information necessary for the maps and downloads
-        String params = "?q=" + solrQuery.getQuery();
+        String params = "?formattedQuery=" + solrQuery.getQuery();
         if (solrQuery.getFilterQueries() != null && solrQuery.getFacetFields().length > 0) {
             params += "&fq=" + StringUtils.join(solrQuery.getFilterQueries(), "&fq=");
         }
@@ -1383,8 +1386,8 @@ public class SearchDAOImpl implements SearchDAO {
                 sb.append("{!spatial ");
                 sb.append("wkt=").append(searchParams.getWkt()).append("}");
             }
-
-            sb.append(searchParams.getQ());
+            String query = StringUtils.isEmpty(searchParams.getFormattedQuery())? searchParams.getQ() : searchParams.getFormattedQuery();
+            sb.append(query);
             return sb.toString();
         }
         return null;
@@ -1396,164 +1399,168 @@ public class SearchDAOImpl implements SearchDAO {
      * This includes constructing a user friendly version of the query to
      * be used for display purposes.
      * 
-     * TODO Fix this to use a state
+     * TODO Fix this to use a state.  REVISE!!
      *
      * @param query
      * @return
      */
     protected void formatSearchQuery(SearchRequestParams searchParams) {
-        // set the query
-        String query =searchParams.getQ();
-        
-        //cached query parameters are already formatted
-        if(query.contains("qid:")) {            
-            Matcher matcher = qidPattern.matcher(query);
-            long qid = 0;
-            while(matcher.find()) {
-                String value = matcher.group();
-                try {
-                    qid = Long.parseLong(value.substring(4));
-                    ParamsCacheObject pco = ParamsCache.get(qid);
-                    if(pco != null) {
-                        searchParams.setQ(pco.getQ());
-                        searchParams.setDisplayString(pco.getDisplayString());
-                        if(searchParams instanceof SpatialSearchRequestParams) {
-                            ((SpatialSearchRequestParams) searchParams).setWkt(pco.getWkt());
-                        } else if(!StringUtils.isEmpty(pco.getWkt())) {                            
-                            searchParams.setQ(pco.getWkt() + "{!spatial wkt=" + pco.getWkt() + "}" + pco.getQ() );
+        //Only format the query if it doesn't already supply a formattedQuery.
+        if(StringUtils.isEmpty(searchParams.getFormattedQuery())){
+            // set the query
+            String query =searchParams.getQ();
+            
+            //cached query parameters are already formatted
+            if(query.contains("qid:")) {            
+                Matcher matcher = qidPattern.matcher(query);
+                long qid = 0;
+                while(matcher.find()) {
+                    String value = matcher.group();
+                    try {
+                        qid = Long.parseLong(value.substring(4));
+                        ParamsCacheObject pco = ParamsCache.get(qid);
+                        if(pco != null) {
+                            searchParams.setQ(pco.getQ());
+                            searchParams.setDisplayString(pco.getDisplayString());
+                            if(searchParams instanceof SpatialSearchRequestParams) {
+                                ((SpatialSearchRequestParams) searchParams).setWkt(pco.getWkt());
+                            } else if(!StringUtils.isEmpty(pco.getWkt())) {                            
+                                searchParams.setQ(pco.getWkt() + "{!spatial wkt=" + pco.getWkt() + "}" + pco.getQ() );
+                            }
+                            searchParams.setFormattedQuery(searchParams.getQ());
+                            return;
                         }
-                        return;
-                    }
-                } catch (NumberFormatException e) {
-                }
-            }
-        }
-        StringBuffer queryString = new StringBuffer();
-        StringBuffer displaySb = new StringBuffer();
-        String displayString = query;
-        //if the query string contains lsid: we will need to replace it with the corresponding lft range
-        int last =0;
-        if (query.contains("lsid:")) {
-            Matcher matcher = lsidPattern.matcher(query);
-            while (matcher.find()) {
-                String value = matcher.group();
-                logger.debug("preprocessing " + value);
-                String lsid = value.substring(5, value.length());
-                String[] values = searchUtils.getTaxonSearch(lsid);
-                matcher.appendReplacement(queryString, values[0]);
-                displaySb.append(query.substring(last, matcher.start()));
-                if(!values[1].startsWith("lsid:"))
-                    displaySb.append("<span class='lsid' id='").append(lsid).append("'>").append(values[1]).append("</span>");
-                else
-                    displaySb.append(values[1]);
-                last = matcher.end();
-                //matcher.appendReplacement(displayString, values[1]);
-            }
-            matcher.appendTail(queryString);
-            displaySb.append(query.substring(last, query.length()));
-
-           
-            query = queryString.toString();
-            displayString = displaySb.toString();
-        }
-        if (query.contains("urn")) {
-            //escape the URN strings before escaping the rest this avoids the issue with attempting to search on a urn field
-            Matcher matcher = urnPattern.matcher(query);
-            queryString.setLength(0);
-            while (matcher.find()) {
-                String value = matcher.group();
-                
-                logger.debug("escaping lsid urns  " + value );
-                matcher.appendReplacement(queryString,prepareSolrStringForReplacement(value));
-            }
-            matcher.appendTail(queryString);
-            query = queryString.toString();
-        }
-        if(query.contains("{!spatial")){
-            Matcher matcher = spatialPattern.matcher(query);
-            if(matcher.find()){
-                String spatial = matcher.group();
-                //format the search query of the remaining text only
-                searchParams.setQ(query.substring(matcher.regionStart() + spatial.length(), query.length()));
-                //format the remaining query
-                formatSearchQuery(searchParams);
-                //now append Q's together
-            queryString.setLength(0);
-                queryString.append(spatial);
-                queryString.append(searchParams.getQ());
-                searchParams.setQ(queryString.toString());
-                //add the spatial information to the display string
-                if(spatial.contains("circles")){
-                    String[] values = spatial.substring(spatial.indexOf("=") +1 , spatial.indexOf("}")).split(",");
-                    if(values.length ==3){
-                        displaySb.setLength(0);
-                        displaySb.append(searchParams.getDisplayString());
-                        displaySb.append(" - within ").append(values[2]).append(" km of point(")
-                        .append(values[0]).append(",").append(values[1]).append(")");
-                        searchParams.setDisplayString(displaySb.toString());
-                    }
-                    
-                } else{
-                    searchParams.setDisplayString(searchParams.getDisplayString() + " - within supplied region");
-                }
-            }
-
-
-        }
-        else{
-            //escape reserved characters unless the colon represnts a field name colon
-            queryString.setLength(0);
-
-            Matcher matcher = spacesPattern.matcher(query);
-            while(matcher.find()){
-                String value = matcher.group();
-
-                //special cases to ignore from character escaping
-                //if the value is a single - or * it means that we don't want to escape it as it is likely to have occurred in the following situation -(occurrence_date:[* TO *]) or *:*
-                if(!value.equals("-") && /*!value.equals("*")  && !value.equals("*:*") && */ !value.endsWith("*")){
-
-                    //split on the colon
-                    String[] bits = StringUtils.split(value, ":", 2);
-                    if(bits.length == 2){
-                        if(!bits[0].contains("urn") && !bits[1].contains("urn\\"))
-                            matcher.appendReplacement(queryString, bits[0] +":"+ prepareSolrStringForReplacement(bits[1]));
-
-                    }
-                    //need to ignore field names where the : is at the end because the pattern matching will return field_name: as a match when it has a double quoted value
-                    else if(!value.endsWith(":")){
-                        //default behaviour is to escape all 
-                        matcher.appendReplacement(queryString, prepareSolrStringForReplacement(value));
+                    } catch (NumberFormatException e) {
                     }
                 }
-
             }
-            matcher.appendTail(queryString);
-
-            //substitute better display strings for collection/inst etc searches
-            if(displayString.contains("_uid")){
-                displaySb.setLength(0);
-                matcher = uidPattern.matcher(displayString);
-                while(matcher.find()){
-                    String newVal = "<span>"+searchUtils.getUidDisplayString(matcher.group(2)) +"</span>";
-                    if(newVal != null)
-                        matcher.appendReplacement(displaySb, newVal);
+            StringBuffer queryString = new StringBuffer();
+            StringBuffer displaySb = new StringBuffer();
+            String displayString = query;
+            //if the query string contains lsid: we will need to replace it with the corresponding lft range
+            int last =0;
+            if (query.contains("lsid:")) {
+                Matcher matcher = lsidPattern.matcher(query);
+                while (matcher.find()) {
+                    String value = matcher.group();
+                    logger.debug("preprocessing " + value);
+                    String lsid = value.substring(5, value.length());
+                    String[] values = searchUtils.getTaxonSearch(lsid);
+                    matcher.appendReplacement(queryString, values[0]);
+                    displaySb.append(query.substring(last, matcher.start()));
+                    if(!values[1].startsWith("lsid:"))
+                        displaySb.append("<span class='lsid' id='").append(lsid).append("'>").append(values[1]).append("</span>");
+                    else
+                        displaySb.append(values[1]);
+                    last = matcher.end();
+                    //matcher.appendReplacement(displayString, values[1]);
                 }
-                matcher.appendTail(displaySb);
+                matcher.appendTail(queryString);
+                displaySb.append(query.substring(last, query.length()));
+    
+               
+                query = queryString.toString();
                 displayString = displaySb.toString();
             }
-            searchParams.setQ(queryString.toString());
-            searchParams.setDisplayString(displayString);
-            //return queryString.toString();
-        }
-        
-        //format the fq's for facets that need ranges substituted
-        for(int i=0; i<searchParams.getFq().length;i++){
-            String fq = searchParams.getFq()[i];
-            String[] parts = fq.split(":", 2);
-            //check to see if the first part is a range based query and update if necessary
-            Map<String, String> titleMap = RangeBasedFacets.getTitleMap(parts[0]);
-            if(titleMap != null){
-                searchParams.getFq()[i]= titleMap.get(parts[1]);
+            if (query.contains("urn")) {
+                //escape the URN strings before escaping the rest this avoids the issue with attempting to search on a urn field
+                Matcher matcher = urnPattern.matcher(query);
+                queryString.setLength(0);
+                while (matcher.find()) {
+                    String value = matcher.group();
+                    
+                    logger.debug("escaping lsid urns  " + value );
+                    matcher.appendReplacement(queryString,prepareSolrStringForReplacement(value));
+                }
+                matcher.appendTail(queryString);
+                query = queryString.toString();
+            }
+            if(query.contains("{!spatial")){
+                Matcher matcher = spatialPattern.matcher(query);
+                if(matcher.find()){
+                    String spatial = matcher.group();
+                    //format the search query of the remaining text only
+                    searchParams.setQ(query.substring(matcher.regionStart() + spatial.length(), query.length()));
+                    //format the remaining query
+                    formatSearchQuery(searchParams);
+                    //now append Q's together
+                queryString.setLength(0);
+                    queryString.append(spatial);
+                    queryString.append(searchParams.getFormattedQuery());
+                    searchParams.setFormattedQuery(queryString.toString());
+                    //add the spatial information to the display string
+                    if(spatial.contains("circles")){
+                        String[] values = spatial.substring(spatial.indexOf("=") +1 , spatial.indexOf("}")).split(",");
+                        if(values.length ==3){
+                            displaySb.setLength(0);
+                            displaySb.append(searchParams.getDisplayString());
+                            displaySb.append(" - within ").append(values[2]).append(" km of point(")
+                            .append(values[0]).append(",").append(values[1]).append(")");
+                            searchParams.setDisplayString(displaySb.toString());
+                        }
+                        
+                    } else{
+                        searchParams.setDisplayString(searchParams.getDisplayString() + " - within supplied region");
+                    }
+                }
+    
+    
+            }
+            else{
+                //escape reserved characters unless the colon represnts a field name colon
+                queryString.setLength(0);
+    
+                Matcher matcher = spacesPattern.matcher(query);
+                while(matcher.find()){
+                    String value = matcher.group();
+    
+                    //special cases to ignore from character escaping
+                    //if the value is a single - or * it means that we don't want to escape it as it is likely to have occurred in the following situation -(occurrence_date:[* TO *]) or *:*
+                    if(!value.equals("-") && /*!value.equals("*")  && !value.equals("*:*") && */ !value.endsWith("*")){
+    
+                        //split on the colon
+                        String[] bits = StringUtils.split(value, ":", 2);
+                        if(bits.length == 2){
+                            if(!bits[0].contains("urn") && !bits[1].contains("urn\\"))
+                                matcher.appendReplacement(queryString, bits[0] +":"+ prepareSolrStringForReplacement(bits[1]));
+    
+                        }
+                        //need to ignore field names where the : is at the end because the pattern matching will return field_name: as a match when it has a double quoted value
+                        else if(!value.endsWith(":")){
+                            //default behaviour is to escape all 
+                            matcher.appendReplacement(queryString, prepareSolrStringForReplacement(value));
+                        }
+                    }
+    
+                }
+                matcher.appendTail(queryString);
+    
+                //substitute better display strings for collection/inst etc searches
+                if(displayString.contains("_uid")){
+                    displaySb.setLength(0);
+                    matcher = uidPattern.matcher(displayString);
+                    while(matcher.find()){
+                        String newVal = "<span>"+searchUtils.getUidDisplayString(matcher.group(2)) +"</span>";
+                        if(newVal != null)
+                            matcher.appendReplacement(displaySb, newVal);
+                    }
+                    matcher.appendTail(displaySb);
+                    displayString = displaySb.toString();
+                }
+                searchParams.setFormattedQuery(queryString.toString());
+                searchParams.setDisplayString(displayString);
+                //return queryString.toString();
+            }
+            
+            //format the fq's for facets that need ranges substituted
+            for(int i=0; i<searchParams.getFq().length;i++){
+                String fq = searchParams.getFq()[i];
+                String[] parts = fq.split(":", 2);
+                //check to see if the first part is a range based query and update if necessary
+                Map<String, String> titleMap = RangeBasedFacets.getTitleMap(parts[0]);
+                if(titleMap != null){
+                    searchParams.getFq()[i]= titleMap.get(parts[1]);
+                }
             }
         }
     }
@@ -1787,10 +1794,9 @@ public class SearchDAOImpl implements SearchDAO {
 
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
         SolrQuery solrQuery = new SolrQuery();
-        
         formatSearchQuery(searchParams);
-        logger.info("The query : " + searchParams.getQ());
-        solrQuery.setQuery(searchParams.getQ());
+        logger.info("The query : " + searchParams.getFormattedQuery());
+        solrQuery.setQuery(searchParams.getFormattedQuery());
         solrQuery.setQueryType("standard");
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
@@ -1947,7 +1953,7 @@ public class SearchDAOImpl implements SearchDAO {
         List<LegendItem> legend = new ArrayList<LegendItem>();
 
         formatSearchQuery(searchParams);
-        logger.info("search query: " + searchParams.getQ());
+        logger.info("search query: " + searchParams.getFormattedQuery());
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setQueryType("standard");
         solrQuery.setQuery(buildSpatialQueryString(searchParams));
@@ -2005,7 +2011,7 @@ public class SearchDAOImpl implements SearchDAO {
 
     public FacetField getFacet(SpatialSearchRequestParams searchParams, String facet) throws Exception {
         formatSearchQuery(searchParams);
-        logger.info("search query: " + searchParams.getQ());
+        logger.info("search query: " + searchParams.getFormattedQuery());
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setQueryType("standard");
         solrQuery.setQuery(buildSpatialQueryString(searchParams));
@@ -2056,7 +2062,7 @@ public class SearchDAOImpl implements SearchDAO {
         //add the context information
         List<String> facetFields = new ArrayList<String>();
         facetFields.add(NAMES_AND_LSID);
-        logger.debug("The species count query " + requestParams.getQ());
+        logger.debug("The species count query " + requestParams.getFormattedQuery());
         List<String> fqList = new ArrayList<String>();
         //only add the FQ's if they are not the default values
         if(requestParams.getFq().length>0 && (requestParams.getFq()[0]).length()>0)
