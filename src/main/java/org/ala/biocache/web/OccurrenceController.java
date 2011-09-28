@@ -399,8 +399,9 @@ public class OccurrenceController {
             HttpServletRequest request) throws Exception {
        
         String ip = request.getLocalAddr();
-        if (requestParams.getQ().isEmpty()) {
-            return LIST;
+        //search params must have a query or formatted query for the downlaod to work
+        if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
+            return null;
         }
 
         String filename = requestParams.getFile();
