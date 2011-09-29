@@ -672,7 +672,7 @@ public class SearchDAOImpl implements SearchDAO {
         if (searchType == 0) {
             queryString = searchParams.getFormattedQuery();
         } else if (searchType == 1) {
-            queryString = buildSpatialQueryString(searchParams.getQ(), searchParams.getLat(), searchParams.getLon(), searchParams.getRadius());
+            queryString = buildSpatialQueryString(searchParams.getFormattedQuery(), searchParams.getLat(), searchParams.getLon(), searchParams.getRadius());
         }
 
         logger.info("search query: " + queryString);
