@@ -148,6 +148,8 @@ public class ExploreController {
             @PathVariable(value="group") String group) throws Exception{
         String query = group.equals("ALL_SPECIES")? "*:*" : "species_group:" + group;
         requestParams.setQ(query);
+        //don't care about the formatted query
+        requestParams.setFormattedQuery(null);
         requestParams.setPageSize(0);
         requestParams.setFacets(new String[]{"taxon_name"});
         requestParams.setFlimit(-1);
