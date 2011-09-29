@@ -296,6 +296,39 @@ public class WebportalController implements ServletConfigAware {
 
         writeBytes(response, (bbox[0] + "," + bbox[1] + "," + bbox[2] + "," + bbox[3]).getBytes("UTF-8"));
     }
+    
+    /**
+     * Get query bounding box as JSON array containing:
+     *  min longitude, min latitude, max longitude, max latitude
+     * 
+     * @param requestParams
+     * @param response
+     * @return
+     * @throws Exception 
+     */
+    @RequestMapping(value = "/webportal/bounds", method = RequestMethod.GET)
+    public @ResponseBody double[] jsonBoundingBox(
+            SpatialSearchRequestParams requestParams,
+            HttpServletResponse response)
+            throws Exception {
+
+        double[] bbox = null;
+
+        String q = requestParams.getQ();
+        if (q.startsWith("qid:")) {
+            try {
+                bbox = ParamsCache.get(Long.parseLong(q.substring(4))).getBbox();
+            } catch (Exception e) {
+            }
+        }
+
+        if (bbox == null) {
+            bbox = getBBox(requestParams);
+        }
+
+        //writeBytes(response, (bbox[0] + "," + bbox[1] + "," + bbox[2] + "," + bbox[3]).getBytes("UTF-8"));
+        return bbox;
+    }
 
     /**
      * Get occurrences by query as JSON.
