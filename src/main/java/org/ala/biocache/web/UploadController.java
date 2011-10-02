@@ -312,7 +312,7 @@ class UploaderThread implements Runnable {
 //                }
 
                 String[] headerUnmatched = headers.split(",");
-                String[] headerArray = AdHocParser.guessColumnHeaders(headerUnmatched);
+                String[] headerArray = AdHocParser.mapColumnHeaders(headerUnmatched);
 
                 //if the first line is data, add a record, else discard
                 if(firstLineIsData){
