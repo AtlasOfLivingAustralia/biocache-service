@@ -152,6 +152,11 @@ public class UploadController {
         //check the request
         String headers = request.getParameter("headers");
         String csvData = request.getParameter("csvData");
+        String firstLineIsDataAsString = request.getParameter("firstLineIsData");
+        boolean firstLineIsData = false;
+        if(firstLineIsDataAsString != null){
+            firstLineIsData = Boolean.parseBoolean(firstLineIsDataAsString);
+        }
 
         //get a record count
         int lineCount = 0;
@@ -193,6 +198,7 @@ public class UploadController {
         //do the upload asynchronously
         UploaderThread ut = new UploaderThread();
         ut.headers = headers;
+        ut.firstLineIsData = firstLineIsData;
         ut.csvData = csvData;
         ut.separatorChar = separatorChar;
         ut.uploadStatusDir = uploadStatusDir;
@@ -265,6 +271,7 @@ class UploaderThread implements Runnable {
     public String status = "LOADING";
     protected String headers;
     protected String csvData;
+    protected boolean firstLineIsData;
     protected Character separatorChar;
     protected String tempUid;
     protected String uploadStatusDir;
@@ -296,29 +303,25 @@ class UploaderThread implements Runnable {
             CSVReader csvReader = new CSVReader(new StringReader(csvData), separatorChar);
             try {
                 String[] currentLine = csvReader.readNext();
-                boolean firstListAreHeaders = AdHocParser.areColumnHeaders(currentLine);
+                //boolean firstListAreHeaders = AdHocParser.areColumnHeaders(currentLine);
 
-                String[] headerArray = null;
+//                String[] unnormalised = headers.split(",");
+//                String[] headerArray = new String[unnormalised.length];
+//                for(int i=0; i<headerArray.length; i++){
+//                    headerArray[i] = unnormalised[i].trim();
+//                }
 
-                if(headers == null){
-                    headerArray = AdHocParser.guessColumnHeaders(currentLine);
-                } else {
-                    String[] unnormalised = headers.split(",");
-                    headerArray = new String[unnormalised.length];
-                    for(int i=0; i<headerArray.length; i++){
-                        headerArray[i] = unnormalised[i].trim();
-                    }
-                }
+                String[] headerUnmatched = headers.split(",");
+                String[] headerArray = AdHocParser.guessColumnHeaders(headerUnmatched);
 
-                if(!firstListAreHeaders){
+                //if the first line is data, add a record, else discard
+                if(firstLineIsData){
                     addRecord(tempUid, currentLine, headerArray);
-                    currentLine = csvReader.readNext();
                 }
 
                 //write the data
                 Integer percentComplete  = 0;
-
-                while(currentLine!=null){
+                while((currentLine = csvReader.readNext())!=null){
                     counter++;
                     //System.out.println("Processing record: " + counter);
                     loadComplete = (int) ((counter.floatValue() / recordsToLoad.floatValue()) * 100);
@@ -327,10 +330,10 @@ class UploaderThread implements Runnable {
                         FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("LOADING",counter,loadComplete,recordsToLoad)));
                     }
                     addRecord(tempUid, currentLine, headerArray);
-                    currentLine = csvReader.readNext();
+                    //currentLine = csvReader.readNext();
                 }
             } catch(Exception e) {
-                e.printStackTrace();
+                logger.error(e.getMessage(),e);
             } finally {
                 csvReader.close();
             }
