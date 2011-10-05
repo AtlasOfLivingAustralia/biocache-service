@@ -908,10 +908,10 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Override
     public List<TaxaCountDTO> findAllSpeciesByCircleAreaAndHigherTaxa(SpatialSearchRequestParams requestParams, String speciesGroup) throws Exception {
-        String q = speciesGroup.equals("ALL_SPECIES")?"*:*":"species_group:"+speciesGroup;
+//        
         //add the context information
         updateQueryContext(requestParams);
-        requestParams.setQ(q);
+        
         String queryString = buildSpatialQueryString(requestParams);
         List<String> facetFields = new ArrayList<String>();
         facetFields.add(NAMES_AND_LSID);
@@ -1732,8 +1732,10 @@ public class SearchDAOImpl implements SearchDAO {
             solrQuery.addFacetField(facet);
             logger.debug("adding facetField: " + facet);
         }
+        //set the facet starting point based on the paging information
         solrQuery.setFacetMinCount(1);
-        solrQuery.setFacetLimit(-1); // unlimited = -1 | pageSize
+        solrQuery.setFacetLimit(pageSize); // unlimited = -1 | pageSize
+        solrQuery.add("facet.offset", Integer.toString(startIndex));
         logger.debug("getSpeciesCount query :" + solrQuery.getQuery());
         QueryResponse qr = runSolrQuery(solrQuery, null, 1, 0, "score", sortDirection);
         logger.info("SOLR query: " + solrQuery.getQuery() + "; total hits: " + qr.getResults().getNumFound());
@@ -1745,12 +1747,14 @@ public class SearchDAOImpl implements SearchDAO {
             for (FacetField facet : facets) {
                 List<FacetField.Count> facetEntries = facet.getValues();
                 if ((facetEntries != null) && (facetEntries.size() > 0)) {
+                    //NO need to page through all facets to locate the current page...
                     //for (int i = 0; i < facetEntries.size(); i++) {
-                    int highestEntry = (pageSize < 0) ? facetEntries.size() : startIndex + pageSize;
-                    int lastEntry = (highestEntry > facetEntries.size()) ? facetEntries.size() : highestEntry;
-                    logger.debug("highestEntry = " + highestEntry + ", facetEntries.size = " + facetEntries.size() + ", lastEntry = " + lastEntry);
-                    for (int i = startIndex; i < lastEntry; i++) {
-                        FacetField.Count fcount = facetEntries.get(i);
+                    //int highestEntry = (pageSize < 0) ? facetEntries.size() : startIndex + pageSize;
+                    //int lastEntry = (highestEntry > facetEntries.size()) ? facetEntries.size() : highestEntry;
+                    //logger.debug("highestEntry = " + highestEntry + ", facetEntries.size = " + facetEntries.size() + ", lastEntry = " + lastEntry);
+                    //for (int i = startIndex; i < lastEntry; i++) {
+                    for(FacetField.Count fcount : facetEntries){
+                        //FacetField.Count fcount = facetEntries.get(i);
                         //speciesCounts.add(i, new TaxaCountDTO(fcount.getName(), fcount.getCount()));
                         TaxaCountDTO tcDTO = null;
                         if (fcount.getFacetField().getName().equals(NAMES_AND_LSID)) {

@@ -85,6 +85,25 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             <li><strong>List assertions for occurrence with params:</strong> /occurrences/assertions?recordUuid={uuid}</li>
         </ul>
 
+		<h3>Explore services</h3>
+		This section describes the services that can be used to explore a region or query.  The Explore services provide the number of distinct species 
+		and total species counts for each of the species_groups for the supplied details.
+		In the services listed below the following params can be supplied:
+		<ul>
+			<li>lat - The latitude to limit the query by (must be used with lon and radius)</li>
+			<li>lon - The longitude to limit the query by (must be used with lat and radius)</li>
+			<li>radius - The radius to from lat,lon to limit the query by (must be used with lat and lon)</li>
+			<li>q - The query which defaults to *:* when not supplied</li>
+			<li>fq - The filter query</li>
+		</ul>
+		The available services:
+		<ul>
+			<li><strong>Retrieve all species groups and counts:</strong> /explore/groups</li>
+			<li><strong>Retrieve the counts for a specific group:</strong> /explore/counts/group/{group} -the first count is total number of occurrence, the second is the number of distinct species </li>
+			<li><strong>Download a list of species in a group: </strong> /explore/group/{group}/download </li>
+			<li><strong>Retrieve list of species and counts for a group: </strong> /explore/group/{group} - supports the additional parameters pageSize, start, sort, dir - to allow paging through the results </li>						 
+		</ul>
+		
         <h3>Breakdowns</h3>
         This section outlines the breakdown services that are available.  These services are available for each of the different collectory types:
         <ul>

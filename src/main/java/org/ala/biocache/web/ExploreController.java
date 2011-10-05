@@ -146,10 +146,7 @@ public class ExploreController {
     @RequestMapping(value="/explore/counts/group/{group}*", method = RequestMethod.GET)
     public @ResponseBody Integer[] getYourAreaCount(SpatialSearchRequestParams requestParams,
             @PathVariable(value="group") String group) throws Exception{
-        String query = group.equals("ALL_SPECIES")? "*:*" : "species_group:" + group;
-        requestParams.setQ(query);
-        //don't care about the formatted query
-        requestParams.setFormattedQuery(null);
+        updateQuery(requestParams, group);        
         requestParams.setPageSize(0);
         requestParams.setFacets(new String[]{"taxon_name"});
         requestParams.setFlimit(-1);
@@ -160,6 +157,20 @@ public class ExploreController {
         }
         
         return new Integer[]{(int)results.getTotalRecords() ,speciesCount};
+    }
+    private void updateQuery(SpatialSearchRequestParams requestParams, String group){
+        StringBuilder sb = new StringBuilder();
+        if(requestParams.getQ() != null && !requestParams.getQ().isEmpty())
+            sb.append(requestParams.getQ());
+        else{
+            sb.append("*:*");
+        }
+        if(!group.equals("ALL_SPECIES"))
+            sb.append(" species_group:").append(group);
+        //String query = sb.togroup.equals("ALL_SPECIES")? "*:*" : "species_group:" + group;
+        requestParams.setQ(sb.toString());
+      //don't care about the formatted query
+        requestParams.setFormattedQuery(null);
     }
     /**
      * Returns the number of species in all the groups.
@@ -178,14 +189,7 @@ public class ExploreController {
 //        return values;
 //    }
     
-    
-    /**
-     * The first value is the count of the value
-     * The second value is the number of distinct species
-     */
-//    private long[] getCounts(String field){
-//        
-//    }
+ 
     
 
         /**
@@ -209,6 +213,8 @@ public class ExploreController {
         response.setHeader("Content-Disposition", "attachment;filename="+filename);
         response.setContentType("application/vnd.ms-excel");
        
+        updateQuery(requestParams, group);
+        
         ServletOutputStream out = response.getOutputStream();
         int count = searchDao.writeSpeciesCountByCircleToStream(requestParams,group, out);
         logger.debug("Exported " + count + " species records in the requested area");
@@ -234,74 +240,13 @@ public class ExploreController {
                        
             Model model) throws Exception {
 
-//        String[] taxaArray = StringUtils.split(taxa, "|");
-//        ArrayList<String> taxaList = null;
-//        if (taxaArray != null) {
-//            taxaList = new ArrayList<String>(Arrays.asList(taxaArray));
-//        } else {
-//            taxaList = new ArrayList<String>();
-//        }
-//
-//        model.addAttribute("taxa", taxa);
-//        model.addAttribute("rank", rank);
        
-
+        updateQuery(requestParams,group);
         return searchDao.findAllSpeciesByCircleAreaAndHigherTaxa(requestParams, group);
-        //model.addAttribute("species", species);
-        //model.addAttribute("speciesCount", species.size());
+
     }
 
-    /**
-     * AJAX service to return number of species for given taxa group in a given location
-     *
-     * Tested with: /explore/taxaGroupCount?latitude=-31.2&longitude=138.4&group=ANIMALS
-     *
-     * @param taxaGroupLabel
-     * @param radius
-     * @param latitude
-     * @param longitude
-     * @param model
-     * @return speciesCount
-     * @throws Exception
-     */
-//    @RequestMapping(value = "/explore/taxaGroupCount", method = RequestMethod.GET)
-//	public void listSpeciesForHigherTaxa(
-//            @RequestParam(value="group", required=true, defaultValue ="") String taxaGroupLabel,
-//            @RequestParam(value="radius", required=true, defaultValue="10f") Float radius,
-//            @RequestParam(value="latitude", required=true, defaultValue="0f") Float latitude,
-//            @RequestParam(value="longitude", required=true, defaultValue="0f") Float longitude,
-//            HttpServletResponse response) throws Exception {
-//
-//        TaxaGroup group = TaxaGroup.getForLabel(taxaGroupLabel);
-//
-//        if (group != null) {
-//            List<TaxaCountDTO> taxaCounts = searchDao.findAllSpeciesByCircleAreaAndHigherTaxa(latitude,
-//                longitude, radius, group.getRank(), new ArrayList<String>(Arrays.asList(group.getTaxa())),
-//                null, 0, -1, "species", "asc");
-//            //Long speciesCount = calculateSpeciesCount(taxaCounts);
-//            Integer speciesCount = taxaCounts.size();
-//            logger.info("Species count for "+group.getLabel()+" = "+speciesCount);
-//            OutputStreamWriter os = new OutputStreamWriter(response.getOutputStream());
-//            response.setContentType("text/plain");
-//            os.write(speciesCount.toString());
-//            os.close();
-//        }
-//    }
-
-    /**
-     * Calculate the number of records for a given taxa group
-     *
-     * @param taxa
-     * @return
-     */
-//    protected Long calculateSpeciesCount(List<TaxaCountDTO> taxa) {
-//        // Get full count of records in area from facet breakdowns
-//        Long totalRecords = 0l;
-//        for (TaxaCountDTO taxon : taxa) {
-//            totalRecords = totalRecords + taxon.getCount();
-//        }
-//        return totalRecords;
-//    }
+    
 
 	/**
 	 * @param searchDao the searchDao to set
@@ -315,11 +260,6 @@ public class ExploreController {
 	public void setSpeciesPageUrl(String speciesPageUrl) {
 		this.speciesPageUrl = speciesPageUrl;
 	}
-//	/**
-//	 * @param addressCache the addressCache to set
-//	 */
-//	public void setAddressCache(HashMap<String, List<Float>> addressCache) {
-//		this.addressCache = addressCache;
-//	}
+
 	
 }
