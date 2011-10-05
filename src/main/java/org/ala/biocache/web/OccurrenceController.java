@@ -338,7 +338,7 @@ public class OccurrenceController {
         SearchUtils.setDefaultParams(requestParams);        
         SearchResultDTO searchResult = searchDAO.findByFulltextQuery(requestParams);
         model.addAttribute("searchResult", searchResult);
-        logger.debug("query = " + requestParams.getQ());
+        logger.debug("occurrence search params= " + requestParams);
 
 		return searchResult;
 	}
