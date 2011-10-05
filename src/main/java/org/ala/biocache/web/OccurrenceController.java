@@ -335,10 +335,11 @@ public class OccurrenceController {
 	public @ResponseBody SearchResultDTO occurrenceSearch(SearchRequestParams requestParams,
             Model model) throws Exception {
         // handle empty param values, e.g. &sort=&dir=
-        SearchUtils.setDefaultParams(requestParams);        
+        SearchUtils.setDefaultParams(requestParams);   
+        logger.debug("occurrence search params= " + requestParams);     
         SearchResultDTO searchResult = searchDAO.findByFulltextQuery(requestParams);
         model.addAttribute("searchResult", searchResult);
-        logger.debug("occurrence search params= " + requestParams);
+        
 
 		return searchResult;
 	}
