@@ -102,6 +102,7 @@ public class ExploreController {
         List<au.org.ala.biocache.SpeciesGroup> sgs =au.org.ala.biocache.Store.retrieveSpeciesGroups();
         List<SpeciesGroupDTO> speciesGroups = new java.util.ArrayList<SpeciesGroupDTO>();
         SpeciesGroupDTO all = new SpeciesGroupDTO();
+        String originalQ = requestParams.getQ();
         all.setName("ALL_SPECIES");
         all.setLevel(0);
         Integer[] counts = getYourAreaCount(requestParams, "ALL_SPECIES");
@@ -127,6 +128,8 @@ public class ExploreController {
                 kingdom = sg.name();
             }
             sdto.setLevel(level);
+            //set the original query back to default to clean up after ourselves
+            requestParams.setQ(originalQ);
             counts = getYourAreaCount(requestParams, sg.name());
             sdto.setCount(counts[0]);
             sdto.setSpeciesCount(counts[1]);
@@ -151,7 +154,7 @@ public class ExploreController {
         requestParams.setFacets(new String[]{"taxon_name"});
         requestParams.setFlimit(-1);
         SearchResultDTO results = searchDao.findByFulltextSpatialQuery(requestParams);
-        Integer speciesCount =0;
+        Integer speciesCount =0;        
         if(results.getFacetResults().size() >0){
             speciesCount = results.getFacetResults().iterator().next().getFieldResult().size();
         }
