@@ -63,6 +63,8 @@ public class WebportalController implements ServletConfigAware {
     private final String NULL_NAME = "Unknown";
     /** max uncertainty mappable in m */
     private final double MAX_UNCERTAINTY = 30000;
+    /** add pixel radius for wms highlight circles */
+    private final static int HIGHLIGHT_RADIUS = 3;
     private String baseMapPath = "/images/mapaus1_white.png";
     private ServletConfig cfg;
     /** Logger initialisation */
@@ -693,6 +695,9 @@ public class WebportalController implements ServletConfigAware {
                 requestParams.setFq(fqs);
                 List<OccurrencePoint> ps = searchDAO.getFacetPoints(requestParams, pointType);
 
+                int highightRadius = vars.size + HIGHLIGHT_RADIUS;
+                int highlightWidth = highightRadius * 2;
+
                 if (ps != null && ps.size() > 0) {
                     g.setColor(new Color(255, 0, 0, vars.alpha));
                     for (int i = 0; i < ps.size(); i++) {
@@ -703,7 +708,7 @@ public class WebportalController implements ServletConfigAware {
                         x = (int) ((convertLngToPixel(lng) - pbbox[0]) * width_mult);
                         y = (int) ((convertLatToPixel(lat) - pbbox[3]) * height_mult);
 
-                        g.drawOval(x - vars.size, y - vars.size, pointWidth, pointWidth);
+                        g.drawOval(x - highightRadius, y - highightRadius, highlightWidth, highlightWidth);
                     }
                 }
             }
