@@ -163,11 +163,12 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     @Override
+    @Deprecated
     public SearchResultDTO findByFulltextQuery(SearchRequestParams requestParams) throws Exception {
         SearchResultDTO searchResults = new SearchResultDTO();
 
         try {            
-            formatSearchQuery(requestParams);            
+            //formatSearchQuery(requestParams);            
             //add the context information
             updateQueryContext(requestParams);
             SolrQuery solrQuery = initSolrQuery(requestParams); // general search settings
@@ -176,6 +177,7 @@ public class SearchDAOImpl implements SearchDAO {
             searchResults = processSolrResponse(qr, solrQuery);
             //set the title for the results
             searchResults.setQueryTitle(requestParams.getDisplayString());
+            searchResults.setUrlParameters(requestParams.getUrlParams());
 
             logger.info("search query: " + requestParams.getFormattedQuery());
         } catch (SolrServerException ex) {
@@ -208,7 +210,9 @@ public class SearchDAOImpl implements SearchDAO {
 
             QueryResponse qr = runSolrQuery(solrQuery, searchParams);
             searchResults = processSolrResponse(qr, solrQuery);
-
+            searchResults.setQueryTitle(searchParams.getDisplayString());
+            searchResults.setUrlParameters(searchParams.getUrlParams());
+            
             logger.info("spatial search query: " + queryString);
         } catch (SolrServerException ex) {
             logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
@@ -262,15 +266,16 @@ public class SearchDAOImpl implements SearchDAO {
      * @param lookupName true when a name lsid should be looked up in the bie
      * 
      */
-    public void writeFacetToStream(SearchRequestParams searchParams, boolean includeCount, boolean lookupName, OutputStream out) throws Exception{
+    public void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, OutputStream out) throws Exception{
         //set to unlimited facets
         searchParams.setFlimit(-1);
         formatSearchQuery(searchParams);
         //add the context information
         updateQueryContext(searchParams);
+        String queryString = buildSpatialQueryString(searchParams);
         SolrQuery solrQuery = initSolrQuery(searchParams);
         
-        solrQuery.setQuery(searchParams.getFormattedQuery());
+        solrQuery.setQuery(queryString);
         //don't want any results returned
         solrQuery.setRows(0);
         solrQuery.setFacetLimit(FACET_PAGE_SIZE);        
@@ -607,8 +612,7 @@ public class SearchDAOImpl implements SearchDAO {
         formatSearchQuery(searchParams);
         logger.info("search query: " + searchParams.getFormattedQuery());
         SolrQuery solrQuery = new SolrQuery();
-        solrQuery.setQueryType("standard");
-        formatSearchQuery(searchParams);
+        solrQuery.setQueryType("standard");        
         solrQuery.setQuery(buildSpatialQueryString(searchParams));
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
@@ -1002,7 +1006,7 @@ public class SearchDAOImpl implements SearchDAO {
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setQueryType("standard");
         formatSearchQuery(queryParams);
-        solrQuery.setQuery(queryParams.getFormattedQuery());
+        solrQuery.setQuery(buildSpatialQueryString(queryParams));
         queryParams.setPageSize(0);
         solrQuery.setFacet(true);
         solrQuery.setFacetMinCount(1);
@@ -1341,12 +1345,12 @@ public class SearchDAOImpl implements SearchDAO {
         searchResult.setQr(qr);
 
         //add the URL information necessary for the maps and downloads
-        String params = "?formattedQuery=" + solrQuery.getQuery();
-        if (solrQuery.getFilterQueries() != null && solrQuery.getFacetFields().length > 0) {
-            params += "&fq=" + StringUtils.join(solrQuery.getFilterQueries(), "&fq=");
-        }
-        logger.info("The download params: " + params);
-        searchResult.setUrlParameters(params);
+//        String params = "?formattedQuery=" + solrQuery.getQuery();
+//        if (solrQuery.getFilterQueries() != null && solrQuery.getFacetFields().length > 0) {
+//            params += "&fq=" + StringUtils.join(solrQuery.getFilterQueries(), "&fq=");
+//        }
+//        logger.info("The download params: " + params);
+//        searchResult.setUrlParameters(params);
         return searchResult;
     }
 
@@ -1404,7 +1408,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @param query
      * @return
      */
-    protected void formatSearchQuery(SearchRequestParams searchParams) {
+    protected void formatSearchQuery(SpatialSearchRequestParams searchParams) {
         //Only format the query if it doesn't already supply a formattedQuery.
         if(StringUtils.isEmpty(searchParams.getFormattedQuery())){
             // set the query
@@ -1479,21 +1483,23 @@ public class SearchDAOImpl implements SearchDAO {
                 Matcher matcher = spatialPattern.matcher(query);
                 if(matcher.find()){
                     String spatial = matcher.group();
+                    SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
                     //format the search query of the remaining text only
-                    searchParams.setQ(query.substring(matcher.regionStart() + spatial.length(), query.length()));
+                    subQuery.setQ(query.substring(matcher.regionStart() + spatial.length(), query.length()));
                     //format the remaining query
-                    formatSearchQuery(searchParams);
+                    formatSearchQuery(subQuery);
+                    
                     //now append Q's together
                 queryString.setLength(0);
                     queryString.append(spatial);
-                    queryString.append(searchParams.getFormattedQuery());
+                    queryString.append(subQuery.getFormattedQuery());
                     searchParams.setFormattedQuery(queryString.toString());
                     //add the spatial information to the display string
                     if(spatial.contains("circles")){
                         String[] values = spatial.substring(spatial.indexOf("=") +1 , spatial.indexOf("}")).split(",");
                         if(values.length ==3){
                             displaySb.setLength(0);
-                            displaySb.append(searchParams.getDisplayString());
+                            displaySb.append(subQuery.getDisplayString());
                             displaySb.append(" - within ").append(values[2]).append(" km of point(")
                             .append(values[0]).append(",").append(values[1]).append(")");
                             searchParams.setDisplayString(displaySb.toString());
@@ -1546,6 +1552,17 @@ public class SearchDAOImpl implements SearchDAO {
                     }
                     matcher.appendTail(displaySb);
                     displayString = displaySb.toString();
+                }
+                if(searchParams.getQ().equals("*:*")){
+                    displayString ="[all records]";
+                }
+                if(searchParams.getLat() !=null && searchParams.getLon() != null && searchParams.getRadius() != null ){
+                    displaySb.setLength(0);
+                    displaySb.append(displayString);
+                    displaySb.append(" - within ").append(searchParams.getRadius()).append(" km of point(")
+                    .append(searchParams.getLat()).append(",").append(searchParams.getLon()).append(")");
+                    displayString = displaySb.toString();
+                    
                 }
                 searchParams.setFormattedQuery(queryString.toString());
                 searchParams.setDisplayString(displayString);
@@ -1794,13 +1811,13 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws Exception
      */
-    public Map<String, Integer> getSourcesForQuery(SearchRequestParams searchParams) throws Exception {
+    public Map<String, Integer> getSourcesForQuery(SpatialSearchRequestParams searchParams) throws Exception {
 
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
         SolrQuery solrQuery = new SolrQuery();
         formatSearchQuery(searchParams);
         logger.info("The query : " + searchParams.getFormattedQuery());
-        solrQuery.setQuery(searchParams.getFormattedQuery());
+        solrQuery.setQuery(buildSpatialQueryString(searchParams));
         solrQuery.setQueryType("standard");
         solrQuery.setRows(0);
         solrQuery.setFacet(true);

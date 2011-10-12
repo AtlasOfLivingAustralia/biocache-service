@@ -243,12 +243,12 @@
         <dependency>
             <artifactId>solr-core</artifactId>
             <groupId>org.apache.solr</groupId>
-            <version>3.3.0</version>
+            <version>3.4.0</version>
         </dependency>
         <dependency>
             <artifactId>solr-solrj</artifactId>
             <groupId>org.apache.solr</groupId>
-            <version>3.3.0</version>
+            <version>3.4.0</version>
         </dependency>
         <!-- Spatial-SORL plugin patched by Adam Collins (ALA Spatial Team) to have wkt support-->
         <dependency>

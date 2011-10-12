@@ -15,6 +15,7 @@
 
 package org.ala.biocache.dto;
 
+
 /**
  * Data Transfer Object to represent the request parameters required to perform
  * a spatial search on occurrence records against biocache-service.
@@ -25,7 +26,7 @@ public class SpatialSearchRequestParams extends SearchRequestParams{
     protected Float radius = null;
     protected Float lat = null;
     protected Float lon = null;
-    protected String wkt ="";
+    protected String wkt ="";   
 
     /**
      * Custom toString method to produce a String to be used as the request parameters
@@ -36,6 +37,18 @@ public class SpatialSearchRequestParams extends SearchRequestParams{
     @Override
     public String toString() {
         StringBuilder req = new StringBuilder(super.toString());
+        if (lat != null && lon != null && radius != null) {
+            req.append("&lat=").append(lat);
+            req.append("&lon=").append(lon);
+            req.append("&radius=").append(radius);
+        }
+        if(wkt.length() >0)
+            req.append("&wkt=").append(wkt);      
+        return req.toString();
+    }
+    @Override
+    public String getUrlParams(){
+        StringBuilder req = new StringBuilder(super.getUrlParams());
         if (lat != null && lon != null && radius != null) {
             req.append("&lat=").append(lat);
             req.append("&lon=").append(lon);

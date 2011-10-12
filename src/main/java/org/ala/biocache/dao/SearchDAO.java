@@ -109,7 +109,7 @@ public interface SearchDAO {
 
     void writeCoordinatesToStream(SearchRequestParams searchParams,OutputStream out) throws Exception;
     
-    void writeFacetToStream(SearchRequestParams searchParams, boolean includeCount, boolean lookupName, OutputStream out) throws Exception;
+    void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, OutputStream out) throws Exception;
     
     List<IndexFieldDTO> getIndexedFields() throws Exception;
 
@@ -191,7 +191,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    Map<String,Integer> getSourcesForQuery(SearchRequestParams searchParams) throws Exception;
+    Map<String,Integer> getSourcesForQuery(SpatialSearchRequestParams searchParams) throws Exception;
     
     TaxaRankCountDTO calculateBreakdown(BreakdownRequestParams queryParams) throws Exception;
 

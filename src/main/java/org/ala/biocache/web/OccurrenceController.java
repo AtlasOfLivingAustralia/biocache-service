@@ -166,11 +166,11 @@ public class OccurrenceController {
 	 */
 	@RequestMapping(value={"/images/taxon/{guid:.+}.json*","/images/taxon/{guid:.+}*"})
 	public @ResponseBody List<String> getImages(@PathVariable("guid") String guid) throws Exception {
-	    SearchRequestParams srp = new SearchRequestParams();
+	    SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
 	    srp.setQ("lsid:" + guid);
 	    srp.setPageSize(0);
 	    srp.setFacets(new String[]{"image_url"});
-	    SearchResultDTO results = searchDAO.findByFulltextQuery(srp);
+	    SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(srp);
 	    if(results.getFacetResults().size()>0){
 	        List<FieldResultDTO> fieldResults =results.getFacetResults().iterator().next().getFieldResult();
 	        ArrayList<String> images = new ArrayList<String>(fieldResults.size());
@@ -190,21 +190,21 @@ public class OccurrenceController {
 	@RequestMapping(value={"/australian/taxon/{guid:.+}.json*","/australian/taxon/{guid:.+}*" })
 	public @ResponseBody AustralianDTO isAustralian(@PathVariable("guid") String guid) throws Exception {
 	    //check to see if we have any occurrences on Australia  country:Australia or state != empty
-	    SearchRequestParams requestParams = new SearchRequestParams();
+	    SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
 	    requestParams.setPageSize(0);
 	    requestParams.setFacets(new String[]{});
 	    String query = "lsid:" +guid + " AND " + "(country:Australia OR state:[* TO *])";
 	    requestParams.setQ(query);
 	    AustralianDTO adto= new AustralianDTO();
 	    adto.setTaxonGuid(guid);
-	    SearchResultDTO results = searchDAO.findByFulltextQuery(requestParams);
+	    SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(requestParams);
 	    adto.setHasOccurrenceRecords(results.getTotalRecords() > 0);
 	    adto.setIsNSL(austLsidPattern.matcher(guid).matches());
 	    if(adto.isHasOccurrences()){
 	        //check to see if the records have only been provided by citizen science
 	        //TODO change this to a confidence setting after it has been included in the index	        
 	        requestParams.setQ("lsid:" + guid + " AND -(data_resource_uid:dr364)");
-	        results = searchDAO.findByFulltextQuery(requestParams);
+	        results = searchDAO.findByFulltextSpatialQuery(requestParams);
 	        adto.setHasCSOnly(results.getTotalRecords()==0);
 	    }
 	    return adto;
@@ -215,7 +215,7 @@ public class OccurrenceController {
 	 */
 	@RequestMapping(value = {"/occurrences", "/occurrences/collections", "/occurrences/institutions", "/occurrences/dataResources", "/occurrences/dataProviders", "/occurrences/taxa", "/occurrences/dataHubs"}, method = RequestMethod.GET)
 	public @ResponseBody SearchResultDTO listOccurrences(Model model) throws Exception {
-            SearchRequestParams srp = new SearchRequestParams();
+            SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
             srp.setQ("*:*");
             return occurrenceSearch(srp, model);
 	}
@@ -229,14 +229,15 @@ public class OccurrenceController {
 	 */
 	@RequestMapping(value = {"/occurrences/taxon/{guid:.+}.json*","/occurrences/taxon/{guid:.+}*","/occurrences/taxa/{guid:.+}*"}, method = RequestMethod.GET)
 	public @ResponseBody SearchResultDTO occurrenceSearchByTaxon(
-            SearchRequestParams requestParams,
+            SpatialSearchRequestParams requestParams,
             @PathVariable("guid") String guid,
             Model model) throws Exception {
         requestParams.setQ("lsid:" + guid);
         SearchUtils.setDefaultParams(requestParams);
-        SearchResultDTO searchResult = searchDAO.findByFulltextQuery(requestParams);
-        model.addAttribute("searchResult", searchResult);
-        return searchResult;
+        //SearchResultDTO searchResult = searchDAO.findByFulltextQuery(requestParams);
+        //model.addAttribute("searchResult", searchResult);
+        //return searchResult;
+        return occurrenceSearch(requestParams,model);
 	}
 
     /**
@@ -253,7 +254,7 @@ public class OccurrenceController {
      */
     @RequestMapping(value = "/occurrences/taxon/source/{guid:.+}.json*", method = RequestMethod.GET)
     public @ResponseBody List<OccurrenceSourceDTO> sourceByTaxon(
-            SearchRequestParams requestParams,
+            SpatialSearchRequestParams requestParams,
             @PathVariable("guid") String guid,
             HttpServletRequest request
             )
@@ -276,7 +277,7 @@ public class OccurrenceController {
     @RequestMapping(value = {"/occurrences/collections/{uid}", "/occurrences/institutions/{uid}",
                              "/occurrences/dataResources/{uid}", "/occurrences/dataProviders/{uid}", "/occurrences/dataHubs/{uid}"}, method = RequestMethod.GET)
     public @ResponseBody SearchResultDTO occurrenceSearchForUID(
-            SearchRequestParams requestParams,
+            SpatialSearchRequestParams requestParams,
             @PathVariable("uid") String uid,
             Model model)
             throws Exception {
@@ -290,9 +291,9 @@ public class OccurrenceController {
         //update the request params so the search caters for the supplied uid
         searchUtils.updateCollectionSearchString(requestParams, uid);
         logger.debug("solr query: " + requestParams);
-        searchResult = searchDAO.findByFulltextQuery(requestParams);
-        model.addAttribute("searchResult", searchResult);
-        return searchResult;
+        //searchResult = searchDAO.findByFulltextQuery(requestParams);
+        //model.addAttribute("searchResult", searchResult);
+        return occurrenceSearch(requestParams, model);
     }
 
     /**
@@ -332,12 +333,12 @@ public class OccurrenceController {
 	 * @throws Exception
 	 */
 	@RequestMapping(value = {"/occurrences/search.json*","/occurrences/search*"}, method = RequestMethod.GET)
-	public @ResponseBody SearchResultDTO occurrenceSearch(SearchRequestParams requestParams,
+	public @ResponseBody SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams,
             Model model) throws Exception {
         // handle empty param values, e.g. &sort=&dir=
         SearchUtils.setDefaultParams(requestParams);   
         logger.debug("occurrence search params= " + requestParams);     
-        SearchResultDTO searchResult = searchDAO.findByFulltextQuery(requestParams);
+        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams);
         model.addAttribute("searchResult", searchResult);
         
 
@@ -546,7 +547,7 @@ public class OccurrenceController {
         if(fullRecord == null){
             //get the rowKey for the supplied uuid in the index
             //This is a workaround.  There seems to be an issue on Cassandra with retrieving uuids that start with e or f
-            SearchRequestParams srp = new SearchRequestParams();
+            SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
             srp.setQ("id:"+uuid);
             srp.setPageSize(1);
             srp.setFacets(new String[]{});
@@ -557,7 +558,7 @@ public class OccurrenceController {
         }
         if(fullRecord == null){
             //check to see if we have an occurrence id
-            SearchRequestParams srp = new SearchRequestParams();
+            SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
             srp.setQ("occurrence_id:" + uuid);
             SearchResultDTO result = occurrenceSearch(srp, model);
             if(result.getTotalRecords()>1)

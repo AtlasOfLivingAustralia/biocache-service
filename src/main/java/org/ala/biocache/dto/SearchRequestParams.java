@@ -24,8 +24,8 @@ import org.apache.commons.lang.StringUtils;
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
 public class SearchRequestParams {
-    /** When supplied no formatting of the query string is performed.  Useful to be supplied when downloading **/
-    protected String formattedQuery =""; 
+    /** Only used to store the formattedQuery to be passed around in biocache-service**/
+    protected String formattedQuery =null; 
     protected String q = "";
     protected String[] fq = {""}; // must not be null
     protected String fl="";
@@ -94,6 +94,18 @@ public class SearchRequestParams {
             req.append("&fl=").append(fl);
         if(StringUtils.isNotEmpty(formattedQuery))
             req.append("&formattedQuery=").append(formattedQuery);
+        return req.toString();
+    }
+    /**
+     * Constructs the params to be returned in the result 
+     * @return
+     */
+    public String getUrlParams(){
+        StringBuilder req = new StringBuilder();
+        req.append("?q=").append(q);
+        if(fq.length>0 && !fq[0].equals(""))
+            req.append("&fq=").append(StringUtils.join(fq, "&fq="));
+        req.append("&qc=").append(qc);
         return req.toString();
     }
 
