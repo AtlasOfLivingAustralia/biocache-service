@@ -193,7 +193,7 @@ public class OccurrenceController {
 	    SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
 	    requestParams.setPageSize(0);
 	    requestParams.setFacets(new String[]{});
-	    String query = "lsid:" +guid + " AND " + "(country:Australia OR state:[* TO *])";
+	    String query = "lsid:" +guid + " AND " + "(country:Australia OR state:[* TO *]) AND geospatial_kosher:true";
 	    requestParams.setQ(query);
 	    AustralianDTO adto= new AustralianDTO();
 	    adto.setTaxonGuid(guid);
