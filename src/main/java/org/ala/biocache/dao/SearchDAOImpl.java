@@ -41,6 +41,7 @@ import org.ala.biocache.dto.SearchResultDTO;
 import org.ala.biocache.dto.TaxaCountDTO;
 import org.ala.biocache.dto.TaxaRankCountDTO;
 import org.ala.biocache.util.CollectionsCache;
+import org.ala.biocache.util.ParamsCacheMissingException;
 import org.ala.biocache.util.RangeBasedFacets;
 import org.ala.biocache.util.SearchUtils;
 import org.apache.commons.lang.StringUtils;
@@ -1312,13 +1313,15 @@ public class SearchDAOImpl implements SearchDAO {
             }
         }
         //all belong to uncertainty range for now
-        Map<String, String> rangeMap = RangeBasedFacets.getRangeMap("uncertainty");
-        List<FieldResultDTO> fqr = new ArrayList<FieldResultDTO>();
-        for(String value: facetQueries.keySet()){
-            if(facetQueries.get(value)>0)
-                fqr.add(new FieldResultDTO(rangeMap.get(value), facetQueries.get(value)));
+        if(facetQueries != null) {
+            Map<String, String> rangeMap = RangeBasedFacets.getRangeMap("uncertainty");
+            List<FieldResultDTO> fqr = new ArrayList<FieldResultDTO>();
+            for(String value: facetQueries.keySet()){
+                if(facetQueries.get(value)>0)
+                    fqr.add(new FieldResultDTO(rangeMap.get(value), facetQueries.get(value)));
+            }
+            facetResults.add(new FacetResultDTO("uncertainty", fqr));
         }
-        facetResults.add(new FacetResultDTO("uncertainty", fqr));
 
         //handle the confidence facets in the facetQueries
         //TODO Work out whether or not we need the confidence facets ie the confidence ratign indexed???
@@ -1435,6 +1438,7 @@ public class SearchDAOImpl implements SearchDAO {
                             return;
                         }
                     } catch (NumberFormatException e) {
+                    } catch (ParamsCacheMissingException e) {
                     }
                 }
             }
@@ -1648,28 +1652,29 @@ public class SearchDAOImpl implements SearchDAO {
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setQueryType("standard");
         // Facets
-        solrQuery.setFacet(true);
-        for (String facet : searchParams.getFacets()) {
-            if (facet.equals("month")) {
-                solrQuery.addFacetField("month");
-                solrQuery.add("f.month.facet.sort", "index"); // sort by Jan-Dec
-            } else if (facet.equals("date") || facet.equals("year")) {
-                solrQuery.add("facet.date", "occurrence_" +facet);
-                solrQuery.add("facet.date.start", "1850-01-01T12:00:00Z"); // facet date range starts from 1850
-                solrQuery.add("facet.date.end", "NOW/DAY"); // facet date range ends for current date (gap period)
-                solrQuery.add("facet.date.gap", "+10YEAR"); // gap interval of 10 years
-                solrQuery.add("facet.date.other", "before"); // include counts before the facet start date ("before" label)
-                solrQuery.add("facet.date.include", "lower"); // counts will be included for dates on the starting date but not ending date
-            } else if(facet.equals("uncertainty")){
-                Map<String, String> rangeMap = RangeBasedFacets.getRangeMap("uncertainty");
-                for(String range: rangeMap.keySet()){
-                    solrQuery.add("facet.query", range);
+        solrQuery.setFacet(searchParams.getFacet());
+        if(searchParams.getFacet()) {
+            for (String facet : searchParams.getFacets()) {
+                if (facet.equals("month")) {
+                    solrQuery.addFacetField("month");
+                    solrQuery.add("f.month.facet.sort", "index"); // sort by Jan-Dec
+                } else if (facet.equals("date") || facet.equals("year")) {
+                    solrQuery.add("facet.date", "occurrence_" +facet);
+                    solrQuery.add("facet.date.start", "1850-01-01T12:00:00Z"); // facet date range starts from 1850
+                    solrQuery.add("facet.date.end", "NOW/DAY"); // facet date range ends for current date (gap period)
+                    solrQuery.add("facet.date.gap", "+10YEAR"); // gap interval of 10 years
+                    solrQuery.add("facet.date.other", "before"); // include counts before the facet start date ("before" label)
+                    solrQuery.add("facet.date.include", "lower"); // counts will be included for dates on the starting date but not ending date
+                } else if(facet.equals("uncertainty")){
+                    Map<String, String> rangeMap = RangeBasedFacets.getRangeMap("uncertainty");
+                    for(String range: rangeMap.keySet()){
+                        solrQuery.add("facet.query", range);
+                    }
+                }
+                else {
+                    solrQuery.addFacetField(facet);
                 }
             }
-            else {
-                solrQuery.addFacetField(facet);
-            }
-        }
 //        solrQuery.addFacetField("basis_of_record");
 //        solrQuery.addFacetField("type_status");
 //        solrQuery.addFacetField("institution_code_name");
@@ -1699,10 +1704,12 @@ public class SearchDAOImpl implements SearchDAO {
 
         //solrQuery.add("facet.date.other", "after");
 
-        solrQuery.setFacetMinCount(1);
-        solrQuery.setFacetLimit(searchParams.getFlimit());
-        if(searchParams.getFlimit() == -1)
-            solrQuery.setFacetSort("count");
+            solrQuery.setFacetMinCount(1);
+            solrQuery.setFacetLimit(searchParams.getFlimit());
+            if(searchParams.getFlimit() == -1)
+                solrQuery.setFacetSort("count");
+        }
+        
         solrQuery.setRows(10);
         solrQuery.setStart(0);
 
@@ -1985,11 +1992,11 @@ public class SearchDAOImpl implements SearchDAO {
         if(cutpoints == null) {
             solrQuery.addFacetField(facetField);
         } else {
-            solrQuery.addFacetQuery(facetField + ":[* TO " + cutpoints[1] + "]");
-            for(int i=2;i<cutpoints.length-1;i++) {
-                solrQuery.addFacetQuery(facetField + ":[" + cutpoints[i-1] + " TO " + cutpoints[i] + "]");
+            solrQuery.addFacetQuery("-" + facetField + ":[* TO *]");
+
+            for(int i=0;i<cutpoints.length;i+=2) {
+                solrQuery.addFacetQuery(facetField + ":[" + cutpoints[i] + " TO " + cutpoints[i+1] + "]");
             }
-            solrQuery.addFacetQuery(facetField + ":[" + cutpoints[cutpoints.length - 2] + " TO *]");
         }
         
         solrQuery.setFacetMinCount(1);

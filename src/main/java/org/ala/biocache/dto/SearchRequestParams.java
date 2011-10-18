@@ -67,6 +67,8 @@ public class SearchRequestParams {
     private String displayString;
     /**  The query context to be used for the search.  This will be used to generate extra query filters based on the search technology */
     protected String qc ="";
+    /** To disable facets */
+    protected Boolean facet = true;
    
     
     /**
@@ -86,7 +88,7 @@ public class SearchRequestParams {
         req.append("&dir=").append(dir);
         req.append("&qc=").append(qc);
         //
-        if(facets.length > 0)
+        if(facets.length > 0 && facet)
             req.append("&facets=").append(StringUtils.join(facets, "&facets="));
         if (flimit != 30) 
             req.append("&flimit=").append(flimit);
@@ -268,6 +270,14 @@ public class SearchRequestParams {
      */
     public void setFormattedQuery(String formattedQuery) {
         this.formattedQuery = formattedQuery;
+    }
+
+    public Boolean getFacet() {
+        return facet;
+    }
+
+    public void setFacet(Boolean facet) {
+        this.facet = facet;
     }
     
 }
