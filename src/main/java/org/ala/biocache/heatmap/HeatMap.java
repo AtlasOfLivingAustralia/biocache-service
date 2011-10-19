@@ -40,6 +40,7 @@ import org.apache.log4j.Logger;
  * @author ajay
  */
 public class HeatMap {
+
     private final static Logger logger = Logger.getLogger(HeatMap.class);
     private BufferedImage backgroundImage;
     private BufferedImage legendImage;
@@ -79,7 +80,7 @@ public class HeatMap {
             legendImage = ImageIO.read(new File(baseDir.getAbsolutePath() + "/base/heatmap_key.png"));
             dotImage = getDotImageFile();
         } catch (IOException e) {
-            
+
             e.printStackTrace();
         }
 
@@ -169,7 +170,7 @@ public class HeatMap {
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
         GraphicsDevice gd = ge.getDefaultScreenDevice();
         GraphicsConfiguration gc = gd.getDefaultConfiguration();
-
+        
         return gc.createCompatibleImage(
         width, height, Transparency.TRANSLUCENT);
          *
@@ -324,8 +325,8 @@ public class HeatMap {
             minY = iy;
             maxX = ix;
             maxY = iy;
-
-
+            
+            
             for (int i = 1; i < v.size(); i++) {
             //for (int j = 0; j < points[i].length; j++) {}
             //if (points[i][0] < minX) minX = points[i][0];
@@ -333,7 +334,7 @@ public class HeatMap {
             String strpts[] = ((String) v.get(i)).split(",");
             double cx = Double.parseDouble(strpts[0]);
             double cy = Double.parseDouble(strpts[1]);
-
+            
             System.out.println("Have: " + (String) v.get(i));
             System.out.println("checking minx: " + (cx < minX));
             if (cx < minX) {
@@ -555,7 +556,7 @@ public class HeatMap {
         int dPoints[][] = new int[width][height];
         for (int i = 0; i < v.length; i += 2) {
             double cx = v[i];
-            double cy = v[i +1];
+            double cy = v[i + 1];
 
             Point p = translate(cx, cy);
 
@@ -574,83 +575,70 @@ public class HeatMap {
         }
         scale[scale.length - 1] = 0;
 
+
+        Graphics cg = legendImage.getGraphics();
+        cg.setColor(Color.BLACK);
+        cg.setFont(new Font("Arial", Font.PLAIN, 10));
+        String sdata = "";
+        int width = legendImage.getWidth();
+        int height = legendImage.getHeight();
+        int padding = 10; // 10px padding around the image
+        int keyHeight = 30; // 30px key height
+        int keyWidth = 25; // 30px key width
+
+        width -= padding * 2;
+        height -= padding * 2;
+
+        int scaleLength = scale.length;
+        String value = (scale[scaleLength - 1] + 1) + "-" + (scale[scaleLength - 3]);
+        int left = padding * 2 + keyWidth; // padding + width/2;
+        int top = padding + (keyHeight / 2);
+        cg.drawString(value, left, top);
+
+        value = (scale[scaleLength - 3] + 1) + "-" + (scale[scaleLength - 5]);
+        top = padding + (keyHeight / 2) + keyHeight;
+        cg.drawString(value, left, top);
+
+        value = (scale[scaleLength - 5] + 1) + "-" + (scale[scaleLength - 6]);
+        top = padding + (keyHeight / 2) + (keyHeight * 2);
+        cg.drawString(value, left, top);
+
+        value = (scale[scaleLength - 6] + 1) + "-" + (scale[scaleLength - 7]);
+        top = padding + (keyHeight / 2) + (keyHeight * 3);
+        cg.drawString(value, left, top);
+
+        value = (scale[scaleLength - 7] + 1) + "-" + (scale[scaleLength - 8]);
+        top = padding + (keyHeight / 2) + (keyHeight * 4);
+        cg.drawString(value, left, top);
+
+        value = (scale[scaleLength - 8] + 1) + "+";
+        top = padding + (keyHeight / 2) + (keyHeight * 5);
+        cg.drawString(value, left, top);
+
+    }
+
+    public void drawLegend(String outfile) {
+        File legOut = new File(outfile);
         try {
-            File ciOut = new File(baseDir.getAbsolutePath() + "/legend_" + baseFile);
-            Graphics cg = legendImage.getGraphics();
-            cg.setColor(Color.BLACK);
-            cg.setFont(new Font("Arial", Font.PLAIN, 10));
-            String sdata = "";
-            int width = legendImage.getWidth();
-            int height = legendImage.getHeight();
-            int padding = 10; // 10px padding around the image
-            int keyHeight = 30; // 30px key height
-            int keyWidth = 25; // 30px key width
-
-            width -= padding * 2;
-            height -= padding * 2;
-
-            int scaleLength = scale.length;
-            String value = (scale[scaleLength - 1] + 1) + "-" + (scale[scaleLength - 3]);
-            int left = padding * 2 + keyWidth; // padding + width/2;
-            int top = padding + (keyHeight / 2);
-            cg.drawString(value, left, top);
-
-            value = (scale[scaleLength - 3] + 1) + "-" + (scale[scaleLength - 5]);
-            top = padding + (keyHeight / 2) + keyHeight;
-            cg.drawString(value, left, top);
-
-            value = (scale[scaleLength - 5] + 1) + "-" + (scale[scaleLength - 6]);
-            top = padding + (keyHeight / 2) + (keyHeight * 2);
-            cg.drawString(value, left, top);
-
-            value = (scale[scaleLength - 6] + 1) + "-" + (scale[scaleLength - 7]);
-            top = padding + (keyHeight / 2) + (keyHeight * 3);
-            cg.drawString(value, left, top);
-
-            value = (scale[scaleLength - 7] + 1) + "-" + (scale[scaleLength - 8]);
-            top = padding + (keyHeight / 2) + (keyHeight * 4);
-            cg.drawString(value, left, top);
-
-            value = (scale[scaleLength - 8] + 1) + "+";
-            top = padding + (keyHeight / 2) + (keyHeight * 5);
-            cg.drawString(value, left, top);
-
-            ImageIO.write(legendImage, "png", ciOut);
-            //System.out.println("legend generated");
+            ImageIO.write(legendImage, "png", legOut);
         } catch (Exception e) {
             logger.error("Unable to write legendImage:" + ExceptionUtils.getStackTrace(e));
         }
-
     }
 
     public void drawOutput(String outfile, boolean colorize) {
         try {
-
-            //File miOut = new File(baseDir.getAbsolutePath() + "/monochromeImage2.png");
-            //ImageIO.write(monochromeImage, "png", miOut);
-
-
-            //System.out.println("generating heat map image...");
-            //heatmapImage = colorize(colorOp);
             if (colorize) {
                 heatmapImage = doColorize();
             } else {
                 heatmapImage = monochromeImage;
             }
 
-
-            //File hmbOut = new File(baseDir.getAbsolutePath() + "/heatmapImage.png");
-            //ImageIO.write(heatmapImage, "png", hmbOut);
-
-            //System.out.println("writing heat map image...");
             Graphics2D g = (Graphics2D) backgroundImage.getGraphics();
             g.drawImage(makeColorTransparent(heatmapImage, Color.WHITE), 0, 0, null);
 
             File hmOut = new File(outfile);
             ImageIO.write(backgroundImage, "png", hmOut);
-            //File hmOut2 = new File(outfile + "monochromeImage.png");
-            //ImageIO.write(monochromeImage, "png", hmOut2);
-            //System.out.println("done");
 
         } catch (Exception ex) {
             logger.error("An error occurred drawing output " + ExceptionUtils.getStackTrace(ex));

@@ -590,9 +590,9 @@ public class MapController implements ServletConfigAware {
         File f = new File(baseDir + "/" + outputHMFile);
 
         if (!f.isFile() || forceRefresh) {
-            logger.info("regenerating heatmap images");
+            logger.info("regenerating heatmap image");
             //If not, generate
-            generateStaticHeatmapImages(requestParams, model, request, response);
+            generateStaticHeatmapImages(requestParams, model, request, response, false);
         } else {
             logger.info("heatmap file already exists on disk, sending file back to user");
         }
@@ -636,8 +636,8 @@ public class MapController implements ServletConfigAware {
         
         if (!f.isFile() || forceRefresh) {
             //If not, generate
-            logger.info("regenerating heatmap images");
-            generateStaticHeatmapImages(requestParams, model, request, response);
+            logger.info("regenerating heatmap legend");
+            generateStaticHeatmapImages(requestParams, model, request, response, true);
         } else {
             logger.info("legend file already exists on disk, sending file back to user");
         }
@@ -665,7 +665,7 @@ public class MapController implements ServletConfigAware {
      * @param request
      * @param response 
      */
-    public void generateStaticHeatmapImages(SpatialSearchRequestParams requestParams, Model model, HttpServletRequest request, HttpServletResponse response) {
+    public void generateStaticHeatmapImages(SpatialSearchRequestParams requestParams, Model model, HttpServletRequest request, HttpServletResponse response, boolean generateLegend) {
         
         File baseDir = new File(heatmapBase);
         logger.info("heatmap base is " + heatmapBase);
@@ -706,22 +706,28 @@ public class MapController implements ServletConfigAware {
                 j = j + 2;
             }
         } catch (Exception e) {
+            logger.error("An error occurred getting heatmap points");
         }
         if (points != null && points.length > 0) {
             HeatMap hm = new HeatMap(baseDir, outputHMFile);
 
             if ((points.length / 2) < 500) {
-                hm.generatePoints(points);
-                hm.drawOutput(baseDir + "/" + outputHMFile, false);
-                isHeatmap = false;
+                if (!generateLegend){
+                    hm.generatePoints(points);
+                    hm.drawOutput(baseDir + "/" + outputHMFile, false);
+                }
             } else {
-                hm.generateClasses(points);
-                hm.drawOutput(baseDir + "/" + outputHMFile, true);
-                isHeatmap = true;
+                hm.generateClasses(points); //this will create legend
+                if (generateLegend){
+                    hm.drawLegend(baseDir + "/legend_" + outputHMFile);
+                }
+                else {
+                    hm.drawOutput(baseDir + "/" + outputHMFile, true);
+                }
             }
         } else {
             logger.info("No points provided, creating a blank map");
-
+            
             File inMapFile = new File(baseDir + "/base/mapaus1_white.png");
             File outMapFile = new File(baseDir + "/" + outputHMFile);
 
