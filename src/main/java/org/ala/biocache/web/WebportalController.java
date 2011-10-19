@@ -65,7 +65,7 @@ public class WebportalController implements ServletConfigAware {
     /** max uncertainty mappable in m */
     private final double MAX_UNCERTAINTY = 30000;
     /** add pixel radius for wms highlight circles */
-    private final static int HIGHLIGHT_RADIUS = 6;
+    private final static int HIGHLIGHT_RADIUS = 3;
     private String baseMapPath = "/images/mapaus1_white.png";
     private ServletConfig cfg;
     /** Logger initialisation */
@@ -1327,7 +1327,7 @@ public class WebportalController implements ServletConfigAware {
                 imgObj = new ImgObj(g, img);
             }
 
-            int highightRadius = vars.size + HIGHLIGHT_RADIUS + (int) (vars.size * 0.2);
+            int highightRadius = vars.size + HIGHLIGHT_RADIUS;
             int highlightWidth = highightRadius * 2;
 
             imgObj.g.setStroke(new BasicStroke(2));
