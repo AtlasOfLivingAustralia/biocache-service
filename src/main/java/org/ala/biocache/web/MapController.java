@@ -679,8 +679,7 @@ public class MapController implements ServletConfigAware {
         double[] points = null;
 
         try {
-            //set the geospatial_kosher flag
-            requestParams.setQ(requestParams.getQ() + " AND geospatial_kosher:true");
+            requestParams.setQ(requestParams.getQ());
             List<OccurrencePoint> occ_points = searchDAO.getFacetPoints(requestParams, pointType);
             logger.debug("Points search for " + pointType.getLabel() + " - found: " + occ_points.size());
 
