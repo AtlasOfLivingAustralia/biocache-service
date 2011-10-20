@@ -46,6 +46,7 @@ public class SearchRequestParams {
                                 "kingdom",
                                 "family",
                                 "species_guid",
+                                "subspecies_name",
                                 "raw_taxon_name",
                                 "uncertainty",
                                 "state_conservation",
