@@ -28,6 +28,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.ala.biocache.dao.SearchDAO;
+import org.ala.biocache.dto.OccurrencePoint;
+import org.ala.biocache.dto.PointType;
+import org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.ala.biocache.dto.TaxaCountDTO;
 import org.ala.biocache.util.TaxaGroup;
 import org.apache.commons.lang.StringUtils;
@@ -65,6 +68,7 @@ public class ExploreController {
 //    private HashMap<String, List<Float>> addressCache = new HashMap<String, List<Float>>();
     private final String DEFAULT_LOCATION = "Clunies Ross St, Black Mountain, ACT";
     private static LookupService lookupService = null;
+    private final String POINTS_GEOJSON = "json/pointsGeoJson";
     /** Mapping of radius in km to OpenLayers zoom level */
     public final static HashMap<Float, Integer> radiusToZoomLevelMap = new HashMap<Float, Integer>();
 	static {
@@ -161,6 +165,11 @@ public class ExploreController {
         
         return new Integer[]{(int)results.getTotalRecords() ,speciesCount};
     }
+    /**
+     * Updates the requestParams to take into account the provided species group
+     * @param requestParams
+     * @param group
+     */
     private void updateQuery(SpatialSearchRequestParams requestParams, String group){
         StringBuilder sb = new StringBuilder();
         if(requestParams.getQ() != null && !requestParams.getQ().isEmpty())
@@ -175,6 +184,71 @@ public class ExploreController {
       //don't care about the formatted query
         requestParams.setFormattedQuery(null);
     }
+    
+    /**
+     * GeoJSON view of records as clusters of points within a specified radius of a given location
+     *
+     * This service will be used by explore your area.
+     *
+     * 
+     *
+     */
+    @RequestMapping(value = "/geojson/radius-points", method = RequestMethod.GET)
+        public String radiusPointsGeoJson(SpatialSearchRequestParams requestParams,
+
+
+            @RequestParam(value="zoom", required=false, defaultValue="0") Integer zoomLevel,
+            @RequestParam(value="bbox", required=false) String bbox,
+            @RequestParam(value="group", required=false, defaultValue="ALL_SPECIES") String speciesGroup,
+            Model model)
+            throws Exception
+    {
+
+
+        updateQuery(requestParams, speciesGroup);
+        PointType pointType = PointType.POINT_00001; // default value for when zoom is null
+        pointType = getPointTypeForZoomLevel(zoomLevel);
+        logger.info("PointType for zoomLevel ("+zoomLevel+") = "+pointType.getLabel());
+        List<OccurrencePoint> points = searchDao.findRecordsForLocation(requestParams, pointType);
+        logger.info("Points search for "+pointType.getLabel()+" - found: "+points.size());
+        model.addAttribute("points", points);
+        return POINTS_GEOJSON;
+
+    }
+    
+    /**
+     * Map a zoom level to a coordinate accuracy level
+     *
+     * @param zoomLevel
+     * @return
+     */
+    protected PointType getPointTypeForZoomLevel(Integer zoomLevel) {
+        PointType pointType = null;
+        // Map zoom levels to lat/long accuracy levels
+        if (zoomLevel != null) {
+            if (zoomLevel >= 0 && zoomLevel <= 6) {
+                // 0-6 levels
+                pointType = PointType.POINT_1;
+            } else if (zoomLevel > 6 && zoomLevel <= 8) {
+                // 6-7 levels
+                pointType = PointType.POINT_01;
+            } else if (zoomLevel > 8 && zoomLevel <= 10) {
+                // 8-9 levels
+                pointType = PointType.POINT_001;
+            } else if (zoomLevel > 10 && zoomLevel <= 13) {
+                // 10-12 levels
+                pointType = PointType.POINT_0001;
+            } else if (zoomLevel > 13 && zoomLevel <= 15) {
+                // 12-n levels
+                pointType = PointType.POINT_00001;
+            } else {
+                // raw levels
+                pointType = PointType.POINT_RAW;
+            }
+        }
+        return pointType;
+    }
+    
     /**
      * Returns the number of species in all the groups.
      * @param requestParams

@@ -48,7 +48,7 @@ public class GeospatialController {
     @Inject
     protected SearchDAO searchDAO;
 
-    private final String POINTS_GEOJSON = "json/pointsGeoJson";
+
 
 
     /**
@@ -132,73 +132,9 @@ public class GeospatialController {
     }
 
 
-    /**
-     * GeoJSON view of records as clusters of points within a specified radius of a given location
-     *
-     * This service will be used by explore your area.
-     *
-     * TODO: Is this the correct place for this service? 
-     *
-     */
-    @RequestMapping(value = "/geojson/radius-points", method = RequestMethod.GET)
-        public String radiusPointsGeoJson(SpatialSearchRequestParams requestParams,
 
 
-            @RequestParam(value="zoom", required=false, defaultValue="0") Integer zoomLevel,
-            @RequestParam(value="bbox", required=false) String bbox,
-            @RequestParam(value="group", required=false, defaultValue="ALL_SPECIES") String speciesGroup,
-            Model model)
-            throws Exception
-    {
-
-        //only interested in applying the group if no value for the query has been provided
-        if(StringUtils.isEmpty(requestParams.getQ())){
-            // Convert array to list so we append more values onto it
-            String query = speciesGroup.equals("ALL_SPECIES")?"*:*" : "species_group:"+speciesGroup;
-            requestParams.setQ(query);
-        }
-        PointType pointType = PointType.POINT_00001; // default value for when zoom is null
-        pointType = getPointTypeForZoomLevel(zoomLevel);
-        logger.info("PointType for zoomLevel ("+zoomLevel+") = "+pointType.getLabel());
-        List<OccurrencePoint> points = searchDAO.findRecordsForLocation(requestParams, pointType);
-        logger.info("Points search for "+pointType.getLabel()+" - found: "+points.size());
-        model.addAttribute("points", points);
-        return POINTS_GEOJSON;
-
-    }
-
-     /**
-     * Map a zoom level to a coordinate accuracy level
-     *
-     * @param zoomLevel
-     * @return
-     */
-    protected PointType getPointTypeForZoomLevel(Integer zoomLevel) {
-        PointType pointType = null;
-        // Map zoom levels to lat/long accuracy levels
-        if (zoomLevel != null) {
-            if (zoomLevel >= 0 && zoomLevel <= 6) {
-                // 0-6 levels
-                pointType = PointType.POINT_1;
-            } else if (zoomLevel > 6 && zoomLevel <= 8) {
-                // 6-7 levels
-                pointType = PointType.POINT_01;
-            } else if (zoomLevel > 8 && zoomLevel <= 10) {
-                // 8-9 levels
-                pointType = PointType.POINT_001;
-            } else if (zoomLevel > 10 && zoomLevel <= 13) {
-                // 10-12 levels
-                pointType = PointType.POINT_0001;
-            } else if (zoomLevel > 13 && zoomLevel <= 15) {
-                // 12-n levels
-                pointType = PointType.POINT_00001;
-            } else {
-                // raw levels
-                pointType = PointType.POINT_RAW;
-            }
-        }
-        return pointType;
-    }
+ 
 
 
     public static void main(String[] args) throws Exception{

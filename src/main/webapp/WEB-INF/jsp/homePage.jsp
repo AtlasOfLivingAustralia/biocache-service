@@ -101,7 +101,8 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 			<li><strong>Retrieve all species groups and counts:</strong> /explore/groups</li>
 			<li><strong>Retrieve the counts for a specific group:</strong> /explore/counts/group/{group} -the first count is total number of occurrence, the second is the number of distinct species </li>
 			<li><strong>Download a list of species in a group: </strong> /explore/group/{group}/download </li>
-			<li><strong>Retrieve list of species and counts for a group: </strong> /explore/group/{group} - supports the additional parameters pageSize, start, sort, dir - to allow paging through the results </li>						 
+			<li><strong>Retrieve list of species and counts for a group: </strong> /explore/group/{group} - supports the additional parameters pageSize, start, sort, dir - to allow paging through the results </li>
+			<li><strong>Retrieve geojson cluster for group: </strong> /geojson/radius-points - supports an additional group parameter </li>						 
 		</ul>
 		
         <h3>Breakdowns</h3>

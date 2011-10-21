@@ -49,6 +49,7 @@ public class SearchRequestParams {
                                 "subspecies_name",
                                 "raw_taxon_name",
                                 "uncertainty",
+                                "interaction",
                                 "state_conservation",
                                 "raw_state_conservation",
                                 "sensitive",

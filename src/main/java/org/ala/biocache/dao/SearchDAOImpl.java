@@ -839,7 +839,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFacetMinCount(1);
         solrQuery.setFacetLimit(MAX_DOWNLOAD_SIZE);  // unlimited = -1
 
-        QueryResponse qr = runSolrQuery(solrQuery, null, 1, 0, "score", "asc");
+        QueryResponse qr = runSolrQuery(solrQuery, requestParams.getFq(), 1, 0, "score", "asc");
         logger.info("qr number found: " + qr.getResults().getNumFound());
         List<FacetField> facets = qr.getFacetFields();
 
