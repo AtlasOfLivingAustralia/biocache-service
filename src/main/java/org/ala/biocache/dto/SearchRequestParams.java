@@ -98,6 +98,8 @@ public class SearchRequestParams {
             req.append("&fl=").append(fl);
         if(StringUtils.isNotEmpty(formattedQuery))
             req.append("&formattedQuery=").append(formattedQuery);
+        if(!facet)
+            req.append("&facet=false");
         return req.toString();
     }
     /**
