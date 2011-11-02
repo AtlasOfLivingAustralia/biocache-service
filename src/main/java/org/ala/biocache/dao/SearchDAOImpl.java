@@ -411,6 +411,8 @@ public class SearchDAOImpl implements SearchDAO {
             
             SolrQuery solrQuery = initSolrQuery(downloadParams);
             formatSearchQuery(downloadParams);
+            //add context information
+            updateQueryContext(downloadParams);
             logger.info("search query: " + downloadParams.getFormattedQuery());
             solrQuery.setQuery(buildSpatialQueryString(downloadParams));
             //Only the fields specified below will be included in the results from the SOLR Query
