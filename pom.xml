@@ -13,8 +13,8 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <openrdf.sesame.version>2.2</openrdf.sesame.version>
     <spring.version>3.0.4.RELEASE</spring.version>
-    <junit.version>4.7.0</junit.version>
-    <netbeans.hint.deploy.server>Tomcat60</netbeans.hint.deploy.server>
+    <junit.version>4.8.2</junit.version>
+    <netbeans.hint.deploy.server>Tomcat</netbeans.hint.deploy.server>
   </properties>
   <dependencies>
     <!-- ALA logging -->
@@ -112,7 +112,7 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>3.8.1</version>
+      <version>${junit.version}</version>
       <scope>test</scope>
     </dependency>
     <!-- SPRING 3.0 -->
@@ -179,13 +179,6 @@
         <artifactId>spring-jms</artifactId>
         <version>${spring.version}</version>
     </dependency>
-    
-	<dependency>
-	    <groupId>org.junit</groupId>
-	    <artifactId>com.springsource.org.junit</artifactId>
-	    <version>${junit.version}</version>
-	    <scope>test</scope>
-	</dependency>
     <dependency>
         <groupId>org.apache.xbean</groupId>
         <artifactId>xbean-spring</artifactId>
