@@ -58,6 +58,7 @@ import org.apache.solr.client.solrj.response.FacetField.Count;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.core.CoreContainer;
+import org.springframework.context.support.ReloadableResourceBundleMessageSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
@@ -132,6 +133,9 @@ public class SearchDAOImpl implements SearchDAO {
     
     @Inject
     private RestOperations restTemplate;
+
+    @Inject
+    private ReloadableResourceBundleMessageSource messageSoure;
     
     private List<IndexFieldDTO> indexFields = null;
 
@@ -1570,7 +1574,22 @@ public class SearchDAOImpl implements SearchDAO {
                     displayString = displaySb.toString();
                     
                 }
+
+                // substitute i18n version of field name, if found in messages.properties
+                int colonIndex =  displayString.indexOf(":");
+                String fieldName = displayString.substring(0, colonIndex);
+
+                if (fieldName != null && !fieldName.isEmpty()) {
+                    // i18n gets set to fieldName if not found
+                    String i18n = messageSoure.getMessage("facet."+fieldName, null, fieldName, null);
+                    
+                    if (!fieldName.equals(i18n)) {
+                        displayString = i18n + displayString.substring(colonIndex);
+                    }
+                }
+
                 searchParams.setFormattedQuery(queryString.toString());
+                logger.debug("displayString = " + displayString);
                 searchParams.setDisplayString(displayString);
                 //return queryString.toString();
             }
