@@ -195,9 +195,7 @@ public class SearchDAOImpl implements SearchDAO {
 
 
     /**
-     * @see org.ala.biocache.dao.SearchDAO#findByFulltextSpatialQuery(java.lang.String, java.lang.String,
-     *         java.lang.Float, java.lang.Float, java.lang.Integer, java.lang.Integer,
-     *         java.lang.Integer, java.lang.String, java.lang.String)
+     * @see org.ala.biocache.dao.SearchDAO#findByFulltextSpatialQuery(org.ala.biocache.dto.SpatialSearchRequestParams)
      */
     @Override
     public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams) throws Exception {
@@ -228,7 +226,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see org.ala.biocache.dao.SearchDAO#writeSpeciesCountByCircleToStream(java.lang.Float, java.lang.Float, java.lang.Integer, java.lang.String, java.util.List, javax.servlet.ServletOutputStream)
+     * @see org.ala.biocache.dao.SearchDAO#writeSpeciesCountByCircleToStream(org.ala.biocache.dto.SpatialSearchRequestParams, String, javax.servlet.ServletOutputStream)
      * 
      */
     public int writeSpeciesCountByCircleToStream(SpatialSearchRequestParams searchParams, String speciesGroup, ServletOutputStream out) throws Exception {
@@ -400,8 +398,7 @@ public class SearchDAOImpl implements SearchDAO {
 
 
     /**
-     * @see org.ala.biocache.dao.SearchDAO#writeResultsToStream(java.lang.String, java.lang.String[], java.io.OutputStream, int)
-     *
+     * @see org.ala.biocache.dao.SearchDAO#writeResultsToStream(org.ala.biocache.dto.DownloadRequestParams, java.io.OutputStream, int) 
      * 
      */
     public Map<String, Integer> writeResultsToStream(DownloadRequestParams downloadParams, OutputStream out, int i) throws Exception {
@@ -611,7 +608,7 @@ public class SearchDAOImpl implements SearchDAO {
     
 
     /**
-     * @see org.ala.biocache.dao.SearchDao#getFacetPoints(java.lang.String, java.lang.String[], PointType pointType)
+     * @see org.ala.biocache.dao.SearchDAO#getFacetPoints(org.ala.biocache.dto.SpatialSearchRequestParams, org.ala.biocache.dto.PointType) 
      */
     @Override
     public List<OccurrencePoint> getFacetPoints(SpatialSearchRequestParams searchParams, PointType pointType) throws Exception {
@@ -667,7 +664,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see org.ala.biocache.dao.SearchDao#getOccurrences(java.lang.String, java.lang.String[], PointType pointType)
+     * @see org.ala.biocache.dao.SearchDAO#getOccurrences(org.ala.biocache.dto.SpatialSearchRequestParams, org.ala.biocache.dto.PointType, String, int) 
      */
     @Override
     public List<OccurrencePoint> getOccurrences(SpatialSearchRequestParams searchParams, PointType pointType, String colourBy, int searchType) throws Exception {
@@ -825,7 +822,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see org.ala.biocache.dao.SearchDAO#findRecordsForLocation(Float, Float, Integer)
+     * @see org.ala.biocache.dao.SearchDAO#findRecordsForLocation(org.ala.biocache.dto.SpatialSearchRequestParams, org.ala.biocache.dto.PointType) 
      * This is used by explore your area
      */
     @Override
@@ -914,8 +911,7 @@ public class SearchDAOImpl implements SearchDAO {
 
 
     /**
-     * @see org.ala.biocache.dao.SearchDAO#findAllSpeciesByCircleAreaAndHigherTaxa(Float, Float,
-     *     Integer, String, String, String, Integer, Integer, String, String)
+     * @see org.ala.biocache.dao.SearchDAO#findAllSpeciesByCircleAreaAndHigherTaxa(org.ala.biocache.dto.SpatialSearchRequestParams, String) 
      */
     @Override
     public List<TaxaCountDTO> findAllSpeciesByCircleAreaAndHigherTaxa(SpatialSearchRequestParams requestParams, String speciesGroup) throws Exception {
@@ -1133,7 +1129,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see org.ala.biocache.dao.SearchDAO#findTaxonCountForUid(java.lang.String, java.lang.String)
+     * @see org.ala.biocache.dao.SearchDAO#findTaxonCountForUid(org.ala.biocache.dto.BreakdownRequestParams, String) 
      * @deprecated use {@link #calculateBreakdown(BreakdownRequestParams)} instead
      */
     @Deprecated
@@ -1195,11 +1191,7 @@ public class SearchDAOImpl implements SearchDAO {
      * Perform SOLR query - takes a SolrQuery and search params
      *
      * @param solrQuery
-     * @param filterQuery
-     * @param pageSize
-     * @param startIndex
-     * @param sortField
-     * @param sortDirection
+     * @param requestParams
      * @return
      * @throws SolrServerException
      */
@@ -1832,10 +1824,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * Obtains a list and facet count of the source uids for the supplied query.
      *
-  
-     *
-     * @param query
-     * @param filterQuery
+     * @param searchParams
      * @return
      * @throws Exception
      */

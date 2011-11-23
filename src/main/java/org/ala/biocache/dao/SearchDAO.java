@@ -49,12 +49,7 @@ public interface SearchDAO {
     /**
      * Find all occurrences for a given (full text) query
      *
-     * @param query
-     * @param filterQuery
-     * @param startIndex
-     * @param pageSize
-     * @param sortField
-     * @param sortDirection
+     * @param requestParams
      * @return
      * @throws Exception
      */
@@ -64,15 +59,7 @@ public interface SearchDAO {
      * Find all occurrences for a given (full text) query, latitude, longitude & radius (km). I.e.
      * a full-text spatial query.
      *
-     * @param query
-     * @param filterQuery
-     * @param lat
-     * @param lon
-     * @param radius
-     * @param startIndex
-     * @param pageSize
-     * @param sortField
-     * @param sortDirection
+     * @param requestParams
      * @return
      * @throws Exception
      */
@@ -82,11 +69,8 @@ public interface SearchDAO {
 
     /**
      * Writes the species count in the specified circle to the output stream.
-     * @param latitude
-     * @param longitude
-     * @param radius
-     * @param rank
-     * @param higherTaxa
+     * @param requestParams
+     * @param speciesGroup
      * @param out
      * @return
      * @throws Exception
@@ -97,8 +81,7 @@ public interface SearchDAO {
     /**
      * Write out the results of this query to the output stream
      * 
-     * @param query
-     * @param filterQuery
+     * @param searchParams
      * @param out
      * @param maxNoOfRecords
      * @return A map of uids and counts that needs to be logged to the ala-logger
@@ -116,8 +99,8 @@ public interface SearchDAO {
     /**
      * Retrieve an OccurrencePoint (distinct list of points - lat-long to 4 decimal places) for a given search
      *
-     * @param query
-     * @param filterQuery
+     * @param searchParams
+     * @param pointType
      * @return
      * @throws Exception
      */
@@ -126,9 +109,10 @@ public interface SearchDAO {
     /**
      * Retrieve a list of occurrence uid's for a given search
      *
-     * @param query
-     * @param filterQuery
+     * @param requestParams
      * @param pointType
+     * @param colourBy
+     * @param searchType
      * @return
      * @throws Exception
      */
@@ -137,9 +121,8 @@ public interface SearchDAO {
     /**
      * Get a list of occurrence points for a given lat/long and distance (radius)
      *
-     * @param latitude
-     * @param longitude
-     * @param radius
+     * @param requestParams
+     * @param pointType
      * @return
      * @throws Exception
      */
@@ -153,16 +136,8 @@ public interface SearchDAO {
     /**
      * Find all species (and counts) for a given location search (lat/long and radius) and a higher taxon (with rank)
      *
-     * @param latitude
-     * @param longitude
-     * @param radius
-     * @param rank
-     * @param higherTaxa
-     * @param filterQuery
-     * @param startIndex
-     * @param pageSize
-     * @param sortField
-     * @param sortDirection
+     * @param requestParams
+     * @param speciesGroup
      * @return
      * @throws Exception
      */
@@ -184,10 +159,11 @@ public interface SearchDAO {
     List<TaxaCountDTO> findTaxaByUserId(String userId) throws Exception;
 
     List<OccurrenceIndex> findPointsForUserId(String userId) throws Exception;
+
     /**
      * Find all the sources for the supplied query
      *
-     * @param query
+     * @param searchParams
      * @return
      * @throws Exception
      */
@@ -196,11 +172,11 @@ public interface SearchDAO {
     TaxaRankCountDTO calculateBreakdown(BreakdownRequestParams queryParams) throws Exception;
 
     TaxaRankCountDTO findTaxonCountForUid(String query, String queryContext, int maximumFacets) throws Exception;
+
     /**
      * Returns the scientific name and counts for the taxon rank that proceed or include the supplied rank.
+     * @param breakdownParams
      * @param query
-     * @param rank
-     * @param includeSuppliedRank true when the supplied rank should be included, false when proceeding ranks should be included
      * @return
      * @throws Exception
      */
@@ -213,8 +189,6 @@ public interface SearchDAO {
      * @throws Exception
      */
     List<TaxaCountDTO> findAllSpecies(SpatialSearchRequestParams requestParams) throws Exception;
-
-   
     
     /**
      * Find all occurrences for a given query as SolrDocumentList
