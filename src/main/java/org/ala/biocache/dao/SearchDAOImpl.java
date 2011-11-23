@@ -1414,7 +1414,7 @@ public class SearchDAOImpl implements SearchDAO {
      * 
      * TODO Fix this to use a state.  REVISE!!
      *
-     * @param query
+     * @param searchParams
      * @return
      */
     protected void formatSearchQuery(SpatialSearchRequestParams searchParams) {
@@ -1577,9 +1577,9 @@ public class SearchDAOImpl implements SearchDAO {
 
                 // substitute i18n version of field name, if found in messages.properties
                 int colonIndex =  displayString.indexOf(":");
-                String fieldName = displayString.substring(0, colonIndex);
 
-                if (fieldName != null && !fieldName.isEmpty()) {
+                if (colonIndex > 0) {
+                    String fieldName = displayString.substring(0, colonIndex);
                     // i18n gets set to fieldName if not found
                     String i18n = messageSoure.getMessage("facet."+fieldName, null, fieldName, null);
                     
