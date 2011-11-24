@@ -18,11 +18,9 @@ package org.ala.biocache.dao;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -34,7 +32,6 @@ import org.ala.biocache.dto.DownloadRequestParams;
 import org.ala.biocache.dto.FacetResultDTO;
 import org.ala.biocache.dto.FieldResultDTO;
 import org.ala.biocache.dto.IndexFieldDTO;
-import org.ala.biocache.dto.OccurrenceDTO;
 import org.ala.biocache.dto.OccurrencePoint;
 import org.ala.biocache.dto.PointType;
 import org.ala.biocache.dto.SearchResultDTO;
@@ -50,15 +47,13 @@ import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.SolrQuery.ORDER;
-import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.client.solrj.response.FacetField.Count;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.SolrDocumentList;
-import org.apache.solr.core.CoreContainer;
-import org.springframework.context.support.ReloadableResourceBundleMessageSource;
+import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
@@ -85,6 +80,7 @@ import org.ala.biocache.util.LegendItem;
 import org.ala.biocache.util.ParamsCache;
 import org.ala.biocache.util.ParamsCacheObject;
 import org.apache.solr.client.solrj.SolrServer;
+
 /**
  * SOLR implementation of SearchDao. Uses embedded SOLR server (can be a memory hog).
  *
@@ -110,7 +106,6 @@ public class SearchDAOImpl implements SearchDAO {
     protected static final String NAMES_AND_LSID = "names_and_lsid";
     protected static final String TAXON_CONCEPT_LSID = "taxon_concept_lsid";
     protected static final Integer FACET_PAGE_SIZE =500;
-    
 
     //Patterns that are used to prepares a SOLR query for execution
     protected Pattern lsidPattern= Pattern.compile("lsid:[a-zA-Z0-9\\.:-]*");
@@ -135,7 +130,7 @@ public class SearchDAOImpl implements SearchDAO {
     private RestOperations restTemplate;
 
     @Inject
-    private ReloadableResourceBundleMessageSource messageSoure;
+    private AbstractMessageSource messageSource;
     
     private List<IndexFieldDTO> indexFields = null;
 
@@ -1573,8 +1568,8 @@ public class SearchDAOImpl implements SearchDAO {
                 if (colonIndex > 0) {
                     String fieldName = displayString.substring(0, colonIndex);
                     // i18n gets set to fieldName if not found
-                    String i18n = messageSoure.getMessage("facet."+fieldName, null, fieldName, null);
-                    
+                    String i18n = messageSource.getMessage("facet."+fieldName, null, fieldName, null);
+                    logger.debug("i18n = " + i18n);
                     if (!fieldName.equals(i18n)) {
                         displayString = i18n + displayString.substring(colonIndex);
                     }
