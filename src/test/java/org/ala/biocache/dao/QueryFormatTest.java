@@ -68,7 +68,10 @@ public class QueryFormatTest {
                 new SearchQueryTester("water", "water", "water", true),
                 new SearchQueryTester("basis_of_record:PreservedSpecimen", "basis_of_record:PreservedSpecimen", "Record type:PreservedSpecimen", true),
                 new SearchQueryTester("state:\"New South Wales\"", "state:\"New\\ South\\ Wales\"", "State/Territory:\"New South Wales\"", true),
-                new SearchQueryTester("text:water species_group:Animals","text:water species_group:Animals","text:water species_group:Animals", true)
+                new SearchQueryTester("state:New\\ South\\ Wales", "state:New\\\\ South\\\\ Wales", "State/Territory:New\\ South\\ Wales", true),
+                new SearchQueryTester("text:water species_group:Animals","text:water species_group:Animals","text:water species_group:Animals", true),
+                new SearchQueryTester("urn:lsid:biodiversity.org.au:afd.taxon:a7b69905-7163-4017-a2a2-e92ce5dffb84","urn\\:lsid\\:biodiversity.org.au\\:afd.taxon\\:a7b69905\\-7163\\-4017\\-a2a2\\-e92ce5dffb84","urn:lsid:biodiversity.org.au:afd.taxon:a7b69905-7163-4017-a2a2-e92ce5dffb84", true),
+                new SearchQueryTester("occurrence_date:[1990-01-01T12:00:00Z TO *]","occurrence_date:[1990-01-01T12:00\\:00Z TO *]","Date (by decade):[1990-01-01T12:00:00Z TO *]", true),
         };
     }
 
