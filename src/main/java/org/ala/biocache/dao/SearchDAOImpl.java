@@ -106,14 +106,17 @@ public class SearchDAOImpl implements SearchDAO {
     protected static final String NAMES_AND_LSID = "names_and_lsid";
     protected static final String TAXON_CONCEPT_LSID = "taxon_concept_lsid";
     protected static final Integer FACET_PAGE_SIZE =500;
+    protected static final String QUOTE = "\"";
+    protected static final char[] CHARS = {' ',':'};
 
     //Patterns that are used to prepares a SOLR query for execution
-    protected Pattern lsidPattern= Pattern.compile("lsid:[a-zA-Z0-9\\.:-]*");
+    protected Pattern lsidPattern= Pattern.compile("lsid:\"?[a-zA-Z0-9\\.:-]*\"?");
     protected Pattern urnPattern = Pattern.compile("urn:[a-zA-Z0-9\\.:-]*");
     protected Pattern spacesPattern =Pattern.compile("[^\\s\"()\\[\\]']+|\"[^\"]*\"|'[^']*'");
     protected Pattern uidPattern = Pattern.compile("([a-z_]*_uid:)([a-z0-9]*)");
     protected Pattern spatialPattern = Pattern.compile("\\{!spatial[a-zA-Z=\\-\\s0-9\\.\\,():]*\\}");
     protected Pattern qidPattern= Pattern.compile("qid:[0-9]*");
+    protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\ |[^ :])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
     
     protected String bieUri ="http://bie.ala.org.au";
 
@@ -131,6 +134,10 @@ public class SearchDAOImpl implements SearchDAO {
 
     @Inject
     private AbstractMessageSource messageSource;
+
+    @Inject
+    private BieService bieService;
+
     
     private List<IndexFieldDTO> indexFields = null;
 
@@ -1438,14 +1445,93 @@ public class SearchDAOImpl implements SearchDAO {
             StringBuffer queryString = new StringBuffer();
             StringBuffer displaySb = new StringBuffer();
             String displayString = query;
+
+            // look for field:term sub queries and catch fields: matched_name & matched_name_children
+            if (query.contains(":")) {
+                // will match foo:bar, foo:"bar bash" & foo:bar\ bash
+                Matcher matcher = termPattern.matcher(query);
+                queryString.setLength(0);
+
+                while (matcher.find()) {
+                    String value = matcher.group();
+                    logger.debug("term query: " + value );
+                    logger.debug("groups: " + matcher.group(1) + "|" + matcher.group(2) );
+
+                    if ("matched_name".equals(matcher.group(1))) {
+                        // name -> accepted taxon name (taxon_name:)
+                        String field = matcher.group(1);
+                        String queryText = matcher.group(2);
+
+                        if (queryText != null && !queryText.isEmpty()) {
+                            String guid = bieService.getGuidForName(queryText.replaceAll("\"", "")); // strip any quotes
+                            logger.info("GUID for " + queryText + " = " + guid);
+
+                            if (guid != null && !guid.isEmpty()) {
+                                String acceptedName = bieService.getAcceptedNameForGuide(guid); // strip any quotes
+                                logger.info("acceptedName for " + queryText + " = " + acceptedName);
+
+                                if (acceptedName != null && !acceptedName.isEmpty()) {
+                                    field = "taxon_name";
+                                    queryText = acceptedName;
+                                }
+                            }
+                        }
+
+                        if (StringUtils.containsAny(queryText, CHARS) && !queryText.startsWith("[")) {
+                            // quote any text that has spaces or colons but not range queries
+                            queryText = QUOTE + queryText + QUOTE;
+                        }
+
+                        logger.debug("queryText: " + queryText);
+
+                        matcher.appendReplacement(queryString, matcher.quoteReplacement(field + ":" + queryText));
+
+                    } else if ("matched_name_children".equals(matcher.group(1))) {
+                        String field = matcher.group(1);
+                        String queryText = matcher.group(2);
+
+                        if (queryText != null && !queryText.isEmpty()) {
+                            String guid = bieService.getGuidForName(queryText.replaceAll("\"", "")); // strip any quotes
+                            logger.info("GUID for " + queryText + " = " + guid);
+
+                            if (guid != null && !guid.isEmpty()) {
+                                field = "lsid";
+                                queryText = guid;
+                            }
+                        }
+
+                        if (StringUtils.containsAny(queryText, CHARS) && !queryText.startsWith("[")) {
+                            // quote any text that has spaces or colons but not range queries
+                            queryText = QUOTE + queryText + QUOTE;
+                        }
+
+                        matcher.appendReplacement(queryString, matcher.quoteReplacement(field + ":" + queryText));
+                    } else {
+                        matcher.appendReplacement(queryString, matcher.quoteReplacement(value));
+                    }
+                }
+                matcher.appendTail(queryString);
+                query = queryString.toString();
+            }
+            
             //if the query string contains lsid: we will need to replace it with the corresponding lft range
             int last =0;
             if (query.contains("lsid:")) {
                 Matcher matcher = lsidPattern.matcher(query);
+                queryString.setLength(0);
                 while (matcher.find()) {
                     String value = matcher.group();
                     logger.debug("preprocessing " + value);
                     String lsid = value.substring(5, value.length());
+                    if (lsid.contains("\"")) {
+                        //remove surrounding quotes, if present
+                        lsid = lsid.replaceAll("\"","");
+                    }
+                    if (lsid.contains("\\")) {
+                        //remove internal \ chars, if present
+                        lsid = lsid.replaceAll("\\","");
+                    }
+                    logger.debug("lsid = " + lsid);
                     String[] values = searchUtils.getTaxonSearch(lsid);
                     matcher.appendReplacement(queryString, values[0]);
                     displaySb.append(query.substring(last, matcher.start()));
@@ -1476,6 +1562,7 @@ public class SearchDAOImpl implements SearchDAO {
                 matcher.appendTail(queryString);
                 query = queryString.toString();
             }
+
             if(query.contains("{!spatial")){
                 Matcher matcher = spatialPattern.matcher(query);
                 if(matcher.find()){
@@ -1576,6 +1663,7 @@ public class SearchDAOImpl implements SearchDAO {
                 }
 
                 searchParams.setFormattedQuery(queryString.toString());
+                logger.debug("formattedQuery = " + queryString);
                 logger.debug("displayString = " + displayString);
                 searchParams.setDisplayString(displayString);
                 //return queryString.toString();
