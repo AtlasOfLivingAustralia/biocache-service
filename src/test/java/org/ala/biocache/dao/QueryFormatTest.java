@@ -73,7 +73,8 @@ public class QueryFormatTest {
                 new SearchQueryTester("urn:lsid:biodiversity.org.au:afd.taxon:a7b69905-7163-4017-a2a2-e92ce5dffb84","urn\\:lsid\\:biodiversity.org.au\\:afd.taxon\\:a7b69905\\-7163\\-4017\\-a2a2\\-e92ce5dffb84","urn:lsid:biodiversity.org.au:afd.taxon:a7b69905-7163-4017-a2a2-e92ce5dffb84", true),
                 new SearchQueryTester("occurrence_date:[1990-01-01T12:00:00Z TO *]","occurrence_date:[1990-01-01T12:00\\:00Z TO *]","Date (by decade):[1990-01-01T12:00:00Z TO *]", true),
                 new SearchQueryTester("matched_name:\"kangurus lanosus\"", "taxon_name:\"Macropus\\ rufus\"","matched_name:\"kangurus lanosus\"", true),
-                new SearchQueryTester("matched_name_children:\"kangurus lanosus\"", "lft:[", "species:", false)
+                new SearchQueryTester("matched_name_children:\"kangurus lanosus\"", "lft:[", "species:", false),
+                new SearchQueryTester("(matched_name_children:Mammalia OR matched_name_children:whales)", "lft:[", "class:", false),
         };
     }
 

@@ -116,7 +116,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected Pattern uidPattern = Pattern.compile("([a-z_]*_uid:)([a-z0-9]*)");
     protected Pattern spatialPattern = Pattern.compile("\\{!spatial[a-zA-Z=\\-\\s0-9\\.\\,():]*\\}");
     protected Pattern qidPattern= Pattern.compile("qid:[0-9]*");
-    protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\ |[^ :])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
+    protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
     
     protected String bieUri ="http://bie.ala.org.au";
 
@@ -1474,6 +1474,8 @@ public class SearchDAOImpl implements SearchDAO {
                                     field = "taxon_name";
                                     queryText = acceptedName;
                                 }
+                            } else {
+                                field = "taxon_name";
                             }
                         }
 
@@ -1497,6 +1499,8 @@ public class SearchDAOImpl implements SearchDAO {
                             if (guid != null && !guid.isEmpty()) {
                                 field = "lsid";
                                 queryText = guid;
+                            }else {
+                                field = "taxon_name";
                             }
                         }
 
