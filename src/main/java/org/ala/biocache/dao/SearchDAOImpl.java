@@ -1477,6 +1477,9 @@ public class SearchDAOImpl implements SearchDAO {
                             } else {
                                 field = "taxon_name";
                             }
+
+                            // also change the display query
+                            displayString = displayString.replaceAll("matched_name", "taxon_name");
                         }
 
                         if (StringUtils.containsAny(queryText, CHARS) && !queryText.startsWith("[")) {
