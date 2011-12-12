@@ -432,7 +432,7 @@ public class SearchDAOImpl implements SearchDAO {
             //get the assertion facets to add them to the download fields
             List<FacetField> facets = qr.getFacetFields();
             for(FacetField facet : facets){
-                if(facet.getName().equals("assertions")){
+                if(facet.getName().equals("assertions") && facet.getValueCount()>0){
             		
 	               for(FacetField.Count facetEntry : facet.getValues()){
 	                   //System.out.println("facet: " + facetEntry.getName());
@@ -450,7 +450,7 @@ public class SearchDAOImpl implements SearchDAO {
             String qas = qasb.toString();   
             
             String[] fields = sb.toString().split(",");            
-            String[]qaFields = qas.split(",");
+            String[]qaFields = qas.equals("")?new String[]{}:qas.split(",");
             String[] qaTitles = downloadFields.getHeader(qaFields);
             String[] titles = downloadFields.getHeader(fields);
             out.write(StringUtils.join(titles, ",").getBytes());
