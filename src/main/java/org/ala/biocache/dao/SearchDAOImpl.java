@@ -1657,9 +1657,10 @@ public class SearchDAOImpl implements SearchDAO {
                 }
 
                 // substitute i18n version of field name, if found in messages.properties
-                int colonIndex =  displayString.indexOf(":");
+                int colonIndex = displayString.indexOf(":");
 
-                if (colonIndex > 0) {
+                if (colonIndex > 0 && colonIndex == displayString.lastIndexOf(":")) {
+                    // only substitute if there is one search term
                     String fieldName = displayString.substring(0, colonIndex);
                     // i18n gets set to fieldName if not found
                     String i18n = messageSource.getMessage("facet."+fieldName, null, fieldName, null);
