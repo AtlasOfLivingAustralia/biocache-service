@@ -1661,10 +1661,10 @@ public class SearchDAOImpl implements SearchDAO {
 
                 if (colonIndex > 0 && colonIndex == displayString.lastIndexOf(":")) {
                     // only substitute if there is one search term
-                    String fieldName = displayString.substring(0, colonIndex);
+                    String fieldName = displayString.substring(0, colonIndex).trim();
                     // i18n gets set to fieldName if not found
                     String i18n = messageSource.getMessage("facet."+fieldName, null, fieldName, null);
-                    logger.debug("i18n = " + i18n);
+                    logger.debug("i18n for " + fieldName + " = " + i18n);
                     if (!fieldName.equals(i18n)) {
                         displayString = i18n + displayString.substring(colonIndex);
                     }
