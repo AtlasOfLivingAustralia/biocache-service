@@ -67,10 +67,6 @@ public class MapController implements ServletConfigAware {
     
     protected String heatmapBase = "/data/output/heatmap";
     
-    public void setHeatmapBase(String heatmapBase) {
-        this.heatmapBase = heatmapBase;
-    }
-    
     /** Fulltext search DAO */
     @Inject
     protected SearchDAO searchDAO;
@@ -754,5 +750,9 @@ public class MapController implements ServletConfigAware {
     @Override
     public void setServletConfig(ServletConfig cfg) {
         this.cfg = cfg;
+    }
+
+    public void setHeatmapBase(String heatmapBase) {
+        this.heatmapBase = heatmapBase;
     }
 }
