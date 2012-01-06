@@ -12,10 +12,10 @@
         <pattern>/taxon*</pattern>
         <pattern>/annotation/*</pattern>
         <pattern>/occurrences/json/*</pattern>
+        <pattern>/occurrences/taxaLists</pattern>
         <pattern>/proxy/*</pattern>
         <pattern>/index.jsp</pattern>
     </excludes>
-
     <decorator name="main" page="main.jsp">
         <pattern>/*</pattern>
     </decorator>
