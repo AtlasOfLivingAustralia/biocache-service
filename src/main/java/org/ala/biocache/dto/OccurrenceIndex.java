@@ -106,41 +106,74 @@ public class OccurrenceIndex {
     @Field("aust_conservation") String austConservation;
     @Field("state_conservation") String stateConservation;
 
+    String imageUrl;
+    String largeImageUrl;
+    String smallImageUrl;
+    String thumbnailUrl;
+
+    public static void setBiocacheMediaDir(String biocacheMediaDir) {
+        OccurrenceIndex.biocacheMediaDir = biocacheMediaDir;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
+    public void setLargeImageUrl(String largeImageUrl) {
+        this.largeImageUrl = largeImageUrl;
+    }
+
+    public void setSmallImageUrl(String smallImageUrl) {
+        this.smallImageUrl = smallImageUrl;
+    }
+
+    public void setThumbnailUrl(String thumbnailUrl) {
+        this.thumbnailUrl = thumbnailUrl;
+    }
+
     public String getImageUrl(){
-        if(image != null && image.startsWith("/data/biocache-media/")){
-           return image.replace("/data/biocache-media/", biocacheMediaUrl);
+        if(imageUrl == null){
+            if(image != null && image.startsWith("/data/biocache-media/")){
+                imageUrl= image.replace("/data/biocache-media/", biocacheMediaUrl);
+            }
         }
-        return image;
+        return imageUrl;
     }
 
     public String getLargeImageUrl(){
-        if(image != null && image.startsWith(biocacheMediaDir)){
-            String url =  image.replace(biocacheMediaDir, biocacheMediaUrl);
-            String extension = url.substring(url.lastIndexOf("."));
-            url = url.replace(extension, "__large"+extension);
-            return url;
+        if(largeImageUrl==null){
+            if(image != null && image.startsWith(biocacheMediaDir)){
+                String url =  image.replace(biocacheMediaDir, biocacheMediaUrl);
+                String extension = url.substring(url.lastIndexOf("."));
+                url = url.replace(extension, "__large"+extension);
+                largeImageUrl =  url;
+            }
         }
-        return image;
+        return largeImageUrl;
     }
 
     public String getSmallImageUrl(){
-        if(image != null && image.startsWith(biocacheMediaDir)){
-            String url =  image.replace(biocacheMediaDir, biocacheMediaUrl);
-            String extension = url.substring(url.lastIndexOf("."));
-            url = url.replace(extension, "__small"+extension);
-            return url;
+        if(smallImageUrl ==null){
+            if(image != null && image.startsWith(biocacheMediaDir)){
+                String url =  image.replace(biocacheMediaDir, biocacheMediaUrl);
+                String extension = url.substring(url.lastIndexOf("."));
+                url = url.replace(extension, "__small"+extension);
+                smallImageUrl =  url;
+            }
         }
         return image;
     }
 
     public String getThumbnailUrl(){
-        if(image != null && image.startsWith(biocacheMediaDir)){
-            String url =  image.replace(biocacheMediaDir, biocacheMediaUrl);
-            String extension = url.substring(url.lastIndexOf("."));
-            url = url.replace(extension, "__thumb"+extension);
-            return url;
+        if(thumbnailUrl ==null){
+            if(image != null && image.startsWith(biocacheMediaDir)){
+                String url =  image.replace(biocacheMediaDir, biocacheMediaUrl);
+                String extension = url.substring(url.lastIndexOf("."));
+                url = url.replace(extension, "__thumb"+extension);
+                thumbnailUrl =  url;
+            }
         }
-        return image;
+        return thumbnailUrl;
     }
 
     private void addToMapIfNotNull(Map<String,String> map, String key, String value){
