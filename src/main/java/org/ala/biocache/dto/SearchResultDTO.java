@@ -14,7 +14,7 @@
  ***************************************************************************/
 package org.ala.biocache.dto;
 
-import au.org.ala.biocache.OccurrenceIndex;
+import org.ala.biocache.dto.OccurrenceIndex;
 import java.util.Collection;
 import java.util.List;
 
@@ -58,13 +58,10 @@ public class SearchResultDTO {
     /** Stores the title for the query - this is dependent on the type of query that has been executed */
     private String queryTitle;
 
-    
-
     /**
      * Constructor with 2 args
      *
      * @param searchResults
-     * @param facetResults
      */
     public SearchResultDTO(List<OccurrenceIndex> searchResults) {
         this.occurrences = searchResults;

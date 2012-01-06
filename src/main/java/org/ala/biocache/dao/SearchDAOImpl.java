@@ -58,7 +58,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
 
-import au.org.ala.biocache.OccurrenceIndex;
+import org.ala.biocache.dto.OccurrenceIndex;
 
 import au.com.bytecode.opencsv.CSVWriter;
 
@@ -154,7 +154,7 @@ public class SearchDAOImpl implements SearchDAO {
 //                server = new EmbeddedSolrServer(coreContainer, "");
                 
                 //use the solr server that has been in the biocache-store...
-                SolrIndexDAO dao = (SolrIndexDAO)au.org.ala.biocache.Config.getInstance(IndexDAO.class);
+                SolrIndexDAO dao = (SolrIndexDAO) au.org.ala.biocache.Config.getInstance(IndexDAO.class);
                 dao.init();
                 server = dao.solrServer();
                 
@@ -671,7 +671,6 @@ public class SearchDAOImpl implements SearchDAO {
     @Override
     public List<OccurrencePoint> getOccurrences(SpatialSearchRequestParams searchParams, PointType pointType, String colourBy, int searchType) throws Exception {
 
-
         List<OccurrencePoint> points = new ArrayList<OccurrencePoint>();
         List<String> colours = new ArrayList<String>();
 
@@ -721,18 +720,16 @@ public class SearchDAOImpl implements SearchDAO {
                     if (StringUtils.isNotBlank(colourBy)) {
 
                         try {
-                            if (oc.getMap() != null) {
-                                java.util.Map map = oc.getMap();
-                                if (map != null) {
-                                    
+                            if(oc != null){
+                            java.util.Map map = oc.toMap();
+                            if (map != null) {
                                     //check to see if it is empty otherwise a NPE is thrown when option.get is called
                                     if (map.containsKey(colourBy)) {
                                         value = (String) map.get(colourBy);
                                     }
                                     point.setOccurrenceUid(value);
                                 }
-
-                            } // check if oc is null
+                            }
                         } catch (Exception e) {
                             //System.out.println("Error with getOccurrences:");
                             //e.printStackTrace(System.out);
@@ -906,11 +903,8 @@ public class SearchDAOImpl implements SearchDAO {
         QueryResponse qr = runSolrQuery(solrQuery, null, 1000000, 0, "score", "asc");
         SearchResultDTO searchResults = processSolrResponse(qr, solrQuery);
         logger.debug("solr result (size): " + searchResults.getOccurrences().size());
-
         return searchResults.getOccurrences();
     }
-
-
 
     /**
      * @see org.ala.biocache.dao.SearchDAO#findAllSpeciesByCircleAreaAndHigherTaxa(org.ala.biocache.dto.SpatialSearchRequestParams, String) 

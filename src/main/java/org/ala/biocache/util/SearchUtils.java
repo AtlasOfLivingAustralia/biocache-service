@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.Set;
 
 import au.org.ala.biocache.TaxonProfile;
-import org.ala.biocache.dto.OccurrenceDTO;
 import org.ala.biocache.dto.OccurrenceSource;
 import org.ala.biocache.dto.OccurrenceSourceDTO;
 import org.ala.biocache.dto.SearchQuery;
@@ -39,8 +38,8 @@ public class SearchUtils {
 
 	protected String bieBaseUrl = "http://bie.ala.org.au";
 
-        @Inject
-        private CollectionsCache collectionCache;
+    @Inject
+    private CollectionsCache collectionCache;
 
 	private  final List<String> ranks = (List<String>) org.springframework.util.CollectionUtils
 			.arrayToList(new String[] { "kingdom", "phylum", "class", "order",
@@ -50,19 +49,15 @@ public class SearchUtils {
 	 * Returns an array that contains the search string to use for a collection
 	 * search and display name for the results.
 	 *
-	 * @param query
 	 * @return true when UID could be located and query updated correctly
 	 */
 
         public boolean updateCollectionSearchString(SearchRequestParams searchParams, String uid) {
 		try {
-
-
 			// query the collectory for the institute and collection codes
 			// needed to perform the search
                         String[] uids = uid.split(",");
 			searchParams.setQ(getUIDSearchString(uids));
-                        updateCommon(searchParams);
 			return true;
 
 		} catch (Exception e) {
@@ -72,7 +67,6 @@ public class SearchUtils {
 			// occurs while
 			// contacting the collectory etc
 		}
-
 	}
 
         public  String getUIDSearchString(String[] uids){
@@ -139,7 +133,6 @@ public class SearchUtils {
 			}
 			searchParams.setQ("*:*");
 			searchParams.setDisplayString(entityQuerySb.toString());
-                        updateCommon(searchParams);
 			return true;
 		}
 		return false;
@@ -185,19 +178,15 @@ public class SearchUtils {
             query  = "{!spatial circles=" + searchParams.getLat().toString() + "," + searchParams.getLon().toString() +
                 "," + searchParams.getRadius().toString() + "}" + query; 
              searchParams.setQ(query);
-            updateCommon(searchParams);
             return true;
         }
-        public boolean updateNormal(SearchRequestParams searchParams){
-            updateCommon(searchParams);
-            return true;
-        }
+
         /**
          * Formats the query string before
          * @param query
          * @return
          */
-        protected String formatSearchQuery(String query) {
+        public static String formatSearchQuery(String query) {
         // set the query
         StringBuilder queryString = new StringBuilder();
         if (query.equals("*:*") || query.contains(" AND ") || query.contains(" OR ") || query.startsWith("(")
@@ -205,42 +194,27 @@ public class SearchUtils {
             queryString.append(query);
         } else if (query.contains(":") && !query.startsWith("urn")) {
             // search with a field name specified (other than an LSID guid)
-            String[] bits = StringUtils.split(query, ":", 2);
-            queryString.append(ClientUtils.escapeQueryChars(bits[0]));
-            queryString.append(":");
-            queryString.append(ClientUtils.escapeQueryChars(bits[1]));
+            queryString.append(formatGuid(query));
         } else {
             // regular search
             queryString.append(ClientUtils.escapeQueryChars(query));
         }
         return queryString.toString();
     }
-        private void updateCommon(SearchRequestParams searchParams){
-            // upate the filterQuery if it contains an "OccurrenceSource" so that it
-		// has the correct filter query specified
-//		String[] queries = searchParams.getFq();
-//		if (queries != null) {
-//			for (String q : queries) {
-//				if (q.startsWith(OccurrenceSource.FACET_NAME + ":")) {
-//					searchQuery.removeFromFilterQuery(q);
-//					OccurrenceSource oc = OccurrenceSource.getForDisplayName(q
-//							.substring(q.indexOf(":") + 1));
-//					if (oc != null) {
-//						searchQuery.addToFilterQuery("confidence:"
-//								+ oc.getRange());
-//					}
-//				}
-//			}
-//		}
-        }
 
+    public static String formatGuid(String guid) {
+        String[] bits = StringUtils.split(guid, ":", 2);
+        StringBuffer queryString =  new StringBuffer();
+        queryString.append(ClientUtils.escapeQueryChars(bits[0]));
+        queryString.append(":");
+        queryString.append(ClientUtils.escapeQueryChars(bits[1]));
+        return queryString.toString();
+    }
 
 	/**
 	 * Returns the query string based on the type of search that needs to be
 	 * performed.
 	 *
-	 * @param query
-	 * @param type
 	 * @return true when the query updated correctly, false otherwise
 	 */
 	public boolean updateQueryDetails(SearchQuery searchQuery) {
@@ -271,25 +245,25 @@ public class SearchUtils {
 
 	}
 
-	/**
-	 * Set the initial point values in the index.
-	 */
-	public void initialPointValues(OccurrenceDTO occurrence) {
-		Double lat = occurrence.getLatitude();
-		Double lon = occurrence.getLongitude();
-		if (lat != null && lon != null) {
-			occurrence.setPoint1(MathUtils.round(lat, 0) + ","
-					+ MathUtils.round(lon, 0));
-			occurrence.setPoint01(MathUtils.round(lat, 1) + ","
-					+ MathUtils.round(lon, 1));
-			occurrence.setPoint001(MathUtils.round(lat, 2) + ","
-					+ MathUtils.round(lon, 2));
-			occurrence.setPoint0001(MathUtils.round(lat, 3) + ","
-					+ MathUtils.round(lon, 3));
-			occurrence.setPoint00001(MathUtils.round(lat, 4) + ","
-					+ MathUtils.round(lon, 4));
-		}
-	}
+//	/**
+//	 * Set the initial point values in the index.
+//	 */
+//	public void initialPointValues(OccurrenceDTO occurrence) {
+//		Double lat = occurrence.getLatitude();
+//		Double lon = occurrence.getLongitude();
+//		if (lat != null && lon != null) {
+//			occurrence.setPoint1(MathUtils.round(lat, 0) + ","
+//					+ MathUtils.round(lon, 0));
+//			occurrence.setPoint01(MathUtils.round(lat, 1) + ","
+//					+ MathUtils.round(lon, 1));
+//			occurrence.setPoint001(MathUtils.round(lat, 2) + ","
+//					+ MathUtils.round(lon, 2));
+//			occurrence.setPoint0001(MathUtils.round(lat, 3) + ","
+//					+ MathUtils.round(lon, 3));
+//			occurrence.setPoint00001(MathUtils.round(lat, 4) + ","
+//					+ MathUtils.round(lon, 4));
+//		}
+//	}
 
 	/**
 	 * returns the solr field that should be used to search for a particular uid

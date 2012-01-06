@@ -12,7 +12,6 @@
  *  implied. See the License for the specific language governing
  *  rights and limitations under the License.
  ***************************************************************************/
-
 package org.ala.biocache.dto;
 
 
@@ -46,6 +45,7 @@ public class SpatialSearchRequestParams extends SearchRequestParams{
             req.append("&wkt=").append(wkt);      
         return req.toString();
     }
+
     @Override
     public String getUrlParams(){
         StringBuilder req = new StringBuilder(super.getUrlParams());
@@ -88,7 +88,8 @@ public class SpatialSearchRequestParams extends SearchRequestParams{
     }
 
     public void setWkt(String wkt) {
-        this.wkt = wkt.replace(' ', ':');
+        if(wkt != null){
+            this.wkt = wkt.replace(' ', ':');
+        }
     }
-    
 }

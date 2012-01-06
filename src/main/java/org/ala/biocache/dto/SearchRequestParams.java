@@ -166,8 +166,24 @@ public class SearchRequestParams {
      *
      * @param start new value of start
      */
-    public void setStart(Integer startIndex) {
+    public void setStart(Integer start) {
+        this.start = start;
+    }
+
+    /**
+     * Set the value of start
+     *
+     * @param startIndex new value of start
+     */
+    public void setStartIndex(Integer startIndex) {
         this.start = startIndex;
+    }
+
+    /**
+     * Set the value of start
+     */
+    public Integer getStartIndex() {
+        return this.start;
     }
 
     /**
@@ -202,8 +218,8 @@ public class SearchRequestParams {
      *
      * @param sort new value of sort
      */
-    public void setSort(String sortField) {
-        this.sort = sortField;
+    public void setSort(String sort) {
+        this.sort = sort;
     }
 
     /**

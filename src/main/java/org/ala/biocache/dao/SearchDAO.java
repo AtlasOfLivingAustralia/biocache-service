@@ -22,12 +22,11 @@ import javax.servlet.ServletOutputStream;
 
 import org.ala.biocache.dto.DataProviderCountDTO;
 import org.ala.biocache.dto.FieldResultDTO;
-import au.org.ala.biocache.OccurrenceIndex;
+import org.ala.biocache.dto.OccurrenceIndex;
 
 import org.ala.biocache.dto.BreakdownRequestParams;
 import org.ala.biocache.dto.DownloadRequestParams;
 import org.ala.biocache.dto.IndexFieldDTO;
-import org.ala.biocache.dto.OccurrenceDTO;
 import org.ala.biocache.dto.OccurrencePoint;
 import org.ala.biocache.dto.PointType;
 import org.ala.biocache.dto.SearchRequestParams;
@@ -65,8 +64,6 @@ public interface SearchDAO {
      */
     SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams requestParams) throws Exception;
 
-
-
     /**
      * Writes the species count in the specified circle to the output stream.
      * @param requestParams
@@ -76,7 +73,6 @@ public interface SearchDAO {
      * @throws Exception
      */
     int writeSpeciesCountByCircleToStream(SpatialSearchRequestParams requestParams, String speciesGroup, ServletOutputStream out) throws Exception;
-
 
     /**
      * Write out the results of this query to the output stream
@@ -89,7 +85,13 @@ public interface SearchDAO {
      */
 	Map<String,Integer> writeResultsToStream(DownloadRequestParams searchParams, OutputStream out, int maxNoOfRecords) throws Exception;
 
-
+    /**
+     * Write coordinates out to the supplied stream.
+     *
+     * @param searchParams
+     * @param out
+     * @throws Exception
+     */
     void writeCoordinatesToStream(SearchRequestParams searchParams,OutputStream out) throws Exception;
     
     void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, OutputStream out) throws Exception;

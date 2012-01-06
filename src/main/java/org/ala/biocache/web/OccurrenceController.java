@@ -32,6 +32,7 @@ import org.ala.biocache.dao.SearchDAO;
 import org.ala.biocache.dto.*;
 import org.ala.biocache.dto.store.OccurrenceDTO;
 import org.ala.biocache.util.MimeType;
+import org.ala.biocache.util.ParamsCache;
 import org.ala.biocache.util.SearchUtils;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventType;
@@ -42,6 +43,8 @@ import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.methods.GetMethod;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -50,6 +53,7 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.ServletRequestUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -215,9 +219,9 @@ public class OccurrenceController {
 	 */
 	@RequestMapping(value = {"/occurrences", "/occurrences/collections", "/occurrences/institutions", "/occurrences/dataResources", "/occurrences/dataProviders", "/occurrences/taxa", "/occurrences/dataHubs"}, method = RequestMethod.GET)
 	public @ResponseBody SearchResultDTO listOccurrences(Model model) throws Exception {
-            SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
-            srp.setQ("*:*");
-            return occurrenceSearch(srp, model);
+        SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
+        srp.setQ("*:*");
+        return occurrenceSearch(srp, model);
 	}
 
 	/**
@@ -234,9 +238,6 @@ public class OccurrenceController {
             Model model) throws Exception {
         requestParams.setQ("lsid:" + guid);
         SearchUtils.setDefaultParams(requestParams);
-        //SearchResultDTO searchResult = searchDAO.findByFulltextQuery(requestParams);
-        //model.addAttribute("searchResult", searchResult);
-        //return searchResult;
         return occurrenceSearch(requestParams,model);
 	}
 
@@ -340,15 +341,12 @@ public class OccurrenceController {
         logger.debug("occurrence search params= " + requestParams);     
         SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams);
         model.addAttribute("searchResult", searchResult);
-        
-
 		return searchResult;
 	}
 
 	/**
 	 * Occurrence search page uses SOLR JSON to display results
 	 *
-	 * @param model
 	 * @return
 	 * @throws Exception
 	 */
@@ -365,7 +363,6 @@ public class OccurrenceController {
 	 * 
 	 * @param requestParams
 	 * @param response
-	 * @param request
 	 * @throws Exception
 	 */
 	@RequestMapping(value = "/occurrences/facets/download*", method = RequestMethod.GET)
@@ -373,8 +370,7 @@ public class OccurrenceController {
             DownloadRequestParams requestParams,
             @RequestParam(value = "count", required = false, defaultValue="false") boolean includeCount,
             @RequestParam(value="lookup" ,required=false, defaultValue="false") boolean lookupName,
-            HttpServletResponse response,
-            HttpServletRequest request) throws Exception {
+            HttpServletResponse response) throws Exception {
 	        if(requestParams.getFacets().length >0){
     	        String filename = requestParams.getFile() != null ? requestParams.getFile():requestParams.getFacets()[0]; 
     	        response.setHeader("Cache-Control", "must-revalidate");
@@ -385,12 +381,47 @@ public class OccurrenceController {
 	        }
 	}
 
+    /**
+     * Webservice to support bulk downloads for a long list of taxa.
+     *
+     * @param response
+     * @param request
+     * @param separator
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/occurrences/taxaList", method = RequestMethod.POST)
+    public String occurrenceDownloadSpecies(
+            HttpServletResponse response,
+            HttpServletRequest request,
+            @RequestParam (defaultValue = "\n") String separator) throws Exception {
+
+        //String listOfNames = IOUtils.toString(request.getAttribute("names"));
+        String listOfNames = (String) request.getParameter("names");
+        String[] rawParts = listOfNames.split(separator);
+        List<String> parts = new ArrayList<String>();
+        for(String part: rawParts) {
+            String normalised = StringUtils.trimToNull(part);
+            if(normalised != null){
+                parts.add("raw_taxon_name:" + normalised);
+            }
+        }
+        if(parts.isEmpty()){
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+            return null;
+        }
+        String q = StringUtils.join(parts.toArray(new String[0]), " OR ");
+        long qid = ParamsCache.put(q, "Taxa list", null, null);
+        response.sendRedirect(request.getContextPath() + "/occurrences/download?q=qid:"+qid);
+        return null;
+    }
+
 	/**
 	 * Occurrence search page uses SOLR JSON to display results
-         *
-         * Please NOTE that the q and fq provided to this URL should be obtained
-         * from SearchResultDTO.urlParameters
-	 * 
+     *
+     * Please NOTE that the q and fq provided to this URL should be obtained
+     * from SearchResultDTO.urlParameters
+	 *
 	 * @return
 	 * @throws Exception
 	 */
@@ -401,27 +432,36 @@ public class OccurrenceController {
             HttpServletRequest request) throws Exception {
        
         String ip = request.getLocalAddr();
+        ServletOutputStream out = response.getOutputStream();
         //search params must have a query or formatted query for the downlaod to work
         if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
             return null;
         }
 
+        writeQueryToStream(requestParams, response, ip, out);
+        return null;
+	}
+
+    private void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, ServletOutputStream out) throws Exception {
         String filename = requestParams.getFile();
-        
+
         response.setHeader("Cache-Control", "must-revalidate");
         response.setHeader("Pragma", "must-revalidate");
         response.setHeader("Content-Disposition", "attachment;filename=" + filename +".zip");
         response.setContentType("application/zip");
 
-        ServletOutputStream out = response.getOutputStream();
-        
+
         //Use a zip output stream to include the data and citation together in the download
         ZipOutputStream zop = new ZipOutputStream(out);
         zop.putNextEntry(new java.util.zip.ZipEntry(filename + ".csv"));
-        Map<String, Integer> uidStats = null;
         //put the factes
         requestParams.setFacets(new String[]{"assertions", "data_resource_uid"});
-        uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100);
+        Map<String, Integer> uidStats = null;
+        try {
+            uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
         zop.closeEntry();
 
         if (!uidStats.isEmpty()) {
@@ -439,13 +479,11 @@ public class OccurrenceController {
 
         //logger.debug("UID stats : " + uidStats);
         //log the stats to ala logger
-
         LogEventVO vo = new LogEventVO(LogEventType.OCCURRENCE_RECORDS_DOWNLOADED, requestParams.getEmail(), requestParams.getReason(), ip, uidStats);
         logger.log(RestLevel.REMOTE, vo);
-        return null;
-	}
+    }
 
-	/**
+    /**
 	 * get citation info from citation web service and write it into citation.txt file.
 	 * 
 	 * @param keys
@@ -460,7 +498,7 @@ public class OccurrenceController {
 		
         Object[] citations = restfulClient.restPost(citationServiceUrl, "text/plain", keys);
         if((Integer)citations[0] == HttpStatus.SC_OK){
-        	out.write(((String)citations[1]).getBytes());
+        	out.write(((String) citations[1]).getBytes());
     	}
 	}
 
@@ -505,7 +543,6 @@ public class OccurrenceController {
      * Returns a SearchResultDTO when there is more than 1 record with the supplied UUID
      *
      * @param uuid
-     * @param model
      * @throws Exception
      */
     @RequestMapping(value = {"/occurrence/compare/{uuid}.json"}, method = RequestMethod.GET)

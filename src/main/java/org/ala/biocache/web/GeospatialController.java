@@ -30,14 +30,10 @@ import org.ala.biocache.dto.OccurrencePoint;
 import org.ala.biocache.dto.PointType;
 import org.apache.commons.lang.StringUtils;
 
-
 /**
  * Geospatial controller for the biocache services.
  *
- *
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
- *
- *
  */
 @Controller
 public class GeospatialController {
@@ -47,9 +43,6 @@ public class GeospatialController {
     /** Fulltext search DAO */
     @Inject
     protected SearchDAO searchDAO;
-
-
-
 
     /**
      * Performs an occurrence search based on wkt. Use the &facets parameter to
@@ -75,8 +68,7 @@ public class GeospatialController {
             URL xmlUrl = new URL(url);
             InputStream in = xmlUrl.openStream();
             Document doc = parse(in);
-            try{
-                
+            try {
                 String geoJson =doc.getElementsByTagName("entry").item(0).getChildNodes().item(0).getNodeValue();
                 requestParams.setWkt(wktFromJSON(geoJson));
             }
@@ -130,12 +122,6 @@ public class GeospatialController {
         }
         return ret;
     }
-
-
-
-
- 
-
 
     public static void main(String[] args) throws Exception{
 //        String url = "http://spatial.ala.org.au/gazetteer/ibra/Australian_Alps.xml";

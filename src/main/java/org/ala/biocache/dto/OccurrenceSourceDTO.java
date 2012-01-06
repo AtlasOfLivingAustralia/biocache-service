@@ -11,9 +11,7 @@ public class OccurrenceSourceDTO {
     private String uid;
     private int count;
 
-    public OccurrenceSourceDTO() {
-
-    }
+    public OccurrenceSourceDTO() {}
 
     public OccurrenceSourceDTO(String name, String uid, int count) {
         this.name = name;
