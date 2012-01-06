@@ -13,11 +13,10 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
     <body>
     	<div class="section">
         <h1> Web Services </h1>
-        <c:set var="ws" value="${pageContext.request.contextPath}"/>
         <h3>Occurrences</h3>
         <ul>
             <li><strong>Occurrence listing:</strong>
-                <a href="${ws}/occurrences/page">/occurrences/page</a>
+                <a href="${initParam.webservicesRoot}/occurrences/page">/occurrences/page</a>
                 - just shows the first 10 occurrences (for debug only)</li>
             <li><strong>Occurrence view:</strong> /occurrence/{uuid}</li>
             <li><strong>Occurrence comparison view:</strong> /occurrence/compare/{uuid}</li>            
@@ -44,11 +43,11 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             <li><strong>Occurrence wms:</strong> /occurrences/wms - requires WMS parameters along with 'q' and 'fq' populated, if available</li>
             <li><strong>Occurrence static:</strong> /occurrences/static - generates an image of AU with points on, filtering on 'q' and 'fq', if available</li>
             <li><strong>Occurrences coordinates:</strong>
-                <a href="${ws}/occurrences/coordinates">/occurrences/coordinates</a>
+                <a href="${initParam.webservicesRoot}/occurrences/coordinates">/occurrences/coordinates</a>
                 - Displays a list of unique lat,lon that are used by the occurrences
                  </li>
-            <li><strong>List of default facets for occurrence search:</strong> <a href="${ws}/search/facets">/search/facets</a></li>
-            <li><strong>List of available index fields:</strong> <a href="${ws}/index/fields">/index/fields</a> - A field can be used in a search if indexed=true.  A field can be used as a facet if indexed=true and stored=true.</li>
+            <li><strong>List of default facets for occurrence search:</strong> <a href="${initParam.webservicesRoot}/search/facets">/search/facets</a></li>
+            <li><strong>List of available index fields:</strong> <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a> - A field can be used in a search if indexed=true.  A field can be used as a facet if indexed=true and stored=true.</li>
             <li><strong>Facet based download:</strong> /occurrences/facets/download - requires a 'q' and optional 'fq' and one 'facet'. Optional Params:
             <ul>
             	<li>count - set to true if you would like the count included</li>
@@ -56,26 +55,26 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             </ul> 
             <br>This can be used to download distinct lists of species:
             <ul>
-            	<li><a href="${ws}/occurrences/facets/download?q=collection_uid:co150&facets=species_guid&lookup=true">/occurrences/facets/download?q=collection_uid:co150&facets=species_guid&lookup=true</a> - downloads a list of species guids and associated scientific names for collection co150</li>
-            	<li><a href="${ws}/occurrences/facets/download?q=collection_uid:co150&facets=raw_taxon_name">/occurrences/facets/download?q=collection_uid:co150&facets=raw_taxon_name</a> - downloads a list of raw scientific names for collection co150</li>
-            	<li><a href="${ws}/occurrences/facets/download?q=collection_uid:co150&facets=species_guid&count=true">/occurrences/facets/download?q=collection_uid:co150&facets=species_guid&count=true</a> - downloads a list of species guids and counts for collection co150</li>
+            	<li><a href="${initParam.webservicesRoot}/occurrences/facets/download?q=collection_uid:co150&facets=species_guid&lookup=true">/occurrences/facets/download?q=collection_uid:co150&facets=species_guid&lookup=true</a> - downloads a list of species guids and associated scientific names for collection co150</li>
+            	<li><a href="${initParam.webservicesRoot}/occurrences/facets/download?q=collection_uid:co150&facets=raw_taxon_name">/occurrences/facets/download?q=collection_uid:co150&facets=raw_taxon_name</a> - downloads a list of raw scientific names for collection co150</li>
+            	<li><a href="${initParam.webservicesRoot}/occurrences/facets/download?q=collection_uid:co150&facets=species_guid&count=true">/occurrences/facets/download?q=collection_uid:co150&facets=species_guid&count=true</a> - downloads a list of species guids and counts for collection co150</li>
             </ul>
             </li>
             <li><strong>Spatial Occurrence search: </strong>/occurrences/spatial - supports point-radius and wkt based searches.  To search by wkt the wkt string can be supplied directly or via a gazetteer URL. Examples:
             	<ul>
-            		<li><a href="${ws}/occurrences/spatial?lat=-35.27&lon=149.15&radius=10">/occurrences/spatial?lat=-35.27&lon=149.15&radius=10</a></li>
-            		<li><a href="${ws}/occurrences/spatial?wkt=POLYGON((140:-37,151:-37,151:-26,140.1310:-26,140:-37))">/occurrences/spatial?wkt=POLYGON((140:-37,151:-37,151:-26,140.1310:-26,140:-37))</a></li>
-            		<li><a href="${ws}/occurrences/spatial?url=http://spatial.ala.org.au/gazetteer/lga/Acton_(Australian_Capital_Territory).xml">/occurrences/spatial?url=http://spatial.ala.org.au/gazetteer/lga/Acton_(Australian_Capital_Territory).xml</a></li>
+            		<li><a href="${initParam.webservicesRoot}/occurrences/spatial?lat=-35.27&lon=149.15&radius=10">/occurrences/spatial?lat=-35.27&lon=149.15&radius=10</a></li>
+            		<li><a href="${initParam.webservicesRoot}/occurrences/spatial?wkt=POLYGON((140:-37,151:-37,151:-26,140.1310:-26,140:-37))">/occurrences/spatial?wkt=POLYGON((140:-37,151:-37,151:-26,140.1310:-26,140:-37))</a></li>
+            		<li><a href="${initParam.webservicesRoot}/occurrences/spatial?url=http://spatial.ala.org.au/gazetteer/lga/Acton_(Australian_Capital_Territory).xml">/occurrences/spatial?url=http://spatial.ala.org.au/gazetteer/lga/Acton_(Australian_Capital_Territory).xml</a></li>
             	</ul> 
             </li>
-            <li><strong>Static Species Density Heatmap </strong><a href="${ws}/density/map?q=*:*">/density/map?q=*:*</a></li> - returns heatmap image (optional param forceRefresh=true will regenerate the image)
-            <li><strong>Static Species Density Legend: </strong><a href="${ws}/density/legend?q=*:*">/density/legend?q=*:*</a></li> - returns associated legend image (optional param forceRefresh=true will regenerate the image)
+            <li><strong>Static Species Density Heatmap </strong><a href="${initParam.webservicesRoot}/density/map?q=*:*">/density/map?q=*:*</a></li> - returns heatmap image (optional param forceRefresh=true will regenerate the image)
+            <li><strong>Static Species Density Legend: </strong><a href="${initParam.webservicesRoot}/density/legend?q=*:*">/density/legend?q=*:*</a></li> - returns associated legend image (optional param forceRefresh=true will regenerate the image)
         </ul>
 
         <h3>Assertions</h3>
         <ul>
             <li><strong>List assertion codes:</strong>
-                <a href="${ws}/assertions/codes">/assertions/codes</a>
+                <a href="${initParam.webservicesRoot}/assertions/codes">/assertions/codes</a>
             </li>
             <li><strong>Add an assertion:</strong> /occurrences/{uuid}/assertions/add</li>
             <li><strong>Add an assertion using params:</strong> /occurrences/assertions/add?recordUuid={uuid}</li>
@@ -117,13 +116,13 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         In the services specified below {collectorytype} must be one of the above values.  
         <ul>
             <li><strong>Breakdown based on limit:</strong> /breakdown/{collectorytype}/{uid}?max={max} Example:<br>
-            <a href="${ws}/breakdown/collections/co50?max=50">/breakdown/collections/co50?max=50</a> 
+            <a href="${initParam.webservicesRoot}/breakdown/collections/co50?max=50">/breakdown/collections/co50?max=50</a> 
             </li>           
             <li><strong>Breakdown of a rank:</strong> /breakdown/{collectorytype}/{uid}?rank={rank} Example:<br>
-            <a href="${ws}/breakdown/dataResources/dr375?rank=class">/breakdown/dataResources/dr375?rank=class</a>
+            <a href="${initParam.webservicesRoot}/breakdown/dataResources/dr375?rank=class">/breakdown/dataResources/dr375?rank=class</a>
             </li>            
             <li><strong>Breakdown at the supplied name and rank: </strong> /breakdown/{collectorytype}/{uid}?rank={rank}&name={name} Example:<br>
-            <a href="${ws}/breakdown/dataHubs/dh1?rank=phylum&name=Chordata">/breakdown/dataHubs/dh1?rank=phylum&name=Chordata</a>
+            <a href="${initParam.webservicesRoot}/breakdown/dataHubs/dh1?rank=phylum&name=Chordata">/breakdown/dataHubs/dh1?rank=phylum&name=Chordata</a>
             </li>
         </ul>
         
@@ -143,7 +142,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         
         
         <ul>
-        	<li><strong>Check for Read Only Mode: </strong><a href="${ws}/admin/isReadOnly">/admin/isReadOnly</a></li>
+        	<li><strong>Check for Read Only Mode: </strong><a href="${initParam.webservicesRoot}/admin/isReadOnly">/admin/isReadOnly</a></li>
         	<li><strong>Modify Read Only Mode: </strong>/admin/modify?ro={true OR false}</li>
         	<li><strong>Reopen Index: </strong> /admin/modify?reopenIndex=true</li>
         </ul>
@@ -152,7 +151,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         	<li><strong>Optimise Index: </strong>/admin/index/optimise - This service will place the biocache-service in read only 
         	mode until the optimise has been completed.
         	<br>Example:<br>
-        	curl --data "apiKey=KEY" http://biocache.ala.org.au${ws}/admin/index/optimise
+        	curl --data "apiKey=KEY" http://biocache.ala.org.au${initParam.webservicesRoot}/admin/index/optimise
         	</li>
         	<li><strong>Reindex Data Resource: </strong>/admin/index/reindex - reindexes occurrences 
         	modified after startDate for the supplied dataResource<br>Extra Mandatory Parameters: <br>
@@ -161,18 +160,18 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         		<li>startDate - The earliest modification date to reindex.</li>
         	</ul> 
         	<br>Example:</br>
-        	curl --data "apiKey=KEY&dataResource=dr343&startDate=2011-07-01" http://biocache.ala.org.au${ws}/admin/index/reindex       	
+        	curl --data "apiKey=KEY&dataResource=dr343&startDate=2011-07-01" http://biocache.ala.org.au${initParam.webservicesRoot}/admin/index/reindex       	
 			</li>        	
         </ul>
         
         <h3>Miscellaneous</h3>
         <ul>
-        	<li><strong>Retrieve i18n mappings: </strong><a href="${ws}/facets/i18n">/facets/i18n</a></li>
+        	<li><strong>Retrieve i18n mappings: </strong><a href="${initParam.webservicesRoot}/facets/i18n">/facets/i18n</a></li>
         	<li><strong>Is Australian test:</strong> /australian/taxon/{guid} - tests to see if the supplied GUID; occurs in Australia, has an Australian LSID or is NOT Australian. Example:<br>
-        	<a href="${ws}/australian/taxon/urn:lsid:biodiversity.org.au:afd.taxon:aa745ff0-c776-4d0e-851d-369ba0e6f537">/australian/taxon/urn:lsid:biodiversity.org.au:afd.taxon:aa745ff0-c776-4d0e-851d-369ba0e6f537</a>
+        	<a href="${initParam.webservicesRoot}/australian/taxon/urn:lsid:biodiversity.org.au:afd.taxon:aa745ff0-c776-4d0e-851d-369ba0e6f537">/australian/taxon/urn:lsid:biodiversity.org.au:afd.taxon:aa745ff0-c776-4d0e-851d-369ba0e6f537</a>
         	</li>
         	<li><strong>Images: </strong>/images/taxon/{guid} - obtains a list of occurrence images for the supplied species taxon GUID. Example:<br>
-        	<a href="${ws}/images/taxon/urn:lsid:biodiversity.org.au:afd.taxon:dbc44b63-9611-44a8-af58-a29caea777b6">/images/taxon/urn:lsid:biodiversity.org.au:afd.taxon:dbc44b63-9611-44a8-af58-a29caea777b6</a></li>
+        	<a href="${initParam.webservicesRoot}/images/taxon/urn:lsid:biodiversity.org.au:afd.taxon:dbc44b63-9611-44a8-af58-a29caea777b6">/images/taxon/urn:lsid:biodiversity.org.au:afd.taxon:dbc44b63-9611-44a8-af58-a29caea777b6</a></li>
         </ul>
 
         <h3>Parsing Webservices</h3>
@@ -211,7 +210,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             </li>
         </ul>
         
-        <h3>Webportal Services</h3>
+        <h3>Mapping Services (/webportal)</h3>
         <ul>
             These services will include all records that satisfy the q, fq and wkt parameters.  
             <ul>
@@ -227,7 +226,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <li><strong>Construction:</strong> /webportal/params <br>
                         POST service.<br>
                         Stores q and wkt parameters.<br>
-                        Returns a short <b>value</b> that can be used as the initial q value in other services for webportal. e.g. q=qid:<b>value</b>
+                        Returns a short <b>value</b> that can be used as the initial q value in other services for mapping. e.g. q=qid:<b>value</b>
                     </li>
                     <li><strong>Test: </strong> /webportal/params/<b>value</b>
                         Test if a short query parameter is valid.<br>
@@ -251,7 +250,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             </li>
         </ul>
 
-        <h3>Webportal WMS Service</h3>
+        <h3>WMS Service</h3>
         <ul>
             <li><strong>Tile:</strong> /webportal/wms/reflect
                 <ul>
@@ -301,7 +300,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 
         <h2>Free text search of occurrence records (will return JSON)</h2>
 		<div id="inpage_search">
-			<form id="search-inpage" action="${ws}/occurrences/search" method="get" name="search-form">
+			<form id="search-inpage" action="${initParam.webservicesRoot}/occurrences/search" method="get" name="search-form">
 			<label for="search">Search</label>
 			<input type="text" class="filled ac_input" id="search" name="q" placeholder="Search the Atlas" autocomplete="off">
 			<span class="search-button-wrapper"><input type="submit" class="search-button" alt="Search" value="Search"></span>
