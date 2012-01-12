@@ -98,6 +98,8 @@ public class SearchDAOImpl implements SearchDAO {
     protected SolrServer server;
     /** Limit search results - for performance reasons */
     protected Integer MAX_DOWNLOAD_SIZE = 500000;
+    /** Batch size for a download */
+    protected Integer downloadBatchSize=500;
     protected static final String POINT = "point-0.1";
     protected static final String KINGDOM = "kingdom";
     protected static final String KINGDOM_LSID = "kingdom_lsid";
@@ -518,7 +520,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFields("row_key", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid");
         
         int startIndex = 0;
-        int pageSize = 1000;
+        int pageSize = downloadBatchSize;
         StringBuilder  sb = new StringBuilder(downloadParams.getFields());
         if(downloadParams.getExtra().length()>0)
             sb.append(",").append(downloadParams.getExtra());
