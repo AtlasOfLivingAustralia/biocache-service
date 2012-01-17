@@ -33,6 +33,7 @@ import org.ala.biocache.dto.*;
 import org.ala.biocache.dto.store.OccurrenceDTO;
 import org.ala.biocache.util.MimeType;
 import org.ala.biocache.util.ParamsCache;
+import org.ala.biocache.util.ParamsCacheSizeException;
 import org.ala.biocache.util.SearchUtils;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventType;
@@ -40,7 +41,7 @@ import org.ala.client.model.LogEventVO;
 import org.ala.client.util.RestfulClient;
 import org.apache.commons.collections.iterators.ArrayListIterator;
 import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.HttpException;
+import org.apache.commons.httpclient.HttpException; 
 import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.io.IOUtils;
@@ -51,6 +52,9 @@ import org.apache.log4j.Logger;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.ServletRequestUtils;
@@ -383,6 +387,7 @@ public class OccurrenceController {
 
     /**
      * Webservice to support bulk downloads for a long list of taxa.
+     * NOTE: triggered on "Download Records" button
      *
      * @param response
      * @param request
@@ -390,30 +395,80 @@ public class OccurrenceController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/occurrences/taxaList", method = RequestMethod.POST)
-    public String occurrenceDownloadSpecies(
+    @RequestMapping(value = "/occurrences/taxaList", method = RequestMethod.POST, params="action=Download")
+    public void taxaListDownload(
             HttpServletResponse response,
             HttpServletRequest request,
-            @RequestParam (defaultValue = "\n") String separator) throws Exception {
+            @RequestParam(value="names", required = true, defaultValue = "") String listOfNames,
+            @RequestParam(value="separator", defaultValue = "\n") String separator) throws Exception {
 
-        //String listOfNames = IOUtils.toString(request.getAttribute("names"));
-        String listOfNames = (String) request.getParameter("names");
+        logger.debug("/occurrences/taxaList with action=Download Records");
+        Long qid =  getQidForTaxaList(listOfNames, separator);
+
+        if (qid != null) {
+            String webservicesRoot = request.getSession().getServletContext().getInitParameter("webservicesRoot");
+            response.sendRedirect(webservicesRoot + "/occurrences/download?q=qid:"+qid);
+        } else {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+        }
+    }
+
+    /**
+     * Given a list of taxa, return an AJAX reposnse with the qid (cached query id)
+     * NOTE: triggered on "Search" button
+     *
+     * @param response
+     * @param listOfNames
+     * @param separator
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/occurrences/taxaList", method = RequestMethod.POST, params="action=Search")
+    public void taxaListSearch(
+            HttpServletResponse response,
+            @RequestParam(value="redirectBase", required = true, defaultValue = "") String redirectBase,
+            @RequestParam(value="names", required = true, defaultValue = "") String listOfNames,
+            @RequestParam(value="separator", defaultValue = "\n") String separator) throws Exception {
+
+        logger.debug("/occurrences/taxaList with action=Search");
+        Long qid =  getQidForTaxaList(listOfNames, separator);
+
+        if (qid != null && StringUtils.isNotBlank(redirectBase)) {
+            response.sendRedirect(redirectBase + "?q=qid:"+qid);
+        } else {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "");
+        }
+    }
+
+    /**
+     * Common method for getting a QID for a taxaList query
+     *
+     * @param listOfNames
+     * @param separator
+     * @return
+     * @throws IOException
+     * @throws ParamsCacheSizeException
+     */
+    private Long getQidForTaxaList(String listOfNames, String separator) throws IOException, ParamsCacheSizeException {
         String[] rawParts = listOfNames.split(separator);
         List<String> parts = new ArrayList<String>();
-        for(String part: rawParts) {
+
+        for (String part: rawParts) {
             String normalised = StringUtils.trimToNull(part);
-            if(normalised != null){
-                parts.add("raw_taxon_name:" + normalised);
+            if (normalised != null){
+                parts.add("raw_taxon_name:\"" + normalised + "\"");
             }
         }
-        if(parts.isEmpty()){
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+
+        if (parts.isEmpty()){
             return null;
         }
+
         String q = StringUtils.join(parts.toArray(new String[0]), " OR ");
-        long qid = ParamsCache.put(q, "Taxa list", null, null);
-        response.sendRedirect(request.getContextPath() + "/occurrences/download?q=qid:"+qid);
-        return null;
+        long qid = ParamsCache.put(q, q, null, null);
+        logger.debug("taxaList: qid = " + qid);
+
+        return qid;
     }
 
 	/**
