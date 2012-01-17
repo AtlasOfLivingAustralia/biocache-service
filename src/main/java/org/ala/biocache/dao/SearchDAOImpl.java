@@ -2197,4 +2197,41 @@ public class SearchDAOImpl implements SearchDAO {
 
         return speciesWithCounts;
     }
+    
+    public Map<String, Integer> getOccurrenceCountsForTaxa(List<String> taxa) throws Exception{
+        SolrQuery solrQuery = new SolrQuery();
+        solrQuery.setQueryType("standard");
+        solrQuery.setRows(0);
+        solrQuery.setFacet(true);
+        solrQuery.setFacetLimit(taxa.size());
+        StringBuilder sb = new StringBuilder();
+        Map<String,Integer> counts = new HashMap<String,Integer>();
+        Map<String, String> lftToGuid = new HashMap<String,String>();
+        for(String lsid : taxa){
+            //get the lft and rgt value for the taxon
+            String[] values = searchUtils.getTaxonSearch(lsid);
+            //first value is the search string
+            if(sb.length()>0)
+                sb.append(" OR ");
+            sb.append(values[0]);
+            lftToGuid.put(values[0], lsid);
+            //add the query part as a facet 
+            solrQuery.add("facet.query", values[0]);
+        }
+        solrQuery.setQuery(sb.toString());
+        
+        //solrQuery.add("facet.query", "confidence:" + os.getRange());
+        QueryResponse qr = runSolrQuery(solrQuery, null, 1, 0, "score", "asc");
+        Map<String, Integer> facetQueries = qr.getFacetQuery();
+        for(String facet:facetQueries.keySet()){
+            //add all the counts based on the query value that was substituted
+            String lsid = lftToGuid.get(facet);
+            Integer count = facetQueries.get(facet);
+            if(lsid != null && count!= null)
+                counts.put(lsid,  count);
+        }
+        logger.debug(facetQueries);
+        return counts;
+    }
+    
 }

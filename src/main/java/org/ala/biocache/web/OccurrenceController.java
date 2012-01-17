@@ -470,6 +470,28 @@ public class OccurrenceController {
 
         return qid;
     }
+    
+    /**
+     * Webservice to report the occurrence counts for the supplied list of taxa 
+     * 
+     */
+    @RequestMapping(value="/occurrences/taxaCount", method = {RequestMethod.POST, RequestMethod.GET})    
+    public @ResponseBody Map<String, Integer> occurrenceSpeciesCounts(
+            HttpServletResponse response,
+            HttpServletRequest request,
+            @RequestParam (defaultValue = "\n") String separator
+            ) throws Exception {
+        String listOfGuids = (String) request.getParameter("guids");
+        String[] rawGuids = listOfGuids.split(separator);
+        
+        List<String>guids= new ArrayList<String>();
+        for(String guid: rawGuids){
+            String normalised = StringUtils.trimToNull(guid);
+            if(normalised != null)
+                guids.add(normalised);
+        }
+        return searchDAO.getOccurrenceCountsForTaxa(guids);
+    }
 
 	/**
 	 * Occurrence search page uses SOLR JSON to display results
@@ -515,7 +537,7 @@ public class OccurrenceController {
         try {
             uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100);
         } catch (Exception e){
-            e.printStackTrace();
+            logger.error(e);
         }
         zop.closeEntry();
 

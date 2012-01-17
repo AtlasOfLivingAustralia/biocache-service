@@ -40,6 +40,14 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             	<li>extra - a CSV list of fields in include in addition to the "fields"</li>
             </ul>
              </li>
+            <li><strong>Occurrence Count for Taxa:</strong> /occurrences/taxaCount<br>
+            This is a POST or GET service with the following parameters:
+            	<ul>
+            		<li>separator - the separator that will appear between taxon guids</li>
+            		<li>guids - the list of separated taxon guids</li>
+            	</ul>
+            Returns a map of taxon guids with the corresponding occurrence count.
+            </li>
             <li><strong>Occurrence wms:</strong> /occurrences/wms - requires WMS parameters along with 'q' and 'fq' populated, if available</li>
             <li><strong>Occurrence static:</strong> /occurrences/static - generates an image of AU with points on, filtering on 'q' and 'fq', if available</li>
             <li><strong>Occurrences coordinates:</strong>

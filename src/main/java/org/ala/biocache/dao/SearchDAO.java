@@ -174,6 +174,14 @@ public interface SearchDAO {
     TaxaRankCountDTO calculateBreakdown(BreakdownRequestParams queryParams) throws Exception;
 
     TaxaRankCountDTO findTaxonCountForUid(String query, String queryContext, int maximumFacets) throws Exception;
+    
+    /**
+     * Returns the occurrence counts based on lft and rgt values for each of the supplied taxa.
+     * @param taxa
+     * @return
+     * @throws Exception
+     */
+    Map<String, Integer> getOccurrenceCountsForTaxa(List<String> taxa) throws Exception;
 
     /**
      * Returns the scientific name and counts for the taxon rank that proceed or include the supplied rank.
