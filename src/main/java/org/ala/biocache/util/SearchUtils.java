@@ -147,7 +147,7 @@ public class SearchUtils {
             // Get the taxon profile from the biocache cache - this could be replaced with a webservice call if necessary
             Option<TaxonProfile> opt = TaxonProfileDAO.getByGuid(lsid);
          
-            if (!opt.isEmpty()) {
+            if (!opt.isEmpty()) {                
                 TaxonProfile tc = opt.get();
                 StringBuffer dispSB = new StringBuffer(tc.getRankString()
 					+ ": " + tc.getScientificName());
@@ -155,6 +155,9 @@ public class SearchUtils {
 				dispSB.append(" : ");
 				dispSB.append(tc.getCommonName());
 			}
+			    //return the lft and rgt range if they exist otherwise return the scientific name
+			    if(tc.getLeft() == null || tc.getRight() == null)
+			        return new String[]{"taxon_name:\""+ tc.getScientificName()+"\"", dispSB.toString()};
                 StringBuilder sb = new StringBuilder("lft:[");
                 sb.append(tc.getLeft()).append(" TO ").append(tc.getRight()).append("]");
                 return new String[] {sb.toString(),dispSB.toString()};
