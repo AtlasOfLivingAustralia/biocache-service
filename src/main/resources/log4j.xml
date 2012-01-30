@@ -1,7 +1,7 @@
 <!DOCTYPE log4j:configuration  SYSTEM "log4j.dtd">
 <log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/" debug="true">
   <appender name="CONSOLE" class="org.apache.log4j.ConsoleAppender">
-    <param name="Threshold" value="DEBUG"/>
+    <param name="Threshold" value="WARN"/>
     <layout class="org.apache.log4j.PatternLayout">
       <param name="ConversionPattern" value="%d %-5p: [%c{1}] - %m%n"/>
     </layout>
@@ -19,16 +19,19 @@
         <appender-ref ref="ALA_LOGGER" />
     </appender>
   <category name="org.ala">
-    <priority value="DEBUG"/>
+    <priority value="WARN"/>
   </category>
   <category name="au.org.ala">
-    <priority value="DEBUG"/>
+    <priority value="WARN"/>
+  </category>
+  <category name="au.org.ala.sds.model/">
+    <priority value="ERROR"/>
   </category>
   <category name="au.org.ala.cas">
     <priority value="INFO"/>
   </category> 
   <category name="org.jasig">
-    <priority value="DEBUG"/>
+    <priority value="WARN"/>
   </category>
   <category name="org.springframework">
     <priority value="ERROR"/>
