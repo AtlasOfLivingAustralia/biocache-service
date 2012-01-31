@@ -161,7 +161,7 @@ public class OccurrenceIndex {
                 smallImageUrl =  url;
             }
         }
-        return image;
+        return smallImageUrl;
     }
 
     public String getThumbnailUrl(){
