@@ -622,7 +622,7 @@ public class OccurrenceController {
      * @param uuid
      * @throws Exception
      */
-    @RequestMapping(value = {"/occurrence/compare/{uuid}.json"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrence/compare/{uuid}.json", "/occurrence/compare/{uuid}"}, method = RequestMethod.GET)
     public @ResponseBody Object showOccurrence(@PathVariable("uuid") String uuid){
         Map values =Store.getComparisonByUuid(uuid);
         if(values.isEmpty())

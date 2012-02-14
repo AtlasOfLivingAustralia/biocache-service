@@ -5,44 +5,53 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
         <meta name="pageName" content="home"/>
-        <title>BioCache | Atlas of Living Australia</title>
-        <style type="text/css">
-            .code { font-family: courier new;}
-        </style>
+        <title>BioCache  Webservices | Atlas of Living Australia</title>
     </head>
     <body>
+        <style type="text/css">
+            .code { font-family: courier new;}
+            .webserviceList { margin-left:30px; }
+            .paramList { margin-left:60px; }
+        </style>
     	<div class="section">
         <h1> Web Services </h1>
         <h3>Occurrences</h3>
-        <ul>
+        <ul class="webserviceList">
             <li><strong>Occurrence listing:</strong>
                 <a href="${initParam.webservicesRoot}/occurrences/page">/occurrences/page</a>
                 - just shows the first 10 occurrences (for debug only)</li>
-            <li><strong>Occurrence view:</strong> /occurrence/{uuid}</li>
-            <li><strong>Occurrence comparison view:</strong> /occurrence/compare/{uuid}</li>            
-            <li><strong>Occurrence for taxon:</strong> /occurrences/taxon/{guid}</li>
-            <li><strong>Occurrence for collection:</strong> /occurrences/collections/{uid}</li>
-            <li><strong>Occurrence for institution:</strong> /occurrences/institutions/{uid}</li>
+            <li><strong>Occurrence view:</strong> /occurrence/{uuid} e.g. <a href="${initParam.webservicesRoot}/occurrences/35b3ff3e-a9b9-4816-a3cf-8f16cf434fc7">/occurrence/35b3ff3e-a9b9-4816-a3cf-8f16cf434fc7</a></li>
+            <li><strong>Occurrence comparison view:</strong> /occurrence/compare/{uuid} e.g. <a href="${initParam.webservicesRoot}/occurrence/compare/35b3ff3e-a9b9-4816-a3cf-8f16cf434fc7.json">/occurrence/compare/35b3ff3e-a9b9-4816-a3cf-8f16cf434fc7</a></li>
+            <li><strong>Occurrence for taxon:</strong> /occurrences/taxon/{guid}
+                e.g. <a href="${initParam.webservicesRoot}/occurrences/taxon/urn:lsid:biodiversity.org.au:afd.taxon:7790064f-4ef7-4742-8112-6b0528d5f3fb">/occurrences/taxon/urn:lsid:biodiversity.org.au:afd.taxon:7790064f-4ef7-4742-8112-6b0528d5f3fb</a></li>
+            <li><strong>Occurrence for collection:</strong> /occurrences/collections/{uid}
+                e.g. <a href="${initParam.webservicesRoot}/occurrences/collections/co11">/occurrences/collections/co11</a></li>
+            <li><strong>Occurrence for institution:</strong> /occurrences/institutions/{uid}
+                e.g. <a href="${initParam.webservicesRoot}/occurrences/institutions/in4">/occurrences/institutions/in4</a></li>
             <li><strong>Occurrence for data resource:</strong> /occurrences/dataResources/{uid}</li>
             <li><strong>Occurrence for data provider:</strong> /occurrences/dataProviders/{uid}</li>
-            <li><strong>Occurrence for data hub:</strong> /occurrences/dataHubs/{uid}</li>
+            <li><strong>Occurrence for data hub:</strong> /occurrences/dataHubs/{uid}
+                e.g. <a href="${initParam.webservicesRoot}/occurrences/dataHubs/dh1">/occurrences/collections/dh1</a></li>
             <li><strong>Occurrence download:</strong> /occurrences/download - needs request param definition<br>
             The download will include all records that satisfy the q, fq and wkt parameters.  The number of records
             for a data resource may be restricted based on a collectory configured download limit.  Params:
-            <ul>
-            	<li>q - the initial query</li>
-            	<li>fq - filters to be applied to the original query</li>
-                <li>wkt - filter polygon area to be applied to the original query</li>
-            	<li>email - the email address of the user requesting the download</li>
-            	<li>reason - the reason for the download</li>
-            	<li>file - the name to use for the file</li>
-            	<li>fields - a CSV list of fields to include in the download (contains a list of default)</li>
-            	<li>extra - a CSV list of fields in include in addition to the "fields"</li>
-            </ul>
+                <ul class="paramList">
+                    <li>q - the initial query</li>
+                    <li>fq - filters to be applied to the original query</li>
+                    <li>wkt - filter polygon area to be applied to the original query</li>
+                    <li>email - the email address of the user requesting the download</li>
+                    <li>reason - the reason for the download</li>
+                    <li>file - the name to use for the file</li>
+                    <li>fields - a CSV list of fields to include in the download (contains a list of default)</li>
+                    <li>extra - a CSV list of fields in include in addition to the "fields"</li>
+                </ul>
+                <p>
+                    Example: <a href="${initParam.webservicesRoot}/occurrences/download?q=genus:Macropus">/occurrences/download?q=genus:Macropus<a/>
+                </p>
              </li>
             <li><strong>Occurrence Count for Taxa:</strong> /occurrences/taxaCount<br>
             This is a POST or GET service with the following parameters:
-            	<ul>
+                <ul class="paramList">
             		<li>separator - the separator that will appear between taxon guids</li>
             		<li>guids - the list of separated taxon guids</li>
             	</ul>
@@ -57,7 +66,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             <li><strong>List of default facets for occurrence search:</strong> <a href="${initParam.webservicesRoot}/search/facets">/search/facets</a></li>
             <li><strong>List of available index fields:</strong> <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a> - A field can be used in a search if indexed=true.  A field can be used as a facet if indexed=true and stored=true.</li>
             <li><strong>Facet based download:</strong> /occurrences/facets/download - requires a 'q' and optional 'fq' and one 'facet'. Optional Params:
-            <ul>
+                <ul class="paramList">
             	<li>count - set to true if you would like the count included</li>
             	<li>lookup - set to true if you would like the download include the scientific names for the supplied guids.  Downloads that include this param will take extra time as a lookup need to be performed</li>
             </ul> 
@@ -80,7 +89,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         </ul>
 
         <h3>Assertions</h3>
-        <ul>
+        <ul class="webserviceList">
             <li><strong>List assertion codes:</strong>
                 <a href="${initParam.webservicesRoot}/assertions/codes">/assertions/codes</a>
             </li>
@@ -96,7 +105,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 		This section describes the services that can be used to explore a region or query.  The Explore services provide the number of distinct species 
 		and total species counts for each of the species_groups for the supplied details.
 		In the services listed below the following params can be supplied:
-		<ul>
+        <ul class="paramList">
 			<li>lat - The latitude to limit the query by (must be used with lon and radius)</li>
 			<li>lon - The longitude to limit the query by (must be used with lat and radius)</li>
 			<li>radius - The radius to from lat,lon to limit the query by (must be used with lat and lon)</li>
@@ -104,7 +113,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 			<li>fq - The filter query</li>
 		</ul>
 		The available services:
-		<ul>
+		<ul class="webserviceList">
 			<li><strong>Retrieve all species groups and counts:</strong> /explore/groups</li>
 			<li><strong>Retrieve the counts for a specific group:</strong> /explore/counts/group/{group} -the first count is total number of occurrence, the second is the number of distinct species </li>
 			<li><strong>Download a list of species in a group: </strong> /explore/group/{group}/download </li>
@@ -114,7 +123,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 		
         <h3>Breakdowns</h3>
         This section outlines the breakdown services that are available.  These services are available for each of the different collectory types:
-        <ul>
+        <ul class="webserviceList">
         	<li>collections</li>
         	<li>institutions</li>
         	<li>dataResources</li>
@@ -122,7 +131,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         	<li>dataHubs</li>
         </ul>
         In the services specified below {collectorytype} must be one of the above values.  
-        <ul>
+        <ul class="webserviceList">
             <li><strong>Breakdown based on limit:</strong> /breakdown/{collectorytype}/{uid}?max={max} Example:<br>
             <a href="${initParam.webservicesRoot}/breakdown/collections/co50?max=50">/breakdown/collections/co50?max=50</a> 
             </li>           
@@ -133,10 +142,10 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             <a href="${initParam.webservicesRoot}/breakdown/dataHubs/dh1?rank=phylum&name=Chordata">/breakdown/dataHubs/dh1?rank=phylum&name=Chordata</a>
             </li>
         </ul>
-        
-        <ul>
+
+        <ul class="webserviceList">
         	<li><strong>Generic breakdown service is available for any query: </strong> /breakdown - available params
-        	 <ul>
+        	 <ul class="paramList">
             	<li>q - the initial query on which to perform the breakdown</li>
             	<li>fq - filters to be applied to the original query</li>
             	<li>max - the maximum number of names to return for the breakdown.   The rank at which the breakdown will be determined based on this limit.</li>
@@ -147,15 +156,16 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         </ul>
         
         <h3>Administration</h3>
-        
-        
-        <ul>
+
+        <ul class="webserviceList">
         	<li><strong>Check for Read Only Mode: </strong><a href="${initParam.webservicesRoot}/admin/isReadOnly">/admin/isReadOnly</a></li>
         	<li><strong>Modify Read Only Mode: </strong>/admin/modify?ro={true OR false}</li>
         	<li><strong>Reopen Index: </strong> /admin/modify?reopenIndex=true</li>
         </ul>
-        	The remaining services in the section only support POST. All services must supply apiKey as a parameter.
-        <ul>
+
+        The remaining services in the section only support POST. All services must supply apiKey as a parameter.
+
+        <ul class="webserviceList">
         	<li><strong>Optimise Index: </strong>/admin/index/optimise - This service will place the biocache-service in read only 
         	mode until the optimise has been completed.
         	<br>Example:<br>
@@ -163,7 +173,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         	</li>
         	<li><strong>Reindex Data Resource: </strong>/admin/index/reindex - reindexes occurrences 
         	modified after startDate for the supplied dataResource<br>Extra Mandatory Parameters: <br>
-        	<ul>
+        	<ul class="paramList">
         		<li>dataResource - The data resource UID to reindex</li>
         		<li>startDate - The earliest modification date to reindex.</li>
         	</ul> 
@@ -173,7 +183,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         </ul>
         
         <h3>Miscellaneous</h3>
-        <ul>
+        <ul class="webserviceList">
         	<li><strong>Retrieve i18n mappings: </strong><a href="${initParam.webservicesRoot}/facets/i18n">/facets/i18n</a></li>
         	<li><strong>Is Australian test:</strong> /australian/taxon/{guid} - tests to see if the supplied GUID; occurs in Australia, has an Australian LSID or is NOT Australian. Example:<br>
         	<a href="${initParam.webservicesRoot}/australian/taxon/urn:lsid:biodiversity.org.au:afd.taxon:aa745ff0-c776-4d0e-851d-369ba0e6f537">/australian/taxon/urn:lsid:biodiversity.org.au:afd.taxon:aa745ff0-c776-4d0e-851d-369ba0e6f537</a>
@@ -183,7 +193,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         </ul>
 
         <h3>Parsing Webservices</h3>
-        <ul>
+        <ul class="webserviceList">
             <li><strong>Match darwin core terms</strong>: /parse/matchTerms - accepts a POST JSON body. Examples:
                 <ul>
                 <li><span class="code">["scientific name", "latitude"] </span>
@@ -219,7 +229,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         </ul>
         
         <h3>Mapping Services (/webportal)</h3>
-        <ul>
+        <ul class="webserviceList">
             These services will include all records that satisfy the q, fq and wkt parameters.  
             <ul>
             	<li>q - the initial query</li>
@@ -259,7 +269,11 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         </ul>
 
         <h3>WMS Service</h3>
-        <ul>
+        <p>These services are suitable for use with a OGC client or an OGC friendly API like <a href="http://openlayers.org/">openlayers</a>.
+            Examples of use are available <a href="http://spatial.ala.org.au/ws/examples/">here</a>
+        </p>
+
+        <ul class="webserviceList">
             <li><strong>Tile:</strong> /webportal/wms/reflect
                 <ul>
                     <li>BBOX - EPSG900913 bounding box. e.g. &BBOX=12523443.0512,-2504688.2032,15028131.5936,0.3392000021413</li>
