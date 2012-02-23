@@ -18,6 +18,25 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         <h1> Web Services </h1>
         <h3>Occurrences</h3>
         <ul class="webserviceList">
+
+            <li><strong>Occurrence search:</strong>
+                <a href="${initParam.webservicesRoot}/occurrences/search">/occurrences/search</a>
+                <ul class="paramList">
+                    <li><strong>q</strong> - the initial query. "q=*:*" will query anything, q="macropus" will do a free text search for "macropus", q=kingdom:Fungi will search for records with a kingdom of Fungi.
+                        <br/>
+                        For a listing of the fields that can be queried in a q=INDEXEDFIELD:VALUE fashion, see <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a>
+                    </li>
+                    <li><strong>fq</strong> - filters to be applied to the original query. These are additional params of the form fq=INDEXEDFIELD:VALUE e.g. fq=kingdom:Fungi. <br/>
+                        Again, see <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a> for all the fields that a queryable.
+                    </li>
+                    <li><strong>facet</strong> - supported values are "off" or "on". By default, its "on". This is worth switching off if facetting is not required, to reduce the JSON being sent</li>
+                    <li><strong>facets</strong> - the fields to create facets on e.g. facets=basis_of_record.</li>
+                    <li><strong>pageSize</strong> - number of records to return</li>
+                    <li><strong>startIndex</strong> - record offset, to enable paging</li>
+                    <li><strong>sort</strong> - the indexed field to sort by. See <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a></li>
+                    <li><strong>dir</strong> - supports "asc" or "desc"</li>
+                </ul>
+            </li>
             <li><strong>Occurrence listing:</strong>
                 <a href="${initParam.webservicesRoot}/occurrences/page">/occurrences/page</a>
                 - just shows the first 10 occurrences (for debug only)</li>
@@ -37,12 +56,15 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                 The download will include all records that satisfy the q, fq and wkt parameters.  The number of records
                 for a data resource may be restricted based on a collectory configured download limit.  Params:
                 <ul class="paramList">
-                    <li><strong>q</strong> - the initial query</li>
-                    <li><strong>fq</strong> - filters to be applied to the original query</li>
-                    <li><strong>wkt</strong> - filter polygon area to be applied to the original query</li>
+                    <li><strong>q</strong> - the initial query. "q=*:*" will query anything, q="macropus" will do a free text search for "macropus", q=kingdom:Fungi will search for records with a kingdom of Fungi.
+                        <br/>
+
+                    </li>
+                    <li><strong>fq</strong> - filters to be applied to the original query. These are additional params of the form fq=INDEXEDFIELD:VALUE e.g. fq=kingdom:Fungi</li>
+                    <li><strong>wkt</strong> - filter polygon area to be applied to the original query. For information on Well known text, see <a href="http://en.wikipedia.org/wiki/Well-known_text">this</a></li>
                     <li><strong>email</strong> - the email address of the user requesting the download</li>
                     <li><strong>reason</strong> - the reason for the download</li>
-                    <li><strong>file</strong> - the name to use for the file</li>
+                    <li><strong>file</strong> - the name to use for the fileto download</li>
                     <li><strong>fields</strong> - a CSV list of fields to include in the download (contains a list of default)</li>
                     <li><strong>extra</strong> - a CSV list of fields in include in addition to the "fields"</li>
                 </ul>
@@ -292,7 +314,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                             <li><strong>sel</strong> - fq parameter applied to CQL_FILTER.  Matching occurrences will be highlighted on the map in a Red circle</li>
                             <li><strong>uncertainty</strong> - presence of the uncertainty parameter draws uncertainty circles to a fixed maximum of 30km</li>
                             <li><strong>colormode</strong> - facet colouring type.  <br>
-                                <table>
+                                <table style="border-bottom:none;">
                                     <tr><td>colourmode</td><td>description</td></tr>
                                     <tr><td>-1</td><td>(default) use color value</td></tr>
                                     <tr><td>grid</td><td>map as density grid.  Grid cells drawn are not restricted to within any query WKT parameters.</td></tr>
