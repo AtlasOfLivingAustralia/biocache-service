@@ -12,6 +12,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             .code { font-family: courier new;}
             .webserviceList { margin-left:30px; }
             .paramList { margin-left:60px; }
+            strong { font-weight:bold; }
         </style>
     	<div class="section">
         <h1> Web Services </h1>
@@ -33,27 +34,30 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             <li><strong>Occurrence for data hub:</strong> /occurrences/dataHubs/{uid}
                 e.g. <a href="${initParam.webservicesRoot}/occurrences/dataHubs/dh1">/occurrences/collections/dh1</a></li>
             <li><strong>Occurrence download:</strong> /occurrences/download - needs request param definition<br>
-            The download will include all records that satisfy the q, fq and wkt parameters.  The number of records
-            for a data resource may be restricted based on a collectory configured download limit.  Params:
+                The download will include all records that satisfy the q, fq and wkt parameters.  The number of records
+                for a data resource may be restricted based on a collectory configured download limit.  Params:
                 <ul class="paramList">
-                    <li>q - the initial query</li>
-                    <li>fq - filters to be applied to the original query</li>
-                    <li>wkt - filter polygon area to be applied to the original query</li>
-                    <li>email - the email address of the user requesting the download</li>
-                    <li>reason - the reason for the download</li>
-                    <li>file - the name to use for the file</li>
-                    <li>fields - a CSV list of fields to include in the download (contains a list of default)</li>
-                    <li>extra - a CSV list of fields in include in addition to the "fields"</li>
+                    <li><strong>q</strong> - the initial query</li>
+                    <li><strong>fq</strong> - filters to be applied to the original query</li>
+                    <li><strong>wkt</strong> - filter polygon area to be applied to the original query</li>
+                    <li><strong>email</strong> - the email address of the user requesting the download</li>
+                    <li><strong>reason</strong> - the reason for the download</li>
+                    <li><strong>file</strong> - the name to use for the file</li>
+                    <li><strong>fields</strong> - a CSV list of fields to include in the download (contains a list of default)</li>
+                    <li><strong>extra</strong> - a CSV list of fields in include in addition to the "fields"</li>
                 </ul>
                 <p>
-                    Example: <a href="${initParam.webservicesRoot}/occurrences/download?q=genus:Macropus">/occurrences/download?q=genus:Macropus<a/>
+                    Example: <a href="${initParam.webservicesRoot}/occurrences/download?q=genus:Macropus">/occurrences/download?q=genus:Macropus</a>
+                </p>
+                <p>
+                    A listing of fields that come in the download is available <a href="https://docs.google.com/spreadsheet/ccc?key=0AjNtzhUIIHeNdHhtcFVSM09qZ3c3N3ItUnBBc09TbHc">here</a>.
                 </p>
              </li>
             <li><strong>Occurrence Count for Taxa:</strong> /occurrences/taxaCount<br>
             This is a POST or GET service with the following parameters:
                 <ul class="paramList">
-            		<li>separator - the separator that will appear between taxon guids</li>
-            		<li>guids - the list of separated taxon guids</li>
+            		<li><strong>separator</strong> - the separator that will appear between taxon guids</li>
+            		<li><strong>guids</strong> - the list of separated taxon guids</li>
             	</ul>
             Returns a map of taxon guids with the corresponding occurrence count.
             </li>
@@ -67,8 +71,8 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             <li><strong>List of available index fields:</strong> <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a> - A field can be used in a search if indexed=true.  A field can be used as a facet if indexed=true and stored=true.</li>
             <li><strong>Facet based download:</strong> /occurrences/facets/download - requires a 'q' and optional 'fq' and one 'facet'. Optional Params:
                 <ul class="paramList">
-            	<li>count - set to true if you would like the count included</li>
-            	<li>lookup - set to true if you would like the download include the scientific names for the supplied guids.  Downloads that include this param will take extra time as a lookup need to be performed</li>
+            	<li><strong>count</strong> - set to true if you would like the count included</li>
+            	<li><strong>lookup</strong> - set to true if you would like the download include the scientific names for the supplied guids.  Downloads that include this param will take extra time as a lookup need to be performed</li>
             </ul> 
             <br>This can be used to download distinct lists of species:
             <ul>
@@ -106,11 +110,11 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 		and total species counts for each of the species_groups for the supplied details.
 		In the services listed below the following params can be supplied:
         <ul class="paramList">
-			<li>lat - The latitude to limit the query by (must be used with lon and radius)</li>
-			<li>lon - The longitude to limit the query by (must be used with lat and radius)</li>
-			<li>radius - The radius to from lat,lon to limit the query by (must be used with lat and lon)</li>
-			<li>q - The query which defaults to *:* when not supplied</li>
-			<li>fq - The filter query</li>
+			<li><strong>lat</strong> - The latitude to limit the query by (must be used with lon and radius)</li>
+			<li><strong>lon</strong> - The longitude to limit the query by (must be used with lat and radius)</li>
+			<li><strong>radius</strong> - The radius to from lat,lon to limit the query by (must be used with lat and lon)</li>
+			<li><strong>q</strong> - The query which defaults to *:* when not supplied</li>
+			<li><strong>fq</strong> - The filter query</li>
 		</ul>
 		The available services:
 		<ul class="webserviceList">
@@ -146,11 +150,11 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         <ul class="webserviceList">
         	<li><strong>Generic breakdown service is available for any query: </strong> /breakdown - available params
         	 <ul class="paramList">
-            	<li>q - the initial query on which to perform the breakdown</li>
-            	<li>fq - filters to be applied to the original query</li>
-            	<li>max - the maximum number of names to return for the breakdown.   The rank at which the breakdown will be determined based on this limit.</li>
-            	<li>rank - the rank at which to perform the breakdown - if a name is specified in conjunction to this the breakdown will be performed at the next level further limiting the query</li>
-            	<li>name - the scientific name to limit the breakdown to - needs a valid rank to be supplied</li>            	
+            	<li><strong>q</strong> - the initial query on which to perform the breakdown</li>
+            	<li><strong>fq</strong> - filters to be applied to the original query</li>
+            	<li><strong>max</strong> - the maximum number of names to return for the breakdown.   The rank at which the breakdown will be determined based on this limit.</li>
+            	<li><strong>rank</strong> - the rank at which to perform the breakdown - if a name is specified in conjunction to this the breakdown will be performed at the next level further limiting the query</li>
+            	<li><strong>name</strong> - the scientific name to limit the breakdown to - needs a valid rank to be supplied</li>
             </ul> 
         	</li>
         </ul>
@@ -232,11 +236,11 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         <ul class="webserviceList">
             These services will include all records that satisfy the q, fq and wkt parameters.  
             <ul>
-            	<li>q - the initial query</li>
-            	<li>fq - filters to be applied to the original query</li>
-                <li>wkt - filter polygon area to be applied to the original query</li>
-            	<li>fl - a comma separated list of fields to include (contains a list of default)</li>
-                <li>pageSize - download limit (may be overridden)</li>
+            	<li><strong>q</strong> - the initial query</li>
+            	<li><strong>fq</strong> - filters to be applied to the original query</li>
+                <li><strong>wkt</strong> - filter polygon area to be applied to the original query</li>
+            	<li><strong>fl</strong> - a comma separated list of fields to include (contains a list of default)</li>
+                <li><strong>pageSize</strong> - download limit (may be overridden)</li>
             </ul>
             
             <li><strong>Short Query Parameters:</strong>
@@ -276,18 +280,18 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         <ul class="webserviceList">
             <li><strong>Tile:</strong> /webportal/wms/reflect
                 <ul>
-                    <li>BBOX - EPSG900913 bounding box. e.g. &BBOX=12523443.0512,-2504688.2032,15028131.5936,0.3392000021413</li>
-                    <li>WIDTH - width in pixels</li>
-                    <li>HEIGHT - height in pixels</li>
-                    <li>CQL_FILTER - query parameter</li>
-                    <li>ENV - additional parameters. e.g. ENV=color%3Acd3844%3Bsize%3A3%3Bopacity%3A0.8
+                    <li><strong>BBOX</strong> - EPSG900913 bounding box. e.g. &BBOX=12523443.0512,-2504688.2032,15028131.5936,0.3392000021413</li>
+                    <li><strong>WIDTH</strong> - width in pixels</li>
+                    <li><strong>HEIGHT</strong> - height in pixels</li>
+                    <li><strong>CQL_FILTER</strong> - query parameter</li>
+                    <li><strong>ENV</strong> - additional parameters. e.g. ENV=color%3Acd3844%3Bsize%3A3%3Bopacity%3A0.8
                         <ul>
-                            <li>color - hex RGB values. e.g. colour:cd3844</li>
-                            <li>size - radius of points in pixels</li>
-                            <li>opacity - opacity value 0 - 1</li>
-                            <li>sel - fq parameter applied to CQL_FILTER.  Matching occurrences will be highlighted on the map in a Red circle</li>
-                            <li>uncertainty - presence of the uncertainty parameter draws uncertainty circles to a fixed maximum of 30km</li>
-                            <li>colormode - facet colouring type.  <br>
+                            <li><strong>color</strong> - hex RGB values. e.g. colour:cd3844</li>
+                            <li><strong>size</strong> - radius of points in pixels</li>
+                            <li><strong>opacity</strong> - opacity value 0 - 1</li>
+                            <li><strong>sel</strong> - fq parameter applied to CQL_FILTER.  Matching occurrences will be highlighted on the map in a Red circle</li>
+                            <li><strong>uncertainty</strong> - presence of the uncertainty parameter draws uncertainty circles to a fixed maximum of 30km</li>
+                            <li><strong>colormode</strong> - facet colouring type.  <br>
                                 <table>
                                     <tr><td>colourmode</td><td>description</td></tr>
                                     <tr><td>-1</td><td>(default) use color value</td></tr>
@@ -306,16 +310,16 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                 Get a CSV legend.<br>
                 Parameters:
             <ul>
-                <li>q - CQL_FILTER value</li>
-                <li>cm - ENV colormode value</li>
+                <li><strong>q</strong> - CQL_FILTER value</li>
+                <li><strong>cm</strong> - ENV colormode value</li>
             </ul>
                 Contains columns:
                 <ul>
-                    <li>name - legend item name</li>
-                    <li>red - 0-255</li>
-                    <li>green - 0-255</li>
-                    <li>blue - 0-255</li>
-                    <li>count - number of occurrences for this legend category in the q parameter</li>
+                    <li><strong>name</strong> - legend item name</li>
+                    <li><strong>red</strong> - 0-255</li>
+                    <li><strong>green</strong> - 0-255</li>
+                    <li><strong>blue</strong> - 0-255</li>
+                    <li><strong>count</strong> - number of occurrences for this legend category in the q parameter</li>
                 </ul>
             </li>
         </ul>
