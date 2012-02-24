@@ -64,6 +64,12 @@ public class SearchRequestParams {
      * The limit for the number of facets to return 
      */
     protected Integer flimit = 30;
+    /** The sort order in which to return the facets.  Either count or index */
+    protected String fsort="count";
+    /** The offset of facets to return.  Used in conjunction to flimit */
+    protected Integer foffset = 0;
+    /** The prefix to limit facet values*/
+    protected String fprefix ="";
     protected Integer pageSize = 10;
     protected String sort = "score";
     protected String dir = "asc";
@@ -101,6 +107,12 @@ public class SearchRequestParams {
             req.append("&formattedQuery=").append(formattedQuery);
         if(!facet)
             req.append("&facet=false");
+        if(!"count".equals(fsort))
+        	req.append("&fsort=").append(fsort);
+        if(foffset > 0)
+        	req.append("&foffset=").append(foffset);
+        if(!"".equals(fprefix))
+        	req.append("&fprefix=").append(fprefix);
         return req.toString();
     }
     /**
@@ -300,5 +312,42 @@ public class SearchRequestParams {
     public void setFacet(Boolean facet) {
         this.facet = facet;
     }
+	/**
+	 * @return the fsort
+	 */
+	public String getFsort() {
+		return fsort;
+	}
+	/**
+	 * @param fsort the fsort to set
+	 */
+	public void setFsort(String fsort) {
+		this.fsort = fsort;
+	}
+	/**
+	 * @return the foffset
+	 */
+	public Integer getFoffset() {
+		return foffset;
+	}
+	/**
+	 * @param foffset the foffset to set
+	 */
+	public void setFoffset(Integer foffset) {
+		this.foffset = foffset;
+	}
+	/**
+	 * @return the fprefix
+	 */
+	public String getFprefix() {
+		return fprefix;
+	}
+	/**
+	 * @param fprefix the fprefix to set
+	 */
+	public void setFprefix(String fprefix) {
+		this.fprefix = fprefix;
+	}
+	    
     
 }

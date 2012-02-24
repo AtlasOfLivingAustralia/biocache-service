@@ -28,6 +28,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.ala.biocache.dao.SearchDAO;
+import org.ala.biocache.dao.SearchDAOImpl;
 import org.ala.biocache.dto.OccurrencePoint;
 import org.ala.biocache.dto.PointType;
 import org.ala.biocache.dto.SpatialSearchRequestParams;
@@ -267,7 +268,12 @@ public class ExploreController {
 //    }
     
  
-    
+    private void  applyFacetForCounts(SpatialSearchRequestParams requestParams, boolean useCommonName){
+    	if(useCommonName)
+    		requestParams.setFacets(new String[]{SearchDAOImpl.COMMON_NAME_AND_LSID});
+    	else
+    		requestParams.setFacets(new String[]{SearchDAOImpl.NAMES_AND_LSID});
+    }
 
         /**
 	 * Occurrence search page uses SOLR JSON to display results
@@ -281,6 +287,7 @@ public class ExploreController {
 	public void yourAreaDownload(
             DownloadRequestParams requestParams,
             @PathVariable(value="group") String group,
+            @RequestParam(value="common", required=false, defaultValue="false") boolean common,
             HttpServletResponse response)
             throws Exception {
 	    String filename = requestParams.getFile() != null ? requestParams.getFile():"data"; 
@@ -291,6 +298,7 @@ public class ExploreController {
         response.setContentType("application/vnd.ms-excel");
        
         updateQuery(requestParams, group);
+        applyFacetForCounts(requestParams, common);
         
         ServletOutputStream out = response.getOutputStream();
         int count = searchDao.writeSpeciesCountByCircleToStream(requestParams,group, out);
@@ -314,11 +322,13 @@ public class ExploreController {
 	public @ResponseBody List<TaxaCountDTO> listSpeciesForHigherTaxa(
             SpatialSearchRequestParams requestParams,
             @PathVariable(value="group") String group,
-                       
+            @RequestParam(value="common", required=false, defaultValue="false") boolean common,           
             Model model) throws Exception {
 
        
         updateQuery(requestParams,group);
+        applyFacetForCounts(requestParams, common);
+        
         return searchDao.findAllSpeciesByCircleAreaAndHigherTaxa(requestParams, group);
 
     }

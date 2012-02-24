@@ -35,6 +35,10 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <li><strong>startIndex</strong> - record offset, to enable paging</li>
                     <li><strong>sort</strong> - the indexed field to sort by. See <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a></li>
                     <li><strong>dir</strong> - supports "asc" or "desc"</li>
+                    <li><strong>flimit</strong> - maximum number of facets to return</li>
+                    <li><strong>fsort</strong> - method in which to sort the facets either "count" or "index"</li>
+                    <li><strong>foffset</strong> - facet offset, to enable paging</li>
+                    <li><strong>fprefix</strong> - limits facets to values that start with the supplied value</li>                    
                 </ul>
             </li>
             <li><strong>Occurrence listing:</strong>

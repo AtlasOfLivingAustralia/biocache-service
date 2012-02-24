@@ -55,6 +55,7 @@ import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.SolrDocumentList;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestOperations;
 
 
@@ -105,7 +106,8 @@ public class SearchDAOImpl implements SearchDAO {
     protected static final String KINGDOM_LSID = "kingdom_lsid";
     protected static final String SPECIES = "species";
     protected static final String SPECIES_LSID = "species_lsid";
-    protected static final String NAMES_AND_LSID = "names_and_lsid";
+    public static final String NAMES_AND_LSID = "names_and_lsid";
+    public static final String COMMON_NAME_AND_LSID ="common_name_and_lsid";
     protected static final String TAXON_CONCEPT_LSID = "taxon_concept_lsid";
     protected static final Integer FACET_PAGE_SIZE =500;
     protected static final String QUOTE = "\"";
@@ -918,14 +920,13 @@ public class SearchDAOImpl implements SearchDAO {
         updateQueryContext(requestParams);
         
         String queryString = buildSpatialQueryString(requestParams);
-        List<String> facetFields = new ArrayList<String>();
-        facetFields.add(NAMES_AND_LSID);
+        
         logger.debug("The species count query " + queryString);
         List<String> fqList = new ArrayList<String>();
         //only add the FQ's if they are not the default values
         if(requestParams.getFq().length>0 && (requestParams.getFq()[0]).length()>0)
             org.apache.commons.collections.CollectionUtils.addAll(fqList, requestParams.getFq());
-        List<TaxaCountDTO> speciesWithCounts = getSpeciesCounts(queryString, fqList, facetFields, requestParams.getPageSize(), requestParams.getStart(), requestParams.getSort(), requestParams.getDir());
+        List<TaxaCountDTO> speciesWithCounts = getSpeciesCounts(queryString, fqList, CollectionUtils.arrayToList(requestParams.getFacets()), requestParams.getPageSize(), requestParams.getStart(), requestParams.getSort(), requestParams.getDir());
 
         return speciesWithCounts;
     }
@@ -1775,39 +1776,16 @@ public class SearchDAOImpl implements SearchDAO {
                     solrQuery.addFacetField(facet);
                 }
             }
-//        solrQuery.addFacetField("basis_of_record");
-//        solrQuery.addFacetField("type_status");
-//        solrQuery.addFacetField("institution_code_name");
-//        //solrQuery.addFacetField("data_resource");
-//        solrQuery.addFacetField("state");
-//        solrQuery.addFacetField("biogeographic_region");
-//        solrQuery.addFacetField("rank");
-//        solrQuery.addFacetField("kingdom");
-//        solrQuery.addFacetField("family");
-//        solrQuery.addFacetField("assertions");
-//        //solrQuery.addFacetField("data_provider");
-//        solrQuery.addFacetField("month");
-//        solrQuery.add("f.month.facet.sort","index"); // sort by Jan-Dec
-//        // Date Facet Params
-//        // facet.date=occurrence_date&facet.date.start=1900-01-01T12:00:00Z&facet.date.end=2010-01-01T12:00:00Z&facet.date.gap=%2B1YEAR
-//        solrQuery.add("facet.date","occurrence_date");
-//        solrQuery.add("facet.date.start", "1850-01-01T12:00:00Z"); // facet date range starts from 1850
-//        solrQuery.add("facet.date.end", "NOW/DAY"); // facet date range ends for current date (gap period)
-//        solrQuery.add("facet.date.gap", "+10YEAR"); // gap interval of 10 years
-//        solrQuery.add("facet.date.other", "before"); // include counts before the facet start date ("before" label)
-//        solrQuery.add("facet.date.include", "lower"); // counts will be included for dates on the starting date but not ending date
-        //Manually add the integer ranges for the facet query required on the confidence field
-        //TODO DO we need confidence/ Indivdual Sightings etc
-//        for(OccurrenceSource os : OccurrenceSource.values()){
-//            solrQuery.add("facet.query", "confidence:" + os.getRange());
-//        }
 
-        //solrQuery.add("facet.date.other", "after");
 
             solrQuery.setFacetMinCount(1);
             solrQuery.setFacetLimit(searchParams.getFlimit());
-            if(searchParams.getFlimit() == -1)
-                solrQuery.setFacetSort("count");
+            solrQuery.setFacetSort(searchParams.getFsort());
+            if(searchParams.getFoffset()>0)
+            	solrQuery.add("facet.offset", Integer.toString(searchParams.getFoffset()));
+            if(StringUtils.isNotEmpty(searchParams.getFprefix()))
+            	solrQuery.add("facet.prefix", searchParams.getFprefix());
+
         }
         
         solrQuery.setRows(10);
