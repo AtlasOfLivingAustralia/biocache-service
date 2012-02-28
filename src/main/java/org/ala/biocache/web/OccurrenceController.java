@@ -414,7 +414,7 @@ public class OccurrenceController {
     }
 
     /**
-     * Given a list of taxa, return an AJAX reposnse with the qid (cached query id)
+     * Given a list of taxa, return an AJAX response with the qid (cached query id)
      * NOTE: triggered on "Search" button
      *
      * @param response
@@ -456,7 +456,7 @@ public class OccurrenceController {
         for (String part: rawParts) {
             String normalised = StringUtils.trimToNull(part);
             if (normalised != null){
-                parts.add("raw_taxon_name:\"" + normalised + "\"");
+                parts.add("raw_name:\"" + normalised + "\"");
             }
         }
 
