@@ -80,10 +80,11 @@ public interface SearchDAO {
      * @param searchParams
      * @param out
      * @param maxNoOfRecords
+     * @param includeSensitive Whether or not the sensitive values should be included in the download
      * @return A map of uids and counts that needs to be logged to the ala-logger
      * @throws Exception
      */
-	Map<String,Integer> writeResultsToStream(DownloadRequestParams searchParams, OutputStream out, int maxNoOfRecords) throws Exception;
+	Map<String,Integer> writeResultsToStream(DownloadRequestParams searchParams, OutputStream out, int maxNoOfRecords, boolean includeSensitive) throws Exception;
 
     /**
      * Write coordinates out to the supplied stream.

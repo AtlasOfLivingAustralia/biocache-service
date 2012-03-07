@@ -404,10 +404,10 @@ public class SearchDAOImpl implements SearchDAO {
 
 
     /**
-     * @see org.ala.biocache.dao.SearchDAO#writeResultsToStream(org.ala.biocache.dto.DownloadRequestParams, java.io.OutputStream, int) 
+     * @see org.ala.biocache.dao.SearchDAO#writeResultsToStream(org.ala.biocache.dto.DownloadRequestParams, java.io.OutputStream, int, boolean) 
      * 
      */
-    public Map<String, Integer> writeResultsToStream(DownloadRequestParams downloadParams, OutputStream out, int i) throws Exception {
+    public Map<String, Integer> writeResultsToStream(DownloadRequestParams downloadParams, OutputStream out, int i, boolean includeSensitive) throws Exception {
 
         int resultsCount = 0;
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
@@ -417,7 +417,7 @@ public class SearchDAOImpl implements SearchDAO {
         try {
             
             SolrQuery solrQuery = initSolrQuery(downloadParams);
-            formatSearchQuery(downloadParams);
+            formatSearchQuery(downloadParams);            
             //add context information
             updateQueryContext(downloadParams);
             logger.info("search query: " + downloadParams.getFormattedQuery());
@@ -428,7 +428,14 @@ public class SearchDAOImpl implements SearchDAO {
 
             int startIndex = 0;
             int pageSize = downloadParams.getPageSize();
-            StringBuilder  sb = new StringBuilder(downloadParams.getFields());
+            String dFields = downloadParams.getFields();
+            
+            if(includeSensitive){
+                //include raw latitude and longitudes
+                dFields = dFields.replaceFirst("decimalLatitude.p", "decimalLatitude,decimalLongitude,decimalLatitude.p");
+            }
+            
+            StringBuilder  sb = new StringBuilder(dFields);
             if(downloadParams.getExtra().length()>0)
                 sb.append(",").append(downloadParams.getExtra());
             StringBuilder qasb = new StringBuilder();
@@ -473,7 +480,7 @@ public class SearchDAOImpl implements SearchDAO {
                 for(String dr : downloadLimit.keySet()){
                     //add another fq to the search for data_resource_uid                    
                      downloadParams.setFq((String[])ArrayUtils.add(originalFq, "data_resource_uid:" + dr));
-                     resultsCount =downloadRecords(downloadParams, out, downloadLimit, uidStats, fields, qaFields, resultsCount, dr);
+                     resultsCount =downloadRecords(downloadParams, out, downloadLimit, uidStats, fields, qaFields, resultsCount, dr, includeSensitive);
                      if(fqBuilder.length()>2)
                          fqBuilder.append(" OR ");
                      fqBuilder.append("data_resource_uid:").append(dr);
@@ -482,11 +489,11 @@ public class SearchDAOImpl implements SearchDAO {
                 //now include the rest of the data resources
                 //add extra fq for the remaining records
                 downloadParams.setFq((String[])ArrayUtils.add(originalFq, fqBuilder.toString()));
-                resultsCount =downloadRecords(downloadParams, out, downloadLimit, uidStats, fields, qaFields, resultsCount, null);
+                resultsCount =downloadRecords(downloadParams, out, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive);
             }
             else{
                 //download all at once
-                downloadRecords(downloadParams, out, downloadLimit, uidStats, fields, qaFields, resultsCount, null);
+                downloadRecords(downloadParams, out, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive);
             }
 
         } catch (SolrServerException ex) {
@@ -512,7 +519,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     private int downloadRecords(DownloadRequestParams downloadParams, OutputStream out, 
                 Map<String, Integer> downloadLimit,  Map<String, Integer> uidStats,
-                String[] fields, String[] qaFields,int resultsCount, String dataResource) throws Exception {
+                String[] fields, String[] qaFields,int resultsCount, String dataResource, boolean includeSensitive) throws Exception {
         logger.info("download query: " + downloadParams.getQ());
         SolrQuery solrQuery = initSolrQuery(downloadParams);
         solrQuery.setRows(MAX_DOWNLOAD_SIZE);
@@ -549,7 +556,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
             //logger.debug("Downloading " + uuids.size() + " records");
             au.org.ala.biocache.Store.writeToStream(out, ",", "\n", uuids.toArray(new String[]{}),
-                    fields, qaFields);
+                    fields, qaFields, includeSensitive);
             startIndex += pageSize;
             uuids.clear();
             if (resultsCount < MAX_DOWNLOAD_SIZE) {
@@ -1877,7 +1884,25 @@ public class SearchDAOImpl implements SearchDAO {
                             //speciesCounts.add(i, tcDTO);
                             speciesCounts.add(tcDTO);
                         }
-
+                        else if(fcount.getFacetField().getName().equals(COMMON_NAME_AND_LSID)){
+                            String[] values = p.split(fcount.getName(),6);
+                            
+                            if(values.length >= 5){
+                                tcDTO = new TaxaCountDTO(values[1], fcount.getCount());
+                                tcDTO.setGuid(StringUtils.trimToNull(values[2]));
+                                tcDTO.setCommonName(values[0]);
+                                //cater for the bug of extra vernacular name in the result
+                                tcDTO.setKingdom(values[values.length-2]);
+                                tcDTO.setFamily(values[values.length-1]);
+                                tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
+                            }
+                            else{
+                                logger.debug("The values length: " + values.length + " :" + fcount.getName());
+                                tcDTO = new TaxaCountDTO(fcount.getName(), fcount.getCount());
+                            }
+                            //speciesCounts.add(i, tcDTO);
+                            speciesCounts.add(tcDTO);
+                        }
                     }
                 }
             }

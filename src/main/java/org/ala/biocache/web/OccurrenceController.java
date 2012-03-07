@@ -79,7 +79,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
  * 
  */
 @Controller
-public class OccurrenceController {
+public class OccurrenceController extends AbstractSecureController {
 
 	/** Logger initialisation */
 	private final static Logger logger = Logger.getLogger(OccurrenceController.class);
@@ -112,6 +112,8 @@ public class OccurrenceController {
 	private final String AUSTRALIAN_WITH_OCC = "Australian with occurrences";
 	private final String AUSTRALIAN_LSID = "Australian based on LSID";
 	protected Pattern austLsidPattern = Pattern.compile("urn:lsid:biodiversity.org.au[a-zA-Z0-9\\.:-]*");
+	
+	private final String dataFieldDescriptionURL="https://docs.google.com/spreadsheet/ccc?key=0AjNtzhUIIHeNdHhtcFVSM09qZ3c3N3ItUnBBc09TbHc";
 	
 	/**
 	 * Custom handler for the welcome view.
@@ -225,7 +227,7 @@ public class OccurrenceController {
 	public @ResponseBody SearchResultDTO listOccurrences(Model model) throws Exception {
         SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
         srp.setQ("*:*");
-        return occurrenceSearch(srp, model);
+        return occurrenceSearch(srp);
 	}
 
 	/**
@@ -242,7 +244,7 @@ public class OccurrenceController {
             Model model) throws Exception {
         requestParams.setQ("lsid:" + guid);
         SearchUtils.setDefaultParams(requestParams);
-        return occurrenceSearch(requestParams,model);
+        return occurrenceSearch(requestParams);
 	}
 
     /**
@@ -298,7 +300,7 @@ public class OccurrenceController {
         logger.debug("solr query: " + requestParams);
         //searchResult = searchDAO.findByFulltextQuery(requestParams);
         //model.addAttribute("searchResult", searchResult);
-        return occurrenceSearch(requestParams, model);
+        return occurrenceSearch(requestParams);
     }
 
     /**
@@ -338,13 +340,11 @@ public class OccurrenceController {
 	 * @throws Exception
 	 */
 	@RequestMapping(value = {"/occurrences/search.json*","/occurrences/search*"}, method = RequestMethod.GET)
-	public @ResponseBody SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams,
-            Model model) throws Exception {
+	public @ResponseBody SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams) throws Exception {
         // handle empty param values, e.g. &sort=&dir=
         SearchUtils.setDefaultParams(requestParams);   
         logger.debug("occurrence search params= " + requestParams);     
-        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams);
-        model.addAttribute("searchResult", searchResult);
+        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams);        
 		return searchResult;
 	}
 
@@ -505,6 +505,7 @@ public class OccurrenceController {
 	@RequestMapping(value = "/occurrences/download*", method = RequestMethod.GET)
 	public String occurrenceDownload(
 			DownloadRequestParams requestParams,
+			@RequestParam(value="apiKey", required=false) String apiKey,
 			HttpServletResponse response,
             HttpServletRequest request) throws Exception {
        
@@ -514,12 +515,36 @@ public class OccurrenceController {
         if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
             return null;
         }
+        if(apiKey != null){
+            return occurrenceSensitiveDownload(requestParams, apiKey, response, request);
+        }
 
-        writeQueryToStream(requestParams, response, ip, out);
+        writeQueryToStream(requestParams, response, ip, out, false);
         return null;
 	}
+	
+    @RequestMapping(value = "/sensitive/occurrences/download*", method = RequestMethod.GET)
+    public String occurrenceSensitiveDownload(
+            DownloadRequestParams requestParams,
+            @RequestParam(value="apiKey", required=true) String apiKey,
+            HttpServletResponse response,
+            HttpServletRequest request) throws Exception {
+       
+        
+        if(shouldPerformOperation(apiKey, response)){        
+            String ip = request.getLocalAddr();
+            ServletOutputStream out = response.getOutputStream();
+            //search params must have a query or formatted query for the downlaod to work
+            if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
+                return null;
+            }
+    
+            writeQueryToStream(requestParams, response, ip, out, true);
+        }
+        return null;
+    }	
 
-    private void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, ServletOutputStream out) throws Exception {
+    private void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, ServletOutputStream out, boolean includeSensitive) throws Exception {
         String filename = requestParams.getFile();
 
         response.setHeader("Cache-Control", "must-revalidate");
@@ -535,12 +560,17 @@ public class OccurrenceController {
         requestParams.setFacets(new String[]{"assertions", "data_resource_uid"});
         Map<String, Integer> uidStats = null;
         try {
-            uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100);
+            uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100, includeSensitive);
         } catch (Exception e){
             logger.error(e);
         }
         zop.closeEntry();
-
+        
+        //add the Readme for the data field descriptions
+        zop.putNextEntry(new java.util.zip.ZipEntry("README.html"));
+        zop.write(("For more information about the fields that are being downloaded please consult <a href='" +dataFieldDescriptionURL+"'>Download Fields</a>.").getBytes());
+        
+        //Add the data citation to the download
         if (!uidStats.isEmpty()) {
             //add the citations for the supplied uids
             zop.putNextEntry(new java.util.zip.ZipEntry("citation.csv"));
@@ -653,11 +683,28 @@ public class OccurrenceController {
 	 */
 	@RequestMapping(value = {"/occurrence/{uuid:.+}","/occurrences/{uuid:.+}", "/occurrence/{uuid:.+}.json", "/occurrences/{uuid:.+}.json"}, method = RequestMethod.GET)
 	public @ResponseBody Object showOccurrence(@PathVariable("uuid") String uuid,
-        HttpServletRequest request, Model model) throws Exception {
+	        @RequestParam(value="apiKey", required=false) String apiKey,
+        HttpServletRequest request, HttpServletResponse response) throws Exception {
+	    if(apiKey != null){
+	        return showSensitiveOccurrence(uuid, apiKey, request, response);
+	    }
+		return getOccurrenceInformation(uuid, request, false);
+	}
+	
+	@RequestMapping(value = {"/sensitive/occurrence/{uuid:.+}","/sensitive/occurrences/{uuid:.+}", "/sensitive/occurrence/{uuid:.+}.json", "/senstive/occurrences/{uuid:.+}.json"}, method = RequestMethod.GET)
+    public @ResponseBody Object showSensitiveOccurrence(@PathVariable("uuid") String uuid,
+            @RequestParam(value="apiKey", required=true) String apiKey,
+        HttpServletRequest request,HttpServletResponse response) throws Exception {
+	    if(shouldPerformOperation(apiKey, response)){
+	        return getOccurrenceInformation(uuid, request, true);
+	    }
+	    return null;
+    }
+	
+	private Object getOccurrenceInformation(String uuid,HttpServletRequest request, boolean includeSensitive) throws Exception{
+	    logger.debug("Retrieving occurrence record with guid: '"+uuid+"'");
 
-		logger.debug("Retrieving occurrence record with guid: '"+uuid+"'");
-
-        FullRecord[] fullRecord = Store.getAllVersionsByUuid(uuid);
+        FullRecord[] fullRecord = Store.getAllVersionsByUuid(uuid, includeSensitive);
         if(fullRecord == null){
             //get the rowKey for the supplied uuid in the index
             //This is a workaround.  There seems to be an issue on Cassandra with retrieving uuids that start with e or f
@@ -665,22 +712,22 @@ public class OccurrenceController {
             srp.setQ("id:"+uuid);
             srp.setPageSize(1);
             srp.setFacets(new String[]{});
-            SearchResultDTO results = occurrenceSearch(srp, model);
+            SearchResultDTO results = occurrenceSearch(srp);
             if(results.getTotalRecords()>0)
-                fullRecord = Store.getAllVersionsByRowKey(results.getOccurrences().get(0).getRowKey());
+                fullRecord = Store.getAllVersionsByRowKey(results.getOccurrences().get(0).getRowKey(), includeSensitive);
             
         }
         if(fullRecord == null){
             //check to see if we have an occurrence id
             SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
             srp.setQ("occurrence_id:" + uuid);
-            SearchResultDTO result = occurrenceSearch(srp, model);
+            SearchResultDTO result = occurrenceSearch(srp);
             if(result.getTotalRecords()>1)
                 return result;
             else if(result.getTotalRecords()==0)
                 return new OccurrenceDTO();
             else
-                fullRecord = Store.getAllVersionsByUuid(result.getOccurrences().get(0).getUuid());
+                fullRecord = Store.getAllVersionsByUuid(result.getOccurrences().get(0).getUuid(), includeSensitive);
         }
 
         OccurrenceDTO occ = new OccurrenceDTO(fullRecord);
