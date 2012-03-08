@@ -180,6 +180,8 @@ public class ExploreController {
         }
         if(!group.equals("ALL_SPECIES"))
             sb.append(" species_group:").append(group);
+        //now ignore the records that have been identified to a rank above species
+        sb.append( " -rank:kingdom -rank:phylum -rank:class -rank:order -rank:family -rank:genus");
         //String query = sb.togroup.equals("ALL_SPECIES")? "*:*" : "species_group:" + group;
         requestParams.setQ(sb.toString());
       //don't care about the formatted query
