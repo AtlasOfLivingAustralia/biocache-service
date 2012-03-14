@@ -29,6 +29,9 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <li><strong>fq</strong> - filters to be applied to the original query. These are additional params of the form fq=INDEXEDFIELD:VALUE e.g. fq=kingdom:Fungi. <br/>
                         Again, see <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a> for all the fields that a queryable.
                     </li>
+                    <li><strong>fl</strong> - a comma separated list of fields to use in search result.  It will use a default set of values when not supplied.
+                    	Only the "stored" fields can be included in results.  See  <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a> for all the fields. 
+                    </li>
                     <li><strong>facet</strong> - supported values are "off" or "on". By default, its "on". This is worth switching off if facetting is not required, to reduce the JSON being sent</li>
                     <li><strong>facets</strong> - the fields to create facets on e.g. facets=basis_of_record.</li>
                     <li><strong>pageSize</strong> - number of records to return</li>
