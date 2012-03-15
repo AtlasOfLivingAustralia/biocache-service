@@ -97,7 +97,11 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                 - Displays a list of unique lat,lon that are used by the occurrences
                  </li>
             <li><strong>List of default facets for occurrence search:</strong> <a href="${initParam.webservicesRoot}/search/facets">/search/facets</a></li>
-            <li><strong>List of available index fields:</strong> <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a> - A field can be used in a search if indexed=true.  A field can be used as a facet if indexed=true and stored=true.</li>
+            <li><strong>The default facets for a search grouped by theme:</strong> <a href="${initParam.webservicesRoot}/search/grouped/facets">/search/grouped/facets</a></li>
+            <li><strong>List of all available index fields:</strong> <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a> - A field can be used in a search or facet if indexed=true.  A field can be accessed in a search result if stored=true.</li>
+            <li><strong>Extra details about specific fields:</strong> /index/fields?fl=comma-separated-list-of-fields  - This can be used to get a count of distinct terms a the supplied fields<br>
+            Example:<br>
+            <a href="${initParam.webservicesRoot}/index/fields?fl=lat_long">/index/fields?fl=lat_long</a>           
             <li><strong>Facet based download:</strong> /occurrences/facets/download - requires a 'q' and optional 'fq' and one 'facet'. Optional Params:
                 <ul class="paramList">
             	<li><strong>count</strong> - set to true if you would like the count included</li>
