@@ -3,7 +3,7 @@ package org.ala.biocache.dto;
 /**
  * DTO for the fields that belong to the index.
  * 
- * A field is available for faceting IFF indexed=true and stored=true
+ * A field is available for faceting if indexed=true 
  * 
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
@@ -16,6 +16,17 @@ public class IndexFieldDTO {
     private boolean indexed;
     /** True when the field is available for extraction in search results */
     private boolean stored;
+    /** Stores the number of distinct values that are in the field */
+    private Integer numberDistinctValues;
+    
+    @Override
+    public boolean equals(Object obj){
+        if(obj instanceof IndexFieldDTO && name != null){
+            return name.equals(((IndexFieldDTO)obj).getName());
+        }
+        return false;
+    }
+    
     /**
      * @return the name
      */
@@ -63,6 +74,18 @@ public class IndexFieldDTO {
      */
     public void setStored(boolean stored) {
         this.stored = stored;
+    }
+    /**
+     * @return the numberDistinctValues
+     */
+    public Integer getNumberDistinctValues() {
+        return numberDistinctValues;
+    }
+    /**
+     * @param numberDistinctValues the numberDistinctValues to set
+     */
+    public void setNumberDistinctValues(Integer numberDistinctValues) {
+        this.numberDistinctValues = numberDistinctValues;
     }
     
     

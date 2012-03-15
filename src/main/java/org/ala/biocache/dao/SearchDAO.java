@@ -17,6 +17,7 @@ package org.ala.biocache.dao;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.servlet.ServletOutputStream;
 
@@ -97,7 +98,15 @@ public interface SearchDAO {
     
     void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, OutputStream out) throws Exception;
     
-    List<IndexFieldDTO> getIndexedFields() throws Exception;
+    Set<IndexFieldDTO> getIndexedFields() throws Exception;
+    
+    /**
+     * Returns the up to date statistics for the supplied field
+     * @param field
+     * @return
+     * @throws Exception
+     */
+    Set<IndexFieldDTO> getIndexFieldDetails(String... field) throws Exception;
 
     /**
      * Retrieve an OccurrencePoint (distinct list of points - lat-long to 4 decimal places) for a given search

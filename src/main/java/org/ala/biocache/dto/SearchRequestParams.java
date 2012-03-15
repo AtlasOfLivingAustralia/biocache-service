@@ -33,32 +33,7 @@ public class SearchRequestParams {
      * The facets to be included by the search
      * Initialised with the default facets to use
      */
-    protected String[] facets = {"basis_of_record",
-                                "type_status",
-                                "institution_uid",
-                                "collection_uid",
-                                "data_resource_uid",
-                                "collector",
-                                "country",
-                                "state",
-                                "biogeographic_region",
-                                "species_guid",
-                                "rank",
-                                "species_group",
-                                "kingdom",
-                                "family",
-                                "subspecies_name",
-                                "raw_taxon_name",
-                                "uncertainty",
-                                "interaction",
-                                "month",
-                                "year",
-                                "state_conservation",
-                                "raw_state_conservation",
-                                "sensitive",
-                                "assertions",
-                                "multimedia",
-                                "geospatial_kosher"};
+    protected String[] facets = FacetThemes.allFacets;
     protected Integer start = 0;
     /*
      * The limit for the number of facets to return 
@@ -122,8 +97,13 @@ public class SearchRequestParams {
     public String getUrlParams(){
         StringBuilder req = new StringBuilder();
         req.append("?q=").append(q);
-        if(fq.length>0 && !fq[0].equals(""))
-            req.append("&fq=").append(StringUtils.join(fq, "&fq="));
+        for(String f : fq){
+            //only add the fq if it is not the query context
+          if(f.length()>0 && !f.equals(qc))
+              req.append("&fq=").append(f);
+        }
+//        if(fq.length>0 && !fq[0].equals(""))
+//            req.append("&fq=").append(StringUtils.join(fq, "&fq="));
         req.append("&qc=").append(qc);
         return req.toString();
     }

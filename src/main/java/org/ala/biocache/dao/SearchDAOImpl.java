@@ -23,6 +23,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.servlet.ServletOutputStream;
 
@@ -143,7 +144,7 @@ public class SearchDAOImpl implements SearchDAO {
     private BieService bieService;
 
     
-    private List<IndexFieldDTO> indexFields = null;
+    private Set<IndexFieldDTO> indexFields = null;
 
     /**
      * Initialise the SOLR server instance
@@ -1766,8 +1767,9 @@ public class SearchDAOImpl implements SearchDAO {
                 if (facet.equals("month")) {
                     solrQuery.addFacetField("month");
                     solrQuery.add("f.month.facet.sort", "index"); // sort by Jan-Dec
-                } else if (facet.equals("date") || facet.equals("year")) {
-                    solrQuery.add("facet.date", "occurrence_" +facet);
+                } else if (facet.equals("date") || facet.equals("decade")) {
+                    String fname = facet.equals("decade")?"occurrence_year":"occurrence_"+facet;
+                    solrQuery.add("facet.date", fname);
                     solrQuery.add("facet.date.start", "1850-01-01T00:00:00Z"); // facet date range starts from 1850
                     solrQuery.add("facet.date.end", "NOW/DAY"); // facet date range ends for current date (gap period)
                     solrQuery.add("facet.date.gap", "+10YEAR"); // gap interval of 10 years
@@ -1954,15 +1956,38 @@ public class SearchDAOImpl implements SearchDAO {
         this.solrHome = solrHome;
     }
     /**
+     * Gets the details about the SOLR fields using the LukeResquestHandler:
+     * See http://wiki.apache.org/solr/LukeRequestHandler  for more information
+     */
+    public Set<IndexFieldDTO> getIndexFieldDetails(String... fields) throws Exception{
+        ModifiableSolrParams params = new ModifiableSolrParams();
+        params.set("qt", "/admin/luke");
+        
+        params.set("tr", "luke.xsl");
+        if(fields != null){
+            params.set("fl" ,fields);
+            params.set("numTerms", "1");
+        }
+        else
+            params.set("numTerms", "0");        
+        QueryResponse response = server.query(params);
+        Set<IndexFieldDTO>  results = parseLukeResponse(response.toString(), fields != null);
+        
+        return results;
+    }
+    
+    /**
      * Returns details about the fields in the index.
      */
-    public List<IndexFieldDTO> getIndexedFields() throws Exception{
+    public Set<IndexFieldDTO> getIndexedFields() throws Exception{
         if(indexFields == null){
-            ModifiableSolrParams params = new ModifiableSolrParams();
-            params.set("qt", "/admin/luke");
-            params.set("tr", "luke.xsl");
-            QueryResponse response = server.query(params);            
-            indexFields = parseLukeResponse(response.toString());
+//            ModifiableSolrParams params = new ModifiableSolrParams();
+//            params.set("qt", "/admin/luke");
+//            params.set("numTerms", "0");
+//            params.set("tr", "luke.xsl");
+//            QueryResponse response = server.query(params);            
+//            indexFields = parseLukeResponse(response.toString(), false);
+            indexFields = getIndexFieldDetails(null);
         }
         return indexFields;        
     }
@@ -1973,20 +1998,24 @@ public class SearchDAOImpl implements SearchDAO {
      * @param str
      * @return
      */
-    private  List<IndexFieldDTO> parseLukeResponse(String str) {
-        List<IndexFieldDTO> fieldList = new ArrayList<IndexFieldDTO>();
+    private  Set<IndexFieldDTO> parseLukeResponse(String str, boolean includeCounts) {
+        //System.out.println(str);
+        Set<IndexFieldDTO> fieldList = new java.util.LinkedHashSet<IndexFieldDTO>();
         
         Pattern typePattern = Pattern.compile(
         "(?:type=)([a-z]{1,})");
 
         Pattern schemaPattern = Pattern.compile(
         "(?:schema=)([a-zA-Z\\-]{1,})");
+        
+        Pattern distinctPattern = Pattern.compile(
+        "(?:distinct=)([0-9]{1,})");
 
         String[] fieldsStr = str.split("fields=\\{");
 
         for (String fieldStr : fieldsStr) {
             if (fieldStr != null && !"".equals(fieldStr)) {
-                String[] fields = fieldStr.split("\\}\\},");
+                String[] fields = includeCounts?fieldStr.split("\\}\\},"):fieldStr.split("\\},");
 
                 for (String field : fields) {
                     if (field != null && !"".equals(field)) {
@@ -2016,6 +2045,11 @@ public class SearchDAOImpl implements SearchDAO {
                             f.setStored(schema.contains("S"));
                             
                             fieldList.add(f);
+                        }
+                        Matcher distinctMatcher = distinctPattern.matcher(field);
+                        if(distinctMatcher.find(0)){
+                            Integer distinct = Integer.parseInt(distinctMatcher.group(1));
+                            f.setNumberDistinctValues(distinct);
                         }
                     }
                 }

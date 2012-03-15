@@ -137,6 +137,15 @@ public class OccurrenceController extends AbstractSecureController {
 	    String[] facets = new SearchRequestParams().getFacets();
 	    return facets;
 	}
+	
+	/**
+     * Returns the default facets grouped by themes that are applied to a search
+     * @return
+     */
+    @RequestMapping("/search/grouped/facets")
+    public @ResponseBody List groupFacets() {
+        return FacetThemes.allThemes;
+    }
 	/**
 	 * Returns the content of the messages.properties file.
 	 * @param response
@@ -162,9 +171,14 @@ public class OccurrenceController extends AbstractSecureController {
 	 * @throws Exception
 	 */
 	@RequestMapping("index/fields")
-	public @ResponseBody List<IndexFieldDTO> getIndexedFields() throws Exception{
-	    return searchDAO.getIndexedFields();
+	public @ResponseBody Set<IndexFieldDTO> getIndexedFields(@RequestParam(value="fl", required=false) String fields) throws Exception{
+	    if(fields == null)
+	        return searchDAO.getIndexedFields();
+	    else
+	        return searchDAO.getIndexFieldDetails(fields.split(","));
 	}
+	
+	
 	
 	/**
 	 * Returns a list of image urls for the supplied taxon guid. 
