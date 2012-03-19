@@ -16,6 +16,14 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         </style>
     	<div class="section">
         <h1> Web Services </h1>
+        
+        <p>
+            These webservices provide spatial search capabilities for occurrence records, mapping service (WMS) and parsing services.
+            <br/>
+            Please send any bug reports, suggestions for improvements or new services to:
+            <strong>developers 'AT' ala.org.au</strong>
+        </p>
+        
         <h3>Occurrences</h3>
         <ul class="webserviceList">
 
@@ -254,7 +262,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 
         <h3>Parsing Webservices</h3>
         <ul class="webserviceList">
-            <li><strong>Match darwin core terms</strong>: /parse/matchTerms - accepts a POST JSON body. Examples:
+            <li><strong>Match darwin core terms</strong>: /parser/matchTerms - accepts a POST JSON body. Examples:
                 <ul>
                 <li><span class="code">["scientific name", "latitude"] </span>
                     <br/><strong>will return</strong><br/>
@@ -266,7 +274,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                 </li>
                 </ul>
             </li>
-            <li><strong>Are darwin core terms? </strong>: /parse/areDwcTerms - accepts a POST JSON body. Examples:
+            <li><strong>Are darwin core terms? </strong>: /parser/areDwcTerms - accepts a POST JSON body. Examples:
                 <ul>
                 <li><span class="code">["scientific name", "latitude"]</span>
                     <br/><strong>will return</strong><br/>
