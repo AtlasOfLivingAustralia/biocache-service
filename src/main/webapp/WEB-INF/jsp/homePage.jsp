@@ -19,7 +19,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         <h3>Occurrences</h3>
         <ul class="webserviceList">
 
-            <li><strong>Occurrence search:</strong>
+            <li><strong>Occurrence search</strong> - Performs a GET search:           
                 <a href="${initParam.webservicesRoot}/occurrences/search">/occurrences/search</a>
                 <ul class="paramList">
                     <li><strong>q</strong> - the initial query. "q=*:*" will query anything, q="macropus" will do a free text search for "macropus", q=kingdom:Fungi will search for records with a kingdom of Fungi.
@@ -28,6 +28,14 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     </li>
                     <li><strong>fq</strong> - filters to be applied to the original query. These are additional params of the form fq=INDEXEDFIELD:VALUE e.g. fq=kingdom:Fungi. <br/>
                         Again, see <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a> for all the fields that a queryable.
+                    </li>
+                    <li>Extra Spatial Search Parameters - These will be applied to the initial base query in <strong>q</strong>. When no q is provided *:* will be used.
+                    	<ul class="paramList">
+	                    <li><strong>lat</strong> - the decimal latitude to limit records to.  Use with lon and radius to specify a "search" circle.</li>
+	                    <li><strong>lon</strong> - the decimal longitude to limit records to.  Use with lat and radius to specify a "search" circle.</li>
+	                    <li><strong>radius</strong> - the radius in which to limit records (relative to the lat, lon point).  Use with lat and lon to specify a "search" circle.</li>
+	                    <li><strong>wkt</strong> - the polygon area in which to limit records. For information on Well known text, see <a href="http://en.wikipedia.org/wiki/Well-known_text">this</a> </li>
+	                    </ul>
                     </li>
                     <li><strong>fl</strong> - a comma separated list of fields to use in search result.  It will use a default set of values when not supplied.
                     	Only the "stored" fields can be included in results.  See  <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a> for all the fields. 
@@ -44,6 +52,21 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <li><strong>fprefix</strong> - limits facets to values that start with the supplied value</li>                    
                 </ul>
             </li>
+            <li><strong>POST query details:</strong>
+            	If you find that your q or wkt are too large or cumbersome to be passing around there is the facility to POST 
+                a query's detail and use a qid as a reference.  This is particularly useful in working with WKT strings that may get too large to use a GET method.
+                <ul class="webserviceList">
+                    <li><strong>Construction:</strong> /webportal/params <br>
+                        POST service.<br>
+                        Stores q and wkt parameters.<br>
+                        Returns a short <b>value</b> that can be used as the initial q value in other services. e.g. q=qid:<b>value</b>
+                    </li>
+                    <li><strong>Test - a GET method to test if a short value is valid: </strong> /webportal/params/<b>value</b>
+                        Test if a short query parameter is valid.<br>
+                        Returns true or false</li>
+                </ul>
+                You should only use the short query parameter in your subsequent searches and downloads if the "Test" service returns true.
+            </li>           
             <li><strong>Occurrence listing:</strong>
                 <a href="${initParam.webservicesRoot}/occurrences/page">/occurrences/page</a>
                 - just shows the first 10 occurrences (for debug only)</li>
