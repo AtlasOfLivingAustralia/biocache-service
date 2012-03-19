@@ -31,6 +31,8 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     protected String fields="uuid,catalogNumber,taxonConceptID.p,scientificName,vernacularName,scientificName.p,taxonRank.p,vernacularName.p,kingdom.p,phylum.p,classs.p,order.p,family.p,genus.p,species.p,subspecies.p,institutionCode,collectionCode,decimalLatitude.p,decimalLongitude.p,coordinatePrecision,coordinateUncertaintyInMeters.p,country.p,ibra.p,imcra.p,stateProvince.p,lga.p,minimumElevationInMeters,maximumElevationInMeters,minimumDepthInMeters,maximumDepthInMeters,year.p,month.p,day.p,eventDate.p,eventTime.p,basisOfRecord,sex,preparations,informationWithheld.p,dataGeneralizations.p";
     /** CSV list of extra fields to be added to the download - useful if wish to make use of default list */
     protected String extra="";
+    protected Integer reasonTypeId=null;
+    protected Integer sourceTypeId=null;
 
     /**
      * Custom toString method to produce a String to be used as the request parameters
@@ -46,6 +48,10 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
         req.append("&file=").append(file);
         req.append("&fields=").append(fields);
         req.append("&extra=").append(extra);
+        if(reasonTypeId != null)
+            req.append("&reasonTypeId=").append(reasonTypeId);
+        if(sourceTypeId != null)
+            req.append("&sourceTypeId=").append(sourceTypeId);
 
         return req.toString();
     }
@@ -100,6 +106,34 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
      */
     public void setExtra(String extra) {
         this.extra = extra;
+    }
+
+    /**
+     * @return the reasonTypeId
+     */
+    public Integer getReasonTypeId() {
+        return reasonTypeId;
+    }
+
+    /**
+     * @param reasonTypeId the reasonTypeId to set
+     */
+    public void setReasonTypeId(Integer reasonTypeId) {
+        this.reasonTypeId = reasonTypeId;
+    }
+
+    /**
+     * @return the sourceId
+     */
+    public Integer getSourceTypeId() {
+        return sourceTypeId;
+    }
+
+    /**
+     * @param sourceId the sourceId to set
+     */
+    public void setSourceTypeId(Integer sourceTypeId) {
+        this.sourceTypeId = sourceTypeId;
     }
     
 

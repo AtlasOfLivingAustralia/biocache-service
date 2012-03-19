@@ -321,10 +321,12 @@ public class OccurrenceController extends AbstractSecureController {
      * Spatial search for either a taxon name or full text text search
     
      * @param model
+     * @deprecated use {@link #occurrenceSearch(SpatialSearchRequestParams)}
      * @return
      * @throws Exception
      */
     @RequestMapping(value =  "/occurrences/searchByArea*", method = RequestMethod.GET)
+    @Deprecated
 	public @ResponseBody SearchResultDTO occurrenceSearchByArea(
 			SpatialSearchRequestParams requestParams,
 			Model model)
@@ -599,8 +601,8 @@ public class OccurrenceController extends AbstractSecureController {
         zop.close();
 
         //logger.debug("UID stats : " + uidStats);
-        //log the stats to ala logger
-        LogEventVO vo = new LogEventVO(LogEventType.OCCURRENCE_RECORDS_DOWNLOADED, requestParams.getEmail(), requestParams.getReason(), ip, uidStats);
+        //log the stats to ala logger        
+        LogEventVO vo = new LogEventVO(1002,requestParams.getReasonTypeId(), requestParams.getSourceTypeId(), requestParams.getEmail(), requestParams.getReason(), ip,null, uidStats);        
         logger.log(RestLevel.REMOTE, vo);
     }
 
