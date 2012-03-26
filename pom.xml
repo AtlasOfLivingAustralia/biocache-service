@@ -7,7 +7,7 @@
   <version>1.0-SNAPSHOT</version>
   <name>biocache-service</name>
   <url>http://www.ala.org.au</url>
-  <description>This is a prototype service layer for the BioCache</description>
+  <description>This is a the service layer for the BioCache</description>
   <properties>
     <!-- This project uses UTF8 for Regular Expressions -->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -17,6 +17,12 @@
     <netbeans.hint.deploy.server>Tomcat</netbeans.hint.deploy.server>
   </properties>
   <dependencies>
+    <!-- ALA header and tails -->
+    <dependency>
+      <groupId>au.org.ala</groupId>
+      <artifactId>ala-header-and-tails</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
     <!-- ALA logging -->
     <dependency>
       <groupId>au.org.ala</groupId>
@@ -56,16 +62,21 @@
       <version>2.2</version>
     </dependency>
     <!-- Jackson -->
-    <dependency>
-      <groupId>org.codehaus.jackson</groupId>
-      <artifactId>jackson-core-asl</artifactId>
-      <version>1.7.9</version>
-    </dependency>
-    <dependency>
-      <groupId>org.codehaus.jackson</groupId>
-      <artifactId>jackson-mapper-asl</artifactId>
-      <version>1.7.9</version>
-    </dependency>
+      <dependency>
+          <groupId>org.codehaus.jackson</groupId>
+          <artifactId>jackson-core-asl</artifactId>
+          <version>1.9.2</version>
+      </dependency>
+      <dependency>
+          <groupId>org.codehaus.jackson</groupId>
+          <artifactId>jackson-mapper-asl</artifactId>
+          <version>1.9.2</version>
+      </dependency>
+      <dependency>
+          <groupId>com.fasterxml</groupId>
+          <artifactId>jackson-module-scala</artifactId>
+          <version>1.9.2</version>
+      </dependency>
     <!-- LOG4J -->
     <dependency>
       <groupId>log4j</groupId>
