@@ -128,6 +128,7 @@ public class OccurrenceController extends AbstractSecureController {
 	public String homePageHandler() {
 		return HOME;
 	}
+
 	/**
 	 * Returns the default facets that are applied to a search
 	 * @return
@@ -137,7 +138,7 @@ public class OccurrenceController extends AbstractSecureController {
 	    String[] facets = new SearchRequestParams().getFacets();
 	    return facets;
 	}
-	
+
 	/**
      * Returns the default facets grouped by themes that are applied to a search
      * @return
@@ -177,8 +178,6 @@ public class OccurrenceController extends AbstractSecureController {
 	    else
 	        return searchDAO.getIndexFieldDetails(fields.split(","));
 	}
-	
-	
 	
 	/**
 	 * Returns a list of image urls for the supplied taxon guid. 

@@ -85,7 +85,6 @@ public class ExploreController {
         }
 	}
 
-
     /**
      *
      * Returns a list of species groups and counts that will need to be displayed.
@@ -104,7 +103,7 @@ public class ExploreController {
         
 
         //now we want to grab all the facets to get the counts associated with the species groups
-        List<au.org.ala.biocache.SpeciesGroup> sgs =au.org.ala.biocache.Store.retrieveSpeciesGroups();
+        List<au.org.ala.biocache.SpeciesGroup> sgs = au.org.ala.biocache.Store.retrieveSpeciesGroups();
         List<SpeciesGroupDTO> speciesGroups = new java.util.ArrayList<SpeciesGroupDTO>();
         SpeciesGroupDTO all = new SpeciesGroupDTO();
         String originalQ = requestParams.getQ();

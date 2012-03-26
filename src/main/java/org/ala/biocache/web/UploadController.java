@@ -303,14 +303,6 @@ class UploaderThread implements Runnable {
             CSVReader csvReader = new CSVReader(new StringReader(csvData), separatorChar);
             try {
                 String[] currentLine = csvReader.readNext();
-                //boolean firstListAreHeaders = AdHocParser.areColumnHeaders(currentLine);
-
-//                String[] unnormalised = headers.split(",");
-//                String[] headerArray = new String[unnormalised.length];
-//                for(int i=0; i<headerArray.length; i++){
-//                    headerArray[i] = unnormalised[i].trim();
-//                }
-
                 String[] headerUnmatched = headers.split(",");
                 String[] headerArray = AdHocParser.mapColumnHeaders(headerUnmatched);
 
@@ -323,14 +315,12 @@ class UploaderThread implements Runnable {
                 Integer percentComplete  = 0;
                 while((currentLine = csvReader.readNext())!=null){
                     counter++;
-                    //System.out.println("Processing record: " + counter);
                     loadComplete = (int) ((counter.floatValue() / recordsToLoad.floatValue()) * 100);
                     if(percentComplete.equals(loadComplete)){
                         percentComplete = loadComplete;
                         FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("LOADING",counter,loadComplete,recordsToLoad)));
                     }
                     addRecord(tempUid, currentLine, headerArray);
-                    //currentLine = csvReader.readNext();
                 }
             } catch(Exception e) {
                 logger.error(e.getMessage(),e);
@@ -338,11 +328,17 @@ class UploaderThread implements Runnable {
                 csvReader.close();
             }
 
+            status = "SAMPLING";
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,0,25, recordsToLoad)));
+            au.org.ala.biocache.Store.sample(tempUid);
+            status = "PROCESSING";
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,0,50, recordsToLoad)));
+            au.org.ala.biocache.Store.process(tempUid, 1);
             status = "INDEXING";
-            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("INDEXING",0,0, recordsToLoad)));
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,0,75, recordsToLoad)));
             au.org.ala.biocache.Store.index(tempUid);
             status = "COMPLETE";
-            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("COMPLETE",counter,100,recordsToLoad)));
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,counter,100,recordsToLoad)));
         } catch(Exception ex){
           try {
             status = "FAILED";
@@ -362,7 +358,7 @@ class UploaderThread implements Runnable {
             }
         }
         if(!map.isEmpty()){
-            au.org.ala.biocache.Store.insertRecord(tempUid, map, false);
+            au.org.ala.biocache.Store.loadRecord(tempUid, map, false);
         }
     }
 }
