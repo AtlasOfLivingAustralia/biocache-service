@@ -1366,7 +1366,7 @@ public class WebportalController implements ServletConfigAware {
         if (vars.uncertainty && MAX_UNCERTAINTY * hmult > 1) {
 
             //uncertainty colour/fq/radius, [0]=map, [1]=not specified, [2]=too large
-            Color[] uncertaintyColours = {new Color(255, 255, 255, vars.alpha), new Color(255, 255, 100, vars.alpha), new Color(100, 255, 100, vars.alpha)};
+            Color[] uncertaintyColours = {new Color(255, 170 , 0, vars.alpha), new Color(255, 255, 100, vars.alpha), new Color(50, 255, 50, vars.alpha)};
             //TODO: don't assume MAX_UNCERTAINTY > default_uncertainty
             String[] uncertaintyFqs = {"coordinate_uncertainty:[* TO " + MAX_UNCERTAINTY + "] AND -assertions:uncertaintyNotSpecified", "assertions:uncertaintyNotSpecified", "coordinate_uncertainty:[" + MAX_UNCERTAINTY + " TO *]"};
             double[] uncertaintyR = {-1, MAX_UNCERTAINTY, MAX_UNCERTAINTY};
