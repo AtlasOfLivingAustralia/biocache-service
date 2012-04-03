@@ -370,6 +370,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                         </ul>
                     </li>
                 </ul>
+            </li>
             <li><strong>Legend:</strong> /webportal/legend <br>
                 Get a CSV legend.<br>
                 Parameters:
@@ -384,6 +385,20 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <li><strong>green</strong> - 0-255</li>
                     <li><strong>blue</strong> - 0-255</li>
                     <li><strong>count</strong> - number of occurrences for this legend category in the q parameter</li>
+                </ul>
+            </li>
+            <li><strong>Image</strong> /webportal/wms/image<br>
+                e.g. <a href="${initParam.webservicesRoot}/webportal/wms/image?extents=142,-45,151,-38&q=macropus&format=jpg&dpi=300&pradiusmm=1&popacity=0.8&pcolour=0000FF&widthmm=150&scale=on&baselayer=aus2">/webportal/wms/image?extents=142,-45,151,-38&q=macropus&format=jpg&dpi=300&pradiusmm=1&popacity=0.8&pcolour=0000FF&widthmm=150&scale=on&baselayer=aus2</a>
+                <ul>
+                    <li><strong>extents</strong> - EPSG4326 bounding box. Valid between -180 and +180 longitude.  Latitude is best between -85 and +85.  e.g. &extents=-180,-85,180,85</li>
+                    <li><strong>dpi</strong> - (optional) set the image DPI.  e.g. &dpi=300</li>
+                    <li><strong>widthmm</strong> - (optional) width in mm, integer</li>
+                    <li><strong>pradiusmm</strong> - (optional) species point radius in mm, integer</li>
+                    <li><strong>pcolour</strong> - (optional) species point colour as hexadecimal RRGGBB.</li>
+                    <li><strong>popacity</strong> - (optional) species point opacity 0 - 1.</li>
+                    <li><strong>format</strong> - (optional) output format, png or jpg</li>
+                    <li><strong>scale</strong> - (optional) show scale line on the image.  Not suitable for large DPI values.  e.g. &scale=on</li>
+                    <li><strong>baselayer</strong> - (optional) ALA: base layer to use from http://spatial.ala.org.au/geoserver  E.g. &baselayer=aus1</li>
                 </ul>
             </li>
         </ul>

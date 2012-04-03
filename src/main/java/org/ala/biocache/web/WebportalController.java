@@ -4,6 +4,7 @@ package org.ala.biocache.web;
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
+import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.util.*;
 import org.ala.biocache.dto.TaxaCountDTO;
@@ -19,6 +20,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.io.UnsupportedEncodingException;
+import java.net.URL;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,6 +62,8 @@ public class WebportalController implements ServletConfigAware {
     /** categorical colours */
     private final int[] colourList = {0x003366CC, 0x00DC3912, 0x00FF9900, 0x00109618, 0x00990099, 0x000099C6, 0x00DD4477, 0x0066AA00, 0x00B82E2E, 0x00316395, 0x00994499, 0x0022AA99, 0x00AAAA11, 0x006633CC, 0x00E67300, 0x008B0707, 0x00651067, 0x00329262, 0x005574A6, 0x003B3EAC, 0x00B77322, 0x0016D620, 0x00B91383, 0x00F4359E, 0x009C5935, 0x00A9C413, 0x002A778D, 0x00668D1C, 0x00BEA413, 0x000C5922, 0x00743411};
     private final int DEFAULT_COLOUR = 0x00000000;
+    /** webportal image max pixel count */
+    private final int MAX_IMAGE_PIXEL_COUNT = 36000000; //this is slightly larger than 600dpi A4
     /** legend limits */
     private final String NULL_NAME = "Unknown";
     /** max uncertainty mappable in m */
@@ -1141,6 +1145,112 @@ public class WebportalController implements ServletConfigAware {
         }
     }
 
+    @RequestMapping(value = "/webportal/wms/image", method = RequestMethod.GET)
+    public void image(
+            SpatialSearchRequestParams requestParams,
+            @RequestParam(value = "format", required = false, defaultValue = "jpg") String format,
+            @RequestParam(value = "extents", required = true) String extents,
+            @RequestParam(value = "widthmm", required = false, defaultValue = "60") Integer widthMm,
+            @RequestParam(value = "pradiusmm", required = false, defaultValue = "2") Integer pointRadiusMm,
+            @RequestParam(value = "pcolour", required = false, defaultValue = "FF0000") String pointColour,
+            @RequestParam(value = "popacity", required = false, defaultValue = "0.8") Double pointOpacity,
+            @RequestParam(value = "baselayer", required = false, defaultValue = "world") String baselayer,
+            @RequestParam(value = "scale", required = false, defaultValue = "off") String scale,
+            @RequestParam(value = "dpi", required = false, defaultValue = "300") Integer dpi,
+            HttpServletRequest request, HttpServletResponse response) throws Exception {
+
+        String[] bb = extents.split(",");
+
+        double long1 = Double.parseDouble(bb[0]);
+        double lat1 = Double.parseDouble(bb[1]);
+        double long2 = Double.parseDouble(bb[2]);
+        double lat2 = Double.parseDouble(bb[3]);
+
+        if (lat1 <= -90) {
+            lat1 = -89.999;
+        }
+        if (lat2 >= 90) {
+            lat2 = 89.999;
+        }
+
+        int pminx = convertLngToPixel(long1);
+        int pminy = convertLatToPixel(lat1);
+        int pmaxx = convertLngToPixel(long2);
+        int pmaxy = convertLatToPixel(lat2);
+
+        int width = (int) ((dpi / 25.4) * widthMm);
+        int height = (int) Math.round(width * ((pminy - pmaxy) / (double) (pmaxx - pminx)));
+
+        if (height * width > MAX_IMAGE_PIXEL_COUNT) {
+            String errorMessage = "Image size in pixels " + width + "x" + height + " exceeds " + MAX_IMAGE_PIXEL_COUNT + " pixels.  Make the image smaller";
+            response.sendError(response.SC_NOT_ACCEPTABLE, errorMessage);
+            throw new Exception(errorMessage);
+        }
+
+        int pointSize = (int) ((dpi / 25.4) * pointRadiusMm);
+
+        double[] boundingBox = transformBbox4326To900913(Double.parseDouble(bb[0]), Double.parseDouble(bb[1]), Double.parseDouble(bb[2]), Double.parseDouble(bb[3]));
+
+        //"http://biocache.ala.org.au/ws/webportal/wms/reflect?
+        //q=macropus&ENV=color%3Aff0000%3Bname%3Acircle%3Bsize%3A3%3Bopacity%3A1
+        //&BBOX=12523443.0512,-2504688.2032,15028131.5936,0.33920000120997&WIDTH=256&HEIGHT=256");
+        String speciesAddress = WMSCache.getBiocacheUrl()
+                + "/webportal/wms/reflect?"
+                + "ENV=color%3A" + pointColour
+                + "%3Bname%3Acircle%3Bsize%3A" + pointSize
+                + "%3Bopacity%3A" + pointOpacity
+                + "&BBOX=" + boundingBox[0] + "," + boundingBox[1] + "," + boundingBox[2] + "," + boundingBox[3]
+                + "&WIDTH=" + width + "&HEIGHT=" + height
+                + "&" + request.getQueryString();
+        URL speciesURL = new URL(speciesAddress);
+        BufferedImage speciesImage = ImageIO.read(speciesURL);
+
+        //"http://spatial.ala.org.au/geoserver/wms/reflect?
+        //LAYERS=ALA%3Aworld&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&STYLES=
+        //&FORMAT=image%2Fjpeg&SRS=EPSG%3A900913&BBOX=12523443.0512,-1252343.932,13775787.3224,0.33920000004582&WIDTH=256&HEIGHT=256"
+        String layout = "";
+        if (!scale.equals("off")) {
+            layout += "layout:scale";
+        }
+        String basemapAddress = WMSCache.getGeoserverUrl() + "/wms/reflect?"
+                + "LAYERS=ALA%3A" + baselayer
+                + "&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&STYLES="
+                + "&FORMAT=image%2Fpng&SRS=EPSG%3A900913"
+                + "&BBOX=" + boundingBox[0] + "," + boundingBox[1] + "," + boundingBox[2] + "," + boundingBox[3]
+                + "&WIDTH=" + width + "&HEIGHT=" + height
+                + "&format_options=dpi:" + dpi + ";" + layout;
+        System.out.println(basemapAddress);
+        URL basemapURL = new URL(basemapAddress);
+        BufferedImage basemapImage = ImageIO.read(basemapURL);
+
+        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D combined = (Graphics2D) img.getGraphics();
+
+        combined.drawImage(basemapImage, 0, 0, Color.WHITE, null);
+        combined.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
+        combined.drawImage(speciesImage, null, 0, 0);
+        combined.dispose();
+
+        //response.setHeader("Cache-Control", "max-age=3600");
+
+        if (format.equalsIgnoreCase("png")) {
+            response.setContentType("image/png");
+            OutputStream os = response.getOutputStream();
+            ImageIO.write(img, format, os);
+            os.close();
+        } else {
+            //handle jpeg + BufferedImage.TYPE_INT_ARGB
+            BufferedImage img2;
+            Graphics2D c2;
+            (c2 = (Graphics2D) (img2 = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)).getGraphics()).drawImage(img, 0, 0, Color.WHITE, null);
+            c2.dispose();
+            OutputStream os = response.getOutputStream();
+            ImageIO.write(img2, format, os);
+            os.close();
+            response.setContentType("image/jpeg");
+        }
+    }
+
     private ImgObj wmsCached(WMSCacheObject wco, SpatialSearchRequestParams requestParams,
             WmsEnv vars, PointType pointType, double[] pbbox,
             double[] bbox, double[] mbbox, int width, int height, double width_mult,
@@ -1631,6 +1741,17 @@ public class WebportalController implements ServletConfigAware {
         }
 
         return imgObj;
+    }
+
+    //method from 1.3.3.1 Mercator (Spherical) http://www.epsg.org/guides/docs/g7-2.pdf
+    //constant from EPSG:900913
+    private double[] transformBbox4326To900913(double long1, double lat1, double long2, double lat2) {
+        return new double[]{
+                    6378137.0 * long1 * Math.PI / 180.0,
+                    6378137.0 * Math.log(Math.tan(Math.PI / 4.0 + lat1 * Math.PI / 360.0)),
+                    6378137.0 * long2 * Math.PI / 180.0,
+                    6378137.0 * Math.log(Math.tan(Math.PI / 4.0 + lat2 * Math.PI / 360.0))
+                };
     }
 }
 
