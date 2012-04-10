@@ -322,10 +322,12 @@ public class SearchDAOImpl implements SearchDAO {
                                 if(guids.size()==30){
                                   //now get the list of species from the web service TODO may need to move this code
                                     String jsonUri = bieUri + "/species/namesFromGuids.json?guid=" + StringUtils.join(guids, "&guid=");
+                                    //handle null values being returned from the service...
                                     List<String> entities = restTemplate.getForObject(jsonUri, List.class);
                                     for(int j = 0 ; j<guids.size();j++){
                                         out.write((guids.get(j) + ",").getBytes());
-                                        out.write((entities.get(j) ).getBytes());
+                                        String entity = entities.get(j) == null?"":entities.get(j);
+                                        out.write(entity.getBytes());
                                         if(includeCount)
                                             out.write((","+Long.toString(counts.get(j))).getBytes());
                                         out.write("\n".getBytes());
@@ -338,7 +340,8 @@ public class SearchDAOImpl implements SearchDAO {
                             List<String> entities = restTemplate.getForObject(jsonUri, List.class);
                             for(int i = 0 ; i<guids.size();i++){
                                 out.write((guids.get(i) + ",").getBytes());
-                                out.write((entities.get(i) ).getBytes());
+                                String entity = entities.get(i) == null ? "null":entities.get(i);
+                                out.write(entity.getBytes());
                                 if(includeCount)
                                     out.write((","+Long.toString(counts.get(i))).getBytes());
                                 out.write("\n".getBytes());
@@ -1871,7 +1874,7 @@ public class SearchDAOImpl implements SearchDAO {
                         if (fcount.getFacetField().getName().equals(NAMES_AND_LSID)) {
                             String[] values = p.split(fcount.getName(),5);
                             
-                            if (values.length >= 5) {
+                            if (values.length >= 5 && !"||||".equals(fcount.getName())) {
                                 tcDTO = new TaxaCountDTO(values[0], fcount.getCount());
                                 tcDTO.setGuid(StringUtils.trimToNull(values[1]));
                                 tcDTO.setCommonName(values[2]);
@@ -1889,7 +1892,7 @@ public class SearchDAOImpl implements SearchDAO {
                         else if(fcount.getFacetField().getName().equals(COMMON_NAME_AND_LSID)){
                             String[] values = p.split(fcount.getName(),6);
                             
-                            if(values.length >= 5){
+                            if(values.length >= 5 && !"|||||".equals(fcount.getName())){
                                 tcDTO = new TaxaCountDTO(values[1], fcount.getCount());
                                 tcDTO.setGuid(StringUtils.trimToNull(values[2]));
                                 tcDTO.setCommonName(values[0]);
