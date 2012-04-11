@@ -252,7 +252,9 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         
         <h3>Miscellaneous</h3>
         <ul class="webserviceList">
-        	<li><strong>Retrieve i18n mappings: </strong><a href="${initParam.webservicesRoot}/facets/i18n">/facets/i18n</a></li>
+        	<li><strong>Retrieve i18n mappings: </strong><a href="${initParam.webservicesRoot}/facets/i18n">/facets/i18n</a> - supports requests for language
+                specific properties, such as <a href="${initParam.webservicesRoot}/facets/i18n_fr.properties">/facets/i18n_fr.properties</a> (not currently provided, contact us if required)
+            </li>
         	<li><strong>Is Australian test:</strong> /australian/taxon/{guid} - tests to see if the supplied GUID; occurs in Australia, has an Australian LSID or is NOT Australian. Example:<br>
         	<a href="${initParam.webservicesRoot}/australian/taxon/urn:lsid:biodiversity.org.au:afd.taxon:aa745ff0-c776-4d0e-851d-369ba0e6f537">/australian/taxon/urn:lsid:biodiversity.org.au:afd.taxon:aa745ff0-c776-4d0e-851d-369ba0e6f537</a>
         	</li>
