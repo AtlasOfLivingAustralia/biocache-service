@@ -149,19 +149,28 @@ public class OccurrenceController extends AbstractSecureController {
     }
 	/**
 	 * Returns the content of the messages.properties file.
+     * Can also return language specific versions, such as
+     * messages_fr.properties if requested via qualifier @PathVariable.
+     *
 	 * @param response
 	 * @throws Exception
 	 */
-	@RequestMapping("/facets/i18n")
-	public void writei18nPropertiesFile(HttpServletResponse response) throws Exception{	    
-        InputStream is = getClass().getResourceAsStream("/messages.properties");
+	@RequestMapping("/facets/i18n{qualifier:.*}*")
+	public void writei18nPropertiesFile(@PathVariable("qualifier") String qualifier, HttpServletResponse response) throws Exception{
+        qualifier = (StringUtils.isNotEmpty(qualifier)) ? qualifier : ".properties";
+        logger.debug("qualifier = " + qualifier);
+        InputStream is = getClass().getResourceAsStream("/messages" + qualifier);
         OutputStream os = response.getOutputStream();
-        byte[] buffer = new byte[1024]; 
-        int bytesRead;
-        while ((bytesRead = is.read(buffer)) != -1)
-        {
-            os.write(buffer, 0, bytesRead);
+
+        if (is != null) {
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = is.read(buffer)) != -1)
+            {
+                os.write(buffer, 0, bytesRead);
+            }
         }
+
         os.flush();
         os.close();
 	}
