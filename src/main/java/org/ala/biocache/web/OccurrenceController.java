@@ -27,7 +27,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import au.org.ala.biocache.*;
-import org.ala.biocache.*;
 import org.ala.biocache.dao.SearchDAO;
 import org.ala.biocache.dto.*;
 import org.ala.biocache.dto.store.OccurrenceDTO;
@@ -39,30 +38,17 @@ import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
 import org.ala.client.util.RestfulClient;
-import org.apache.commons.collections.iterators.ArrayListIterator;
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.HttpException; 
+import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.httpclient.HttpStatus;
-import org.apache.commons.httpclient.methods.GetMethod;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.ArrayUtils;
-import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.ServletRequestUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 /**
@@ -410,7 +396,7 @@ public class OccurrenceController extends AbstractSecureController {
 	}
 
     /**
-     * Webservice to support bulk downloads for a long list of taxa.
+     * Webservice to support bulk downloads for a long list of queries for a single field.
      * NOTE: triggered on "Download Records" button
      *
      * @param response
@@ -419,15 +405,16 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/occurrences/taxaList", method = RequestMethod.POST, params="action=Download")
-    public void taxaListDownload(
+    @RequestMapping(value = "/occurrences/batchSearch", method = RequestMethod.POST, params="action=Download")
+    public void batchDownload(
             HttpServletResponse response,
             HttpServletRequest request,
-            @RequestParam(value="names", required = true, defaultValue = "") String listOfNames,
+            @RequestParam(value="queries", required = true, defaultValue = "") String queries,
+            @RequestParam(value="field", required = true, defaultValue = "") String field,
             @RequestParam(value="separator", defaultValue = "\n") String separator) throws Exception {
 
-        logger.debug("/occurrences/taxaList with action=Download Records");
-        Long qid =  getQidForTaxaList(listOfNames, separator);
+        logger.info("/occurrences/batchSearch with action=Download Records");
+        Long qid =  getQidForBatchSearch(queries, field, separator);
 
         if (qid != null) {
             String webservicesRoot = request.getSession().getServletContext().getInitParameter("webservicesRoot");
@@ -438,24 +425,25 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     /**
-     * Given a list of taxa, return an AJAX response with the qid (cached query id)
+     * Given a list of queries for a single field, return an AJAX response with the qid (cached query id)
      * NOTE: triggered on "Search" button
      *
      * @param response
-     * @param listOfNames
+     * @param queries
      * @param separator
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/occurrences/taxaList", method = RequestMethod.POST, params="action=Search")
-    public void taxaListSearch(
+    @RequestMapping(value = "/occurrences/batchSearch", method = RequestMethod.POST, params="action=Search")
+    public void batchSearch(
             HttpServletResponse response,
             @RequestParam(value="redirectBase", required = true, defaultValue = "") String redirectBase,
-            @RequestParam(value="names", required = true, defaultValue = "") String listOfNames,
+            @RequestParam(value="queries", required = true, defaultValue = "") String queries,
+            @RequestParam(value="field", required = true, defaultValue = "") String field,
             @RequestParam(value="separator", defaultValue = "\n") String separator) throws Exception {
 
-        logger.debug("/occurrences/taxaList with action=Search");
-        Long qid =  getQidForTaxaList(listOfNames, separator);
+        logger.info("/occurrences/batchSearch with action=Search");
+        Long qid =  getQidForBatchSearch(queries, field, separator);
 
         if (qid != null && StringUtils.isNotBlank(redirectBase)) {
             response.sendRedirect(redirectBase + "?q=qid:"+qid);
@@ -465,7 +453,7 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     /**
-     * Common method for getting a QID for a taxaList query
+     * Common method for getting a QID for a batch field query
      *
      * @param listOfNames
      * @param separator
@@ -473,14 +461,14 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws IOException
      * @throws ParamsCacheSizeException
      */
-    private Long getQidForTaxaList(String listOfNames, String separator) throws IOException, ParamsCacheSizeException {
+    private Long getQidForBatchSearch(String listOfNames, String field, String separator) throws IOException, ParamsCacheSizeException {
         String[] rawParts = listOfNames.split(separator);
         List<String> parts = new ArrayList<String>();
 
         for (String part: rawParts) {
             String normalised = StringUtils.trimToNull(part);
             if (normalised != null){
-                parts.add("raw_name:\"" + normalised + "\"");
+                parts.add(field + ":\"" + normalised + "\"");
             }
         }
 
@@ -490,7 +478,7 @@ public class OccurrenceController extends AbstractSecureController {
 
         String q = StringUtils.join(parts.toArray(new String[0]), " OR ");
         long qid = ParamsCache.put(q, q, null, null);
-        logger.debug("taxaList: qid = " + qid);
+        logger.info("batchSearch: qid = " + qid);
 
         return qid;
     }
