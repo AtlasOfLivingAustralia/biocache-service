@@ -345,7 +345,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 
         <ul class="webserviceList">
             <li><strong>Tile:</strong> /webportal/wms/reflect
-                <ul>
+                <ul class="paramList">
                     <li><strong>BBOX</strong> - EPSG900913 bounding box. e.g. &BBOX=12523443.0512,-2504688.2032,15028131.5936,0.3392000021413</li>
                     <li><strong>WIDTH</strong> - width in pixels</li>
                     <li><strong>HEIGHT</strong> - height in pixels</li>
@@ -381,7 +381,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                 <li><strong>cm</strong> - ENV colormode value</li>
             </ul>
                 Contains columns:
-                <ul>
+                <ul  class="paramList">
                     <li><strong>name</strong> - legend item name</li>
                     <li><strong>red</strong> - 0-255</li>
                     <li><strong>green</strong> - 0-255</li>
@@ -391,7 +391,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             </li>
             <li><strong>Image</strong> /webportal/wms/image<br>
                 e.g. <a href="${initParam.webservicesRoot}/webportal/wms/image?extents=142,-45,151,-38&q=macropus&format=jpg&dpi=300&pradiusmm=1&popacity=0.8&pcolour=0000FF&widthmm=150&scale=on&baselayer=aus2">/webportal/wms/image?extents=142,-45,151,-38&q=macropus&format=jpg&dpi=300&pradiusmm=1&popacity=0.8&pcolour=0000FF&widthmm=150&scale=on&baselayer=aus2</a>
-                <ul>
+                <ul class="paramList">
                     <li><strong>extents</strong> - EPSG4326 bounding box. Valid between -180 and +180 longitude.  Latitude is best between -85 and +85.  e.g. &extents=-180,-85,180,85</li>
                     <li><strong>dpi</strong> - (optional) set the image DPI.  e.g. &dpi=300</li>
                     <li><strong>widthmm</strong> - (optional) width in mm, integer</li>
@@ -401,6 +401,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <li><strong>format</strong> - (optional) output format, png or jpg</li>
                     <li><strong>scale</strong> - (optional) show scale line on the image.  Not suitable for large DPI values.  e.g. &scale=on</li>
                     <li><strong>baselayer</strong> - (optional) ALA: base layer to use from http://spatial.ala.org.au/geoserver  E.g. &baselayer=aus1</li>
+                    <li><strong>fileName</strong> - (optional) the name of the file to pass back in content headers</li>
                 </ul>
             </li>
         </ul>

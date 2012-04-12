@@ -1157,6 +1157,7 @@ public class WebportalController implements ServletConfigAware {
             @RequestParam(value = "baselayer", required = false, defaultValue = "world") String baselayer,
             @RequestParam(value = "scale", required = false, defaultValue = "off") String scale,
             @RequestParam(value = "dpi", required = false, defaultValue = "300") Integer dpi,
+            @RequestParam(value = "fileName", required = false) String fileName,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
 
         String[] bb = extents.split(",");
@@ -1231,10 +1232,20 @@ public class WebportalController implements ServletConfigAware {
         combined.drawImage(speciesImage, null, 0, 0);
         combined.dispose();
 
-        //response.setHeader("Cache-Control", "max-age=3600");
+        //if filename supplied, force a download
+        if(fileName != null){
+            response.setContentType("application/octet-stream");
+            response.setHeader("Content-Description", "File Transfer");
+            response.setHeader("Content-Description", "File Transfer");
+            response.setHeader("Content-Disposition", "attachment; filename=" + fileName);
+            response.setHeader("Content-Transfer-Encoding","binary");
+        } else if(format.equalsIgnoreCase("png")) {
+            response.setContentType("image/png");
+        } else {
+            response.setContentType("image/jpeg");
+        }
 
         if (format.equalsIgnoreCase("png")) {
-            response.setContentType("image/png");
             OutputStream os = response.getOutputStream();
             ImageIO.write(img, format, os);
             os.close();
@@ -1247,7 +1258,6 @@ public class WebportalController implements ServletConfigAware {
             OutputStream os = response.getOutputStream();
             ImageIO.write(img2, format, os);
             os.close();
-            response.setContentType("image/jpeg");
         }
     }
 
