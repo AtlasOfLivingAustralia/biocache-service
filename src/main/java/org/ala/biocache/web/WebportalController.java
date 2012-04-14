@@ -848,7 +848,7 @@ public class WebportalController implements ServletConfigAware {
         }
     }
 
-    private void getBBoxes(String bboxString, int width, int height, int size, boolean uncertainty, double[] mbbox, double[] bbox, double[] pbbox) {
+    private double getBBoxes(String bboxString, int width, int height, int size, boolean uncertainty, double[] mbbox, double[] bbox, double[] pbbox) {
         int i = 0;
         for (String s : bboxString.split(",")) {
             try {
@@ -893,7 +893,11 @@ public class WebportalController implements ServletConfigAware {
         bbox[0] = convertMetersToLng(mbbox[0] - xoffset);
         bbox[1] = convertMetersToLat(mbbox[1] - yoffset);
         bbox[2] = convertMetersToLng(mbbox[2] + xoffset);
-        bbox[3] = convertMetersToLat(mbbox[3] + yoffset);
+        bbox[3] = convertMetersToLat(mbbox[3] + yoffset);        
+        
+        double degreesPerPixel = Math.min((convertMetersToLng(mbbox[2]) - convertMetersToLng(mbbox[0])) / (double) width,
+                (convertMetersToLng(mbbox[3]) - convertMetersToLng(mbbox[1])) / (double) height);
+        return degreesPerPixel;
     }
 
     private String getQ(String cql_filter) {
@@ -1080,16 +1084,15 @@ public class WebportalController implements ServletConfigAware {
         double[] bbox = new double[4];
         double[] pbbox = new double[4];
         int size = vars.size + (vars.highlight != null ? HIGHLIGHT_RADIUS * 2 + (int) (vars.size * 0.2) : 0) + 5;  //bounding box buffer
-        getBBoxes(bboxString, width, height, size, vars.uncertainty, mbbox, bbox, pbbox);
+
+        double resolution = getBBoxes(bboxString, width, height, size, vars.uncertainty, mbbox, bbox, pbbox);
+        PointType pointType = getPointTypeForDegreesPerPixel(resolution);
+
         String q = getQ(cql_filter);
 
         String[] boundingBoxFqs = new String[2];
         boundingBoxFqs[0] = String.format("longitude:[%f TO %f]", bbox[0], bbox[2]);
         boundingBoxFqs[1] = String.format("latitude:[%f TO %f]", bbox[1], bbox[3]);
-
-        PointType pointType = getPointTypeForDegreesPerPixel(Math.min(
-                (bbox[2] - bbox[0]) / (double) width,
-                (bbox[3] - bbox[1]) / (double) height));
 
         int pointWidth = vars.size * 2;
         double width_mult = (width / (pbbox[2] - pbbox[0]));
