@@ -173,6 +173,10 @@ public class OccurrenceIndex {
         }
         return largeImageUrl;
     }
+    
+    public void setImageUrls(String[] urls){
+        this.imageUrls = urls;
+    }
 
     public String getSmallImageUrl(){
         if(smallImageUrl ==null){
