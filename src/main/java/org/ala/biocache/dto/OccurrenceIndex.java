@@ -55,13 +55,18 @@ public class OccurrenceIndex {
     @Field("rank") String taxonRank;
     @Field("rank_id") Integer taxonRankID;
     @Field("country_code") String raw_countryCode;
+    @Field("country") String country;
     @Field("kingdom") String kingdom;
     @Field("phylum") String phylum;
     @Field("class") String classs;
     @Field("order") String order;
     @Field("family") String family;
     @Field("genus") String genus;
+    @Field("genus_guid") String genusGuid;
     @Field("species") String species;
+    @Field("species_guid") String speciesGuid;
+    @Field("subspecies") String subspecies;
+    @Field("subspecies_guid") String subspeciesGuid;
     @Field("state") String stateProvince;
     @Field("latitude") Double decimalLatitude;
     @Field("longitude") Double decimalLongitude;
@@ -85,6 +90,7 @@ public class OccurrenceIndex {
     @Field("user_assertions") String hasUserAssertions;
     @Field("species_group") String[] speciesGroups;
     @Field("image_url") String image;
+    @Field("all_image_url") String[] images;
     @Field("geospatial_kosher") String geospatialKosher;
     @Field("taxonomic_kosher") String taxonomicKosher;
     @Field("collector") String raw_recordedBy;
@@ -101,7 +107,7 @@ public class OccurrenceIndex {
     @Field("point-0.001") String point0001;
     @Field("point-0.0001") String point00001;
     @Field("names_and_lsid") String namesLsid;
-    @Field("multimedia") String multimedia;
+    @Field("multimedia") String[] multimedia;
     //conservation status field
     @Field("aust_conservation") String austConservation;
     @Field("state_conservation") String stateConservation;
@@ -110,6 +116,7 @@ public class OccurrenceIndex {
     String largeImageUrl;
     String smallImageUrl;
     String thumbnailUrl;
+    String[] imageUrls;
 
     public static void setBiocacheMediaDir(String biocacheMediaDir) {
         OccurrenceIndex.biocacheMediaDir = biocacheMediaDir;
@@ -138,6 +145,21 @@ public class OccurrenceIndex {
             }
         }
         return imageUrl;
+    }
+    
+    public String[] getImageUrls(){
+        if(imageUrls == null){
+            if(images != null && images.length>0){
+                imageUrls = new String[images.length];
+                for(int i = 0;i<images.length; i++){
+                    if(images[i].startsWith(biocacheMediaDir))
+                        imageUrls[i] = images[i].replace(biocacheMediaDir, biocacheMediaUrl);
+                    else
+                        imageUrls[i] = images[i];
+                }
+            }
+        }
+        return imageUrls;
     }
 
     public String getLargeImageUrl(){
@@ -225,13 +247,18 @@ public class OccurrenceIndex {
         addToMapIfNotNull(map, "rank",taxonRank);
         addToMapIfNotNull(map,"rank_id",safeIntToString(taxonRankID)); 
         addToMapIfNotNull(map,"country_code", raw_countryCode);
+        addToMapIfNotNull(map,"country", country);
         addToMapIfNotNull(map, "kingdom",kingdom); 
         addToMapIfNotNull(map,"phylum", phylum);
         addToMapIfNotNull(map, "class", classs); 
         addToMapIfNotNull(map,"order", order); 
         addToMapIfNotNull(map,"family", family);
-        addToMapIfNotNull(map, "genus",genus); 
+        addToMapIfNotNull(map, "genus",genus);
+        addToMapIfNotNull(map, "genus_guid",genusGuid);
         addToMapIfNotNull(map,"species", species);
+        addToMapIfNotNull(map,"species_guid", speciesGuid);
+        addToMapIfNotNull(map,"subspecies", subspecies);
+        addToMapIfNotNull(map,"subspecies_guid", subspeciesGuid);
         addToMapIfNotNull(map,"state", stateProvince); 
         addToMapIfNotNull(map,"latitude", safeDblToString(decimalLatitude));
         addToMapIfNotNull(map, "longitude", safeDblToString(decimalLongitude)); 
@@ -267,7 +294,7 @@ public class OccurrenceIndex {
         addToMapIfNotNull(map,"point-0.001", point0001);
         addToMapIfNotNull(map, "point-0.0001", point00001); 
         addToMapIfNotNull(map,"names_and_lsid", namesLsid); 
-        addToMapIfNotNull(map,"multimedia", multimedia);     
+        addToMapIfNotNull(map,"multimedia", arrToString(multimedia));     
         addToMapIfNotNull(map,"collector",raw_recordedBy);
         return map;
     }
@@ -431,6 +458,14 @@ public class OccurrenceIndex {
     public void setRaw_countryCode(String raw_countryCode) {
         this.raw_countryCode = raw_countryCode;
     }
+    
+    public String getCountry(){
+        return country;
+    }
+    
+    public void setCountry(String country){
+        this.country = country;
+    }
 
     public String getKingdom() {
         return kingdom;
@@ -480,6 +515,14 @@ public class OccurrenceIndex {
         this.genus = genus;
     }
 
+    public String getGenusGuid() {
+        return genusGuid;
+    }
+
+    public void setGenusGuid(String genusGuid) {
+        this.genusGuid = genusGuid;
+    }
+    
     public String getSpecies() {
         return species;
     }
@@ -488,6 +531,30 @@ public class OccurrenceIndex {
         this.species = species;
     }
 
+    public String getSpeciesGuid() {
+        return speciesGuid;
+    }
+
+    public void setSpeciesGuid(String speciesGuid) {
+        this.speciesGuid = speciesGuid;
+    }
+    
+    public String getSubspecies() {
+        return subspecies;
+    }
+
+    public void setSubspecies(String subspecies) {
+        this.subspecies = subspecies;
+    }
+    
+    public String getSubspeciesGuid() {
+        return subspeciesGuid;
+    }
+
+    public void setSubspeciesGuid(String subspeciesGuid) {
+        this.subspeciesGuid = subspeciesGuid;
+    }
+    
     public String getStateProvince() {
         return stateProvince;
     }
@@ -671,6 +738,14 @@ public class OccurrenceIndex {
     public void setImage(String image) {
         this.image = image;
     }
+    
+    public String[] getImages(){
+        return images;
+    }
+    
+    public void setImages(String[] images){
+        this.images = images;
+    }
 
     public String getGeospatialKosher() {
         return geospatialKosher;
@@ -784,11 +859,11 @@ public class OccurrenceIndex {
         this.namesLsid = namesLsid;
     }
 
-    public String getMultimedia() {
+    public String[] getMultimedia() {
         return multimedia;
     }
 
-    public void setMultimedia(String multimedia) {
+    public void setMultimedia(String[] multimedia) {
         this.multimedia = multimedia;
     }
 

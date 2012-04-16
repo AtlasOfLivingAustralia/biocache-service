@@ -1874,13 +1874,15 @@ public class SearchDAOImpl implements SearchDAO {
                         if (fcount.getFacetField().getName().equals(NAMES_AND_LSID)) {
                             String[] values = p.split(fcount.getName(),5);
                             
-                            if (values.length >= 5 && !"||||".equals(fcount.getName())) {
-                                tcDTO = new TaxaCountDTO(values[0], fcount.getCount());
-                                tcDTO.setGuid(StringUtils.trimToNull(values[1]));
-                                tcDTO.setCommonName(values[2]);
-                                tcDTO.setKingdom(values[3]);
-                                tcDTO.setFamily(values[4]);
-                                tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
+                            if (values.length >= 5) {
+                                if(!"||||".equals(fcount.getName())){
+                                    tcDTO = new TaxaCountDTO(values[0], fcount.getCount());
+                                    tcDTO.setGuid(StringUtils.trimToNull(values[1]));
+                                    tcDTO.setCommonName(values[2]);
+                                    tcDTO.setKingdom(values[3]);
+                                    tcDTO.setFamily(values[4]);
+                                    tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
+                                }
                             }
                             else{
                                 logger.debug("The values length: " + values.length + " :" + fcount.getName());
@@ -1892,14 +1894,16 @@ public class SearchDAOImpl implements SearchDAO {
                         else if(fcount.getFacetField().getName().equals(COMMON_NAME_AND_LSID)){
                             String[] values = p.split(fcount.getName(),6);
                             
-                            if(values.length >= 5 && !"|||||".equals(fcount.getName())){
-                                tcDTO = new TaxaCountDTO(values[1], fcount.getCount());
-                                tcDTO.setGuid(StringUtils.trimToNull(values[2]));
-                                tcDTO.setCommonName(values[0]);
-                                //cater for the bug of extra vernacular name in the result
-                                tcDTO.setKingdom(values[values.length-2]);
-                                tcDTO.setFamily(values[values.length-1]);
-                                tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
+                            if(values.length >= 5){
+                                if(!"|||||".equals(fcount.getName())){
+                                    tcDTO = new TaxaCountDTO(values[1], fcount.getCount());
+                                    tcDTO.setGuid(StringUtils.trimToNull(values[2]));
+                                    tcDTO.setCommonName(values[0]);
+                                    //cater for the bug of extra vernacular name in the result
+                                    tcDTO.setKingdom(values[values.length-2]);
+                                    tcDTO.setFamily(values[values.length-1]);
+                                    tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
+                                }
                             }
                             else{
                                 logger.debug("The values length: " + values.length + " :" + fcount.getName());
@@ -2112,6 +2116,10 @@ public class SearchDAOImpl implements SearchDAO {
             logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
         }
         return null;
+    }
+    
+    private void addSpatialWebPortalFacet(String facetField){
+        //special case for the decade...
     }
 
     public List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facetField, String [] cutpoints) throws Exception {
