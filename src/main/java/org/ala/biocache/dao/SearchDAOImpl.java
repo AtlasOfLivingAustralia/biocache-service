@@ -1881,7 +1881,8 @@ public class SearchDAOImpl implements SearchDAO {
                                     tcDTO.setCommonName(values[2]);
                                     tcDTO.setKingdom(values[3]);
                                     tcDTO.setFamily(values[4]);
-                                    tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
+                                    if(StringUtils.isNotEmpty(tcDTO.getGuid()))
+                                        tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
                                 }
                             }
                             else{
@@ -1889,7 +1890,8 @@ public class SearchDAOImpl implements SearchDAO {
                                 tcDTO = new TaxaCountDTO(fcount.getName(), fcount.getCount());
                             }
                             //speciesCounts.add(i, tcDTO);
-                            speciesCounts.add(tcDTO);
+                            if(tcDTO != null)
+                                speciesCounts.add(tcDTO);
                         }
                         else if(fcount.getFacetField().getName().equals(COMMON_NAME_AND_LSID)){
                             String[] values = p.split(fcount.getName(),6);
@@ -1902,7 +1904,8 @@ public class SearchDAOImpl implements SearchDAO {
                                     //cater for the bug of extra vernacular name in the result
                                     tcDTO.setKingdom(values[values.length-2]);
                                     tcDTO.setFamily(values[values.length-1]);
-                                    tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
+                                    if(StringUtils.isNotEmpty(tcDTO.getGuid()))
+                                        tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
                                 }
                             }
                             else{
@@ -1910,7 +1913,8 @@ public class SearchDAOImpl implements SearchDAO {
                                 tcDTO = new TaxaCountDTO(fcount.getName(), fcount.getCount());
                             }
                             //speciesCounts.add(i, tcDTO);
-                            speciesCounts.add(tcDTO);
+                            if(tcDTO != null)
+                                speciesCounts.add(tcDTO);
                         }
                     }
                 }
