@@ -405,6 +405,14 @@ public class SearchDAOImpl implements SearchDAO {
                 }
         }
     }
+    
+    public Map<String, Integer> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, int i, boolean includeSensitive) throws Exception{
+        int resultsCount = 0;
+        Map<String, Integer> uidStats = new HashMap<String, Integer>();
+        //stores the remaining limit for data resources that have a download limit
+        Map<String, Integer> downloadLimit = new HashMap<String,Integer>();
+        return null;
+    }
 
 
     /**
@@ -412,7 +420,7 @@ public class SearchDAOImpl implements SearchDAO {
      * 
      */
     public Map<String, Integer> writeResultsToStream(DownloadRequestParams downloadParams, OutputStream out, int i, boolean includeSensitive) throws Exception {
-
+        
         int resultsCount = 0;
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
         //stores the remaining limit for data resources that have a download limit
@@ -468,13 +476,18 @@ public class SearchDAOImpl implements SearchDAO {
             String[]qaFields = qas.equals("")?new String[]{}:qas.split(",");
             String[] qaTitles = downloadFields.getHeader(qaFields);
             String[] titles = downloadFields.getHeader(fields);
-            out.write(StringUtils.join(titles, ",").getBytes());
+            String[] header = org.apache.commons.lang3.ArrayUtils.addAll(titles,qaTitles);
+            //Create the Writer that will be used to format the records
+            au.org.ala.biocache.RecordWriter rw = new org.ala.biocache.writer.CSVRecordWriter(out, header);
             
-            if(qaFields.length >0){
-                out.write(",".getBytes());
-                out.write(StringUtils.join(qaTitles,",").getBytes());
-            }
-            out.write("\n".getBytes());
+            
+//            out.write(StringUtils.join(titles, ",").getBytes());
+//            
+//            if(qaFields.length >0){
+//                out.write(",".getBytes());
+//                out.write(StringUtils.join(qaTitles,",").getBytes());
+//            }
+//            out.write("\n".getBytes());
             //List<String> uuids = new ArrayList<String>();
            
             //download the records that have limits first...
@@ -484,7 +497,7 @@ public class SearchDAOImpl implements SearchDAO {
                 for(String dr : downloadLimit.keySet()){
                     //add another fq to the search for data_resource_uid                    
                      downloadParams.setFq((String[])ArrayUtils.add(originalFq, "data_resource_uid:" + dr));
-                     resultsCount =downloadRecords(downloadParams, out, downloadLimit, uidStats, fields, qaFields, resultsCount, dr, includeSensitive);
+                     resultsCount =downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, dr, includeSensitive);
                      if(fqBuilder.length()>2)
                          fqBuilder.append(" OR ");
                      fqBuilder.append("data_resource_uid:").append(dr);
@@ -493,17 +506,19 @@ public class SearchDAOImpl implements SearchDAO {
                 //now include the rest of the data resources
                 //add extra fq for the remaining records
                 downloadParams.setFq((String[])ArrayUtils.add(originalFq, fqBuilder.toString()));
-                resultsCount =downloadRecords(downloadParams, out, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive);
+                resultsCount =downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive);
             }
             else{
                 //download all at once
-                downloadRecords(downloadParams, out, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive);
+                downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive);
             }
+            rw.finalise();
 
         } catch (SolrServerException ex) {
             logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
             //searchResults.setStatus("ERROR"); // TODO also set a message field on this bean with the error message(?)
         }
+        
         return uidStats;
     }
     /**
@@ -521,7 +536,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws Exception
      */
-    private int downloadRecords(DownloadRequestParams downloadParams, OutputStream out, 
+    private int downloadRecords(DownloadRequestParams downloadParams, au.org.ala.biocache.RecordWriter writer, 
                 Map<String, Integer> downloadLimit,  Map<String, Integer> uidStats,
                 String[] fields, String[] qaFields,int resultsCount, String dataResource, boolean includeSensitive) throws Exception {
         logger.info("download query: " + downloadParams.getQ());
@@ -559,7 +574,7 @@ public class SearchDAOImpl implements SearchDAO {
                 }}
             }
             //logger.debug("Downloading " + uuids.size() + " records");
-            au.org.ala.biocache.Store.writeToStream(out, ",", "\n", uuids.toArray(new String[]{}),
+            au.org.ala.biocache.Store.writeToWriter(writer, uuids.toArray(new String[]{}),
                     fields, qaFields, includeSensitive);
             startIndex += pageSize;
             uuids.clear();
@@ -2011,7 +2026,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     private  Set<IndexFieldDTO> parseLukeResponse(String str, boolean includeCounts) {
         //System.out.println(str);
-        Set<IndexFieldDTO> fieldList = new java.util.LinkedHashSet<IndexFieldDTO>();
+        Set<IndexFieldDTO> fieldList = includeCounts?new java.util.LinkedHashSet<IndexFieldDTO>():new java.util.TreeSet<IndexFieldDTO>();
         
         Pattern typePattern = Pattern.compile(
         "(?:type=)([a-z]{1,})");
