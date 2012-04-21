@@ -26,7 +26,7 @@ import org.apache.commons.lang.StringUtils;
 public class SearchRequestParams {
     /** Only used to store the formattedQuery to be passed around in biocache-service**/
     protected String formattedQuery =null; 
-    protected String q = "";
+    protected String q = "*:*";
     protected String[] fq = {""}; // must not be null
     protected String fl="";
     /**
