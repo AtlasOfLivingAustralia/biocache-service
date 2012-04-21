@@ -30,7 +30,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         <ul class="webserviceList">
 
             <li><strong>Occurrence search</strong> - Performs a GET search:           
-                <a href="${initParam.webservicesRoot}/occurrences/search">/occurrences/search</a>
+                <a href="${initParam.webservicesRoot}/occurrences/search?q=*:*">/occurrences/search?q=*:*</a>
                 <ul class="paramList">
                     <li><strong>q</strong> - the initial query. "q=*:*" will query anything, q="macropus" will do a free text search for "macropus", q=kingdom:Fungi will search for records with a kingdom of Fungi.
                         <br/>
