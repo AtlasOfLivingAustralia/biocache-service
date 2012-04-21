@@ -585,7 +585,7 @@ public class MapController implements ServletConfigAware {
         //Does file exist on disk?
         File f = new File(baseDir + "/" + outputHMFile);
 
-        if (!f.isFile() || forceRefresh) {
+        if (!f.isFile() || !f.exists() || forceRefresh) {
             logger.info("regenerating heatmap image");
             //If not, generate
             generateStaticHeatmapImages(requestParams, model, request, response, false);
@@ -630,7 +630,7 @@ public class MapController implements ServletConfigAware {
         //Does file exist on disk?
         File f = new File(baseDir + "/" + "legend_" + outputHMFile);
         
-        if (!f.isFile() || forceRefresh) {
+        if (!f.isFile() || !f.exists() || forceRefresh) {
             //If not, generate
             logger.info("regenerating heatmap legend");
             generateStaticHeatmapImages(requestParams, model, request, response, true);
