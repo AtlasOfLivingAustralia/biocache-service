@@ -7,7 +7,7 @@ package org.ala.biocache.dto;
  * 
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
-public class IndexFieldDTO {
+public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     /** The name of the field in the index */
     private String name;
     /** The SOLR data type for the field */
@@ -86,6 +86,11 @@ public class IndexFieldDTO {
      */
     public void setNumberDistinctValues(Integer numberDistinctValues) {
         this.numberDistinctValues = numberDistinctValues;
+    }
+
+    @Override
+    public int compareTo(IndexFieldDTO other) {        
+        return this.getName().compareTo(other.getName());
     }
     
     

@@ -14,6 +14,8 @@
  ***************************************************************************/
 package org.ala.biocache.dto;
 
+import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * Data Transfer Object to represent the request parameters required to perform
@@ -25,7 +27,9 @@ public class SpatialSearchRequestParams extends SearchRequestParams{
     protected Float radius = null;
     protected Float lat = null;
     protected Float lon = null;
-    protected String wkt ="";   
+    protected String wkt ="";
+    protected Boolean gk=false;//include only the geospatially kosher records
+    private String[] gkFq = new String[]{"geospatial_kosher:true"};
 
     /**
      * Custom toString method to produce a String to be used as the request parameters
@@ -42,7 +46,9 @@ public class SpatialSearchRequestParams extends SearchRequestParams{
             req.append("&radius=").append(radius);
         }
         if(wkt.length() >0)
-            req.append("&wkt=").append(wkt);      
+            req.append("&wkt=").append(wkt);
+        if(gk)
+            req.append("&gk=true");
         return req.toString();
     }
 
@@ -92,4 +98,32 @@ public class SpatialSearchRequestParams extends SearchRequestParams{
             this.wkt = wkt.replace(' ', ':');
         }
     }
+    /**
+     * @return the gk
+     */
+    public Boolean getGk() {
+        return gk;
+    }
+
+    /**
+     * @param gk the gk to set
+     */
+    public void setGk(Boolean gk) {
+        this.gk = gk;
+    }
+
+    /**
+     * Get the value of fq.  
+     * 
+     * Adds the gk FQ if necessary...
+     *
+     * @return the value of fq
+     */
+    public String[] getFq() {
+        if(gk)
+            return (String[])ArrayUtils.addAll(fq,gkFq);
+        else
+            return fq;
+    }
+    
 }

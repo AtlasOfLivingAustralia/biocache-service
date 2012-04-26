@@ -50,6 +50,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.client.RestOperations;
 
 /**
  * Occurrences controller for the BIE biocache site.
@@ -78,6 +79,8 @@ public class OccurrenceController extends AbstractSecureController {
 	protected SearchUtils searchUtils;
 	@Inject
 	protected RestfulClient restfulClient;
+	@Inject
+    private RestOperations restTemplate;
 	
 	/** Name of view for site home page */
 	private String HOME = "homePage";
@@ -341,6 +344,10 @@ public class OccurrenceController extends AbstractSecureController {
 
 		return searchResult;
 	}
+    
+    private SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams)throws Exception{
+        return occurrenceSearch(requestParams,null,null);
+    }
 
 	/**
 	 * Occurrence search page uses SOLR JSON to display results
@@ -350,13 +357,30 @@ public class OccurrenceController extends AbstractSecureController {
 	 * @throws Exception
 	 */
 	@RequestMapping(value = {"/occurrences/search.json*","/occurrences/search*"}, method = RequestMethod.GET)
-	public @ResponseBody SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams) throws Exception {
+	public @ResponseBody SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams,
+	        @RequestParam(value="apiKey", required=false) String apiKey,
+	        HttpServletResponse response) throws Exception {
         // handle empty param values, e.g. &sort=&dir=
         SearchUtils.setDefaultParams(requestParams);   
-        logger.debug("occurrence search params= " + requestParams);     
-        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams);        
-		return searchResult;
+        logger.debug("occurrence search params= " + requestParams);
+        if(apiKey == null)
+            return  searchDAO.findByFulltextSpatialQuery(requestParams);        
+        else
+            return occurrenceSearchSensitive(requestParams,apiKey, response);
 	}
+	
+	public @ResponseBody SearchResultDTO occurrenceSearchSensitive(SpatialSearchRequestParams requestParams,
+            @RequestParam(value="apiKey", required=true) String apiKey,
+            HttpServletResponse response) throws Exception {
+        // handle empty param values, e.g. &sort=&dir=
+	    if(shouldPerformOperation(apiKey, response, false)){
+    	    SearchUtils.setDefaultParams(requestParams);   
+            logger.debug("occurrence search params= " + requestParams);     
+            SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, true);        
+            return searchResult;
+	    }
+	    return null;
+    }
 
 	/**
 	 * Occurrence search page uses SOLR JSON to display results
@@ -543,7 +567,7 @@ public class OccurrenceController extends AbstractSecureController {
             HttpServletRequest request) throws Exception {
        
         
-        if(shouldPerformOperation(apiKey, response)){        
+        if(shouldPerformOperation(apiKey, response, false)){        
             String ip = request.getLocalAddr();
             ServletOutputStream out = response.getOutputStream();
             //search params must have a query or formatted query for the downlaod to work
@@ -587,7 +611,7 @@ public class OccurrenceController extends AbstractSecureController {
             //add the citations for the supplied uids
             zop.putNextEntry(new java.util.zip.ZipEntry("citation.csv"));
             try {
-                getCitations(uidStats.keySet(), zop);
+                getCitations(uidStats, zop);
             } catch (Exception e) {
                 logger.error(e);
             }
@@ -610,15 +634,37 @@ public class OccurrenceController extends AbstractSecureController {
 	 * @throws HttpException
 	 * @throws IOException
 	 */
-	private void getCitations(Set<String> keys, OutputStream out) throws HttpException, IOException{
-		if(keys == null || out == null){
+	private void getCitations(Map<String, Integer> uidStats, OutputStream out) throws HttpException, IOException{
+		if(uidStats == null || uidStats.size()==0 || out == null){
 			throw new NullPointerException("keys and/or out is null!!");
 		}
 		
-        Object[] citations = restfulClient.restPost(citationServiceUrl, "text/plain", keys);
-        if((Integer)citations[0] == HttpStatus.SC_OK){
-        	out.write(((String) citations[1]).getBytes());
-    	}
+        //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
+		List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl,uidStats.keySet(), List.class);
+		System.out.println(entities);
+		if(entities.size()>0){
+		    out.write("\"Resource name\",\"Citation\",\"Rights\",\"More information\",\"Data generalizations\",\"Information withheld\",\"Download limit\",\"Number of Records in Download\"\n".getBytes());
+		    for(Map<String,Object> record : entities){
+		        StringBuilder sb = new StringBuilder();
+		        sb.append("\"").append(record.get("name")).append("\",");
+		        sb.append("\"").append(record.get("citation")).append("\",");
+		        sb.append("\"").append(record.get("rights")).append("\",");
+		        sb.append("\"").append(record.get("link")).append("\",");
+		        sb.append("\"").append(record.get("dataGeneralizations")).append("\",");
+		        sb.append("\"").append(record.get("informationWithheld")).append("\",");
+		        sb.append("\"").append(record.get("downloadLimit")).append("\",");
+		        String count = uidStats.get(record.get("uid")).toString();
+		        sb.append("\"").append(count).append("\"");
+		        sb.append("\n");
+		        out.write(sb.toString().getBytes());
+		    }
+		}
+        //"Resource name","Citation","Rights","More information","Data generalizations","Information withheld","Download limit"
+//        if((Integer)citations[0] == HttpStatus.SC_OK){
+//            out.write("\"Resource name\",\"Citation\",\"Rights\",\"More information\",\"Data generalizations\",\"Information withheld\",\"Download limit\"".getBytes());
+//            
+//        	//out.write(((String) citations[1]).getBytes());
+//    	}
 	}
 
 	/**

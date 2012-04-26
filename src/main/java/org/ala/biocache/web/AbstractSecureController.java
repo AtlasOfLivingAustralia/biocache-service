@@ -29,6 +29,11 @@ public class AbstractSecureController {
             
         }
     }
+    
+    public boolean shouldPerformOperation(String apiKey,HttpServletResponse response)throws Exception{
+        return shouldPerformOperation(apiKey, response, true);
+    }
+    
     /**
      * Returns true when the operation should be performed.
      * @param apiKey
@@ -36,12 +41,12 @@ public class AbstractSecureController {
      * @return
      * @throws Exception
      */
-    public boolean shouldPerformOperation(String apiKey,HttpServletResponse response)throws Exception{
-        if(Store.isReadOnly()){
+    public boolean shouldPerformOperation(String apiKey,HttpServletResponse response, boolean checkReadOnly)throws Exception{
+        if(checkReadOnly && Store.isReadOnly()){
             response.sendError(HttpServletResponse.SC_CONFLICT, "Server is in read only mode.  Try again later.");
         }
         else if(apiKey == null || !apiKeys.contains(apiKey)){         
-            response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided for updates.");
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
         }
         return !response.isCommitted();
     }
