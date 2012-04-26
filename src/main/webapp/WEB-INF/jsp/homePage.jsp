@@ -57,7 +57,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <li><strong>sort</strong> - the indexed field to sort by. See <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a></li>
                     <li><strong>dir</strong> - supports "asc" or "desc"</li>
                     <li><strong>flimit</strong> - maximum number of facets to return</li>
-                    <li><strong>fsort</strong> - method in which to sort the facets either "count" or "index"</li>
+                    <li><strong>fsort</strong> - method in which to sort the facets either "count" or "index".  This value is only applicable for facets that are NOT included in <a href="${initParam.webservicesRoot}/search/grouped/facets">/search/grouped/facets</a></li>
                     <li><strong>foffset</strong> - facet offset, to enable paging</li>
                     <li><strong>fprefix</strong> - limits facets to values that start with the supplied value</li>                    
                 </ul>
@@ -135,10 +135,11 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             <li><strong>Extra details about specific fields:</strong> /index/fields?fl=comma-separated-list-of-fields  - This can be used to get a count of distinct terms a the supplied fields<br>
             Example:<br>
             <a href="${initParam.webservicesRoot}/index/fields?fl=lat_long">/index/fields?fl=lat_long</a>           
-            <li><strong>Facet based download:</strong> /occurrences/facets/download - requires a 'q' and optional 'fq' and one 'facet'. Optional Params:
+            <li><strong>Facet based download:</strong> /occurrences/facets/download - requires a 'q' and optional 'fq' and one 'facets'. Optional Params:
                 <ul class="paramList">
             	<li><strong>count</strong> - set to true if you would like the count included</li>
             	<li><strong>lookup</strong> - set to true if you would like the download include the scientific names for the supplied guids.  Downloads that include this param will take extra time as a lookup need to be performed</li>
+            	<li><strong>fsort</strong> - used to sort values in the file - either 'count' or 'index'
             </ul> 
             <br>This can be used to download distinct lists of species:
             <ul>
