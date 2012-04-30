@@ -1644,7 +1644,7 @@ public class SearchDAOImpl implements SearchDAO {
                         }
                         
                     } else{
-                        searchParams.setDisplayString(searchParams.getDisplayString() + " - within supplied region");
+                        searchParams.setDisplayString(subQuery.getDisplayString() + " - within supplied region");
                     }
                 }
     
