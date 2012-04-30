@@ -35,10 +35,11 @@ public class OutlierController {
      * @return
      * @throws Exception
      */
+    /* 
     @RequestMapping(value={"/outliers/{guid:.+}.json*","/outlierInfo/{guid:.+}*" })
     public @ResponseBody Map<String,String[]> getJackKnifeOutliersFor(@PathVariable("guid") String guid) throws Exception {
         return Store.getJackKnifeOutliersFor(guid);
-    }
+    } */
 
     @RequestMapping(value={"/outlier/record/{uuid}" })
     public @ResponseBody RecordJackKnifeStats[] getOutlierForUUid(@PathVariable("uuid") String recordUuid) throws Exception {
