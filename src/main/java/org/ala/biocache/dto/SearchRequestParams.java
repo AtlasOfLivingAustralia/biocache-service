@@ -39,8 +39,8 @@ public class SearchRequestParams {
      * The limit for the number of facets to return 
      */
     protected Integer flimit = 30;
-    /** The sort order in which to return the facets.  Either count or index */
-    protected String fsort="count";
+    /** The sort order in which to return the facets.  Either count or index.  When empty string the default values are used as defined in the Theme based facets */
+    protected String fsort="";
     /** The offset of facets to return.  Used in conjunction to flimit */
     protected Integer foffset = 0;
     /** The prefix to limit facet values*/
@@ -52,7 +52,7 @@ public class SearchRequestParams {
     /**  The query context to be used for the search.  This will be used to generate extra query filters based on the search technology */
     protected String qc ="";
     /** To disable facets */
-    protected Boolean facet = true;
+    protected Boolean facet = true;    
    
     
     /**
@@ -82,12 +82,12 @@ public class SearchRequestParams {
             req.append("&formattedQuery=").append(formattedQuery);
         if(!facet)
             req.append("&facet=false");
-        if(!"count".equals(fsort))
+        if(!"".equals(fsort))
         	req.append("&fsort=").append(fsort);
         if(foffset > 0)
         	req.append("&foffset=").append(foffset);
         if(!"".equals(fprefix))
-        	req.append("&fprefix=").append(fprefix);
+        	req.append("&fprefix=").append(fprefix);       
         return req.toString();
     }
     /**
@@ -327,7 +327,5 @@ public class SearchRequestParams {
 	 */
 	public void setFprefix(String fprefix) {
 		this.fprefix = fprefix;
-	}
-	    
-    
+	}    
 }

@@ -234,7 +234,8 @@ public class SearchDAOImpl implements SearchDAO {
             
             logger.info("spatial search query: " + queryString);
         } catch (SolrServerException ex) {
-            logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
+            //logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
+            logger.error("Error executing query  with requestParams: " + searchParams.toString()+ " EXCEPTION: " + ex.getMessage());
             searchResults.setStatus("ERROR"); // TODO also set a message field on this bean with the error message(?)
         }
 
@@ -1833,7 +1834,7 @@ public class SearchDAOImpl implements SearchDAO {
                 else {
                     solrQuery.addFacetField(facet);
                     
-                    if(substituteDefaultFacetOrder && FacetThemes.facetsMap.containsKey(facet)){
+                    if("".equals(searchParams.getFsort()) && substituteDefaultFacetOrder && FacetThemes.facetsMap.containsKey(facet)){
                       //now check if the sort order is different to supplied
                       String thisSort = FacetThemes.facetsMap.get(facet).getSort();
                       if(!searchParams.getFsort().equalsIgnoreCase(thisSort))
@@ -1855,7 +1856,9 @@ public class SearchDAOImpl implements SearchDAO {
 
             solrQuery.setFacetMinCount(1);
             solrQuery.setFacetLimit(searchParams.getFlimit());
-            solrQuery.setFacetSort(searchParams.getFsort());
+            //include this so that the default fsort is still obeyed.
+            String fsort = "".equals(searchParams.getFsort()) ? "count":searchParams.getFsort();
+            solrQuery.setFacetSort(fsort);
             if(searchParams.getFoffset()>0)
             	solrQuery.add("facet.offset", Integer.toString(searchParams.getFoffset()));
             if(StringUtils.isNotEmpty(searchParams.getFprefix()))
