@@ -15,7 +15,10 @@
 
 package org.ala.biocache.dto;
 
+import org.apache.commons.httpclient.URIException;
+import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.lang.StringUtils;
+import org.apache.log4j.Logger;
 
 /**
  * Data Transfer Object to represent the request parameters required to search
@@ -52,8 +55,9 @@ public class SearchRequestParams {
     /**  The query context to be used for the search.  This will be used to generate extra query filters based on the search technology */
     protected String qc ="";
     /** To disable facets */
-    protected Boolean facet = true;    
-   
+    protected Boolean facet = true;
+    /** log4 j logger */
+    private static final Logger logger = Logger.getLogger(SearchRequestParams.class);
     
     /**
      * Custom toString method to produce a String to be used as the request parameters
@@ -65,13 +69,32 @@ public class SearchRequestParams {
     public String toString() {        
         StringBuilder req = new StringBuilder();
         req.append("q=").append(q);
-        req.append("&fq=").append(StringUtils.join(fq, "&fq="));
+
+        if (fq.length > 0) {
+            for (String it : fq) {
+                // fallback to raw fq value if split fails  or exception is triggered
+                String fqValue = it;
+                // split into field:value pairs
+                String[] pair = StringUtils.split(it, ":", 2);
+
+                if (pair.length == 2) {
+                    try {
+                        fqValue = pair[0] + ":" + URIUtil.encodeWithinQuery(pair[1]); // escape "&" chars, etc
+                    } catch (URIException e) {
+                        logger.warn(e.getMessage(), e);
+                    }
+                }
+
+                req.append("&fq=").append(fqValue);
+            }
+        }
+
         req.append("&start=").append(start);
         req.append("&pageSize=").append(pageSize);
         req.append("&sort=").append(sort);
         req.append("&dir=").append(dir);
         req.append("&qc=").append(qc);
-        //
+
         if(facets.length > 0 && facet)
             req.append("&facets=").append(StringUtils.join(facets, "&facets="));
         if (flimit != 30) 
@@ -90,9 +113,10 @@ public class SearchRequestParams {
         	req.append("&fprefix=").append(fprefix);       
         return req.toString();
     }
+
     /**
      * Constructs the params to be returned in the result 
-     * @return
+     * @return req
      */
     public String getUrlParams(){
         StringBuilder req = new StringBuilder();
@@ -120,7 +144,7 @@ public class SearchRequestParams {
     /**
      * Set the value of q
      *
-     * @param q new value of q
+     * @param query new value of q
      */
     public void setQ(String query) {
         this.q = query;
@@ -138,7 +162,7 @@ public class SearchRequestParams {
     /**
      * Set the value of fq
      *
-     * @param fq new value of fq
+     * @param filterQuery new value of fq
      */
     public void setFq(String[] filterQuery) {
         this.fq = filterQuery;
@@ -226,7 +250,7 @@ public class SearchRequestParams {
     /**
      * Set the value of dir
      *
-     * @param dir new value of dir
+     * @param sortDirection new value of dir
      */
     public void setDir(String sortDirection) {
         this.dir = sortDirection;
