@@ -67,53 +67,82 @@ public class SearchRequestParams {
      */
     @Override
     public String toString() {        
+        return toString(false);
+    }
+
+    /**
+     * Produce a URI encoded query string for use in java.util.URI, etc
+     *
+     * @return encoded query string
+     */
+    public String getEncodedParams() {
+        return toString(true);
+    }
+
+    /**
+     * Common code to output a param string with conditional encoding of values
+     *
+     * @param encodeParams
+     * @return query string
+     */
+    protected String toString(Boolean encodeParams) {
         StringBuilder req = new StringBuilder();
-
-        try {
-            req.append("q=").append(URIUtil.encodeWithinQuery(q));
-
-            if (fq.length > 0) {
-                for (String it : fq) {
-                    // fallback to raw fq value if split fails  or exception is triggered
-                    String fqValue = it;
-                    // split into field:value pairs
-                    String[] pair = StringUtils.split(it, ":", 2);
-
-                    if (pair.length == 2) {
-                        fqValue = pair[0] + ":" + URIUtil.encodeWithinQuery(pair[1]); // escape "&" chars, etc
-                    }
-
-                    req.append("&fq=").append(fqValue);
-                }
+        req.append("q=").append(conditionalEncode(q, encodeParams));
+        if (fq.length > 0) {
+            for (String it : fq) {
+                req.append("&fq=").append(conditionalEncode(it, encodeParams));
             }
-
-            req.append("&start=").append(start);
-            req.append("&pageSize=").append(pageSize);
-            req.append("&sort=").append(sort);
-            req.append("&dir=").append(dir);
-            req.append("&qc=").append(qc);
-
-            if(facets.length > 0 && facet)
-                req.append("&facets=").append(StringUtils.join(facets, "&facets="));
-            if (flimit != 30)
-                req.append("&flimit=").append(flimit);
-            if (fl.length() > 0)
-                req.append("&fl=").append(fl);
-            if(StringUtils.isNotEmpty(formattedQuery))
-                req.append("&formattedQuery=").append(URIUtil.encodeWithinQuery(formattedQuery));
-            if(!facet)
-                req.append("&facet=false");
-            if(!"".equals(fsort))
-                req.append("&fsort=").append(fsort);
-            if(foffset > 0)
-                req.append("&foffset=").append(foffset);
-            if(!"".equals(fprefix))
-                req.append("&fprefix=").append(fprefix);
-        } catch (URIException e) {
-            logger.warn("URIUtil error: " + e.getMessage(), e);
         }
+        req.append("&start=").append(start);
+        req.append("&pageSize=").append(pageSize);
+        req.append("&sort=").append(sort);
+        req.append("&dir=").append(dir);
+        req.append("&qc=").append(qc);
+        if (facets.length > 0 && facet) {
+            for (String f : facets) {
+                req.append("&facets=").append(conditionalEncode(f, encodeParams));
+            }
+        }
+        if (flimit != 30)
+            req.append("&flimit=").append(flimit);
+        if (fl.length() > 0)
+            req.append("&fl=").append(conditionalEncode(fl, encodeParams));
+        if(StringUtils.isNotEmpty(formattedQuery))
+            req.append("&formattedQuery=").append(conditionalEncode(formattedQuery, encodeParams));
+        if(!facet)
+            req.append("&facet=false");
+        if(!"".equals(fsort))
+            req.append("&fsort=").append(fsort);
+        if(foffset > 0)
+            req.append("&foffset=").append(foffset);
+        if(!"".equals(fprefix))
+            req.append("&fprefix=").append(fprefix);
 
         return req.toString();
+    }
+
+    /**
+     * URI encode the param value if isEncoded is true
+     *
+     * @param input
+     * @param isEncoded
+     * @return query string
+     */
+    private String conditionalEncode(String input, Boolean isEncoded) {
+        String output;
+
+        if (isEncoded) {
+            try {
+                output = URIUtil.encodeWithinQuery(input);
+            } catch (URIException e) {
+                logger.warn("URIUtil encoding error: " + e.getMessage(), e);
+                output = input;
+            }
+        } else {
+            output = input;
+        }
+
+        return output;
     }
 
     /**
