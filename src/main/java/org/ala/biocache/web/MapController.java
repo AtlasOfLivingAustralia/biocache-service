@@ -641,13 +641,16 @@ public class MapController implements ServletConfigAware {
         //read file off disk and send back to user
         try {
             File file = new File(baseDir + "/" + "legend_" + outputHMFile);
-            BufferedImage img = ImageIO.read(file);
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            ImageIO.write(img, "png", outputStream);
-            ServletOutputStream outStream = response.getOutputStream();
-            outStream.write(outputStream.toByteArray());
-            outStream.flush();
-            outStream.close();
+            //only send the image back if it actually exists - a legend won't exist if we create the map based on points
+            if(file.exists()){
+                BufferedImage img = ImageIO.read(file);
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                ImageIO.write(img, "png", outputStream);
+                ServletOutputStream outStream = response.getOutputStream();
+                outStream.write(outputStream.toByteArray());
+                outStream.flush();
+                outStream.close();
+            }
 
         } catch (Exception e) {
             logger.error("Unable to write image.", e);
@@ -733,7 +736,7 @@ public class MapController implements ServletConfigAware {
                 FileUtils.copyFile(inMapFile, outMapFile);
                 FileUtils.copyFile(inLegFile, outLegFile);
             } catch (Exception e) {
-                logger.error("Unable to create blank map/legend");
+                logger.error("Unable to create blank map/legend",e);
             }
 
         }
