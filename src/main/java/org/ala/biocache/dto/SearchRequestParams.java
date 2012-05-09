@@ -68,49 +68,51 @@ public class SearchRequestParams {
     @Override
     public String toString() {        
         StringBuilder req = new StringBuilder();
-        req.append("q=").append(q);
 
-        if (fq.length > 0) {
-            for (String it : fq) {
-                // fallback to raw fq value if split fails  or exception is triggered
-                String fqValue = it;
-                // split into field:value pairs
-                String[] pair = StringUtils.split(it, ":", 2);
+        try {
+            req.append("q=").append(URIUtil.encodeWithinQuery(q));
 
-                if (pair.length == 2) {
-                    try {
+            if (fq.length > 0) {
+                for (String it : fq) {
+                    // fallback to raw fq value if split fails  or exception is triggered
+                    String fqValue = it;
+                    // split into field:value pairs
+                    String[] pair = StringUtils.split(it, ":", 2);
+
+                    if (pair.length == 2) {
                         fqValue = pair[0] + ":" + URIUtil.encodeWithinQuery(pair[1]); // escape "&" chars, etc
-                    } catch (URIException e) {
-                        logger.warn(e.getMessage(), e);
                     }
-                }
 
-                req.append("&fq=").append(fqValue);
+                    req.append("&fq=").append(fqValue);
+                }
             }
+
+            req.append("&start=").append(start);
+            req.append("&pageSize=").append(pageSize);
+            req.append("&sort=").append(sort);
+            req.append("&dir=").append(dir);
+            req.append("&qc=").append(qc);
+
+            if(facets.length > 0 && facet)
+                req.append("&facets=").append(StringUtils.join(facets, "&facets="));
+            if (flimit != 30)
+                req.append("&flimit=").append(flimit);
+            if (fl.length() > 0)
+                req.append("&fl=").append(fl);
+            if(StringUtils.isNotEmpty(formattedQuery))
+                req.append("&formattedQuery=").append(URIUtil.encodeWithinQuery(formattedQuery));
+            if(!facet)
+                req.append("&facet=false");
+            if(!"".equals(fsort))
+                req.append("&fsort=").append(fsort);
+            if(foffset > 0)
+                req.append("&foffset=").append(foffset);
+            if(!"".equals(fprefix))
+                req.append("&fprefix=").append(fprefix);
+        } catch (URIException e) {
+            logger.warn("URIUtil error: " + e.getMessage(), e);
         }
 
-        req.append("&start=").append(start);
-        req.append("&pageSize=").append(pageSize);
-        req.append("&sort=").append(sort);
-        req.append("&dir=").append(dir);
-        req.append("&qc=").append(qc);
-
-        if(facets.length > 0 && facet)
-            req.append("&facets=").append(StringUtils.join(facets, "&facets="));
-        if (flimit != 30) 
-            req.append("&flimit=").append(flimit);
-        if (fl.length() > 0)
-            req.append("&fl=").append(fl);
-        if(StringUtils.isNotEmpty(formattedQuery))
-            req.append("&formattedQuery=").append(formattedQuery);
-        if(!facet)
-            req.append("&facet=false");
-        if(!"".equals(fsort))
-        	req.append("&fsort=").append(fsort);
-        if(foffset > 0)
-        	req.append("&foffset=").append(foffset);
-        if(!"".equals(fprefix))
-        	req.append("&fprefix=").append(fprefix);       
         return req.toString();
     }
 
