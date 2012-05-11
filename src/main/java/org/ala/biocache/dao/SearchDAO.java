@@ -27,6 +27,7 @@ import org.ala.biocache.dto.OccurrenceIndex;
 
 import org.ala.biocache.dto.BreakdownRequestParams;
 import org.ala.biocache.dto.DownloadRequestParams;
+import org.ala.biocache.dto.FacetResultDTO;
 import org.ala.biocache.dto.IndexFieldDTO;
 import org.ala.biocache.dto.OccurrencePoint;
 import org.ala.biocache.dto.PointType;
@@ -258,5 +259,7 @@ public interface SearchDAO {
      * @throws Exception
      */
     List<DataProviderCountDTO> getDataProviderList(SpatialSearchRequestParams requestParams) throws Exception;
+    
+    List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception;
 }
 

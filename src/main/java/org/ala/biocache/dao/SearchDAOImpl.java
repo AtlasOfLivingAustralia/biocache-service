@@ -51,6 +51,8 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.SolrQuery.ORDER;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
+import org.apache.solr.client.solrj.response.GroupCommand;
+import org.apache.solr.client.solrj.response.GroupResponse;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.client.solrj.response.FacetField.Count;
 import org.apache.solr.client.solrj.util.ClientUtils;
@@ -2060,6 +2062,41 @@ public class SearchDAOImpl implements SearchDAO {
         Set<IndexFieldDTO>  results = parseLukeResponse(response.toString(), fields != null);
         
         return results;
+    }
+    /**
+     * Returns the count of distinct values for the facets.  Uses groups.  Needs some more 
+     * work to determine best use...
+     */
+    public List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception{
+        formatSearchQuery(searchParams);            
+        //add context information
+        updateQueryContext(searchParams);
+        String queryString = buildSpatialQueryString(searchParams);        
+        searchParams.setFacet(false);        
+        searchParams.setPageSize(0);
+        SolrQuery query = initSolrQuery(searchParams, false);
+        query.setQuery(queryString);
+        //now use the supplied facets to add groups to the query
+        query.add("group", "true");
+        query.add("group.ngroups","true");
+        query.add("group.limit","0");        
+        for(String facet: searchParams.getFacets()){
+            //query.add("sort", facet + " asc");
+            query.add("group.field",facet);
+        }
+        QueryResponse response = server.query(query);
+        GroupResponse groupResponse = response.getGroupResponse();
+        //System.out.println(groupResponse);
+        List<FacetResultDTO> facetResults = new ArrayList<FacetResultDTO>();
+        for(GroupCommand gc :groupResponse.getValues()){
+            ArrayList<FieldResultDTO> r = new ArrayList<FieldResultDTO>();
+            for(org.apache.solr.client.solrj.response.Group g: gc.getValues()){
+                r.add(new FieldResultDTO(g.getGroupValue(), g.getResult().getNumFound()));
+            }             
+            facetResults.add(new FacetResultDTO(gc.getName(), r, gc.getNGroups()));
+        }
+        
+        return facetResults;
     }
     
     /**

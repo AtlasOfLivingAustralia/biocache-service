@@ -27,6 +27,8 @@ public class FacetResultDTO {
     private String fieldName;
     /** Set of facet field results */
     private List<FieldResultDTO> fieldResult; 
+    /** The number of distinct values in the field - can only be populated from "groups" */
+    private Integer count;
 
 
     /**
@@ -38,6 +40,11 @@ public class FacetResultDTO {
     public FacetResultDTO(String fieldName, List<FieldResultDTO> fieldResult) {
         this.fieldName = fieldName;
         this.fieldResult = fieldResult;
+    }
+    
+    public FacetResultDTO(String fieldName, List<FieldResultDTO> fieldResult, Integer count) {
+        this(fieldName,fieldResult);
+        this.count = count;
     }
 
     /**
@@ -64,4 +71,18 @@ public class FacetResultDTO {
         this.fieldResult = fieldResult;
     }
 
+    /**
+     * @return the count
+     */
+    public Integer getCount() {
+        return count;
+    }
+
+    /**
+     * @param count the count to set
+     */
+    public void setCount(Integer count) {
+        this.count = count;
+    }
+    
 }

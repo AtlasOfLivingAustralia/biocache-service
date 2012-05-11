@@ -43,6 +43,7 @@ import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
+
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -175,6 +176,16 @@ public class OccurrenceController extends AbstractSecureController {
 	        return searchDAO.getIndexedFields();
 	    else
 	        return searchDAO.getIndexFieldDetails(fields.split(","));
+	}
+	/**
+	 * Returns a facet list including the number of distinct values for a field
+	 * @param requestParams
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping("occurrence/facets")
+	public @ResponseBody List<FacetResultDTO> getOccurrenceFacetDetails(SpatialSearchRequestParams requestParams) throws Exception{
+	    return searchDAO.getFacetCounts(requestParams);
 	}
 	
 	/**
@@ -725,6 +736,27 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = {"/occurrence/compare*"}, method = RequestMethod.GET)
     public @ResponseBody Object compareOccurrenceVersions(@RequestParam(value = "uuid", required = true) String uuid){
         return showOccurrence(uuid);
+    }
+    /**
+     * Returns the records uuids that have been deleted since the fromDate inclusive.
+     * 
+     * @param fromDate
+     * @param response
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = {"/occurrence/deleted"}, method = RequestMethod.GET)
+    public @ResponseBody String[] getDeleteOccurrences(@RequestParam(value ="date", required = true) String fromDate,
+            HttpServletResponse response) throws Exception{
+        try{
+            //date must be in a yyyy-MM-dd format
+            Date date = org.apache.commons.lang.time.DateUtils.parseDate(fromDate,new String[]{"yyyy-MM-dd"});
+            return Store.getDeletedRecords(date);
+        }
+        catch(Exception e){
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid date format.  Please provide date as yyyy-MM-dd.");
+        }
+        return null;
     }
     
 	/**
