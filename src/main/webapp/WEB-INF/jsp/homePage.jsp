@@ -267,7 +267,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 
         <h3>Parsing Webservices</h3>
         <ul class="webserviceList">
-            <li><strong>Match darwin core terms</strong>: /parser/matchTerms - accepts a POST JSON body. Examples:
+            <li><a href="#matchTerms" id="matchTerms" name="matchTerms"><strong>Match darwin core terms</strong></a>: /parser/matchTerms - accepts a POST JSON body. Examples:
                 <ul>
                 <li><span class="code exampleResponse">["scientific name", "latitude"] </span>
                     <br/><strong>will return</strong><br/>
@@ -279,7 +279,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                 </li>
                 </ul>
             </li>
-            <li><strong>Are darwin core terms? </strong>: /parser/areDwcTerms - accepts a POST JSON body. Examples:
+            <li><a href="#areDwcTerms" id="areDwcTerms" name="areDwcTerms"><strong>Are darwin core terms? </strong></a>: /parser/areDwcTerms - accepts a POST JSON body. Examples:
                 <ul>
                 <li><span class="code exampleResponse">["scientific name", "latitude"]</span>
                     <br/><strong>will return</strong><br/>
@@ -289,7 +289,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <span class="code">false</span></li>
                 </ul>
             </li>
-            <li><strong>Ad hoc processing</strong>: /process/adhoc - accepts a POST JSON body. Examples:
+            <li><a href="#adhocProcessing" id="adhocProcessing" name="adhocProcessing"><strong>Ad hoc processing</strong></a>: /process/adhoc - accepts a POST JSON body. Examples:
                 <ul>
                 <li><span class="code exampleResponse">{ "scientificName": "Macropus rufus" }</span>
                     <br/><strong>will return</strong><br/>
@@ -376,15 +376,14 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     </li>
                 </ul>
             </li>
-            <li><strong>Legend:</strong> /webportal/legend <br>
-                Get a CSV legend.<br>
+            <li><strong>Legend:</strong> /webportal/legend - Get a CSV legend.<br/>
                 Parameters:
-            <ul>
-                <li><strong>q</strong> - CQL_FILTER value</li>
-                <li><strong>cm</strong> - ENV colormode value</li>
-            </ul>
+	            <ul class="paramList">
+	                <li><strong>q</strong> - CQL_FILTER value</li>
+    	            <li><strong>cm</strong> - ENV colormode value</li>
+	            </ul>
                 Contains columns:
-                <ul  class="paramList">
+                <ul class="paramList">
                     <li><strong>name</strong> - legend item name</li>
                     <li><strong>red</strong> - 0-255</li>
                     <li><strong>green</strong> - 0-255</li>
@@ -392,7 +391,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <li><strong>count</strong> - number of occurrences for this legend category in the q parameter</li>
                 </ul>
             </li>
-            <li><strong>Image</strong> /webportal/wms/image<br>
+            <li><strong>Publication map image</strong> /webportal/wms/image<br/>
                 e.g. <a href="${initParam.webservicesRoot}/webportal/wms/image?extents=142,-45,151,-38&q=macropus&format=jpg&dpi=300&pradiusmm=1&popacity=0.8&pcolour=0000FF&widthmm=150&scale=on&baselayer=aus2">/webportal/wms/image?extents=142,-45,151,-38&q=macropus&format=jpg&dpi=300&pradiusmm=1&popacity=0.8&pcolour=0000FF&widthmm=150&scale=on&baselayer=aus2</a>
                 <ul class="paramList">
                     <li><strong>extents</strong> - EPSG4326 bounding box. Valid between -180 and +180 longitude.  Latitude is best between -85 and +85.  e.g. &extents=-180,-85,180,85</li>
@@ -408,6 +407,24 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                 </ul>
             </li>
         </ul>
+
+		<a href="#outlierInformation" name="outlierInformation" id="outlierInformation"><h3>Outlier information</h3></a>
+		<ul>
+			<li><a href="#outlierInfo" name="outlierInfo" id="outlierInfo"><strong>Outlier test information for species</strong></a><br/>
+			e.g. 			
+			<a href="${initParam.webservicesRoot}/outlierInfo/urn:lsid:biodiversity.org.au:afd.taxon:0c139726-2add-4abe-a714-df67b1d4b814.json">/outlierInfo/urn:lsid:biodiversity.org.au:afd.taxon:0c139726-2add-4abe-a714-df67b1d4b814.json </a>(Mountain thornbill)
+			</li>
+			<!--
+			<li><a href="#outliers" name="outliers" id="outliers"><strong>Outlier records for species</strong></a><br/>
+			e.g. 			
+			<a href="${initParam.webservicesRoot}/outliers/urn:lsid:biodiversity.org.au:afd.taxon:0c139726-2add-4abe-a714-df67b1d4b814.json">/outlierInfo/urn:lsid:biodiversity.org.au:afd.taxon:0c139726-2add-4abe-a714-df67b1d4b814.json </a>(Mountain thornbill)
+			</li>
+			-->
+			<li><a href="#outlierRecordDetails" name="outlierRecordDetails" id="outlierRecordDetails"><strong>Outlier record details</strong></a><br/>
+			e.g. 			
+			<a href="${initParam.webservicesRoot}/outlier/record/b07bbac2-22d7-4c8a-8d61-4be1ab9e0d09">/outlier/record/b07bbac2-22d7-4c8a-8d61-4be1ab9e0d09 </a>(A Mountain thornbill outlier)
+			</li>		
+		</ul>
 
         <h2>Free text search of occurrence records (will return JSON)</h2>
 		<div id="inpage_search">
