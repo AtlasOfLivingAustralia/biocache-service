@@ -183,7 +183,7 @@ public class UploadController {
         uu.setName(datasetName);
 
         String json = mapper.writeValueAsString(uu);
-        System.out.println("Sending: " + json);
+        //System.out.println("Sending: " + json);
 
         post.setRequestBody(json);
         HttpClient httpClient = new HttpClient();

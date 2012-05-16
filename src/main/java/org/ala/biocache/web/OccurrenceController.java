@@ -652,7 +652,7 @@ public class OccurrenceController extends AbstractSecureController {
 		
         //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
 		List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl,uidStats.keySet(), List.class);
-		System.out.println(entities);
+		//System.out.println(entities);
 		if(entities.size()>0){
 		    out.write("\"Resource name\",\"Citation\",\"Rights\",\"More information\",\"Data generalizations\",\"Information withheld\",\"Download limit\",\"Number of Records in Download\"\n".getBytes());
 		    for(Map<String,Object> record : entities){

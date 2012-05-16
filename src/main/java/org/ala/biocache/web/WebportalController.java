@@ -1223,7 +1223,7 @@ public class WebportalController implements ServletConfigAware {
                 + "&BBOX=" + boundingBox[0] + "," + boundingBox[1] + "," + boundingBox[2] + "," + boundingBox[3]
                 + "&WIDTH=" + width + "&HEIGHT=" + height
                 + "&format_options=dpi:" + dpi + ";" + layout;
-        System.out.println(basemapAddress);
+        //System.out.println(basemapAddress);
         URL basemapURL = new URL(basemapAddress);
         BufferedImage basemapImage = ImageIO.read(basemapURL);
 
