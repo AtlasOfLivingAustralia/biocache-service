@@ -39,14 +39,33 @@ public class SpatialSearchRequestParams extends SearchRequestParams{
      */
     @Override
     public String toString() {
-        StringBuilder req = new StringBuilder(super.toString());
+        return addSpatialParams(super.toString(), false);
+    }
+
+    /**
+     * Produce a URI encoded query string for use in java.util.URI, etc
+     *
+     * @return
+     */
+    public String getEncodedParams() {
+        return addSpatialParams(super.getEncodedParams(), true);
+    }
+
+    /**
+     * Add the spatial params to the param string
+     *
+     * @param paramString
+     * @return
+     */
+    protected String addSpatialParams(String paramString, Boolean encodeParams) {
+        StringBuilder req = new StringBuilder(paramString);
         if (lat != null && lon != null && radius != null) {
             req.append("&lat=").append(lat);
             req.append("&lon=").append(lon);
             req.append("&radius=").append(radius);
         }
         if(wkt.length() >0)
-            req.append("&wkt=").append(wkt);
+            req.append("&wkt=").append(super.conditionalEncode(wkt, encodeParams));
         if(gk)
             req.append("&gk=true");
         return req.toString();

@@ -128,7 +128,7 @@ public class SearchRequestParams {
      * @param isEncoded
      * @return query string
      */
-    private String conditionalEncode(String input, Boolean isEncoded) {
+    protected String conditionalEncode(String input, Boolean isEncoded) {
         String output;
 
         if (isEncoded) {
