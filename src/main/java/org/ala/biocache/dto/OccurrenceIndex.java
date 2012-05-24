@@ -111,6 +111,7 @@ public class OccurrenceIndex {
     //conservation status field
     @Field("aust_conservation") String austConservation;
     @Field("state_conservation") String stateConservation;
+    @Field("sensitive") String sensitive;
 
     String imageUrl;
     String largeImageUrl;
@@ -890,4 +891,19 @@ public class OccurrenceIndex {
     public void setBiocacheMediaUrl(String biocacheMediaUrl) {
         this.biocacheMediaUrl = biocacheMediaUrl;
     }
+
+    /**
+     * @return the sensitive
+     */
+    public String getSensitive() {
+        return sensitive;
+    }
+
+    /**
+     * @param sensitive the sensitive to set
+     */
+    public void setSensitive(String sensitive) {
+        this.sensitive = sensitive;
+    }
+    
 }
