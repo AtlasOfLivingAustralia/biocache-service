@@ -157,13 +157,13 @@ public class SearchUtils {
 			}
 			    //return the lft and rgt range if they exist otherwise return the scientific name
 			    if(tc.getLeft() == null || tc.getRight() == null)
-			        return new String[]{"taxon_name:\""+ tc.getScientificName()+"\"", dispSB.toString()};
+			        return new String[]{"taxon_name:\""+ tc.getScientificName()+"\" OR taxon_concept_lsid:"+lsid , dispSB.toString()};
                 StringBuilder sb = new StringBuilder("lft:[");
                 sb.append(tc.getLeft()).append(" TO ").append(tc.getRight()).append("]");
                 return new String[] {sb.toString(),dispSB.toString()};
             }
             //If the lsid for the taxon concept can not be found just return the original string
-            return new String[]{"lsid:" +lsid, "lsid:" +lsid};
+            return new String[]{"taxon_concept_lsid:" +lsid, "taxon_concept_lsid:" +lsid};
         }
         /**
          * updates the query ready for a spatial search
