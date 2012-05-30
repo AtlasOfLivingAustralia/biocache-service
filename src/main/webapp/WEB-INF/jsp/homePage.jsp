@@ -115,6 +115,12 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     A listing of fields that come in the download is available <a href="https://docs.google.com/spreadsheet/ccc?key=0AjNtzhUIIHeNdHhtcFVSM09qZ3c3N3ItUnBBc09TbHc">here</a>.
                 </p>
              </li>
+             <li><strong>Occurrence download from index:</strong> /occurrences/index/download - has identical request params to the "Occurrence download".<br>
+             	An index download differs by exporting the values from the index rather than the database. Index downloads are generally faster but they are 
+             	restricted to values that are "stored" in the index. See  <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a> for information
+             	about the stored index. When database fields are supplied they are mapped to the appropriate index value.<br>
+             	Fields that are not "stored" in the index are silently ignored in the download.
+             </li>
             <li><strong>Occurrence Count for Taxa:</strong> /occurrences/taxaCount<br>
             This is a POST or GET service with the following parameters:
                 <ul class="paramList">

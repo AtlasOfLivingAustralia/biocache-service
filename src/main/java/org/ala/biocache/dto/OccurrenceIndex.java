@@ -99,6 +99,7 @@ public class OccurrenceIndex {
     @Field("raw_basis_of_record") String raw_basisOfRecord;
     @Field("raw_type_status") String raw_typeStatus;
     @Field("raw_common_name") String raw_vernacularName;
+    @Field("collector") String collector;
     //constructed fields
     @Field("lat_long") String latLong;
     @Field("point-1") String point1;
@@ -904,6 +905,20 @@ public class OccurrenceIndex {
      */
     public void setSensitive(String sensitive) {
         this.sensitive = sensitive;
+    }
+
+    /**
+     * @return the collector
+     */
+    public String getCollector() {
+        return collector;
+    }
+
+    /**
+     * @param collector the collector to set
+     */
+    public void setCollector(String collector) {
+        this.collector = collector;
     }
     
 }

@@ -563,17 +563,43 @@ public class OccurrenceController extends AbstractSecureController {
             return null;
         }
         if(apiKey != null){
-            return occurrenceSensitiveDownload(requestParams, apiKey, response, request);
+            return occurrenceSensitiveDownload(requestParams, apiKey, false, response, request);
         }
 
-        writeQueryToStream(requestParams, response, ip, out, false);
+        writeQueryToStream(requestParams, response, ip, out, false,false);
         return null;
 	}
 	
-    @RequestMapping(value = "/sensitive/occurrences/download*", method = RequestMethod.GET)
+	@RequestMapping(value = "/occurrences/index/download*", method = RequestMethod.GET)
+	public void occurrenceIndexDownload(DownloadRequestParams requestParams,
+            @RequestParam(value="apiKey", required=false) String apiKey,
+            HttpServletResponse response,
+            HttpServletRequest request) throws Exception{
+	    
+	    String ip = request.getLocalAddr();
+        ServletOutputStream out = response.getOutputStream();
+        //search params must have a query or formatted query for the downlaod to work
+        if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
+            return;
+        }
+        if(apiKey != null){
+            occurrenceSensitiveDownload(requestParams, apiKey, true, response, request);
+            return;
+        }
+        try{
+        writeQueryToStream(requestParams, response, ip, out, false,true);
+        }
+        catch(Exception e){
+            e.printStackTrace();
+        }
+	    
+	}
+	
+    //@RequestMapping(value = "/sensitive/occurrences/download*", method = RequestMethod.GET)
     public String occurrenceSensitiveDownload(
             DownloadRequestParams requestParams,
-            @RequestParam(value="apiKey", required=true) String apiKey,
+            String apiKey,
+            boolean fromIndex,
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
        
@@ -586,12 +612,12 @@ public class OccurrenceController extends AbstractSecureController {
                 return null;
             }
     
-            writeQueryToStream(requestParams, response, ip, out, true);
+            writeQueryToStream(requestParams, response, ip, out, true,fromIndex);
         }
         return null;
     }	
 
-    private void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, ServletOutputStream out, boolean includeSensitive) throws Exception {
+    private void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, ServletOutputStream out, boolean includeSensitive,boolean fromIndex) throws Exception {
         String filename = requestParams.getFile();
 
         response.setHeader("Cache-Control", "must-revalidate");
@@ -607,7 +633,10 @@ public class OccurrenceController extends AbstractSecureController {
         requestParams.setFacets(new String[]{"assertions", "data_resource_uid"});
         Map<String, Integer> uidStats = null;
         try {
-            uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100, includeSensitive);
+            if(fromIndex)
+                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, zop, 100 ,includeSensitive);
+            else
+                uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100, includeSensitive);
         } catch (Exception e){
             logger.error(e);
         }
@@ -618,7 +647,7 @@ public class OccurrenceController extends AbstractSecureController {
         zop.write(("For more information about the fields that are being downloaded please consult <a href='" +dataFieldDescriptionURL+"'>Download Fields</a>.").getBytes());
         
         //Add the data citation to the download
-        if (!uidStats.isEmpty()) {
+        if (uidStats != null &&!uidStats.isEmpty()) {
             //add the citations for the supplied uids
             zop.putNextEntry(new java.util.zip.ZipEntry("citation.csv"));
             try {
@@ -651,8 +680,7 @@ public class OccurrenceController extends AbstractSecureController {
 		}
 		
         //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
-		List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl,uidStats.keySet(), List.class);
-		//System.out.println(entities);
+		List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl,uidStats.keySet(), List.class);		
 		if(entities.size()>0){
 		    out.write("\"Resource name\",\"Citation\",\"Rights\",\"More information\",\"Data generalizations\",\"Information withheld\",\"Download limit\",\"Number of Records in Download\"\n".getBytes());
 		    for(Map<String,Object> record : entities){

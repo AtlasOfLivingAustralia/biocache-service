@@ -96,6 +96,17 @@ public interface SearchDAO {
      * @throws Exception
      */
 	Map<String,Integer> writeResultsToStream(DownloadRequestParams searchParams, OutputStream out, int maxNoOfRecords, boolean includeSensitive) throws Exception;
+	
+	/**
+	 * Writes the results of this query to the output stream using the index as a source of the data.
+	 * @param downloadParams
+	 * @param out
+	 * @param i
+	 * @param includeSensitive
+	 * @return
+	 * @throws Exception
+	 */
+	Map<String, Integer> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, int i, boolean includeSensitive) throws Exception;
 
     /**
      * Write coordinates out to the supplied stream.

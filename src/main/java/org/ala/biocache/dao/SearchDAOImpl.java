@@ -168,12 +168,13 @@ public class SearchDAOImpl implements SearchDAO {
                 SolrIndexDAO dao = (SolrIndexDAO) au.org.ala.biocache.Config.getInstance(IndexDAO.class);
                 dao.init();
                 server = dao.solrServer();
+                downloadFields = new DownloadFields(getIndexedFields());
                 
             } catch (Exception ex) {
                 logger.error("Error initialising embedded SOLR server: " + ex.getMessage(), ex);
             }
         }
-        downloadFields = new DownloadFields();
+        
     }
 
     public void refreshCaches(){
@@ -418,35 +419,150 @@ public class SearchDAOImpl implements SearchDAO {
                 }
         }
     }
-    
+    /**
+     * Writes the index fields to the supplied output stream in CSV format
+     * 
+     * NB This implementation DOES NOT support the concept of download limits at a data resource level.
+     * 
+     * @param downloadParams
+     * @param out
+     * @param i
+     * @param includeSensitive
+     * @return
+     * @throws Exception
+     */
     public Map<String, Integer> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, int i, boolean includeSensitive) throws Exception{
         int resultsCount = 0;
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
-        //stores the remaining limit for data resources that have a download limit
-        Map<String, Integer> downloadLimit = new HashMap<String,Integer>();
+       
         try{
             SolrQuery solrQuery = initSolrQuery(downloadParams,false);
-            formatSearchQuery(downloadParams);    
+            formatSearchQuery(downloadParams); 
             
+            
+            String dFields = downloadParams.getFields();
+            
+            if(includeSensitive){
+                //include raw latitude and longitudes
+                dFields = dFields.replaceFirst("decimalLatitude.p", "sensitive_latitude,sensitive_longitude,decimalLatitude.p");
+            }
+            
+            StringBuilder  sb = new StringBuilder(dFields);
+            if(downloadParams.getExtra().length()>0)
+                sb.append(",").append(downloadParams.getExtra());
+            
+            
+            String[] fields = sb.toString().split(","); 
+            List<String>[] indexedFields = downloadFields.getIndexFields(fields);
+            logger.debug("Fields included in download: " +indexedFields[0]);
+            logger.debug("Fields excluded from download: "+indexedFields[1]);
+            logger.debug("The headers in downloads: "+indexedFields[2]);
+            //set the fields to the ones that are available in the index
+            fields = indexedFields[0].toArray(new String[]{});
             //add context information
             updateQueryContext(downloadParams);
             solrQuery.setQuery(buildSpatialQueryString(downloadParams));
             int startIndex = 0;
-            int pageSize = downloadParams.getPageSize();
+            int pageSize = downloadBatchSize;
+            solrQuery.setFields(fields);
             solrQuery.addField("assertions");
             solrQuery.addField("institution_uid");
             solrQuery.addField("collection_uid");
             solrQuery.addField("data_resource_uid");
             solrQuery.addField("data_provider_uid");
             
-            QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), pageSize, startIndex, "score", "asc");
+            
+            QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), 0, 0, "score", "asc");
+            //get the assertion facets to add them to the download fields
+            List<FacetField> facets = qr.getFacetFields();
+            StringBuilder qasb = new StringBuilder();
+            //get the assertion factes.
+            for(FacetField facet : facets){
+                if(facet.getName().equals("assertions") && facet.getValueCount()>0){
+                    
+                   for(FacetField.Count facetEntry : facet.getValues()){
+                       //System.out.println("facet: " + facetEntry.getName());
+                       if(qasb.length()>0)
+                           qasb.append(",");
+                       qasb.append(facetEntry.getName());
+                   }
+                }
+            }
+            
+            String qas = qasb.toString();   
+            //TODO headings
+//            String[] fields = sb.toString().split(",");            
+            String[]qaFields = qas.equals("")?new String[]{}:qas.split(",");
+            String[] qaTitles = downloadFields.getHeader(qaFields);
+//            String[] titles = downloadFields.getHeader(fields);
+//            String[] header = org.apache.commons.lang3.ArrayUtils.addAll(titles,qaTitles);
+            
+            String[] header = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[2].toArray(new String[]{}),qaTitles);
+            
+            au.org.ala.biocache.RecordWriter rw = new org.ala.biocache.writer.CSVRecordWriter(out, header);
+            
+            
+            
+            //now perform the download from the index
+            qr = runSolrQuery(solrQuery, downloadParams.getFq(), pageSize, startIndex, "score", "asc");
+            
+            
+            while (qr.getResults().size() > 0 && resultsCount < MAX_DOWNLOAD_SIZE ) {
+                logger.debug("Start index: " + startIndex);                
+                for (SolrDocument sd : qr.getResults()) {
+                    if(sd.getFieldValue("data_resource_uid") != null){
+                    String druid = sd.getFieldValue("data_resource_uid").toString();
+                    if(resultsCount < MAX_DOWNLOAD_SIZE){
+                        resultsCount++;
+                        
+                        //add the record
+                        String[] values = new String[fields.length+qaFields.length];
+                        //get all the "single" values from the index
+                        int j=0;
+                        for(j =0;j<fields.length;j++){
+                            Object value =sd.getFirstValue(fields[j]);
+                            if(value instanceof Date)
+                                values[j] = value == null ? "" : org.apache.commons.lang.time.DateFormatUtils.format((Date)value, "yyyy-MM-dd");
+                            else
+                                values[j]= value==null?"":value.toString();
+                        }
+                        //now handle the assertions
+                        java.util.Collection<Object> assertions = sd.getFieldValues("assertions");
+                        //Handle the case where there a no assertions against a record
+                        if(assertions == null)
+                            assertions = Collections.EMPTY_LIST;
+                        for(int k=0;k<qaFields.length;k++){
+                            values[j+k] = Boolean.toString(assertions.contains(qaFields[k]));
+                        }
+                        
+                        rw.write(values);
+
+                        //increment the counters....
+                        incrementCount(uidStats, sd.getFieldValue("institution_uid"));
+                        incrementCount(uidStats, sd.getFieldValue("collection_uid"));
+                        incrementCount(uidStats, sd.getFieldValue("data_provider_uid"));
+                        incrementCount(uidStats,  sd.getFieldValue("data_resource_uid"));
+                    }}
+                }
+                
+                startIndex += pageSize;
+                
+                if (resultsCount < MAX_DOWNLOAD_SIZE) {
+                    //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
+                    qr = runSolrQuery(solrQuery, null, pageSize, startIndex, "score", "asc");
+                   
+                }
+            }            
+            rw.finalise();
+            
+            //QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), pageSize, startIndex, "score", "asc");
             
         }
         catch (SolrServerException ex) {
             logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
             //searchResults.setStatus("ERROR"); // TODO also set a message field on this bean with the error message(?)
-        }
-        return null;
+        }        
+        return uidStats;
     }
     
    

@@ -2,8 +2,14 @@
 package org.ala.biocache.util;
 
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.Properties;
+import java.util.*;
+import au.org.ala.biocache.Store;
+
+import org.ala.biocache.dto.IndexFieldDTO;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 /**
  *
@@ -17,13 +23,17 @@ public class DownloadFields {
     
 private String defaultFields="uuid,catalogNumber,taxonConceptID.p,scientificName,vernacularName,scientificName.p,taxonRank.p,vernacularName.p,kingdom.p,phylum.p,classs.p,order.p,family.p,genus.p,species.p,subspecies.p,institutionCode,collectionCode,latitude.p,longitude.p,coordinatePrecision,country.p,ibra.p,imcra.p,stateProvince.p,lga.p,minimumElevationInMeters,maximumElevationInMeters,minimumDepthInMeters,maximumDepthInMeters,year.p,month.p,day.p,eventDate.p,eventTime.p,basisOfRecord,typeStatus.p,sex,preparations";
 private Properties downloadProperties;
+private Map<String,IndexFieldDTO>indexFieldMaps;
 
-public DownloadFields(){
+public DownloadFields(Set<IndexFieldDTO> indexFields){
     //initialise the properties
     try{
         downloadProperties = new Properties();
         InputStream is = getClass().getResourceAsStream("/download.properties");
         downloadProperties.load(is);
+        indexFieldMaps = new TreeMap<String,IndexFieldDTO>();
+        for(IndexFieldDTO field: indexFields)
+            indexFieldMaps.put(field.getName(), field);
     }
     catch(Exception e){
         e.printStackTrace();
@@ -52,6 +62,30 @@ public String[] getHeader(String[] values){
         header[i] = v!=null ?v :values[i];
     }
     return header;
+}
+/**
+ * returns the index fields that are used for the supplied values
+ * @param values
+ * @return
+ */
+public List<String>[] getIndexFields(String[] values){
+    java.util.List<String> mappedNames = new java.util.LinkedList<String>();
+    java.util.List<String> headers = new java.util.LinkedList<String>();
+    java.util.List<String> unmappedNames = new java.util.LinkedList<String>();
+    java.util.Map<String,String> storageFieldMap = Store.getStorageFieldMap();
+    for(String value : values){
+        //check to see if it is the the
+        String indexName = storageFieldMap.containsKey(value)?storageFieldMap.get(value):value;
+        //now check to see if this index field is stored
+        IndexFieldDTO field = indexFieldMaps.get(indexName);
+        if((field != null && field.isStored()) || value.startsWith("sensitive")){
+            mappedNames.add(indexName);            
+            headers.add(downloadProperties.getProperty(value, value));
+        }
+        else
+            unmappedNames.add(indexName);
+    }
+    return new List[]{mappedNames,unmappedNames,headers};
 }
 
 }
