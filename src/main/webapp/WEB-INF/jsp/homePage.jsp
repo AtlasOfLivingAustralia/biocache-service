@@ -269,6 +269,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         	</li>
         	<li><strong>Images: </strong>/images/taxon/{guid} - obtains a list of occurrence images for the supplied species taxon GUID. Example:<br>
         	<a href="${initParam.webservicesRoot}/images/taxon/urn:lsid:biodiversity.org.au:afd.taxon:dbc44b63-9611-44a8-af58-a29caea777b6">/images/taxon/urn:lsid:biodiversity.org.au:afd.taxon:dbc44b63-9611-44a8-af58-a29caea777b6</a></li>
+        	<li><a href="#deletedRecords" name="deletedRecords" id="deletedRecords"><strong>Retrieve Deleted Record UUIDs:</strong></a> /occurrence/deleted?date=yyyy-MM-dd. This service will return a list of occurrence UUIDs that have been deleted since the supplied date (inclusive).</li>
         </ul>
 
         <h3>Parsing Webservices</h3>
