@@ -1795,6 +1795,7 @@ class WmsEnv {
 
         for (String s : env.split(";")) {
             String[] pair = s.split(":");
+            pair[1] = s.substring(s.indexOf(":") + 1);
             if (pair[0].equals("color")) {
                 while (pair[1].length() < 6) {
                     pair[1] = "0" + pair[1];
