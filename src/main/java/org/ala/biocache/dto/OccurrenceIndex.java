@@ -113,6 +113,8 @@ public class OccurrenceIndex {
     @Field("aust_conservation") String austConservation;
     @Field("state_conservation") String stateConservation;
     @Field("sensitive") String sensitive;
+    //AVH extra fields
+    @Field("record_number") String recordNumber;
 
     String imageUrl;
     String largeImageUrl;
@@ -303,6 +305,7 @@ public class OccurrenceIndex {
         addToMapIfNotNull(map,"multimedia", arrToString(multimedia));
         addToMapIfNotNull(map,"collector",collector);
         addToMapIfNotNull(map,"collectors",arrToString(collectors));
+        addToMapIfNotNull(map,"record_number", recordNumber);        
         return map;
     }
 
@@ -920,6 +923,20 @@ public class OccurrenceIndex {
      */
     public void setCollectors(String[] collectors) {
         this.collectors = collectors;
+    }
+
+    /**
+     * @return the recordNumber
+     */
+    public String getRecordNumber() {
+        return recordNumber;
+    }
+
+    /**
+     * @param recordNumber the recordNumber to set
+     */
+    public void setRecordNumber(String recordNumber) {
+        this.recordNumber = recordNumber;
     }
     
 }
