@@ -93,13 +93,13 @@ public class OccurrenceIndex {
     @Field("all_image_url") String[] images;
     @Field("geospatial_kosher") String geospatialKosher;
     @Field("taxonomic_kosher") String taxonomicKosher;
-    @Field("collector") String raw_recordedBy;
+    @Field("collector") String collector;
+    @Field("collectors") String[] collectors;
     //extra raw record fields
     @Field("raw_taxon_name") String raw_scientificName;
     @Field("raw_basis_of_record") String raw_basisOfRecord;
     @Field("raw_type_status") String raw_typeStatus;
-    @Field("raw_common_name") String raw_vernacularName;
-    @Field("collector") String collector;
+    @Field("raw_common_name") String raw_vernacularName;    
     //constructed fields
     @Field("lat_long") String latLong;
     @Field("point-1") String point1;
@@ -300,8 +300,9 @@ public class OccurrenceIndex {
         addToMapIfNotNull(map,"point-0.001", point0001);
         addToMapIfNotNull(map, "point-0.0001", point00001); 
         addToMapIfNotNull(map,"names_and_lsid", namesLsid); 
-        addToMapIfNotNull(map,"multimedia", arrToString(multimedia));     
-        addToMapIfNotNull(map,"collector",raw_recordedBy);
+        addToMapIfNotNull(map,"multimedia", arrToString(multimedia));
+        addToMapIfNotNull(map,"collector",collector);
+        addToMapIfNotNull(map,"collectors",arrToString(collectors));
         return map;
     }
 
@@ -769,12 +770,12 @@ public class OccurrenceIndex {
         this.taxonomicKosher = taxonomicKosher;
     }
 
-    public String getRaw_recordedBy() {
-        return raw_recordedBy;
+    public String getCollector() {
+        return collector;
     }
 
-    public void setRaw_recordedBy(String raw_recordedBy) {
-        this.raw_recordedBy = raw_recordedBy;
+    public void setCollector(String collector) {
+        this.collector = collector;
     }
 
     public String getRaw_scientificName() {
@@ -910,15 +911,15 @@ public class OccurrenceIndex {
     /**
      * @return the collector
      */
-    public String getCollector() {
-        return collector;
+    public String[] getCollectors() {
+        return collectors;
     }
 
     /**
      * @param collector the collector to set
      */
-    public void setCollector(String collector) {
-        this.collector = collector;
+    public void setCollectors(String[] collectors) {
+        this.collectors = collectors;
     }
     
 }
