@@ -1694,7 +1694,7 @@ public class SearchDAOImpl implements SearchDAO {
                 queryString.setLength(0);
                 while (matcher.find()) {
                     //only want to process the "lsid" if it does not represent taxon_concept_lsid etc...
-                    if(matcher.start() >0 && query.charAt(matcher.start()-1) != '_'){
+                    if((matcher.start() >0 && query.charAt(matcher.start()-1) != '_') || matcher.start() == 0){
                     String value = matcher.group();
                     logger.debug("preprocessing " + value);
                     String lsid = value.substring(5, value.length());
