@@ -506,13 +506,14 @@ public class SearchDAOImpl implements SearchDAO {
             //now perform the download from the index
             qr = runSolrQuery(solrQuery, downloadParams.getFq(), pageSize, startIndex, "score", "asc");
             
-            
-            while (qr.getResults().size() > 0 && resultsCount < MAX_DOWNLOAD_SIZE ) {
+            //no download limit for index based downloads
+            //while (qr.getResults().size() > 0 && resultsCount < MAX_DOWNLOAD_SIZE ) {
+            while (qr.getResults().size() > 0) {
                 logger.debug("Start index: " + startIndex);                
                 for (SolrDocument sd : qr.getResults()) {
                     if(sd.getFieldValue("data_resource_uid") != null){
                     String druid = sd.getFieldValue("data_resource_uid").toString();
-                    if(resultsCount < MAX_DOWNLOAD_SIZE){
+                   // if(resultsCount < MAX_DOWNLOAD_SIZE){
                         resultsCount++;
                         
                         //add the record
@@ -542,16 +543,16 @@ public class SearchDAOImpl implements SearchDAO {
                         incrementCount(uidStats, sd.getFieldValue("collection_uid"));
                         incrementCount(uidStats, sd.getFieldValue("data_provider_uid"));
                         incrementCount(uidStats,  sd.getFieldValue("data_resource_uid"));
-                    }}
+                    }//}
                 }
                 
                 startIndex += pageSize;
                 
-                if (resultsCount < MAX_DOWNLOAD_SIZE) {
+                //if (resultsCount < MAX_DOWNLOAD_SIZE) {
                     //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
                     qr = runSolrQuery(solrQuery, null, pageSize, startIndex, "score", "asc");
                    
-                }
+               // }
             }            
             rw.finalise();
             
