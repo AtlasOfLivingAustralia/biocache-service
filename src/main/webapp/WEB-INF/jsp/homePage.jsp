@@ -92,13 +92,11 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             <li><strong>Occurrence for data provider:</strong> /occurrences/dataProviders/{uid}</li>
             <li><strong>Occurrence for data hub:</strong> /occurrences/dataHubs/{uid}
                 e.g. <a href="${initParam.webservicesRoot}/occurrences/dataHubs/dh1">/occurrences/collections/dh1</a></li>
-            <li><strong>Occurrence download:</strong> /occurrences/download - needs request param definition<br>
+            <li><a href="#downloadFromDB"><strong>Occurrence download:</strong></a> /occurrences/download - needs request param definition<br>
                 The download will include all records that satisfy the q, fq and wkt parameters.  The number of records
                 for a data resource may be restricted based on a collectory configured download limit.  Params:
                 <ul class="paramList">
                     <li><strong>q</strong> - the initial query. "q=*:*" will query anything, q="macropus" will do a free text search for "macropus", q=kingdom:Fungi will search for records with a kingdom of Fungi.
-                        <br/>
-
                     </li>
                     <li><strong>fq</strong> - filters to be applied to the original query. These are additional params of the form fq=INDEXEDFIELD:VALUE e.g. fq=kingdom:Fungi</li>
                     <li><strong>wkt</strong> - filter polygon area to be applied to the original query. For information on Well known text, see <a href="http://en.wikipedia.org/wiki/Well-known_text">this</a></li>
