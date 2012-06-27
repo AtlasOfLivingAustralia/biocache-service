@@ -119,7 +119,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected static final char[] CHARS = {' ',':'};
 
     //Patterns that are used to prepares a SOLR query for execution
-    protected Pattern lsidPattern= Pattern.compile("lsid:\"?[a-zA-Z0-9\\.:-]*\"?");
+    protected Pattern lsidPattern= Pattern.compile("( |^)lsid:\"?[a-zA-Z0-9\\.:-]*\"?");
     protected Pattern urnPattern = Pattern.compile("urn:[a-zA-Z0-9\\.:-]*");
     protected Pattern spacesPattern =Pattern.compile("[^\\s\"()\\[\\]']+|\"[^\"]*\"|'[^']*'");
     protected Pattern uidPattern = Pattern.compile("([a-z_]*_uid:)([a-z0-9]*)");
@@ -1711,7 +1711,7 @@ public class SearchDAOImpl implements SearchDAO {
                     String[] values = searchUtils.getTaxonSearch(lsid);
                     matcher.appendReplacement(queryString, values[0]);
                     displaySb.append(query.substring(last, matcher.start()));
-                    if(!values[1].startsWith("lsid:"))
+                    if(!values[1].startsWith("taxon_concept_lsid:"))
                         displaySb.append("<span class='lsid' id='").append(lsid).append("'>").append(values[1]).append("</span>");
                     else
                         displaySb.append(values[1]);
