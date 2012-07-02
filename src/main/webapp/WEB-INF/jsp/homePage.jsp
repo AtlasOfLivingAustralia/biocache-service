@@ -163,7 +163,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             <li><strong>Static Species Density Legend: </strong><a href="${initParam.webservicesRoot}/density/legend?q=*:*">/density/legend?q=*:*</a></li> - returns associated legend image (optional param forceRefresh=true will regenerate the image)
         </ul>
 
-        <h3>Assertions</h3>
+        <a href="#Assertions" name="Assertions" id="Assertions"><h3>Assertions</h3></a>
         <ul class="webserviceList">
             <li><strong>List assertion codes:</strong>
                 <a href="${initParam.webservicesRoot}/assertions/codes">/assertions/codes</a>
