@@ -28,7 +28,7 @@ public class SpatialSearchRequestParams extends SearchRequestParams{
     protected Float lat = null;
     protected Float lon = null;
     protected String wkt ="";
-    protected Boolean gk=false;//include only the geospatially kosher records
+    protected Boolean gk = false;//include only the geospatially kosher records
     private String[] gkFq = new String[]{"geospatial_kosher:true"};
 
     /**

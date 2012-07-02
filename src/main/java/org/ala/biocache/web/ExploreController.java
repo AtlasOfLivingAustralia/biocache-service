@@ -14,6 +14,7 @@
  ***************************************************************************/
 package org.ala.biocache.web;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
@@ -79,7 +80,11 @@ public class ExploreController {
 		radiusToZoomLevelMap.put(50f, 9);
 
         try {
-            lookupService = new LookupService(GEOIP_DATABASE, LookupService.GEOIP_INDEX_CACHE);
+            if(new File(GEOIP_DATABASE).exists()){
+                lookupService = new LookupService(GEOIP_DATABASE, LookupService.GEOIP_INDEX_CACHE);
+            } else {
+                logger.warn("Did not load GeoIP database. File unavailable: " + GEOIP_DATABASE);
+            }
         } catch (IOException ex) {
             logger.error("Failed to load GeoIP database: " + ex.getMessage(), ex);
         }

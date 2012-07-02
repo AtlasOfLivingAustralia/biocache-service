@@ -565,8 +565,6 @@ public class SearchDAOImpl implements SearchDAO {
         }        
         return uidStats;
     }
-    
-   
 
     /**
      * @see org.ala.biocache.dao.SearchDAO#writeResultsToStream(org.ala.biocache.dto.DownloadRequestParams, java.io.OutputStream, int, boolean) 
@@ -670,7 +668,6 @@ public class SearchDAOImpl implements SearchDAO {
      * 1) 1 call for each data resource that has a download limit (supply the data resource uid as the argument dataResource)
      * 2) 1 call for the remaining records
      * @param downloadParams
-     * @param out
      * @param downloadLimit
      * @param uidStats
      * @param fields
@@ -728,8 +725,6 @@ public class SearchDAOImpl implements SearchDAO {
                
             }
         }
-        
-        
         return resultsCount;
     }
     
@@ -772,7 +767,6 @@ public class SearchDAOImpl implements SearchDAO {
             logger.debug("Downloading with the following limits: " + map);
     }
 
-   
     private void incrementCount(Map<String, Integer> values, Object uid) {
         if (uid != null) {
             Integer count = values.containsKey(uid) ? values.get(uid) : 0;
@@ -780,8 +774,6 @@ public class SearchDAOImpl implements SearchDAO {
             values.put(uid.toString(), count);
         }
     }
-
-    
 
     /**
      * @see org.ala.biocache.dao.SearchDAO#getFacetPoints(org.ala.biocache.dto.SpatialSearchRequestParams, org.ala.biocache.dto.PointType) 
@@ -905,6 +897,7 @@ public class SearchDAOImpl implements SearchDAO {
                                 }
                             }
                         } catch (Exception e) {
+                            logger.debug(e.getMessage(),e);
                             //System.out.println("Error with getOccurrences:");
                             //e.printStackTrace(System.out);
                         }
@@ -1124,7 +1117,7 @@ public class SearchDAOImpl implements SearchDAO {
         List<FacetField> facetDateFields = qr.getFacetDates();
         FacetField ff = facetDateFields.get(0);
 
-        System.out.println(ff.getName());
+        logger.debug(ff.getName());
         boolean addCounts = false;
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy");
 
@@ -1136,7 +1129,7 @@ public class SearchDAOImpl implements SearchDAO {
                 String year = sdf.format(date);
                 FieldResultDTO f = new FieldResultDTO(year, count.getCount());
                 fDTOs.add(f);
-                System.out.println(f.getLabel() + " " + f.getCount());
+                logger.debug(f.getLabel() + " " + f.getCount());
             }
         }
         return fDTOs;

@@ -93,7 +93,6 @@ public class OccurrenceController extends AbstractSecureController {
 	protected String hostUrl = "http://localhost:8080/biocache-service";
 	protected String bieBaseUrl = "http://bie.ala.org.au/";
 	protected String collectoryBaseUrl = "http://collections.ala.org.au";
-	protected String biocacheMediaBaseUrl = "http://biocache.ala.org.au/biocache-media";
 	protected String citationServiceUrl = collectoryBaseUrl + "/ws/citations";
 	protected String summaryServiceUrl  = collectoryBaseUrl + "/ws/summary";
 	
@@ -712,18 +711,48 @@ public class OccurrenceController extends AbstractSecureController {
      *
 	 * @throws Exception
 	 */
-	@RequestMapping(value = {"/occurrences/page"}, method = RequestMethod.GET)
-	public @ResponseBody List<FullRecord> pageOccurrences(
-            @RequestParam(value="pageSize", required=false, defaultValue="10") int pageSize) throws Exception {
-        final List<FullRecord> records = new ArrayList<FullRecord>();
-        Store.pageOverAll(Versions.RAW(), new OccurrenceConsumer(){
-            public boolean consume(FullRecord record) {
-                records.add(record);
-                return false;
-            }
-        },null, pageSize);
-        return records;
-	}
+	@RequestMapping(value = {"/occurrences/nearest"}, method = RequestMethod.GET)
+	public @ResponseBody Map<String,Object> nearestOccurrence(SpatialSearchRequestParams requestParams) throws Exception {
+
+        logger.debug(String.format("Received lat: %f, lon:%f, radius:%f", requestParams.getLat(), requestParams.getLon(), requestParams.getRadius()));
+
+        if(requestParams.getLat() == null || requestParams.getLon() == null){
+            return new HashMap<String,Object>();
+        }
+        //requestParams.setRadius(1f);
+        requestParams.setDir("asc");
+        requestParams.setFacet(false);
+
+
+        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams);
+        List<OccurrenceIndex> ocs = searchResult.getOccurrences();
+
+        if(!ocs.isEmpty()){
+            Map<String,Object> results = new HashMap<String,Object>();
+            OccurrenceIndex oc = ocs.get(0);
+            Double decimalLatitude = oc.getDecimalLatitude();
+            Double decimalLongitude = oc.getDecimalLongitude();
+            Double distance = distInMetres(requestParams.getLat().doubleValue(), requestParams.getLon().doubleValue(),
+                    decimalLatitude, decimalLongitude);
+            results.put("distanceInMeters", distance);
+            results.put("occurrence", oc);
+            return results;
+        } else {
+            return new HashMap<String,Object>();
+        }
+    }
+
+    private Double distInMetres(Double lat1, Double lon1, Double lat2, Double lon2){
+        Double R = 6371000d; // km
+        Double dLat = Math.toRadians(lat2-lat1);
+        Double dLon = Math.toRadians(lon2-lon1);
+        Double lat1Rad = Math.toRadians(lat1);
+        Double lat2Rad = Math.toRadians(lat2);
+        Double a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1Rad) * Math.cos(lat2Rad);
+        Double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
 
     /**
      * Dumps the distinct latitudes and longitudes that are used in the
@@ -832,8 +861,7 @@ public class OccurrenceController extends AbstractSecureController {
             srp.setFacets(new String[]{});
             SearchResultDTO results = occurrenceSearch(srp);
             if(results.getTotalRecords()>0)
-                fullRecord = Store.getAllVersionsByRowKey(results.getOccurrences().get(0).getRowKey(), includeSensitive);
-            
+                fullRecord = Store.getAllVersionsByRowKey(results.getOccurrences().get(0).getRowKey(), includeSensitive);            
         }
         if(fullRecord == null){
             //check to see if we have an occurrence id
@@ -861,12 +889,12 @@ public class OccurrenceController extends AbstractSecureController {
             for(String sound: sounds){
                 MediaDTO m = new MediaDTO();
                 m.setContentType(MimeType.getForFileExtension(sound).getMimeType());
-                m.setFilePath(MediaStore.convertPathToUrl(sound,biocacheMediaBaseUrl));
+                m.setFilePath(MediaStore.convertPathToUrl(sound,OccurrenceIndex.biocacheMediaUrl));
 
                 String[] files = Store.getAlternativeFormats(sound);
                 for(String fileName: files){
                     String contentType = MimeType.getForFileExtension(fileName).getMimeType();
-                    String filePath = MediaStore.convertPathToUrl(fileName,biocacheMediaBaseUrl);
+                    String filePath = MediaStore.convertPathToUrl(fileName,OccurrenceIndex.biocacheMediaUrl);
                     //System.out.println("#########Adding media path: " + m.getFilePath());
                     m.getAlternativeFormats().put(contentType,filePath);
                 }
@@ -894,8 +922,8 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         //fix media store URLs
-        MediaStore.convertPathsToUrls(occ.getRaw(), biocacheMediaBaseUrl);
-        MediaStore.convertPathsToUrls(occ.getProcessed(), biocacheMediaBaseUrl);
+        MediaStore.convertPathsToUrls(occ.getRaw(), OccurrenceIndex.biocacheMediaUrl);
+        MediaStore.convertPathsToUrls(occ.getProcessed(), OccurrenceIndex.biocacheMediaUrl);
             
         LogEventVO vo = new LogEventVO(LogEventType.OCCURRENCE_RECORDS_VIEWED, email, reason, ip, uidStats);
         logger.log(RestLevel.REMOTE, vo);
@@ -991,9 +1019,5 @@ public class OccurrenceController extends AbstractSecureController {
 
 	public void setCitationServiceUrl(String citationServiceUrl) {
 		this.citationServiceUrl = citationServiceUrl;
-	}
-
-	public void setBiocacheMediaBaseUrl(String biocacheMediaBaseUrl) {
-		this.biocacheMediaBaseUrl = biocacheMediaBaseUrl;
 	}
 }

@@ -21,6 +21,7 @@ import org.ala.biocache.dao.SearchDAO;
 import org.ala.biocache.dto.*;
 import org.ala.biocache.util.SearchUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.log4j.Logger;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,6 +38,8 @@ import org.springframework.web.bind.annotation.ResponseBody;
  */
 @Controller
 public class BreakdownController {
+
+    private final static Logger logger = Logger.getLogger(BreakdownController.class);
 
 	@Inject
 	protected SearchDAO searchDAO;
@@ -106,7 +109,7 @@ public class BreakdownController {
 	
 	@RequestMapping(value= "/breakdown*")
 	public @ResponseBody TaxaRankCountDTO breakdownByQuery(BreakdownRequestParams  breakdownParams,HttpServletResponse response) throws Exception {
-	    System.out.println(breakdownParams);
+        logger.debug(breakdownParams);
 	    if(StringUtils.isNotEmpty(breakdownParams.getQ())){
 	        if(breakdownParams.getMax() != null || StringUtils.isNotEmpty(breakdownParams.getRank()) || StringUtils.isNotEmpty(breakdownParams.getLevel()))
 	            return searchDAO.calculateBreakdown(breakdownParams);
@@ -158,9 +161,6 @@ public class BreakdownController {
    
     /**
      * Performs a breakdown without limiting the collection or institution
-     * @param uuid
-     * @param max
-     * @param model
      * @return
      * @throws Exception
      */
@@ -168,10 +168,6 @@ public class BreakdownController {
     public @ResponseBody TaxaRankCountDTO limitBreakdown(BreakdownRequestParams requestParams, HttpServletResponse response) throws Exception {
         return performBreakdown("*", "*", requestParams, response);                
     }
-
-
-
-
 
 	/**
 	 * @param searchDAO

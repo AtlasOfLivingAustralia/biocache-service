@@ -1,6 +1,7 @@
 package org.ala.biocache.dto;
 
 import org.apache.commons.lang.time.DateFormatUtils;
+import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.beans.Field;
 import org.codehaus.jackson.annotate.JsonIgnore;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -16,15 +17,20 @@ import java.util.Properties;
  */
 public class OccurrenceIndex {
 
-    protected static String biocacheMediaUrl = "http://biocache.ala.org.au/biocache-media/";
-    protected static String biocacheMediaDir = "/data/biocache-media/";
+    public static String biocacheMediaUrl = "http://biocache.ala.org.au/biocache-media/";
+    public static String biocacheMediaDir = "/data/biocache-media/";
+    protected static final Logger logger = Logger.getLogger(OccurrenceIndex.class);
 
     static {
         //check the properties file for an override
         try {
             Properties p = new Properties();
-            InputStream inStream = Thread.currentThread().getContextClassLoader().getResourceAsStream("biocache.properties");
-            p.load(inStream);
+		    p.load(OccurrenceIndex.class.getResourceAsStream("/biocache.properties"));
+            //InputStream inStream = Thread.currentThread().getContextClassLoader().getResourceAsStream("biocache.properties");
+            //p.load(inStream);
+            logger.debug("Retrieved biocacheMediaUrl: " + p.getProperty("biocacheMediaUrl"));
+            logger.debug("Retrieved biocacheMediaDir: " + p.getProperty("biocacheMediaDir"));
+            
             if(p.getProperty("biocacheMediaUrl") != null)
                 biocacheMediaUrl = p.getProperty("biocacheMediaUrl");
             if(p.getProperty("biocacheMediaDir") != null)
