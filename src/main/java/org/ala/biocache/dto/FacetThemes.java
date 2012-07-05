@@ -21,7 +21,7 @@ public class FacetThemes {
         allThemes.add(new FacetTheme("Attribution", new Facet("data_provider_uid","count"),new Facet("data_resource_uid","count"), 
                       new Facet("institution_uid","count"), new Facet("collection_uid", "count"), new Facet("provenance", "count")));
         allThemes.add(new FacetTheme("Record Assertions", new Facet("assertions","count"), new Facet("outlier_layer","count"), 
-                      new Facet("outlier_layer_count","count"),new Facet("taxonomic_issue","count")));
+                      new Facet("outlier_layer_count","count"),new Facet("taxonomic_issue","count"), new Facet("duplicate_status","count")));
         
         for (FacetTheme theme : allThemes) {
             for(Facet f : theme.facets)
