@@ -118,10 +118,10 @@ public class SearchDAOImpl implements SearchDAO {
     protected static final String QUOTE = "\"";
     protected static final char[] CHARS = {' ',':'};
 
-    //Patterns that are used to prepares a SOLR query for execution
-    protected Pattern lsidPattern= Pattern.compile("( |^)lsid:\"?[a-zA-Z0-9\\.:-]*\"?");
+    //Patterns that are used to prepare a SOLR query for execution
+    protected Pattern lsidPattern= Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9\\.:-]*)\"?");
     protected Pattern urnPattern = Pattern.compile("urn:[a-zA-Z0-9\\.:-]*");
-    protected Pattern spacesPattern =Pattern.compile("[^\\s\"()\\[\\]']+|\"[^\"]*\"|'[^']*'");
+    protected Pattern spacesPattern =Pattern.compile("[^\\s\"\\(\\)\\[\\]']+|\"[^\"]*\"|'[^']*'");
     protected Pattern uidPattern = Pattern.compile("([a-z_]*_uid:)([a-z0-9]*)");
     protected Pattern spatialPattern = Pattern.compile("\\{!spatial[a-zA-Z=\\-\\s0-9\\.\\,():]*\\}");
     protected Pattern qidPattern= Pattern.compile("qid:[0-9]*");
@@ -1554,7 +1554,10 @@ public class SearchDAOImpl implements SearchDAO {
                 sb.append("wkt=").append(searchParams.getWkt()).append("}");
             }
             String query = StringUtils.isEmpty(searchParams.getFormattedQuery())? searchParams.getQ() : searchParams.getFormattedQuery();
-            sb.append(query);
+            if(StringUtils.isNotEmpty(query))
+                sb.append(query);
+            else
+                sb.append("*:*"); //default to all records when no query has been provided.
             return sb.toString();
         }
         return null;
@@ -1691,7 +1694,7 @@ public class SearchDAOImpl implements SearchDAO {
                     if((matcher.start() >0 && query.charAt(matcher.start()-1) != '_') || matcher.start() == 0){
                     String value = matcher.group();
                     logger.debug("preprocessing " + value);
-                    String lsid = value.substring(5, value.length());
+                    String lsid = matcher.group(2);                    
                     if (lsid.contains("\"")) {
                         //remove surrounding quotes, if present
                         lsid = lsid.replaceAll("\"","");
@@ -1702,12 +1705,13 @@ public class SearchDAOImpl implements SearchDAO {
                     }
                     logger.debug("lsid = " + lsid);
                     String[] values = searchUtils.getTaxonSearch(lsid);
-                    matcher.appendReplacement(queryString, values[0]);
+                    String lsidHeader = matcher.group(1).length()>0? matcher.group(1):""; 
+                    matcher.appendReplacement(queryString, lsidHeader +values[0]);
                     displaySb.append(query.substring(last, matcher.start()));
                     if(!values[1].startsWith("taxon_concept_lsid:"))
-                        displaySb.append("<span class='lsid' id='").append(lsid).append("'>").append(values[1]).append("</span>");
+                        displaySb.append("<span class='lsid' id='").append(lsid).append("'>").append(lsidHeader).append(values[1]).append("</span>");
                     else
-                        displaySb.append(values[1]);
+                        displaySb.append(lsidHeader).append(values[1]);
                     last = matcher.end();
                     //matcher.appendReplacement(displayString, values[1]);
                     }
