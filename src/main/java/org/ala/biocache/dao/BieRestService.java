@@ -36,7 +36,7 @@ public class BieRestService implements BieService {
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
 
     /** URI prefix for bie-service - may be overridden in properties file */
-    protected String bieUriPrefix = "http://bie.ala.org.au";
+    protected String bieUriPrefix = "http://bie.ala.org.au/ws";
 
     private final static Logger logger = Logger.getLogger(BieRestService.class);
     
@@ -58,8 +58,8 @@ public class BieRestService implements BieService {
             if (!jsonList.isEmpty()) {
                 Map<String, String> jsonMap = (Map<String, String>) jsonList.get(0);
                 
-                if (jsonMap.containsKey("identifier")) {
-                    guid = jsonMap.get("identifier");
+                if (jsonMap.containsKey("acceptedIdentifier")) {
+                    guid = jsonMap.get("acceptedIdentifier");
                 }
             }
             

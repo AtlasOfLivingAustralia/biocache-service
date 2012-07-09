@@ -62,17 +62,22 @@ public class QueryFormatTest {
     @DataPoints
     public static SearchQueryTester[] data() {
         return new SearchQueryTester[] {
-                new SearchQueryTester("lsid:urn:lsid:biodiversity.org.au:afd.taxon:7790064f-4ef7-4742-8112-6b0528d5f3fb", "lft:[", "species:", false),
+                new SearchQueryTester("lsid:urn:lsid:biodiversity.org.au:afd.taxon:31a9b8b8-4e8f-4343-a15f-2ed24e0bf1ae", "lft:[", "species:", false),
+                //new SearchQueryTester("lsid:urn:lsid:biodiversity.org.au:afd.taxon:7790064f-4ef7-4742-8112-6b0528d5f3fb", "lft:[", "species:", false),
+                new SearchQueryTester("lsid:urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb", "taxon_concept_lsid:urn\\:lsid\\:biodiversity.org.au\\:afd.taxon\\:test0064f\\-4ef7\\-4742\\-8112\\-6b0528d5f3fb","taxon_concept_lsid:urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb", true),
+                new SearchQueryTester("lsid:urn:lsid:biodiversity.org.au:afd.taxon:7790064f-4ef7-4742-8112-6b0528d5ftest OR lsid:urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb", "taxon_concept_lsid:urn\\:lsid\\:biodiversity.org.au\\:afd.taxon\\:7790064f\\-4ef7\\-4742\\-8112\\-6b0528d5ftest OR taxon_concept_lsid:urn\\:lsid\\:biodiversity.org.au\\:afd.taxon\\:test0064f\\-4ef7\\-4742\\-8112\\-6b0528d5f3fb","taxon_concept_lsid:urn:lsid:biodiversity.org.au:afd.taxon:7790064f-4ef7-4742-8112-6b0528d5ftest OR taxon_concept_lsid:urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb", true),
+                new SearchQueryTester("(lsid:urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb)", "(taxon_concept_lsid:urn\\:lsid\\:biodiversity.org.au\\:afd.taxon\\:test0064f\\-4ef7\\-4742\\-8112\\-6b0528d5f3fb)","(taxon_concept_lsid:urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb)", true),
                 new SearchQueryTester("{!spatial circles=-35.277676,149.11298,1.0}*:*","spatial circles","within", false),
-                //new SearchQueryTester("qid:"+ qid, "", "", false),
+                new SearchQueryTester("qid:"+ qid, "", "", false),
                 new SearchQueryTester("water", "water", "water", true),
-                new SearchQueryTester("basis_of_record:PreservedSpecimen", "basis_of_record:PreservedSpecimen", "Record type:PreservedSpecimen", true),
+                new SearchQueryTester("basis_of_record:PreservedSpecimen", "basis_of_record:PreservedSpecimen", "Record Type:PreservedSpecimen", true),
                 new SearchQueryTester("state:\"New South Wales\"", "state:\"New\\ South\\ Wales\"", "State/Territory:\"New South Wales\"", true),
                 new SearchQueryTester("state:New\\ South\\ Wales", "state:New\\\\ South\\\\ Wales", "State/Territory:New\\ South\\ Wales", true),
                 new SearchQueryTester("text:water species_group:Animals","text:water species_group:Animals","text:water species_group:Animals", true),
                 new SearchQueryTester("urn:lsid:biodiversity.org.au:afd.taxon:a7b69905-7163-4017-a2a2-e92ce5dffb84","urn\\:lsid\\:biodiversity.org.au\\:afd.taxon\\:a7b69905\\-7163\\-4017\\-a2a2\\-e92ce5dffb84","urn:lsid:biodiversity.org.au:afd.taxon:a7b69905-7163-4017-a2a2-e92ce5dffb84", true),
-                new SearchQueryTester("occurrence_date:[1990-01-01T12:00:00Z TO *]","occurrence_date:[1990-01-01T12:00\\:00Z TO *]","Date (by decade):[1990-01-01T12:00:00Z TO *]", true),
-                new SearchQueryTester("matched_name:\"kangurus lanosus\"", "taxon_name:\"Macropus\\ rufus\"","matched_name:\"kangurus lanosus\"", true),
+                new SearchQueryTester("species_guid:urn:lsid:biodiversity.org.au:apni.taxon:254666","species_guid:urn\\:lsid\\:biodiversity.org.au\\:apni.taxon\\:254666","species_guid:urn:lsid:biodiversity.org.au:apni.taxon:254666", true),
+//                new SearchQueryTester("occurrence_year:[1990-01-01T12:00:00Z TO *]","occurrence_year:[1990-01-01T12:00\\:00Z TO *]","Date (by decade):[1990-01-01T12:00:00Z TO *]", true),
+                new SearchQueryTester("matched_name:\"kangurus lanosus\"", "taxon_name:\"Macropus\\ rufus\"","Scientific name:\"kangurus lanosus\"", true),
                 new SearchQueryTester("matched_name_children:\"kangurus lanosus\"", "lft:[", "species:", false),
                 new SearchQueryTester("(matched_name_children:Mammalia OR matched_name_children:whales)", "lft:[", "class:", false),
         };
@@ -91,9 +96,9 @@ public class QueryFormatTest {
         logger.info("Testing query \"" + queryTest + "\" -> " + ssrp.getFormattedQuery());
         if (queryTest.exactMatch) {
             assertEquals("formattedQuery does not have expected exact match. ", ssrp.getFormattedQuery(), queryTest.formattedQuery);
-            assertEquals("displayString does not have expected exact match. ", ssrp.getDisplayString(), queryTest.displayString);
+            assertEquals("displayString does not have expected exact match. "+ ssrp.getDisplayString(), ssrp.getDisplayString(), queryTest.displayString);
         } else {
-            assertTrue("formattedQuery does not have expected 'contains' match. ", StringUtils.containsIgnoreCase(ssrp.getFormattedQuery(), queryTest.formattedQuery) );
+            assertTrue("formattedQuery does not have expected 'contains' match. " + ssrp.getFormattedQuery(), StringUtils.containsIgnoreCase(ssrp.getFormattedQuery(), queryTest.formattedQuery) );
             assertTrue("display query does not have expected 'contains' match. ", StringUtils.containsIgnoreCase(ssrp.getDisplayString(), queryTest.displayString) );
         }
     }
