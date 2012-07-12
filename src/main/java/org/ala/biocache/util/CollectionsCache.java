@@ -34,12 +34,13 @@ import org.springframework.web.client.RestOperations;
 @Component("collectionsCache")
 public class CollectionsCache {
     protected LinkedHashMap<String, String> dataResources = new LinkedHashMap<String, String>();
+    protected LinkedHashMap<String, String> dataProviders = new LinkedHashMap<String, String>();
     protected LinkedHashMap<String, String> tempDataResources = new LinkedHashMap<String, String>();
     protected LinkedHashMap<String, Integer> downloadLimits = new LinkedHashMap<String, Integer>();
     protected LinkedHashMap<String, String> institutions = new LinkedHashMap<String, String>();
     protected LinkedHashMap<String, String> collections = new LinkedHashMap<String, String>();
     protected Date lastUpdated = new Date();
-    protected Long timeout = 3600000L; // in millseconds (1 hour)
+    protected Long timeout = 3600000L; // in milliseconds (1 hour)
     protected String collectoryUriPrefix = "http://collections.ala.org.au";
     /** Spring injected RestTemplate object */
     @Inject
@@ -60,6 +61,11 @@ public class CollectionsCache {
     public LinkedHashMap<String, String> getDataResources(){
         checkCacheAge();
         return this.dataResources;
+    }
+
+    public LinkedHashMap<String, String> getDataProviders(){
+        checkCacheAge();
+        return this.dataProviders;
     }
 
     public LinkedHashMap<String, String> getTempDataResources(){
@@ -128,6 +134,7 @@ public class CollectionsCache {
         this.collections = getCodesMap(ResourceType.COLLECTION, coguids);
         this.institutions = getCodesMap(ResourceType.INSTITUTION, inguids);
         this.dataResources = getCodesMap(ResourceType.DATA_RESOURCE,null);
+        this.dataProviders = getCodesMap(ResourceType.DATA_PROVIDER,null);
         this.tempDataResources = getCodesMap(ResourceType.TEMP_DATA_RESOURCE,null);
         this.dataResources.putAll(tempDataResources);
         //update the download limits asynchronously
@@ -187,6 +194,7 @@ public class CollectionsCache {
         INSTITUTION("institution"),
         COLLECTION("collection"),
         DATA_RESOURCE("dataResource"),
+        DATA_PROVIDER("dataProvider"),
         TEMP_DATA_RESOURCE("tempDataResource");
 
         private String type;
