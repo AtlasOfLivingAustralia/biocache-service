@@ -92,7 +92,12 @@ public class CollectionsCache {
         checkCacheAge(inguids, coguids);
         return this.dataResources;
     }
-    
+
+    public LinkedHashMap<String, String> getDataProviders(List<String> inguids, List<String>coguids){
+        checkCacheAge(inguids, coguids);
+        return this.dataProviders;
+    }
+
     public LinkedHashMap<String, Integer> getDownloadLimits(){
         checkCacheAge();        
         try{
