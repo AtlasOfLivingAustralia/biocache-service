@@ -1217,15 +1217,14 @@ public class WebportalController implements ServletConfigAware {
                 + "&BBOX=" + boundingBox[0] + "," + boundingBox[1] + "," + boundingBox[2] + "," + boundingBox[3]
                 + "&WIDTH=" + width + "&HEIGHT=" + height + "&OUTLINE=" + outlinePoints
                 + "&format_options=dpi:" + dpi + ";" + layout;
-        //System.out.println(basemapAddress);
-        URL basemapURL = new URL(basemapAddress);
-        BufferedImage basemapImage = ImageIO.read(basemapURL);
+
+        BufferedImage basemapImage = ImageIO.read(new URL(basemapAddress));
 
         BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D combined = (Graphics2D) img.getGraphics();
 
         combined.drawImage(basemapImage, 0, 0, Color.WHITE, null);
-        combined.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
+        combined.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, pointOpacity.floatValue()));
         combined.drawImage(speciesImage, null, 0, 0);
         combined.dispose();
 
@@ -1281,10 +1280,10 @@ public class WebportalController implements ServletConfigAware {
             ArrayList<float[]> points = wco.getPoints();
             ArrayList<int[]> counts = wco.getCounts();
             List<Integer> pColour = wco.getColours();
-
             if (pColour.size() == 1 && vars.colourMode.equals("-1")) {
                 pColour.set(0, vars.colour | (vars.alpha << 24));
             }
+
             for (int j = 0; j < points.size(); j++) {
                 float[] ps = points.get(j);
 
