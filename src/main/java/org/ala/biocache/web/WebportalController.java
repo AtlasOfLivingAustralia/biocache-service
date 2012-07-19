@@ -1,20 +1,13 @@
 package org.ala.biocache.web;
 
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-import java.awt.AlphaComposite;
-import java.awt.BasicStroke;
+import java.awt.*;
 import java.util.*;
 import org.ala.biocache.dto.TaxaCountDTO;
 import org.ala.biocache.util.ParamsCache;
 import org.apache.solr.common.SolrDocumentList;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.ResponseBody;
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
+
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -133,7 +126,6 @@ public class WebportalController implements ServletConfigAware {
      *
      * JSON web service that returns a list of species and record counts for a given location search
      *
-     * @param SpatialSearchRequestParams requestParams
      * @throws Exception
      */
     @RequestMapping(value = "/webportal/species", method = RequestMethod.GET)
@@ -149,7 +141,6 @@ public class WebportalController implements ServletConfigAware {
      *
      * List of species for webportal as csv.
      *
-     * @param SpatialSearchRequestParams
      * @param response
      * @throws Exception
      */
@@ -347,7 +338,6 @@ public class WebportalController implements ServletConfigAware {
      * Get occurrences by query as JSON.
      *
      * @param requestParams
-     * @param response
      * @throws Exception
      */
     @RequestMapping(value = "/webportal/occurrences*", method = RequestMethod.GET)
@@ -396,8 +386,6 @@ public class WebportalController implements ServletConfigAware {
 
         gzip.flush();
         gzip.close();
-
-
     }
 
     private void writeOccurrencesCsvToStream(SpatialSearchRequestParams requestParams, OutputStream stream) throws Exception {
@@ -458,6 +446,7 @@ public class WebportalController implements ServletConfigAware {
         outStream.flush();
         outStream.close();
     }
+
     /**
      * WMS service for webportal.
      *
@@ -802,7 +791,6 @@ public class WebportalController implements ServletConfigAware {
     /**
      * Map a zoom level to a coordinate accuracy level
      *
-     * @param zoomLevel
      * @return
      */
     protected PointType getPointTypeForDegreesPerPixel(double resolution) {
@@ -919,9 +907,7 @@ public class WebportalController implements ServletConfigAware {
     /**
      * Get legend items for the first colourList.length-1 items only.
      *
-     * @param q
      * @param colourMode
-     * @return
      * @throws Exception
      */
     private List<LegendItem> getColours(SpatialSearchRequestParams request, String colourMode) throws Exception {
@@ -1060,7 +1046,6 @@ public class WebportalController implements ServletConfigAware {
      * @param height
      * @param cache 'on' = use cache, 'off' = do not use cache this
      * also removes any related cache data.
-     * @param request
      * @param response
      * @throws Exception
      */
@@ -1073,7 +1058,8 @@ public class WebportalController implements ServletConfigAware {
             @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
             @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
             @RequestParam(value = "CACHE", required = true, defaultValue = "off") String cache,
-            HttpServletRequest request, HttpServletResponse response)
+            @RequestParam(value = "OUTLINE", required = true, defaultValue = "false") boolean outlinePoints,
+            HttpServletResponse response)
             throws Exception {
 
         response.setHeader("Cache-Control", "max-age=86400"); //age == 1 day
@@ -1126,11 +1112,11 @@ public class WebportalController implements ServletConfigAware {
         if (wco == null) {
             imgObj = wmsUncached(wco, requestParams, vars, pointType, pbbox, bbox, mbbox,
                     width, height, width_mult, height_mult, pointWidth,
-                    originalFqs, boundingBoxFqs, response);
+                    originalFqs, boundingBoxFqs, outlinePoints, response);
         } else {
             imgObj = wmsCached(wco, requestParams, vars, pointType, pbbox, bbox, mbbox,
                     width, height, width_mult, height_mult, pointWidth,
-                    originalFqs, boundingBoxFqs, response);
+                    originalFqs, boundingBoxFqs, outlinePoints, response);
         }
 
         if (imgObj != null && imgObj.g != null) {
@@ -1153,8 +1139,9 @@ public class WebportalController implements ServletConfigAware {
             SpatialSearchRequestParams requestParams,
             @RequestParam(value = "format", required = false, defaultValue = "jpg") String format,
             @RequestParam(value = "extents", required = true) String extents,
-            @RequestParam(value = "widthmm", required = false, defaultValue = "60") Integer widthMm,
-            @RequestParam(value = "pradiusmm", required = false, defaultValue = "2") Integer pointRadiusMm,
+            @RequestParam(value = "widthmm", required = false, defaultValue = "60") Double widthMm,
+            @RequestParam(value = "pradiusmm", required = false, defaultValue = "2") Double pointRadiusMm,
+            @RequestParam(value = "pradiuspx", required = false) Integer pradiusPx,
             @RequestParam(value = "pcolour", required = false, defaultValue = "FF0000") String pointColour,
             @RequestParam(value = "popacity", required = false, defaultValue = "0.8") Double pointOpacity,
             @RequestParam(value = "baselayer", required = false, defaultValue = "world") String baselayer,
@@ -1191,7 +1178,12 @@ public class WebportalController implements ServletConfigAware {
             throw new Exception(errorMessage);
         }
 
-        int pointSize = (int) ((dpi / 25.4) * pointRadiusMm);
+        int pointSize = -1;
+        if(pradiusPx != null){
+            pointSize = (int) pradiusPx;
+        } else {
+            pointSize = (int) ((dpi / 25.4) * pointRadiusMm);
+        }
 
         double[] boundingBox = transformBbox4326To900913(Double.parseDouble(bb[0]), Double.parseDouble(bb[1]), Double.parseDouble(bb[2]), Double.parseDouble(bb[3]));
 
@@ -1268,7 +1260,9 @@ public class WebportalController implements ServletConfigAware {
             WmsEnv vars, PointType pointType, double[] pbbox,
             double[] bbox, double[] mbbox, int width, int height, double width_mult,
             double height_mult, int pointWidth, String[] originalFqs,
-            String[] boundingBoxFqs, HttpServletResponse response) throws Exception {        
+            String[] boundingBoxFqs, boolean outlinePoints,
+            HttpServletResponse response) throws Exception {
+
         ImgObj imgObj = null;
 
         //grid setup
@@ -1321,7 +1315,9 @@ public class WebportalController implements ServletConfigAware {
                         }
                     }
                 } else {
-                    imgObj.g.setPaint(new Color(pColour.get(j), true));
+
+                    Paint currentFill = new Color(pColour.get(j), true);
+                    imgObj.g.setPaint(currentFill);
 
                     for (int i = 0; i < ps.length; i += 2) {
                         float lng = ps[i];
@@ -1332,6 +1328,11 @@ public class WebportalController implements ServletConfigAware {
                             y = (int) ((convertLatToPixel(lat) - pbbox[3]) * height_mult);
 
                             imgObj.g.fillOval(x - vars.size, y - vars.size, pointWidth, pointWidth);
+                            if(outlinePoints){
+                                imgObj.g.setPaint(Color.BLACK);
+                                imgObj.g.drawOval(x - vars.size, y - vars.size, pointWidth, pointWidth);
+                                imgObj.g.setPaint(currentFill);
+                            }
                         }
                     }
                 }
@@ -1600,7 +1601,7 @@ public class WebportalController implements ServletConfigAware {
             WmsEnv vars, PointType pointType, double[] pbbox,
             double[] bbox, double[] mbbox, int width, int height, double width_mult,
             double height_mult, int pointWidth, String[] originalFqs,
-            String[] boundingBoxFqs, HttpServletResponse response) throws Exception {
+            String[] boundingBoxFqs, boolean outlinePoints, HttpServletResponse response) throws Exception {
         //colour mapping
         List<LegendItem> colours = (vars.colourMode.equals("-1") || vars.colourMode.equals("grid")) ? null : getColours(requestParams, vars.colourMode);
         int sz = colours == null ? 1 : colours.size() + 1;
@@ -1708,7 +1709,8 @@ public class WebportalController implements ServletConfigAware {
                     }
                 }
             } else {
-                g.setPaint(new Color(pColour.get(j), true));
+                Paint currentFill = new Color(pColour.get(j), true);
+                g.setPaint(currentFill);
 
                 for (int i = 0; i < ps.size(); i++) {
                     OccurrencePoint pt = ps.get(i);
@@ -1718,7 +1720,13 @@ public class WebportalController implements ServletConfigAware {
                     x = (int) ((convertLngToPixel(lng) - pbbox[0]) * width_mult);
                     y = (int) ((convertLatToPixel(lat) - pbbox[3]) * height_mult);
 
+                    //System.out.println("Drawing an oval.....");
                     g.fillOval(x - vars.size, y - vars.size, pointWidth, pointWidth);
+                    if(outlinePoints){
+                        g.setPaint(Color.BLACK);
+                        g.drawOval(x - vars.size, y - vars.size, pointWidth, pointWidth);
+                        g.setPaint(currentFill);
+                    }
                 }
             }
         }

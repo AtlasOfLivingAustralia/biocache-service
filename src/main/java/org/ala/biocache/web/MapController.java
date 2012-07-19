@@ -164,8 +164,7 @@ public class MapController implements ServletConfigAware {
         String bboxString2 = bbox2[0] + "," + bbox2[1] + "," + bbox2[2] + "," + bbox2[3];
         bboxToQuery(bboxString2, fqList);
 
-        PointType pointType = PointType.POINT_RAW;
-        pointType = getPointTypeForZoomLevel(zoomLevel);
+        PointType pointType = getPointTypeForZoomLevel(zoomLevel);
 
         String[] newFilterQuery = (String[]) fqList.toArray(new String[fqList.size()]); // convert back to array
 
@@ -182,7 +181,6 @@ public class MapController implements ServletConfigAware {
         BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = (Graphics2D) img.getGraphics();
         g.setColor(Color.RED);
-
 
         int x, y;
         int pointWidth = size * 2;
@@ -205,14 +203,16 @@ public class MapController implements ServletConfigAware {
                 Color c = new Color(colour);
                 g.setPaint(c);
             } else {
-                g.setPaint(Color.blue);
+                g.setPaint(Color.red);
             }
 
             // g.fillOval(x - (size / 2), y - (size / 2), pointWidth, pointWidth);
-
+            System.out.println("@@@@@@@@@  Painting circle......");
             Shape shp = getShape(symbol, x - (size / 2), y - (size / 2), pointWidth, pointWidth);
             g.draw(shp);
             g.fill(shp);
+            g.setPaint(Color.BLACK);
+            g.drawOval(x - (size / 2), y - (size / 2), pointWidth, pointWidth);
         }
 
         g.dispose();
@@ -310,7 +310,7 @@ public class MapController implements ServletConfigAware {
         BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = (Graphics2D) img.getGraphics();
         g.drawImage(baseImage, 0, 0, null);
-        g.setPaint(Color.blue);
+        g.setPaint(Color.red);
 
         // size of the circles
         int size = 4;
@@ -355,7 +355,7 @@ public class MapController implements ServletConfigAware {
                 g.setPaint(c);
 
             } else {
-                g.setPaint(Color.blue);
+                g.setPaint(Color.red);
             }
 
             //Shape circle = new Ellipse2D.Float(x - (radius / 2), y - (radius / 2), radius, radius);
@@ -363,6 +363,10 @@ public class MapController implements ServletConfigAware {
             //g.fill(circle);
             //g.setPaint(Color.RED);
             g.fillOval(x - (size / 2), y - (size / 2), pointWidth, pointWidth);
+            g.setPaint(Color.BLACK);
+            System.out.println("############ Drawing an outline on the points....");
+
+            g.drawOval(x - (size / 2), y - (size / 2), pointWidth, pointWidth);
         }
 
         g.dispose();
@@ -612,7 +616,6 @@ public class MapController implements ServletConfigAware {
     /**
      * This method creates and renders a density map legend for a species.
      * 
-     * @param lsid
      * @param model
      * @return
      * @throws Exception 
