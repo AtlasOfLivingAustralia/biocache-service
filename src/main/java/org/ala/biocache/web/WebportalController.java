@@ -1147,6 +1147,7 @@ public class WebportalController implements ServletConfigAware {
             @RequestParam(value = "baselayer", required = false, defaultValue = "world") String baselayer,
             @RequestParam(value = "scale", required = false, defaultValue = "off") String scale,
             @RequestParam(value = "dpi", required = false, defaultValue = "300") Integer dpi,
+            @RequestParam(value = "outline", required = false, defaultValue = "false") boolean outlinePoints,
             @RequestParam(value = "fileName", required = false) String fileName,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
 
@@ -1196,8 +1197,9 @@ public class WebportalController implements ServletConfigAware {
                 + "%3Bname%3Acircle%3Bsize%3A" + pointSize
                 + "%3Bopacity%3A" + pointOpacity
                 + "&BBOX=" + boundingBox[0] + "," + boundingBox[1] + "," + boundingBox[2] + "," + boundingBox[3]
-                + "&WIDTH=" + width + "&HEIGHT=" + height
+                + "&WIDTH=" + width + "&HEIGHT=" + height + "&OUTLINE=" + outlinePoints
                 + "&" + request.getQueryString();
+
         URL speciesURL = new URL(speciesAddress);
         BufferedImage speciesImage = ImageIO.read(speciesURL);
 
@@ -1213,7 +1215,7 @@ public class WebportalController implements ServletConfigAware {
                 + "&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&STYLES="
                 + "&FORMAT=image%2Fpng&SRS=EPSG%3A900913"
                 + "&BBOX=" + boundingBox[0] + "," + boundingBox[1] + "," + boundingBox[2] + "," + boundingBox[3]
-                + "&WIDTH=" + width + "&HEIGHT=" + height
+                + "&WIDTH=" + width + "&HEIGHT=" + height + "&OUTLINE=" + outlinePoints
                 + "&format_options=dpi:" + dpi + ";" + layout;
         //System.out.println(basemapAddress);
         URL basemapURL = new URL(basemapAddress);
