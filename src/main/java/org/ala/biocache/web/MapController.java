@@ -203,7 +203,7 @@ public class MapController implements ServletConfigAware {
                 Color c = new Color(colour);
                 g.setPaint(c);
             } else {
-                g.setPaint(Color.red);
+                g.setPaint(Color.blue);
             }
 
             // g.fillOval(x - (size / 2), y - (size / 2), pointWidth, pointWidth);
@@ -364,7 +364,7 @@ public class MapController implements ServletConfigAware {
             //g.setPaint(Color.RED);
             g.fillOval(x - (size / 2), y - (size / 2), pointWidth, pointWidth);
             g.setPaint(Color.BLACK);
-            System.out.println("############ Drawing an outline on the points....");
+            //System.out.println("############ Drawing an outline on the points....");
 
             g.drawOval(x - (size / 2), y - (size / 2), pointWidth, pointWidth);
         }

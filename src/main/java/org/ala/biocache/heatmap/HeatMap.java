@@ -1,17 +1,6 @@
 package org.ala.biocache.heatmap;
 
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Image;
-import java.awt.LinearGradientPaint;
-import java.awt.MultipleGradientPaint;
-import java.awt.Point;
-import java.awt.RadialGradientPaint;
-import java.awt.Shape;
-import java.awt.Toolkit;
+import java.awt.*;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.ByteLookupTable;
@@ -104,7 +93,6 @@ public class HeatMap {
         Graphics g = monochromeImage.getGraphics();
         g.setColor(Color.WHITE);
         g.fillRect(0, 0, width, height);
-
     }
 
     /**
@@ -576,18 +564,21 @@ public class HeatMap {
         scale[scale.length - 1] = 0;
 
 
-        Graphics cg = legendImage.getGraphics();
+        Graphics2D cg = (Graphics2D) legendImage.getGraphics();
         cg.setColor(Color.BLACK);
-        cg.setFont(new Font("Arial", Font.PLAIN, 10));
-        String sdata = "";
-        int width = legendImage.getWidth();
-        int height = legendImage.getHeight();
+        //1.2em/1.6em Arial, Helvetica, sans-serif
+        Font font = new Font("SanSerif", Font.PLAIN, 11);
+        cg.setFont(font);
+
+        RenderingHints rh = new RenderingHints(
+                RenderingHints.KEY_TEXT_ANTIALIASING,
+                RenderingHints.VALUE_TEXT_ANTIALIAS_GASP
+                );
+        cg.setRenderingHints(rh);
+
         int padding = 10; // 10px padding around the image
         int keyHeight = 30; // 30px key height
         int keyWidth = 25; // 30px key width
-
-        width -= padding * 2;
-        height -= padding * 2;
 
         int scaleLength = scale.length;
         String value = (scale[scaleLength - 1] + 1) + "-" + (scale[scaleLength - 3]);
@@ -614,7 +605,6 @@ public class HeatMap {
         value = (scale[scaleLength - 8] + 1) + "+";
         top = padding + (keyHeight / 2) + (keyHeight * 5);
         cg.drawString(value, left, top);
-
     }
 
     public void drawLegend(String outfile) {
