@@ -85,6 +85,7 @@ public class MapController implements ServletConfigAware {
             @RequestParam(value = "symbol", required = false, defaultValue = "circle") String symbol,
             @RequestParam(value = "bbox", required = false, defaultValue = "110,-45,157,-9") String bboxString,
             @RequestParam(value = "type", required = false, defaultValue = "normal") String type,
+            @RequestParam(value = "outline", required = false, defaultValue = "false") boolean outlinePoints,
             HttpServletRequest request,
             HttpServletResponse response)
             throws Exception {
@@ -211,8 +212,10 @@ public class MapController implements ServletConfigAware {
             Shape shp = getShape(symbol, x - (size / 2), y - (size / 2), pointWidth, pointWidth);
             g.draw(shp);
             g.fill(shp);
-            g.setPaint(Color.BLACK);
-            g.drawOval(x - (size / 2), y - (size / 2), pointWidth, pointWidth);
+            if(outlinePoints){
+                g.setPaint(Color.BLACK);
+                g.drawOval(x - (size / 2), y - (size / 2), pointWidth, pointWidth);
+            }
         }
 
         g.dispose();
@@ -572,10 +575,8 @@ public class MapController implements ServletConfigAware {
     /**
      * This method creates and renders a density map for a species.
      * 
-     * @param lsid
      * @param model
-     * @return
-     * @throws Exception 
+     * @throws Exception
      */
     @RequestMapping(value = "/density/map", method = RequestMethod.GET)
     public @ResponseBody

@@ -1224,7 +1224,8 @@ public class WebportalController implements ServletConfigAware {
         Graphics2D combined = (Graphics2D) img.getGraphics();
 
         combined.drawImage(basemapImage, 0, 0, Color.WHITE, null);
-        combined.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, pointOpacity.floatValue()));
+        //combined.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, pointOpacity.floatValue()));
+        combined.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
         combined.drawImage(speciesImage, null, 0, 0);
         combined.dispose();
 
