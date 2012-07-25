@@ -1058,8 +1058,8 @@ public class WebportalController implements ServletConfigAware {
             @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
             @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
             @RequestParam(value = "CACHE", required = true, defaultValue = "off") String cache,
-            @RequestParam(value = "OUTLINE", required = true, defaultValue = "false") boolean outlinePoints,
-            @RequestParam(value = "OUTLINECOLOR", required = true, defaultValue = "0x000000") String outlineColour,
+            @RequestParam(value = "OUTLINE", required = false, defaultValue = "false") boolean outlinePoints,
+            @RequestParam(value = "OUTLINECOLOR", required = false, defaultValue = "0x000000") String outlineColour,
             HttpServletResponse response)
             throws Exception {
 
@@ -1149,7 +1149,7 @@ public class WebportalController implements ServletConfigAware {
             @RequestParam(value = "scale", required = false, defaultValue = "off") String scale,
             @RequestParam(value = "dpi", required = false, defaultValue = "300") Integer dpi,
             @RequestParam(value = "outline", required = false, defaultValue = "false") boolean outlinePoints,
-            @RequestParam(value = "outlineColour", required = false, defaultValue = "#000000") boolean outlineColour,
+            @RequestParam(value = "outlineColour", required = false, defaultValue = "#000000") String outlineColour,
             @RequestParam(value = "fileName", required = false) String fileName,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
 
