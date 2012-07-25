@@ -1059,6 +1059,7 @@ public class WebportalController implements ServletConfigAware {
             @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
             @RequestParam(value = "CACHE", required = true, defaultValue = "off") String cache,
             @RequestParam(value = "OUTLINE", required = true, defaultValue = "false") boolean outlinePoints,
+            @RequestParam(value = "OUTLINECOLOR", required = true, defaultValue = "0x000000") String outlineColour,
             HttpServletResponse response)
             throws Exception {
 
@@ -1112,11 +1113,11 @@ public class WebportalController implements ServletConfigAware {
         if (wco == null) {
             imgObj = wmsUncached(wco, requestParams, vars, pointType, pbbox, bbox, mbbox,
                     width, height, width_mult, height_mult, pointWidth,
-                    originalFqs, boundingBoxFqs, outlinePoints, response);
+                    originalFqs, boundingBoxFqs, outlinePoints, outlineColour, response);
         } else {
             imgObj = wmsCached(wco, requestParams, vars, pointType, pbbox, bbox, mbbox,
                     width, height, width_mult, height_mult, pointWidth,
-                    originalFqs, boundingBoxFqs, outlinePoints, response);
+                    originalFqs, boundingBoxFqs, outlinePoints, outlineColour, response);
         }
 
         if (imgObj != null && imgObj.g != null) {
@@ -1148,6 +1149,7 @@ public class WebportalController implements ServletConfigAware {
             @RequestParam(value = "scale", required = false, defaultValue = "off") String scale,
             @RequestParam(value = "dpi", required = false, defaultValue = "300") Integer dpi,
             @RequestParam(value = "outline", required = false, defaultValue = "false") boolean outlinePoints,
+            @RequestParam(value = "outlineColour", required = false, defaultValue = "#000000") boolean outlineColour,
             @RequestParam(value = "fileName", required = false) String fileName,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
 
@@ -1263,6 +1265,7 @@ public class WebportalController implements ServletConfigAware {
             double[] bbox, double[] mbbox, int width, int height, double width_mult,
             double height_mult, int pointWidth, String[] originalFqs,
             String[] boundingBoxFqs, boolean outlinePoints,
+            String outlineColour,
             HttpServletResponse response) throws Exception {
 
         ImgObj imgObj = null;
@@ -1603,7 +1606,7 @@ public class WebportalController implements ServletConfigAware {
             WmsEnv vars, PointType pointType, double[] pbbox,
             double[] bbox, double[] mbbox, int width, int height, double width_mult,
             double height_mult, int pointWidth, String[] originalFqs,
-            String[] boundingBoxFqs, boolean outlinePoints, HttpServletResponse response) throws Exception {
+            String[] boundingBoxFqs, boolean outlinePoints, String outlineColour, HttpServletResponse response) throws Exception {
         //colour mapping
         List<LegendItem> colours = (vars.colourMode.equals("-1") || vars.colourMode.equals("grid")) ? null : getColours(requestParams, vars.colourMode);
         int sz = colours == null ? 1 : colours.size() + 1;
@@ -1713,6 +1716,7 @@ public class WebportalController implements ServletConfigAware {
             } else {
                 Paint currentFill = new Color(pColour.get(j), true);
                 g.setPaint(currentFill);
+                Color oColour = Color.decode(outlineColour);
 
                 for (int i = 0; i < ps.size(); i++) {
                     OccurrencePoint pt = ps.get(i);
@@ -1725,7 +1729,7 @@ public class WebportalController implements ServletConfigAware {
                     //System.out.println("Drawing an oval.....");
                     g.fillOval(x - vars.size, y - vars.size, pointWidth, pointWidth);
                     if(outlinePoints){
-                        g.setPaint(Color.BLACK);
+                        g.setPaint(oColour);
                         g.drawOval(x - vars.size, y - vars.size, pointWidth, pointWidth);
                         g.setPaint(currentFill);
                     }

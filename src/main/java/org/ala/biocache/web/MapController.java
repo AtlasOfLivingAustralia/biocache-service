@@ -86,6 +86,8 @@ public class MapController implements ServletConfigAware {
             @RequestParam(value = "bbox", required = false, defaultValue = "110,-45,157,-9") String bboxString,
             @RequestParam(value = "type", required = false, defaultValue = "normal") String type,
             @RequestParam(value = "outline", required = false, defaultValue = "false") boolean outlinePoints,
+            @RequestParam(value = "outlineColour", required = false, defaultValue = "0x000000") String outlineColour,
+
             HttpServletRequest request,
             HttpServletResponse response)
             throws Exception {
@@ -191,6 +193,8 @@ public class MapController implements ServletConfigAware {
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         float radius = 10f;
 
+        Color oColour = Color.decode(outlineColour);
+
         for (i = 0; i < points.size(); i++) {
             OccurrencePoint pt = points.get(i);
             float lng = pt.getCoordinates().get(0).floatValue();
@@ -208,12 +212,11 @@ public class MapController implements ServletConfigAware {
             }
 
             // g.fillOval(x - (size / 2), y - (size / 2), pointWidth, pointWidth);
-            logger.debug("@@@@@@@@@  Painting circle......");
             Shape shp = getShape(symbol, x - (size / 2), y - (size / 2), pointWidth, pointWidth);
             g.draw(shp);
             g.fill(shp);
             if(outlinePoints){
-                g.setPaint(Color.BLACK);
+                g.setPaint(oColour);
                 g.drawOval(x - (size / 2), y - (size / 2), pointWidth, pointWidth);
             }
         }
