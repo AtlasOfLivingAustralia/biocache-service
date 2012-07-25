@@ -1199,7 +1199,7 @@ public class WebportalController implements ServletConfigAware {
                 + "%3Bname%3Acircle%3Bsize%3A" + pointSize
                 + "%3Bopacity%3A" + pointOpacity
                 + "&BBOX=" + boundingBox[0] + "," + boundingBox[1] + "," + boundingBox[2] + "," + boundingBox[3]
-                + "&WIDTH=" + width + "&HEIGHT=" + height + "&OUTLINE=" + outlinePoints
+                + "&WIDTH=" + width + "&HEIGHT=" + height + "&OUTLINE=" + outlinePoints + "&OUTLINECOLOR=" + outlineColour
                 + "&" + request.getQueryString();
 
         URL speciesURL = new URL(speciesAddress);
