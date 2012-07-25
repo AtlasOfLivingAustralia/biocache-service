@@ -85,8 +85,8 @@ public class MapController implements ServletConfigAware {
             @RequestParam(value = "symbol", required = false, defaultValue = "circle") String symbol,
             @RequestParam(value = "bbox", required = false, defaultValue = "110,-45,157,-9") String bboxString,
             @RequestParam(value = "type", required = false, defaultValue = "normal") String type,
-            @RequestParam(value = "outline", required = false, defaultValue = "false") boolean outlinePoints,
-            @RequestParam(value = "outlineColour", required = false, defaultValue = "0x000000") String outlineColour,
+            @RequestParam(value = "outline", required = true, defaultValue = "false") boolean outlinePoints,
+            @RequestParam(value = "outlineColour", required = true, defaultValue = "0x000000") String outlineColour,
 
             HttpServletRequest request,
             HttpServletResponse response)
