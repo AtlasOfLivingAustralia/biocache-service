@@ -208,7 +208,7 @@ public class MapController implements ServletConfigAware {
             }
 
             // g.fillOval(x - (size / 2), y - (size / 2), pointWidth, pointWidth);
-            System.out.println("@@@@@@@@@  Painting circle......");
+            logger.debug("@@@@@@@@@  Painting circle......");
             Shape shp = getShape(symbol, x - (size / 2), y - (size / 2), pointWidth, pointWidth);
             g.draw(shp);
             g.fill(shp);
