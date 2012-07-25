@@ -1,7 +1,8 @@
 <!DOCTYPE log4j:configuration  SYSTEM "log4j.dtd">
 <log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/" debug="false">
+
   <appender name="CONSOLE" class="org.apache.log4j.ConsoleAppender">
-    <param name="Threshold" value="WARN"/>
+    <param name="Threshold" value="ERROR"/>
     <layout class="org.apache.log4j.PatternLayout">
       <param name="ConversionPattern" value="%d %-5p: [%c{1}] - %m%n"/>
     </layout>
@@ -10,6 +11,16 @@
       <param name="AcceptOnMatch" value="false"/>
     </filter>    
   </appender>
+    <appender name="FILE" class="org.apache.log4j.RollingFileAppender">
+        <param name="File" value="${catalina.base}/logs/biocache-service.log"/>
+        <!--<param name="File" value="/tmp/hubs-webapp.log"/>-->
+        <param name="Append" value="true"/>
+        <param name="Threshold" value="ERROR"/>
+        <param name="MaxFileSize" value="200MB"/>
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%d [%c{5}] %m%n"/>
+        </layout>
+    </appender>
       <appender name="ALA_LOGGER" class="org.ala.client.appender.RestfulAppender">
         <param name="username" value="" />
         <param name="password" value="" />
@@ -22,20 +33,23 @@
         <param name="Blocking" value="false" />
         <appender-ref ref="ALA_LOGGER" />
     </appender>
-  <category name="org.ala">
-    <priority value="WARN"/>
+  <category name="org.ala.biocache">
+    <priority value="DEBUG"/>
   </category>
   <category name="au.org.ala">
     <priority value="WARN"/>
   </category>
-  <category name="au.org.ala.sds.model/">
+  <category name="org.scale7">
+    <priority value="ERROR"/>
+  </category>
+  <category name="au.org.ala.sds.model">
     <priority value="ERROR"/>
   </category>
   <category name="au.org.ala.cas">
-    <priority value="INFO"/>
+    <priority value="ERROR"/>
   </category> 
   <category name="org.jasig">
-    <priority value="WARN"/>
+    <priority value="ERROR"/>
   </category>
   <category name="org.springframework">
     <priority value="ERROR"/>
@@ -62,9 +76,9 @@
     <priority value="ERROR"/>
   </category>
   <root>
-    <priority value ="DEBUG" />
-    <appender-ref ref="CONSOLE"/>
-    <!--<appender-ref ref="FILE"/> -->
+    <priority value ="ERROR" />
+    <!-- <appender-ref ref="CONSOLE"/> -->
+    <appender-ref ref="FILE"/>
     <appender-ref ref="ASYNC" />
   </root>
  </log4j:configuration>
