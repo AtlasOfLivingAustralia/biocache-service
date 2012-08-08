@@ -157,8 +157,7 @@ public class BreakdownController {
 //	    }
 //	    return null;
 	}
-	
-   
+
     /**
      * Performs a breakdown without limiting the collection or institution
      * @return

@@ -43,8 +43,8 @@ public class AdminController extends AbstractSecureController {
             response.setStatus(HttpServletResponse.SC_OK);
             response.getWriter().write(message);
         }
-
     }
+
     /**
      * Modifies the biocache-store:
      * - reopen the index
@@ -86,8 +86,8 @@ public class AdminController extends AbstractSecureController {
             Store.reindex(dataResource, startDate);
             response.setStatus(HttpServletResponse.SC_OK);
         }
-        
     }
+
     /**
      * Returns true when in service is in readonly mode.
      * @return

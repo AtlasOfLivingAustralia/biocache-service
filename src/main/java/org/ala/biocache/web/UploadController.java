@@ -9,6 +9,8 @@ import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
@@ -22,10 +24,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.HttpURLConnection;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Controller
 public class UploadController {
@@ -113,7 +112,7 @@ public class UploadController {
             String utf8String = new String(json.getBytes(), "UTF-8");
             LinkedHashMap<String,String> record = om.readValue(utf8String, new TypeReference<LinkedHashMap<String,String>>() {});
             input.close();
-            String[] headers = AdHocParser.mapColumnHeaders(record.keySet().toArray(new String[]{}));
+            String[] headers = AdHocParser.mapOrReturnColumnHeaders(record.keySet().toArray(new String[]{}));
             return AdHocParser.processLine(headers, record.values().toArray(new String[]{}));
         } catch(Exception e) {
             logger.error(e.getMessage(),e);
@@ -146,11 +145,30 @@ public class UploadController {
      *
      * @return an identifier for this temporary dataset
      */
+    @RequestMapping(value="/upload/customIndexes/{tempDataResourceUid}.json", method = RequestMethod.GET)
+    public @ResponseBody String[] customIndexes(@PathVariable String tempDataResourceUid, HttpServletResponse response) throws Exception {
+        response.setContentType("application/json");
+        return au.org.ala.biocache.Store.retrieveCustomIndexFields(tempDataResourceUid);
+    }
+
+    /**
+     * Upload a dataset using a POST, returning a UID for this data
+     *
+     * @return an identifier for this temporary dataset
+     */
     @RequestMapping(value="/upload/post", method = RequestMethod.POST)
     public @ResponseBody Map<String,String> uploadOccurrenceData(HttpServletRequest request) throws Exception {
 
         //check the request
         String headers = request.getParameter("headers");
+        String customIndexedFieldsString = StringUtils.trimToNull(request.getParameter("customIndexedFields"));
+        String[] customIndexFields = null;
+        if(customIndexedFieldsString != null){
+            logger.debug("######### Retrieved - headers: '" + headers + "'");
+            customIndexFields = customIndexedFieldsString.trim().split(",");
+            logger.debug("######### Retrieved - custom index fields requested: '" + customIndexedFieldsString + "'");
+        }
+
         String csvData = request.getParameter("csvData");
         String firstLineIsDataAsString = request.getParameter("firstLineIsData");
         boolean firstLineIsData = false;
@@ -204,6 +222,7 @@ public class UploadController {
         ut.uploadStatusDir = uploadStatusDir;
         ut.recordsToLoad = lineCount;
         ut.tempUid = tempUid;
+        ut.customIndexFields = customIndexFields;
 
         Thread t = new Thread(ut);
         t.start();
@@ -214,7 +233,6 @@ public class UploadController {
         return details;
     }
 }
-
 
 class UploadStatus {
     protected String status;
@@ -275,7 +293,8 @@ class UploaderThread implements Runnable {
     protected Character separatorChar;
     protected String tempUid;
     protected String uploadStatusDir;
-    protected Integer recordsToLoad = 0;
+    protected Integer recordsToLoad = null;
+    protected String[] customIndexFields = null;
 
     @Override
     public void run(){
@@ -304,7 +323,16 @@ class UploaderThread implements Runnable {
             try {
                 String[] currentLine = csvReader.readNext();
                 String[] headerUnmatched = headers.split(",");
-                String[] headerArray = AdHocParser.mapColumnHeaders(headerUnmatched);
+                String[] headerArray = AdHocParser.mapOrReturnColumnHeaders(headerUnmatched);
+
+                if(customIndexFields == null){
+                    List<String> filteredHeaders = filterByMaxColumnLengths(headerArray, new CSVReader(new StringReader(csvData), separatorChar), 50);
+                    //derive a list of custom index field
+                    filteredHeaders = filterCustomIndexFields(filteredHeaders);
+                    customIndexFields = filteredHeaders.toArray(new String[0]);
+                }
+
+                System.out.println("Matched headers: " + StringUtils.join(headerArray));
 
                 //if the first line is data, add a record, else discard
                 if(firstLineIsData){
@@ -336,7 +364,7 @@ class UploaderThread implements Runnable {
             au.org.ala.biocache.Store.process(tempUid, 1);
             status = "INDEXING";
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,0,75, recordsToLoad)));
-            au.org.ala.biocache.Store.index(tempUid);
+            au.org.ala.biocache.Store.index(tempUid, customIndexFields);
             status = "COMPLETE";
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,counter,100,recordsToLoad)));
         } catch(Exception ex){
@@ -348,6 +376,65 @@ class UploaderThread implements Runnable {
           }
           logger.error("Loading failed: " + ex.getMessage(), ex);
         }
+    }
+
+    //TODO move to config
+    protected static List<String> alreadyIndexedFields = Arrays.asList(new String[]{
+        "eventDate",
+        "scientificName",
+        "commonName",
+        "isoCountryCode",
+        "country",
+        "kingdom",
+        "phylum",
+        "class",
+        "order",
+        "family",
+        "genus",
+        "species",
+        "stateProvince",
+        "imcra",
+        "ibra",
+        "places",
+        "decimalLatitude",
+        "decimalLongitude",
+        "year",
+        "month",
+        "basisOfRecord",
+        "typeStatus",
+        "collector",
+        "establishmentMeans"});
+
+    public List<String> filterCustomIndexFields(List<String> suppliedHeaders){
+        List<String> customIndexFields = new ArrayList<String>();
+        for(String hdr: suppliedHeaders){
+            if(!alreadyIndexedFields.contains(hdr)){
+                customIndexFields.add(hdr);
+            }
+        }
+        return customIndexFields;
+    }
+
+    public List<String> filterByMaxColumnLengths(String[] headers, CSVReader csvReader, int maxColumnLength) throws Exception {
+        int[] columnLengths = new int[headers.length];
+        for(int i=0; i<columnLengths.length; i++) columnLengths[i] = 0; //initialise - needed ?
+        String[] fields = csvReader.readNext();
+        while(fields != null){
+            for(int j=0; j<columnLengths.length;j++){
+                if(fields.length> j && columnLengths[j] < fields[j].length()){
+                    columnLengths[j] = fields[j].length();
+                }
+            }
+            fields = csvReader.readNext();
+        }
+        List<String> filterList = new ArrayList<String>();
+        for(int k=0; k< columnLengths.length; k++){
+            System.out.println("Column length: " + headers[k] + " = " + columnLengths[k]);
+            if(columnLengths[k] <= maxColumnLength ){
+                filterList.add(headers[k]);
+            }
+        }
+        return filterList;
     }
 
     private void addRecord(String tempUid, String[] currentLine, String[] headers) {

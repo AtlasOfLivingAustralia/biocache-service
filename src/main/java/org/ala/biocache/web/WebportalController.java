@@ -1830,7 +1830,6 @@ class WmsEnv {
                 colourMode = pair[1];
             }
         }
-
         colour = colour | (alpha << 24);
     }
 }

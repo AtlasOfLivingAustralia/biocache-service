@@ -297,9 +297,8 @@ public class SearchDAOImpl implements SearchDAO {
         updateQueryContext(searchParams);
         String queryString = buildSpatialQueryString(searchParams);
         SolrQuery solrQuery = initSolrQuery(searchParams,false);
-        
-        
         solrQuery.setQuery(queryString);
+
         //don't want any results returned
         solrQuery.setRows(0);
         solrQuery.setFacetLimit(FACET_PAGE_SIZE);        
@@ -314,7 +313,6 @@ public class SearchDAOImpl implements SearchDAO {
                 out.write(ff.getName().getBytes());
                 if(shouldLookup){
                     out.write((",species name").getBytes());
-                    
                 }
                 if(includeCount)
                     out.write(",Count".getBytes());
@@ -361,9 +359,8 @@ public class SearchDAOImpl implements SearchDAO {
                                 out.write("\n".getBytes());
                             }
                         }
-                        else{
+                        else {
                             //default processing of facets
-                            
                             for(FacetField.Count value : ff.getValues()){
                                 out.write(value.getName().getBytes());
                                 if(includeCount)
@@ -498,11 +495,8 @@ public class SearchDAOImpl implements SearchDAO {
 //            String[] header = org.apache.commons.lang3.ArrayUtils.addAll(titles,qaTitles);
             
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[2].toArray(new String[]{}),qaTitles);
-            
             au.org.ala.biocache.RecordWriter rw = new org.ala.biocache.writer.CSVRecordWriter(out, header);
-            
-            
-            
+
             //now perform the download from the index
             qr = runSolrQuery(solrQuery, downloadParams.getFq(), pageSize, startIndex, "score", "asc");
             
@@ -2161,7 +2155,7 @@ public class SearchDAOImpl implements SearchDAO {
         this.solrHome = solrHome;
     }
     /**
-     * Gets the details about the SOLR fields using the LukeResquestHandler:
+     * Gets the details about the SOLR fields using the LukeRequestHandler:
      * See http://wiki.apache.org/solr/LukeRequestHandler  for more information
      */
     public Set<IndexFieldDTO> getIndexFieldDetails(String... fields) throws Exception{
@@ -2176,9 +2170,7 @@ public class SearchDAOImpl implements SearchDAO {
         else
             params.set("numTerms", "0");        
         QueryResponse response = server.query(params);
-        Set<IndexFieldDTO>  results = parseLukeResponse(response.toString(), fields != null);
-        
-        return results;
+        return parseLukeResponse(response.toString(), fields != null);
     }
     /**
      * Returns the count of distinct values for the facets.  Uses groups.  Needs some more 

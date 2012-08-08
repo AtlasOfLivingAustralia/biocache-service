@@ -10,7 +10,6 @@ import au.org.ala.biocache.RecordWriter;
  * A Writer that outputs a record in CSV format
  * 
  * @author Natasha Carter
- *
  */
 public class CSVRecordWriter implements RecordWriter{
     private CSVWriter csvWriter;
@@ -35,9 +34,5 @@ public class CSVRecordWriter implements RecordWriter{
         catch(java.io.IOException e){
             
         }
-        
     }
-    
-    
-
 }

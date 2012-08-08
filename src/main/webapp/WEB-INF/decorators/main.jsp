@@ -11,7 +11,7 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-    <title>Search for records | Atlas of Living Australia</title>
+    <title>Occurrence webservices | Atlas of Living Australia</title>
 
     <link rel="stylesheet" href="/static/css/base.css" type="text/css" media="screen"/>
 

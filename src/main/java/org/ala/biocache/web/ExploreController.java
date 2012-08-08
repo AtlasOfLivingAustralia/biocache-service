@@ -316,11 +316,6 @@ public class ExploreController {
      * JSON web service that returns a list of species and record counts for a given location search
      * and a higher taxa with rank. 
      *
-     * @param radius
-     * @param latitude
-     * @param longitude
-     * @param taxa
-     * @param rank
      * @param model
      * @throws Exception
      */
@@ -336,10 +331,7 @@ public class ExploreController {
         applyFacetForCounts(requestParams, common);
         
         return searchDao.findAllSpeciesByCircleAreaAndHigherTaxa(requestParams, group);
-
     }
-
-    
 
 	/**
 	 * @param searchDao the searchDao to set

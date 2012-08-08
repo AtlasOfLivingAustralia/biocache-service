@@ -172,10 +172,9 @@ public class CollectionsCache {
             logger.debug("number of entities = " + entities.size());
 
             for (LinkedHashMap<String, String> je : entities) {
-
                 if(addToCodeMap(je.get("uid"), guids)){
                     entityMap.put(je.get("uid"), je.get("name"));
-                    logger.debug("uid = " + je.get("uid") + " & name = " + je.get("name"));
+                    //logger.debug("uid = " + je.get("uid") + " & name = " + je.get("name"));
                 }
             }
         } catch (Exception ex) {
@@ -224,14 +223,12 @@ public class CollectionsCache {
 	    			try{
 	    				Integer limit = (Integer)(properties.get("downloadLimit"));
 	    				downloadLimits.put(druid,  limit);
-	    				logger.debug(druid +" & limit " + limit);
+	    				//logger.debug(druid +" & limit " + limit);
 	    			}
 	    			catch(Exception e){
-	    				e.printStackTrace();
+	    				logger.error(e.getMessage(),e);
 	    			}
 	    		}
-	    		//downloadLimits.put("dr344", 1000);
-	    		
     		}
     	}
     }

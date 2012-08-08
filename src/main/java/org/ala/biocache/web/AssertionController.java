@@ -36,8 +36,7 @@ public class AssertionController extends AbstractSecureController {
 
     //TODO Move this so all classes can refer to the same
     protected String collectoryBaseUrl = "http://collections.ala.org.au";
-    
-   
+
     /**
      * Retrieve an array of the assertion codes in use by the processing system
      *
@@ -117,16 +116,12 @@ public class AssertionController extends AbstractSecureController {
                 qa.setUserDisplayName(userDisplayName);
     
                 Store.addUserAssertion(recordUuid, qa);
-    
-                
-               
-               if(qa.getUuid() != null) {
+
+                if(qa.getUuid() != null) {
                     //send this assertion addition event to the notification service
                     postNotificationEvent("create", recordUuid, qa.getUuid());
-                    
                 }
-                
-    
+
                 String server = request.getSession().getServletContext().getInitParameter("serverName");
                 response.setHeader("Location", server + "/occurrences/" + recordUuid + "/assertions/" + qa.getUuid());
                 response.setStatus(HttpServletResponse.SC_CREATED);
@@ -135,8 +130,8 @@ public class AssertionController extends AbstractSecureController {
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             }
         }
-
     }
+
     /**
      * Removes an assertion
      * 
@@ -155,7 +150,7 @@ public class AssertionController extends AbstractSecureController {
             @RequestParam(value="assertionUuid", required=true) String assertionUuid,
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
-            deleteAssertion(recordUuid, assertionUuid, request, response);
+        deleteAssertion(recordUuid, assertionUuid, request, response);
     }
 
     /**
@@ -174,7 +169,6 @@ public class AssertionController extends AbstractSecureController {
             postNotificationEvent("delete", recordUuid, assertionUuid);
             response.setStatus(HttpServletResponse.SC_OK);
         }
-        
     }
 
     /**

@@ -9,8 +9,6 @@ import au.org.ala.biocache.TaxonProfile;
 import org.ala.biocache.dto.OccurrenceSource;
 import org.ala.biocache.dto.OccurrenceSourceDTO;
 import org.ala.biocache.dto.SearchQuery;
-import org.ala.biocache.web.OccurrenceController;
-import org.apache.commons.math.util.MathUtils;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 

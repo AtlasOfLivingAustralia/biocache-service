@@ -9,7 +9,8 @@ public class FacetThemes {
     public static java.util.List<FacetTheme> allThemes = new java.util.ArrayList<FacetTheme>();
     public static LinkedHashMap<String, Facet> facetsMap = new LinkedHashMap<String, Facet>();
     static {
-        allThemes.add(new FacetTheme("Taxonomic", new Facet("taxon_name","index"), new Facet("raw_taxon_name","index"), new Facet("subspecies_name","index"),
+        allThemes.add(new FacetTheme("Taxonomic", new Facet("taxon_name","index"), new Facet("raw_taxon_name","index"),
+                new Facet("common_name","index"), new Facet("subspecies_name","index"),
                 new Facet("species","index"), new Facet("genus","index"),new Facet("family","index"),
                 new Facet("order","index"),new Facet("class","index"), new Facet("phylum","index"), new Facet("kingdom","index"), new Facet("species_group","index"),new Facet("rank","count"),new Facet("interaction","count"),new Facet("species_habitats","count")));
         allThemes.add(new FacetTheme("Geospatial",new Facet("uncertainty","index"),new Facet("sensitive","count"),new Facet("state_conservation","count"),
@@ -44,7 +45,7 @@ public class FacetThemes {
             return field;
         }
         /**
-         * @param title the title to set
+         * @param field the field to set
          */
         public void setField(String field) {
             this.field = field;
@@ -56,12 +57,11 @@ public class FacetThemes {
             return sort;
         }
         /**
-         * @param defaultSort the defaultSort to set
+         * @param sort the sort to set
          */
         public void setDefaultSort(String sort) {
             this.sort = sort;
         }
-        
     }
  
     static class FacetTheme{
