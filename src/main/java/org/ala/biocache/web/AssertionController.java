@@ -5,23 +5,31 @@ import au.org.ala.biocache.FullRecord;
 import au.org.ala.biocache.Store;
 import au.org.ala.biocache.QualityAssertion;
 import au.org.ala.biocache.Versions;
+
+import org.ala.biocache.dao.BieService;
+import org.ala.biocache.dao.SearchDAO;
+import org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import java.net.HttpURLConnection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.Set;
 
+import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.NameValuePair;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.StringRequestEntity;
+import org.codehaus.jackson.map.ObjectMapper;
 
 /**
  * This controller provides webservices for assertion creation/deletion.
@@ -35,8 +43,12 @@ public class AssertionController extends AbstractSecureController {
     private final static Logger logger = Logger.getLogger(AssertionController.class);
 
     //TODO Move this so all classes can refer to the same
-    protected String collectoryBaseUrl = "http://collections.ala.org.au";
-
+    protected String collectoryBaseUrl = "http://collections.ala.org.au"; 
+    @Inject
+    private BieService bieService;
+    @Inject
+    protected SearchDAO searchDAO;
+   
     /**
      * Retrieve an array of the assertion codes in use by the processing system
      *
@@ -71,6 +83,68 @@ public class AssertionController extends AbstractSecureController {
     @RequestMapping(value = {"/assertions/user/codes"}, method = RequestMethod.GET)
 	public @ResponseBody ErrorCode[] showUserCodes() throws Exception {
         return Store.retrieveUserAssertionCodes();
+    }
+    
+    @RequestMapping(value={"/assertions/query/add"}, method = RequestMethod.POST)  
+    public void addAssertionQuery(HttpServletRequest request,
+        HttpServletResponse response) throws Exception {
+      ObjectMapper om = new ObjectMapper();
+      
+      try{
+          String rawValue = org.apache.commons.io.IOUtils.toString(request.getInputStream(), "UTF-8");
+          //java.util.Map<String, Object> suppliedDetails = om.readValue(rawValue,new org.codehaus.jackson.type.TypeReference<java.util.Map<String, Object>>() {});
+          logger.debug("The raw value :" + rawValue);
+          
+          try{
+              au.org.ala.biocache.JCUAssertion jcuAssertion =om.readValue(rawValue, au.org.ala.biocache.JCUAssertion.class);              
+              
+              //we know that it is a JCU assertion
+              if(shouldPerformOperation(jcuAssertion.getApiKey(), response)){
+                  //delete
+                  if(jcuAssertion.getStatus().equals("deleted")){
+                      Store.deleteAssertionQuery(jcuAssertion.getApiKey() + "|" +jcuAssertion.getId(), jcuAssertion.getLastModified());                     
+                  }
+                  else{
+                      //new or update
+                      //does the species exist
+                      String guid =bieService.getGuidForName(jcuAssertion.getSpecies());
+                      if(guid != null){
+                          //check to see if the area is well formed.
+                          SpatialSearchRequestParams ssr = new SpatialSearchRequestParams();
+                          ssr.setQ("lsid:" +guid);
+                          ssr.setWkt(jcuAssertion.getArea());
+                          ssr.setFacet(false);
+                          try{
+                              searchDAO.findByFulltext(ssr);
+                              //now create the query assertion
+                              au.org.ala.biocache.AssertionQuery aq = new au.org.ala.biocache.AssertionQuery(jcuAssertion);
+                              aq.setRawAssertion(rawValue);
+                              aq.setRawQuery("?q="+ssr.getQ()+"&wkt="+ssr.getWkt());
+                              if(jcuAssertion.getStatus().equals("new"))
+                                  aq.setCreatedDate(jcuAssertion.getLastModified());                                                            
+                              //TODO create a "permanent" query cache so that qids can be used
+                              Store.addAssertionQuery(aq);
+                          }
+                          catch(Exception e){
+                              response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unable to construct a valid assertion query from the provided information. " + jcuAssertion.getId());
+                              logger.error("Error constructing query or adding to datastore", e);
+                          }
+                      }
+                      else{
+                          response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unable to locate species " + jcuAssertion.getSpecies() + " for assetion " + jcuAssertion.getId() );
+                      }
+                  }
+              }
+          }
+          catch(Exception e){
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage() );
+            logger.error("Unable to resolve message to known type", e);
+          }          
+      }
+      catch(Exception e){
+        logger.error(e.getMessage(),e);
+        response.sendError(HttpURLConnection.HTTP_BAD_REQUEST);
+      }
     }
     /**
      * This version of the method can handle the situation where we use rowKeys as Uuids. Thus

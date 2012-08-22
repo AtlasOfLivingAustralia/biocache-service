@@ -445,10 +445,11 @@ public class OccurrenceController extends AbstractSecureController {
             HttpServletRequest request,
             @RequestParam(value="queries", required = true, defaultValue = "") String queries,
             @RequestParam(value="field", required = true, defaultValue = "") String field,
-            @RequestParam(value="separator", defaultValue = "\n") String separator) throws Exception {
+            @RequestParam(value="separator", defaultValue = "\n") String separator,
+            @RequestParam(value="title") String title) throws Exception {
 
         logger.info("/occurrences/batchSearch with action=Download Records");
-        Long qid =  getQidForBatchSearch(queries, field, separator);
+        Long qid =  getQidForBatchSearch(queries, field, separator,title);
 
         if (qid != null) {
             String webservicesRoot = request.getSession().getServletContext().getInitParameter("webservicesRoot");
@@ -474,10 +475,11 @@ public class OccurrenceController extends AbstractSecureController {
             @RequestParam(value="redirectBase", required = true, defaultValue = "") String redirectBase,
             @RequestParam(value="queries", required = true, defaultValue = "") String queries,
             @RequestParam(value="field", required = true, defaultValue = "") String field,
-            @RequestParam(value="separator", defaultValue = "\n") String separator) throws Exception {
+            @RequestParam(value="separator", defaultValue = "\n") String separator,
+            @RequestParam(value="title") String title) throws Exception {
 
         logger.info("/occurrences/batchSearch with action=Search");
-        Long qid =  getQidForBatchSearch(queries, field, separator);
+        Long qid =  getQidForBatchSearch(queries, field, separator,title);
 
         if (qid != null && StringUtils.isNotBlank(redirectBase)) {
             response.sendRedirect(redirectBase + "?q=qid:"+qid);
@@ -495,7 +497,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws IOException
      * @throws ParamsCacheSizeException
      */
-    private Long getQidForBatchSearch(String listOfNames, String field, String separator) throws IOException, ParamsCacheSizeException {
+    private Long getQidForBatchSearch(String listOfNames, String field, String separator, String title) throws IOException, ParamsCacheSizeException {
         String[] rawParts = listOfNames.split(separator);
         List<String> parts = new ArrayList<String>();
 
@@ -511,7 +513,7 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         String q = StringUtils.join(parts.toArray(new String[0]), " OR ");
-        long qid = ParamsCache.put(q, q, null, null);
+        long qid = ParamsCache.put(q, title, null, null);
         logger.info("batchSearch: qid = " + qid);
 
         return qid;
