@@ -446,7 +446,7 @@ public class OccurrenceController extends AbstractSecureController {
             @RequestParam(value="queries", required = true, defaultValue = "") String queries,
             @RequestParam(value="field", required = true, defaultValue = "") String field,
             @RequestParam(value="separator", defaultValue = "\n") String separator,
-            @RequestParam(value="title") String title) throws Exception {
+            @RequestParam(value="title", required=false) String title) throws Exception {
 
         logger.info("/occurrences/batchSearch with action=Download Records");
         Long qid =  getQidForBatchSearch(queries, field, separator,title);
@@ -476,7 +476,7 @@ public class OccurrenceController extends AbstractSecureController {
             @RequestParam(value="queries", required = true, defaultValue = "") String queries,
             @RequestParam(value="field", required = true, defaultValue = "") String field,
             @RequestParam(value="separator", defaultValue = "\n") String separator,
-            @RequestParam(value="title") String title) throws Exception {
+            @RequestParam(value="title", required=false) String title) throws Exception {
 
         logger.info("/occurrences/batchSearch with action=Search");
         Long qid =  getQidForBatchSearch(queries, field, separator,title);
@@ -513,6 +513,7 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         String q = StringUtils.join(parts.toArray(new String[0]), " OR ");
+        title = title == null?q : title;
         long qid = ParamsCache.put(q, title, null, null);
         logger.info("batchSearch: qid = " + qid);
 
