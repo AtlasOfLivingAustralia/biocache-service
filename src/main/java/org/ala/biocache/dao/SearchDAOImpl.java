@@ -98,13 +98,13 @@ public class SearchDAOImpl implements SearchDAO {
     /** log4 j logger */
     private static final Logger logger = Logger.getLogger(SearchDAOImpl.class);
     /** SOLR home directory - injected by Spring from properties file */
-    protected String solrHome = "/data/solr/bio-proto";
+    //protected String solrHome = "/data/solr/bio-proto";
     /** SOLR server instance */
     protected SolrServer server;
     /** Limit search results - for performance reasons */
     protected Integer MAX_DOWNLOAD_SIZE = 500000;
     /** Batch size for a download */
-    protected Integer downloadBatchSize=500;
+    protected Integer downloadBatchSize = 500;
     protected static final String POINT = "point-0.1";
     protected static final String KINGDOM = "kingdom";
     protected static final String KINGDOM_LSID = "kingdom_lsid";
@@ -119,17 +119,17 @@ public class SearchDAOImpl implements SearchDAO {
     protected static final char[] CHARS = {' ',':'};
 
     //Patterns that are used to prepare a SOLR query for execution
-    protected Pattern lsidPattern= Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9\\.:-]*)\"?");
+    protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9\\.:-]*)\"?");
     protected Pattern urnPattern = Pattern.compile("urn:[a-zA-Z0-9\\.:-]*");
-    protected Pattern spacesPattern =Pattern.compile("[^\\s\"\\(\\)\\[\\]']+|\"[^\"]*\"|'[^']*'");
+    protected Pattern spacesPattern = Pattern.compile("[^\\s\"\\(\\)\\[\\]']+|\"[^\"]*\"|'[^']*'");
     protected Pattern uidPattern = Pattern.compile("([a-z_]*_uid:)([a-z0-9]*)");
     protected Pattern spatialPattern = Pattern.compile("\\{!spatial[a-zA-Z=\\-\\s0-9\\.\\,():]*\\}");
-    protected Pattern qidPattern= Pattern.compile("qid:[0-9]*");
+    protected Pattern qidPattern = Pattern.compile("qid:[0-9]*");
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
-    protected Pattern facetSortPattern = Pattern.compile("([a-zA-z_]+?):(count|index)");
-    protected Pattern solrParamPattern = Pattern.compile("([a-zA-z_\\.]+?)=([a-zA-z_]+?)");
+//    protected Pattern facetSortPattern = Pattern.compile("([a-zA-z_]+?):(count|index)");
+//    protected Pattern solrParamPattern = Pattern.compile("([a-zA-z_\\.]+?)=([a-zA-z_]+?)");
     
-    protected String bieUri ="http://bie.ala.org.au";
+    protected String bieUri = "http://bie.ala.org.au";
 
     /** Download properties */
     protected DownloadFields downloadFields;
@@ -149,32 +149,23 @@ public class SearchDAOImpl implements SearchDAO {
     @Inject
     private BieService bieService;
 
-    
     private Set<IndexFieldDTO> indexFields = null;
 
     /**
      * Initialise the SOLR server instance
      */
     public SearchDAOImpl() {
-        if (this.server == null & solrHome != null) {
+        if (this.server == null) {
             try {
-//                System.setProperty("solr.solr.home", solrHome);
-//                logger.info("Initialising SOLR HOME: "+ solrHome);
-//                CoreContainer.Initializer initializer = new CoreContainer.Initializer();
-//                CoreContainer coreContainer = initializer.initialize();
-//                server = new EmbeddedSolrServer(coreContainer, "");
-                
                 //use the solr server that has been in the biocache-store...
                 SolrIndexDAO dao = (SolrIndexDAO) au.org.ala.biocache.Config.getInstance(IndexDAO.class);
                 dao.init();
                 server = dao.solrServer();
                 downloadFields = new DownloadFields(getIndexedFields());
-                
             } catch (Exception ex) {
                 logger.error("Error initialising embedded SOLR server: " + ex.getMessage(), ex);
             }
         }
-        
     }
 
     public void refreshCaches(){
@@ -273,8 +264,8 @@ public class SearchDAOImpl implements SearchDAO {
                 item.getFamily(),
                 item.getName(),
                 item.getCommonName(),
-                item.getCount().toString(),};
-
+                item.getCount().toString()
+            };
 
             csvWriter.writeNext(record);
             csvWriter.flush();
@@ -467,8 +458,7 @@ public class SearchDAOImpl implements SearchDAO {
             solrQuery.addField("collection_uid");
             solrQuery.addField("data_resource_uid");
             solrQuery.addField("data_provider_uid");
-            
-            
+
             QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), 0, 0, "score", "asc");
             //get the assertion facets to add them to the download fields
             List<FacetField> facets = qr.getFacetFields();
@@ -1412,7 +1402,11 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setStart(requestParams.getStart());
         solrQuery.setSortField(requestParams.getSort(), ORDER.valueOf(requestParams.getDir()));
         logger.info("runSolrQuery: " + solrQuery.toString());
-        return server.query(solrQuery); // can throw exception
+        QueryResponse qr =  server.query(solrQuery); // can throw exception
+        if(logger.isDebugEnabled()){
+            logger.debug("matched records: " + qr.getResults().getNumFound());
+        }
+        return qr;
     }
 
     /**
@@ -2147,13 +2141,13 @@ public class SearchDAOImpl implements SearchDAO {
         return uidStats;
     }
 
-    public String getSolrHome() {
-        return solrHome;
-    }
-
-    public void setSolrHome(String solrHome) {
-        this.solrHome = solrHome;
-    }
+//    public String getSolrHome() {
+//        return solrHome;
+//    }
+//
+//    public void setSolrHome(String solrHome) {
+//        this.solrHome = solrHome;
+//    }
     /**
      * Gets the details about the SOLR fields using the LukeRequestHandler:
      * See http://wiki.apache.org/solr/LukeRequestHandler  for more information

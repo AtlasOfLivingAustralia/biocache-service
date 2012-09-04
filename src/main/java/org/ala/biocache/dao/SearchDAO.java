@@ -176,8 +176,6 @@ public interface SearchDAO {
      */
     List<TaxaCountDTO> findAllSpeciesByCircleAreaAndHigherTaxa(SpatialSearchRequestParams requestParams, String speciesGroup) throws Exception;
 
-    
-    
     /**
      * Find all the data providers with records.
      * 
