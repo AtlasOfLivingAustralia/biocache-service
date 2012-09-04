@@ -911,7 +911,7 @@ public class WebportalController implements ServletConfigAware {
 
 
     @RequestMapping(value = {"/ogc/legendGraphic"}, method = RequestMethod.GET)
-    public void getLegendGraphic( HttpServletRequest request, HttpServletResponse response) throws Exception{
+    public void getLegendGraphic(HttpServletResponse response) throws Exception{
         logger.debug("WMS - GetLegendGraphic requested");
         response.setContentType("image/png");
         OutputStream out = response.getOutputStream();
@@ -944,7 +944,7 @@ public class WebportalController implements ServletConfigAware {
             @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
             @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
             @RequestParam(value = "CACHE", required = true, defaultValue = "off") String cache,
-            @RequestParam(value = "REQUEST", required = true, defaultValue = "off") String requestString,
+            @RequestParam(value = "REQUEST", required = true, defaultValue = "") String requestString,
             @RequestParam(value = "OUTLINE", required = true, defaultValue = "false") boolean outlinePoints,
             @RequestParam(value = "OUTLINECOLOUR", required = true, defaultValue = "0x000000") String outlineColour,
             @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
@@ -954,7 +954,7 @@ public class WebportalController implements ServletConfigAware {
 
         //Some WMS clients are ignoring sections of the GetCapabilities....
         if("GetLegendGraphic".equalsIgnoreCase(requestString)) {
-            getLegendGraphic(request,response);
+            getLegendGraphic(response);
             return;
         }
 
