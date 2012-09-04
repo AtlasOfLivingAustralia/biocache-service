@@ -60,7 +60,7 @@ public class ParamsCache {
             public void run() {
                 try {
                     while (true) {
-                        counter.await();
+                        if(counter != null) counter.await();
 
                         synchronized (counterLock) {
                             cacheSize = MIN_CACHE_SIZE;
