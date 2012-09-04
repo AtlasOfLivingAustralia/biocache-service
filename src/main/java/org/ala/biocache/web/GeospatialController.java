@@ -56,23 +56,15 @@ public class GeospatialController {
     @Inject
     protected TaxonDAO taxonDAO;
 
-    @RequestMapping(value = {"/ogc/legendGraphic"}, method = RequestMethod.GET)
-    public void getLegendGraphic( HttpServletRequest request, HttpServletResponse response) throws Exception{
-        logger.debug("WMS - GetLegendGraphic requested");
-        response.setContentType("image/png");
-        OutputStream out = response.getOutputStream();
-        out.write(IOUtils.toByteArray(GeospatialController.class.getResourceAsStream("/logo16x16.png")));
-        out.flush();
-    }
-
-//    @RequestMapping(value = {"/ogc/styles"}, method = RequestMethod.GET)
-//    public void getStyles( HttpServletRequest request, HttpServletResponse response) throws Exception{
-//        logger.debug("WMS - GetStyles requested");
+//    @RequestMapping(value = {"/ogc/legendGraphic"}, method = RequestMethod.GET)
+//    public void getLegendGraphic( HttpServletRequest request, HttpServletResponse response) throws Exception{
+//        logger.debug("WMS - GetLegendGraphic requested");
 //        response.setContentType("image/png");
 //        OutputStream out = response.getOutputStream();
 //        out.write(IOUtils.toByteArray(GeospatialController.class.getResourceAsStream("/logo16x16.png")));
 //        out.flush();
 //    }
+
 
     @RequestMapping(value = {"/ogc/ows"}, method = RequestMethod.GET)
     public void getCapabilities(HttpServletRequest request,

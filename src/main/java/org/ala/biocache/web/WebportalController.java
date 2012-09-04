@@ -4,6 +4,7 @@ import java.awt.*;
 import java.util.*;
 import org.ala.biocache.dto.TaxaCountDTO;
 import org.ala.biocache.util.ParamsCache;
+import org.apache.commons.io.IOUtils;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -571,6 +572,7 @@ public class WebportalController implements ServletConfigAware {
                 mbbox[i] = Double.parseDouble(s);
                 i++;
             } catch (Exception e) {
+                logger.error("Problem parsing BBOX: '" + bboxString + "'");
                 e.printStackTrace();
             }
         }
@@ -872,16 +874,19 @@ public class WebportalController implements ServletConfigAware {
             body += ("<br/><a target=\"_blank\" href=\"http://biocache.ala.org.au/occurrences/search\">View list of records</a>");
 
             response.setContentType("text/html");
-            response.getWriter().write("<html>\n" +
+            response.getWriter().write(
+                    "<html>\n" +
                     "<head>\n" +
-                    "<title></title>\n" +
+                    "<title>Occurrence record</title>\n" +
                     "</head>\n" +
                     "<body>\n" +
-                    "<h3>Point type:"+pointType.name()+"<h3>" +
-                    "<h3>longitude:"+longitude+",latitude:"+latitude+"<h3>" +
-                    "<h3>(Rounded)longitude:"+roundedLatitude+","+roundedLongitude+"<h3>" +
-                    "<h3>records found:"+sdl.getNumFound()+"<h3>" +
+                    "<h2>Occurrence record</h2>"+
                     "<p>"+body+"</p>"+
+                    "<p>records found:"+sdl.getNumFound()+"<p>" +
+                    "<p class=\"debug\">Point type:"+pointType.name()+"<br/>" +
+                    "Longitude:"+longitude+",latitude:"+latitude+"<br/>" +
+                    "Longitude:"+roundedLatitude+","+roundedLongitude+" (Rounded)<br/>" +
+                    "</p>" +
                     "</body>\n" +
                     "</html>");
         } catch (Exception e){
@@ -903,6 +908,17 @@ public class WebportalController implements ServletConfigAware {
             return "";
         }
     }
+
+
+    @RequestMapping(value = {"/ogc/legendGraphic"}, method = RequestMethod.GET)
+    public void getLegendGraphic( HttpServletRequest request, HttpServletResponse response) throws Exception{
+        logger.debug("WMS - GetLegendGraphic requested");
+        response.setContentType("image/png");
+        OutputStream out = response.getOutputStream();
+        out.write(IOUtils.toByteArray(GeospatialController.class.getResourceAsStream("/logo16x16.png")));
+        out.flush();
+    }
+
 
     /**
      * WMS service for webportal.
@@ -928,14 +944,27 @@ public class WebportalController implements ServletConfigAware {
             @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
             @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
             @RequestParam(value = "CACHE", required = true, defaultValue = "off") String cache,
+            @RequestParam(value = "REQUEST", required = true, defaultValue = "off") String requestString,
             @RequestParam(value = "OUTLINE", required = true, defaultValue = "false") boolean outlinePoints,
             @RequestParam(value = "OUTLINECOLOUR", required = true, defaultValue = "0x000000") String outlineColour,
             @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
-
+            HttpServletRequest request,
             HttpServletResponse response)
             throws Exception {
+
+        //Some WMS clients are ignoring sections of the GetCapabilities....
+        if("GetLegendGraphic".equalsIgnoreCase(requestString)) {
+            getLegendGraphic(request,response);
+            return;
+        }
+
+        logger.debug("WMS Cached: " + request.getQueryString());
+
         response.setHeader("Cache-Control", "max-age=86400"); //age == 1 day
         response.setContentType("image/png"); //only png images generated
+
+        if("EPSG:4326".equals(srs))
+            bboxString = convertBBox4326To900913(bboxString);    // to work around a UDIG bug
 
         WmsEnv vars = new WmsEnv(env, styles);
         double[] mbbox = new double[4];
@@ -945,7 +974,7 @@ public class WebportalController implements ServletConfigAware {
 
         double resolution = getBBoxes(bboxString, width, height, size, vars.uncertainty, mbbox, bbox, pbbox);
         PointType pointType = getPointTypeForDegreesPerPixel(resolution);
-        System.out.println("Rendering: " + pointType.name());
+        logger.debug("Rendering: " + pointType.name());
 
         String q = "*:*";
         if(StringUtils.trimToEmpty(layers) !=null){
