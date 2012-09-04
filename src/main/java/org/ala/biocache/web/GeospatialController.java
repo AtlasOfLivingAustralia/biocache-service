@@ -12,7 +12,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import au.org.ala.util.GenerateHierarchyFromIndex;
 import org.ala.biocache.*;
 import org.ala.biocache.dao.SearchDAO;
 
