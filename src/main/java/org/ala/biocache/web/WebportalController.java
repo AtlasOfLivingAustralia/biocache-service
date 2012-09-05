@@ -102,7 +102,7 @@ public class WebportalController implements ServletConfigAware {
     /**
      * Store query params list
      */
-    @RequestMapping(value = {"/webportal/params"}, method = RequestMethod.POST)
+    @RequestMapping(value = {"/webportal/params","/mapping/params"}, method = RequestMethod.POST)
     public
     @ResponseBody
     Long storeParams(SpatialSearchRequestParams requestParams,
@@ -125,7 +125,7 @@ public class WebportalController implements ServletConfigAware {
     /**
      * Test presence of query params {id} in params store.
      */
-    @RequestMapping(value = {"/webportal/params/{id}"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/webportal/params/{id}","/mapping/params/{id}"}, method = RequestMethod.GET)
     public
     @ResponseBody
     Boolean storeParams(@PathVariable("id") Long id) throws Exception {
@@ -138,7 +138,7 @@ public class WebportalController implements ServletConfigAware {
      *
      * @throws Exception
      */
-    @RequestMapping(value = "/webportal/species", method = RequestMethod.GET)
+    @RequestMapping(value = {"/webportal/species", "/mapping/species" }, method = RequestMethod.GET)
     public
     @ResponseBody
     List<TaxaCountDTO> listSpecies(
@@ -154,7 +154,7 @@ public class WebportalController implements ServletConfigAware {
      * @param response
      * @throws Exception
      */
-    @RequestMapping(value = "/webportal/species.csv", method = RequestMethod.GET)
+    @RequestMapping(value = {"/webportal/species.csv","/mapping/species.csv"}, method = RequestMethod.GET)
     public void listSpeciesCsv(
             SpatialSearchRequestParams requestParams,
             HttpServletResponse response) throws Exception {
@@ -218,7 +218,7 @@ public class WebportalController implements ServletConfigAware {
      * @param response
      * @throws Exception
      */
-    @RequestMapping(value = "/webportal/legend", method = RequestMethod.GET)
+    @RequestMapping(value = {"/webportal/legend", "/mapping/legend"}, method = RequestMethod.GET)
     public void legend(
             SpatialSearchRequestParams requestParams,
             @RequestParam(value = "cm", required = false, defaultValue = "") String colourMode,
@@ -271,7 +271,7 @@ public class WebportalController implements ServletConfigAware {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/webportal/dataProviders", method = RequestMethod.GET)
+    @RequestMapping(value = {"/webportal/dataProviders", "/mapping/dataProviders"}, method = RequestMethod.GET)
     @ResponseBody
     public List<DataProviderCountDTO> queryInfo(
             SpatialSearchRequestParams requestParams)
@@ -288,7 +288,7 @@ public class WebportalController implements ServletConfigAware {
      * @param response
      * @throws Exception
      */
-    @RequestMapping(value = "/webportal/bbox", method = RequestMethod.GET)
+    @RequestMapping(value = {"/webportal/bbox", "/mapping/bbox"}, method = RequestMethod.GET)
     public void boundingBox(
             SpatialSearchRequestParams requestParams,
             HttpServletResponse response)
@@ -320,7 +320,7 @@ public class WebportalController implements ServletConfigAware {
      * @return
      * @throws Exception 
      */
-    @RequestMapping(value = "/webportal/bounds", method = RequestMethod.GET)
+    @RequestMapping(value = {"/webportal/bounds","/mapping/bounds"}, method = RequestMethod.GET)
     public @ResponseBody double[] jsonBoundingBox(
             SpatialSearchRequestParams requestParams,
             HttpServletResponse response)
@@ -350,7 +350,7 @@ public class WebportalController implements ServletConfigAware {
      * @param requestParams
      * @throws Exception
      */
-    @RequestMapping(value = "/webportal/occurrences*", method = RequestMethod.GET)
+    @RequestMapping(value = {"/webportal/occurrences*","/mapping/occurrences*"}, method = RequestMethod.GET)
     @ResponseBody
     public SearchResultDTO occurrences(
             SpatialSearchRequestParams requestParams,
@@ -380,7 +380,7 @@ public class WebportalController implements ServletConfigAware {
      * @param response
      * @throws Exception
      */
-    @RequestMapping(value = "/webportal/occurrences.gz", method = RequestMethod.GET)
+    @RequestMapping(value = {"/webportal/occurrences.gz", "/mapping/occurrences.gz"}, method = RequestMethod.GET)
     public void occurrenceGz(
             SpatialSearchRequestParams requestParams,
             HttpServletResponse response)
@@ -777,6 +777,29 @@ public class WebportalController implements ServletConfigAware {
        return StringUtils.join(mbbox,",");
     }
 
+    // add this to the GetCapabilities...
+    @RequestMapping(value = {"/ogc/getMetadata"}, method = RequestMethod.GET)
+    public void getMetadata(
+            SpatialSearchRequestParams requestParams,
+            @RequestParam(value = "REQUEST", required = true, defaultValue = "") String requestString,
+            @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
+            @RequestParam(value = "q", required = false, defaultValue = "") String query,
+            HttpServletResponse response
+            ) throws Exception {
+
+        response.setContentType("text/html");
+        response.getWriter().write(
+                "<html>\n" +
+                        "<head>\n" +
+                        "<title>Atlas of Living Australia</title>\n" +
+                        "</head>\n" +
+                        "<body>\n" +
+                        "<h2>"+query+"</h2>"+
+                        "<p>Content to follow...." +
+                        "</p>" +
+                        "</body>\n" +
+                        "</html>");
+    }
 
     @RequestMapping(value = {"/ogc/getFeatureInfo"}, method = RequestMethod.GET)
     public void getFeatureInfo(
@@ -873,6 +896,8 @@ public class WebportalController implements ServletConfigAware {
 
             body += ("<br/><a target=\"_blank\" href=\"http://biocache.ala.org.au/occurrences/search\">View list of records</a>");
 
+
+
             response.setContentType("text/html");
             response.getWriter().write(
                     "<html>\n" +
@@ -919,7 +944,6 @@ public class WebportalController implements ServletConfigAware {
         out.flush();
     }
 
-
     /**
      * WMS service for webportal.
      *
@@ -933,7 +957,7 @@ public class WebportalController implements ServletConfigAware {
      * @param response
      * @throws Exception
      */
-    @RequestMapping(value = "/webportal/wms/reflect", method = RequestMethod.GET)
+    @RequestMapping(value = {"/webportal/wms/reflect","/ogc/wms/reflect"}, method = RequestMethod.GET)
     public void wmsCached(
             SpatialSearchRequestParams requestParams,
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
@@ -1062,7 +1086,7 @@ public class WebportalController implements ServletConfigAware {
      * @param response
      * @throws Exception
      */
-    @RequestMapping(value = "/webportal/wms/image", method = RequestMethod.GET)
+    @RequestMapping(value = {"/webportal/wms/image","/mapping/wms/image"}, method = RequestMethod.GET)
     public void image(
             SpatialSearchRequestParams requestParams,
             @RequestParam(value = "format", required = false, defaultValue = "jpg") String format,
@@ -1121,7 +1145,7 @@ public class WebportalController implements ServletConfigAware {
         //q=macropus&ENV=color%3Aff0000%3Bname%3Acircle%3Bsize%3A3%3Bopacity%3A1
         //&BBOX=12523443.0512,-2504688.2032,15028131.5936,0.33920000120997&WIDTH=256&HEIGHT=256");
         String speciesAddress = WMSCache.getBiocacheUrl()
-                + "/webportal/wms/reflect?"
+                + "/ogc/wms/reflect?"
                 + "ENV=color%3A" + pointColour
                 + "%3Bname%3Acircle%3Bsize%3A" + pointSize
                 + "%3Bopacity%3A" + pointOpacity

@@ -306,7 +306,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             </li>
         </ul>
         
-        <h3>Mapping Services (/webportal)</h3>
+        <h3>Mapping Services (/mapping)</h3>
         <ul class="webserviceList">
             These services will include all records that satisfy the q, fq and wkt parameters.  
             <ul>
@@ -319,7 +319,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             
             <li><strong>Short Query Parameters:</strong>
                 <ul>
-                    <li><strong>Construction:</strong> /webportal/params <br>
+                    <li><strong>Construction:</strong> /mapping/params <br>
                         POST service.<br>
                         Stores q and wkt parameters.<br>
                         Returns a short <b>value</b> that can be used as the initial q value in other services for mapping. e.g. q=qid:<b>value</b>
@@ -329,30 +329,30 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                         Returns true or false</li>
                 </ul>
                 </li>
-             <li><strong>Occurrences Bounding Box:</strong> /webportal/bbox <br>
+             <li><strong>Occurrences Bounding Box:</strong> /mapping/bbox <br>
                     Returns CSV of bounding box of occurrences</li>
             <li><strong>Data Providers</strong> /webportal/dataProviders </li>
             <li><strong>Species List:</strong>
                 <ul>
-                    <li><strong>Get species list:</strong> /webportal/species</li>
+                    <li><strong>Get species list:</strong> /mapping/species</li>
                     <li><strong>Get species list as CSV:</strong> /webportal/species.csv</li>
                 </ul>
             </li>
             <li><strong>Occurrences:</strong>
                 <ul>
-                    <li><strong>Get occurrences:</strong> /webportal/occurrences</li>
+                    <li><strong>Get occurrences:</strong> /mapping/occurrences</li>
                     <li><strong>Get occurrences as gzipped CSV:</strong> /webportal/occurrences.gz</li>
                 </ul>
             </li>
         </ul>
 
-        <h3>WMS Service</h3>
+        <h3>WMS Services</h3>
         <p>These services are suitable for use with a OGC client or an OGC friendly API like <a href="http://openlayers.org/">openlayers</a>.
             Examples of use are available <a href="http://spatial.ala.org.au/ws/examples/">here</a>
         </p>
 
         <ul class="webserviceList">
-            <li><strong>Tile:</strong> /webportal/wms/reflect
+            <li><strong>Tile:</strong> /mapping/wms/reflect
                 <ul class="paramList">
                     <li><strong>BBOX</strong> - EPSG900913 bounding box. e.g. &BBOX=12523443.0512,-2504688.2032,15028131.5936,0.3392000021413</li>
                     <li><strong>WIDTH</strong> - width in pixels</li>
@@ -381,7 +381,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     </li>
                 </ul>
             </li>
-            <li><strong>Legend:</strong> /webportal/legend - Get a CSV legend.<br/>
+            <li><strong>Legend:</strong> /mapping/legend - Get a CSV legend.<br/>
                 Parameters:
 	            <ul class="paramList">
 	                <li><strong>q</strong> - CQL_FILTER value</li>
@@ -396,7 +396,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <li><strong>count</strong> - number of occurrences for this legend category in the q parameter</li>
                 </ul>
             </li>
-            <li><strong>Publication map image</strong> /webportal/wms/image<br/>
+            <li><strong>Publication map image</strong> /mapping/wms/image<br/>
                 e.g. <a href="${initParam.webservicesRoot}/webportal/wms/image?extents=142,-45,151,-38&q=macropus&format=jpg&dpi=300&pradiusmm=1&popacity=0.8&pcolour=0000FF&widthmm=150&scale=on&baselayer=aus2">/webportal/wms/image?extents=142,-45,151,-38&q=macropus&format=jpg&dpi=300&pradiusmm=1&popacity=0.8&pcolour=0000FF&widthmm=150&scale=on&baselayer=aus2</a>
                 <ul class="paramList">
                     <li><strong>extents</strong> - EPSG4326 bounding box. Valid between -180 and +180 longitude.  Latitude is best between -85 and +85.  e.g. &extents=-180,-85,180,85</li>

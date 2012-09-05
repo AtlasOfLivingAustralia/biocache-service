@@ -99,7 +99,13 @@ public class TaxonDAOImpl implements TaxonDAO {
 
     void outputLayer(String rank, String taxon, Writer out) throws Exception {
         String normalised = taxon.replaceFirst("\\([A-Za-z]*\\) ", "").replace(" ", "_"); //remove the subgenus, replace spaces with underscores
-        out.write("<Layer queryable=\"1\"><Name>" + rank + ":" + normalised + "</Name><Title>" + taxon + "</Title></Layer>");
+        out.write("<Layer queryable=\"1\"><Name>" + rank + ":" + normalised + "</Name><Title>" + taxon + "</Title>"+
+                "<MetadataURL type=\"TC211\">\n" +
+                "<Format>text/html</Format>\n" +
+                "<OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\"" +
+                " xlink:href=\"http://biocache-test.ala.org.au/ws/ogc/getMetadata?q="+rank+":"+taxon +"\"/>\n" +
+                "</MetadataURL>"+
+                "</Layer>");
         out.flush();
     }
 

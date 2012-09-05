@@ -135,7 +135,7 @@ public class GeospatialController {
                    "        <DCPType>\n" +
                    "          <HTTP>\n" +
                    "            <Get>\n" +
-                   "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\""+ biocacheServerUrl + "/webportal/wms/reflect?SERVICE=WMS&amp;OUTLINE=TRUE&amp;\"/>\n" +
+                   "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\""+ biocacheServerUrl + "/ogc/wms/reflect?SERVICE=WMS&amp;OUTLINE=TRUE&amp;\"/>\n" +
                    "            </Get>\n" +
                    "          </HTTP>\n" +
                    "        </DCPType>\n" +
@@ -170,12 +170,13 @@ public class GeospatialController {
                    "      <Format>application/vnd.ogc.se_xml</Format>\n" +
                    "      <Format>application/vnd.ogc.se_inimage</Format>\n" +
                    "    </Exception>\n" +
-                   "    <UserDefinedSymbolization SupportSLD=\"1\" UserLayer=\"1\" UserStyle=\"1\" RemoteWFS=\"1\"/>\n" +
+//                   "    <UserDefinedSymbolization SupportSLD=\"1\" UserLayer=\"1\" UserStyle=\"1\" RemoteWFS=\"1\"/>\n" +
                    "    <Layer>\n" +
                    "      <Title>Atlas of Living Australia - Species occurrence layers</Title>\n" +
-                   "      <Abstract>A compliant implementation of WMS 1.1.1</Abstract>\n" +
+                   "      <Abstract>Custom WMS services for ALA species occurrences</Abstract>\n" +
                    "      <SRS>EPSG:900913</SRS>\n" +
-                   "     <LatLonBoundingBox minx=\"-179.0\" miny=\"-89.0\" maxx=\"179.0\" maxy=\"89.0\"/>\n"
+                   "      <SRS>EPSG:4326</SRS>\n" +
+                   "     <LatLonBoundingBox minx=\"-179.9\" miny=\"-89.9\" maxx=\"179.9\" maxy=\"89.9\"/>\n"
             );
 
             writer.write(generateStylesForPoints());
