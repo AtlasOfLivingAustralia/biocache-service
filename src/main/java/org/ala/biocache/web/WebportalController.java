@@ -1,7 +1,10 @@
 package org.ala.biocache.web;
 
 import java.awt.*;
+import java.io.*;
 import java.util.*;
+
+import org.ala.biocache.dao.TaxonDAO;
 import org.ala.biocache.dto.TaxaCountDTO;
 import org.ala.biocache.util.ParamsCache;
 import org.apache.commons.io.IOUtils;
@@ -11,10 +14,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.RandomAccessFile;
-import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.ArrayList;
@@ -72,6 +71,8 @@ public class WebportalController implements ServletConfigAware {
     /** Fulltext search DAO */
     @Inject
     protected SearchDAO searchDAO;
+    @Inject
+    protected TaxonDAO taxonDAO;
     /** Data Resource DAO */
     @Inject
     protected SearchUtils searchUtils;
@@ -811,7 +812,7 @@ public class WebportalController implements ServletConfigAware {
             @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
             @RequestParam(value = "SRS", required = false, defaultValue = "") String srs,
             @RequestParam(value = "QUERY_LAYERS", required = false, defaultValue = "") String queryLayers,
-            HttpServletRequest request, HttpServletResponse response) throws Exception{
+            HttpServletRequest request, HttpServletResponse response) throws Exception {
 
         logger.debug("WMS - GetFeatureInfo requested for: " + queryLayers);
         String originalBBox = bboxString;
@@ -896,8 +897,6 @@ public class WebportalController implements ServletConfigAware {
 
             body += ("<br/><a target=\"_blank\" href=\"http://biocache.ala.org.au/occurrences/search\">View list of records</a>");
 
-
-
             response.setContentType("text/html");
             response.getWriter().write(
                     "<html>\n" +
@@ -934,7 +933,6 @@ public class WebportalController implements ServletConfigAware {
         }
     }
 
-
     @RequestMapping(value = {"/ogc/legendGraphic"}, method = RequestMethod.GET)
     public void getLegendGraphic(HttpServletResponse response) throws Exception{
         logger.debug("WMS - GetLegendGraphic requested");
@@ -943,6 +941,223 @@ public class WebportalController implements ServletConfigAware {
         out.write(IOUtils.toByteArray(GeospatialController.class.getResourceAsStream("/logo16x16.png")));
         out.flush();
     }
+
+    @RequestMapping(value = {"/ogc/ows"}, method = RequestMethod.GET)
+    public void getCapabilities(
+            SpatialSearchRequestParams requestParams,
+            @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
+            @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
+            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:900913") String srs, //default to google mercator
+            @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
+            @RequestParam(value = "BBOX", required = false, defaultValue = "") String bboxString,
+            @RequestParam(value = "WIDTH", required = false, defaultValue = "256") Integer width,
+            @RequestParam(value = "HEIGHT", required = false, defaultValue = "256") Integer height,
+            @RequestParam(value = "CACHE", required = false, defaultValue = "off") String cache,
+            @RequestParam(value = "REQUEST", required = false, defaultValue = "") String requestString,
+            @RequestParam(value = "OUTLINE", required = false, defaultValue = "false") boolean outlinePoints,
+            @RequestParam(value = "OUTLINECOLOUR", required = false, defaultValue = "0x000000") String outlineColour,
+            @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
+            @RequestParam(value = "q", required = false, defaultValue = "*:*") String query,
+            @RequestParam(value = "fq", required = false) String[] filterQueries,
+            HttpServletRequest request,
+            HttpServletResponse response)
+            throws Exception {
+
+        if("GetMap".equalsIgnoreCase(requestString)){
+            wmsCached(
+                    requestParams,
+                    cql_filter,
+                    env,
+                    srs,
+                    styles,
+                    bboxString,
+                    width,
+                    height,
+                    cache,
+                    requestString,
+                    outlinePoints,
+                    outlineColour,
+                    layers,
+                    request,
+                    response);
+            return;
+        }
+
+        if("GetLegendGraphic".equalsIgnoreCase(requestString)){
+            getLegendGraphic(response);
+            return;
+        }
+
+        if("GetFeatureInfo".equalsIgnoreCase(requestString)){
+            getFeatureInfo(cql_filter,
+                    env,
+                    bboxString,
+                    width,
+                    height,
+                    styles,
+                    srs,
+                    layers,
+                    request,
+                    response);
+            return;
+        }
+
+        response.setContentType("text/xml");
+        response.setHeader("Content-Description", "File Transfer");
+        response.setHeader("Content-Disposition", "attachment; filename=GetCapabilities.xml");
+        response.setHeader("Content-Transfer-Encoding","binary");
+        try {
+            //webservicesRoot
+            String biocacheServerUrl = request.getSession().getServletContext().getInitParameter("webservicesRoot");
+            PrintWriter writer = response.getWriter();
+            writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+                    "<!DOCTYPE WMT_MS_Capabilities SYSTEM \"http://spatial.ala.org.au/geoserver/schemas/wms/1.1.1/WMS_MS_Capabilities.dtd\">\n" +
+                    "<WMT_MS_Capabilities version=\"1.1.1\" updateSequence=\"28862\">\n" +
+                    "  <Service>\n" +
+                    "    <Name>OGC:WMS</Name>\n" +
+                    "    <Title>Atlas of Living Australia (WMS) - Species occurrences</Title>\n" +
+                    "    <Abstract>WMS services for species occurrences.</Abstract>\n" +
+                    "    <KeywordList>\n" +
+                    "      <Keyword>WMS</Keyword>\n" +
+                    "      <Keyword>GEOSERVER</Keyword>\n" +
+                    "      <Keyword>Species occurrence data</Keyword>\n" +
+                    "      <Keyword>ALA</Keyword>\n" +
+                    "      <Keyword>NCRIS</Keyword>\n" +
+                    "    </KeywordList>\n" +
+                    "    <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" +biocacheServerUrl + "/ogc/wms\"/>\n" +
+                    "    <ContactInformation>\n" +
+                    "      <ContactPersonPrimary>\n" +
+                    "        <ContactPerson>ALA Support</ContactPerson>\n" +
+                    "        <ContactOrganization>ALA (CSIRO)</ContactOrganization>\n" +
+                    "      </ContactPersonPrimary>\n" +
+                    "      <ContactPosition>Support Manager</ContactPosition>\n" +
+                    "      <ContactAddress>\n" +
+                    "        <AddressType></AddressType>\n" +
+                    "        <Address/>\n" +
+                    "        <City>Canberra</City>\n" +
+                    "        <StateOrProvince>ACT</StateOrProvince>\n" +
+                    "        <PostCode>2601</PostCode>\n" +
+                    "        <Country>Australia</Country>\n" +
+                    "      </ContactAddress>\n" +
+                    "      <ContactVoiceTelephone>+61 2 6246 4400</ContactVoiceTelephone>\n" +
+                    "      <ContactFacsimileTelephone>+61 2 6246 4400</ContactFacsimileTelephone>\n" +
+                    "      <ContactElectronicMailAddress>support@ala.org.au</ContactElectronicMailAddress>\n" +
+                    "    </ContactInformation>\n" +
+                    "    <Fees>NONE</Fees>\n" +
+                    "    <AccessConstraints>NONE</AccessConstraints>\n" +
+                    "  </Service>\n" +
+                    "  <Capability>\n" +
+                    "    <Request>\n" +
+                    "      <GetCapabilities>\n" +
+                    "        <Format>application/vnd.ogc.wms_xml</Format>\n" +
+                    "        <DCPType>\n" +
+                    "          <HTTP>\n" +
+                    "            <Get>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" +biocacheServerUrl + "/ogc/ows?SERVICE=WMS&amp;\"/>\n" +
+                    "            </Get>\n" +
+                    "            <Post>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\""+biocacheServerUrl + "/ogc/ows?SERVICE=WMS&amp;\"/>\n" +
+                    "            </Post>\n" +
+                    "          </HTTP>\n" +
+                    "        </DCPType>\n" +
+                    "      </GetCapabilities>\n" +
+                    "      <GetMap>\n" +
+                    "        <Format>image/png</Format>\n" +
+                    "        <DCPType>\n" +
+                    "          <HTTP>\n" +
+                    "            <Get>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\""+ biocacheServerUrl + "/ogc/wms/reflect?SERVICE=WMS&amp;OUTLINE=TRUE&amp;\"/>\n" +
+                    "            </Get>\n" +
+                    "          </HTTP>\n" +
+                    "        </DCPType>\n" +
+                    "      </GetMap>\n" +
+                    "      <GetFeatureInfo>\n" +
+                    "        <Format>text/html</Format>\n" +
+                    "        <DCPType>\n" +
+                    "          <HTTP>\n" +
+                    "            <Get>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\""+biocacheServerUrl+"/ogc/getFeatureInfo\"/>\n" +
+                    "            </Get>\n" +
+                    "            <Post>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\""+biocacheServerUrl+"/ogc/getFeatureInfo\"/>\n" +
+                    "            </Post>\n" +
+                    "          </HTTP>\n" +
+                    "        </DCPType>\n" +
+                    "      </GetFeatureInfo>\n" +
+                    "      <GetLegendGraphic>\n" +
+                    "        <Format>image/png</Format>\n" +
+                    "        <Format>image/jpeg</Format>\n" +
+                    "        <Format>image/gif</Format>\n" +
+                    "        <DCPType>\n" +
+                    "          <HTTP>\n" +
+                    "            <Get>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\""+biocacheServerUrl+"/ogc/legendGraphic\"/>\n" +
+                    "            </Get>\n" +
+                    "          </HTTP>\n" +
+                    "        </DCPType>\n" +
+                    "      </GetLegendGraphic>\n" +
+                    "    </Request>\n" +
+                    "    <Exception>\n" +
+                    "      <Format>application/vnd.ogc.se_xml</Format>\n" +
+                    "      <Format>application/vnd.ogc.se_inimage</Format>\n" +
+                    "    </Exception>\n" +
+//                   "    <UserDefinedSymbolization SupportSLD=\"1\" UserLayer=\"1\" UserStyle=\"1\" RemoteWFS=\"1\"/>\n" +
+                    "    <Layer>\n" +
+                    "      <Title>Atlas of Living Australia - Species occurrence layers</Title>\n" +
+                    "      <Abstract>Custom WMS services for ALA species occurrences</Abstract>\n" +
+                    "      <SRS>EPSG:900913</SRS>\n" +
+                    "      <SRS>EPSG:4326</SRS>\n" +
+                    "     <LatLonBoundingBox minx=\"-179.9\" miny=\"-89.9\" maxx=\"179.9\" maxy=\"89.9\"/>\n"
+            );
+
+            writer.write(generateStylesForPoints());
+
+            filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, "geospatial_kosher:true");
+
+            taxonDAO.extractHierarchy(query, filterQueries, writer);
+
+            writer.write("</Layer></Capability></WMT_MS_Capabilities>\n");
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    public String generateStylesForPoints(){
+        //need a better listings of colours
+        String[] colorsNames = new String[]{
+                "DarkRed","IndianRed","DarkSalmon","SaddleBrown", "Chocolate", "SandyBrown","Orange","DarkGreen","Green", "Lime", "LightGreen", "MidnightBlue", "Blue",
+                "SteelBlue","CadetBlue","Aqua","PowderBlue", "DarkOliveGreen", "DarkKhaki", "Yellow","Moccasin","Indigo","Purple", "Fuchsia", "Plum", "Black", "White"
+        };
+        String[] colorsCodes = new String[]{
+                "8b0000","FF0000","CD5C5C","E9967A", "8B4513", "D2691E", "F4A460","FFA500","006400","008000", "00FF00", "90EE90", "191970", "0000FF",
+                "4682B4","5F9EA0","00FFFF","B0E0E6", "556B2F", "BDB76B", "FFFF00","FFE4B5","4B0082","800080", "FF00FF", "DDA0DD", "000000",  "FFFFFF"
+        };
+        String[] sizes = new String[]{"5","10","2"};
+        String[] sizesNames = new String[]{"medium","large","small"};
+        String[] opacities = new String[]{"0.5","1", "0.2"};
+        String[] opacitiesNames = new String[]{"medium","opaque", "transparency"};
+        StringBuffer sb = new StringBuffer();
+        int colorIdx = 0;
+        int sizeIdx = 0;
+        int opIdx = 0;
+        for(String color: colorsNames){
+            for(String size: sizes){
+                for(String opacity : opacities){
+                    sb.append("<Style>\n" +
+                            "<Name>"+colorsCodes[colorIdx]+";opacity="+opacity+";size="+size+"</Name> \n" +
+                            "<Title>"+color+";opacity="+opacitiesNames[opIdx]+";size="+sizesNames[sizeIdx]+"</Title> \n" +
+                            "</Style>\n");
+                    opIdx++;
+                }
+                opIdx = 0;
+                sizeIdx++;
+            }
+            sizeIdx = 0;
+            colorIdx++;
+        }
+        return sb.toString();
+    }
+
 
     /**
      * WMS service for webportal.
@@ -960,18 +1175,18 @@ public class WebportalController implements ServletConfigAware {
     @RequestMapping(value = {"/webportal/wms/reflect","/ogc/wms/reflect"}, method = RequestMethod.GET)
     public void wmsCached(
             SpatialSearchRequestParams requestParams,
-            @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
-            @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
-            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:900913") String srs, //default to google mercator
-            @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
-            @RequestParam(value = "BBOX", required = true, defaultValue = "") String bboxString,
-            @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
-            @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
-            @RequestParam(value = "CACHE", required = true, defaultValue = "off") String cache,
-            @RequestParam(value = "REQUEST", required = true, defaultValue = "") String requestString,
-            @RequestParam(value = "OUTLINE", required = true, defaultValue = "false") boolean outlinePoints,
+            @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "")           String cql_filter,
+            @RequestParam(value = "ENV", required = false, defaultValue = "")                  String env,
+            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:900913")       String srs, //default to google mercator
+            @RequestParam(value = "STYLES", required = false, defaultValue = "")               String styles,
+            @RequestParam(value = "BBOX", required = true, defaultValue = "")                  String bboxString,
+            @RequestParam(value = "WIDTH", required = true, defaultValue = "256")              Integer width,
+            @RequestParam(value = "HEIGHT", required = true, defaultValue = "256")             Integer height,
+            @RequestParam(value = "CACHE", required = true, defaultValue = "off")              String cache,
+            @RequestParam(value = "REQUEST", required = true, defaultValue = "")               String requestString,
+            @RequestParam(value = "OUTLINE", required = true, defaultValue = "false")          boolean outlinePoints,
             @RequestParam(value = "OUTLINECOLOUR", required = true, defaultValue = "0x000000") String outlineColour,
-            @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
+            @RequestParam(value = "LAYERS", required = false, defaultValue = "")               String layers,
             HttpServletRequest request,
             HttpServletResponse response)
             throws Exception {
@@ -1730,6 +1945,11 @@ public class WebportalController implements ServletConfigAware {
                     6378137.0 * long2 * Math.PI / 180.0,
                     6378137.0 * Math.log(Math.tan(Math.PI / 4.0 + lat2 * Math.PI / 360.0))
                 };
+    }
+
+
+    public void setTaxonDAO(TaxonDAO taxonDAO) {
+        this.taxonDAO = taxonDAO;
     }
 }
 
