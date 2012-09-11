@@ -2,14 +2,17 @@ package org.ala.biocache.web;
 
 import java.awt.*;
 import java.io.*;
+import java.net.URLEncoder;
 import java.util.*;
 
 import org.ala.biocache.dao.TaxonDAO;
-import org.ala.biocache.dto.TaxaCountDTO;
+import org.ala.biocache.dto.*;
 import org.ala.biocache.util.ParamsCache;
 import org.apache.commons.io.IOUtils;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.ResponseBody;
 
@@ -25,11 +28,6 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.ala.biocache.dao.SearchDAO;
-import org.ala.biocache.dto.DataProviderCountDTO;
-import org.ala.biocache.dto.OccurrencePoint;
-import org.ala.biocache.dto.PointType;
-import org.ala.biocache.dto.SearchResultDTO;
-import org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.ala.biocache.util.LegendItem;
 import org.ala.biocache.util.SearchUtils;
 import org.ala.biocache.util.WMSCache;
@@ -772,28 +770,80 @@ public class WebportalController implements ServletConfigAware {
     // add this to the GetCapabilities...
     @RequestMapping(value = {"/ogc/getMetadata"}, method = RequestMethod.GET)
     public String getMetadata(
-            SpatialSearchRequestParams requestParams,
-            @RequestParam(value = "REQUEST", required = true, defaultValue = "") String requestString,
-            @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
+            @RequestParam(value = "LAYER", required = false, defaultValue = "") String layer,
             @RequestParam(value = "q", required = false, defaultValue = "") String query,
             HttpServletResponse response,
             Model model
             ) throws Exception {
 
+        String taxonName = "";
+        String rank = "";
+        String q = "";
+        if(StringUtils.trimToNull(layer) != null){
+            String[] parts = layer.split(":");
+            taxonName = parts[parts.length-1];
+            if(parts.length>1) rank = parts[0];
+            q= layer;
+        } else if(StringUtils.trimToNull(query) != null) {
+            String[] parts = query.split(":");
+            taxonName = parts[parts.length-1];
+            if(parts.length>1) rank = parts[0];
+            q= query;
+        } else {
+            response.sendError(400);
+        }
 
+        //http://bie.ala.org.au/ws/guid/Carcharodon%20carcharias  - get the guid
+        ObjectMapper om = new ObjectMapper();
+        String guid = null;
+        JsonNode guidLookupNode = om.readTree(new URL("http://bie.ala.org.au/ws/guid/" + URLEncoder.encode(taxonName)));
+        if(guidLookupNode.isArray()){
+            JsonNode idNode = guidLookupNode.get(0).get("identifier");
+            guid = idNode!=null ? idNode.asText(): null;
+        }
 
-//        response.setContentType("text/html");
-//        response.getWriter().write(
-//                "<html>\n" +
-//                        "<head>\n" +
-//                        "<title>Atlas of Living Australia</title>\n" +
-//                        "</head>\n" +
-//                        "<body>\n" +
-//                        "<h2>"+query+"</h2>"+
-//                        "<p>Content to follow...." +
-//                        "</p>" +
-//                        "</body>\n" +
-//                        "</html>");
+        if(guid != null){
+
+            model.addAttribute("guid", guid);
+
+            JsonNode node = om.readTree(new URL("http://bie.ala.org.au/ws/species/info/" + guid + ".json"));
+            JsonNode imageNode = node.get("taxonConcept").get("smallImageUrl");
+            String imageUrl = imageNode != null ? imageNode.asText() : null;
+            if(imageUrl!=null)  model.addAttribute("imageUrl", imageUrl);
+
+            //common name
+            JsonNode commonNameNode  = node.get("taxonConcept").get("commonNameSingle");
+            if(commonNameNode!=null) {
+                model.addAttribute("commonName",commonNameNode.asText());
+                logger.debug("retrieved name: "+commonNameNode.asText());
+            }
+
+            //name
+            JsonNode nameNode  = node.get("taxonConcept").get("nameComplete");
+            if(nameNode!=null) {
+                model.addAttribute("name",nameNode.asText());
+                logger.debug("retrieved name: "+nameNode.asText());
+            }
+
+            //authorship
+            JsonNode authorshipNode  = node.get("taxonConcept").get("author");
+            if(authorshipNode!=null) model.addAttribute("authorship",authorshipNode.asText());
+
+            if(imageUrl!=null) {
+            //get the image metadata
+                    //http://bie.ala.org.au/repo/1111/174/1740554/dc - image metadata
+               //JsonNode imageNode = om.readTree(new URL("http://bie.ala.org.au/ws/species/info/" + guid + ".json"));
+            }
+
+        }
+
+        SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
+        searchParams.setQ(rank + ":\"" + taxonName + "\"");
+        searchParams.setFacets(new String[]{"data_resource"});
+        searchParams.setPageSize(0);
+        List<FacetResultDTO> facets = searchDAO.getFacetCounts(searchParams);
+        model.addAttribute("query", rank + ":\"" + taxonName + "\""); //need a facet on data providers
+        model.addAttribute("dataProviders", facets.get(0).getFieldResult()); //need a facet on data providers
         return "metadata/mcp";
     }
 
@@ -831,8 +881,6 @@ public class WebportalController implements ServletConfigAware {
         //resolution should be a value < 1
         PointType pointType = getPointTypeForDegreesPerPixel(resolution);
 
-//        double longitude = minx + ( ((maxx - minx)/width) * x ) ;
-//        double latitude  = maxy - ( ((maxy - miny)/height) * y ) ;
         double longitude = bbox[0] + ( ((bbox[2] - bbox[0])/width) * x ) ;
         double latitude  = bbox[3] - ( ((bbox[3] - bbox[1])/height) * y ) ;
 
@@ -841,21 +889,6 @@ public class WebportalController implements ServletConfigAware {
         double roundedLatitude = pointType.roundToPointType(latitude);
 
         //get the pixel size of the circles
-
-        int roundedLngPx = convertLngToPixel(roundedLongitude);
-        int roundedLatPx = convertLatToPixel(roundedLatitude);
-
-        //create a bounding box
-//            double minLng = convertPixelToLng(roundedLngPx - (size*20));
-//            double maxLng = convertPixelToLng(roundedLngPx + (size*20));
-//            double minLat = convertPixelToLat(roundedLatPx - (size*20));
-//            double maxLat = convertPixelToLat(roundedLatPx + (size*20));
-
-//            double minLng = roundedLongitude - pointType.getValue();
-//            double maxLng = roundedLongitude + pointType.getValue() ;
-//            double minLat = roundedLatitude - pointType.getValue();
-//            double maxLat = roundedLatitude + pointType.getValue();
-
         double minLng = roundedLongitude - (pointType.getValue()*2*size);
         double maxLng = roundedLongitude + (pointType.getValue()*2*size);
         double minLat = roundedLatitude - (pointType.getValue()*2*size);
@@ -875,11 +908,6 @@ public class WebportalController implements ServletConfigAware {
         String body = "";
         if(sdl!=null && sdl.size()>0){
             SolrDocument doc = sdl.get(0);
-            //for(String field: doc.getFieldNames())
-            //body += (field + ": " +  doc.getFieldValue(field)+"<br/>");
-//            body += ("Retrieved record" + ": " +  getFieldValue("taxon_name")+"<br/>");
-//            body += ("Retrieved record" + ": " +  doc.getFieldValue("lat_long")+"<br/>");
-//            body += ("<a href=\"http://biocache.ala.org.au/occurrences/"+doc.getFieldValue("id")+"\">View record</a><br/>");
             model.addAttribute("record", doc.getFieldValueMap());
         }
         model.addAttribute("totalRecords", sdl.getNumFound());

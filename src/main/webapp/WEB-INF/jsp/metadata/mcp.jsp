@@ -1,4 +1,5 @@
-<%@page contentType="text/xml" %><?xml version="1.0" encoding="UTF-8" ?>
+<%@page contentType="text/xml" %><%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
+%><?xml version="1.0" encoding="UTF-8" ?>
 <mcp:MD_Metadata xmlns:mcp="http://bluenet3.antcrc.utas.edu.au/mcp"
                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                  xmlns:gml="http://www.opengis.net/gml"
@@ -11,7 +12,7 @@
   <gmd:fileIdentifier>
       <gco:CharacterString xmlns:srv="http://www.isotc211.org/2005/srv"
                            xmlns:gmx="http://www.isotc211.org/2005/gmx"
-                           xmlns:xlink="http://www.w3.org/1999/xlink">5be06101-e670-4ad7-89bc-6b58ca5d1637</gco:CharacterString>
+                           xmlns:xlink="http://www.w3.org/1999/xlink">${guid}</gco:CharacterString>
   </gmd:fileIdentifier>
   <gmd:language>
       <gco:CharacterString xmlns:srv="http://www.isotc211.org/2005/srv">eng</gco:CharacterString>
@@ -21,7 +22,7 @@
                                codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#MD_CharacterSetCode">utf8</gmd:MD_CharacterSetCode>
   </gmd:characterSet>
   <gmd:parentIdentifier>
-      <gco:CharacterString>INSERT A scientific name here</gco:CharacterString>
+      <gco:CharacterString>${name} ${authorship}</gco:CharacterString>
   </gmd:parentIdentifier>
   <gmd:hierarchyLevel>
       <gmd:MD_ScopeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#MD_ScopeCode"
@@ -119,7 +120,7 @@
          <gmd:citation>
             <gmd:CI_Citation>
                <gmd:title>
-                  <gco:CharacterString>IMOS - ANMN Acidification Moorings (AM) Sub-Facility</gco:CharacterString>
+                  <gco:CharacterString>ALA Species Occurrence records</gco:CharacterString>
                </gmd:title>
                <gmd:date>
                   <gmd:CI_Date>
@@ -135,52 +136,52 @@
                <gmd:citedResponsibleParty>
                   <gmd:CI_ResponsibleParty>
                      <gmd:organisationName>
-                        <gco:CharacterString>Integrated Marine Observing System (IMOS)</gco:CharacterString>
+                        <gco:CharacterString>Atlas of Living Australia</gco:CharacterString>
                      </gmd:organisationName>
                      <gmd:contactInfo>
                         <gmd:CI_Contact>
                            <gmd:phone>
                               <gmd:CI_Telephone>
                                  <gmd:voice>
-                                    <gco:CharacterString>61 3 6226 7505</gco:CharacterString>
+                                    <gco:CharacterString>61 2 6246 4439</gco:CharacterString>
                                  </gmd:voice>
                                  <gmd:facsimile>
-                                    <gco:CharacterString>61 3 62262107</gco:CharacterString>
+                                    <gco:CharacterString>61 2 6246 4439</gco:CharacterString>
                                  </gmd:facsimile>
                               </gmd:CI_Telephone>
                            </gmd:phone>
                            <gmd:address>
                               <gmd:CI_Address>
                                  <gmd:deliveryPoint>
-                                    <gco:CharacterString>Private Bag 110</gco:CharacterString>
+                                    <gco:CharacterString>GPO Box 1700</gco:CharacterString>
                                  </gmd:deliveryPoint>
                                  <gmd:city>
-                                    <gco:CharacterString>Hobart</gco:CharacterString>
+                                    <gco:CharacterString>Acton</gco:CharacterString>
                                  </gmd:city>
                                  <gmd:administrativeArea>
-                                    <gco:CharacterString>Tasmania</gco:CharacterString>
+                                    <gco:CharacterString>Canberra</gco:CharacterString>
                                  </gmd:administrativeArea>
                                  <gmd:postalCode>
-                                    <gco:CharacterString>7001</gco:CharacterString>
+                                    <gco:CharacterString>2601</gco:CharacterString>
                                  </gmd:postalCode>
                                  <gmd:country>
                                     <gco:CharacterString>Australia</gco:CharacterString>
                                  </gmd:country>
                                  <gmd:electronicMailAddress>
-                                    <gco:CharacterString>imos@imos.org.au</gco:CharacterString>
+                                    <gco:CharacterString>support@alaorg.au</gco:CharacterString>
                                  </gmd:electronicMailAddress>
                               </gmd:CI_Address>
                            </gmd:address>
                            <gmd:onlineResource>
                               <gmd:CI_OnlineResource>
                                  <gmd:linkage>
-                                    <gmd:URL>http://www.imos.org.au/html</gmd:URL>
+                                    <gmd:URL>http://www.ala.org.au/</gmd:URL>
                                  </gmd:linkage>
                                  <gmd:protocol>
                                     <gco:CharacterString>WWW:LINK-1.0-http--link</gco:CharacterString>
                                  </gmd:protocol>
                                  <gmd:name>
-                                    <gco:CharacterString>Website of the Integrated Marine Observing System (IMOS)</gco:CharacterString>
+                                    <gco:CharacterString>Website of the Atlas of Living Australia</gco:CharacterString>
                                  </gmd:name>
                                  <gmd:description gco:nilReason="missing">
                                     <gco:CharacterString/>
@@ -206,21 +207,23 @@
          <gmd:abstract>
             <gco:CharacterString>
             <![CDATA[
-                Carcharodon carcharias : Great White Shark
+                ${name} ${authorship}<br/>
+                ${commonName}<br/>
 
-                <a href="#">30 Records from blahhh</a><br/>
-                <a href="#">50 Records from blahh2</a><br/>
+                <br/>
+                Data providers:<br/>
+                <c:forEach items="${dataProviders}" var="facet">
+                    ${facet.count} records from  ${facet.label} <br/>
+                </c:forEach>
 
-                <img src="http://bie.ala.org.au/repo/1111/174/1740554/smallRaw.jpg"/><br/>
-                Image source: X <br/>
-                Licence: Y  <br/>
+                <img src="${imageUrl}"/><br/>
             ]]>
             </gco:CharacterString>
             </gmd:abstract>
          <gmd:credit>
             <gco:CharacterString>
 
-            	Integrated Marine Observing System (IMOS). IMOS is supported by the Australian Government through the National
+            	Atlas of Living Australia. ALA is supported by the Australian Government through the National
             	Collaborative Research Infrastructure Strategy (NCRIS) and the Super Science Initiative (SSI).
 
             </gco:CharacterString>
@@ -347,17 +350,17 @@
             <gmd:MD_Constraints>
                <gmd:useLimitation>
                   <gco:CharacterString>
-                  Any users of IMOS data are required to clearly acknowledge the source of the material in the format:
-                  "Data was sourced from the Integrated Marine Observing System (IMOS). IMOS is supported by the Australian Government through
+                  Any users of ALA data are required to clearly acknowledge the source of the material in the format:
+                  "Data was sourced from the Atlas of Living Australia (ALA). ALA is supported by the Australian Government through
                    the National Collaborative Research Infrastructure Strategy and the Super Science Initiative. "
                    </gco:CharacterString>
                </gmd:useLimitation>
                <gmd:useLimitation>
                   <gco:CharacterString>
-                  The citation in a list of references is: "IMOS [year-of-data-downloaded], [Title], [data-access-url}, accessed [date-of-access]"</gco:CharacterString>
+                  The citation in a list of references is: "ALA [year-of-data-downloaded], [Title], [data-access-url}, accessed [date-of-access]"</gco:CharacterString>
                </gmd:useLimitation>
                <gmd:useLimitation>
-                  <gco:CharacterString>Data, products and services from IMOS are provided "as is" without any warranty as to fitness for a particular purpose.</gco:CharacterString>
+                  <gco:CharacterString>Data, products and services from ALA are provided "as is" without any warranty as to fitness for a particular purpose.</gco:CharacterString>
                </gmd:useLimitation>
             </gmd:MD_Constraints>
          </gmd:resourceConstraints>
@@ -419,7 +422,7 @@
                   <gmd:CI_OnlineResource>
                      <gmd:linkage xmlns:gmx="http://www.isotc211.org/2005/gmx"
                                   xmlns:xlink="http://www.w3.org/1999/xlink">
-                        <gmd:URL>http://biocache.ala.org.au/occurrences/search?q=*:*</gmd:URL>
+                        <gmd:URL>http://biocache.ala.org.au/occurrences/search?q=${query}</gmd:URL>
                      </gmd:linkage>
                      <gmd:protocol xmlns:gmx="http://www.isotc211.org/2005/gmx"
                                    xmlns:xlink="http://www.w3.org/1999/xlink">
