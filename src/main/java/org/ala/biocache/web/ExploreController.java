@@ -71,6 +71,9 @@ public class ExploreController {
     private final String DEFAULT_LOCATION = "Clunies Ross St, Black Mountain, ACT";
     private static LookupService lookupService = null;
     private final String POINTS_GEOJSON = "json/pointsGeoJson";
+
+
+
     /** Mapping of radius in km to OpenLayers zoom level */
     public final static HashMap<Float, Integer> radiusToZoomLevelMap = new HashMap<Float, Integer>();
 	static {
@@ -170,6 +173,7 @@ public class ExploreController {
         
         return new Integer[]{(int)results.getTotalRecords() ,speciesCount};
     }
+
     /**
      * Updates the requestParams to take into account the provided species group
      * @param requestParams
@@ -202,16 +206,11 @@ public class ExploreController {
      */
     @RequestMapping(value = "/geojson/radius-points", method = RequestMethod.GET)
         public String radiusPointsGeoJson(SpatialSearchRequestParams requestParams,
-
-
             @RequestParam(value="zoom", required=false, defaultValue="0") Integer zoomLevel,
             @RequestParam(value="bbox", required=false) String bbox,
             @RequestParam(value="group", required=false, defaultValue="ALL_SPECIES") String speciesGroup,
             Model model)
-            throws Exception
-    {
-
-
+            throws Exception {
         updateQuery(requestParams, speciesGroup);
         PointType pointType = PointType.POINT_00001; // default value for when zoom is null
         pointType = getPointTypeForZoomLevel(zoomLevel);
@@ -220,7 +219,6 @@ public class ExploreController {
         logger.info("Points search for "+pointType.getLabel()+" - found: "+points.size());
         model.addAttribute("points", points);
         return POINTS_GEOJSON;
-
     }
     
     /**

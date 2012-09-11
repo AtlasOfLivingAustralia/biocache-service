@@ -92,14 +92,6 @@ public class WebportalController implements ServletConfigAware {
         blankImageBytes = b;
     }
 
-//    public static void main(String[] args){
-//        double latitude = -37.5;
-//        double longitude = 149.5;
-//        WebportalController w = new WebportalController();
-//        System.out.println("lat converted: " + w.convertMetersToLat(w.convertLatToMeters(latitude)));
-//        System.out.println("lat converted: " + w.convertMetersToLng(w.convertLngToMeters(longitude)));
-//    }
-
     /**
      * Store query params list
      */
@@ -763,7 +755,6 @@ public class WebportalController implements ServletConfigAware {
                 }
             }
         }
-
         return bbox;
     }
 
@@ -780,39 +771,47 @@ public class WebportalController implements ServletConfigAware {
 
     // add this to the GetCapabilities...
     @RequestMapping(value = {"/ogc/getMetadata"}, method = RequestMethod.GET)
-    public void getMetadata(
+    public String getMetadata(
             SpatialSearchRequestParams requestParams,
             @RequestParam(value = "REQUEST", required = true, defaultValue = "") String requestString,
             @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
             @RequestParam(value = "q", required = false, defaultValue = "") String query,
-            HttpServletResponse response
+            HttpServletResponse response,
+            Model model
             ) throws Exception {
 
-        response.setContentType("text/html");
-        response.getWriter().write(
-                "<html>\n" +
-                        "<head>\n" +
-                        "<title>Atlas of Living Australia</title>\n" +
-                        "</head>\n" +
-                        "<body>\n" +
-                        "<h2>"+query+"</h2>"+
-                        "<p>Content to follow...." +
-                        "</p>" +
-                        "</body>\n" +
-                        "</html>");
+
+
+//        response.setContentType("text/html");
+//        response.getWriter().write(
+//                "<html>\n" +
+//                        "<head>\n" +
+//                        "<title>Atlas of Living Australia</title>\n" +
+//                        "</head>\n" +
+//                        "<body>\n" +
+//                        "<h2>"+query+"</h2>"+
+//                        "<p>Content to follow...." +
+//                        "</p>" +
+//                        "</body>\n" +
+//                        "</html>");
+        return "metadata/mcp";
     }
 
     @RequestMapping(value = {"/ogc/getFeatureInfo"}, method = RequestMethod.GET)
-    public void getFeatureInfo(
+    public String getFeatureInfo(
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
-            @RequestParam(value = "BBOX", required = true, defaultValue = "") String bboxString,
+            @RequestParam(value = "BBOX", required = true, defaultValue = "0,-90,180,0") String bboxString,
             @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
             @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
             @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
             @RequestParam(value = "SRS", required = false, defaultValue = "") String srs,
             @RequestParam(value = "QUERY_LAYERS", required = false, defaultValue = "") String queryLayers,
-            HttpServletRequest request, HttpServletResponse response) throws Exception {
+            @RequestParam(value = "X", required = true, defaultValue = "0") Double x,
+            @RequestParam(value = "Y", required = true, defaultValue = "0") Double y,
+            HttpServletRequest request,
+            HttpServletResponse response,
+            Model model) throws Exception {
 
         logger.debug("WMS - GetFeatureInfo requested for: " + queryLayers);
         String originalBBox = bboxString;
@@ -832,33 +831,21 @@ public class WebportalController implements ServletConfigAware {
         //resolution should be a value < 1
         PointType pointType = getPointTypeForDegreesPerPixel(resolution);
 
-        //what are the size of the dots
-        double y = Double.parseDouble(request.getParameter("Y"));
-        double x = Double.parseDouble(request.getParameter("X"));
-
-        //where did they click ?
-//        double minx = convertMetersToLng(bbox[0]);
-//        double miny = convertMetersToLat(bbox[1]);
-//        double maxx = convertMetersToLng(bbox[2]);
-//        double maxy = convertMetersToLat(bbox[3]);
-
-
 //        double longitude = minx + ( ((maxx - minx)/width) * x ) ;
 //        double latitude  = maxy - ( ((maxy - miny)/height) * y ) ;
         double longitude = bbox[0] + ( ((bbox[2] - bbox[0])/width) * x ) ;
         double latitude  = bbox[3] - ( ((bbox[3] - bbox[1])/height) * y ) ;
 
         //round to the correct point size
-        try {
-            double roundedLongitude = pointType.roundToPointType(longitude);
-            double roundedLatitude = pointType.roundToPointType(latitude);
+        double roundedLongitude = pointType.roundToPointType(longitude);
+        double roundedLatitude = pointType.roundToPointType(latitude);
 
-            //get the pixel size of the circles
+        //get the pixel size of the circles
 
-            int roundedLngPx = convertLngToPixel(roundedLongitude);
-            int roundedLatPx = convertLatToPixel(roundedLatitude);
+        int roundedLngPx = convertLngToPixel(roundedLongitude);
+        int roundedLatPx = convertLatToPixel(roundedLatitude);
 
-            //create a bounding box
+        //create a bounding box
 //            double minLng = convertPixelToLng(roundedLngPx - (size*20));
 //            double maxLng = convertPixelToLng(roundedLngPx + (size*20));
 //            double minLat = convertPixelToLat(roundedLatPx - (size*20));
@@ -869,57 +856,38 @@ public class WebportalController implements ServletConfigAware {
 //            double minLat = roundedLatitude - pointType.getValue();
 //            double maxLat = roundedLatitude + pointType.getValue();
 
-            double minLng = roundedLongitude - (pointType.getValue()*2*size);
-            double maxLng = roundedLongitude + (pointType.getValue()*2*size);
-            double minLat = roundedLatitude - (pointType.getValue()*2*size);
-            double maxLat = roundedLatitude + (pointType.getValue()*2*size);
+        double minLng = roundedLongitude - (pointType.getValue()*2*size);
+        double maxLng = roundedLongitude + (pointType.getValue()*2*size);
+        double minLat = roundedLatitude - (pointType.getValue()*2*size);
+        double maxLat = roundedLatitude + (pointType.getValue()*2*size);
 
-            //do the SOLR query
-            SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
-            requestParams.setQ(convertLayersParamToQ(queryLayers));  //need to derive this from the layer name
-            logger.debug("WMS GetFeatureInfo for " + queryLayers + ", longitude:["+minLng+" TO "+maxLng+"],  latitude:["+minLat+" TO "+maxLat+"]");
-            requestParams.setFq(new String[]{"longitude:["+minLng+" TO "+maxLng+"]" , "latitude:["+minLat+" TO "+maxLat+"]"});
-            //requestParams.setFq(new String[]{"point-"+pointType.getValue()+":"+roundedLatitude+","+roundedLongitude});
-            requestParams.setFacet(false);
+        //do the SOLR query
+        SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
+        requestParams.setQ(convertLayersParamToQ(queryLayers));  //need to derive this from the layer name
+        logger.debug("WMS GetFeatureInfo for " + queryLayers + ", longitude:["+minLng+" TO "+maxLng+"],  latitude:["+minLat+" TO "+maxLat+"]");
+        requestParams.setFq(new String[]{"longitude:["+minLng+" TO "+maxLng+"]" , "latitude:["+minLat+" TO "+maxLat+"]"});
+        //requestParams.setFq(new String[]{"point-"+pointType.getValue()+":"+roundedLatitude+","+roundedLongitude});
+        requestParams.setFacet(false);
 
-            //TODO: paging
-            SolrDocumentList sdl = searchDAO.findByFulltext(requestParams);
-            //send back the results.
-            String body = "";
-            if(sdl.size()>0){
-                SolrDocument doc = sdl.get(0);
-                //for(String field: doc.getFieldNames())
-                //body += (field + ": " +  doc.getFieldValue(field)+"<br/>");
-                body += ("Retrieved record" + ": " +  doc.getFieldValue("taxon_name")+"<br/>");
-                body += ("Retrieved record" + ": " +  doc.getFieldValue("lat_long")+"<br/>");
-                body += ("<a href=\"http://biocache.ala.org.au/occurrences/"+doc.getFieldValue("id")+"\">View record</a><br/>");
-            }
-
-            body += ("<br/><a target=\"_blank\" href=\"http://biocache.ala.org.au/occurrences/search\">View list of records</a>");
-
-            response.setContentType("text/html");
-            response.getWriter().write(
-                    "<html>\n" +
-                    "<head>\n" +
-                    "<title>Occurrence record</title>\n" +
-                    "</head>\n" +
-                    "<body>\n" +
-                    "<h2>Occurrence record</h2>"+
-                    "<p>"+body+"</p>"+
-                    "<p>records found:"+sdl.getNumFound()+"<p>" +
-                    "<p class=\"debug\">Point type:"+pointType.name()+"<br/>" +
-                    "Longitude:"+longitude+",latitude:"+latitude+"<br/>" +
-                    "Longitude:"+roundedLatitude+","+roundedLongitude+" (Rounded)<br/>" +
-                    "</p>" +
-                    "</body>\n" +
-                    "</html>");
-        } catch (Exception e){
-            e.printStackTrace();
+        //TODO: paging
+        SolrDocumentList sdl = searchDAO.findByFulltext(requestParams);
+        //send back the results.
+        String body = "";
+        if(sdl!=null && sdl.size()>0){
+            SolrDocument doc = sdl.get(0);
+            //for(String field: doc.getFieldNames())
+            //body += (field + ": " +  doc.getFieldValue(field)+"<br/>");
+//            body += ("Retrieved record" + ": " +  getFieldValue("taxon_name")+"<br/>");
+//            body += ("Retrieved record" + ": " +  doc.getFieldValue("lat_long")+"<br/>");
+//            body += ("<a href=\"http://biocache.ala.org.au/occurrences/"+doc.getFieldValue("id")+"\">View record</a><br/>");
+            model.addAttribute("record", doc.getFieldValueMap());
         }
+        model.addAttribute("totalRecords", sdl.getNumFound());
+        return "metadata/getFeatureInfo";
     }
 
     String convertLayersParamToQ(String layers){
-        if(layers!=null){
+        if(StringUtils.trimToNull(layers)!=null){
             String[] parts = layers.split(",");
             String[] formattedParts = new String[parts.length];
             int i=0;
@@ -929,17 +897,41 @@ public class WebportalController implements ServletConfigAware {
             }
             return StringUtils.join(formattedParts," OR ");
         } else {
-            return "";
+            return "*:*";
         }
     }
 
     @RequestMapping(value = {"/ogc/legendGraphic"}, method = RequestMethod.GET)
-    public void getLegendGraphic(HttpServletResponse response) throws Exception{
-        logger.debug("WMS - GetLegendGraphic requested");
-        response.setContentType("image/png");
-        OutputStream out = response.getOutputStream();
-        out.write(IOUtils.toByteArray(GeospatialController.class.getResourceAsStream("/logo16x16.png")));
-        out.flush();
+    public void getLegendGraphic(
+            @RequestParam(value="ENV", required=false, defaultValue = "") String env,
+            @RequestParam(value="STYLE", required=false, defaultValue="8b0000;opacity=1;size=5") String style,
+            @RequestParam(value="WIDTH", required=false, defaultValue = "30") Integer width,
+            @RequestParam(value="HEIGHT", required=false, defaultValue = "20") Integer height,
+            HttpServletResponse response) throws Exception{
+
+        try {
+            if(StringUtils.trimToNull(env)==null && StringUtils.trimToNull(style)==null){
+                style="8b0000;opacity=1;size=5";
+            }
+
+            WmsEnv wmsEnv = new WmsEnv(env, style);
+            BufferedImage img = new BufferedImage(width,height,BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = (Graphics2D) img.getGraphics();
+            int size = width>height? height:width;
+            Paint fill = new Color(wmsEnv.colour | wmsEnv.alpha <<24);
+            g.setPaint(fill);
+            g.fillOval(0, 0, size, size);
+
+            OutputStream out = response.getOutputStream();
+            logger.debug("WMS - GetLegendGraphic requested");
+            response.setContentType("image/png");
+            //out.write(IOUtils.toByteArray(GeospatialController.class.getResourceAsStream("/logo16x16.png")));
+            //out.flush();
+            ImageIO.write(img,"png", out);
+            out.close();
+        } catch (Exception e){
+            e.printStackTrace();
+        }
     }
 
     @RequestMapping(value = {"/ogc/ows"}, method = RequestMethod.GET)
@@ -949,6 +941,7 @@ public class WebportalController implements ServletConfigAware {
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
             @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:900913") String srs, //default to google mercator
             @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
+            @RequestParam(value = "STYLE", required = false, defaultValue = "") String style,
             @RequestParam(value = "BBOX", required = false, defaultValue = "") String bboxString,
             @RequestParam(value = "WIDTH", required = false, defaultValue = "256") Integer width,
             @RequestParam(value = "HEIGHT", required = false, defaultValue = "256") Integer height,
@@ -959,8 +952,11 @@ public class WebportalController implements ServletConfigAware {
             @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
             @RequestParam(value = "q", required = false, defaultValue = "*:*") String query,
             @RequestParam(value = "fq", required = false) String[] filterQueries,
+            @RequestParam(value = "X", required = true, defaultValue = "0") Double x,
+            @RequestParam(value = "Y", required = true, defaultValue = "0") Double y,
             HttpServletRequest request,
-            HttpServletResponse response)
+            HttpServletResponse response,
+            Model model)
             throws Exception {
 
         if("GetMap".equalsIgnoreCase(requestString)){
@@ -984,12 +980,13 @@ public class WebportalController implements ServletConfigAware {
         }
 
         if("GetLegendGraphic".equalsIgnoreCase(requestString)){
-            getLegendGraphic(response);
+            getLegendGraphic(env,style, 30, 20, response);
             return;
         }
 
         if("GetFeatureInfo".equalsIgnoreCase(requestString)){
-            getFeatureInfo(cql_filter,
+            getFeatureInfo(
+                    cql_filter,
                     env,
                     bboxString,
                     width,
@@ -997,8 +994,11 @@ public class WebportalController implements ServletConfigAware {
                     styles,
                     srs,
                     layers,
+                    x,
+                    y,
                     request,
-                    response);
+                    response,
+                    model);
             return;
         }
 
@@ -1125,12 +1125,12 @@ public class WebportalController implements ServletConfigAware {
     public String generateStylesForPoints(){
         //need a better listings of colours
         String[] colorsNames = new String[]{
-                "DarkRed","IndianRed","DarkSalmon","SaddleBrown", "Chocolate", "SandyBrown","Orange","DarkGreen","Green", "Lime", "LightGreen", "MidnightBlue", "Blue",
-                "SteelBlue","CadetBlue","Aqua","PowderBlue", "DarkOliveGreen", "DarkKhaki", "Yellow","Moccasin","Indigo","Purple", "Fuchsia", "Plum", "Black", "White"
+                "DarkRed","IndianRed","DarkSalmon","SaddleBrown","Chocolate","SandyBrown","Orange","DarkGreen","Green","Lime","LightGreen","MidnightBlue","Blue",
+                "SteelBlue","CadetBlue","Aqua","PowderBlue","DarkOliveGreen","DarkKhaki","Yellow","Moccasin","Indigo","Purple","Fuchsia","Plum","Black","White"
         };
         String[] colorsCodes = new String[]{
-                "8b0000","FF0000","CD5C5C","E9967A", "8B4513", "D2691E", "F4A460","FFA500","006400","008000", "00FF00", "90EE90", "191970", "0000FF",
-                "4682B4","5F9EA0","00FFFF","B0E0E6", "556B2F", "BDB76B", "FFFF00","FFE4B5","4B0082","800080", "FF00FF", "DDA0DD", "000000",  "FFFFFF"
+                "8b0000","FF0000","CD5C5C","E9967A","8B4513","D2691E","F4A460","FFA500","006400","008000","00FF00","90EE90","191970","0000FF",
+                "4682B4","5F9EA0","00FFFF","B0E0E6","556B2F","BDB76B","FFFF00","FFE4B5","4B0082","800080","FF00FF","DDA0DD","000000","FFFFFF"
         };
         String[] sizes = new String[]{"5","10","2"};
         String[] sizesNames = new String[]{"medium","large","small"};
@@ -1143,10 +1143,12 @@ public class WebportalController implements ServletConfigAware {
         for(String color: colorsNames){
             for(String size: sizes){
                 for(String opacity : opacities){
-                    sb.append("<Style>\n" +
+                    sb.append(
+                            "<Style>\n" +
                             "<Name>"+colorsCodes[colorIdx]+";opacity="+opacity+";size="+size+"</Name> \n" +
                             "<Title>"+color+";opacity="+opacitiesNames[opIdx]+";size="+sizesNames[sizeIdx]+"</Title> \n" +
-                            "</Style>\n");
+                            "</Style>\n"
+                    );
                     opIdx++;
                 }
                 opIdx = 0;
@@ -1157,7 +1159,6 @@ public class WebportalController implements ServletConfigAware {
         }
         return sb.toString();
     }
-
 
     /**
      * WMS service for webportal.
@@ -1193,7 +1194,7 @@ public class WebportalController implements ServletConfigAware {
 
         //Some WMS clients are ignoring sections of the GetCapabilities....
         if("GetLegendGraphic".equalsIgnoreCase(requestString)) {
-            getLegendGraphic(response);
+            getLegendGraphic(env,styles,30,20,response);
             return;
         }
 
