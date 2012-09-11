@@ -207,16 +207,19 @@
          <gmd:abstract>
             <gco:CharacterString>
             <![CDATA[
+
                 ${name} ${authorship}<br/>
                 ${commonName}<br/>
 
                 <br/>
                 Data providers:<br/>
+
                 <c:forEach items="${dataProviders}" var="facet">
-                    ${facet.count} records from  ${facet.label} <br/>
+                ${facet.count} records from ${facet.label} <br/>
                 </c:forEach>
 
-                <img src="${imageUrl}"/><br/>
+
+                <img src="${imageUrl}" alt="Representative image of ${name}"/>
             ]]>
             </gco:CharacterString>
             </gmd:abstract>

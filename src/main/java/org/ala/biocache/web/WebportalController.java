@@ -796,7 +796,7 @@ public class WebportalController implements ServletConfigAware {
         //http://bie.ala.org.au/ws/guid/Carcharodon%20carcharias  - get the guid
         ObjectMapper om = new ObjectMapper();
         String guid = null;
-        JsonNode guidLookupNode = om.readTree(new URL("http://bie.ala.org.au/ws/guid/" + URLEncoder.encode(taxonName)));
+        JsonNode guidLookupNode = om.readTree(new URL("http://bie.ala.org.au/ws/guid/" + URLEncoder.encode(taxonName, "UTF-8")));
         if(guidLookupNode.isArray()){
             JsonNode idNode = guidLookupNode.get(0).get("identifier");
             guid = idNode!=null ? idNode.asText(): null;
