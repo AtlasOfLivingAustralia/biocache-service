@@ -21,16 +21,18 @@ Longitude: ${record.longitude}, Latitude: ${record.latitude}<br/>
 Spatial uncertainty in metres:
     <c:if test="${empty record.coordinate_uncertainty}">Not supplied</c:if>
     ${record.coordinate_uncertainty}<br/>
-Occurrence date:${record.occurrence_date}<br/>
+Occurrence date: <c:if test="${empty record.occurrence_date}">Not supplied</c:if>${record.occurrence_date}<br/>
 Basis of record: <c:if test="${empty record.basis_of_record}">Not supplied</c:if>${record.basis_of_record}
 </p>
 
 <p>
-    <a href="${uriUrl}">View all records</a>
+    <a href="${uriUrl}">View all records at this point</a>
 </p>
 
 <p style="background-color: #515863; padding:5px;">
-    <img src="${initParam.webservicesRoot}/static/images/logo.png" alt="logo"/>
+    <a href="http://www.ala.org.au">
+        <img src="${initParam.webservicesRoot}/static/images/logo.png" alt="logo"/>
+    </a>
 </p>
 </c:when>
 <c:otherwise>

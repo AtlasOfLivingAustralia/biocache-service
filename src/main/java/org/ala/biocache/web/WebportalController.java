@@ -905,9 +905,12 @@ public class WebportalController /* implements ServletConfigAware*/ {
 
         //do the SOLR query
         SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
+        String q = convertLayersParamToQ(queryLayers);
         requestParams.setQ(convertLayersParamToQ(queryLayers));  //need to derive this from the layer name
         logger.debug("WMS GetFeatureInfo for " + queryLayers + ", longitude:["+minLng+" TO "+maxLng+"],  latitude:["+minLat+" TO "+maxLat+"]");
-        requestParams.setFq(new String[]{"longitude:["+minLng+" TO "+maxLng+"]" , "latitude:["+minLat+" TO "+maxLat+"]"});
+
+        String[] fqs = new String[]{"longitude:["+minLng+" TO "+maxLng+"]" , "latitude:["+minLat+" TO "+maxLat+"]"};
+        requestParams.setFq(fqs);
         //requestParams.setFq(new String[]{"point-"+pointType.getValue()+":"+roundedLatitude+","+roundedLongitude});
         requestParams.setFacet(false);
 
@@ -920,6 +923,8 @@ public class WebportalController /* implements ServletConfigAware*/ {
             model.addAttribute("record", doc.getFieldValueMap());
         }
         model.addAttribute("totalRecords", sdl.getNumFound());
+        model.addAttribute("uriUrl", "http://biocache.ala.org.au/occurrences/search?q=" + q + "&fq=" + fqs[0] + "&fq=" + fqs[1] );
+
         return "metadata/getFeatureInfo";
     }
 
@@ -1273,9 +1278,9 @@ public class WebportalController /* implements ServletConfigAware*/ {
         PointType pointType = getPointTypeForDegreesPerPixel(resolution);
         logger.debug("Rendering: " + pointType.name());
 
-        String q = "*:*";
-        if(StringUtils.trimToEmpty(layers) !=null){
-            q = convertLayersParamToQ(layers); //FIXME TO BE REMOVED FOR DEBUG
+        String q = "";
+        if(StringUtils.trimToEmpty(layers) != null && !"ALA:occurrences".equalsIgnoreCase(layers)){
+            q = convertLayersParamToQ(layers);
         } else {
             q = getQ(cql_filter);
         }
