@@ -998,6 +998,10 @@ public class WebportalController /* implements ServletConfigAware*/ {
             @RequestParam(value = "fq", required = false) String[] filterQueries,
             @RequestParam(value = "X", required = true, defaultValue = "0") Double x,
             @RequestParam(value = "Y", required = true, defaultValue = "0") Double y,
+            @RequestParam(value = "spatiallyValidOnly", required = false, defaultValue = "true") boolean spatiallyValidOnly,
+            @RequestParam(value = "marineSpecies", required = false, defaultValue = "false") boolean marineOnly,
+            @RequestParam(value = "terrestrialSpecies", required = false, defaultValue = "false") boolean terrestrialOnly,
+            @RequestParam(value = "limitToFocus", required = false, defaultValue = "true") boolean limitToFocus,
             HttpServletRequest request,
             HttpServletResponse response,
             Model model)
@@ -1155,7 +1159,22 @@ public class WebportalController /* implements ServletConfigAware*/ {
 
             writer.write(generateStylesForPoints());
 
-            filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, "geospatial_kosher:true");
+            if(spatiallyValidOnly){
+                filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, "geospatial_kosher:true");
+            }
+
+            if(marineOnly){
+               filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, "species_habitats:Marine OR species_habitats:\"Marine and Non-marine\")");
+            }
+
+            if(terrestrialOnly){
+                filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, "species_habitats:Marine OR species_habitats:\"Marine and Non-marine\")");
+            }
+
+            if(limitToFocus){
+                //TODO retrieve focus from file
+                filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, "latitude:[8 TO -89] AND longitude:[100 TO 165]");
+            }
 
             //http://biocache-test.ala.org.au/ws/
             String baseWsUrl = request.getSession().getServletContext().getInitParameter("webservicesRoot");
