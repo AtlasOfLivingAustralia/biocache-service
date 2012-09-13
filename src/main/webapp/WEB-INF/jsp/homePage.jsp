@@ -347,12 +347,36 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         </ul>
 
         <h3>WMS Services</h3>
+
         <p>These services are suitable for use with a OGC client or an OGC friendly API like <a href="http://openlayers.org/">openlayers</a>.
             Examples of use are available <a href="http://spatial.ala.org.au/ws/examples/">here</a>
         </p>
 
         <ul class="webserviceList">
-            <li><strong>Tile:</strong> /mapping/wms/reflect
+            <li><strong>GetCapabilities:</strong> /ogc/ows  - generates a GetCapabilities document based on a query
+                that can be used in an OGC client. The GetCapabilities gives a hierarchial taxonomic listing of taxa.
+                <ul class="paramList">
+                    <li><strong>q</strong> - SOLR query q e.g. q=genus:Macropus</li>
+                    <li><strong>fq</strong> - SOLR query fq e.g. fq=genus:Macropus</li>
+                </ul>
+            </li>
+            <li><strong>GetMetadata - Marine Community Profile :</strong> /ogc/getMetadata
+                <ul class="paramList">
+                    <li><strong>q</strong> - SOLR query q e.g. q=genus:Macropus</li>
+                </ul>
+            </li>
+            <li><strong>GetFeatureInfo :</strong> /ogc/getFeatureInfo
+                <ul class="paramList">
+                    <li><strong>x</strong> - x coordinate within tile</li>
+                    <li><strong>y</strong> - y coordinate within tile</li>
+                    <li><strong>WIDTH</strong> - width in pixels</li>
+                    <li><strong>HEIGHT</strong> - height in pixels</li>
+                    <li><strong>BBOX</strong> - EPSG900913 or EPSG:4326 bounding box. e.g. &BBOX=12523443.0512,-2504688.2032,15028131.5936,0.3392000021413</li>
+                    <li><strong>SRS</strong> - only supports EPSG900913 or EPSG:4326</li>
+                    <li><strong>QUERY_LAYERS</strong> - layers to query comma separated. E.g. &amp;QUERY_LAYERS=genus:Macropus,genus:Acacia</li>
+                </ul>
+            </li>
+            <li><strong>GetMap:</strong> /mapping/wms/reflect
                 <ul class="paramList">
                     <li><strong>BBOX</strong> - EPSG900913 bounding box. e.g. &BBOX=12523443.0512,-2504688.2032,15028131.5936,0.3392000021413</li>
                     <li><strong>WIDTH</strong> - width in pixels</li>
@@ -379,6 +403,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                             </li>
                         </ul>
                     </li>
+                    <li><strong>STYLE</strong> - e.g. STYLE=color:cd3844;size=1;opacity=0.8
                 </ul>
             </li>
             <li><strong>Legend:</strong> /mapping/legend - Get a CSV legend.<br/>
@@ -419,12 +444,6 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 			e.g. 			
 			<a href="${initParam.webservicesRoot}/outlierInfo/urn:lsid:biodiversity.org.au:afd.taxon:0c139726-2add-4abe-a714-df67b1d4b814.json">/outlierInfo/urn:lsid:biodiversity.org.au:afd.taxon:0c139726-2add-4abe-a714-df67b1d4b814.json </a>(Mountain thornbill)
 			</li>
-			<!--
-			<li><a href="#outliers" name="outliers" id="outliers"><strong>Outlier records for species</strong></a><br/>
-			e.g. 			
-			<a href="${initParam.webservicesRoot}/outliers/urn:lsid:biodiversity.org.au:afd.taxon:0c139726-2add-4abe-a714-df67b1d4b814.json">/outlierInfo/urn:lsid:biodiversity.org.au:afd.taxon:0c139726-2add-4abe-a714-df67b1d4b814.json </a>(Mountain thornbill)
-			</li>
-			-->
 			<li><a href="#outlierRecordDetails" name="outlierRecordDetails" id="outlierRecordDetails"><strong>Outlier record details</strong></a><br/>
 			e.g. 			
 			<a href="${initParam.webservicesRoot}/outlier/record/b07bbac2-22d7-4c8a-8d61-4be1ab9e0d09">/outlier/record/b07bbac2-22d7-4c8a-8d61-4be1ab9e0d09 </a>(A Mountain thornbill outlier)
