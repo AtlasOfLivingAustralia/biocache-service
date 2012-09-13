@@ -945,7 +945,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
             }
             return StringUtils.join(formattedParts," OR ");
         } else {
-            return "*:*";
+            return null;
         }
     }
 
@@ -1278,8 +1278,8 @@ public class WebportalController /* implements ServletConfigAware*/ {
         PointType pointType = getPointTypeForDegreesPerPixel(resolution);
         logger.debug("Rendering: " + pointType.name());
 
-        String q = "";
-        if(StringUtils.trimToEmpty(layers) != null && !"ALA:occurrences".equalsIgnoreCase(layers)){
+        String q = null;
+        if(StringUtils.trimToNull(cql_filter) == null){
             q = convertLayersParamToQ(layers);
         } else {
             q = getQ(cql_filter);
