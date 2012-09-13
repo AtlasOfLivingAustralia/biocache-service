@@ -923,7 +923,11 @@ public class WebportalController /* implements ServletConfigAware*/ {
             model.addAttribute("record", doc.getFieldValueMap());
         }
         model.addAttribute("totalRecords", sdl.getNumFound());
-        model.addAttribute("uriUrl", "http://biocache.ala.org.au/occurrences/search?q=" + q + "&fq=" + fqs[0] + "&fq=" + fqs[1] );
+        model.addAttribute("uriUrl", "http://biocache.ala.org.au/occurrences/search?q=" +
+                URLEncoder.encode(q,"UTF-8")
+                + "&fq=" + URLEncoder.encode(fqs[0],"UTF-8")
+                + "&fq=" + URLEncoder.encode(fqs[1],"UTF-8")
+        );
 
         return "metadata/getFeatureInfo";
     }
