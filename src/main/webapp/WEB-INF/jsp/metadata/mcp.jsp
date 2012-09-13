@@ -146,7 +146,7 @@
                                     <gco:CharacterString>61 2 6246 4439</gco:CharacterString>
                                  </gmd:voice>
                                  <gmd:facsimile>
-                                    <gco:CharacterString>61 2 6246 4439</gco:CharacterString>
+                                    <gco:CharacterString>61 2 6246 4000</gco:CharacterString>
                                  </gmd:facsimile>
                               </gmd:CI_Telephone>
                            </gmd:phone>
@@ -211,6 +211,7 @@
                 ${name} ${authorship}<br/>
                 ${commonName}<br/>
 
+                <c:if test="${not empty dataProviders}">
                 <br/>
                 Data providers:<br/>
 
@@ -218,8 +219,21 @@
                 ${facet.count} records from ${facet.label} <br/>
                 </c:forEach>
 
+                </c:if>
 
-                <img src="${imageUrl}" alt="Representative image of ${name}"/>
+                <c:if test="${not empty imageUrl}">
+                    <img src="${imageUrl}" alt="Representative image of ${name}"/>
+                    <span> Representative image of <a href="${speciesPageUrl}">${name}<c:if test="${not empty commonName}">:</c:if>${commonName}</a> <span>
+                    <c:if test="${not empty imageCreator}"><br/>Image creator: ${imageCreator}</c:if>
+                    <c:if test="${not empty imageSource}"><br/>Image source: ${imageSource}</c:if>
+                    <c:if test="${not empty imageLicence}"><br/>Image licence: ${imageLicence}</c:if>
+                </c:if>
+
+                <c:if test="${empty imageUrl}">
+                    <a href="${speciesPageUrl}">View more information for ${name}
+                        <c:if test="${not empty commonName}">:</c:if>
+                        ${commonName}</a>
+                </c:if>
             ]]>
             </gco:CharacterString>
             </gmd:abstract>

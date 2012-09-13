@@ -8,5 +8,5 @@ import java.io.Writer;
  */
 public interface TaxonDAO {
 
-    public void extractHierarchy(String query, String[] filterQueries, Writer writer) throws Exception;
+    public void extractHierarchy(String metadataUrl, String query, String[] filterQueries, Writer writer) throws Exception;
 }

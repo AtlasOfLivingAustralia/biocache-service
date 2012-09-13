@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,7 +42,7 @@ public class TaxonDAOImpl implements TaxonDAO {
     }
 
     @Override
-    public void extractHierarchy(String q, String[] fq, Writer writer) throws Exception {
+    public void extractHierarchy(String metadataUrl, String q, String[] fq, Writer writer) throws Exception {
         try {
             List<FacetField.Count> kingdoms = extractFacet(q,fq, "kingdom");
             for(FacetField.Count k: kingdoms){
@@ -63,7 +64,7 @@ public class TaxonDAOImpl implements TaxonDAO {
                                     outputNestedMappableLayerStart("genus", g.getName(), writer);
                                     List<FacetField.Count> species = extractFacet(q, (String[])ArrayUtils.add(fq, "genus:"+g.getName()), "species");
                                     for(FacetField.Count s: species){
-                                        outputLayer("species", s.getName(), writer);
+                                        outputLayer(metadataUrl, "species", s.getName(), writer);
                                     }
                                     outputNestedLayerEnd(writer);
                                 }
@@ -97,13 +98,13 @@ public class TaxonDAOImpl implements TaxonDAO {
         out.flush();
     }
 
-    void outputLayer(String rank, String taxon, Writer out) throws Exception {
+    void outputLayer(String metadataUrlRoot, String rank, String taxon, Writer out) throws Exception {
         String normalised = taxon.replaceFirst("\\([A-Za-z]*\\) ", "").replace(" ", "_"); //remove the subgenus, replace spaces with underscores
-        out.write("<Layer queryable=\"1\"><Name>" + rank + ":" + normalised + "</Name><Title>" + taxon + "</Title>"+
+        out.write("<Layer queryable=\"1\"><Name>" + rank + ":" + normalised + "</Name><Title>"+ rank + ":" + taxon + "</Title>"+
                 "<MetadataURL type=\"TC211\">\n" +
                 "<Format>text/html</Format>\n" +
                 "<OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\"" +
-                " xlink:href=\"http://biocache-test.ala.org.au/ws/ogc/getMetadata?q="+rank+":"+taxon +"\"/>\n" +
+                " xlink:href=\""+metadataUrlRoot+"?q="+rank+":"+ URLEncoder.encode(taxon,"UTF-8") +"\"/>\n" +
                 "</MetadataURL>"+
                 "</Layer>");
         out.flush();

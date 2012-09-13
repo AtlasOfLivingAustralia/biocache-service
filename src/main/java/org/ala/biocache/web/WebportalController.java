@@ -47,12 +47,25 @@ import org.springframework.web.context.ServletConfigAware;
  *
  */
 @Controller
-public class WebportalController implements ServletConfigAware {
+public class WebportalController /* implements ServletConfigAware*/ {
 
     /** webportal results limit */
     private final int DEFAULT_PAGE_SIZE = 1000000;
     /** categorical colours */
-    private final int[] colourList = {0x003366CC, 0x00DC3912, 0x00FF9900, 0x00109618, 0x00990099, 0x000099C6, 0x00DD4477, 0x0066AA00, 0x00B82E2E, 0x00316395, 0x00994499, 0x0022AA99, 0x00AAAA11, 0x006633CC, 0x00E67300, 0x008B0707, 0x00651067, 0x00329262, 0x005574A6, 0x003B3EAC, 0x00B77322, 0x0016D620, 0x00B91383, 0x00F4359E, 0x009C5935, 0x00A9C413, 0x002A778D, 0x00668D1C, 0x00BEA413, 0x000C5922, 0x00743411};
+    private final int[] colourList = {0x003366CC, 0x00DC3912, 0x00FF9900, 0x00109618, 0x00990099, 0x000099C6, 0x00DD4477,
+            0x0066AA00, 0x00B82E2E, 0x00316395, 0x00994499, 0x0022AA99, 0x00AAAA11, 0x006633CC, 0x00E67300, 0x008B0707,
+            0x00651067, 0x00329262, 0x005574A6, 0x003B3EAC, 0x00B77322, 0x0016D620, 0x00B91383, 0x00F4359E, 0x009C5935,
+            0x00A9C413, 0x002A778D, 0x00668D1C, 0x00BEA413, 0x000C5922, 0x00743411};
+    //For WMS services
+    final String[] colorsNames = new String[]{
+            "DarkRed","IndianRed","DarkSalmon","SaddleBrown","Chocolate","SandyBrown","Orange","DarkGreen","Green","Lime","LightGreen","MidnightBlue","Blue",
+            "SteelBlue","CadetBlue","Aqua","PowderBlue","DarkOliveGreen","DarkKhaki","Yellow","Moccasin","Indigo","Purple","Fuchsia","Plum","Black","White"
+    };
+    final String[] colorsCodes = new String[]{
+            "8b0000","FF0000","CD5C5C","E9967A","8B4513","D2691E","F4A460","FFA500","006400","008000","00FF00","90EE90","191970","0000FF",
+            "4682B4","5F9EA0","00FFFF","B0E0E6","556B2F","BDB76B","FFFF00","FFE4B5","4B0082","800080","FF00FF","DDA0DD","000000","FFFFFF"
+    };
+
     private final int DEFAULT_COLOUR = 0x00000000;
     /** webportal image max pixel count */
     private final int MAX_IMAGE_PIXEL_COUNT = 36000000; //this is slightly larger than 600dpi A4
@@ -63,7 +76,7 @@ public class WebportalController implements ServletConfigAware {
     /** add pixel radius for wms highlight circles */
     private final static int HIGHLIGHT_RADIUS = 3;
     private String baseMapPath = "/images/mapaus1_white.png";
-    private ServletConfig cfg;
+//    private ServletConfig cfg;
     /** Logger initialisation */
     private final static Logger logger = Logger.getLogger(WebportalController.class);
     /** Fulltext search DAO */
@@ -132,9 +145,7 @@ public class WebportalController implements ServletConfigAware {
     @RequestMapping(value = {"/webportal/species", "/mapping/species" }, method = RequestMethod.GET)
     public
     @ResponseBody
-    List<TaxaCountDTO> listSpecies(
-            SpatialSearchRequestParams requestParams) throws Exception {
-
+    List<TaxaCountDTO> listSpecies(SpatialSearchRequestParams requestParams) throws Exception {
         return searchDAO.findAllSpecies(requestParams);
     }
 
@@ -520,18 +531,10 @@ public class WebportalController implements ServletConfigAware {
         return pointType;
     }
 
-    public void setSearchDAO(SearchDAO searchDAO) {
-        this.searchDAO = searchDAO;
-    }
-
-    public void setSearchUtils(SearchUtils searchUtils) {
-        this.searchUtils = searchUtils;
-    }
-
-    @Override
-    public void setServletConfig(ServletConfig cfg) {
-        this.cfg = cfg;
-    }
+//    @Override
+//    public void setServletConfig(ServletConfig cfg) {
+//        this.cfg = cfg;
+//    }
 
     void displayBlankImage(HttpServletResponse response) {
         try {
@@ -688,7 +691,8 @@ public class WebportalController implements ServletConfigAware {
     }
 
     int getRangedColour(int pos, int length) {
-        int[] colourRange = {0x00002DD0, 0x00005BA2, 0x00008C73, 0x0000B944, 0x0000E716, 0x00A0FF00, 0x00FFFF00, 0x00FFC814, 0x00FFA000, 0x00FF5B00, 0x00FF0000};
+        int[] colourRange = {0x00002DD0, 0x00005BA2, 0x00008C73, 0x0000B944, 0x0000E716, 0x00A0FF00, 0x00FFFF00,
+                0x00FFC814, 0x00FFA000, 0x00FF5B00, 0x00FF0000};
 
         double step = 1 / (double) colourRange.length;
         double p = pos / (double) (length);
@@ -772,9 +776,12 @@ public class WebportalController implements ServletConfigAware {
     public String getMetadata(
             @RequestParam(value = "LAYER", required = false, defaultValue = "") String layer,
             @RequestParam(value = "q", required = false, defaultValue = "") String query,
+            HttpServletRequest request,
             HttpServletResponse response,
             Model model
             ) throws Exception {
+
+        System.out.println("GETMETADATA: " + request.getQueryString());
 
         String taxonName = "";
         String rank = "";
@@ -783,12 +790,12 @@ public class WebportalController implements ServletConfigAware {
             String[] parts = layer.split(":");
             taxonName = parts[parts.length-1];
             if(parts.length>1) rank = parts[0];
-            q= layer;
+            q = layer;
         } else if(StringUtils.trimToNull(query) != null) {
             String[] parts = query.split(":");
             taxonName = parts[parts.length-1];
             if(parts.length>1) rank = parts[0];
-            q= query;
+            q = query;
         } else {
             response.sendError(400);
         }
@@ -805,11 +812,20 @@ public class WebportalController implements ServletConfigAware {
         if(guid != null){
 
             model.addAttribute("guid", guid);
-
+            model.addAttribute("speciesPageUrl", "http://bie.ala.org.au/species/" + guid);
             JsonNode node = om.readTree(new URL("http://bie.ala.org.au/ws/species/info/" + guid + ".json"));
             JsonNode imageNode = node.get("taxonConcept").get("smallImageUrl");
             String imageUrl = imageNode != null ? imageNode.asText() : null;
-            if(imageUrl!=null)  model.addAttribute("imageUrl", imageUrl);
+            if(imageUrl!=null) {
+                model.addAttribute("imageUrl", imageUrl);
+                JsonNode imageMetadataNode = node.get("taxonConcept").get("imageMetadataUrl");
+                String imageMetadataUrl = imageMetadataNode != null ? imageMetadataNode.asText() : null;
+                //image metadata
+                JsonNode imageMetadata = om.readTree(new URL(imageMetadataUrl));
+                model.addAttribute("imageCreator",imageMetadata.get("http://purl.org/dc/elements/1.1/creator").asText());
+                model.addAttribute("imageLicence",imageMetadata.get("http://purl.org/dc/elements/1.1/license").asText());
+                model.addAttribute("imageSource",imageMetadata.get("http://purl.org/dc/elements/1.1/source").asText());
+            }
 
             //common name
             JsonNode commonNameNode  = node.get("taxonConcept").get("commonNameSingle");
@@ -828,13 +844,6 @@ public class WebportalController implements ServletConfigAware {
             //authorship
             JsonNode authorshipNode  = node.get("taxonConcept").get("author");
             if(authorshipNode!=null) model.addAttribute("authorship",authorshipNode.asText());
-
-            if(imageUrl!=null) {
-            //get the image metadata
-                    //http://bie.ala.org.au/repo/1111/174/1740554/dc - image metadata
-               //JsonNode imageNode = om.readTree(new URL("http://bie.ala.org.au/ws/species/info/" + guid + ".json"));
-            }
-
         }
 
         SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
@@ -920,7 +929,13 @@ public class WebportalController implements ServletConfigAware {
             String[] formattedParts = new String[parts.length];
             int i=0;
             for(String part:parts){
-                formattedParts[i] = part.replace('_',' ').replace(":", ":\"")+"\"";
+                if(part.contains(":")){
+                   formattedParts[i] = part.replace('_',' ').replace(":", ":\"")+"\"";
+                } else if(part.startsWith("\"")) {
+                   formattedParts[i] = "\"" + part + "\"";
+                } else {
+                    formattedParts[i] = part;
+                }
                 i++;
             }
             return StringUtils.join(formattedParts," OR ");
@@ -935,6 +950,7 @@ public class WebportalController implements ServletConfigAware {
             @RequestParam(value="STYLE", required=false, defaultValue="8b0000;opacity=1;size=5") String style,
             @RequestParam(value="WIDTH", required=false, defaultValue = "30") Integer width,
             @RequestParam(value="HEIGHT", required=false, defaultValue = "20") Integer height,
+            HttpServletRequest request,
             HttpServletResponse response) throws Exception{
 
         try {
@@ -951,7 +967,7 @@ public class WebportalController implements ServletConfigAware {
             g.fillOval(0, 0, size, size);
 
             OutputStream out = response.getOutputStream();
-            logger.debug("WMS - GetLegendGraphic requested");
+            logger.debug("WMS - GetLegendGraphic requested : " + request.getQueryString());
             response.setContentType("image/png");
             //out.write(IOUtils.toByteArray(GeospatialController.class.getResourceAsStream("/logo16x16.png")));
             //out.flush();
@@ -1008,7 +1024,7 @@ public class WebportalController implements ServletConfigAware {
         }
 
         if("GetLegendGraphic".equalsIgnoreCase(requestString)){
-            getLegendGraphic(env,style, 30, 20, response);
+            getLegendGraphic(env,style, 30, 20, request, response);
             return;
         }
 
@@ -1129,7 +1145,6 @@ public class WebportalController implements ServletConfigAware {
                     "      <Format>application/vnd.ogc.se_xml</Format>\n" +
                     "      <Format>application/vnd.ogc.se_inimage</Format>\n" +
                     "    </Exception>\n" +
-//                   "    <UserDefinedSymbolization SupportSLD=\"1\" UserLayer=\"1\" UserStyle=\"1\" RemoteWFS=\"1\"/>\n" +
                     "    <Layer>\n" +
                     "      <Title>Atlas of Living Australia - Species occurrence layers</Title>\n" +
                     "      <Abstract>Custom WMS services for ALA species occurrences</Abstract>\n" +
@@ -1142,7 +1157,10 @@ public class WebportalController implements ServletConfigAware {
 
             filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, "geospatial_kosher:true");
 
-            taxonDAO.extractHierarchy(query, filterQueries, writer);
+            //http://biocache-test.ala.org.au/ws/
+            String baseWsUrl = request.getSession().getServletContext().getInitParameter("webservicesRoot");
+
+            taxonDAO.extractHierarchy(baseWsUrl+"ogc/getMetadata",query, filterQueries, writer);
 
             writer.write("</Layer></Capability></WMT_MS_Capabilities>\n");
         } catch (Exception e){
@@ -1152,14 +1170,6 @@ public class WebportalController implements ServletConfigAware {
 
     public String generateStylesForPoints(){
         //need a better listings of colours
-        String[] colorsNames = new String[]{
-                "DarkRed","IndianRed","DarkSalmon","SaddleBrown","Chocolate","SandyBrown","Orange","DarkGreen","Green","Lime","LightGreen","MidnightBlue","Blue",
-                "SteelBlue","CadetBlue","Aqua","PowderBlue","DarkOliveGreen","DarkKhaki","Yellow","Moccasin","Indigo","Purple","Fuchsia","Plum","Black","White"
-        };
-        String[] colorsCodes = new String[]{
-                "8b0000","FF0000","CD5C5C","E9967A","8B4513","D2691E","F4A460","FFA500","006400","008000","00FF00","90EE90","191970","0000FF",
-                "4682B4","5F9EA0","00FFFF","B0E0E6","556B2F","BDB76B","FFFF00","FFE4B5","4B0082","800080","FF00FF","DDA0DD","000000","FFFFFF"
-        };
         String[] sizes = new String[]{"5","10","2"};
         String[] sizesNames = new String[]{"medium","large","small"};
         String[] opacities = new String[]{"0.5","1", "0.2"};
@@ -1222,7 +1232,7 @@ public class WebportalController implements ServletConfigAware {
 
         //Some WMS clients are ignoring sections of the GetCapabilities....
         if("GetLegendGraphic".equalsIgnoreCase(requestString)) {
-            getLegendGraphic(env,styles,30,20,response);
+            getLegendGraphic(env,styles,30,20,request, response);
             return;
         }
 
@@ -1633,7 +1643,9 @@ public class WebportalController implements ServletConfigAware {
         }
     }
 
-    ImgObj drawHighlight(SpatialSearchRequestParams requestParams, WmsEnv vars, PointType pointType, int width, int height, double[] pbbox, double width_mult, double height_mult, ImgObj imgObj, String[] originalFqs, String[] boundingBoxFqs) throws Exception {
+    ImgObj drawHighlight(SpatialSearchRequestParams requestParams, WmsEnv vars, PointType pointType,
+                         int width, int height, double[] pbbox, double width_mult,
+                         double height_mult, ImgObj imgObj, String[] originalFqs, String[] boundingBoxFqs) throws Exception {
         String[] fqs = new String[originalFqs.length + 3];
         System.arraycopy(originalFqs, 0, fqs, 3, originalFqs.length);
         fqs[0] = vars.highlight;
@@ -1976,9 +1988,16 @@ public class WebportalController implements ServletConfigAware {
                 };
     }
 
-
     public void setTaxonDAO(TaxonDAO taxonDAO) {
         this.taxonDAO = taxonDAO;
+    }
+
+    public void setSearchDAO(SearchDAO searchDAO) {
+        this.searchDAO = searchDAO;
+    }
+
+    public void setSearchUtils(SearchUtils searchUtils) {
+        this.searchUtils = searchUtils;
     }
 }
 
@@ -2040,6 +2059,7 @@ class WmsEnv {
             //blue;opacity=1;size=1
             String firstStyle = styles.split(",")[0];
             String[] styleParts = firstStyle.split(";");
+
             red = Integer.parseInt(styleParts[0].substring(0, 2), 16);
             green = Integer.parseInt(styleParts[0].substring(2, 4), 16);
             blue = Integer.parseInt(styleParts[0].substring(4), 16);
