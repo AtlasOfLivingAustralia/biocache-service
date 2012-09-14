@@ -6,7 +6,7 @@
 </head>
 <body>
 
-<h2>Occurrence information <c:if test="">(1 of ${totalRecords}></c:if></h2>
+<h2>Occurrence information <c:if test="${totalRecords>1}">(1 of ${totalRecords}></c:if></h2>
 
 <c:choose>
 
@@ -26,7 +26,14 @@ Basis of record: <c:if test="${empty record.basis_of_record}">Not supplied</c:if
 </p>
 
 <p>
-    <a href="${uriUrl}">View all records at this point</a>
+    <c:choose>
+        <c:when test="${totalRecords>1}">
+            <a href="${uriUrl}">View all ${totalRecords} records at this point</a>
+        </c:when>
+        <c:otherwise>
+            <a href="${uriUrl}">View record details</a>
+        </c:otherwise>
+    </c:choose>
 </p>
 
 <p style="background-color: #515863; padding:5px;">

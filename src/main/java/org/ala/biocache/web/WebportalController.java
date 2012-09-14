@@ -921,8 +921,9 @@ public class WebportalController /* implements ServletConfigAware*/ {
         if(sdl!=null && sdl.size()>0){
             SolrDocument doc = sdl.get(0);
             model.addAttribute("record", doc.getFieldValueMap());
+            model.addAttribute("totalRecords", sdl.getNumFound());
         }
-        model.addAttribute("totalRecords", sdl.getNumFound());
+
         model.addAttribute("uriUrl", "http://biocache.ala.org.au/occurrences/search?q=" +
                 URLEncoder.encode(q,"UTF-8")
                 + "&fq=" + URLEncoder.encode(fqs[0],"UTF-8")
