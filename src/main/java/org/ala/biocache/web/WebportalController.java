@@ -898,10 +898,10 @@ public class WebportalController /* implements ServletConfigAware*/ {
         double roundedLatitude = pointType.roundToPointType(latitude);
 
         //get the pixel size of the circles
-        double minLng = roundedLongitude - (pointType.getValue()*2*size);
-        double maxLng = roundedLongitude + (pointType.getValue()*2*size);
-        double minLat = roundedLatitude - (pointType.getValue()*2*size);
-        double maxLat = roundedLatitude + (pointType.getValue()*2*size);
+        double minLng = pointType.roundDownToPointType(roundedLongitude - (pointType.getValue() * 2 * (size + 3)));
+        double maxLng = pointType.roundUpToPointType(roundedLongitude + (pointType.getValue() *2 * (size + 3)));
+        double minLat = pointType.roundDownToPointType(roundedLatitude - (pointType.getValue() * 2 * (size  + 3)));
+        double maxLat = pointType.roundUpToPointType(roundedLatitude + (pointType.getValue() * 2 * (size + 3)));
 
         //do the SOLR query
         SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
@@ -929,6 +929,17 @@ public class WebportalController /* implements ServletConfigAware*/ {
                 + "&fq=" + URLEncoder.encode(fqs[0],"UTF-8")
                 + "&fq=" + URLEncoder.encode(fqs[1],"UTF-8")
         );
+
+
+        model.addAttribute("pointType",pointType.name());
+        model.addAttribute("minLng",minLng);
+        model.addAttribute("maxLng",maxLng);
+        model.addAttribute("minLat",minLat);
+        model.addAttribute("maxLat",maxLat);
+
+        model.addAttribute("latitudeClicked",latitude);
+        model.addAttribute("longitudeClicked",longitude);
+
 
         return "metadata/getFeatureInfo";
     }
