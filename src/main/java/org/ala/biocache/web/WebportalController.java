@@ -1182,7 +1182,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
 
             if(limitToFocus){
                 //TODO retrieve focus from file
-                filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, "latitude:[8 TO -89] AND longitude:[100 TO 165]");
+                filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, "latitude:[-89 TO -8] AND longitude:[100 TO 165]");
             }
 
             //http://biocache-test.ala.org.au/ws/
