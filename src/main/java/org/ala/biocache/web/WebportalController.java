@@ -1185,15 +1185,15 @@ public class WebportalController /* implements ServletConfigAware*/ {
             }
 
             if(marineOnly){
-               filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, "species_habitats:Marine OR species_habitats:\"Marine and Non-marine\")");
+               filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, "species_habitats:Marine OR species_habitats:\"Marine and Non-marine\"");
             }
 
             if(terrestrialOnly){
-                filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, "species_habitats:Marine OR species_habitats:\"Marine and Non-marine\")");
+                filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, "species_habitats:\"Non-marine\" OR species_habitats:Limnetic");
             }
 
             if(limitToFocus){
-                //TODO retrieve focus from file
+                //TODO retrieve focus from config file
                 filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, "latitude:[-89 TO -8] AND longitude:[100 TO 165]");
             }
 
