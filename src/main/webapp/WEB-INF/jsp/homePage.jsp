@@ -358,6 +358,11 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                 <ul class="paramList">
                     <li><strong>q</strong> - SOLR query q e.g. q=genus:Macropus</li>
                     <li><strong>fq</strong> - SOLR query fq e.g. fq=genus:Macropus</li>
+                    <li><strong>spatiallyValidOnly</strong> - only include spatially valid coordinates when deriving taxa list</li>
+                    <li><strong>marineSpecies</strong> - only include marine species when deriving taxa list</li>
+                    <li><strong>terrestrialSpecies</strong> - only include terrestrial species when deriving taxa list<</li>
+                    <li><strong>limitToFocus</strong> - only include species that have occurred with the focus area (e.g. Australia) when deriving taxa list</li>
+                    <li><strong>useSpeciesGroups</strong> - use species groups and then order to species when deriving taxa list</li>
                 </ul>
             </li>
             <li><strong>GetMetadata - Marine Community Profile :</strong> /ogc/getMetadata

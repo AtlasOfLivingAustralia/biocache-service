@@ -1023,6 +1023,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
             @RequestParam(value = "marineSpecies", required = false, defaultValue = "false") boolean marineOnly,
             @RequestParam(value = "terrestrialSpecies", required = false, defaultValue = "false") boolean terrestrialOnly,
             @RequestParam(value = "limitToFocus", required = false, defaultValue = "true") boolean limitToFocus,
+            @RequestParam(value = "useSpeciesGroups", required = false, defaultValue = "false") boolean useSpeciesGroups,
             HttpServletRequest request,
             HttpServletResponse response,
             Model model)
@@ -1200,7 +1201,11 @@ public class WebportalController /* implements ServletConfigAware*/ {
             //http://biocache-test.ala.org.au/ws/
             String baseWsUrl = request.getSession().getServletContext().getInitParameter("webservicesRoot");
 
-            taxonDAO.extractHierarchy(baseWsUrl+"ogc/getMetadata",query, filterQueries, writer);
+            if(useSpeciesGroups){
+                taxonDAO.extractBySpeciesGroups(baseWsUrl+"ogc/getMetadata",query, filterQueries, writer);
+            } else {
+                taxonDAO.extractHierarchy(baseWsUrl+"ogc/getMetadata",query, filterQueries, writer);
+            }
 
             writer.write("</Layer></Capability></WMT_MS_Capabilities>\n");
         } catch (Exception e){
