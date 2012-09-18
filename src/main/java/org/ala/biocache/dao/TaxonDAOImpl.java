@@ -124,7 +124,9 @@ public class TaxonDAOImpl implements TaxonDAO {
 
     void outputLayer(String metadataUrlRoot, String rank, String taxon, Writer out) throws Exception {
         String normalised = taxon.replaceFirst("\\([A-Za-z]*\\) ", "").replace(" ", "_").replace("&", "&amp;"); //remove the subgenus, replace spaces with underscores
-        out.write("<Layer queryable=\"1\"><Name>" + rank + ":" + normalised + "</Name><Title>"+ rank + ":" + taxon + "</Title>"+
+        String normalisedTitle = taxon.replaceFirst("\\([A-Za-z]*\\) ", "").replace("&", "&amp;"); //remove the subgenus, replace spaces with underscores
+
+        out.write("<Layer queryable=\"1\"><Name>" + rank + ":" + normalised + "</Name><Title>"+ rank + ":" + normalisedTitle + "</Title>"+
                 "<MetadataURL type=\"TC211\">\n" +
                 "<Format>text/html</Format>\n" +
                 "<OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\"" +
