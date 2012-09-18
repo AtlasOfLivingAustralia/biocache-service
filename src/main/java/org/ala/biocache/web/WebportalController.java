@@ -1202,9 +1202,9 @@ public class WebportalController /* implements ServletConfigAware*/ {
             String baseWsUrl = request.getSession().getServletContext().getInitParameter("webservicesRoot");
 
             if(useSpeciesGroups){
-                taxonDAO.extractBySpeciesGroups(baseWsUrl+"ogc/getMetadata",query, filterQueries, writer);
+                taxonDAO.extractBySpeciesGroups(baseWsUrl+"/ogc/getMetadata",query, filterQueries, writer);
             } else {
-                taxonDAO.extractHierarchy(baseWsUrl+"ogc/getMetadata",query, filterQueries, writer);
+                taxonDAO.extractHierarchy(baseWsUrl+"/ogc/getMetadata",query, filterQueries, writer);
             }
 
             writer.write("</Layer></Capability></WMT_MS_Capabilities>\n");
