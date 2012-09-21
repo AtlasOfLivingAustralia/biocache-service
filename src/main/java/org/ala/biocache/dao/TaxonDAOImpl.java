@@ -54,7 +54,7 @@ public class TaxonDAOImpl implements TaxonDAO {
                     List<FacetField.Count> genera = extractFacet(q, (String[])ArrayUtils.addAll(fq, new String[]{"family:"+f.getName(), "species_group:" + spg.getName()}), "genus");
                     for(FacetField.Count g: genera){
                         outputNestedMappableLayerStart("genus", g.getName(), writer);
-                        List<FacetField.Count> species = extractFacet(q, (String[])ArrayUtils.addAll(fq, new String[]{"genus:"+g.getName(), "species_group:" + spg.getName()}), "species");
+                        List<FacetField.Count> species = extractFacet(q, (String[])ArrayUtils.addAll(fq, new String[]{"genus:"+g.getName(), "species_group:" + spg.getName(),"family:"+f.getName()}), "species");
                         for(FacetField.Count s: species){
                             outputLayer(metadataUrl, "species", s.getName(), writer);
                         }
@@ -89,7 +89,7 @@ public class TaxonDAOImpl implements TaxonDAO {
                             List<FacetField.Count> genera = extractFacet(q, (String[])ArrayUtils.addAll(fq, new String[]{"family:"+f.getName(), "kingdom:" + k.getName()}), "genus");
                             for(FacetField.Count g: genera){
                                 outputNestedMappableLayerStart("genus", g.getName(), writer);
-                                List<FacetField.Count> species = extractFacet(q, (String[])ArrayUtils.addAll(fq, new String[]{"genus:"+g.getName(), "kingdom:" + k.getName()}), "species");
+                                List<FacetField.Count> species = extractFacet(q, (String[])ArrayUtils.addAll(fq, new String[]{"genus:"+g.getName(), "kingdom:" + k.getName(),"family:"+f.getName()}), "species");
                                 for(FacetField.Count s: species){
                                     outputLayer(metadataUrl, "species", s.getName(), writer);
                                 }
