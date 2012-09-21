@@ -51,10 +51,10 @@ public class TaxonDAOImpl implements TaxonDAO {
                 List<FacetField.Count> families = extractFacet(q, (String[])ArrayUtils.add(fq, "order:"+o.getName()), "family");
                 for(FacetField.Count f: families){
                     outputNestedMappableLayerStart("family", f.getName(), writer);
-                    List<FacetField.Count> genera = extractFacet(q, (String[])ArrayUtils.add(fq, "family:"+f.getName()), "genus");
+                    List<FacetField.Count> genera = extractFacet(q, (String[])ArrayUtils.addAll(fq, new String[]{"family:"+f.getName(), "species_group:" + spg.getName()}), "genus");
                     for(FacetField.Count g: genera){
                         outputNestedMappableLayerStart("genus", g.getName(), writer);
-                        List<FacetField.Count> species = extractFacet(q, (String[])ArrayUtils.add(fq, "genus:"+g.getName()), "species");
+                        List<FacetField.Count> species = extractFacet(q, (String[])ArrayUtils.addAll(fq, new String[]{"genus:"+g.getName(), "species_group:" + spg.getName()}), "species");
                         for(FacetField.Count s: species){
                             outputLayer(metadataUrl, "species", s.getName(), writer);
                         }
@@ -83,13 +83,13 @@ public class TaxonDAOImpl implements TaxonDAO {
                     List<FacetField.Count> orders = extractFacet(q, (String[])ArrayUtils.add(fq, "class:"+c.getName()), "order");
                     for(FacetField.Count o: orders){
                         outputNestedMappableLayerStart("order", o.getName(), writer);
-                        List<FacetField.Count> families = extractFacet(q, (String[])ArrayUtils.add(fq, new String[]{"order:"+o.getName(), "kingdom:" + k.getName()}), "family");
+                        List<FacetField.Count> families = extractFacet(q, (String[])ArrayUtils.addAll(fq, new String[]{"order:"+o.getName(), "kingdom:" + k.getName()}), "family");
                         for(FacetField.Count f: families){
                             outputNestedMappableLayerStart("family", f.getName(), writer);
-                            List<FacetField.Count> genera = extractFacet(q, (String[])ArrayUtils.add(fq, new String[]{"family:"+f.getName(), "kingdom:" + k.getName()}), "genus");
+                            List<FacetField.Count> genera = extractFacet(q, (String[])ArrayUtils.addAll(fq, new String[]{"family:"+f.getName(), "kingdom:" + k.getName()}), "genus");
                             for(FacetField.Count g: genera){
                                 outputNestedMappableLayerStart("genus", g.getName(), writer);
-                                List<FacetField.Count> species = extractFacet(q, (String[])ArrayUtils.add(fq, new String[]{"genus:"+g.getName(), "kingdom:" + k.getName()}), "species");
+                                List<FacetField.Count> species = extractFacet(q, (String[])ArrayUtils.addAll(fq, new String[]{"genus:"+g.getName(), "kingdom:" + k.getName()}), "species");
                                 for(FacetField.Count s: species){
                                     outputLayer(metadataUrl, "species", s.getName(), writer);
                                 }

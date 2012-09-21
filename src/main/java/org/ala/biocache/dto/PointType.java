@@ -16,7 +16,7 @@ public enum PointType {
     POINT_001   ("point-0.01", 0.01f, 2),
     POINT_0001  ("point-0.001", 0.001f, 3),
     POINT_00001 ("point-0.0001", 0.0001f, 4),
-    POINT_RAW   ("lat_long", 0f, 5); //negative value to indicate not to round
+    POINT_RAW   ("lat_long", 0f, 4);
     
     private String label;
     private Float value;
@@ -44,15 +44,6 @@ public enum PointType {
         this.value = value;
     }
 
-//    public double roundToPointType(double unrounded){
-//
-////    BigDecimal bd = new BigDecimal(unrounded);
-////    BigDecimal rounded = bd.setScale(precision, BigDecimal.ROUND_DOWN);
-////    return rounded.doubleValue();
-//
-//       return Math.floor(value * rounding) / rounding;
-//    }
-
     public double roundDownToPointType(double value){
         BigDecimal bd = new BigDecimal(value);
         BigDecimal rounded = bd.setScale(rounding, BigDecimal.ROUND_FLOOR);
@@ -70,18 +61,4 @@ public enum PointType {
         BigDecimal rounded = bd.setScale(rounding, BigDecimal.ROUND_HALF_UP);
         return rounded.floatValue();
     }
-
-
-//
-//    public static void main(String[] args){
-//        BigDecimal bd = new BigDecimal(-8.12321312);
-//        BigDecimal rounded = bd.setScale(2, BigDecimal.ROUND_CEILING);
-//        System.out.println(rounded.floatValue());
-//
-//        BigDecimal bd2 = new BigDecimal(-10.12321312);
-//        BigDecimal rounded2 = bd2.setScale(2, BigDecimal.ROUND_CEILING);
-//        System.out.println(rounded2.floatValue());
-//
-//    }
-
 }
