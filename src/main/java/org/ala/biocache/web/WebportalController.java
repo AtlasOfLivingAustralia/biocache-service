@@ -1299,13 +1299,15 @@ public class WebportalController /* implements ServletConfigAware*/ {
         PointType pointType = getPointTypeForDegreesPerPixel(resolution);
         logger.debug("Rendering: " + pointType.name());
 
-        String q = null;
-        if(StringUtils.trimToNull(cql_filter) == null){
-            q = convertLayersParamToQ(layers);
-        } else {
+        String q = "";
+        
+        //CQL Filter takes precedence of the layer
+        if(StringUtils.trimToNull(cql_filter) != null){
             q = getQ(cql_filter);
-        }
-
+        } else if(StringUtils.trimToNull(layers) != null){
+        	q = convertLayersParamToQ(layers);
+        } 
+        
         String[] boundingBoxFqs = new String[2];
         boundingBoxFqs[0] = String.format("longitude:[%f TO %f]", bbox[0], bbox[2]);
         boundingBoxFqs[1] = String.format("latitude:[%f TO %f]", bbox[1], bbox[3]);
