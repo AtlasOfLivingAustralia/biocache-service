@@ -1304,7 +1304,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
         //CQL Filter takes precedence of the layer
         if(StringUtils.trimToNull(cql_filter) != null){
             q = getQ(cql_filter);
-        } else if(StringUtils.trimToNull(layers) != null){
+        } else if(StringUtils.trimToNull(layers) != null && !"ALA:Occurrences".equalsIgnoreCase(layers)){  
         	q = convertLayersParamToQ(layers);
         } 
         
