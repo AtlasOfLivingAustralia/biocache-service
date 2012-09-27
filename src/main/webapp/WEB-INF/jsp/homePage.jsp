@@ -135,32 +135,50 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                  </li>
             <li><strong>List of default facets for occurrence search:</strong> <a href="${initParam.webservicesRoot}/search/facets">/search/facets</a></li>
             <li><strong>The default facets for a search grouped by theme:</strong> <a href="${initParam.webservicesRoot}/search/grouped/facets">/search/grouped/facets</a></li>
-            <li><strong>List of all available index fields:</strong> <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a> - A field can be used in a search or facet if indexed=true.  A field can be accessed in a search result if stored=true.</li>
+            <li><strong>List of all available index fields:</strong> <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a> - A field can be used in a search or facet if indexed=true.  
+            	A field can be accessed in a search result if stored=true.
+           	</li>
             <li><strong>Extra details about specific fields:</strong> /index/fields?fl=comma-separated-list-of-fields  - This can be used to get a count of distinct terms a the supplied fields<br>
             Example:<br>
             <a href="${initParam.webservicesRoot}/index/fields?fl=lat_long">/index/fields?fl=lat_long</a>           
+           
             <li><strong>Facet based download:</strong> /occurrences/facets/download - requires a 'q' and optional 'fq' and one 'facets'. Optional Params:
                 <ul class="paramList">
-            	<li><strong>count</strong> - set to true if you would like the count included</li>
-            	<li><strong>lookup</strong> - set to true if you would like the download include the scientific names for the supplied guids.  Downloads that include this param will take extra time as a lookup need to be performed</li>
-            	<li><strong>fsort</strong> - used to sort values in the file - either 'count' or 'index'
-            </ul> 
-            <br>This can be used to download distinct lists of species:
-            <ul>
-            	<li><a href="${initParam.webservicesRoot}/occurrences/facets/download?q=collection_uid:co150&facets=species_guid&lookup=true">/occurrences/facets/download?q=collection_uid:co150&facets=species_guid&lookup=true</a> - downloads a list of species guids and associated scientific names for collection co150</li>
-            	<li><a href="${initParam.webservicesRoot}/occurrences/facets/download?q=collection_uid:co150&facets=raw_taxon_name">/occurrences/facets/download?q=collection_uid:co150&facets=raw_taxon_name</a> - downloads a list of raw scientific names for collection co150</li>
-            	<li><a href="${initParam.webservicesRoot}/occurrences/facets/download?q=collection_uid:co150&facets=species_guid&count=true">/occurrences/facets/download?q=collection_uid:co150&facets=species_guid&count=true</a> - downloads a list of species guids and counts for collection co150</li>
-            </ul>
+	            	<li><strong>count</strong> - set to true if you would like the count included</li>
+	            	<li><strong>lookup</strong> - set to true if you would like the download include the scientific names for the supplied guids.  Downloads that include this param will take extra time as a lookup need to be performed</li>
+	            	<li><strong>fsort</strong> - used to sort values in the file - either 'count' or 'index'
+            	</ul> 
+	            <br>This can be used to download distinct lists of species:
+	            <ul>
+	            	<li><a href="${initParam.webservicesRoot}/occurrences/facets/download?q=collection_uid:co150&facets=species_guid&lookup=true">/occurrences/facets/download?q=collection_uid:co150&facets=species_guid&lookup=true</a> - downloads a list of species guids and associated scientific names for collection co150</li>
+	            	<li><a href="${initParam.webservicesRoot}/occurrences/facets/download?q=collection_uid:co150&facets=raw_taxon_name">/occurrences/facets/download?q=collection_uid:co150&facets=raw_taxon_name</a> - downloads a list of raw scientific names for collection co150</li>
+	            	<li><a href="${initParam.webservicesRoot}/occurrences/facets/download?q=collection_uid:co150&facets=species_guid&count=true">/occurrences/facets/download?q=collection_uid:co150&facets=species_guid&count=true</a> - downloads a list of species guids and counts for collection co150</li>
+	            </ul>
             </li>
             <li><strong>Spatial Occurrence search: </strong>/occurrences/spatial - supports point-radius and wkt based searches.  To search by wkt the wkt string can be supplied directly or via a gazetteer URL. Examples:
-            	<ul>
+            	<ul class="paramList">
             		<li><a href="${initParam.webservicesRoot}/occurrences/spatial?lat=-35.27&lon=149.15&radius=10">/occurrences/spatial?lat=-35.27&lon=149.15&radius=10</a></li>
             		<li><a href="${initParam.webservicesRoot}/occurrences/spatial?wkt=POLYGON((140:-37,151:-37,151:-26,140.1310:-26,140:-37))">/occurrences/spatial?wkt=POLYGON((140:-37,151:-37,151:-26,140.1310:-26,140:-37))</a></li>
             		<li><a href="${initParam.webservicesRoot}/occurrences/spatial?url=http://spatial.ala.org.au/gazetteer/lga/Acton_(Australian_Capital_Territory).xml">/occurrences/spatial?url=http://spatial.ala.org.au/gazetteer/lga/Acton_(Australian_Capital_Territory).xml</a></li>
             	</ul> 
             </li>
-            <li><strong>Static Species Density Heatmap </strong><a href="${initParam.webservicesRoot}/density/map?q=*:*">/density/map?q=*:*</a></li> - returns heatmap image (optional param forceRefresh=true will regenerate the image)
-            <li><strong>Static Species Density Legend: </strong><a href="${initParam.webservicesRoot}/density/legend?q=*:*">/density/legend?q=*:*</a></li> - returns associated legend image (optional param forceRefresh=true will regenerate the image)
+            <li><strong>Static Species Density Heatmap </strong> - returns heatmap image
+            	<ul class="paramList">
+	            	<li><strong>forceRefresh</strong> - will force regeneration of the image instead of using cached version</li>
+	            	<li><strong>forcePointsDisplay</strong> - force to use points instead of heatmap</li>
+	            	<li><strong>pointColour</strong> - the point colour to use in RGB e.g. &pointColour=0000ff. Default is 0000ff (blue)             	
+	            	<li><strong>colourByFq</strong> - colour by a facet value e.g. &colourByFq=genus:Acacia,genus:Eucalyptus will colour the dots by different values.
+	            	<li><strong>colours</strong> - how to colour the by facet values. Note <strong>colours</strong> and <strong>colourByFq</strong> must align. e.g &colours=ff0000,00ff00
+	            	<li><strong>pointHeatMapThreshold</strong> - used to sort values in the file - either 'count' or 'index'
+            	</ul>
+            	<ul class="examples">
+            		<li><a href="${initParam.webservicesRoot}/density/map?q=*:*">/density/map?q=*:*</a></li>
+            	</ul>             	
+            <li><strong>Static Species Density Legend: </strong>- returns associated legend image (optional param forceRefresh=true will regenerate the image)
+            	<ul class="examples">
+            		<li><a href="${initParam.webservicesRoot}/density/legend?q=*:*">/density/legend?q=*:*</a></li>
+            	</ul> 
+            </li>	
         </ul>
 
         <a href="#Assertions" name="Assertions" id="Assertions"><h3>Assertions</h3></a>

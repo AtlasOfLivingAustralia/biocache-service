@@ -42,8 +42,10 @@ import org.ala.biocache.dto.OccurrencePoint;
 import org.ala.biocache.dto.PointType;
 import org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.ala.biocache.heatmap.HeatMap;
+import org.ala.biocache.util.ColorUtil;
 import org.ala.biocache.util.SearchUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -588,18 +590,36 @@ public class MapController implements ServletConfigAware {
     public @ResponseBody
     void speciesDensityMap(SpatialSearchRequestParams requestParams, Model model,
             @RequestParam(value = "forceRefresh", required = false, defaultValue = "false") boolean forceRefresh,
+            @RequestParam(value = "forcePointsDisplay", required = false, defaultValue = "false") boolean forcePointsDisplay,            
+            @RequestParam(value = "pointColour", required = false, defaultValue = "0000ff") String pointColour,
+            @RequestParam(value = "colourByFq", required = false, defaultValue = "") String colourByFqCSV,
+            @RequestParam(value = "colours", required = false, defaultValue = "") String coloursCSV,
+            @RequestParam(value = "pointHeatMapThreshold", required = false, defaultValue = "500") Integer pointHeatMapThreshold,
+            @RequestParam(value = "opacity", required = false, defaultValue = "1.0") Float opacity,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
-        response.setContentType("image/png");
+        
+    	response.setContentType("image/png");
         File baseDir = new File(heatmapBase);
         String outputHMFile = requestParams.getQ().replace(":", "_") + "_hm.png";
-
+        
+        
+        String[] facetValues = null;
+        String[] facetColours = null;
+        if( StringUtils.trimToNull(colourByFqCSV) != null && StringUtils.trimToNull(coloursCSV) != null){
+        	facetValues = colourByFqCSV.split(",");
+        	facetColours = coloursCSV.split(",");
+        	if(facetValues.length == 0 || facetValues.length != facetColours.length){
+        		throw new IllegalArgumentException(String.format("Mismatch in facet values and colours. Values: %d, Colours: %d", facetValues.length, facetColours.length));
+        	}
+        }
+               
         //Does file exist on disk?
         File f = new File(baseDir + "/" + outputHMFile);
 
         if (!f.isFile() || !f.exists() || forceRefresh) {
             logger.info("regenerating heatmap image");
             //If not, generate
-            generateStaticHeatmapImages(requestParams, model, request, response, false);
+            generateStaticHeatmapImages(requestParams, model, request, response, false, forcePointsDisplay, pointHeatMapThreshold, pointColour, facetValues, facetColours, opacity);
         } else {
             logger.info("heatmap file already exists on disk, sending file back to user");
         }
@@ -643,7 +663,7 @@ public class MapController implements ServletConfigAware {
         if (!f.isFile() || !f.exists() || forceRefresh) {
             //If not, generate
             logger.info("regenerating heatmap legend");
-            generateStaticHeatmapImages(requestParams, model, request, response, true);
+            generateStaticHeatmapImages(requestParams, model, request, response, true, false,  0, "0000ff", null, null, 1.0f);
         } else {
             logger.info("legend file already exists on disk, sending file back to user");
         }
@@ -674,25 +694,89 @@ public class MapController implements ServletConfigAware {
      * @param request
      * @param response 
      */
-    public void generateStaticHeatmapImages(SpatialSearchRequestParams requestParams, Model model, HttpServletRequest request, HttpServletResponse response, boolean generateLegend) {
+    public void generateStaticHeatmapImages(
+    		SpatialSearchRequestParams requestParams, 
+    		Model model, 
+    		HttpServletRequest request, 
+    		HttpServletResponse response, 
+    		boolean generateLegend,
+    		boolean forcePointsDisplay,
+    		Integer pointHeatMapThreshold,
+    		String defaultPointColour,
+    		String[] colourByFq,
+    		String[] colours,
+    		Float opacity
+    		) {
         
         File baseDir = new File(heatmapBase);
         logger.info("heatmap base is " + heatmapBase);
-        boolean isHeatmap = true;
         String outputHMFile = requestParams.getQ().replace(":", "_") + "_hm.png";
-
 
         //PointType pointType = PointType.POINT_RAW;
         PointType pointType = PointType.POINT_001;
 
-        double[] points = null;
+        double[] points = retrievePoints(requestParams, pointType);
+        
+        if (points != null && points.length > 0) {
+            HeatMap hm = new HeatMap(baseDir, outputHMFile);
+            
+            //heatmap versus points
+            if (forcePointsDisplay || (points.length / 2) < pointHeatMapThreshold) {
+                if (!generateLegend){
+                	
+                	if(colourByFq != null){
+                		
+                		String[] originalFq = requestParams.getFq();
+                		
+                		for(int k=0; k<colourByFq.length; k++){
+                			if(originalFq != null){
+                				requestParams.setFq(ArrayUtils.add(originalFq, colourByFq[k]));
+                			} else {
+                				requestParams.setFq(new String[]{colourByFq[k]});
+                			}
+                			double[] pointsForFacet = retrievePoints(requestParams, pointType);
+                			Color pointColor = ColorUtil.getColor(colours[k], opacity);
+                			hm.generatePoints(pointsForFacet, pointColor);
+                		}
+                	} else {
+                		Color pointColor = ColorUtil.getColor(defaultPointColour, opacity);
+                		hm.generatePoints(points, pointColor);
+                	}
+                    hm.drawOutput(baseDir + "/" + outputHMFile, false);
+                }
+            } else {
+                hm.generateClasses(points); //this will create legend
+                if (generateLegend){
+                    hm.drawLegend(baseDir + "/legend_" + outputHMFile);
+                }
+                else {
+                    hm.drawOutput(baseDir + "/" + outputHMFile, true);
+                }
+            }
+        } else {
+            logger.debug("No points provided, creating a blank map");
+            
+            File inMapFile = new File(baseDir + "/base/mapaus1_white.png");
+            File outMapFile = new File(baseDir + "/" + outputHMFile);
+            File inLegFile = new File(baseDir + "/base/blank.png");
+            File outLegFile = new File(baseDir + "/" + "legend_" + outputHMFile);
 
-        try {
+            try {
+                FileUtils.copyFile(inMapFile, outMapFile);
+                FileUtils.copyFile(inLegFile, outLegFile);
+            } catch (Exception e) {
+                logger.error("Unable to create blank map/legend",e);
+            }
+        }
+    }
+
+	private double[] retrievePoints(SpatialSearchRequestParams requestParams,
+			PointType pointType) {
+		double[] points = null;
+		try {
             requestParams.setQ(requestParams.getQ());
             List<OccurrencePoint> occ_points = searchDAO.getFacetPoints(requestParams, pointType);
             logger.debug("Points search for " + pointType.getLabel() + " - found: " + occ_points.size());
-
-            ArrayList<Double> ar = new ArrayList();
 
             int totalItems = 0;
             for (int i = 0; i < occ_points.size(); i++) {
@@ -716,41 +800,8 @@ public class MapController implements ServletConfigAware {
         } catch (Exception e) {
             logger.error("An error occurred getting heatmap points");
         }
-        if (points != null && points.length > 0) {
-            HeatMap hm = new HeatMap(baseDir, outputHMFile);
-
-            if ((points.length / 2) < 500) {
-                if (!generateLegend){
-                    hm.generatePoints(points);
-                    hm.drawOutput(baseDir + "/" + outputHMFile, false);
-                }
-            } else {
-                hm.generateClasses(points); //this will create legend
-                if (generateLegend){
-                    hm.drawLegend(baseDir + "/legend_" + outputHMFile);
-                }
-                else {
-                    hm.drawOutput(baseDir + "/" + outputHMFile, true);
-                }
-            }
-        } else {
-            logger.info("No points provided, creating a blank map");
-            
-            File inMapFile = new File(baseDir + "/base/mapaus1_white.png");
-            File outMapFile = new File(baseDir + "/" + outputHMFile);
-
-            File inLegFile = new File(baseDir + "/base/blank.png");
-            File outLegFile = new File(baseDir + "/" + "legend_" + outputHMFile);
-
-            try {
-                FileUtils.copyFile(inMapFile, outMapFile);
-                FileUtils.copyFile(inLegFile, outLegFile);
-            } catch (Exception e) {
-                logger.error("Unable to create blank map/legend",e);
-            }
-
-        }
-    }
+		return points;
+	}
 
     public void setSearchDAO(SearchDAO searchDAO) {
         this.searchDAO = searchDAO;

@@ -262,18 +262,22 @@ public class HeatMap {
         return im;
     }
 
-    private void addDotImage(Point p, float alpha) {
-        int circleRadius = dotImage.getWidth() / 2;
-
-        //System.out.println("adding point at: " + p.x + ", " + p.y);
-
-        Graphics2D g = (Graphics2D) monochromeImage.getGraphics();
-
-        g.setComposite(BlendComposite.Multiply.derive(alpha));
-        g.drawImage(dotImage, null, p.x - circleRadius, p.y - circleRadius);
-    }
+//    private void addDotImage(Point p, float alpha) {
+//        int circleRadius = dotImage.getWidth() / 2;
+//
+//        //System.out.println("adding point at: " + p.x + ", " + p.y);
+//
+//        Graphics2D g = (Graphics2D) monochromeImage.getGraphics();
+//
+//        g.setComposite(BlendComposite.Multiply.derive(alpha));
+//        g.drawImage(dotImage, null, p.x - circleRadius, p.y - circleRadius);
+//    }
 
     private void addDotImage(Point p) {
+    	addDotImage(p,Color.blue);
+    }
+    
+    private void addDotImage(Point p, Color pointColor) {
         //int circleRadius = dotImage.getWidth() / 2;
         Graphics2D g = (Graphics2D) monochromeImage.getGraphics();
         float radius = 10f;
@@ -281,9 +285,9 @@ public class HeatMap {
         Shape circle = new Ellipse2D.Float(p.x - (radius / 2), p.y - (radius / 2), radius, radius);
         //g.drawImage(dotImage, null, p.x - circleRadius, p.y - circleRadius);
         g.draw(circle);
-        g.setPaint(Color.blue);
+        g.setPaint(pointColor);
         g.fill(circle);
-    }
+    }    
 
     private BufferedImage getDotImageFile() {
         try {
@@ -533,22 +537,16 @@ public class HeatMap {
         generateLogScaleCircle(dPoints);
     }
 
-    public void generatePoints(double[] v) {
+    public void generatePoints(double[] v, Color pointColour) {
         setMinMax(null);
-
-        int width = backgroundImage.getWidth();
-        int height = backgroundImage.getHeight();
         //System.out.println("bounding box: " + minX + "," + minY + "," + maxX + "," + maxY);
         //System.out.println("Adding " + (v.length / 2) + " points to base image...");
         //System.out.println("Adding to base image...");
-        int dPoints[][] = new int[width][height];
         for (int i = 0; i < v.length; i += 2) {
             double cx = v[i];
             double cy = v[i + 1];
-
             Point p = translate(cx, cy);
-
-            addDotImage(p);
+            addDotImage(p, pointColour);
         }
     }
 
