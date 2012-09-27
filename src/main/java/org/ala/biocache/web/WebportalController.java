@@ -8,7 +8,6 @@ import java.util.*;
 import org.ala.biocache.dao.TaxonDAO;
 import org.ala.biocache.dto.*;
 import org.ala.biocache.util.ParamsCache;
-import org.apache.commons.io.IOUtils;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.codehaus.jackson.JsonNode;
@@ -23,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
-import javax.servlet.ServletConfig;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -40,11 +38,9 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.context.ServletConfigAware;
 
 /**
- * Webportal specific services.
- *
+ * Web portal specific services.
  */
 @Controller
 public class WebportalController /* implements ServletConfigAware*/ {

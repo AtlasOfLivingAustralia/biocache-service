@@ -662,10 +662,10 @@ public class MapController implements ServletConfigAware {
         
         if (!f.isFile() || !f.exists() || forceRefresh) {
             //If not, generate
-            logger.info("regenerating heatmap legend");
+            logger.debug("regenerating heatmap legend");
             generateStaticHeatmapImages(requestParams, model, request, response, true, false,  0, "0000ff", null, null, 1.0f);
         } else {
-            logger.info("legend file already exists on disk, sending file back to user");
+            logger.debug("legend file already exists on disk, sending file back to user");
         }
 
         //read file off disk and send back to user
