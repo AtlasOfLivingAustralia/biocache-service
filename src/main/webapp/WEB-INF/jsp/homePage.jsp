@@ -128,7 +128,6 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             Returns a map of taxon guids with the corresponding occurrence count.
             </li>
             <li><strong>Occurrence wms:</strong> /occurrences/wms - requires WMS parameters along with 'q' and 'fq' populated, if available</li>
-            <li><strong>Occurrence static:</strong> /occurrences/static - generates an image of AU with points on, filtering on 'q' and 'fq', if available</li>
             <li><strong>Occurrences coordinates:</strong>
                 <a href="${initParam.webservicesRoot}/occurrences/coordinates">/occurrences/coordinates</a>
                 - Displays a list of unique lat,lon that are used by the occurrences
