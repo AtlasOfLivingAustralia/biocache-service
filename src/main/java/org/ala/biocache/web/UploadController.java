@@ -4,6 +4,8 @@ import au.com.bytecode.opencsv.CSVReader;
 import au.org.ala.biocache.*;
 import au.org.ala.util.ParsedRecord;
 import au.org.ala.util.AdHocParser;
+import org.ala.biocache.dto.Facet;
+import org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
@@ -25,6 +27,8 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Controller
 public class UploadController {
@@ -32,6 +36,8 @@ public class UploadController {
     private final static Logger logger = Logger.getLogger(UploadController.class);
 
     protected String uploadStatusDir = "/data/biocache-upload";
+
+    private Pattern dataResourceUidP = Pattern.compile("data_resource_uid:([\\\"]{0,1}[a-z]{2,3}[0-9]{1,}[\\\"]{0,1})");
 
     /**
      * Upload a dataset using a POST, returning a UID for this data
@@ -149,6 +155,46 @@ public class UploadController {
     public @ResponseBody String[] customIndexes(@PathVariable String tempDataResourceUid, HttpServletResponse response) throws Exception {
         response.setContentType("application/json");
         return au.org.ala.biocache.Store.retrieveCustomIndexFields(tempDataResourceUid);
+    }
+
+    private List<String> getDrs(String queryExpression){
+        List<String> drs = new ArrayList<String>();
+        if(queryExpression != null){
+            Matcher m = dataResourceUidP.matcher(queryExpression);
+            while(m.find()){
+                for(int x =0; x<m.groupCount(); x++){
+                    drs.add(m.group(x).replaceAll("data_resource_uid:", "").replaceAll("\\\"",""));
+                }
+            }
+        }
+        return drs;
+    }
+
+    /**
+     * Upload a dataset using a POST, returning a UID for this data
+     *
+     * @return an identifier for this temporary dataset
+     */
+    @RequestMapping(value="/upload/dynamicFacets", method = RequestMethod.GET)
+    public @ResponseBody List<Facet> dynamicFacets(
+            SpatialSearchRequestParams requestParams,
+            HttpServletResponse response) throws Exception {
+
+        List<String> drs = new ArrayList<String>();
+        drs.addAll(getDrs(requestParams.getQ()));
+        drs.addAll(getDrs(requestParams.getQc()));
+        for(String fq : requestParams.getFq())
+            drs.addAll(getDrs(fq));
+
+        response.setContentType("application/json");
+        List<Facet> fs = new ArrayList<Facet>();
+        for(String dr: drs){
+            String[] facetsRaw = au.org.ala.biocache.Store.retrieveCustomIndexFields(dr);
+            for (String f: facetsRaw){
+                fs.add(new Facet(f, StringUtils.capitalize(f.replaceAll("_s", "").replaceAll("_", ""))));
+            }
+        }
+        return fs;
     }
 
     /**

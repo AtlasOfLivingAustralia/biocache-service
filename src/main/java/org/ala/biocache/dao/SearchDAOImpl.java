@@ -122,7 +122,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9\\.:-]*)\"?");
     protected Pattern urnPattern = Pattern.compile("urn:[a-zA-Z0-9\\.:-]*");
     protected Pattern spacesPattern = Pattern.compile("[^\\s\"\\(\\)\\[\\]']+|\"[^\"]*\"|'[^']*'");
-    protected Pattern uidPattern = Pattern.compile("([a-z_]*_uid:)([a-z0-9]*)");
+    protected Pattern uidPattern = Pattern.compile("(?:[\"]*)?([a-z_]*_uid:)([a-z0-9]*)(?:[\"]*)?");
     protected Pattern spatialPattern = Pattern.compile("\\{!spatial[a-zA-Z=\\-\\s0-9\\.\\,():]*\\}");
     protected Pattern qidPattern = Pattern.compile("qid:[0-9]*");
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
@@ -1790,7 +1790,8 @@ public class SearchDAOImpl implements SearchDAO {
                 //substitute better display strings for collection/inst etc searches
                 if(displayString.contains("_uid")){
                     displaySb.setLength(0);
-                    matcher = uidPattern.matcher(displayString);
+                    String normalised = displayString.replaceAll("\"", "");
+                    matcher = uidPattern.matcher(normalised);
                     while(matcher.find()){
                         String newVal = "<span>"+searchUtils.getUidDisplayString(matcher.group(2)) +"</span>";
                         if(newVal != null)

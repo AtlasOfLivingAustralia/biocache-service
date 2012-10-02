@@ -362,7 +362,6 @@ public class OccurrenceController extends AbstractSecureController {
 	/**
 	 * Occurrence search page uses SOLR JSON to display results
 	 *
-	 * @param model
 	 * @return
 	 * @throws Exception
 	 */

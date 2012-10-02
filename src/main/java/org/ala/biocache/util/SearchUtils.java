@@ -78,6 +78,17 @@ public class SearchUtils {
         }
         return sb.toString();
     }
+
+    private String stripEscapedQuotes(String uid){
+        if(uid==null) return null;
+        if(uid.startsWith("\"") && uid.endsWith("\"") && uid.length()>2)
+            return uid.substring(1,uid.length()-2);
+        else if(uid.startsWith("\\\"") && uid.endsWith("\\\"") && uid.length()>4){
+            return uid.substring(2,uid.length()-3);
+        }
+        return uid;
+    }
+
     /**
      * Returns the display string for the supplied uid
      *
@@ -87,17 +98,22 @@ public class SearchUtils {
      * @return
      */
     public String getUidDisplayString(String uid) {
+
+        uid = stripEscapedQuotes(uid);
+
         //get the information from the collections cache
         if (uid.startsWith("in")) {
             return "Institution: " + collectionCache.getInstitutions().get(uid);
         } else if (uid.startsWith("co")) {
             return "Collection: " + collectionCache.getCollections().get(uid);
         } else if(uid.startsWith("dr")){
-            return "Data Resource: " + collectionCache.getDataResources().get(uid);
+            return "Data resource: " + collectionCache.getDataResources().get(uid);
         } else if(uid.startsWith("drt")){
-            return "Temporary Data Resource: " + collectionCache.getDataResources().get(uid);
+            return "Temporary Data resource: " + collectionCache.getDataResources().get(uid);
+        } else if(uid.startsWith("dp")){
+            return "Data provider: " + collectionCache.getDataProviders().get(uid);
         }
-        return null;
+        return null; //FIXME
     }
 
         /**
