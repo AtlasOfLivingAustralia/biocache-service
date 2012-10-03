@@ -374,7 +374,7 @@ class UploaderThread implements Runnable {
                 if(customIndexFields == null){
                     List<String> filteredHeaders = filterByMaxColumnLengths(headerArray, new CSVReader(new StringReader(csvData), separatorChar), 50);
                     //derive a list of custom index field
-                    filteredHeaders = filterAndFormatCustomIndexFields(filteredHeaders);
+                    filteredHeaders = filterCustomIndexFields(filteredHeaders);
                     customIndexFields = filteredHeaders.toArray(new String[0]);
                 }
 
