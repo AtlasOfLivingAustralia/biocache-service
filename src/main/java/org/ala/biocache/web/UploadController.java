@@ -374,11 +374,11 @@ class UploaderThread implements Runnable {
                 if(customIndexFields == null){
                     List<String> filteredHeaders = filterByMaxColumnLengths(headerArray, new CSVReader(new StringReader(csvData), separatorChar), 50);
                     //derive a list of custom index field
-                    filteredHeaders = filterCustomIndexFields(filteredHeaders);
+                    filteredHeaders = filterAndFormatCustomIndexFields(filteredHeaders);
                     customIndexFields = filteredHeaders.toArray(new String[0]);
                 }
 
-                System.out.println("Matched headers: " + StringUtils.join(headerArray));
+                //System.out.println("Matched headers: " + StringUtils.join(headerArray));
 
                 //if the first line is data, add a record, else discard
                 if(firstLineIsData){
@@ -455,7 +455,8 @@ class UploaderThread implements Runnable {
         List<String> customIndexFields = new ArrayList<String>();
         for(String hdr: suppliedHeaders){
             if(!alreadyIndexedFields.contains(hdr)){
-                customIndexFields.add(hdr);
+                String formatted = hdr.replaceAll("[^a-zA-Z0-9]+","_");
+                customIndexFields.add(formatted);
             }
         }
         return customIndexFields;
