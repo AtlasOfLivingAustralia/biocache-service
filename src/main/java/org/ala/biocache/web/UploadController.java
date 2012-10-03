@@ -342,6 +342,16 @@ class UploaderThread implements Runnable {
     protected Integer recordsToLoad = null;
     protected String[] customIndexFields = null;
 
+    String[] cleanUpHeaders(String[] headers){
+        int i=0;
+        for(String hdr: headers){
+            headers[i] = hdr.replaceAll("[^a-zA-Z0-9]+","_");
+            i++;
+        }
+        return headers;
+    }
+
+
     @Override
     public void run(){
         File statusDir = null;
@@ -368,7 +378,7 @@ class UploaderThread implements Runnable {
             CSVReader csvReader = new CSVReader(new StringReader(csvData), separatorChar);
             try {
                 String[] currentLine = csvReader.readNext();
-                String[] headerUnmatched = headers.split(",");
+                String[] headerUnmatched = cleanUpHeaders(headers.split(","));
                 String[] headerArray = AdHocParser.mapOrReturnColumnHeaders(headerUnmatched);
 
                 if(customIndexFields == null){
@@ -455,8 +465,8 @@ class UploaderThread implements Runnable {
         List<String> customIndexFields = new ArrayList<String>();
         for(String hdr: suppliedHeaders){
             if(!alreadyIndexedFields.contains(hdr)){
-                String formatted = hdr.replaceAll("[^a-zA-Z0-9]+","_");
-                customIndexFields.add(formatted);
+
+                customIndexFields.add(hdr);
             }
         }
         return customIndexFields;
