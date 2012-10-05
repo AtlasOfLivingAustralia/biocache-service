@@ -1884,7 +1884,7 @@ public class SearchDAOImpl implements SearchDAO {
             return formatted;
 
         } catch (Exception e){
-            e.printStackTrace();
+            logger.debug(e.getMessage(),e);
             return displayText;
         }
     }
