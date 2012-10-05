@@ -777,7 +777,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
             Model model
             ) throws Exception {
 
-        System.out.println("GETMETADATA: " + request.getQueryString());
+        //System.out.println("GETMETADATA: " + request.getQueryString());
 
         String taxonName = "";
         String rank = "";
