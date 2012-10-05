@@ -12,6 +12,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             .code { font-family: courier new;}
             .webserviceList { margin-left:30px; }
             .paramList { margin-left:60px; }
+            .examples  { margin-left:60px; }
             .paramOptionsList { margin-left:90px; }
             .exampleResponse { margin-left:60px; }
             strong { font-weight:bold; }
@@ -163,17 +164,20 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             </li>
             <li><strong>Static Species Density Heatmap </strong> - returns heatmap image
             	<ul class="paramList">
-	            	<li><strong>forceRefresh</strong> - will force regeneration of the image instead of using cached version</li>
-	            	<li><strong>forcePointsDisplay</strong> - force to use points instead of heatmap</li>
-	            	<li><strong>pointColour</strong> - the point colour to use in RGB e.g. &pointColour=0000ff. Default is 0000ff (blue)             	
-	            	<li><strong>colourByFq</strong> - colour by a facet value e.g. &colourByFq=genus:Acacia,genus:Eucalyptus will colour the dots by different values.
-	            	<li><strong>colours</strong> - how to colour the by facet values. Note <strong>colours</strong> and <strong>colourByFq</strong> must align. e.g &colours=ff0000,00ff00
-	            	<li><strong>pointHeatMapThreshold</strong> - used to sort values in the file - either 'count' or 'index'
+	            	<li><strong>forceRefresh</strong> - will force regeneration of the image instead of using cached version. Default is false</li>
+	            	<li><strong>forcePointsDisplay</strong> - force to use points instead of heatmap. Default is false</li>
+	            	<li><strong>pointColour</strong> - the point colour to use in RGB e.g. &pointColour=0000ff. Default is 0000ff (blue)</li>
+	            	<li><strong>colourByFq</strong> - colour by a facet value e.g. &colourByFq=genus:Acacia,genus:Eucalyptus will colour the dots by different values.</li>
+	            	<li><strong>colours</strong> - how to colour the by facet values. Note <strong>colours</strong> and <strong>colourByFq</strong> must align. e.g &colours=ff0000,00ff00</li>
+	            	<li><strong>pointHeatMapThreshold</strong> - used to sort values in the file - either 'count' or 'index'</li>
             	</ul>
+                <strong>Example maps:</strong>
             	<ul class="examples">
-            		<li><a href="${initParam.webservicesRoot}/density/map?q=*:*">/density/map?q=*:*</a></li>
+            		<li><a href="${initParam.webservicesRoot}/density/map?q=Acacia">/density/map?q=Acacia</a></li>
+                    <li><a href="${initParam.webservicesRoot}/density/map?q=Crimson+rosella">/density/map?q=Crimson+rosella</a></li>
             	</ul>             	
             <li><strong>Static Species Density Legend: </strong>- returns associated legend image (optional param forceRefresh=true will regenerate the image)
+                <strong>Example maps:</strong>
             	<ul class="examples">
             		<li><a href="${initParam.webservicesRoot}/density/legend?q=*:*">/density/legend?q=*:*</a></li>
             	</ul> 
@@ -461,14 +465,18 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         </ul>
 
 		<a href="#outlierInformation" name="outlierInformation" id="outlierInformation"><h3>Outlier information</h3></a>
-		<ul>
-			<li><a href="#outlierInfo" name="outlierInfo" id="outlierInfo"><strong>Outlier test information for species</strong></a><br/>
-			e.g. 			
-			<a href="${initParam.webservicesRoot}/outlierInfo/urn:lsid:biodiversity.org.au:afd.taxon:0c139726-2add-4abe-a714-df67b1d4b814.json">/outlierInfo/urn:lsid:biodiversity.org.au:afd.taxon:0c139726-2add-4abe-a714-df67b1d4b814.json </a>(Mountain thornbill)
+        <p>These are webservices for reporting the on outlier details for records.</p>
+		<ul class="webserviceList">
+			<li>
+                <a href="#outlierInfo" name="outlierInfo" id="outlierInfo"><strong>Outlier test information for species</strong></a><br/>
+			    e.g.
+			    <a href="${initParam.webservicesRoot}/outlierInfo/urn:lsid:biodiversity.org.au:afd.taxon:0c139726-2add-4abe-a714-df67b1d4b814.json">/outlierInfo/urn:lsid:biodiversity.org.au:afd.taxon:0c139726-2add-4abe-a714-df67b1d4b814.json </a>(Mountain thornbill)
 			</li>
-			<li><a href="#outlierRecordDetails" name="outlierRecordDetails" id="outlierRecordDetails"><strong>Outlier record details</strong></a><br/>
-			e.g. 			
-			<a href="${initParam.webservicesRoot}/outlier/record/b07bbac2-22d7-4c8a-8d61-4be1ab9e0d09">/outlier/record/b07bbac2-22d7-4c8a-8d61-4be1ab9e0d09 </a>(A Mountain thornbill outlier)
+			<li>
+                <a href="#outlierRecordDetails" name="outlierRecordDetails" id="outlierRecordDetails"><strong>Outlier record details</strong></a><br/>
+			    e.g.
+			    <a href="${initParam.webservicesRoot}/outlier/record/b07bbac2-22d7-4c8a-8d61-4be1ab9e0d09">/outlier/record/b07bbac2-22d7-4c8a-8d61-4be1ab9e0d09 </a>
+                (A Mountain thornbill outlier)
 			</li>		
 		</ul>
 

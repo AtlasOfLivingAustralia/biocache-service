@@ -234,7 +234,7 @@ public class OccurrenceController extends AbstractSecureController {
 	    if(adto.isHasOccurrences()){
 	        //check to see if the records have only been provided by citizen science
 	        //TODO change this to a confidence setting after it has been included in the index	        
-	        requestParams.setQ("lsid:" + guid + " AND -(data_resource_uid:dr364)");
+	        requestParams.setQ("lsid:" + guid + " AND (provenance:\"Published dataset\")");
 	        results = searchDAO.findByFulltextSpatialQuery(requestParams);
 	        adto.setHasCSOnly(results.getTotalRecords()==0);
 	    }

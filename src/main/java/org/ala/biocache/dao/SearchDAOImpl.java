@@ -68,6 +68,8 @@ import org.ala.biocache.dto.OccurrenceIndex;
 import au.com.bytecode.opencsv.CSVWriter;
 
 import com.ibm.icu.text.SimpleDateFormat;
+
+import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.ala.biocache.dto.SearchRequestParams;
@@ -126,6 +128,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected Pattern spatialPattern = Pattern.compile("\\{!spatial[a-zA-Z=\\-\\s0-9\\.\\,():]*\\}");
     protected Pattern qidPattern = Pattern.compile("qid:[0-9]*");
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
+    protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("[a-z_]{1,}:");
 //    protected Pattern facetSortPattern = Pattern.compile("([a-zA-z_]+?):(count|index)");
 //    protected Pattern solrParamPattern = Pattern.compile("([a-zA-z_\\.]+?)=([a-zA-z_]+?)");
     
@@ -1755,10 +1758,8 @@ public class SearchDAOImpl implements SearchDAO {
                         searchParams.setDisplayString(subQuery.getDisplayString() + " - within supplied region");
                     }
                 }
-    
-    
             }
-            else{
+            else {
                 //escape reserved characters unless the colon represnts a field name colon
                 queryString.setLength(0);
     
@@ -1803,7 +1804,7 @@ public class SearchDAOImpl implements SearchDAO {
                 if(searchParams.getQ().equals("*:*")){
                     displayString ="[all records]";
                 }
-                if(searchParams.getLat() !=null && searchParams.getLon() != null && searchParams.getRadius() != null ){
+                if(searchParams.getLat() != null && searchParams.getLon() != null && searchParams.getRadius() != null ){
                     displaySb.setLength(0);
                     displaySb.append(displayString);
                     displaySb.append(" - within ").append(searchParams.getRadius()).append(" km of point(")
@@ -1813,18 +1814,7 @@ public class SearchDAOImpl implements SearchDAO {
                 }
 
                 // substitute i18n version of field name, if found in messages.properties
-                int colonIndex = displayString.indexOf(":");
-
-                if (colonIndex > 0 && colonIndex == displayString.lastIndexOf(":")) {
-                    // only substitute if there is one search term
-                    String fieldName = displayString.substring(0, colonIndex).trim();
-                    // i18n gets set to fieldName if not found
-                    String i18n = messageSource.getMessage("facet."+fieldName, null, fieldName, null);
-                    logger.debug("i18n for " + fieldName + " = " + i18n);
-                    if (!fieldName.equals(i18n)) {
-                        displayString = i18n + displayString.substring(colonIndex);
-                    }
-                }
+                displayString = formatDisplayStringWithI18n(displayString);
 
                 searchParams.setFormattedQuery(queryString.toString());
                 logger.debug("formattedQuery = " + queryString);
@@ -1832,7 +1822,7 @@ public class SearchDAOImpl implements SearchDAO {
                 searchParams.setDisplayString(displayString);
                 //return queryString.toString();
             }
-            
+
             //format the fq's for facets that need ranges substituted
             for(int i=0; i<searchParams.getFq().length;i++){
                 String fq = searchParams.getFq()[i];
@@ -1843,6 +1833,59 @@ public class SearchDAOImpl implements SearchDAO {
                     searchParams.getFq()[i]= titleMap.get(parts[1]);
                 }
             }
+        }
+        searchParams.setDisplayString(formatDisplayStringWithI18n(searchParams.getDisplayString()));
+    }
+
+    /**
+     * Substitute with i18n properties
+     *
+     * @param displayText
+     * @return
+     */
+    public String formatDisplayStringWithI18n(String displayText){
+
+        if(StringUtils.trimToNull(displayText) == null) return displayText;
+        try {
+            String formatted = displayText;
+
+            Matcher m = indexFieldPatternMatcher.matcher(displayText);
+            int currentPos = 0;
+            while(m.find(currentPos)){
+                String matchedIndexTerm = m.group(0).replaceAll(":","");
+                MatchResult mr = m.toMatchResult();
+                String i18n = messageSource.getMessage("facet."+matchedIndexTerm, null, matchedIndexTerm, null);
+                //System.out.println("i18n for " + matchedIndexTerm + " = " + i18n);
+                if (!matchedIndexTerm.equals(i18n)) {
+
+                  int nextWhitespace = displayText.substring(mr.end()).indexOf(" ");
+                  String extractedValue = null;
+                  if(nextWhitespace > 0){
+                    extractedValue = displayText.substring(mr.end(), mr.end() + nextWhitespace);
+                  } else {
+                      //reached the end of the query
+                    extractedValue = displayText.substring(mr.end());
+                  }
+
+                  String formattedExtractedValue = SearchUtils.stripEscapedQuotes(extractedValue);
+
+                  String i18nForValue = messageSource.getMessage(matchedIndexTerm + "." + formattedExtractedValue, null, "", null);
+                  if(i18nForValue.length() == 0) i18nForValue = messageSource.getMessage(formattedExtractedValue, null, "", null);
+
+                  if(i18nForValue.length()>0){
+                      formatted = formatted.replaceAll(matchedIndexTerm + ":"+ extractedValue, i18n + ":" + i18nForValue);
+                  } else {
+                      //just replace the matched index term
+                      formatted = formatted.replaceAll(matchedIndexTerm,i18n);
+                  }
+                }
+                currentPos = mr.end();
+            }
+            return formatted;
+
+        } catch (Exception e){
+            e.printStackTrace();
+            return displayText;
         }
     }
 

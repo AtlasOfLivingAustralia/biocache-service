@@ -79,12 +79,12 @@ public class SearchUtils {
         return sb.toString();
     }
 
-    private String stripEscapedQuotes(String uid){
+    public static String stripEscapedQuotes(String uid){
         if(uid==null) return null;
         if(uid.startsWith("\"") && uid.endsWith("\"") && uid.length()>2)
-            return uid.substring(1,uid.length()-2);
+            return uid.substring(1,uid.length()-1);
         else if(uid.startsWith("\\\"") && uid.endsWith("\\\"") && uid.length()>4){
-            return uid.substring(2,uid.length()-3);
+            return uid.substring(2,uid.length()-2);
         }
         return uid;
     }
