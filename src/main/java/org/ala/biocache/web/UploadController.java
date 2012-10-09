@@ -191,7 +191,12 @@ public class UploadController {
         for(String dr: drs){
             String[] facetsRaw = au.org.ala.biocache.Store.retrieveCustomIndexFields(dr);
             for (String f: facetsRaw){
-                fs.add(new Facet(f, StringUtils.capitalize(f.replaceAll("_s", "").replaceAll("_", " "))));
+                String displayName = f;
+                if(displayName.endsWith("_s")) {
+                    displayName = displayName.substring(0, displayName.length()-2);
+                }
+                displayName = displayName.replaceAll("_", " ");
+                fs.add(new Facet(f, StringUtils.capitalize(displayName)));
             }
         }
         return fs;
