@@ -145,10 +145,12 @@ public class OccurrenceController extends AbstractSecureController {
 	 * @throws Exception
 	 */
 	@RequestMapping("/facets/i18n{qualifier:.*}*")
-	public void writei18nPropertiesFile(@PathVariable("qualifier") String qualifier, HttpServletResponse response) throws Exception{
+	public void writei18nPropertiesFile(@PathVariable("qualifier") String qualifier,
+                                        HttpServletRequest request,
+                                        HttpServletResponse response) throws Exception{
         qualifier = (StringUtils.isNotEmpty(qualifier)) ? qualifier : ".properties";
         logger.debug("qualifier = " + qualifier);
-        InputStream is = getClass().getResourceAsStream("/messages" + qualifier);
+        InputStream is = request.getSession().getServletContext().getResourceAsStream("/WEB-INF/messages" + qualifier);
         OutputStream os = response.getOutputStream();
 
         if (is != null) {
@@ -159,8 +161,7 @@ public class OccurrenceController extends AbstractSecureController {
                 os.write(buffer, 0, bytesRead);
             }
         }
-
-        os.flush();
+		os.flush();
         os.close();
 	}
 	
