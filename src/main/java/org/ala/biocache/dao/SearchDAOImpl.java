@@ -483,7 +483,7 @@ public class SearchDAOImpl implements SearchDAO {
             //TODO headings
 //            String[] fields = sb.toString().split(",");            
             String[]qaFields = qas.equals("")?new String[]{}:qas.split(",");
-            String[] qaTitles = downloadFields.getHeader(qaFields);
+            String[] qaTitles = downloadFields.getHeader(qaFields, false);
 //            String[] titles = downloadFields.getHeader(fields);
 //            String[] header = org.apache.commons.lang3.ArrayUtils.addAll(titles,qaTitles);
             
@@ -612,8 +612,8 @@ public class SearchDAOImpl implements SearchDAO {
             
             String[] fields = sb.toString().split(",");            
             String[]qaFields = qas.equals("")?new String[]{}:qas.split(",");
-            String[] qaTitles = downloadFields.getHeader(qaFields);
-            String[] titles = downloadFields.getHeader(fields);
+            String[] qaTitles = downloadFields.getHeader(qaFields,false);
+            String[] titles = downloadFields.getHeader(fields,true);
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(titles,qaTitles);
             //Create the Writer that will be used to format the records
             au.org.ala.biocache.RecordWriter rw = new org.ala.biocache.writer.CSVRecordWriter(out, header);

@@ -2,12 +2,11 @@
 package org.ala.biocache.util;
 
 import java.io.InputStream;
-import java.util.Collections;
-import java.util.Properties;
 import java.util.*;
 import au.org.ala.biocache.Store;
 
 import org.ala.biocache.dto.IndexFieldDTO;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
@@ -54,14 +53,31 @@ public String getFields(){
  * @param values
  * @return
  */
-public String[] getHeader(String[] values){
+public String[] getHeader(String[] values, boolean useSuffix){
     String[] header = new String[values.length];
     for(int i =0 ;i<values.length;i++){
         //attempt to get the headervalue from the propreties
         String v = downloadProperties.getProperty(values[i]);
-        header[i] = v!=null ?v :values[i];
+        header[i] = v!=null ?v :generateTitle(values[i], useSuffix);
     }
     return header;
+}
+/**
+ * Generates a default title for a field that does NOT have an i18n
+ * @param v
+ * @return
+ */
+private String generateTitle(String v, boolean useSuffix){
+    String value = v;
+    String suffix ="";
+    if(value.endsWith(".p")){
+        suffix = " - Processed";
+        v =v.replaceAll("\\.p", "");
+    }
+    value = StringUtils.join(StringUtils.splitByCharacterTypeCamelCase(v)," ");
+    if(useSuffix)
+        value += suffix;  
+    return value;
 }
 /**
  * returns the index fields that are used for the supplied values
@@ -80,7 +96,7 @@ public List<String>[] getIndexFields(String[] values){
         IndexFieldDTO field = indexFieldMaps.get(indexName);
         if((field != null && field.isStored()) || value.startsWith("sensitive")){
             mappedNames.add(indexName);            
-            headers.add(downloadProperties.getProperty(value, value));
+            headers.add(downloadProperties.getProperty(value, generateTitle(value,true)));
         }
         else
             unmappedNames.add(indexName);
