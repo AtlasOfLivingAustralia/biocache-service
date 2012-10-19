@@ -55,6 +55,8 @@ import org.apache.solr.client.solrj.response.GroupCommand;
 import org.apache.solr.client.solrj.response.GroupResponse;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.client.solrj.response.FacetField.Count;
+import org.apache.solr.client.solrj.response.RangeFacet;
+import org.apache.solr.client.solrj.response.RangeFacet.Numeric;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.SolrDocumentList;
 import org.springframework.context.support.AbstractMessageSource;
@@ -123,7 +125,7 @@ public class SearchDAOImpl implements SearchDAO {
     //Patterns that are used to prepare a SOLR query for execution
     protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9\\.:-]*)\"?");
     protected Pattern urnPattern = Pattern.compile("urn:[a-zA-Z0-9\\.:-]*");
-    protected Pattern spacesPattern = Pattern.compile("[^\\s\"\\(\\)\\[\\]']+|\"[^\"]*\"|'[^']*'");
+    protected Pattern spacesPattern = Pattern.compile("[^\\s\"\\(\\)\\[\\]{}']+|\"[^\"]*\"|'[^']*'");
     protected Pattern uidPattern = Pattern.compile("(?:[\"]*)?([a-z_]*_uid:)([a-z0-9]*)(?:[\"]*)?");
     protected Pattern spatialPattern = Pattern.compile("\\{!spatial[a-zA-Z=\\-\\s0-9\\.\\,():]*\\}");
     protected Pattern qidPattern = Pattern.compile("qid:[0-9]*");
@@ -184,7 +186,7 @@ public class SearchDAOImpl implements SearchDAO {
             //formatSearchQuery(requestParams);            
             //add the context information
             updateQueryContext(requestParams);
-            SolrQuery solrQuery = initSolrQuery(requestParams, true); // general search settings
+            SolrQuery solrQuery = initSolrQuery(requestParams, true, null); // general search settings
             solrQuery.setQuery(requestParams.getFormattedQuery());
             QueryResponse qr = runSolrQuery(solrQuery, requestParams);
             searchResults = processSolrResponse(qr, solrQuery,OccurrenceIndex.class);
@@ -206,11 +208,11 @@ public class SearchDAOImpl implements SearchDAO {
      * @see org.ala.biocache.dao.SearchDAO#findByFulltextSpatialQuery(org.ala.biocache.dto.SpatialSearchRequestParams)
      */
     @Override
-    public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams) throws Exception {
-        return findByFulltextSpatialQuery(searchParams,false);
+    public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, Map<String,String[]> extraParams) throws Exception {
+        return findByFulltextSpatialQuery(searchParams,false,extraParams);
     }
     @Override
-    public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, boolean includeSensitive) throws Exception {
+    public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, boolean includeSensitive, Map<String,String[]> extraParams) throws Exception {
         SearchResultDTO searchResults = new SearchResultDTO();
 
         try {
@@ -220,7 +222,7 @@ public class SearchDAOImpl implements SearchDAO {
             updateQueryContext(searchParams);
             String queryString = buildSpatialQueryString(searchParams);
             //logger.debug("The spatial query " + queryString);
-            SolrQuery solrQuery = initSolrQuery(searchParams,true); // general search settings
+            SolrQuery solrQuery = initSolrQuery(searchParams,true,extraParams); // general search settings
             solrQuery.setQuery(queryString);
 
             QueryResponse qr = runSolrQuery(solrQuery, searchParams);
@@ -234,6 +236,7 @@ public class SearchDAOImpl implements SearchDAO {
             //logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
             logger.error("Error executing query  with requestParams: " + searchParams.toString()+ " EXCEPTION: " + ex.getMessage());
             searchResults.setStatus("ERROR"); // TODO also set a message field on this bean with the error message(?)
+            searchResults.setErrorMessage(ex.getMessage());            
         }
 
         return searchResults;
@@ -290,7 +293,7 @@ public class SearchDAOImpl implements SearchDAO {
         //add the context information
         updateQueryContext(searchParams);
         String queryString = buildSpatialQueryString(searchParams);
-        SolrQuery solrQuery = initSolrQuery(searchParams,false);
+        SolrQuery solrQuery = initSolrQuery(searchParams,false,null);
         solrQuery.setQuery(queryString);
 
         //don't want any results returned
@@ -388,7 +391,7 @@ public class SearchDAOImpl implements SearchDAO {
         searchUtils.setDefaultParams(srp);
         srp.setFacets(searchParams.getFacets());
         
-        SolrQuery solrQuery = initSolrQuery(srp,false);
+        SolrQuery solrQuery = initSolrQuery(srp,false,null);
         //We want all the facets so we candump all the coordinates
         solrQuery.setFacetLimit(-1);
         solrQuery.setFacetSort("count");
@@ -427,7 +430,7 @@ public class SearchDAOImpl implements SearchDAO {
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
        
         try{
-            SolrQuery solrQuery = initSolrQuery(downloadParams,false);
+            SolrQuery solrQuery = initSolrQuery(downloadParams,false,null);
             formatSearchQuery(downloadParams); 
             
             
@@ -566,7 +569,7 @@ public class SearchDAOImpl implements SearchDAO {
         
         try {
             
-            SolrQuery solrQuery = initSolrQuery(downloadParams,false);
+            SolrQuery solrQuery = initSolrQuery(downloadParams,false,null);
             formatSearchQuery(downloadParams);            
             //add context information
             updateQueryContext(downloadParams);
@@ -668,7 +671,7 @@ public class SearchDAOImpl implements SearchDAO {
                 Map<String, Integer> downloadLimit,  Map<String, Integer> uidStats,
                 String[] fields, String[] qaFields,int resultsCount, String dataResource, boolean includeSensitive) throws Exception {
         logger.info("download query: " + downloadParams.getQ());
-        SolrQuery solrQuery = initSolrQuery(downloadParams,false);
+        SolrQuery solrQuery = initSolrQuery(downloadParams,false,null);
         solrQuery.setRows(MAX_DOWNLOAD_SIZE);
         formatSearchQuery(downloadParams);
         solrQuery.setQuery(buildSpatialQueryString(downloadParams));
@@ -1464,7 +1467,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
         }
         //all belong to uncertainty range for now
-        if(facetQueries != null) {
+        if(facetQueries != null && facetQueries.size()>0) {
             Map<String, String> rangeMap = RangeBasedFacets.getRangeMap("uncertainty");
             List<FieldResultDTO> fqr = new ArrayList<FieldResultDTO>();
             for(String value: facetQueries.keySet()){
@@ -1472,6 +1475,33 @@ public class SearchDAOImpl implements SearchDAO {
                     fqr.add(new FieldResultDTO(rangeMap.get(value), facetQueries.get(value)));
             }
             facetResults.add(new FacetResultDTO("uncertainty", fqr));
+        }
+        
+        //handle all the range based facets
+        if(qr.getFacetRanges() != null){
+            for(RangeFacet rfacet : qr.getFacetRanges()){
+                List<FieldResultDTO> fqr = new ArrayList<FieldResultDTO>();
+                if(rfacet instanceof Numeric){
+                    Numeric nrfacet = (Numeric)rfacet;
+                    List<RangeFacet.Count> counts= nrfacet.getCounts();
+                    //handle the before
+                    if(nrfacet.getBefore().intValue()>0){
+                      fqr.add(new FieldResultDTO("[* TO "+getUpperRange(nrfacet.getStart().toString(), nrfacet.getGap(),false)+"]",nrfacet.getBefore().intValue()));
+                    }
+                    for(RangeFacet.Count count:counts){                        
+                        String title = getRangeValue(count.getValue(), nrfacet.getGap());
+                        fqr.add(new FieldResultDTO(title,count.getCount())); 
+                    }
+                    //handle the after 
+                    if(nrfacet.getAfter().intValue()>0){
+                      fqr.add(new FieldResultDTO("["+nrfacet.getEnd().toString()+" TO *]",nrfacet.getAfter().intValue()));
+                    }
+                    facetResults.add(new FacetResultDTO(nrfacet.getName(), fqr));
+                }
+              //org.apache.solr.client.solrj.response.RangeFacet$Numeric
+                //int gap = rfacet.getGap() -1;
+                //System.out.println(rfacet.getClass());
+            }
         }
 
         //handle the confidence facets in the facetQueries
@@ -1506,6 +1536,28 @@ public class SearchDAOImpl implements SearchDAO {
 //        logger.info("The download params: " + params);
 //        searchResult.setUrlParameters(params);
         return searchResult;
+    }
+    
+    private String getRangeValue(String lower, Number gap){
+        StringBuilder value=new StringBuilder("[");
+        value.append(lower). append(" TO ").append(getUpperRange(lower,gap,true));
+        
+        return value.append("]").toString();
+    }
+    private String getUpperRange(String lower, Number gap, boolean addGap){
+        if (gap instanceof Integer) {
+          Integer upper = Integer.parseInt(lower) - 1;
+          if(addGap)
+              upper+= (Integer) gap;
+          return upper.toString();
+        } else if (gap instanceof Double) {
+          Double upper = Double.parseDouble(lower) - 0.001;
+          if(addGap)
+              upper += (Double) gap;
+          return upper.toString();
+        } else {
+          return lower;
+        }    
     }
 
     /**
@@ -1953,13 +2005,14 @@ public class SearchDAOImpl implements SearchDAO {
        solrQuery.add("facet.date.include", "lower"); // counts will be included for dates on the starting date but not ending date
 
    }
+   
 
     /**
      * Helper method to create SolrQuery object and add facet settings
      *
      * @return solrQuery the SolrQuery
      */
-    protected SolrQuery initSolrQuery(SearchRequestParams searchParams, boolean substituteDefaultFacetOrder) {
+    protected SolrQuery initSolrQuery(SearchRequestParams searchParams, boolean substituteDefaultFacetOrder,Map<String,String[]> extraSolrParams) {
 
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setQueryType("standard");
@@ -2032,6 +2085,18 @@ public class SearchDAOImpl implements SearchDAO {
         if (searchParams.getFl().length() > 0) {
             solrQuery.setFields(searchParams.getFl());
         }
+        
+        //add the extra SOLR params
+        if(extraSolrParams != null){
+            //automatically include the before and after params...
+            solrQuery.add("facet.range.other","before");
+            solrQuery.add("facet.range.other", "after");
+            for(String key : extraSolrParams.keySet()){
+                String[] values = extraSolrParams.get(key);
+                solrQuery.add(key, values);
+            }
+        }
+        
 
 //        add highlights
 //        solrQuery.setHighlight(true);
@@ -2213,6 +2278,9 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * Returns the count of distinct values for the facets.  Uses groups.  Needs some more 
      * work to determine best use...
+     * 
+     * TODO work out whether or not we should allow facet ranges to be downloaded....
+     * 
      */
     public List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception{
         formatSearchQuery(searchParams);            
@@ -2221,7 +2289,7 @@ public class SearchDAOImpl implements SearchDAO {
         String queryString = buildSpatialQueryString(searchParams);        
         searchParams.setFacet(false);        
         searchParams.setPageSize(0);
-        SolrQuery query = initSolrQuery(searchParams, false);
+        SolrQuery query = initSolrQuery(searchParams, false,null);
         query.setQuery(queryString);
         //now use the supplied facets to add groups to the query
         query.add("group", "true");

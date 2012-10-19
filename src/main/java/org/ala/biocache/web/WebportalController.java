@@ -361,7 +361,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
         }
 
         //searchUtils.updateSpatial(requestParams);
-        searchResult = searchDAO.findByFulltextSpatialQuery(requestParams);
+        searchResult = searchDAO.findByFulltextSpatialQuery(requestParams,null);
         model.addAttribute("searchResult", searchResult);
 
         if (logger.isDebugEnabled()) {

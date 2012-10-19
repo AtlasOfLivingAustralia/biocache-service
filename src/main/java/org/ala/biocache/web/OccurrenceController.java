@@ -202,7 +202,7 @@ public class OccurrenceController extends AbstractSecureController {
 	    srp.setQ("lsid:" + guid);
 	    srp.setPageSize(0);
 	    srp.setFacets(new String[]{"image_url"});
-	    SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(srp);
+	    SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(srp,null);
 	    if(results.getFacetResults().size()>0){
 	        List<FieldResultDTO> fieldResults =results.getFacetResults().iterator().next().getFieldResult();
 	        ArrayList<String> images = new ArrayList<String>(fieldResults.size());
@@ -229,14 +229,14 @@ public class OccurrenceController extends AbstractSecureController {
 	    requestParams.setQ(query);
 	    AustralianDTO adto= new AustralianDTO();
 	    adto.setTaxonGuid(guid);
-	    SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(requestParams);
+	    SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(requestParams,null);
 	    adto.setHasOccurrenceRecords(results.getTotalRecords() > 0);
 	    adto.setIsNSL(austLsidPattern.matcher(guid).matches());
 	    if(adto.isHasOccurrences()){
 	        //check to see if the records have only been provided by citizen science
 	        //TODO change this to a confidence setting after it has been included in the index	        
 	        requestParams.setQ("lsid:" + guid + " AND (provenance:\"Published dataset\")");
-	        results = searchDAO.findByFulltextSpatialQuery(requestParams);
+	        results = searchDAO.findByFulltextSpatialQuery(requestParams,null);
 	        adto.setHasCSOnly(results.getTotalRecords()==0);
 	    }
 	    return adto;
@@ -346,7 +346,7 @@ public class OccurrenceController extends AbstractSecureController {
 		}
 
         //searchUtils.updateSpatial(requestParams);
-        searchResult = searchDAO.findByFulltextSpatialQuery(requestParams);
+        searchResult = searchDAO.findByFulltextSpatialQuery(requestParams,null);
 		model.addAttribute("searchResult", searchResult);
 
 		if(logger.isDebugEnabled()){
@@ -357,7 +357,7 @@ public class OccurrenceController extends AbstractSecureController {
 	}
     
     private SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams)throws Exception{
-        return occurrenceSearch(requestParams,null,null);
+        return occurrenceSearch(requestParams,null,null,null);
     }
 
 	/**
@@ -369,25 +369,34 @@ public class OccurrenceController extends AbstractSecureController {
 	@RequestMapping(value = {"/occurrences/search.json*","/occurrences/search*"}, method = RequestMethod.GET)
 	public @ResponseBody SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams,
 	        @RequestParam(value="apiKey", required=false) String apiKey,
+	        HttpServletRequest request,
 	        HttpServletResponse response) throws Exception {
         // handle empty param values, e.g. &sort=&dir=
-        SearchUtils.setDefaultParams(requestParams);   
+        SearchUtils.setDefaultParams(requestParams);
+        Map<String,String[]> map = request != null?SearchUtils.getExtraParams(request.getParameterMap()):null;
+        if(map != null)
+            map.remove("apiKey");
+
         logger.debug("occurrence search params= " + requestParams);
         if(apiKey == null)
-            return  searchDAO.findByFulltextSpatialQuery(requestParams);        
+            return  searchDAO.findByFulltextSpatialQuery(requestParams,map);        
         else
-            return occurrenceSearchSensitive(requestParams,apiKey, response);
+            return occurrenceSearchSensitive(requestParams,apiKey,request, response);
 	}
 	
 	public @ResponseBody SearchResultDTO occurrenceSearchSensitive(SpatialSearchRequestParams requestParams,
             @RequestParam(value="apiKey", required=true) String apiKey,
+            HttpServletRequest request,
             HttpServletResponse response) throws Exception {
         // handle empty param values, e.g. &sort=&dir=
 	    if(shouldPerformOperation(apiKey, response, false)){
-    	    SearchUtils.setDefaultParams(requestParams);   
-            logger.debug("occurrence search params= " + requestParams);     
-            SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, true);        
-            return searchResult;
+    	    SearchUtils.setDefaultParams(requestParams); 
+    	    Map<String,String[]> map = SearchUtils.getExtraParams(request.getParameterMap());
+    	    if(map != null)
+    	        map.remove("apiKey");
+          logger.debug("occurrence search params= " + requestParams);     
+          SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, true,map);        
+          return searchResult;
 	    }
 	    return null;
     }
@@ -727,7 +736,7 @@ public class OccurrenceController extends AbstractSecureController {
         requestParams.setFacet(false);
 
 
-        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams);
+        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams,null);
         List<OccurrenceIndex> ocs = searchResult.getOccurrences();
 
         if(!ocs.isEmpty()){

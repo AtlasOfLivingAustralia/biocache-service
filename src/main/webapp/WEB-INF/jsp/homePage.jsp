@@ -62,6 +62,8 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <li><strong>foffset</strong> - facet offset, to enable paging</li>
                     <li><strong>fprefix</strong> - limits facets to values that start with the supplied value</li>                    
                 </ul>
+                Range based faceting is supported by using the <a href="http://wiki.apache.org/solr/SimpleFacetParameters#Facet_by_Range">SOLR parameters</a>. For Example:<br>
+                <a href="${initParam.webservicesRoot}/occurrences/search?q=AdjustedSeedQuantity_i:[* TO *]&pageSize=0&facets=uncertainty&facet.range=ViabilitySummary_d&f.ViabilitySummary_d.facet.range.start=20.0&f.ViabilitySummary_d.facet.range.end=100.0&f.ViabilitySummary_d.facet.range.gap=10&facet.range=AdjustedSeedQuantity_i&f.AdjustedSeedQuantity_i.facet.range.start=0&f.AdjustedSeedQuantity_i.facet.range.end=100000&f.AdjustedSeedQuantity_i.facet.range.gap=50000">/occurrences/search?q=AdjustedSeedQuantity_i:[* TO *]&pageSize=0&facets=uncertainty&facet.range=ViabilitySummary_d&f.ViabilitySummary_d.facet.range.start=20.0&f.ViabilitySummary_d.facet.range.end=100.0&f.ViabilitySummary_d.facet.range.gap=10&facet.range=AdjustedSeedQuantity_i&f.AdjustedSeedQuantity_i.facet.range.start=0&f.AdjustedSeedQuantity_i.facet.range.end=100000&f.AdjustedSeedQuantity_i.facet.range.gap=50000</a>
             </li>
             <li><strong>POST query details:</strong>
             	If you find that your q or wkt are too large or cumbersome to be passing around there is the facility to POST 

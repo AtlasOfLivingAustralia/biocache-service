@@ -250,7 +250,7 @@ public class GeospatialController {
             }
             
         }
-        return searchDAO.findByFulltextSpatialQuery(requestParams);
+        return searchDAO.findByFulltextSpatialQuery(requestParams,null);
     }
 
     private static String wktFromJSON(String json) {

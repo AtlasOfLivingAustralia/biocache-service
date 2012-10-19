@@ -43,6 +43,8 @@ public class SearchResultDTO {
     private String dir = "asc";
     /** Status code to be set by Controller (e.g. OK) */
     private String status;
+    /** An error message to return to the requester */
+    private String errorMessage;
     /** List of results from search */
     private List<OccurrenceIndex> occurrences;
     /** List of facet results from search */
@@ -179,6 +181,20 @@ public class SearchResultDTO {
 
     public void setQueryTitle(String queryTitle) {
         this.queryTitle = queryTitle;
+    }
+
+    /**
+     * @return the errorMessage
+     */
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    /**
+     * @param errorMessage the errorMessage to set
+     */
+    public void setErrorMessage(String errorMessage) {
+        this.errorMessage = errorMessage;
     }
     
     

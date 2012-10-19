@@ -64,7 +64,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams requestParams) throws Exception;
+    SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams requestParams, Map<String,String[]> extraParams) throws Exception;
     /**
      * Find all occurrences for a given (full text) query, latitude, longitude & radius (km). I.e.
      * a full-text spatial query.  The result will include the sensitive coordinates if available.
@@ -73,7 +73,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams requestParams, boolean includeSensitive) throws Exception;
+    SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams requestParams, boolean includeSensitive, Map<String, String[]> extraParams) throws Exception;
 
     /**
      * Writes the species count in the specified circle to the output stream.

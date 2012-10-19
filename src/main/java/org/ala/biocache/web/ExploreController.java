@@ -165,7 +165,7 @@ public class ExploreController {
         requestParams.setPageSize(0);
         requestParams.setFacets(new String[]{"taxon_name"});
         requestParams.setFlimit(-1);
-        SearchResultDTO results = searchDao.findByFulltextSpatialQuery(requestParams);
+        SearchResultDTO results = searchDao.findByFulltextSpatialQuery(requestParams,null);
         Integer speciesCount =0;        
         if(results.getFacetResults().size() >0){
             speciesCount = results.getFacetResults().iterator().next().getFieldResult().size();

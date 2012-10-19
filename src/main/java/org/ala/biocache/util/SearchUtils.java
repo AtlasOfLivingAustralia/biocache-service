@@ -17,6 +17,7 @@ import au.org.ala.biocache.TaxonProfileDAO;
 import javax.inject.Inject;
 import org.ala.biocache.dto.SearchRequestParams;
 import org.ala.biocache.dto.SpatialSearchRequestParams;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import scala.Option;
@@ -38,6 +39,15 @@ public class SearchUtils {
 
     @Inject
     private CollectionsCache collectionCache;
+    
+    protected static List<String> defaultParams=new ArrayList<String>();
+    
+    static{
+        java.lang.reflect.Field[] fields = (java.lang.reflect.Field[])ArrayUtils.addAll(SpatialSearchRequestParams.class.getDeclaredFields(),SearchRequestParams.class.getDeclaredFields());
+        for(java.lang.reflect.Field field:fields){
+            defaultParams.add(field.getName());
+        }
+    }
 
 	private  final List<String> ranks = (List<String>) org.springframework.util.CollectionUtils
 			.arrayToList(new String[] { "kingdom", "phylum", "class", "order",
@@ -445,6 +455,13 @@ public class SearchUtils {
         if (requestParams.getDir() == null || requestParams.getDir().isEmpty()) {
             requestParams.setDir(blankRequestParams.getDir());
         }
+    }
+    
+    public static Map<String, String[]> getExtraParams(Map map){
+        Map<String, String[]> extraParams = new java.util.HashMap<String, String[]>(map);
+        for(String field : defaultParams)
+            extraParams.remove(field);
+        return extraParams;
     }
 
     /**
