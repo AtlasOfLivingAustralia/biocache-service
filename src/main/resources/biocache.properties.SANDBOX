@@ -24,6 +24,7 @@ excludeSensitiveValuesFor=dr349
 
 # lucene indexes for name matching
 nameIndexLocation=/data/lucene/namematchingv1_1
+extraMiscFields=
 
 # SOLR index settings
 solrHome=/data/solr/bio-proto
