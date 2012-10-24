@@ -17,6 +17,8 @@ package org.ala.biocache.dao;
 
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -37,6 +39,7 @@ import org.ala.biocache.dto.IndexFieldDTO;
 import org.ala.biocache.dto.OccurrencePoint;
 import org.ala.biocache.dto.PointType;
 import org.ala.biocache.dto.SearchResultDTO;
+import org.ala.biocache.dto.StatsIndexFieldDTO;
 import org.ala.biocache.dto.TaxaCountDTO;
 import org.ala.biocache.dto.TaxaRankCountDTO;
 import org.ala.biocache.util.CollectionsCache;
@@ -121,6 +124,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected static final Integer FACET_PAGE_SIZE =500;
     protected static final String QUOTE = "\"";
     protected static final char[] CHARS = {' ',':'};
+    protected static final String RANGE_SUFFIX = "_RNG";
 
     //Patterns that are used to prepare a SOLR query for execution
     protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9\\.:-]*)\"?");
@@ -155,6 +159,8 @@ public class SearchDAOImpl implements SearchDAO {
     private BieService bieService;
 
     private Set<IndexFieldDTO> indexFields = null;
+    private Map<String, IndexFieldDTO> indexFieldMap =null;
+    private Map<String, StatsIndexFieldDTO> rangeFieldCache = null;
 
     /**
      * Initialise the SOLR server instance
@@ -1551,10 +1557,10 @@ public class SearchDAOImpl implements SearchDAO {
               upper+= (Integer) gap;
           return upper.toString();
         } else if (gap instanceof Double) {
-          Double upper = Double.parseDouble(lower) - 0.001;
+          BigDecimal upper = new BigDecimal(lower).add(new BigDecimal(-0.001));
           if(addGap)
-              upper += (Double) gap;
-          return upper.toString();
+              upper = upper.add(new BigDecimal(gap.doubleValue()));
+          return upper.setScale(3, RoundingMode.HALF_UP).toString();
         } else {
           return lower;
         }    
@@ -2016,6 +2022,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setQueryType("standard");
+        boolean rangeAdded = false;
         // Facets
         solrQuery.setFacet(searchParams.getFacet());
         if(searchParams.getFacet()) {
@@ -2035,6 +2042,18 @@ public class SearchDAOImpl implements SearchDAO {
                         solrQuery.add("facet.query", range);
                     }
                 }
+                else if(facet.endsWith(RANGE_SUFFIX)){
+                    //this facte need to have it ranges included.
+                    if(!rangeAdded){
+                        solrQuery.add("facet.range.other","before");
+                        solrQuery.add("facet.range.other", "after");
+                    }
+                    String field = facet.replaceAll(RANGE_SUFFIX, "");
+                    StatsIndexFieldDTO details = getRangeFieldDetails(field);
+                    if(details != null){
+                        solrQuery.addNumericRangeFacet(field, details.getStart(), details.getEnd(), details.getGap());
+                    }
+                }
                 else {
                     solrQuery.addFacetField(facet);
                     
@@ -2044,16 +2063,7 @@ public class SearchDAOImpl implements SearchDAO {
                       if(!searchParams.getFsort().equalsIgnoreCase(thisSort))
                           solrQuery.add("f."+facet+".facet.sort",thisSort);
                     }
-//                    System.out.println("Dealing with " + facet);
-//                    Matcher m = facetSortPattern.matcher(facet);
-//                    if(m.matches()){
-//                        System.out.println("matches: " + m.group(1) + " " + m.group(2));
-//                        String name = m.group(1);
-//                        solrQuery.addFacetField(name);
-//                        solrQuery.add("f."+name+".facet.sort",m.group(2));
-//                    }
-//                    else
-//                        solrQuery.addFacetField(facet);
+
                 }
             }
 
@@ -2089,24 +2099,48 @@ public class SearchDAOImpl implements SearchDAO {
         //add the extra SOLR params
         if(extraSolrParams != null){
             //automatically include the before and after params...
-            solrQuery.add("facet.range.other","before");
-            solrQuery.add("facet.range.other", "after");
+            if(!rangeAdded){
+                solrQuery.add("facet.range.other","before");
+                solrQuery.add("facet.range.other", "after");
+            }
             for(String key : extraSolrParams.keySet()){
                 String[] values = extraSolrParams.get(key);
                 solrQuery.add(key, values);
             }
         }
         
-
-//        add highlights
-//        solrQuery.setHighlight(true);
-//        solrQuery.setHighlightFragsize(40);
-//        solrQuery.setHighlightSnippets(1);
-//        solrQuery.setHighlightSimplePre("<b>");
-//        solrQuery.setHighlightSimplePost("</b>");
-//        solrQuery.addHighlightField("commonName");
         
         return solrQuery;
+    }
+    /**
+     * Obtains the Statistics for the supplied field so it can be used to determine the ranges.
+     * @param field
+     * @return
+     */
+    private StatsIndexFieldDTO getRangeFieldDetails(String field){
+        if(rangeFieldCache == null)
+            rangeFieldCache = new HashMap<String, StatsIndexFieldDTO>();
+        StatsIndexFieldDTO details=rangeFieldCache.get(field);
+        if(details == null){
+            //get the details
+            SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
+            searchParams.setQ("*:*");
+            searchParams.setFacets(new String[]{field});
+            try{
+                Map<String, FieldStatsInfo> stats = getStatistics(searchParams);
+                if(stats != null){                                        
+                    String type = indexFieldMap.get(field).getDataType();                    
+                    details = new StatsIndexFieldDTO(stats.get(field), type);
+                    rangeFieldCache.put(field, details);                    
+                }
+            }
+            catch(Exception e){
+                logger.warn("Unable to obtain range from cache." ,e);
+                details = null;
+            }
+        }
+        
+        return details;
     }
 
     /**
@@ -2326,6 +2360,10 @@ public class SearchDAOImpl implements SearchDAO {
 //            QueryResponse response = server.query(params);            
 //            indexFields = parseLukeResponse(response.toString(), false);
             indexFields = getIndexFieldDetails(null);
+            indexFieldMap = new HashMap<String, IndexFieldDTO>();
+            for(IndexFieldDTO field:indexFields){
+                indexFieldMap.put(field.getName(), field);
+            }
         }
         return indexFields;        
     }
@@ -2443,6 +2481,8 @@ public class SearchDAOImpl implements SearchDAO {
             }
             QueryResponse qr = runSolrQuery(solrQuery, searchParams);
             logger.debug(qr.getFieldStatsInfo());
+//            for(FieldStatsInfo i : qr.getFieldStatsInfo().values())
+//                System.out.println(new StatsIndexFieldDTO(i,"test"));
             return  qr.getFieldStatsInfo();
             
         }
