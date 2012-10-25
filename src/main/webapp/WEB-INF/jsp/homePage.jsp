@@ -513,12 +513,17 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 			    </span>
 			</li>
 			<li>
-                <a href="#viewQueryAssertion" name="viewQueryAssertion" id="viewQueryAssertion"><strong>View Query Assertion details (coming soon)</strong></a><br/>
+                <a href="#viewQueryAssertion" name="viewQueryAssertion" id="viewQueryAssertion"><strong>View Query Assertion details</strong></a><br/>
                 This service will return the assertion information. It will NOT return the details of the query.
 			    <br>/assertions/query/{uuid}</a>                
 			</li>
 			<li>
-                <a href="#applyQueryAssertion" name="applyQueryAssertion" id="applyQueryAssertion"><strong>Apply Query Assertion (coming soon)</strong></a><br/>
+                <a href="#viewQueryAssertions" name="viewQueryAssertions" id="viewQueryAssertions"><strong>View Query Assertions details</strong></a><br/>
+                This service will return the information for all the listed assertions. It will NOT return the details of the queries.
+			    <br>/assertions/queries/{csv list of uuid}</a>                
+			</li>
+			<li>
+                <a href="#applyQueryAssertion" name="applyQueryAssertion" id="applyQueryAssertion"><strong>Apply Query Assertion</strong></a><br/>
                 This service will apply the supplied query assertion against the biocache records.
 			    <br>/assertions/query/{uuid}/apply</a>                
 			</li>		

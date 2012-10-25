@@ -1,5 +1,6 @@
 package org.ala.biocache.web;
 
+import au.org.ala.biocache.AssertionQuery;
 import au.org.ala.biocache.ErrorCode;
 import au.org.ala.biocache.FullRecord;
 import au.org.ala.biocache.Store;
@@ -83,6 +84,20 @@ public class AssertionController extends AbstractSecureController {
     @RequestMapping(value = {"/assertions/user/codes"}, method = RequestMethod.GET)
 	public @ResponseBody ErrorCode[] showUserCodes() throws Exception {
         return Store.retrieveUserAssertionCodes();
+    }
+    
+    @RequestMapping(value = {"/assertions/query/{uuid}"}, method = RequestMethod.GET)
+    public @ResponseBody AssertionQuery getQueryAssertion(@PathVariable(value="uuid") String uuid) throws Exception {
+        return Store.getAssertionQuery(uuid);
+    }
+    @RequestMapping(value = {"/assertions/queries/{uuids}"}, method = RequestMethod.GET)
+    public @ResponseBody AssertionQuery[] getQueryAssertions(@PathVariable(value="uuids") String uuids) throws Exception {
+        return Store.getAssertionQueries(uuids.split(","));
+    }
+    @RequestMapping(value = {"/assertions/query/{uuid}/apply"}, method = RequestMethod.GET)
+    public @ResponseBody String applyAssertion(@PathVariable(value="uuid") String uuid) throws Exception {
+        Store.applyAssertionQuery(uuid);
+        return "Success";
     }
     
     @RequestMapping(value={"/assertions/query/add"}, method = RequestMethod.POST)  
