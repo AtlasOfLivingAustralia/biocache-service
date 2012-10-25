@@ -481,6 +481,48 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                 (A Mountain thornbill outlier)
 			</li>		
 		</ul>
+		
+		<a href="#duplicateDetection" name="duplicateDetection" id="duplicateDetection"><h3>Duplicate Detection information</h3></a>
+		<p>This is the webservice for reporting the details of a duplicate.  It indicates the criteria that was used to determine the duplcates.</p>
+		<ul class="webserviceList">
+			<li><strong>/duplicates/[representative record uuid]</strong><br>eg <a href="${initParams.webservicesRoot}/duplicates/3cde1570-7a38-4a58-b121-e95c35585a29">/duplicates/3cde1570-7a38-4a58-b121-e95c35585a29</a></li>
+		</ul>
+		
+	  <a href="#queryAssertions" name="queryAssertions" id="queryAssertions"><h3>Query Assertions</h3></a>
+        <p>These are webservices for working with the query assertions</p>
+		<ul class="webserviceList">
+			<li>
+                <a href="#addQueryAssertion" name="outlierInfo" id="addQueryAssertion"><strong>Add Query Assertion</strong></a><br/>
+			    To add a query POST a JSON body to the following URL: /assertions/query/add.<br>
+			    Example JSON body 
+			    <span class="code exampleResponse"><br>
+			    {
+    "id": 4,
+    "apiKey":"sharedkey",
+    "status": "modified", 
+    "comment": "mah comment", 
+    "classification": "breeding", 
+    "lastModified": "2012-07-23T16:34:34", 
+    "species": "Motacilla flava", 
+    "user": {
+        "email": "test@test.com", 
+        "authority": 1234
+    }, 
+    "area": "MULTIPOLYGON(((20 10,19.8078528040323 8.04909677983872,19.2387953251129 6.17316567634911,18.3146961230255 4.44429766980398,17.0710678118655 2.92893218813453,15.555702330196 1.68530387697455,13.8268343236509 0.761204674887138,11.9509032201613 0.192147195967697,10 0,8.04909677983873 0.192147195967692,6.17316567634912 0.761204674887125,4.444297669804 1.68530387697453,2.92893218813454 2.92893218813451,1.68530387697456 4.44429766980396,0.761204674887143 6.17316567634908,0.192147195967701 8.04909677983869,0 9.99999999999997,0.192147195967689 11.9509032201612,0.761204674887118 13.8268343236509,1.68530387697453 15.555702330196,2.9289321881345 17.0710678118654,4.44429766980394 18.3146961230254,6.17316567634906 19.2387953251129,8.04909677983868 19.8078528040323,9.99999999999996 20,11.9509032201612 19.8078528040323,13.8268343236509 19.2387953251129,15.555702330196 18.3146961230255,17.0710678118655 17.0710678118655,18.3146961230254 15.555702330196,19.2387953251129 13.8268343236509,19.8078528040323 11.9509032201613,20 10)))" 
+}
+			    </span>
+			</li>
+			<li>
+                <a href="#viewQueryAssertion" name="viewQueryAssertion" id="viewQueryAssertion"><strong>View Query Assertion details (coming soon)</strong></a><br/>
+                This service will return the assertion information. It will NOT return the details of the query.
+			    <br>/assertions/query/{uuid}</a>                
+			</li>
+			<li>
+                <a href="#applyQueryAssertion" name="applyQueryAssertion" id="applyQueryAssertion"><strong>Apply Query Assertion (coming soon)</strong></a><br/>
+                This service will apply the supplied query assertion against the biocache records.
+			    <br>/assertions/query/{uuid}/apply</a>                
+			</li>		
+		</ul>
 
         <h2>Free text search of occurrence records (will return JSON)</h2>
 		<div id="inpage_search">
