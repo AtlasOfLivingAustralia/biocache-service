@@ -490,5 +490,16 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 			<span class="search-button-wrapper"><input type="submit" class="search-button" alt="Search" value="Search"></span>
 			</form>
 		</div>
+      
+      
+    <div id="andsFundedDiv" style="clear:both;margin-top:40px;">
+     <p>
+
+     <img src="http://www.ands.org.au/partner/ands-logo-hi-res.jpg" style="width:200px;"/>
+     This project is supported by the Australian National Data Service (ANDS) through the National Collaborative Research Infrastructure Strategy Program and the Education Investment Fund (EIF) Super Science Initiative.
+     </p>
+    </div>
+
+      
     </body>
 </html>
