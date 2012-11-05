@@ -87,16 +87,28 @@ public class AssertionController extends AbstractSecureController {
     }
     
     @RequestMapping(value = {"/assertions/query/{uuid}"}, method = RequestMethod.GET)
-    public @ResponseBody AssertionQuery getQueryAssertion(@PathVariable(value="uuid") String uuid) throws Exception {
-        return Store.getAssertionQuery(uuid);
+    public @ResponseBody AssertionQuery getQueryAssertion(@PathVariable(value="uuid") String uuid,HttpServletRequest request) throws Exception {
+        String apiKey = request.getParameter("apiKey");
+        if(apiKey != null)
+            return Store.getAssertionQuery(apiKey + "|" + uuid);
+        else
+            return Store.getAssertionQuery(uuid);
     }
     @RequestMapping(value = {"/assertions/queries/{uuids}"}, method = RequestMethod.GET)
-    public @ResponseBody AssertionQuery[] getQueryAssertions(@PathVariable(value="uuids") String uuids) throws Exception {
-        return Store.getAssertionQueries(uuids.split(","));
+    public @ResponseBody AssertionQuery[] getQueryAssertions(@PathVariable(value="uuids") String uuids,HttpServletRequest request) throws Exception {
+        String apiKey = request.getParameter("apiKey");
+        if(apiKey != null)
+            return Store.getAssertionQueries((apiKey+"|"+uuids.replaceAll(",",","+apiKey+"|")).split(","));
+        else
+            return Store.getAssertionQueries(uuids.split(","));
     }
     @RequestMapping(value = {"/assertions/query/{uuid}/apply"}, method = RequestMethod.GET)
-    public @ResponseBody String applyAssertion(@PathVariable(value="uuid") String uuid) throws Exception {
-        Store.applyAssertionQuery(uuid);
+    public @ResponseBody String applyAssertion(@PathVariable(value="uuid") String uuid,HttpServletRequest request) throws Exception {
+        String apiKey = request.getParameter("apiKey");
+        if(apiKey != null)
+            Store.applyAssertionQuery(apiKey+"|"+uuid);
+        else
+            Store.applyAssertionQuery(uuid);
         return "Success";
     }
     
