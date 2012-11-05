@@ -489,7 +489,10 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 		</ul>
 		
 	  <a href="#queryAssertions" name="queryAssertions" id="queryAssertions"><h3>Query Assertions</h3></a>
-        <p>These are webservices for working with the query assertions</p>
+        <p>A query assertion allows a group of occurrences to have the same assertion applied at once.  
+        The occurrences that make up the assertions are identified by a reusable query.  New occurrences that satisfy the query will have the assertion added the next time it is applied.
+        The only supported query type is based on a wkt area and species name as defined below.  In the future we may support custom queries. </p>
+        <p>These are webservices for working with the query assertions. </p>
 		<ul class="webserviceList">
 			<li>
                 <a href="#addQueryAssertion" name="outlierInfo" id="addQueryAssertion"><strong>Add Query Assertion</strong></a><br/>
