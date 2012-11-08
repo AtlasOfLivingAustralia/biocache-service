@@ -67,4 +67,14 @@ public class FieldResultDTO implements Comparable<FieldResultDTO>{
     public int compareTo(FieldResultDTO t) {
         return this.getLabel().compareTo(t.getLabel());
     }
+    @Override
+    public boolean equals(Object o){
+    	//2 field results are considered the same if they are for the same field.
+    	// don't change this without revising the Endemism WS's
+        if(o instanceof FieldResultDTO){
+            if(label != null)
+                return label.equals(((FieldResultDTO)o).getLabel());
+        }
+        return false;
+    }
 }
