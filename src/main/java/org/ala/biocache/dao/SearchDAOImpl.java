@@ -181,6 +181,16 @@ public class SearchDAOImpl implements SearchDAO {
 
     public void refreshCaches(){
         collectionCache.updateCache();
+        //refreshes the list of index fields that are reported to the user
+        indexFields = null;
+        //empties the range cache to allow the settings to be recalculated.
+        rangeFieldCache=null;
+        try{
+            indexFields = getIndexedFields();            
+        }
+        catch(Exception e){
+            logger.error("Unable to refresh cache.", e);
+        }
     }
 
     @Override
@@ -242,7 +252,7 @@ public class SearchDAOImpl implements SearchDAO {
             //logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
             logger.error("Error executing query  with requestParams: " + searchParams.toString()+ " EXCEPTION: " + ex.getMessage());
             searchResults.setStatus("ERROR"); // TODO also set a message field on this bean with the error message(?)
-            searchResults.setErrorMessage(ex.getMessage());            
+            searchResults.setErrorMessage(ex.getMessage());
         }
 
         return searchResults;
@@ -1365,7 +1375,7 @@ public class SearchDAOImpl implements SearchDAO {
                 // use of AND/OR requires correctly formed fq.
                 // Can overlap with values containing the same,
                 // case sensitivity may help.
-                if(fq.contains(" OR ") || fq.contains(" AND ")) { 
+                if(fq.contains(" OR ") || fq.contains(" AND ") || fq.contains("{!spatial") || fq.contains("{-!spatial")) { 
                     solrQuery.addFilterQuery(fq);
                     logger.info("adding filter query: " + fq);
                     continue;
