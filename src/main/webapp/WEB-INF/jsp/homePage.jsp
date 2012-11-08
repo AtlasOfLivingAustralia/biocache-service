@@ -538,7 +538,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         the list of species that occur inside to those that occur outside the supplied area.   There is a "feature" where by species that occur on the 
         border of the area are considered to be inside and outside the region.</p>
 		<ul class="webserviceList">
-				<li><strong>Count of Distince Endemic species:</strong> /explore/counts/endemic
+				<li><strong>Count of Distinct Endemic species:</strong> /explore/counts/endemic
 				<br>
 				Example: <a href="${initParam.webservicesRoot}/explore/counts/endemic?q=institution_code:CSIRO&wkt=POLYGON((140:-37,151:-37,151:-26,140.131:-26,140:-37))&facets=species_guid">/explore/counts/endemic?q=institution_code:CSIRO&wkt=POLYGON((140:-37,151:-37,151:-26,140.131:-26,140:-37))&facets=species_guid</a>
 				</li>
