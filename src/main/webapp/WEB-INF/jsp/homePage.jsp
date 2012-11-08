@@ -531,6 +531,36 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 			    <br>/assertions/query/{uuid}/apply</a>                
 			</li>		
 		</ul>
+		
+		
+	    <a href="#endemismServices" name="endemismServices" id="endemismServices"><h3>Endemism Services</h3></a>
+        <p>These are webservices for reporting information about species that are endemic to specific areas.  Endemism is determined by comparing 
+        the list of species that occur inside to those that occur outside the supplied area.   There is a "feature" where by species that occur on the 
+        border of the area are considered to be inside and outside the region.</p>
+		<ul class="webserviceList">
+				<li><strong>Count of Distince Endemic species:</strong> /explore/counts/endemic
+				<br>
+				Example: <a href="${initParam.webservicesRoot}/explore/counts/endemic?q=institution_code:CSIRO&wkt=POLYGON((140:-37,151:-37,151:-26,140.131:-26,140:-37))&facets=species_guid">/explore/counts/endemic?q=institution_code:CSIRO&wkt=POLYGON((140:-37,151:-37,151:-26,140.131:-26,140:-37))&facets=species_guid</a>
+				</li>
+				<li><strong>Endemic Species: </strong> /explore/endemic/species
+				<br>
+				Example: <a href="${initParam.webservicesRoot}/explore/endemic/species?q=institution_code:CSIRO&wkt=POLYGON((140:-37,151:-37,151:-26,140.131:-26,140:-37))&facets=species_guid">/explore/endemic/species?q=institution_code:CSIRO&wkt=POLYGON((140:-37,151:-37,151:-26,140.131:-26,140:-37))&facets=species_guid</a>
+				</li>				
+		</ul>
+		The services above support the following params:
+				<ul class="paramList">
+                    <li><strong>q</strong> - the initial query. "q=*:*" will query anything, q="macropus" will do a free text search for "macropus", q=kingdom:Fungi will search for records with a kingdom of Fungi.
+                        <br/>
+                        For a listing of the fields that can be queried in a q=INDEXEDFIELD:VALUE fashion, see <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a>
+                        <br>
+                        This will restrict the records that are considered in then region. For example this could allow people to restrict the service to endemic birds.
+                    </li>
+                    <li><strong>fq</strong> - filters to be applied to the original query. These are additional params of the form fq=INDEXEDFIELD:VALUE e.g. fq=kingdom:Fungi. <br/>
+                        Again, see <a href="${initParam.webservicesRoot}/index/fields">/index/fields</a> for all the fields that a queryable.
+                    </li>
+                    <li><strong>wkt</strong> - The Well Known Text Area in which to provide the endemic species. For information on Well known text, see <a href="http://en.wikipedia.org/wiki/Well-known_text">this</a></li>
+                    <li><strong>facets</strong> - the field on which to based the species list.  This can be taxon_concept_lsid or species_guid.</li>
+                </ul>
 
         <h2>Free text search of occurrence records (will return JSON)</h2>
 		<div id="inpage_search">
