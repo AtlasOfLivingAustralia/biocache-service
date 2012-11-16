@@ -1000,6 +1000,7 @@ public class SearchDAOImpl implements SearchDAO {
     @Override
     public List<OccurrencePoint> findRecordsForLocation(SpatialSearchRequestParams requestParams, PointType pointType) throws Exception {
         List<OccurrencePoint> points = new ArrayList<OccurrencePoint>(); // new OccurrencePoint(PointType.POINT);
+        updateQueryContext(requestParams);
         String queryString = buildSpatialQueryString(requestParams);
         //String queryString = formatSearchQuery(query);
         logger.info("location search query: " + queryString + "; pointType: " + pointType.getLabel());
@@ -2172,7 +2173,10 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setQuery(queryString);
         
         if (filterQueries != null && filterQueries.size()>0) {
-            solrQuery.addFilterQuery("(" + StringUtils.join(filterQueries, " OR ") + ")");
+            //solrQuery.addFilterQuery("(" + StringUtils.join(filterQueries, " OR ") + ")");
+            for (String fq : filterQueries) {
+                solrQuery.addFilterQuery(fq);
+            }
         }
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
