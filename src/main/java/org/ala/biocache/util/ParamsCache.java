@@ -11,6 +11,9 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -50,6 +53,8 @@ public class ParamsCache {
     static Properties qidProperties;
     //for saving/loading ParamsCacheObject
     final static ObjectMapper jsonMapper = new ObjectMapper();
+    
+    public static Pattern qidPattern = Pattern.compile("qid:[0-9]*");
 
     static {
         counter = new CountDownLatch(1);
@@ -181,6 +186,25 @@ public class ParamsCache {
         }
 
         return obj;
+    }
+    /**
+     * Retrieves the ParamsCacheObject based on the supplied query string.
+     * @param query
+     * @return
+     * @throws Exception
+     */
+    public static ParamsCacheObject getParamCacheObjectFromQuery(String query) throws ParamsCacheMissingException{
+      if(query.contains("qid:")) {            
+          Matcher matcher = ParamsCache.qidPattern.matcher(query);
+          long qid = 0;
+          if(matcher.find()){              
+              String value = matcher.group();              
+              qid = Long.parseLong(value.substring(4));
+              ParamsCacheObject pco =ParamsCache.get(qid);
+              return pco;
+          }
+      }
+      return null;      
     }
 
     /**
