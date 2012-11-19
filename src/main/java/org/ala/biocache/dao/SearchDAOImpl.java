@@ -199,13 +199,38 @@ public class SearchDAOImpl implements SearchDAO {
     @Cacheable(cacheName = "endemicCache")
     public List<FieldResultDTO> getEndemicSpecies(SpatialSearchRequestParams requestParams) throws Exception{
       // 1)get a list of species that are in the WKT        
-        ArrayList list1 = getValuesForFacets(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));                
+        ArrayList<FieldResultDTO> list1 = getValuesForFacets(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));                
         if(logger.isDebugEnabled())
             logger.debug("INCLUDED: "+list1.size() + " " +list1);             
         // 2)get a list of species that occur in the inverse WKT
         String newWKT = SpatialUtils.getInverseWKT(requestParams.getWkt().replaceAll(":", " "));      
         requestParams.setWkt(newWKT);
-        ArrayList list2 = getValuesForFacets(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));
+        int maxFqs=500; // there is a term limit in a SOLR query.
+        int i =0,localterms=0;
+        
+        String facet = requestParams.getFacets()[0];
+        String[] originalFqs = requestParams.getFq();
+        ArrayList list2 = new ArrayList();
+        //batch up the rest of the world query so that we have fqs based on species we want to test for. This should improve the performance of the endemic services.
+        while(i < list1.size()){
+            StringBuffer sb = new StringBuffer();
+            while((localterms == 0 || localterms%maxFqs!=0) && i<list1.size()){
+                if(localterms !=0)
+                    sb.append(" OR ");
+                sb.append(facet).append(":").append(ClientUtils.escapeQueryChars(list1.get(i).getFieldValue()));
+                i++;
+                localterms++;
+            }
+            String newfq = sb.toString();
+            if(localterms ==1)
+                newfq = newfq+ " OR " + newfq; //cater for the situation where there is only one term.  We don't want the term to be escaped again
+            localterms=0;
+            //System.out.println("FQ = " + newfq);
+            requestParams.setFq((String[])ArrayUtils.add(originalFqs, newfq));
+            ArrayList list3 = getValuesForFacets(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));
+            list2.addAll(list3);
+        }
+//        ArrayList list2 = getValuesForFacets(requestParams);
         if(logger.isDebugEnabled())
             logger.debug("EXCLUDED: " +list2.size() + " " +list2);
         //return the values in 1) that don't exist in 2)
