@@ -65,6 +65,12 @@
       <artifactId>opencsv</artifactId>
       <version>2.2</version>
     </dependency>
+    <!--  Cache  -->
+    <dependency>
+        <groupId>com.googlecode.ehcache-spring-annotations</groupId>
+        <artifactId>ehcache-spring-annotations</artifactId>
+        <version>1.2.0</version>
+    </dependency>    
     <!-- Jackson -->
       <dependency>
           <groupId>org.codehaus.jackson</groupId>
@@ -254,29 +260,30 @@
       <version>1.0</version>
       <scope>provided</scope>
     </dependency>
-    <!-- SOLR -->
-    <dependency>
-        <artifactId>solr-core</artifactId>
-        <groupId>org.apache.solr</groupId>
-        <version>3.5.0</version>
-        <exclusions>
-            <exclusion>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-jdk14</artifactId>
-            </exclusion>
-        </exclusions>
-    </dependency>
-    <dependency>
-        <artifactId>solr-solrj</artifactId>
-        <groupId>org.apache.solr</groupId>
-        <version>3.5.0</version>
-    </dependency>
-    <!-- Spatial-SOLR plugin patched by Adam Collins (ALA Spatial Team) to have wkt support-->
-    <dependency>
-        <groupId>nl.jteam</groupId>
-        <artifactId>spatial-solr</artifactId>
-        <version>2.0-RC5_ssplex_wkt</version>
-    </dependency>
+    <!-- SOLR this comes from biocache-store dependency-->
+<!--         <dependency>
+            <artifactId>solr-core</artifactId>
+            <groupId>org.apache.solr</groupId>
+            <version>3.5.0</version>
+            <exclusions>
+            	<exclusion>
+            		<groupId>org.slf4j</groupId>
+            		<artifactId>slf4j-jdk14</artifactId>
+            	</exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <artifactId>solr-solrj</artifactId>
+            <groupId>org.apache.solr</groupId>
+            <version>3.5.0</version>
+        </dependency>
+        Spatial-SORL plugin patched by Adam Collins (ALA Spatial Team) to have wkt support
+        <dependency>
+            <groupId>nl.jteam</groupId>
+            <artifactId>spatial-solr</artifactId>
+            <version>2.0-RC5_ssplex_wkt</version>
+        </dependency> -->
+
     <!-- DOM4J -->
     <dependency>
       <groupId>dom4j</groupId>

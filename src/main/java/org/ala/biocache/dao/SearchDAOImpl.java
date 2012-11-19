@@ -46,6 +46,8 @@ import org.ala.biocache.util.CollectionsCache;
 import org.ala.biocache.util.ParamsCacheMissingException;
 import org.ala.biocache.util.RangeBasedFacets;
 import org.ala.biocache.util.SearchUtils;
+import org.ala.biocache.util.SpatialUtils;
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
@@ -72,6 +74,7 @@ import org.ala.biocache.dto.OccurrenceIndex;
 
 import au.com.bytecode.opencsv.CSVWriter;
 
+import com.googlecode.ehcache.annotations.Cacheable;
 import com.ibm.icu.text.SimpleDateFormat;
 
 import java.util.regex.MatchResult;
@@ -132,7 +135,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected Pattern spacesPattern = Pattern.compile("[^\\s\"\\(\\)\\[\\]{}']+|\"[^\"]*\"|'[^']*'");
     protected Pattern uidPattern = Pattern.compile("(?:[\"]*)?([a-z_]*_uid:)([a-z0-9]*)(?:[\"]*)?");
     protected Pattern spatialPattern = Pattern.compile("\\{!spatial[a-zA-Z=\\-\\s0-9\\.\\,():]*\\}");
-    protected Pattern qidPattern = Pattern.compile("qid:[0-9]*");
+    protected Pattern qidPattern = ParamsCache.qidPattern;//Pattern.compile("qid:[0-9]*");
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
     protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("[a-z_]{1,}:");
 //    protected Pattern facetSortPattern = Pattern.compile("([a-zA-z_]+?):(count|index)");
@@ -192,6 +195,50 @@ public class SearchDAOImpl implements SearchDAO {
             logger.error("Unable to refresh cache.", e);
         }
     }
+    
+    @Cacheable(cacheName = "endemicCache")
+    public List<FieldResultDTO> getEndemicSpecies(SpatialSearchRequestParams requestParams) throws Exception{
+      // 1)get a list of species that are in the WKT        
+        ArrayList list1 = getValuesForFacets(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));                
+        if(logger.isDebugEnabled())
+            logger.debug("INCLUDED: "+list1.size() + " " +list1);             
+        // 2)get a list of species that occur in the inverse WKT
+        String newWKT = SpatialUtils.getInverseWKT(requestParams.getWkt().replaceAll(":", " "));      
+        requestParams.setWkt(newWKT);
+        ArrayList list2 = getValuesForFacets(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));
+        if(logger.isDebugEnabled())
+            logger.debug("EXCLUDED: " +list2.size() + " " +list2);
+        //return the values in 1) that don't exist in 2)
+        list1.removeAll(list2);
+        if(logger.isDebugEnabled())
+            logger.debug("FINAL Species WKT " + list1.size() + " " + list1);
+        return list1;
+        
+    }
+    
+    private ArrayList<FieldResultDTO> getValuesForFacets(SpatialSearchRequestParams requestParams) throws Exception{
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      writeFacetToStream(requestParams, true, false, outputStream);
+      outputStream.flush();
+      outputStream.close();
+      String includedValues = outputStream.toString();
+      includedValues= includedValues == null ? "":includedValues;
+      String[] values = includedValues.split("\n");
+      ArrayList<FieldResultDTO> list = new ArrayList<FieldResultDTO>();
+      boolean first = true;
+      for(String value: values){
+          if(first)
+              first = false;
+          else{
+              int idx = value.lastIndexOf(",");                         
+              list.add(new FieldResultDTO(value.substring(0,idx), Long.parseLong(value.substring(idx+1))));
+              
+          }
+      }
+      return list;
+      //return includedValues.split("\n");
+  }
+    
 
     @Override
     @Deprecated

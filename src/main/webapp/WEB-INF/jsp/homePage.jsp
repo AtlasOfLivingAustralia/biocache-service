@@ -65,7 +65,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                 Range based faceting is supported by using the <a href="http://wiki.apache.org/solr/SimpleFacetParameters#Facet_by_Range">SOLR parameters</a>. For Example:<br>
                 <a href="${initParam.webservicesRoot}/occurrences/search?q=AdjustedSeedQuantity_i:[* TO *]&pageSize=0&facets=uncertainty&facet.range=ViabilitySummary_d&f.ViabilitySummary_d.facet.range.start=20.0&f.ViabilitySummary_d.facet.range.end=100.0&f.ViabilitySummary_d.facet.range.gap=10&facet.range=AdjustedSeedQuantity_i&f.AdjustedSeedQuantity_i.facet.range.start=0&f.AdjustedSeedQuantity_i.facet.range.end=100000&f.AdjustedSeedQuantity_i.facet.range.gap=50000">/occurrences/search?q=AdjustedSeedQuantity_i:[* TO *]&pageSize=0&facets=uncertainty&facet.range=ViabilitySummary_d&f.ViabilitySummary_d.facet.range.start=20.0&f.ViabilitySummary_d.facet.range.end=100.0&f.ViabilitySummary_d.facet.range.gap=10&facet.range=AdjustedSeedQuantity_i&f.AdjustedSeedQuantity_i.facet.range.start=0&f.AdjustedSeedQuantity_i.facet.range.end=100000&f.AdjustedSeedQuantity_i.facet.range.gap=50000</a>
             </li>
-            <li><strong>POST query details:</strong>
+            <li><strong><a href="#postQueryDetails" name="postQueryDetails" id="postQueryDetails">POST query details:</a></strong>
             	If you find that your q or wkt are too large or cumbersome to be passing around there is the facility to POST 
                 a query's detail and use a qid as a reference.  This is particularly useful in working with WKT strings that may get too large to use a GET method.
                 <ul class="webserviceList">
@@ -536,7 +536,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 	    <a href="#endemismServices" name="endemismServices" id="endemismServices"><h3>Endemism Services</h3></a>
         <p>These are webservices for reporting information about species that are endemic to specific areas.  Endemism is determined by comparing 
         the list of species that occur inside to those that occur outside the supplied area.   There is a "feature" where by species that occur on the 
-        border of the area are considered to be inside and outside the region.</p>
+        border of the area are considered to be inside and outside the region. </p>
 		<ul class="webserviceList">
 				<li><strong>Count of Distinct Endemic species:</strong> /explore/counts/endemic
 				<br>
@@ -545,6 +545,10 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 				<li><strong>Endemic Species: </strong> /explore/endemic/species
 				<br>
 				Example: <a href="${initParam.webservicesRoot}/explore/endemic/species?q=institution_code:CSIRO&wkt=POLYGON((140:-37,151:-37,151:-26,140.131:-26,140:-37))&facets=species_guid">/explore/endemic/species?q=institution_code:CSIRO&wkt=POLYGON((140:-37,151:-37,151:-26,140.131:-26,140:-37))&facets=species_guid</a>
+				</li>
+				<li><strong>Endemic Species CSV: </strong> /explore/endemic/species.csv - This service will return extra information about the species that are endemic.
+				<br>
+				Example: <a href="${initParam.webservicesRoot}/explore/endemic/species.csv?q=institution_code:CSIRO&wkt=POLYGON((140:-37,151:-37,151:-26,140.131:-26,140:-37))">/explore/endemic/species.csv?q=institution_code:CSIRO&wkt=POLYGON((140:-37,151:-37,151:-26,140.131:-26,140:-37))</a>
 				</li>				
 		</ul>
 		The services above support the following params:
@@ -561,7 +565,9 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <li><strong>wkt</strong> - The Well Known Text Area in which to provide the endemic species. For information on Well known text, see <a href="http://en.wikipedia.org/wiki/Well-known_text">this</a></li>
                     <li><strong>facets</strong> - the field on which to based the species list.  This can be taxon_concept_lsid or species_guid.</li>
                 </ul>
-
+        <p>
+		The endemism services support the use of POSTED q and wkt values. See  <a href="${initParam.webservicesRoot}/#postQueryDetails">POST Query Details</a> for more information.
+		</p>
         <h2>Free text search of occurrence records (will return JSON)</h2>
 		<div id="inpage_search">
 			<form id="search-inpage" action="${initParam.webservicesRoot}/occurrences/search" method="get" name="search-form">

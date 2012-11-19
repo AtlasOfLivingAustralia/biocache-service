@@ -15,6 +15,8 @@
 
 package org.ala.biocache.dto;
 
+import java.util.Arrays;
+
 import org.apache.commons.httpclient.URIException;
 import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.lang.StringUtils;
@@ -382,5 +384,34 @@ public class SearchRequestParams {
 	 */
 	public void setFprefix(String fprefix) {
 		this.fprefix = fprefix;
-	}    
+	}
+
+  /* (non-Javadoc)
+   * @see java.lang.Object#hashCode()
+   */
+  @Override
+  public int hashCode() {
+      final int prime = 31;
+      int result = 1;
+      result = prime * result + ((dir == null) ? 0 : dir.hashCode());
+      result = prime * result
+          + ((displayString == null) ? 0 : displayString.hashCode());
+      result = prime * result + ((facet == null) ? 0 : facet.hashCode());
+      result = prime * result + Arrays.hashCode(facets);
+      result = prime * result + ((fl == null) ? 0 : fl.hashCode());
+      result = prime * result + ((flimit == null) ? 0 : flimit.hashCode());
+      result = prime * result + ((foffset == null) ? 0 : foffset.hashCode());
+      result = prime * result
+          + ((formattedQuery == null) ? 0 : formattedQuery.hashCode());
+      result = prime * result + ((fprefix == null) ? 0 : fprefix.hashCode());
+      result = prime * result + Arrays.hashCode(fq);
+      result = prime * result + ((fsort == null) ? 0 : fsort.hashCode());
+      result = prime * result + ((pageSize == null) ? 0 : pageSize.hashCode());
+      result = prime * result + ((q == null) ? 0 : q.hashCode());
+      result = prime * result + ((qc == null) ? 0 : qc.hashCode());
+      result = prime * result + ((sort == null) ? 0 : sort.hashCode());
+      result = prime * result + ((start == null) ? 0 : start.hashCode());
+      return result;
+  }
+ 
 }

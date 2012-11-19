@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
 
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
@@ -34,9 +35,12 @@ import org.ala.biocache.dto.OccurrencePoint;
 import org.ala.biocache.dto.PointType;
 import org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.ala.biocache.dto.TaxaCountDTO;
+import org.ala.biocache.util.ParamsCache;
+import org.ala.biocache.util.ParamsCacheObject;
 import org.ala.biocache.util.SpatialUtils;
 import org.ala.biocache.util.TaxaGroup;
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Controller;
@@ -45,6 +49,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import com.googlecode.ehcache.annotations.Cacheable;
 import com.maxmind.geoip.Location;
 import com.maxmind.geoip.LookupService;
 import org.ala.biocache.dto.*;
@@ -357,13 +362,13 @@ public class ExploreController {
 	@RequestMapping(value = "/explore/counts/endemic*", method = RequestMethod.GET)
 	public @ResponseBody int getSpeciesCountOnlyInWKT(SpatialSearchRequestParams requestParams, 
 	          HttpServletResponse response) 
-	          throws Exception{
+	          throws Exception{  
 	    List list = getSpeciesOnlyInWKT(requestParams,response);
 	    if(list !=null)
 	        return list.size();
 	    return 0;
 	}
-	
+		
 	/**
 	 * Returns the species that only have occurrences in the supplied WKT.
 	 * @return
@@ -372,24 +377,34 @@ public class ExploreController {
 	public @ResponseBody List<FieldResultDTO> getSpeciesOnlyInWKT(SpatialSearchRequestParams requestParams,
 	          HttpServletResponse response) 
 	              throws Exception{
-	    if(StringUtils.isNotBlank(requestParams.getWkt())){
+	    ParamsCacheObject pco = ParamsCache.getParamCacheObjectFromQuery(requestParams.getQ());
+	    String wkt =StringUtils.isNotBlank(requestParams.getWkt())?requestParams.getWkt():pco.getWkt();
+	    if(pco != null){
+	        requestParams.setQ(pco.getQ());
+	        requestParams.setWkt(pco.getWkt());
+	    }
+	    
+	    if(StringUtils.isNotBlank(wkt) ){
 	        if(requestParams.getFacets() != null && requestParams.getFacets().length ==1){
-	            // 1)get a list of species that are in the WKT
-	            
-	            ArrayList list1 = getValuesForFacets(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));
-	            if(logger.isDebugEnabled())
-	                logger.debug("INCLUDED: "+list1.size() + " " +list1);	            
-	            // 2)get a list of species that occur in the inverse WKT
-	            String newWKT = SpatialUtils.getInverseWKT(requestParams.getWkt().replaceAll(":", " "));
-	            requestParams.setWkt(newWKT);
-	            ArrayList list2 = getValuesForFacets(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));
-	            if(logger.isDebugEnabled())
-	                logger.debug("EXCLUDED: " +list2.size() + " " +list2);
-	            //return the values in 1) that don't exist in 2)
-	            list1.removeAll(list2);
-	            if(logger.isDebugEnabled())
-	                logger.debug("FINAL Species WKT " + list1.size() + " " + list1);
-	            return list1;
+	              return searchDao.getEndemicSpecies(requestParams);
+//	            // 1)get a list of species that are in the WKT
+//	            
+//	            ArrayList list1 = getValuesForFacets(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));	              
+//	            if(logger.isDebugEnabled())
+//	                logger.debug("INCLUDED: "+list1.size() + " " +list1);	            
+//	            // 2)get a list of species that occur in the inverse WKT
+//	            String newWKT = SpatialUtils.getInverseWKT(wkt.replaceAll(":", " "));
+//	            if(pco != null)
+//	                requestParams.setQ(pco.getQ());	            
+//	            requestParams.setWkt(newWKT);
+//	            ArrayList list2 = getValuesForFacets(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));
+//	            if(logger.isDebugEnabled())
+//	                logger.debug("EXCLUDED: " +list2.size() + " " +list2);
+//	            //return the values in 1) that don't exist in 2)
+//	            list1.removeAll(list2);
+//	            if(logger.isDebugEnabled())
+//	                logger.debug("FINAL Species WKT " + list1.size() + " " + list1);
+//	            return list1;
 	        }
 	        else{
 	            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply only one facet.");
@@ -401,26 +416,28 @@ public class ExploreController {
 	    return null;
 	}
 	
-	private ArrayList<FieldResultDTO> getValuesForFacets(SpatialSearchRequestParams requestParams) throws Exception{
-  	  ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-      searchDao.writeFacetToStream(requestParams, true, false, outputStream);
-      outputStream.flush();
-      outputStream.close();
-      String includedValues = outputStream.toString();
-      includedValues= includedValues == null ? "":includedValues;
-      String[] values = includedValues.split("\n");
-      ArrayList<FieldResultDTO> list = new ArrayList<FieldResultDTO>();
-      boolean first = true;
-      for(String value: values){
-          if(first)
-              first = false;
-          else{
-              String[] items = value.split(",");
-              list.add(new FieldResultDTO(items[0], Long.parseLong(items[1].trim())));
+
+	
+	/**
+   * Returns the species that only have occurrences in the supplied WKT.
+   * @return
+   */
+  @RequestMapping(value = "/explore/endemic/species.csv", method = RequestMethod.GET)
+  public void getEndemicSpeciesCSV(SpatialSearchRequestParams requestParams,HttpServletResponse response) throws Exception{
+      requestParams.setFacets(new String[]{SearchDAOImpl.NAMES_AND_LSID});
+      requestParams.setFq((String[])ArrayUtils.add(requestParams.getFq(), "species_guid:[* TO *]"));
+      List<FieldResultDTO> list = getSpeciesOnlyInWKT(requestParams, response);
+      response.setCharacterEncoding("UTF-8");
+      response.setContentType("text/plain");
+      java.io.PrintWriter writer = response.getWriter();
+      writer.write("Family,Scientific name,Common name,Taxon rank,LSID,# Occurrences");
+      for(FieldResultDTO item: list){
+          String[] values = item.getLabel().split("\\|",6);
+          if(values.length>=5){
+              writer.write("\n"+values[4]+",\""+values[0]+"\",\""+values[2]+"\",,"+values[1] + ","+item.getCount());
           }
       }
-      return list;
-	    //return includedValues.split("\n");
-	}
-	
+      writer.flush();
+      writer.close();
+  }	
 }

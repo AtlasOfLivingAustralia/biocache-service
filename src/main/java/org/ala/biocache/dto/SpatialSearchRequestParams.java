@@ -14,6 +14,8 @@
  ***************************************************************************/
 package org.ala.biocache.dto;
 
+import java.util.Arrays;
+
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 
@@ -144,5 +146,20 @@ public class SpatialSearchRequestParams extends SearchRequestParams{
         else
             return fq;
     }
-    
+
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = super.hashCode();
+        result = prime * result + ((gk == null) ? 0 : gk.hashCode());
+        result = prime * result + Arrays.hashCode(gkFq);
+        result = prime * result + ((lat == null) ? 0 : lat.hashCode());
+        result = prime * result + ((lon == null) ? 0 : lon.hashCode());
+        result = prime * result + ((radius == null) ? 0 : radius.hashCode());
+        result = prime * result + ((wkt == null) ? 0 : wkt.hashCode());
+        return result;
+    }      
 }

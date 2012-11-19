@@ -48,6 +48,15 @@ import org.apache.solr.common.SolrDocumentList;
 public interface SearchDAO {
 
     /**
+     * Finds the endemic species of the supplied area.
+     * 
+     * @param requestParams
+     * @return
+     * @throws Exception
+     */
+    List<FieldResultDTO> getEndemicSpecies(SpatialSearchRequestParams requestParams) throws Exception;
+  
+    /**
      * Find all occurrences for a given (full text) query
      *
      * @param requestParams
