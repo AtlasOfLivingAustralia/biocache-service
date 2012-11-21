@@ -64,6 +64,7 @@ import org.apache.solr.client.solrj.response.RangeFacet;
 import org.apache.solr.client.solrj.response.RangeFacet.Numeric;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.SolrDocumentList;
+import org.springframework.beans.BeanUtils;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -77,6 +78,9 @@ import au.com.bytecode.opencsv.CSVWriter;
 import com.googlecode.ehcache.annotations.Cacheable;
 import com.ibm.icu.text.SimpleDateFormat;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -94,6 +98,7 @@ import java.util.Map.Entry;
 import org.ala.biocache.util.LegendItem;
 import org.ala.biocache.util.ParamsCache;
 import org.ala.biocache.util.ParamsCacheObject;
+import org.ala.biocache.util.thread.EndemicCallable;
 import org.apache.solr.client.solrj.SolrServer;
 
 /**
@@ -124,10 +129,10 @@ public class SearchDAOImpl implements SearchDAO {
     public static final String COMMON_NAME_AND_LSID ="common_name_and_lsid";
     protected static final String TAXON_CONCEPT_LSID = "taxon_concept_lsid";
     protected static final String DECADE_FACET_NAME = "decade";
-    protected static final Integer FACET_PAGE_SIZE =500;
+    protected static final Integer FACET_PAGE_SIZE =1000;
     protected static final String QUOTE = "\"";
     protected static final char[] CHARS = {' ',':'};
-    protected static final String RANGE_SUFFIX = "_RNG";
+    protected static final String RANGE_SUFFIX = "_RNG";  
 
     //Patterns that are used to prepare a SOLR query for execution
     protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9\\.:-]*)\"?");
@@ -160,6 +165,11 @@ public class SearchDAOImpl implements SearchDAO {
 
     @Inject
     private BieService bieService;
+    
+   
+    protected Integer maxMultiPartThreads=20;
+    //thread pool for multipart queries that take awhile:
+    private ExecutorService executor = null;
 
     private Set<IndexFieldDTO> indexFields = null;
     private Map<String, IndexFieldDTO> indexFieldMap =null;
@@ -176,6 +186,7 @@ public class SearchDAOImpl implements SearchDAO {
                 dao.init();
                 server = dao.solrServer();
                 downloadFields = new DownloadFields(getIndexedFields());
+                
             } catch (Exception ex) {
                 logger.error("Error initialising embedded SOLR server: " + ex.getMessage(), ex);
             }
@@ -195,23 +206,30 @@ public class SearchDAOImpl implements SearchDAO {
             logger.error("Unable to refresh cache.", e);
         }
     }
-    
+    /**
+     * Returns a list of species that are endemic to the supplied region. Values are cached 
+     * due to the "expensive" operation.
+     */
     @Cacheable(cacheName = "endemicCache")
     public List<FieldResultDTO> getEndemicSpecies(SpatialSearchRequestParams requestParams) throws Exception{
-      // 1)get a list of species that are in the WKT        
-        ArrayList<FieldResultDTO> list1 = getValuesForFacets(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));                
-        if(logger.isDebugEnabled())
-            logger.debug("INCLUDED: "+list1.size() + " " +list1);             
+        if(executor == null){
+            executor = Executors.newFixedThreadPool(maxMultiPartThreads);
+        }
+      // 1)get a list of species that are in the WKT
+        logger.debug("Starting to get Endemic Species...");
+        ArrayList<FieldResultDTO> list1 = getValuesForFacet(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));  
+        logger.debug("Retrieved species within area...("+list1.size()+")");                     
         // 2)get a list of species that occur in the inverse WKT
         String newWKT = SpatialUtils.getInverseWKT(requestParams.getWkt().replaceAll(":", " "));      
         requestParams.setWkt(newWKT);
-        int maxFqs=500; // there is a term limit in a SOLR query.
+        int maxFqs=1000; // there is a term limit in a SOLR query.
         int i =0,localterms=0;
         
         String facet = requestParams.getFacets()[0];
         String[] originalFqs = requestParams.getFq();
         ArrayList list2 = new ArrayList();
-        //batch up the rest of the world query so that we have fqs based on species we want to test for. This should improve the performance of the endemic services.
+        ArrayList<Future<List<FieldResultDTO>>> threads = new ArrayList<Future<List<FieldResultDTO>>>();
+        //batch up the rest of the world query so that we have fqs based on species we want to test for. This should improve the performance of the endemic services.       
         while(i < list1.size()){
             StringBuffer sb = new StringBuffer();
             while((localterms == 0 || localterms%maxFqs!=0) && i<list1.size()){
@@ -226,41 +244,46 @@ public class SearchDAOImpl implements SearchDAO {
                 newfq = newfq+ " OR " + newfq; //cater for the situation where there is only one term.  We don't want the term to be escaped again
             localterms=0;
             //System.out.println("FQ = " + newfq);
-            requestParams.setFq((String[])ArrayUtils.add(originalFqs, newfq));
-            ArrayList list3 = getValuesForFacets(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));
-            list2.addAll(list3);
+            SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
+            BeanUtils.copyProperties(requestParams, srp);
+            srp.setFq((String[])ArrayUtils.add(originalFqs, newfq));
+            int batch = i/maxFqs;
+            EndemicCallable callable = new EndemicCallable(srp, batch,this);
+            threads.add(executor.submit(callable));           
         }
-//        ArrayList list2 = getValuesForFacets(requestParams);
-        if(logger.isDebugEnabled())
-            logger.debug("EXCLUDED: " +list2.size() + " " +list2);
-        //return the values in 1) that don't exist in 2)
-        list1.removeAll(list2);
-        if(logger.isDebugEnabled())
-            logger.debug("FINAL Species WKT " + list1.size() + " " + list1);
+        for(Future<List<FieldResultDTO>> future: threads){
+            List<FieldResultDTO> list = future.get();
+            if(list != null)
+                list1.removeAll(list);
+        }
+        logger.debug("Determined final endemic list ("+list1.size()+")...");        
         return list1;
         
     }
     
-    private ArrayList<FieldResultDTO> getValuesForFacets(SpatialSearchRequestParams requestParams) throws Exception{
-      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-      writeFacetToStream(requestParams, true, false, outputStream);
-      outputStream.flush();
-      outputStream.close();
-      String includedValues = outputStream.toString();
-      includedValues= includedValues == null ? "":includedValues;
-      String[] values = includedValues.split("\n");
-      ArrayList<FieldResultDTO> list = new ArrayList<FieldResultDTO>();
-      boolean first = true;
-      for(String value: values){
-          if(first)
-              first = false;
-          else{
-              int idx = value.lastIndexOf(",");                         
-              list.add(new FieldResultDTO(value.substring(0,idx), Long.parseLong(value.substring(idx+1))));
-              
-          }
-      }
-      return list;
+    /**
+     * Returns the values and counts for a single facet field.    
+     */
+    public ArrayList<FieldResultDTO> getValuesForFacet(SpatialSearchRequestParams requestParams) throws Exception{
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        writeFacetToStream(requestParams, true, false, outputStream);
+        outputStream.flush();
+        outputStream.close();
+        String includedValues = outputStream.toString();
+        includedValues= includedValues == null ? "":includedValues;
+        String[] values = includedValues.split("\n");
+        ArrayList<FieldResultDTO> list = new ArrayList<FieldResultDTO>();
+        boolean first = true;
+        for(String value: values){
+            if(first)
+                first = false;
+            else{
+                int idx = value.lastIndexOf(",");                         
+                list.add(new FieldResultDTO(value.substring(0,idx), Long.parseLong(value.substring(idx+1))));
+                
+            }
+        }
+        return list;
       //return includedValues.split("\n");
   }
     
@@ -391,6 +414,7 @@ public class SearchDAOImpl implements SearchDAO {
         boolean shouldLookup = lookupName && searchParams.getFacets()[0].contains("_guid");
         
         QueryResponse qr = runSolrQuery(solrQuery, searchParams);
+        logger.debug("Retrieved facet results from server...");
         if (qr.getResults().size() > 0) {
             FacetField ff = qr.getFacetField(searchParams.getFacets()[0]);
             //write the header line
@@ -2762,6 +2786,20 @@ public class SearchDAOImpl implements SearchDAO {
         }
         logger.debug(facetQueries);
         return counts;
+    }
+
+    /**
+     * @return the maxMultiPartThreads
+     */
+    public Integer getMaxMultiPartThreads() {
+      return maxMultiPartThreads;
+    }
+
+    /**
+     * @param maxMultiPartThreads the maxMultiPartThreads to set
+     */
+    public void setMaxMultiPartThreads(Integer maxMultiPartThreads) {
+      this.maxMultiPartThreads = maxMultiPartThreads;
     }
     
 }

@@ -15,6 +15,7 @@ package org.ala.biocache.dao;
  ***************************************************************************/
 
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -55,6 +56,8 @@ public interface SearchDAO {
      * @throws Exception
      */
     List<FieldResultDTO> getEndemicSpecies(SpatialSearchRequestParams requestParams) throws Exception;
+    
+    ArrayList<FieldResultDTO> getValuesForFacet(SpatialSearchRequestParams requestParams) throws Exception;
   
     /**
      * Find all occurrences for a given (full text) query
