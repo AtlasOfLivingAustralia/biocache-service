@@ -1184,9 +1184,9 @@ public class SearchDAOImpl implements SearchDAO {
 //        
         //add the context information
         updateQueryContext(requestParams);
-        
+        // format query so lsid searches are properly escaped, etc
+        formatSearchQuery(requestParams);
         String queryString = buildSpatialQueryString(requestParams);
-        
         logger.debug("The species count query " + queryString);
         List<String> fqList = new ArrayList<String>();
         //only add the FQ's if they are not the default values
