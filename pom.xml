@@ -477,12 +477,14 @@
 					<goal>deploy-file</goal>
 				</goals>
 				<configuration>
-					<packaging>jar</packaging>					
+					<packaging>jar</packaging>
+					<repositoryId>ala-repository</repositoryId>					
 					<url>${project.distributionManagement.repository.url}</url>
 					<artifactId>${project.artifactId}</artifactId>
 					<groupId>${project.groupId}</groupId>
 					<version>${project.version}</version>
 					<file>${project.build.directory}/${project.artifactId}.jar</file>
+					<uniqueVersion>false</uniqueVersion>
 				</configuration>
 			</execution>
 		</executions>
