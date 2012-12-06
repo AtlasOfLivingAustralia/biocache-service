@@ -477,8 +477,7 @@
 					<goal>deploy-file</goal>
 				</goals>
 				<configuration>
-					<packaging>jar</packaging>
-					<generatePom>true</generatePom>
+					<packaging>jar</packaging>					
 					<url>${project.distributionManagement.repository.url}</url>
 					<artifactId>${project.artifactId}</artifactId>
 					<groupId>${project.groupId}</groupId>
