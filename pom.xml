@@ -485,6 +485,7 @@
 					<version>${project.version}</version>
 					<file>${project.build.directory}/${project.artifactId}.jar</file>
 					<uniqueVersion>false</uniqueVersion>
+					<pomFile>${basedir}/pom.xml</pomFile>
 				</configuration>
 			</execution>
 		</executions>
