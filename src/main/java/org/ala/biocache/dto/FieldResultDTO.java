@@ -12,7 +12,21 @@ import org.codehaus.jackson.annotate.JsonIgnore;
 public class FieldResultDTO implements Comparable<FieldResultDTO>{
     String label;
     Long count;
+    String fq;//the value to use for the FQ if it is different to the label
 
+    /**
+     * Constructor
+     * 
+     * @param fieldValue
+     * @param count
+     * @param fq 
+     */
+    public FieldResultDTO(String fieldValue, long count, String fq) {
+        this(fieldValue,count);
+        this.fq = fq;
+    }
+    
+    
     /**
      * Constructor
      * 
@@ -53,6 +67,21 @@ public class FieldResultDTO implements Comparable<FieldResultDTO>{
 
     public void setLabel(String label) {
         this.label = label;
+    }
+    
+
+    /**
+     * @return the fq
+     */
+    public String getFq() {
+        return fq;
+    }
+
+    /**
+     * @param fq the fq to set
+     */
+    public void setFq(String fq) {
+        this.fq = fq;
     }
 
     /**

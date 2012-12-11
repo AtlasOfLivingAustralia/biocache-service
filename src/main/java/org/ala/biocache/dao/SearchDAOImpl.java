@@ -1585,7 +1585,7 @@ public class SearchDAOImpl implements SearchDAO {
             List<FieldResultDTO> fqr = new ArrayList<FieldResultDTO>();
             for(String value: facetQueries.keySet()){
                 if(facetQueries.get(value)>0)
-                    fqr.add(new FieldResultDTO(rangeMap.get(value), facetQueries.get(value)));
+                    fqr.add(new FieldResultDTO(rangeMap.get(value), facetQueries.get(value),value));
             }
             facetResults.add(new FacetResultDTO("uncertainty", fqr));
         }
