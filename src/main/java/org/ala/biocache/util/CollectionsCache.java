@@ -40,6 +40,7 @@ public class CollectionsCache {
     protected LinkedHashMap<String, String> institutions = new LinkedHashMap<String, String>();
     protected LinkedHashMap<String, String> collections = new LinkedHashMap<String, String>();
     protected Date lastUpdated = new Date();
+    protected Date lastDownloadLimitUpdate = new Date();
     protected Long timeout = 3600000L; // in milliseconds (1 hour)
     protected String collectoryUriPrefix = "http://collections.ala.org.au";
     /** Spring injected RestTemplate object */
@@ -99,18 +100,35 @@ public class CollectionsCache {
     }
 
     public LinkedHashMap<String, Integer> getDownloadLimits(){
-        checkCacheAge();        
-        try{
-            Thread.currentThread().sleep(50);
-        }
-        catch(Exception e){}
-        synchronized(downloadLimits){    		
-            return downloadLimits;
-        }
+        checkDownloadCacheAge();                  		
+        return downloadLimits;        
     }
 
     protected void checkCacheAge(){
         checkCacheAge(null, null);
+    }
+    protected void checkDownloadCacheAge(){
+        checkCacheAge();
+        Date currentDate = new Date();
+        Long timeSinceUpdate = currentDate.getTime() - lastDownloadLimitUpdate.getTime();
+        if (timeSinceUpdate > this.timeout || downloadLimits.size() < 1) {
+            //update the download limits 
+            logger.debug("Starting to populate download limits....");
+            String jsonUri = collectoryUriPrefix +"/lookup/summary/";
+            for(String druid : dataResources.keySet()){
+                //lookup the download limit
+                java.util.Map<String, Object> properties = restTemplate.getForObject(jsonUri+druid+".json", java.util.Map.class);
+                try{
+                    Integer limit = (Integer)(properties.get("downloadLimit"));
+                    downloadLimits.put(druid,  limit);
+                    //logger.debug(druid +" & limit " + limit);
+                }
+                catch(Exception e){
+                    logger.error(e.getMessage(),e);
+                }
+            }
+            logger.debug("The download limit map : " + downloadLimits);
+        }
     }
 
     /**
@@ -142,8 +160,7 @@ public class CollectionsCache {
         this.dataProviders = getCodesMap(ResourceType.DATA_PROVIDER,null);
         this.tempDataResources = getCodesMap(ResourceType.TEMP_DATA_RESOURCE,null);
         this.dataResources.putAll(tempDataResources);
-        //update the download limits asynchronously
-        new DownloadLimitThread().start();
+        
     }
     
     /**
@@ -210,27 +227,6 @@ public class CollectionsCache {
         public String getType() {
             return type;
         }
-    }
-    
-    public class DownloadLimitThread extends Thread{
-    	public void run(){
-    		synchronized(downloadLimits){    		    
-	    		logger.debug("Starting to populate download limits....");
-	    		String jsonUri = collectoryUriPrefix +"/lookup/summary/";
-	    		for(String druid : dataResources.keySet()){
-	    			//lookup the download limit
-	    			java.util.Map<String, Object> properties = restTemplate.getForObject(jsonUri+druid+".json", java.util.Map.class);
-	    			try{
-	    				Integer limit = (Integer)(properties.get("downloadLimit"));
-	    				downloadLimits.put(druid,  limit);
-	    				//logger.debug(druid +" & limit " + limit);
-	    			}
-	    			catch(Exception e){
-	    				logger.error(e.getMessage(),e);
-	    			}
-	    		}
-    		}
-    	}
     }
 
     /*

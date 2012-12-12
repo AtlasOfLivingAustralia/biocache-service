@@ -170,6 +170,9 @@ public class SearchDAOImpl implements SearchDAO {
     protected Integer maxMultiPartThreads=20;
     //thread pool for multipart queries that take awhile:
     private ExecutorService executor = null;
+    
+    //should we check download limits
+    private boolean checkDownloadLimits=false;
 
     private Set<IndexFieldDTO> indexFields = null;
     private Map<String, IndexFieldDTO> indexFieldMap =null;
@@ -716,7 +719,7 @@ public class SearchDAOImpl implements SearchDAO {
 	                       qasb.append(",");
 	                   qasb.append(facetEntry.getName());
 	               }
-                }else if(facet.getName().equals("data_resource_uid")){
+                }else if(facet.getName().equals("data_resource_uid") && checkDownloadLimits){
                     //populate the download limit
                     initDownloadLimits(downloadLimit, facet);
             	}
@@ -839,14 +842,16 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      */
     private boolean shouldDownload(String druid, Map<String, Integer>limits, boolean decrease){
-        if(limits.size()>0 && limits.containsKey(druid)){
-            Integer remainingLimit = limits.get(druid);
-            if(remainingLimit==0){
-                return false;
+        if(checkDownloadLimits){
+            if(limits.size()>0 && limits.containsKey(druid)){
+                Integer remainingLimit = limits.get(druid);
+                if(remainingLimit==0){
+                    return false;
+                }
+                if(decrease)
+                    limits.put(druid, remainingLimit-1);
             }
-            if(decrease)
-                limits.put(druid, remainingLimit-1);
-    	}
+        }
         return true;
     }
     /**
@@ -2800,6 +2805,20 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public void setMaxMultiPartThreads(Integer maxMultiPartThreads) {
       this.maxMultiPartThreads = maxMultiPartThreads;
+    }
+
+    /**
+     * @return the checkDownloadLimits
+     */
+    public boolean getCheckDownloadLimits() {
+        return checkDownloadLimits;
+    }
+
+    /**
+     * @param checkDownloadLimits the checkDownloadLimits to set
+     */
+    public void setCheckDownloadLimits(boolean checkDownloadLimits) {
+        this.checkDownloadLimits = checkDownloadLimits;
     }
     
 }
