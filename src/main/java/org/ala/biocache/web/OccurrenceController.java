@@ -941,6 +941,7 @@ public class OccurrenceController extends AbstractSecureController {
     private void setupImageUrls(OccurrenceDTO dto){
         String[] images = dto.getProcessed().getOccurrence().getImages();
         if(images != null && images.length > 0){
+            List<MediaDTO> ml = new ArrayList<MediaDTO>():
             for(String fileName: images){
                 MediaDTO m = new MediaDTO();
                 String url =  MediaStore.convertPathToUrl(fileName,OccurrenceIndex.biocacheMediaUrl);
@@ -950,8 +951,9 @@ public class OccurrenceController extends AbstractSecureController {
                 m.getAlternativeFormats().put("largeImageUrl", url.replace(extension, "__large" + extension));
                 m.getAlternativeFormats().put("imageUrl", url);
                 m.setFilePath(fileName);
-                dto.getImages().add(m);
+                ml.add(m);
             }
+            dto.setImages(ml);
         }
     }
 
