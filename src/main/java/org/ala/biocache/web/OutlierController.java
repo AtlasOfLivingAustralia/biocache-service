@@ -31,7 +31,6 @@ public class OutlierController {
 
     /**
      * Checks to see if the supplied GUID represents an Australian species.
-     * @param guid
      * @return
      * @throws Exception
      */

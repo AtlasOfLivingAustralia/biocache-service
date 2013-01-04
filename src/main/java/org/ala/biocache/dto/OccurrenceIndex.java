@@ -150,8 +150,8 @@ public class OccurrenceIndex {
 
     public String getImageUrl(){
         if(imageUrl == null){
-            if(image != null && image.startsWith("/data/biocache-media/")){
-                imageUrl= image.replace("/data/biocache-media/", biocacheMediaUrl);
+            if(image != null && image.startsWith(biocacheMediaDir)){
+                imageUrl= image.replace(biocacheMediaDir, biocacheMediaUrl);
             }
         }
         return imageUrl;

@@ -36,6 +36,7 @@ public class OccurrenceDTO implements Serializable{
     private List<QualityAssertion> userAssertions;
     private List<MediaDTO> sounds;
     private List<MediaDTO> video;
+    private List<MediaDTO> images;
 
     public OccurrenceDTO() {}
 
@@ -101,5 +102,13 @@ public class OccurrenceDTO implements Serializable{
 
     public void setVideo(List<MediaDTO> video) {
         this.video = video;
+    }
+
+    public List<MediaDTO> getImages() {
+        return images;
+    }
+
+    public void setImages(List<MediaDTO> images) {
+        this.images = images;
     }
 }

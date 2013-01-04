@@ -64,7 +64,6 @@ import org.springframework.web.client.RestOperations;
  * [private void getCitations(Set<String> keys, OutputStream out) throws HttpException, IOException]
  * 
  * 14 Dept 10 (MOK011): modified getCitations function to get csv format data from Citation Service.
- * 
  */
 @Controller
 public class OccurrenceController extends AbstractSecureController {
@@ -424,18 +423,18 @@ public class OccurrenceController extends AbstractSecureController {
 	 */
 	@RequestMapping(value = "/occurrences/facets/download*", method = RequestMethod.GET)
 	public void downloadFacet(
-            DownloadRequestParams requestParams,
-            @RequestParam(value = "count", required = false, defaultValue="false") boolean includeCount,
-            @RequestParam(value="lookup" ,required=false, defaultValue="false") boolean lookupName,
-            HttpServletResponse response) throws Exception {
-	        if(requestParams.getFacets().length >0){
-    	        String filename = requestParams.getFile() != null ? requestParams.getFile():requestParams.getFacets()[0]; 
-    	        response.setHeader("Cache-Control", "must-revalidate");
-    	        response.setHeader("Pragma", "must-revalidate");
-    	        response.setHeader("Content-Disposition", "attachment;filename=" + filename +".csv");
-    	        response.setContentType("text/csv");
-    	        searchDAO.writeFacetToStream(requestParams,includeCount, lookupName, response.getOutputStream());
-	        }
+        DownloadRequestParams requestParams,
+        @RequestParam(value = "count", required = false, defaultValue="false") boolean includeCount,
+        @RequestParam(value="lookup" ,required=false, defaultValue="false") boolean lookupName,
+        HttpServletResponse response) throws Exception {
+        if(requestParams.getFacets().length >0){
+            String filename = requestParams.getFile() != null ? requestParams.getFile():requestParams.getFacets()[0];
+            response.setHeader("Cache-Control", "must-revalidate");
+            response.setHeader("Pragma", "must-revalidate");
+            response.setHeader("Content-Disposition", "attachment;filename=" + filename +".csv");
+            response.setContentType("text/csv");
+            searchDAO.writeFacetToStream(requestParams,includeCount, lookupName, response.getOutputStream());
+        }
 	}
 
     /**
@@ -628,7 +627,7 @@ public class OccurrenceController extends AbstractSecureController {
         return null;
     }	
 
-    private void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, ServletOutputStream out, boolean includeSensitive,boolean fromIndex) throws Exception {
+    private void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, ServletOutputStream out, boolean includeSensitive, boolean fromIndex) throws Exception {
         String filename = requestParams.getFile();
 
         response.setHeader("Cache-Control", "must-revalidate");
@@ -636,16 +635,15 @@ public class OccurrenceController extends AbstractSecureController {
         response.setHeader("Content-Disposition", "attachment;filename=" + filename +".zip");
         response.setContentType("application/zip");
 
-
         //Use a zip output stream to include the data and citation together in the download
         ZipOutputStream zop = new ZipOutputStream(out);
         zop.putNextEntry(new java.util.zip.ZipEntry(filename + ".csv"));
-        //put the factes
+        //put the facets
         requestParams.setFacets(new String[]{"assertions", "data_resource_uid"});
         Map<String, Integer> uidStats = null;
         try {
             if(fromIndex)
-                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, zop, 100 ,includeSensitive);
+                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, zop, 100, includeSensitive);
             else
                 uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100, includeSensitive);
         } catch (Exception e){
@@ -680,22 +678,23 @@ public class OccurrenceController extends AbstractSecureController {
     /**
 	 * get citation info from citation web service and write it into citation.txt file.
 	 * 
-	 * @param keys
+	 * @param uidStats
 	 * @param out
 	 * @throws HttpException
 	 * @throws IOException
 	 */
-	private void getCitations(Map<String, Integer> uidStats, OutputStream out) throws HttpException, IOException{
-		if(uidStats == null || uidStats.size()==0 || out == null){
+	private void getCitations(Map<String, Integer> uidStats, OutputStream out) throws IOException{
+		if(uidStats == null || uidStats.isEmpty() || out == null){
 			throw new NullPointerException("keys and/or out is null!!");
 		}
 		
         //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
-		List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl,uidStats.keySet(), List.class);		
+		List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl, uidStats.keySet(), List.class);
 		if(entities.size()>0){
-		    out.write("\"Resource name\",\"Citation\",\"Rights\",\"More information\",\"Data generalizations\",\"Information withheld\",\"Download limit\",\"Number of Records in Download\"\n".getBytes());
+		    out.write("\"Data resource ID\",\"Data resource\",\"Citation\",\"Rights\",\"More information\",\"Data generalizations\",\"Information withheld\",\"Download limit\",\"Number of Records in Download\"\n".getBytes());
 		    for(Map<String,Object> record : entities){
 		        StringBuilder sb = new StringBuilder();
+                sb.append("\"").append(record.get("uid")).append("\",");
 		        sb.append("\"").append(record.get("name")).append("\",");
 		        sb.append("\"").append(record.get("citation")).append("\",");
 		        sb.append("\"").append(record.get("rights")).append("\",");
@@ -709,12 +708,6 @@ public class OccurrenceController extends AbstractSecureController {
 		        out.write(sb.toString().getBytes());
 		    }
 		}
-        //"Resource name","Citation","Rights","More information","Data generalizations","Information withheld","Download limit"
-//        if((Integer)citations[0] == HttpStatus.SC_OK){
-//            out.write("\"Resource name\",\"Citation\",\"Rights\",\"More information\",\"Data generalizations\",\"Information withheld\",\"Download limit\"".getBytes());
-//            
-//        	//out.write(((String) citations[1]).getBytes());
-//    	}
 	}
 
 	/**
@@ -734,7 +727,6 @@ public class OccurrenceController extends AbstractSecureController {
         //requestParams.setRadius(1f);
         requestParams.setDir("asc");
         requestParams.setFacet(false);
-
 
         SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams,null);
         List<OccurrenceIndex> ocs = searchResult.getOccurrences();
@@ -792,7 +784,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping(value = {"/occurrence/compare/{uuid}.json", "/occurrence/compare/{uuid}"}, method = RequestMethod.GET)
     public @ResponseBody Object showOccurrence(@PathVariable("uuid") String uuid){
-        Map values =Store.getComparisonByUuid(uuid);
+        Map values = Store.getComparisonByUuid(uuid);
         if(values.isEmpty())
             values = Store.getComparisonByRowKey(uuid);
         return values;
@@ -837,7 +829,7 @@ public class OccurrenceController extends AbstractSecureController {
 	 * Returns a SearchResultDTO when there is more than 1 record with the supplied UUID
 	 *
 	 * @param uuid
-	 * @param model
+	 * @param apiKey
 	 * @throws Exception
 	 */
 	@RequestMapping(value = {"/occurrence/{uuid:.+}","/occurrences/{uuid:.+}", "/occurrence/{uuid:.+}.json", "/occurrences/{uuid:.+}.json"}, method = RequestMethod.GET)
@@ -860,7 +852,7 @@ public class OccurrenceController extends AbstractSecureController {
 	    return null;
     }
 	
-	private Object getOccurrenceInformation(String uuid,HttpServletRequest request, boolean includeSensitive) throws Exception{
+	private Object getOccurrenceInformation(String uuid, HttpServletRequest request, boolean includeSensitive) throws Exception{
 	    logger.debug("Retrieving occurrence record with guid: '"+uuid+"'");
 
         FullRecord[] fullRecord = Store.getAllVersionsByUuid(uuid, includeSensitive);
@@ -915,6 +907,9 @@ public class OccurrenceController extends AbstractSecureController {
             occ.setSounds(soundDtos);
         }
 
+        //ADD THE DIFFERENT IMAGE FORMATS...thumb,small,large,raw
+        setupImageUrls(occ);
+
         //log the statistics for viewing the record
         String email = null;
         String reason = "Viewing Occurrence Record " + uuid;
@@ -942,6 +937,23 @@ public class OccurrenceController extends AbstractSecureController {
 
         return occ;
 	}
+
+    private void setupImageUrls(OccurrenceDTO dto){
+        String[] images = dto.getProcessed().getOccurrence().getImages();
+        if(images != null && images.length > 0){
+            for(String fileName: images){
+                MediaDTO m = new MediaDTO();
+                String url =  MediaStore.convertPathToUrl(fileName,OccurrenceIndex.biocacheMediaUrl);
+                String extension = url.substring(url.lastIndexOf("."));
+                m.getAlternativeFormats().put("thumbnailUrl", url.replace(extension, "__thumb" + extension));
+                m.getAlternativeFormats().put("smallImageUrl", url.replace(extension, "__small" + extension));
+                m.getAlternativeFormats().put("largeImageUrl", url.replace(extension, "__large" + extension));
+                m.getAlternativeFormats().put("imageUrl", url);
+                m.setFilePath(fileName);
+                dto.getImages().add(m);
+            }
+        }
+    }
 
 	/**
      * Create a HashMap for the filter queries

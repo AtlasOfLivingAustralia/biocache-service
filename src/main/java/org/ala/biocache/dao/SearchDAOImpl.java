@@ -501,7 +501,6 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public void writeCoordinatesToStream(SearchRequestParams searchParams,OutputStream out) throws Exception{
         //generate the query to obtain the lat,long as a facet
-        
         SearchRequestParams srp = new SearchRequestParams();
         searchUtils.setDefaultParams(srp);
         srp.setFacets(searchParams.getFacets());
@@ -673,7 +672,6 @@ public class SearchDAOImpl implements SearchDAO {
 
     /**
      * @see org.ala.biocache.dao.SearchDAO#writeResultsToStream(org.ala.biocache.dto.DownloadRequestParams, java.io.OutputStream, int, boolean) 
-     * 
      */
     public Map<String, Integer> writeResultsToStream(DownloadRequestParams downloadParams, OutputStream out, int i, boolean includeSensitive) throws Exception {
         
@@ -683,7 +681,6 @@ public class SearchDAOImpl implements SearchDAO {
         Map<String, Integer> downloadLimit = new HashMap<String,Integer>();
         
         try {
-            
             SolrQuery solrQuery = initSolrQuery(downloadParams,false,null);
             formatSearchQuery(downloadParams);            
             //add context information
@@ -736,7 +733,6 @@ public class SearchDAOImpl implements SearchDAO {
             //Create the Writer that will be used to format the records
             au.org.ala.biocache.RecordWriter rw = new org.ala.biocache.writer.CSVRecordWriter(out, header);
 
-           
             //download the records that have limits first...
             if(downloadLimit.size() > 0){
                 String[] originalFq = downloadParams.getFq();
