@@ -10,6 +10,7 @@ import au.org.ala.biocache.Versions;
 import org.ala.biocache.dao.BieService;
 import org.ala.biocache.dao.SearchDAO;
 import org.ala.biocache.dto.SpatialSearchRequestParams;
+import org.ala.biocache.service.AuthService;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -48,7 +49,9 @@ public class AssertionController extends AbstractSecureController {
     @Inject
     private BieService bieService;
     @Inject
-    protected SearchDAO searchDAO;
+    protected SearchDAO searchDAO;    
+    @Inject
+    protected AuthService authService;
    
     /**
      * Retrieve an array of the assertion codes in use by the processing system
@@ -97,10 +100,12 @@ public class AssertionController extends AbstractSecureController {
     @RequestMapping(value = {"/assertions/queries/{uuids}"}, method = RequestMethod.GET)
     public @ResponseBody AssertionQuery[] getQueryAssertions(@PathVariable(value="uuids") String uuids,HttpServletRequest request) throws Exception {
         String apiKey = request.getParameter("apiKey");
-        if(apiKey != null)
-            return Store.getAssertionQueries((apiKey+"|"+uuids.replaceAll(",",","+apiKey+"|")).split(","));
-        else
-            return Store.getAssertionQueries(uuids.split(","));
+        AssertionQuery[] aqs = apiKey != null ? Store.getAssertionQueries((apiKey+"|"+uuids.replaceAll(",",","+apiKey+"|")).split(",")) : Store.getAssertionQueries(uuids.split(","));
+        //look up the authService userId so that the display value can be used
+        for(AssertionQuery aq : aqs){
+            aq.setUserName(authService.getDisplayNameFor(aq.getUserName()));
+        }
+        return aqs;
     }
     @RequestMapping(value = {"/assertions/query/{uuid}/apply"}, method = RequestMethod.GET)
     public @ResponseBody String applyAssertion(@PathVariable(value="uuid") String uuid,HttpServletRequest request) throws Exception {

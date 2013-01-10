@@ -30,6 +30,7 @@ import au.org.ala.biocache.*;
 import org.ala.biocache.dao.SearchDAO;
 import org.ala.biocache.dto.*;
 import org.ala.biocache.dto.store.OccurrenceDTO;
+import org.ala.biocache.service.AuthService;
 import org.ala.biocache.util.MimeType;
 import org.ala.biocache.util.ParamsCache;
 import org.ala.biocache.util.ParamsCacheSizeException;
@@ -79,8 +80,11 @@ public class OccurrenceController extends AbstractSecureController {
 	protected SearchUtils searchUtils;
 	@Inject
 	protected RestfulClient restfulClient;
-	@Inject
+	  @Inject
     private RestOperations restTemplate;
+	  
+	  @Inject
+    protected AuthService authService;
 	
 	/** Name of view for site home page */
 	private String HOME = "homePage";
@@ -787,6 +791,24 @@ public class OccurrenceController extends AbstractSecureController {
         Map values = Store.getComparisonByUuid(uuid);
         if(values.isEmpty())
             values = Store.getComparisonByRowKey(uuid);
+        //substitute the values for recordedBy if it is an authenticated user        
+        if(values.containsKey("Occurrence")){
+            //String recordedBy = values.get("recordedBy").toString();
+            List<au.org.ala.util.ProcessedValue> compareList = (List<au.org.ala.util.ProcessedValue>)values.get("Occurrence");
+            List<au.org.ala.util.ProcessedValue> newList = new ArrayList<au.org.ala.util.ProcessedValue>();
+            for(au.org.ala.util.ProcessedValue pv : compareList){              
+                if(pv.getName().equals("recordedBy")){
+                    logger.info(pv);
+                    String raw = authService.getDisplayNameFor(pv.getRaw());
+                    String processed = authService.getDisplayNameFor(pv.getProcessed());                    
+                    au.org.ala.util.ProcessedValue newpv = new au.org.ala.util.ProcessedValue("recordedBy", raw, processed);
+                    newList.add(newpv);
+                }
+                else
+                    newList.add(pv);
+            }
+            values.put("Occurrence", newList);
+        }
         return values;
     }
     /**
@@ -879,12 +901,28 @@ public class OccurrenceController extends AbstractSecureController {
             else
                 fullRecord = Store.getAllVersionsByUuid(result.getOccurrences().get(0).getUuid(), includeSensitive);
         }
-
+        // now update the values required for the authService
+        if(fullRecord != null){
+            //raw record may need recordedBy to be changed 
+            fullRecord[0].getOccurrence().setRecordedBy(authService.getDisplayNameFor(fullRecord[0].getOccurrence().getRecordedBy()));
+            //raw record may need the userId change to be a HTML reference to an ala authenticated user
+            fullRecord[0].getOccurrence().setUserId(authService.getDisplayNameFor(fullRecord[0].getOccurrence().getUserId(), true));
+            //processed record may need recordedBy modified in case it was an email address.
+            fullRecord[1].getOccurrence().setRecordedBy(authService.getDisplayNameFor(fullRecord[1].getOccurrence().getRecordedBy()));
+            //hide the email addresses in the raw miscProperties
+            Map<String,String> miscProps =fullRecord[0].miscProperties();
+            for(Map.Entry<String,String> entry: miscProps.entrySet()){
+                if(entry.getValue().contains("@"))
+                  entry.setValue(authService.getDisplayNameFor(entry.getValue()));
+            }
+        }
+        
         OccurrenceDTO occ = new OccurrenceDTO(fullRecord);
         String rowKey = occ.getProcessed().getRowKey();
         //assertions are based on the row key not uuid
         occ.setSystemAssertions(Store.getSystemAssertions(rowKey));
         occ.setUserAssertions(Store.getUserAssertions(rowKey));
+        
 
         //TODO retrieve details of the media files
         String[] sounds = occ.getProcessed().getOccurrence().getSounds();

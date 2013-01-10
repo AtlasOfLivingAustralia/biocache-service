@@ -99,6 +99,7 @@ import org.ala.biocache.util.LegendItem;
 import org.ala.biocache.util.ParamsCache;
 import org.ala.biocache.util.ParamsCacheObject;
 import org.ala.biocache.util.thread.EndemicCallable;
+import org.ala.biocache.service.AuthService;
 import org.apache.solr.client.solrj.SolrServer;
 
 /**
@@ -166,17 +167,23 @@ public class SearchDAOImpl implements SearchDAO {
     @Inject
     private BieService bieService;
     
-   
+    @Inject
+    protected AuthService authService;
+    
     protected Integer maxMultiPartThreads=20;
     //thread pool for multipart queries that take awhile:
     private ExecutorService executor = null;
     
     //should we check download limits
     private boolean checkDownloadLimits=false;
-
+    
+    //Comma separated list of solr fields that need to have the authService substitute values if they are used in a facet. - CAN be overridden
+    private String authServiceFields="";
+    
     private Set<IndexFieldDTO> indexFields = null;
     private Map<String, IndexFieldDTO> indexFieldMap =null;
     private Map<String, StatsIndexFieldDTO> rangeFieldCache = null;
+    private Set<String> authIndexFields =null;
 
     /**
      * Initialise the SOLR server instance
@@ -193,7 +200,16 @@ public class SearchDAOImpl implements SearchDAO {
             } catch (Exception ex) {
                 logger.error("Error initialising embedded SOLR server: " + ex.getMessage(), ex);
             }
+        }        
+    }
+    
+    private Set<String> getAuthIndexFields(){
+        if(authIndexFields == null){
+            //set up the hash set of the fields that need to have the authentication service substitute
+            authIndexFields = new java.util.HashSet<String>();
+            CollectionUtils.mergeArrayIntoCollection(authServiceFields.split(","), authIndexFields);
         }
+        return authIndexFields;
     }
 
     public void refreshCaches(){
@@ -1569,8 +1585,15 @@ public class SearchDAOImpl implements SearchDAO {
                     ArrayList<FieldResultDTO> r = new ArrayList<FieldResultDTO>();
                     for (FacetField.Count fcount : facetEntries) {
 //                        String msg = fcount.getName() + ": " + fcount.getCount();                       
-                        //logger.trace(fcount.getName() + ": " + fcount.getCount());        	
-                    		r.add(new FieldResultDTO(fcount.getName(), fcount.getCount()));
+                        //logger.trace(fcount.getName() + ": " + fcount.getCount());
+                        //if the facet field is collector or assertion_user_id we need to perform the substitution
+                        if(getAuthIndexFields().contains(facet.getName())){
+                            String displayName = authService.getDisplayNameFor(fcount.getName());                            
+                            //now add the facet with the correct fq being supplied
+                            r.add(new FieldResultDTO(displayName, fcount.getCount(),facet.getName()+":\"" + fcount.getName()+"\""));
+                        }
+                        else
+                            r.add(new FieldResultDTO(fcount.getName(), fcount.getCount()));
                     }
                     // only add facets if there are more than one facet result
                     if (r.size() > 0) {
@@ -2815,6 +2838,20 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public void setCheckDownloadLimits(boolean checkDownloadLimits) {
         this.checkDownloadLimits = checkDownloadLimits;
+    }
+
+    /**
+     * @return the authServiceFields
+     */
+    public String getAuthServiceFields() {
+        return authServiceFields;
+    }
+
+    /**
+     * @param authServiceFields the authServiceFields to set
+     */
+    public void setAuthServiceFields(String authServiceFields) {
+        this.authServiceFields = authServiceFields;
     }
     
 }
