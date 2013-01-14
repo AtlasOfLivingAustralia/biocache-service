@@ -360,6 +360,8 @@ public class SearchDAOImpl implements SearchDAO {
             searchResults = processSolrResponse(qr, solrQuery,resultClass);
             searchResults.setQueryTitle(searchParams.getDisplayString());
             searchResults.setUrlParameters(searchParams.getUrlParams());
+            //now update the fq display map...
+            searchResults.setActiveFacetMap(searchUtils.addFacetMap(searchParams.getFq()));
             
             logger.info("spatial search query: " + queryString);
         } catch (SolrServerException ex) {
@@ -1983,7 +1985,7 @@ public class SearchDAOImpl implements SearchDAO {
                     String normalised = displayString.replaceAll("\"", "");
                     matcher = uidPattern.matcher(normalised);
                     while(matcher.find()){
-                        String newVal = "<span>"+searchUtils.getUidDisplayString(matcher.group(2)) +"</span>";
+                        String newVal = "<span>"+searchUtils.getUidDisplayString(matcher.group(1),matcher.group(2)) +"</span>";
                         if(newVal != null)
                             matcher.appendReplacement(displaySb, newVal);
                     }

@@ -14,6 +14,8 @@
  ***************************************************************************/
 package org.ala.biocache.dao;
 
+import java.util.List;
+
 /**
  * Service layer interface for accessing BIE data
  * 
@@ -42,4 +44,11 @@ public interface BieService {
      * @return
      */
     public String getAcceptedNameForGuide(String guid);
+    
+    /**
+     * Lookup service for list of guids to names
+     * @param guids
+     * @return
+     */
+    public List<String> getNamesForGuids(List<String> guids);
 }

@@ -59,9 +59,7 @@ public class AuthService {
     public Map<String, String> getMapOfAllUserNamesById() {
         return userNamesById;
     }
-    public String getDisplayNameFor(String value){
-        return getDisplayNameFor(value, false);
-    }
+
     /**
      * Returns the display name to be used by a client.
      * 
@@ -70,16 +68,13 @@ public class AuthService {
      * @param value
      * @return
      */
-    public String getDisplayNameFor(String value, boolean includeURLForId){
+    public String getDisplayNameFor(String value){
         String displayName = value;
         if(value != null){
             if(userNamesById.containsKey(value))
                 displayName = userNamesById.get(value);
-            else if(userNamesByNumericIds.containsKey(value)){
-                if(includeURLForId)
-                    displayName = "<a href=\"http://sightings.ala.org.au/spotter/"+value+"\">"+userNamesByNumericIds.get(value)+"</a>";
-                else
-                    displayName=userNamesByNumericIds.get(value);
+            else if(userNamesByNumericIds.containsKey(value)){                
+                displayName=userNamesByNumericIds.get(value);
             }
             else 
                 displayName = displayName.replaceAll("\\@\\w+", "@..");
@@ -123,7 +118,7 @@ public class AuthService {
         loadMapOfAllUserNamesByNumericId();
     }
 
-    @Scheduled(fixedRate = 60000) // schedule to run every 1 min
+    //@Scheduled(fixedRate = 60000) // schedule to run every 1 min
     public void checkMemoryUsage() {
         int mb = 1024*1024;
         Runtime runtime = Runtime.getRuntime();

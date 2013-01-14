@@ -17,6 +17,7 @@ package org.ala.biocache.dto;
 import org.ala.biocache.dto.OccurrenceIndex;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.solr.client.solrj.response.QueryResponse;
 
@@ -59,6 +60,10 @@ public class SearchResultDTO {
 
     /** Stores the title for the query - this is dependent on the type of query that has been executed */
     private String queryTitle;
+    /**
+     * Stores a map a facets that have been applied to the query.  This will include details that a necessary to display on clients.
+     */
+    private Map<String,Facet> activeFacetMap;
 
     /**
      * Constructor with 2 args
@@ -195,6 +200,20 @@ public class SearchResultDTO {
      */
     public void setErrorMessage(String errorMessage) {
         this.errorMessage = errorMessage;
+    }
+
+    /**
+     * @return the activeFacetMap
+     */
+    public Map<String, Facet> getActiveFacetMap() {
+        return activeFacetMap;
+    }
+
+    /**
+     * @param activeFacetMap the activeFacetMap to set
+     */
+    public void setActiveFacetMap(Map<String, Facet> activeFacetMap) {
+        this.activeFacetMap = activeFacetMap;
     }
     
     

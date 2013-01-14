@@ -1,15 +1,21 @@
 package org.ala.biocache.util;
 
+import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import au.org.ala.biocache.TaxonProfile;
+
+import org.ala.biocache.dao.BieService;
+import org.ala.biocache.dto.Facet;
 import org.ala.biocache.dto.OccurrenceSource;
 import org.ala.biocache.dto.OccurrenceSourceDTO;
 import org.ala.biocache.dto.SearchQuery;
 import org.apache.log4j.Logger;
+import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 
 
@@ -17,6 +23,7 @@ import au.org.ala.biocache.TaxonProfileDAO;
 import javax.inject.Inject;
 import org.ala.biocache.dto.SearchRequestParams;
 import org.ala.biocache.dto.SpatialSearchRequestParams;
+import org.ala.biocache.service.AuthService;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.solr.client.solrj.util.ClientUtils;
@@ -39,6 +46,14 @@ public class SearchUtils {
 
     @Inject
     private CollectionsCache collectionCache;
+    
+    @Inject 
+    private AuthService authService;
+    //for i18n of display values for facets
+    @Inject
+    private AbstractMessageSource messageSource;
+    @Inject
+    private BieService bieService;
     
     protected static List<String> defaultParams=new ArrayList<String>();
     
@@ -98,32 +113,51 @@ public class SearchUtils {
         }
         return uid;
     }
+    
+    public String getUidDisplayString(String fieldName,String uid){
+        return getUidDisplayString(fieldName,uid, true);
+    }
 
     /**
      * Returns the display string for the supplied uid
      *
-     * TODO support data_resource, data_provider and data_hub
+     * TODO support  data_hub
      *
      * @param uid
      * @return
      */
-    public String getUidDisplayString(String uid) {
+    public String getUidDisplayString(String fieldName, String uid, boolean includeField) {
 
         uid = stripEscapedQuotes(uid);
 
         //get the information from the collections cache
-        if (uid.startsWith("in")) {
-            return "Institution: " + collectionCache.getInstitutions().get(uid);
-        } else if (uid.startsWith("co")) {
-            return "Collection: " + collectionCache.getCollections().get(uid);
-        } else if(uid.startsWith("dr")){
-            return "Data resource: " + collectionCache.getDataResources().get(uid);
-        } else if(uid.startsWith("drt")){
-            return "Temporary Data resource: " + collectionCache.getDataResources().get(uid);
-        } else if(uid.startsWith("dp")){
-            return "Data provider: " + collectionCache.getDataProviders().get(uid);
+        if (uid.startsWith("in") && collectionCache.getInstitutions().containsKey(uid)) {
+            if(includeField)
+                return "Institution: " + collectionCache.getInstitutions().get(uid);
+            else
+                return collectionCache.getInstitutions().get(uid);
+        } else if (uid.startsWith("co") && collectionCache.getCollections().containsKey(uid)) {
+            if(includeField)
+                return "Collection: " + collectionCache.getCollections().get(uid);
+            else
+                return collectionCache.getCollections().get(uid);
+        } else if(uid.startsWith("dr") && collectionCache.getDataResources().containsKey(uid)){
+            if(includeField)
+                return "Data resource: " + collectionCache.getDataResources().get(uid);
+            else
+                return collectionCache.getDataResources().get(uid);
+        } else if(uid.startsWith("drt")&& collectionCache.getDataResources().containsKey(uid)){
+            if(includeField)
+                return "Temporary Data resource: " + collectionCache.getDataResources().get(uid);
+            else
+                return collectionCache.getDataResources().get(uid);
+        } else if(uid.startsWith("dp") && collectionCache.getDataProviders().containsKey(uid)){
+            if(includeField)
+                return "Data provider: " + collectionCache.getDataProviders().get(uid);
+            else
+                return collectionCache.getDataProviders().get(uid);
         }
-        return null; //FIXME
+        return messageSource.getMessage(fieldName+"."+StringUtils.remove(uid, "\""), null, uid, null);
     }
 
         /**
@@ -463,6 +497,211 @@ public class SearchUtils {
             extraParams.remove(field);
         return extraParams;
     }
+    
+    
+    /**
+     * Create a HashMap for the filter queries, using the first SOLR field as the key and subsequent
+     * query string as the value.
+     *
+     * Refactor: now returns a Map<String, ActiveFacet> with an additional field "label" that is used to
+     * provide a human readable version of the filter query.
+     * 
+     * NC 2013-01-11: This method has been moved from hubs-webapp so that all the processing is performedby the service rather than the client. 
+     * This means that the authService will perform the lookup here.
+     *
+     * @param filterQuery
+     * @return
+     */
+    public Map<String, Facet> addFacetMap(String[] filterQuery) {
+        Map<String, Facet> afs = new HashMap<String, Facet>();
+        //Map<String, String> userNamesByIds = authService.getMapOfAllUserNamesById(); // cached by Eh Cache
+
+        if (filterQuery != null && filterQuery.length > 0) {
+            // iterate over the fq params
+            for (String fq : filterQuery) {
+                if (fq != null && !fq.isEmpty()) {
+                    Boolean isExcludeFilter = false;
+                    // remove Boolean braces if present
+                    if (fq.startsWith("(") && fq.endsWith(")")){
+                        fq = StringUtils.remove(fq, "(");
+                        fq = StringUtils.removeEnd(fq, ")");
+                    } else if (fq.startsWith("-(") && fq.endsWith(")")) {
+                        fq = StringUtils.remove(fq, "-(");
+                        fq = StringUtils.removeEnd(fq, ")");
+                        //fq = "-" + fq;
+                        isExcludeFilter = true;
+                    }
+
+                    String[] fqBits = StringUtils.split(fq, ":", 2);
+                    // extract key for map
+                    if (fqBits.length  == 2) {
+                        String key = fqBits[0];
+                        String value = fqBits[1];
+                        
+                        if ("data_hub_uid".equals(key)) {
+                            // exclude these...
+                            continue;
+                        }
+                        
+                        Facet f = new Facet();
+                        f.setName(key);
+                        f.setValue(value);
+                        logger.debug("1. fq = " + key + " => " + value);
+                        // if there are internal Boolean operators, iterate over sub queries
+                        String patternStr = "[ ]+(OR)[ ]+";
+                        String[] tokens = fq.split(patternStr, -1);
+                        List<String> labels = new ArrayList<String>(); // store sub-queries in this list
+
+                        for (String token : tokens) {
+                            logger.debug("token: " + token);
+                            String[] tokenBits = StringUtils.split(token, ":", 2);
+                            if (tokenBits.length == 2) {
+                                String fn = tokenBits[0];
+                                String fv = tokenBits[1];
+                                String i18n = null;
+                                if(fn.endsWith("_s")){
+                                    //hack for dynamic facets
+                                    i18n = fn.replaceAll("_s", "");
+                                } else {
+                                    i18n = messageSource.getMessage("facet."+fn, null, fn, null);
+                                }
+
+                                if (StringUtils.equals(fn, "species_guid") || StringUtils.equals(fn, "genus_guid")) {
+                                    fv = substituteLsidsForNames(fv.replaceAll("\"",""));
+                                } else if (StringUtils.equals(fn, "occurrence_year")) {
+                                    fv = substituteYearsForDates(fv);
+                                } else if (StringUtils.equals(fn, "month")) {
+                                    fv = substituteMonthNamesForNums(fv);
+                                } 
+                                else if (StringUtils.contains(fv, "@")) {
+                                    //fv = StringUtils.substringBefore(fv, "@"); // hide email addresses
+                                    if (authService.getMapOfAllUserNamesById().containsKey(StringUtils.remove(fv, "\""))) {
+                                        fv = authService.getMapOfAllUserNamesById().get(StringUtils.remove(fv, "\""));
+                                    } else {
+                                        fv = fv.replaceAll("\\@\\w+", "@.."); // hide email addresses
+                                    }
+
+                                } 
+                                else {
+                                    fv = getUidDisplayString(fn, fv,false);
+                                }
+
+                                labels.add(i18n + ":" + fv);
+                            }
+                        }
+
+                        String label = StringUtils.join(labels, " OR "); // join sub-queries back together
+                        if (isExcludeFilter) {
+                            label = "-" + label;
+                        }
+                        logger.debug("label = " + label);
+                        f.setDisplayName(label);
+
+                        afs.put(key, f); // add to map
+                    }
+                }
+            }
+        }
+
+        return afs;
+    }
+    
+    
+    /**
+     * Lookup a taxon name for a GUID
+     *
+     * @param fieldValue
+     * @return
+     */
+    private String substituteLsidsForNames(String fieldValue) {
+        String name = fieldValue;
+        List<String> guids = new ArrayList<String>();
+        guids.add(fieldValue);
+        List<String> names = bieService.getNamesForGuids(guids);
+        
+        if (names != null && names.size() >= 1) {
+            name = names.get(0);
+        }
+
+        return name;
+    }
+
+    /**
+     * Lookup an institution/collection/data resource name via its collectory ID
+     *
+     * @param fieldValue
+     * @return
+     */
+//    private String substituteCollectoryNames(String fieldValue, String fieldName) {
+//        // substitute collectory names
+//        logger.debug("collectory maps: " + fieldValue);
+//        if (collectionsContainer.getCollectionMap().containsKey(fieldValue)) {
+//            fieldValue = collectionsContainer.getCollectionMap().get(fieldValue);
+//        } else if (collectionsContainer.getInstitutionMap().containsKey(fieldValue)) {
+//            fieldValue = collectionsContainer.getInstitutionMap().get(fieldValue);
+//        } else if (collectionsContainer.getDataResourceMap().containsKey(fieldValue)) {
+//            fieldValue = collectionsContainer.getDataResourceMap().get(fieldValue);
+//        } else if (collectionsContainer.getDataProviderMap().containsKey(fieldValue)) {
+//            fieldValue = collectionsContainer.getDataProviderMap().get(fieldValue);
+//        } else {
+//            // attempt to substitute i18n values
+//            fieldValue = messageSource.getMessage(fieldName+"."+StringUtils.remove(fieldValue, "\""), null, fieldValue, null);
+//            logger.debug("i18n subst: " + fieldName + "|" + fieldValue + " = " + fieldValue);
+//        }
+//        logger.debug("=> " + fieldValue);
+//        return fieldValue;
+//    }
+    
+    /**
+     * Convert month number to its name. E.g. 12 -> December
+     *
+     * @param fv
+     * @return monthStr
+     */
+    private String substituteMonthNamesForNums(String fv) {
+        String monthStr = new String(fv);
+        try {
+            int m = Integer.parseInt(monthStr);
+            Month month = Month.get(m - 1); // 1 index months
+            monthStr = month.name();
+        } catch (Exception e) {
+            // ignore
+        }
+        return monthStr;
+    }
+
+    /**
+     * Turn SOLR date range into year range.
+     * E.g. [1940-01-01T00:00:00Z TO 1949-12-31T00:00:00Z]
+     * to
+     * 1940-1949
+     * 
+     * @param fieldValue
+     * @return
+     */
+    private String substituteYearsForDates(String fieldValue) {
+        String dateRange = URLDecoder.decode(fieldValue);
+        String formattedDate = StringUtils.replaceChars(dateRange, "[]", "");
+        String[] dates =  formattedDate.split(" TO ");
+        
+        if (dates != null && dates.length > 1) {
+            // grab just the year portions
+            dateRange = StringUtils.substring(dates[0], 0, 4) + "-" + StringUtils.substring(dates[1], 0, 4);
+        }
+
+        return dateRange;
+    }
+    
+    /**
+     * Enum for months lookup
+     */
+    protected enum Month {
+        January, February, March, April, May, June, July, August, September, October, November, December;
+
+        public static Month get(int i){
+            return values()[i];
+        }
+    }   
 
     /**
 	 * @param collectoryBaseUrl

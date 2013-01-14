@@ -901,12 +901,13 @@ public class OccurrenceController extends AbstractSecureController {
             else
                 fullRecord = Store.getAllVersionsByUuid(result.getOccurrences().get(0).getUuid(), includeSensitive);
         }
+        
+        
+        OccurrenceDTO occ = new OccurrenceDTO(fullRecord);
         // now update the values required for the authService
         if(fullRecord != null){
             //raw record may need recordedBy to be changed 
-            fullRecord[0].getOccurrence().setRecordedBy(authService.getDisplayNameFor(fullRecord[0].getOccurrence().getRecordedBy()));
-            //raw record may need the userId change to be a HTML reference to an ala authenticated user
-            fullRecord[0].getOccurrence().setUserId(authService.getDisplayNameFor(fullRecord[0].getOccurrence().getUserId(), true));
+            fullRecord[0].getOccurrence().setRecordedBy(authService.getDisplayNameFor(fullRecord[0].getOccurrence().getRecordedBy()));            
             //processed record may need recordedBy modified in case it was an email address.
             fullRecord[1].getOccurrence().setRecordedBy(authService.getDisplayNameFor(fullRecord[1].getOccurrence().getRecordedBy()));
             //hide the email addresses in the raw miscProperties
@@ -915,9 +916,11 @@ public class OccurrenceController extends AbstractSecureController {
                 if(entry.getValue().contains("@"))
                   entry.setValue(authService.getDisplayNameFor(entry.getValue()));
             }
+            //if the raw record contains a userId we will need to include the alaUserName in the DTO
+            if(fullRecord[0].getOccurrence().getUserId() != null){
+                occ.setAlaUserName(authService.getDisplayNameFor(fullRecord[0].getOccurrence().getUserId()));
+            }
         }
-        
-        OccurrenceDTO occ = new OccurrenceDTO(fullRecord);
         String rowKey = occ.getProcessed().getRowKey();
         //assertions are based on the row key not uuid
         occ.setSystemAssertions(Store.getSystemAssertions(rowKey));

@@ -37,6 +37,7 @@ public class OccurrenceDTO implements Serializable{
     private List<MediaDTO> sounds;
     private List<MediaDTO> video;
     private List<MediaDTO> images;
+    private String alaUserName;
 
     public OccurrenceDTO() {}
 
@@ -111,4 +112,19 @@ public class OccurrenceDTO implements Serializable{
     public void setImages(List<MediaDTO> images) {
         this.images = images;
     }
+
+    /**
+     * @return the alaUserName
+     */
+    public String getAlaUserName() {
+        return alaUserName;
+    }
+
+    /**
+     * @param alaUserName the alaUserName to set
+     */
+    public void setAlaUserName(String alaUserName) {
+        this.alaUserName = alaUserName;
+    }
+    
 }

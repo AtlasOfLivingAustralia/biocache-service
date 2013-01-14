@@ -14,6 +14,7 @@
  ***************************************************************************/
 package org.ala.biocache.dao;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -95,6 +96,30 @@ public class BieRestService implements BieService {
         }
 
         return acceptedName;
+    }
+    
+    
+    /**
+     * @see org.ala.hubs.service.BieService#getNamesForGuids(java.util.List)
+     *
+     * @param guids
+     * @return
+     */
+    @Override
+    public List<String> getNamesForGuids(List<String> guids) {
+        List<String> names = null;
+
+        try {
+            final String jsonUri = bieUriPrefix + "/species/namesFromGuids.json";
+            String params = "?guid=" + StringUtils.join(guids, "&guid=");
+            names = restTemplate.postForObject(jsonUri + params, null, List.class);
+        } catch (Exception ex) {
+            logger.error("Requested URI: " + bieUriPrefix + "/species/namesFromGuids.json");
+            logger.error("With POST body: guid=" + StringUtils.join(guids, "&guid="));
+            logger.error("RestTemplate error: " + ex.getMessage(), ex);
+        }
+        
+        return names;
     }
 
     public String getBieUriPrefix() {
