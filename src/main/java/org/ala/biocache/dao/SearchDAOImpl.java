@@ -147,7 +147,7 @@ public class SearchDAOImpl implements SearchDAO {
 //    protected Pattern facetSortPattern = Pattern.compile("([a-zA-z_]+?):(count|index)");
 //    protected Pattern solrParamPattern = Pattern.compile("([a-zA-z_\\.]+?)=([a-zA-z_]+?)");
     
-    protected String bieUri = "http://bie.ala.org.au";
+    
 
     /** Download properties */
     protected DownloadFields downloadFields;
@@ -158,9 +158,6 @@ public class SearchDAOImpl implements SearchDAO {
     @Inject
     private CollectionsCache collectionCache;
     
-    @Inject
-    private RestOperations restTemplate;
-
     @Inject
     private AbstractMessageSource messageSource;
 
@@ -361,7 +358,7 @@ public class SearchDAOImpl implements SearchDAO {
             searchResults.setQueryTitle(searchParams.getDisplayString());
             searchResults.setUrlParameters(searchParams.getUrlParams());
             //now update the fq display map...
-            searchResults.setActiveFacetMap(searchUtils.addFacetMap(searchParams.getFq()));
+            searchResults.setActiveFacetMap(searchUtils.addFacetMap(searchParams.getFq(), getAuthIndexFields()));
             
             logger.info("spatial search query: " + queryString);
         } catch (SolrServerException ex) {
@@ -462,10 +459,9 @@ public class SearchDAOImpl implements SearchDAO {
                                     counts.add(value.getCount());
                                 //Only want to send a sub set of the list so that the URI is not too long for BIE
                                 if(guids.size()==30){
-                                  //now get the list of species from the web service TODO may need to move this code
-                                    String jsonUri = bieUri + "/species/namesFromGuids.json?guid=" + StringUtils.join(guids, "&guid=");
+                                  //now get the list of species from the web service TODO may need to move this code                                   
                                     //handle null values being returned from the service...
-                                    List<String> entities = restTemplate.getForObject(jsonUri, List.class);
+                                    List<String> entities =  bieService.getNamesForGuids(guids);// restTemplate.getForObject(jsonUri, List.class);
                                     for(int j = 0 ; j<guids.size();j++){
                                         out.write((guids.get(j) + ",").getBytes());
                                         String entity = entities.get(j) == null?"":entities.get(j);
@@ -477,9 +473,8 @@ public class SearchDAOImpl implements SearchDAO {
                                     guids.clear();
                                 }
                             }
-                            //now get the list of species from the web service TODO may need to move this code
-                            String jsonUri = bieUri + "/species/namesFromGuids.json?guid=" + StringUtils.join(guids, "&guid=");
-                            List<String> entities = restTemplate.getForObject(jsonUri, List.class);
+                            //now get the list of species from the web service
+                            List<String> entities = bieService.getNamesForGuids(guids);
                             for(int i = 0 ; i<guids.size();i++){
                                 out.write((guids.get(i) + ",").getBytes());
                                 String entity = entities.get(i) == null ? "null":entities.get(i);

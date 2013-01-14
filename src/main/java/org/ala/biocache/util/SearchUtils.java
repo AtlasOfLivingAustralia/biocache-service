@@ -512,7 +512,7 @@ public class SearchUtils {
      * @param filterQuery
      * @return
      */
-    public Map<String, Facet> addFacetMap(String[] filterQuery) {
+    public Map<String, Facet> addFacetMap(String[] filterQuery,Set<String> authIndexFields) {
         Map<String, Facet> afs = new HashMap<String, Facet>();
         //Map<String, String> userNamesByIds = authService.getMapOfAllUserNamesById(); // cached by Eh Cache
 
@@ -572,8 +572,13 @@ public class SearchUtils {
                                     fv = substituteYearsForDates(fv);
                                 } else if (StringUtils.equals(fn, "month")) {
                                     fv = substituteMonthNamesForNums(fv);
-                                } 
-                                else if (StringUtils.contains(fv, "@")) {
+                                } else if (authIndexFields.contains(fn)) {
+                                    if (authService.getMapOfAllUserNamesById().containsKey(StringUtils.remove(fv, "\""))) 
+                                        fv = authService.getMapOfAllUserNamesById().get(StringUtils.remove(fv, "\""));
+                                    else if (authService.getMapOfAllUserNamesByNumericId().containsKey(StringUtils.remove(fv, "\"")))
+                                        fv = authService.getMapOfAllUserNamesByNumericId().get(StringUtils.remove(fv, "\""));
+                                  
+                                } else if (StringUtils.contains(fv, "@")) {
                                     //fv = StringUtils.substringBefore(fv, "@"); // hide email addresses
                                     if (authService.getMapOfAllUserNamesById().containsKey(StringUtils.remove(fv, "\""))) {
                                         fv = authService.getMapOfAllUserNamesById().get(StringUtils.remove(fv, "\""));
