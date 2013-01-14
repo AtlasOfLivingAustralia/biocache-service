@@ -1,6 +1,7 @@
 package org.ala.biocache.util;
 
 
+import org.ala.biocache.dao.*;
 import org.ala.biocache.dto.Facet;
 import org.apache.commons.lang.StringUtils;
 import org.junit.Before;
@@ -20,17 +21,18 @@ import static org.junit.Assert.assertTrue;
 public class FilterQueryParserTest {
   @Inject
   protected SearchUtils searchUtils;
+  @Inject SearchDAO searchDao;
   protected Map<String, Facet> facetMap = null;
 
   @Before
   public void setUp() throws Exception {
-      String[] fqs = {"species_guid:urn:lsid:biodiversity.org.au:afd.taxon:cdddb387-fca5-48d9-85d2-16357c7b986b",
+      String[] fqs = {"species_guid:urn:lsid:biodiversity.org.au:afd.taxon:05a9c8ef-2f9c-4e48-9c98-c2881794b196",
                       "collection_uid:co10",
                       "institution_uid:in4 OR institution_uid:in22 OR institution_uid:in16 OR institution_uid:in6",
                       "occurrence_year:[1940-01-01T00:00:00Z%20TO%201949-12-31T00:00:00Z]",
                       "collector:\"Copland, S J\" OR collector:\"Sadlier, R.\" OR collector:\"Mcreaddie, W\" OR collector:\"Rollo, G\" OR collector:\"Harlow, Pete\"",
                       "month:09 OR month:10 OR month:11"};
-      facetMap = searchUtils.addFacetMap(fqs);
+      facetMap = searchUtils.addFacetMap(fqs, ((SearchDAOImpl)searchDao).getAuthIndexFields());
       System.out.println(facetMap);
   }
 
@@ -43,7 +45,7 @@ public class FilterQueryParserTest {
   public void testAddFacetMap1() {
       Facet sp = facetMap.get("species_guid");
       assertNotNull(sp);
-      assertTrue(StringUtils.containsIgnoreCase(sp.getValue(), "urn:lsid:biodiversity.org.au:afd.taxon:cdddb387-fca5-48d9-85d2-16357c7b986b"));
+      assertTrue(StringUtils.containsIgnoreCase(sp.getValue(), "urn:lsid:biodiversity.org.au:afd.taxon:05a9c8ef-2f9c-4e48-9c98-c2881794b196"));
       assertTrue("got: " + sp.getDisplayName(), StringUtils.containsIgnoreCase(sp.getDisplayName(), "Species:Pogona barbata"));
   }
 

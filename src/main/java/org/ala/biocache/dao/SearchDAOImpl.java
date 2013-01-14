@@ -200,7 +200,7 @@ public class SearchDAOImpl implements SearchDAO {
         }        
     }
     
-    private Set<String> getAuthIndexFields(){
+    public Set<String> getAuthIndexFields(){
         if(authIndexFields == null){
             //set up the hash set of the fields that need to have the authentication service substitute
             authIndexFields = new java.util.HashSet<String>();
