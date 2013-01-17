@@ -156,6 +156,11 @@ public class SearchUtils {
                 return "Data provider: " + collectionCache.getDataProviders().get(uid);
             else
                 return collectionCache.getDataProviders().get(uid);
+        } else if(uid.startsWith("dh") && collectionCache.getDataHubs().containsKey(uid)){
+            if(includeField)
+                return "Data hub: " + collectionCache.getDataHubs().get(uid);
+            else
+                return collectionCache.getDataHubs().get(uid);
         }
         return messageSource.getMessage(fieldName+"."+StringUtils.remove(uid, "\""), null, uid, null);
     }

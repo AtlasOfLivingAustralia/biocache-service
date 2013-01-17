@@ -39,6 +39,7 @@ public class CollectionsCache {
     protected LinkedHashMap<String, Integer> downloadLimits = new LinkedHashMap<String, Integer>();
     protected LinkedHashMap<String, String> institutions = new LinkedHashMap<String, String>();
     protected LinkedHashMap<String, String> collections = new LinkedHashMap<String, String>();
+    protected LinkedHashMap<String, String> dataHubs =  new LinkedHashMap<String,String>();
     protected Date lastUpdated = new Date();
     protected Date lastDownloadLimitUpdate = new Date();
     protected Long timeout = 3600000L; // in milliseconds (1 hour)
@@ -77,6 +78,11 @@ public class CollectionsCache {
     public LinkedHashMap<String, String> getCollections() {
         checkCacheAge();
         return this.collections;
+    }
+    
+    public LinkedHashMap<String, String> getDataHubs() {
+        checkCacheAge();
+        return this.dataHubs;
     }
 
     public LinkedHashMap<String, String> getInstitutions(List<String> inguids, List<String> coguids){
@@ -159,6 +165,7 @@ public class CollectionsCache {
         this.dataResources = getCodesMap(ResourceType.DATA_RESOURCE,null);
         this.dataProviders = getCodesMap(ResourceType.DATA_PROVIDER,null);
         this.tempDataResources = getCodesMap(ResourceType.TEMP_DATA_RESOURCE,null);
+        this.dataHubs = getCodesMap(ResourceType.DATA_HUB, null);
         this.dataResources.putAll(tempDataResources);
         
     }
@@ -216,7 +223,8 @@ public class CollectionsCache {
         COLLECTION("collection"),
         DATA_RESOURCE("dataResource"),
         DATA_PROVIDER("dataProvider"),
-        TEMP_DATA_RESOURCE("tempDataResource");
+        TEMP_DATA_RESOURCE("tempDataResource"),
+        DATA_HUB("dataHub");
 
         private String type;
 
