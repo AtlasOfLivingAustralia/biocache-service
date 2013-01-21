@@ -60,3 +60,9 @@ fieldsToSample=el882,el889,el887,el865,el894,cl21,cl22,cl927,cl23,cl617,cl620
 
 # base directory for heatmap images (including base templates)
 mapController.heatmapBase=/data/output/heatmap
+
+
+# authService properties to inject
+auth.userDetailsUrl=http://auth.ala.org.au/userdetails/userDetails/
+auth.userNamesForIdPath=getUserList
+auth.userNamesForNumericIdPath=getUserListWithIds
