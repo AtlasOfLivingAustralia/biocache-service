@@ -29,6 +29,7 @@ import java.util.Set;
 
 import javax.servlet.ServletOutputStream;
 
+import au.org.ala.biocache.RecordWriter;
 import org.ala.biocache.dto.BreakdownRequestParams;
 import org.ala.biocache.dto.DataProviderCountDTO;
 import org.ala.biocache.dto.DownloadRequestParams;
@@ -113,19 +114,12 @@ public class SearchDAOImpl implements SearchDAO {
 
     /** log4 j logger */
     private static final Logger logger = Logger.getLogger(SearchDAOImpl.class);
-    /** SOLR home directory - injected by Spring from properties file */
-    //protected String solrHome = "/data/solr/bio-proto";
     /** SOLR server instance */
     protected SolrServer server;
     /** Limit search results - for performance reasons */
     protected Integer MAX_DOWNLOAD_SIZE = 500000;
     /** Batch size for a download */
     protected Integer downloadBatchSize = 500;
-    protected static final String POINT = "point-0.1";
-    protected static final String KINGDOM = "kingdom";
-    protected static final String KINGDOM_LSID = "kingdom_lsid";
-    protected static final String SPECIES = "species";
-    protected static final String SPECIES_LSID = "species_lsid";
     public static final String NAMES_AND_LSID = "names_and_lsid";
     public static final String COMMON_NAME_AND_LSID ="common_name_and_lsid";
     protected static final String TAXON_CONCEPT_LSID = "taxon_concept_lsid";
@@ -146,8 +140,6 @@ public class SearchDAOImpl implements SearchDAO {
     protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("[a-z_]{1,}:");
 //    protected Pattern facetSortPattern = Pattern.compile("([a-zA-z_]+?):(count|index)");
 //    protected Pattern solrParamPattern = Pattern.compile("([a-zA-z_\\.]+?)=([a-zA-z_]+?)");
-    
-    
 
     /** Download properties */
     protected DownloadFields downloadFields;
@@ -167,20 +159,21 @@ public class SearchDAOImpl implements SearchDAO {
     @Inject
     protected AuthService authService;
     
-    protected Integer maxMultiPartThreads=20;
+    protected Integer maxMultiPartThreads = 20;
+
     //thread pool for multipart queries that take awhile:
     private ExecutorService executor = null;
     
     //should we check download limits
-    private boolean checkDownloadLimits=false;
+    private boolean checkDownloadLimits = false;
     
     //Comma separated list of solr fields that need to have the authService substitute values if they are used in a facet. - CAN be overridden
-    private String authServiceFields="";
+    private String authServiceFields = "";
     
     private Set<IndexFieldDTO> indexFields = null;
-    private Map<String, IndexFieldDTO> indexFieldMap =null;
+    private Map<String, IndexFieldDTO> indexFieldMap = null;
     private Map<String, StatsIndexFieldDTO> rangeFieldCache = null;
-    private Set<String> authIndexFields =null;
+    private Set<String> authIndexFields = null;
 
     /**
      * Initialise the SOLR server instance
@@ -243,7 +236,7 @@ public class SearchDAOImpl implements SearchDAO {
         
         String facet = requestParams.getFacets()[0];
         String[] originalFqs = requestParams.getFq();
-        ArrayList list2 = new ArrayList();
+//        ArrayList list2 = new ArrayList();
         ArrayList<Future<List<FieldResultDTO>>> threads = new ArrayList<Future<List<FieldResultDTO>>>();
         //batch up the rest of the world query so that we have fqs based on species we want to test for. This should improve the performance of the endemic services.       
         while(i < list1.size()){
@@ -286,7 +279,7 @@ public class SearchDAOImpl implements SearchDAO {
         outputStream.flush();
         outputStream.close();
         String includedValues = outputStream.toString();
-        includedValues= includedValues == null ? "":includedValues;
+        includedValues = includedValues == null ? "" : includedValues;
         String[] values = includedValues.split("\n");
         ArrayList<FieldResultDTO> list = new ArrayList<FieldResultDTO>();
         boolean first = true;
@@ -300,9 +293,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
         }
         return list;
-      //return includedValues.split("\n");
   }
-    
 
     @Override
     @Deprecated
@@ -330,9 +321,8 @@ public class SearchDAOImpl implements SearchDAO {
         return searchResults;
     }
 
-
     /**
-     * @see org.ala.biocache.dao.SearchDAO#findByFulltextSpatialQuery(org.ala.biocache.dto.SpatialSearchRequestParams)
+     * @see org.ala.biocache.dao.SearchDAO#findByFulltextSpatialQuery
      */
     @Override
     public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, Map<String,String[]> extraParams) throws Exception {
@@ -519,7 +509,7 @@ public class SearchDAOImpl implements SearchDAO {
         srp.setFacets(searchParams.getFacets());
         
         SolrQuery solrQuery = initSolrQuery(srp,false,null);
-        //We want all the facets so we candump all the coordinates
+        //We want all the facets so we can dump all the coordinates
         solrQuery.setFacetLimit(-1);
         solrQuery.setFacetSort("count");
         solrQuery.setRows(0);
@@ -540,147 +530,167 @@ public class SearchDAOImpl implements SearchDAO {
                 }
         }
     }
+
     /**
-     * Writes the index fields to the supplied output stream in CSV format
-     * 
-     * NB This implementation DOES NOT support the concept of download limits at a data resource level.
-     * 
+     * Writes the index fields to the supplied output stream in CSV format.
+     *
+     * DM: refactored to split the query by month to improve performance.
+     * Further enhancements possible:
+     * 1) Multi threaded
+     * 2) More filtering, by year or decade..
+     *
      * @param downloadParams
      * @param out
-     * @param i
      * @param includeSensitive
-     * @return
      * @throws Exception
      */
-    public Map<String, Integer> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, int i, boolean includeSensitive) throws Exception{
+    public Map<String, Integer> writeResultsFromIndexToStream(DownloadRequestParams downloadParams,
+                                                                         OutputStream out,
+                                                                         boolean includeSensitive) throws Exception {
+        long start = System.currentTimeMillis();
+
         int resultsCount = 0;
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
-       
+
         try{
-            SolrQuery solrQuery = initSolrQuery(downloadParams,false,null);
-            formatSearchQuery(downloadParams); 
-            
-            
+            SolrQuery solrQuery = new SolrQuery();
+            formatSearchQuery(downloadParams);
+
             String dFields = downloadParams.getFields();
-            
+
             if(includeSensitive){
                 //include raw latitude and longitudes
-                dFields = dFields.replaceFirst("decimalLatitude.p", "sensitive_latitude,sensitive_longitude,decimalLatitude.p");
+                dFields = dFields.replaceFirst("decimalLatitude.p","sensitive_latitude,sensitive_longitude,decimalLatitude.p");
             }
-            
-            StringBuilder  sb = new StringBuilder(dFields);
-            if(downloadParams.getExtra().length()>0)
+
+            StringBuilder sb = new StringBuilder(dFields);
+            if(!downloadParams.getExtra().isEmpty()){
                 sb.append(",").append(downloadParams.getExtra());
-            
-            
-            String[] fields = sb.toString().split(","); 
-            List<String>[] indexedFields = downloadFields.getIndexFields(fields);
+            }
+
+            String[] requestedFields = sb.toString().split(",");
+            List<String>[] indexedFields = downloadFields.getIndexFields(requestedFields);
             logger.debug("Fields included in download: " +indexedFields[0]);
             logger.debug("Fields excluded from download: "+indexedFields[1]);
             logger.debug("The headers in downloads: "+indexedFields[2]);
+
             //set the fields to the ones that are available in the index
-            fields = indexedFields[0].toArray(new String[]{});
+            String[] fields = indexedFields[0].toArray(new String[]{});
+            solrQuery.setFields(fields);
+            solrQuery.addField("assertions")
+                .addField("institution_uid")
+                .addField("collection_uid")
+                .addField("data_resource_uid")
+                .addField("data_provider_uid");
+
             //add context information
             updateQueryContext(downloadParams);
             solrQuery.setQuery(buildSpatialQueryString(downloadParams));
-            int startIndex = 0;
-            int pageSize = downloadBatchSize;
-            solrQuery.setFields(fields);
-            solrQuery.addField("assertions");
-            solrQuery.addField("institution_uid");
-            solrQuery.addField("collection_uid");
-            solrQuery.addField("data_resource_uid");
-            solrQuery.addField("data_provider_uid");
 
-            QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), 0, 0, "score", "asc");
             //get the assertion facets to add them to the download fields
-            List<FacetField> facets = qr.getFacetFields();
+            SolrQuery monthAssertionsQuery = solrQuery.getCopy().addFacetField("month", "assertions");
+            QueryResponse facetQuery = runSolrQuery(monthAssertionsQuery, downloadParams.getFq(), 0, 0, "score", "asc");
+
+            //get the month facets to add them to the download fields get the assertion facets.
+            List<Count> splitByFacet = null;
             StringBuilder qasb = new StringBuilder();
-            //get the assertion factes.
-            for(FacetField facet : facets){
+            for(FacetField facet : facetQuery.getFacetFields()){
                 if(facet.getName().equals("assertions") && facet.getValueCount()>0){
-                    
                    for(FacetField.Count facetEntry : facet.getValues()){
-                       //System.out.println("facet: " + facetEntry.getName());
                        if(qasb.length()>0)
                            qasb.append(",");
                        qasb.append(facetEntry.getName());
                    }
                 }
+                if(facet.getName().equals("month") && facet.getValueCount()>0){
+                   splitByFacet = facet.getValues();
+                }
             }
-            
-            String qas = qasb.toString();   
-            //TODO headings
-//            String[] fields = sb.toString().split(",");            
-            String[]qaFields = qas.equals("")?new String[]{}:qas.split(",");
+
+            String qas = qasb.toString();
+            String[] qaFields = qas.equals("") ? new String[]{} : qas.split(",");
             String[] qaTitles = downloadFields.getHeader(qaFields, false);
-//            String[] titles = downloadFields.getHeader(fields);
-//            String[] header = org.apache.commons.lang3.ArrayUtils.addAll(titles,qaTitles);
-            
+
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[2].toArray(new String[]{}),qaTitles);
             au.org.ala.biocache.RecordWriter rw = new org.ala.biocache.writer.CSVRecordWriter(out, header);
 
-            //now perform the download from the index
-            qr = runSolrQuery(solrQuery, downloadParams.getFq(), pageSize, startIndex, "score", "asc");
-            
-            //no download limit for index based downloads
-            //while (qr.getResults().size() > 0 && resultsCount < MAX_DOWNLOAD_SIZE ) {
-            while (qr.getResults().size() > 0) {
-                logger.debug("Start index: " + startIndex);                
-                for (SolrDocument sd : qr.getResults()) {
-                    if(sd.getFieldValue("data_resource_uid") != null){
-                    String druid = sd.getFieldValue("data_resource_uid").toString();
-                   // if(resultsCount < MAX_DOWNLOAD_SIZE){
-                        resultsCount++;
-                        
-                        //add the record
-                        String[] values = new String[fields.length+qaFields.length];
-                        //get all the "single" values from the index
-                        int j=0;
-                        for(j =0;j<fields.length;j++){
-                            Object value =sd.getFirstValue(fields[j]);
-                            if(value instanceof Date)
-                                values[j] = value == null ? "" : org.apache.commons.lang.time.DateFormatUtils.format((Date)value, "yyyy-MM-dd");
-                            else
-                                values[j]= value==null?"":value.toString();
-                        }
-                        //now handle the assertions
-                        java.util.Collection<Object> assertions = sd.getFieldValues("assertions");
-                        //Handle the case where there a no assertions against a record
-                        if(assertions == null)
-                            assertions = Collections.EMPTY_LIST;
-                        for(int k=0;k<qaFields.length;k++){
-                            values[j+k] = Boolean.toString(assertions.contains(qaFields[k]));
-                        }
-                        
-                        rw.write(values);
+            //for each month create a separate query that pages through 500 records per page
+            List<SolrQuery> queries = new ArrayList<SolrQuery>();
+            for(Count facet: splitByFacet){
+                SolrQuery splitByFacetQuery = solrQuery.getCopy().addFilterQuery(facet.getFacetField().getName() + ":" + facet.getName());
+                splitByFacetQuery.setFacet(false);
+                queries.add(splitByFacetQuery);
+            }
+            SolrQuery remainderQuery = solrQuery.getCopy().addFilterQuery("-"+splitByFacet.get(0).getFacetField().getName() + ":[* TO *]");
+            queries.add(remainderQuery);
 
-                        //increment the counters....
-                        incrementCount(uidStats, sd.getFieldValue("institution_uid"));
-                        incrementCount(uidStats, sd.getFieldValue("collection_uid"));
-                        incrementCount(uidStats, sd.getFieldValue("data_provider_uid"));
-                        incrementCount(uidStats,  sd.getFieldValue("data_resource_uid"));
-                    }//}
-                }
-                
-                startIndex += pageSize;
-                
-                //if (resultsCount < MAX_DOWNLOAD_SIZE) {
+            //execute each query, writing the results to stream
+            for(SolrQuery splitByFacetQuery: queries){
+                //if count exceeds thresholds, get facets on year and split query again
+                int startIndex = 0;
+                //now perform the download from the index
+                QueryResponse qr = runSolrQuery(splitByFacetQuery, downloadParams.getFq(), downloadBatchSize, startIndex, "score", "asc");
+                while (!qr.getResults().isEmpty()) {
+                    logger.debug("Start index: " + startIndex + ", " + splitByFacetQuery.getQuery());
+                    resultsCount += processQueryResults(uidStats, fields, qaFields, rw, qr);
+                    startIndex += downloadBatchSize;
                     //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
-                    qr = runSolrQuery(solrQuery, null, pageSize, startIndex, "score", "asc");
-                   
-               // }
-            }            
+                    qr = runSolrQuery(splitByFacetQuery, null, downloadBatchSize, startIndex, "score", "asc");
+                }
+            }
             rw.finalise();
-            
-            //QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), pageSize, startIndex, "score", "asc");
-            
+
+            long finish = System.currentTimeMillis();
+            long timeTakenInSecs = (finish-start)/1000;
+            logger.info("Download of " + resultsCount + " records in " + timeTakenInSecs + " seconds. Record/sec: " + resultsCount/timeTakenInSecs);
+
+        } catch (SolrServerException ex) {
+            logger.error("Problem communicating with SOLR server while processing download. " + ex.getMessage(), ex);
         }
-        catch (SolrServerException ex) {
-            logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
-            //searchResults.setStatus("ERROR"); // TODO also set a message field on this bean with the error message(?)
-        }        
         return uidStats;
+    }
+
+    private int processQueryResults( Map<String, Integer> uidStats, String[] fields, String[] qaFields, RecordWriter rw, QueryResponse qr) {
+        int resultsCount = 0;
+        for (SolrDocument sd : qr.getResults()) {
+            if(sd.getFieldValue("data_resource_uid") != null){
+
+                resultsCount++;
+
+                //add the record
+                String[] values = new String[fields.length + qaFields.length];
+
+                //get all the "single" values from the index
+                for(int j = 0; j < fields.length; j++){
+                    Object value = sd.getFirstValue(fields[j]);
+                    if(value instanceof Date)
+                        values[j] = value == null ? "" : org.apache.commons.lang.time.DateFormatUtils.format((Date)value, "yyyy-MM-dd");
+                    else
+                        values[j] = value == null ? "" : value.toString();
+                }
+
+                //now handle the assertions
+                java.util.Collection<Object> assertions = sd.getFieldValues("assertions");
+
+                //Handle the case where there a no assertions against a record
+                if(assertions == null){
+                    assertions = Collections.EMPTY_LIST;
+                }
+
+                for(int k = 0; k < qaFields.length; k++){
+                    values[fields.length + k] = Boolean.toString(assertions.contains(qaFields[k]));
+                }
+
+                rw.write(values);
+
+                //increment the counters....
+                incrementCount(uidStats, sd.getFieldValue("institution_uid"));
+                incrementCount(uidStats, sd.getFieldValue("collection_uid"));
+                incrementCount(uidStats, sd.getFieldValue("data_provider_uid"));
+                incrementCount(uidStats,  sd.getFieldValue("data_resource_uid"));
+            }
+        }
+        return resultsCount;
     }
 
     /**
@@ -753,7 +763,7 @@ public class SearchDAOImpl implements SearchDAO {
                 for(String dr : downloadLimit.keySet()){
                     //add another fq to the search for data_resource_uid                    
                      downloadParams.setFq((String[])ArrayUtils.add(originalFq, "data_resource_uid:" + dr));
-                     resultsCount =downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, dr, includeSensitive);
+                     resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, dr, includeSensitive);
                      if(fqBuilder.length()>2)
                          fqBuilder.append(" OR ");
                      fqBuilder.append("data_resource_uid:").append(dr);
@@ -848,11 +858,10 @@ public class SearchDAOImpl implements SearchDAO {
      * @param druid
      * @param limits
      * @param decrease whether or not to decrease the download limit available
-     * @return
      */
     private boolean shouldDownload(String druid, Map<String, Integer>limits, boolean decrease){
         if(checkDownloadLimits){
-            if(limits.size()>0 && limits.containsKey(druid)){
+            if(!limits.isEmpty() && limits.containsKey(druid)){
                 Integer remainingLimit = limits.get(druid);
                 if(remainingLimit==0){
                     return false;
@@ -1086,17 +1095,19 @@ public class SearchDAOImpl implements SearchDAO {
             List<FacetField.Count> dpIdEntries = dataProviderIdFacet.getValues();
             List<FacetField.Count> dpNameEntries = dataProviderNameFacet.getValues();
 
-            for (int i = 0; i < dpIdEntries.size(); i++) {
+            if(dpIdEntries != null){
+                for (int i = 0; i < dpIdEntries.size(); i++) {
 
-                FacetField.Count dpIdEntry = dpIdEntries.get(i);
-                FacetField.Count dpNameEntry = dpNameEntries.get(i);
+                    FacetField.Count dpIdEntry = dpIdEntries.get(i);
+                    FacetField.Count dpNameEntry = dpNameEntries.get(i);
 
-                String dataProviderId = dpIdEntry.getName();
-                String dataProviderName = dpNameEntry.getName();
-                long count = dpIdEntry.getCount();
+                    String dataProviderId = dpIdEntry.getName();
+                    String dataProviderName = dpNameEntry.getName();
+                    long count = dpIdEntry.getCount();
 
-                DataProviderCountDTO dto = new DataProviderCountDTO(dataProviderId, dataProviderName, count);
-                dpDTOs.add(dto);
+                    DataProviderCountDTO dto = new DataProviderCountDTO(dataProviderId, dataProviderName, count);
+                    dpDTOs.add(dto);
+                }
             }
         }
         logger.info("Find data providers = " + dpDTOs.size());
@@ -1452,10 +1463,20 @@ public class SearchDAOImpl implements SearchDAO {
         return trDTO;
     }
 
-    //TODO delete me just temporary until all methods are modified to use SearchRequestParams requestParams
+    /**
+     * Convenience method for running solr query
+     *
+     * @param solrQuery
+     * @param filterQuery
+     * @param pageSize
+     * @param startIndex
+     * @param sortField
+     * @param sortDirection
+     * @return
+     * @throws SolrServerException
+     */
     private QueryResponse runSolrQuery(SolrQuery solrQuery, String filterQuery[], Integer pageSize,
             Integer startIndex, String sortField, String sortDirection) throws SolrServerException {
-
         SearchRequestParams requestParams = new SearchRequestParams();
         requestParams.setFq(filterQuery);
         requestParams.setPageSize(pageSize);
@@ -1463,7 +1484,6 @@ public class SearchDAOImpl implements SearchDAO {
         requestParams.setSort(sortField);
         requestParams.setDir(sortDirection);
         return runSolrQuery(solrQuery, requestParams);
-
     }
 
     /**
@@ -1749,7 +1769,6 @@ public class SearchDAOImpl implements SearchDAO {
      * TODO Fix this to use a state.  REVISE!!
      *
      * @param searchParams
-     * @return
      */
     protected void formatSearchQuery(SpatialSearchRequestParams searchParams) {
         //Only format the query if it doesn't already supply a formattedQuery.
@@ -1878,6 +1897,7 @@ public class SearchDAOImpl implements SearchDAO {
                     }
                     if (lsid.contains("\\")) {
                         //remove internal \ chars, if present
+                        //noinspection MalformedRegex
                         lsid = lsid.replaceAll("\\","");
                     }
                     logger.debug("lsid = " + lsid);
@@ -2137,9 +2157,7 @@ public class SearchDAOImpl implements SearchDAO {
        solrQuery.add("facet.date.gap", "+10YEAR"); // gap interval of 10 years
        solrQuery.add("facet.date.other", "before"); // include counts before the facet start date ("before" label)
        solrQuery.add("facet.date.include", "lower"); // counts will be included for dates on the starting date but not ending date
-
    }
-   
 
     /**
      * Helper method to create SolrQuery object and add facet settings
@@ -2155,12 +2173,6 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFacet(searchParams.getFacet());
         if(searchParams.getFacet()) {
             for (String facet : searchParams.getFacets()) {
-                //This should be handled by the facet ordering.
-//                if (facet.equals("month")) {
-//                    solrQuery.addFacetField("month");
-//                    solrQuery.add("f.month.facet.sort", "index"); // sort by Jan-Dec
-//                } else 
-                    
                 if (facet.equals("date") || facet.equals("decade")) {
                     String fname = facet.equals("decade")?"occurrence_year":"occurrence_"+facet;
                     initDecadeBasedFacet(solrQuery, fname);
@@ -2195,7 +2207,6 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             }
 
-
             solrQuery.setFacetMinCount(1);
             solrQuery.setFacetLimit(searchParams.getFlimit());
             //include this so that the default fsort is still obeyed.
@@ -2207,16 +2218,7 @@ public class SearchDAOImpl implements SearchDAO {
             	solrQuery.add("facet.prefix", searchParams.getFprefix());
 
         }
-//        //add the supplied SOLR type params
-//        for(String sparam : searchParams.getSolr()){
-//            Matcher m = solrParamPattern.matcher(sparam);
-//            if(m.matches()){
-//                //add the solr param in the form param_type=param_value
-//                solrQuery.add(m.group(1),m.group(2));
-//            }
-//        }
-        
-        
+
         solrQuery.setRows(10);
         solrQuery.setStart(0);
 

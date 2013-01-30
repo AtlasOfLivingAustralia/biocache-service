@@ -647,7 +647,7 @@ public class OccurrenceController extends AbstractSecureController {
         Map<String, Integer> uidStats = null;
         try {
             if(fromIndex)
-                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, zop, 100, includeSensitive);
+                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, zop, includeSensitive);
             else
                 uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100, includeSensitive);
         } catch (Exception e){
