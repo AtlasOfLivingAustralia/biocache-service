@@ -14,13 +14,14 @@ import org.apache.log4j.Logger;
  * the Callable interface.  Which will return a Future<List<FieldResultDTO>>.
  * 
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
- *
  */
 public class EndemicCallable implements Callable<List<FieldResultDTO>> {
+
     private static final Logger logger = Logger.getLogger(EndemicCallable.class);
     private SpatialSearchRequestParams srp;
     private int batch;
     private SearchDAO searchDAO;
+
     public EndemicCallable(SpatialSearchRequestParams requestParams, int batch, SearchDAO searchDAO){
         this.srp = requestParams;
         this.batch = batch;
@@ -40,5 +41,4 @@ public class EndemicCallable implements Callable<List<FieldResultDTO>> {
             return null;
         }
     }
-
 }

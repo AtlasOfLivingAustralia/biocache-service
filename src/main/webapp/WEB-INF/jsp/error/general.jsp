@@ -45,11 +45,13 @@
                                             rootCause = sex;
                                     System.out.println("** Root cause is: "+ rootCause.getMessage());
                                     rootCause.printStackTrace(new java.io.PrintWriter(out));
+                                    exception.printStackTrace(System.out);
                             }
                             else {
                                     // It's not a ServletException, so we'll just show it
                                     System.out.println("\n** Other exception: "+ exception.getMessage());
                                     exception.printStackTrace(new java.io.PrintWriter(out));
+                                    exception.printStackTrace(System.out);
                             }
                     }
                     else  {

@@ -267,7 +267,6 @@ public class SearchDAOImpl implements SearchDAO {
         }
         logger.debug("Determined final endemic list ("+list1.size()+")...");        
         return list1;
-        
     }
     
     /**
@@ -423,7 +422,7 @@ public class SearchDAOImpl implements SearchDAO {
         
         QueryResponse qr = runSolrQuery(solrQuery, searchParams);
         logger.debug("Retrieved facet results from server...");
-        if (qr.getResults().size() > 0) {
+        if (!qr.getResults().isEmpty()) {
             FacetField ff = qr.getFacetField(searchParams.getFacets()[0]);
             //write the header line
             if(ff != null){
@@ -694,6 +693,8 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
+     * Note - this method extracts from CASSANDRA rather than the Index.
+     *
      * @see org.ala.biocache.dao.SearchDAO#writeResultsToStream(org.ala.biocache.dto.DownloadRequestParams, java.io.OutputStream, int, boolean) 
      */
     public Map<String, Integer> writeResultsToStream(DownloadRequestParams downloadParams, OutputStream out, int i, boolean includeSensitive) throws Exception {
@@ -788,7 +789,7 @@ public class SearchDAOImpl implements SearchDAO {
         return uidStats;
     }
     /**
-     * downloads the records for the supplied query. Used to break up the download into components
+     * Downloads the records for the supplied query. Used to break up the download into components
      * 1) 1 call for each data resource that has a download limit (supply the data resource uid as the argument dataResource)
      * 2) 1 call for the remaining records
      * @param downloadParams
@@ -801,7 +802,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws Exception
      */
-    private int downloadRecords(DownloadRequestParams downloadParams, au.org.ala.biocache.RecordWriter writer, 
+    private int downloadRecords(DownloadRequestParams downloadParams, au.org.ala.biocache.RecordWriter writer,
                 Map<String, Integer> downloadLimit,  Map<String, Integer> uidStats,
                 String[] fields, String[] qaFields,int resultsCount, String dataResource, boolean includeSensitive) throws Exception {
         logger.info("download query: " + downloadParams.getQ());
@@ -846,7 +847,6 @@ public class SearchDAOImpl implements SearchDAO {
             if (resultsCount < MAX_DOWNLOAD_SIZE) {
                 //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
                 qr = runSolrQuery(solrQuery, null, pageSize, startIndex, "score", "asc");
-               
             }
         }
         return resultsCount;
