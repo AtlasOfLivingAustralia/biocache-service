@@ -168,7 +168,9 @@ public class SearchRequestParams {
         }
 //        if(fq.length>0 && !fq[0].equals(""))
 //            req.append("&fq=").append(StringUtils.join(fq, "&fq="));
-        req.append("&qc=").append(qc);
+        if(qc != ""){
+            req.append("&qc=").append(qc);
+        }
         return req.toString();
     }
 

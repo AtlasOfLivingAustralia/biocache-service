@@ -1511,42 +1511,44 @@ public class SearchDAOImpl implements SearchDAO {
                     continue;
                 }
                 String[] parts = fq.split(":", 2); // separate query field from query text
-                logger.debug("fq split into: " + parts.length + " parts: " + parts[0] + " & " + parts[1]);
-                String prefix = null;
-                String suffix = null;
-                // don't escape range or '(multiple terms)' queries
-                if ((parts[1].contains("[") && parts[1].contains(" TO ") && parts[1].contains("]"))
-                        || parts[0].startsWith("-(") || parts[0].startsWith("(")) {
-                    prefix = parts[0];
-                    suffix = parts[1];
-                } else {
-                    if(parts[0].startsWith("-")) {
-                        prefix = "-" + ClientUtils.escapeQueryChars(parts[0].substring(1));
-                    } else {
-                        prefix = ClientUtils.escapeQueryChars(parts[0]);
-                    }
-                    if(parts[1].equals("*")) {
+                if(parts.length>1){
+                    logger.debug("fq split into: " + parts.length + " parts: " + parts[0] + " & " + parts[1]);
+                    String prefix = null;
+                    String suffix = null;
+                    // don't escape range or '(multiple terms)' queries
+                    if ((parts[1].contains("[") && parts[1].contains(" TO ") && parts[1].contains("]"))
+                            || parts[0].startsWith("-(") || parts[0].startsWith("(")) {
+                        prefix = parts[0];
                         suffix = parts[1];
                     } else {
-                        boolean quoted = false;
-                        StringBuffer sb = new StringBuffer();
-                        if(parts[1].startsWith("\"") && parts[1].endsWith("\"")){
-                            quoted = true;
-                            parts[1] = parts[1].substring(1, parts[1].length()-1);
-                            sb.append("\"");
+                        if(parts[0].startsWith("-")) {
+                            prefix = "-" + ClientUtils.escapeQueryChars(parts[0].substring(1));
+                        } else {
+                            prefix = ClientUtils.escapeQueryChars(parts[0]);
                         }
-                        sb.append(ClientUtils.escapeQueryChars(parts[1]));
-                        if(quoted) sb.append("\"");
-                        suffix = sb.toString();
+                        if(parts[1].equals("*")) {
+                            suffix = parts[1];
+                        } else {
+                            boolean quoted = false;
+                            StringBuffer sb = new StringBuffer();
+                            if(parts[1].startsWith("\"") && parts[1].endsWith("\"")){
+                                quoted = true;
+                                parts[1] = parts[1].substring(1, parts[1].length()-1);
+                                sb.append("\"");
+                            }
+                            sb.append(ClientUtils.escapeQueryChars(parts[1]));
+                            if(quoted) sb.append("\"");
+                            suffix = sb.toString();
+                        }
                     }
-                }
 
-                //FIXME check for blank value and replace with constant
-                if(StringUtils.isEmpty(suffix)){
-                    suffix = "Unknown";
+                    //FIXME check for blank value and replace with constant
+                    if(StringUtils.isEmpty(suffix)){
+                        suffix = "Unknown";
+                    }
+                    solrQuery.addFilterQuery(prefix + ":" + suffix); // solrQuery.addFacetQuery(facetQuery)
+                    logger.info("adding filter query: " + prefix + ":" + suffix);
                 }
-                solrQuery.addFilterQuery(prefix + ":" + suffix); // solrQuery.addFacetQuery(facetQuery)
-                logger.info("adding filter query: " + prefix + ":" + suffix);
             }
         }
 
@@ -1782,7 +1784,8 @@ public class SearchDAOImpl implements SearchDAO {
                 while(matcher.find()) {
                     String value = matcher.group();
                     try {
-                        qid = Long.parseLong(value.substring(4));
+                        String qidValue = SearchUtils.stripEscapedQuotes(value.substring(4));
+                        qid = Long.parseLong(qidValue);
                         ParamsCacheObject pco = ParamsCache.get(qid);
                         if(pco != null) {
                             searchParams.setQId(qid);

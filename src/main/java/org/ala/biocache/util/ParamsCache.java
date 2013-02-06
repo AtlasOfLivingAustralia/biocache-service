@@ -54,7 +54,7 @@ public class ParamsCache {
     //for saving/loading ParamsCacheObject
     final static ObjectMapper jsonMapper = new ObjectMapper();
     
-    public static Pattern qidPattern = Pattern.compile("qid:[0-9]*");
+    public static Pattern qidPattern = Pattern.compile("qid:(\")?[0-9]*(\")?");
 
     static {
         counter = new CountDownLatch(1);
