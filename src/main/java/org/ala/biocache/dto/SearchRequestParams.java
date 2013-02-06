@@ -30,10 +30,12 @@ import org.apache.log4j.Logger;
  */
 public class SearchRequestParams {
     /** Only used to store the formattedQuery to be passed around in biocache-service**/
-    protected String formattedQuery =null; 
+
+    protected Long qId = null;  // "qid:12312321"
+    protected String formattedQuery =null;
     protected String q = "";
     protected String[] fq = {""}; // must not be null
-    protected String fl="";
+    protected String fl = "";
     /**
      * The facets to be included by the search
      * Initialised with the default facets to use
@@ -153,7 +155,12 @@ public class SearchRequestParams {
      */
     public String getUrlParams(){
         StringBuilder req = new StringBuilder();
-        req.append("?q=").append(q);
+        if(qId != null){
+            req.append("?q=qid:").append(qId);
+        } else {
+            req.append("?q=").append(q);
+        }
+
         for(String f : fq){
             //only add the fq if it is not the query context
           if(f.length()>0 && !f.equals(qc))
@@ -182,7 +189,15 @@ public class SearchRequestParams {
     public void setQ(String query) {
         this.q = query;
     }
-    
+
+    public Long getQId() {
+        return qId;
+    }
+
+    public void setQId(Long qId) {
+        this.qId = qId;
+    }
+
     /**
      * Get the value of fq
      *

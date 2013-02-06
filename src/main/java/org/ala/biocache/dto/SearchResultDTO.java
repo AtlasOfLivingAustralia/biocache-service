@@ -52,16 +52,15 @@ public class SearchResultDTO {
     private List<FacetResultDTO> facetResults;
     /** SOLR query response following search */
     private QueryResponse qr;
+    /** The original query */
     private String query;
-    /**
-     * Stores the URL parameter that should be provided to Download and View Map
-     */
+    /** Stores the URL parameter that should be provided to Download and View Map */
     private String urlParameters;
-
     /** Stores the title for the query - this is dependent on the type of query that has been executed */
     private String queryTitle;
     /**
-     * Stores a map a facets that have been applied to the query.  This will include details that a necessary to display on clients.
+     * Stores a map a facets that have been applied to the query.  This will include details that a
+     * necessary to display on clients.
      */
     private Map<String,Facet> activeFacetMap;
 
@@ -72,7 +71,6 @@ public class SearchResultDTO {
      */
     public SearchResultDTO(List<OccurrenceIndex> searchResults) {
         this.occurrences = searchResults;
-        //this.facetResults = facetResults;
     }
 
     /**

@@ -25,7 +25,7 @@ import org.apache.commons.lang.StringUtils;
  *
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
-public class SpatialSearchRequestParams extends SearchRequestParams{
+public class SpatialSearchRequestParams extends SearchRequestParams {
     protected Float radius = null;
     protected Float lat = null;
     protected Float lon = null;

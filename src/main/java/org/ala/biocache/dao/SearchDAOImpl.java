@@ -298,15 +298,14 @@ public class SearchDAOImpl implements SearchDAO {
     @Deprecated
     public SearchResultDTO findByFulltextQuery(SearchRequestParams requestParams) throws Exception {
         SearchResultDTO searchResults = new SearchResultDTO();
-
-        try {            
+        try {
             //formatSearchQuery(requestParams);            
             //add the context information
             updateQueryContext(requestParams);
             SolrQuery solrQuery = initSolrQuery(requestParams, true, null); // general search settings
             solrQuery.setQuery(requestParams.getFormattedQuery());
             QueryResponse qr = runSolrQuery(solrQuery, requestParams);
-            searchResults = processSolrResponse(qr, solrQuery,OccurrenceIndex.class);
+            searchResults = processSolrResponse(requestParams, qr, solrQuery,OccurrenceIndex.class);
             //set the title for the results
             searchResults.setQueryTitle(requestParams.getDisplayString());
             searchResults.setUrlParameters(requestParams.getUrlParams());
@@ -343,7 +342,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             QueryResponse qr = runSolrQuery(solrQuery, searchParams);
             Class resultClass = includeSensitive? org.ala.biocache.dto.SensitiveOccurrenceIndex.class:OccurrenceIndex.class;
-            searchResults = processSolrResponse(qr, solrQuery,resultClass);
+            searchResults = processSolrResponse(searchParams, qr, solrQuery,resultClass);
             searchResults.setQueryTitle(searchParams.getDisplayString());
             searchResults.setUrlParameters(searchParams.getUrlParams());
             //now update the fq display map...
@@ -989,7 +988,7 @@ public class SearchDAOImpl implements SearchDAO {
         updateQueryContext(searchParams);
 
         QueryResponse qr = runSolrQuery(solrQuery, searchParams);
-        SearchResultDTO searchResults = processSolrResponse(qr, solrQuery,OccurrenceIndex.class);
+        SearchResultDTO searchResults = processSolrResponse(searchParams, qr, solrQuery,OccurrenceIndex.class);
         List<OccurrenceIndex> ocs = searchResults.getOccurrences();
 
 
@@ -1187,19 +1186,19 @@ public class SearchDAOImpl implements SearchDAO {
         return speciesWithCounts;
     }
 
-    @Override
-    //TODO Not storing/indexing a user
-    //IS this being used
-    public List<OccurrenceIndex> findPointsForUserId(String userId) throws Exception {
-        String query = "user_id:" + ClientUtils.escapeQueryChars(userId);
-        SolrQuery solrQuery = new SolrQuery();
-        solrQuery.setQueryType("standard");
-        solrQuery.setQuery(query);
-        QueryResponse qr = runSolrQuery(solrQuery, null, 1000000, 0, "score", "asc");
-        SearchResultDTO searchResults = processSolrResponse(qr, solrQuery,OccurrenceIndex.class);
-        logger.debug("solr result (size): " + searchResults.getOccurrences().size());
-        return searchResults.getOccurrences();
-    }
+//    @Override
+//    //TODO Not storing/indexing a user
+//    //IS this being used
+//    public List<OccurrenceIndex> findPointsForUserId(String userId) throws Exception {
+//        String query = "user_id:" + ClientUtils.escapeQueryChars(userId);
+//        SolrQuery solrQuery = new SolrQuery();
+//        solrQuery.setQueryType("standard");
+//        solrQuery.setQuery(query);
+//        QueryResponse qr = runSolrQuery(solrQuery, null, 1000000, 0, "score", "asc");
+//        SearchResultDTO searchResults = processSolrResponse(qr, solrQuery,OccurrenceIndex.class);
+//        logger.debug("solr result (size): " + searchResults.getOccurrences().size());
+//        return searchResults.getOccurrences();
+//    }
 
     /**
      * @see org.ala.biocache.dao.SearchDAO#findAllSpeciesByCircleAreaAndHigherTaxa(org.ala.biocache.dto.SpatialSearchRequestParams, String) 
@@ -1570,7 +1569,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @param solrQuery
      * @return
      */
-    private SearchResultDTO processSolrResponse(QueryResponse qr, SolrQuery solrQuery, Class resultClass) {
+    private SearchResultDTO processSolrResponse(SearchRequestParams params, QueryResponse qr, SolrQuery solrQuery, Class resultClass) {
         SearchResultDTO searchResult = new SearchResultDTO();
         SolrDocumentList sdl = qr.getResults();
         // Iterator it = qr.getResults().iterator() // Use for download 
@@ -1592,7 +1591,7 @@ public class SearchDAOImpl implements SearchDAO {
         logger.debug("sortField post-split: " + StringUtils.join(solrSort, "|"));
         searchResult.setSort(solrSort[0]); // sortField
         searchResult.setDir(solrSort[1]); // sortDirection
-        searchResult.setQuery(solrQuery.getQuery());
+        searchResult.setQuery(params.getUrlParams()); //this needs to be the original URL>>>>
         searchResult.setOccurrences(results);
         // populate SOLR facet results
         if (facets != null) {
@@ -1695,9 +1694,9 @@ public class SearchDAOImpl implements SearchDAO {
     private String getRangeValue(String lower, Number gap){
         StringBuilder value=new StringBuilder("[");
         value.append(lower). append(" TO ").append(getUpperRange(lower,gap,true));
-        
         return value.append("]").toString();
     }
+
     private String getUpperRange(String lower, Number gap, boolean addGap){
         if (gap instanceof Integer) {
           Integer upper = Integer.parseInt(lower) - 1;
@@ -1774,7 +1773,7 @@ public class SearchDAOImpl implements SearchDAO {
         //Only format the query if it doesn't already supply a formattedQuery.
         if(StringUtils.isEmpty(searchParams.getFormattedQuery())){
             // set the query
-            String query =searchParams.getQ();
+            String query = searchParams.getQ();
             
             //cached query parameters are already formatted
             if(query.contains("qid:")) {            
@@ -1786,6 +1785,7 @@ public class SearchDAOImpl implements SearchDAO {
                         qid = Long.parseLong(value.substring(4));
                         ParamsCacheObject pco = ParamsCache.get(qid);
                         if(pco != null) {
+                            searchParams.setQId(qid);
                             searchParams.setQ(pco.getQ());
                             searchParams.setDisplayString(pco.getDisplayString());
                             if(searchParams instanceof SpatialSearchRequestParams) {

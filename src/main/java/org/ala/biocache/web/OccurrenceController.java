@@ -1037,17 +1037,17 @@ public class OccurrenceController extends AbstractSecureController {
         return lastPage;
     }
 
-    /**
-     * Simple check for valid latitude, longitude & radius values
-     *
-     * @param latitude
-     * @param longitude
-     * @param radius
-     * @return
-     */
-    private boolean checkValidSpatialParams(Float latitude, Float longitude, Integer radius) {
-        return (latitude != null && !latitude.isNaN() && longitude != null && !longitude.isNaN() && radius != null && radius > 0);
-    }
+//    /**
+//     * Simple check for valid latitude, longitude & radius values
+//     *
+//     * @param latitude
+//     * @param longitude
+//     * @param radius
+//     * @return
+//     */
+//    private boolean checkValidSpatialParams(Float latitude, Float longitude, Integer radius) {
+//        return (latitude != null && !latitude.isNaN() && longitude != null && !longitude.isNaN() && radius != null && radius > 0);
+//    }
 
 	/**
 	 * @param hostUrl the hostUrl to set
