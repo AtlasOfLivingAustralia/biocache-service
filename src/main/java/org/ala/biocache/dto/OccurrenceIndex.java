@@ -39,6 +39,7 @@ public class OccurrenceIndex {
             e.printStackTrace();
         }
     }
+    public static final String defaultFields="id,row_key,occurrence_id,data_hub_uid,data_hub,institution_uid,institution_code,institution_name,collection_uid,collection_code,collection_name,catalogue_number,taxon_concept_lsid,occurrence_date,occurrence_year,taxon_name,common_name,rank,rank_id,country_code,country,kingdom,phylum,class,order,family,genus,genus_guid,species,species_guid,subspecies,subspecies_guid,state,latitude,longitude,coordinate_uncertainty,year,month,basis_of_record,type_status,location_remarks,occurrence_remarks,lft,rgt,ibra,imcra,places,data_provider_uid,data_provider,data_resource_uid,data_resource,assertions,user_assertions,species_group,image_url,all_image_url,geospatial_kosher,taxonomic_kosher,collector,collectors,raw_taxon_name,raw_basis_of_record,raw_type_status,raw_common_name,lat_long,point-1,point-0.1,point-0.01,point-0.001,point-0.0001,names_and_lsid,multimedia,aust_conservation,state_conservation,sensitive,record_number";
 
     @Field("id") String uuid;
     @Field("row_key") String rowKey;

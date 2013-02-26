@@ -184,18 +184,30 @@ public class SearchDAOImpl implements SearchDAO {
      * Initialise the SOLR server instance
      */
     public SearchDAOImpl() {
+             
+    }
+    
+    private SolrServer getServer(){
+        if(server ==null)
+            initServer();
+        return server;
+    }
+    
+    private void initServer() {
         if (this.server == null) {
             try {
-                //use the solr server that has been in the biocache-store...
-                SolrIndexDAO dao = (SolrIndexDAO) au.org.ala.biocache.Config.getInstance(IndexDAO.class);
+                // use the solr server that has been in the biocache-store...
+                SolrIndexDAO dao = (SolrIndexDAO) au.org.ala.biocache.Config
+                    .getInstance(IndexDAO.class);
                 dao.init();
                 server = dao.solrServer();
                 downloadFields = new DownloadFields(getIndexedFields());
-                
+      
             } catch (Exception ex) {
-                logger.error("Error initialising embedded SOLR server: " + ex.getMessage(), ex);
+                logger.error(
+                    "Error initialising embedded SOLR server: " + ex.getMessage(), ex);
             }
-        }        
+        }
     }
     
     public Set<String> getAuthIndexFields(){
@@ -1561,7 +1573,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setStart(requestParams.getStart());
         solrQuery.setSortField(requestParams.getSort(), ORDER.valueOf(requestParams.getDir()));
         logger.info("runSolrQuery: " + solrQuery.toString());
-        QueryResponse qr =  server.query(solrQuery); // can throw exception
+        QueryResponse qr =  getServer().query(solrQuery); // can throw exception
         if(logger.isDebugEnabled()){
             logger.debug("matched records: " + qr.getResults().getNumFound());
         }
@@ -2253,6 +2265,9 @@ public class SearchDAOImpl implements SearchDAO {
         if (searchParams.getFl().length() > 0) {
             solrQuery.setFields(searchParams.getFl());
         }
+        else{
+            solrQuery.setFields(OccurrenceIndex.defaultFields);
+        }
         
         //add the extra SOLR params
         if(extraSolrParams != null){
@@ -2467,7 +2482,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
         else
             params.set("numTerms", "0");        
-        QueryResponse response = server.query(params);
+        QueryResponse response = getServer().query(params);
         return parseLukeResponse(response.toString(), fields != null);
     }
     /**
@@ -2494,7 +2509,7 @@ public class SearchDAOImpl implements SearchDAO {
             //query.add("sort", facet + " asc");
             query.add("group.field",facet);
         }
-        QueryResponse response = server.query(query);
+        QueryResponse response = getServer().query(query);
         GroupResponse groupResponse = response.getGroupResponse();
         //System.out.println(groupResponse);
         List<FacetResultDTO> facetResults = new ArrayList<FacetResultDTO>();
