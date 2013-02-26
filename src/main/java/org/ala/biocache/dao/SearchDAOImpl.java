@@ -129,12 +129,15 @@ public class SearchDAOImpl implements SearchDAO {
     protected static final char[] CHARS = {' ',':'};
     protected static final String RANGE_SUFFIX = "_RNG";  
 
+    private String spatialField="geohash";
+    
     //Patterns that are used to prepare a SOLR query for execution
     protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9\\.:-]*)\"?");
     protected Pattern urnPattern = Pattern.compile("urn:[a-zA-Z0-9\\.:-]*");
     protected Pattern spacesPattern = Pattern.compile("[^\\s\"\\(\\)\\[\\]{}']+|\"[^\"]*\"|'[^']*'");
     protected Pattern uidPattern = Pattern.compile("(?:[\"]*)?([a-z_]*_uid:)([a-z0-9]*)(?:[\"]*)?");
-    protected Pattern spatialPattern = Pattern.compile("\\{!spatial[a-zA-Z=\\-\\s0-9\\.\\,():]*\\}");
+    //protected Pattern spatialPattern = Pattern.compile("\\{!spatial[a-zA-Z=\\-\\s0-9\\.\\,():]*\\}");
+    protected Pattern spatialPattern = Pattern.compile(spatialField+":\"Intersects\\([a-zA-Z=\\-\\s0-9\\.\\,():]*\\)\\\"");
     protected Pattern qidPattern = ParamsCache.qidPattern;//Pattern.compile("qid:[0-9]*");
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
     protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("[a-z_]{1,}:");
@@ -174,6 +177,8 @@ public class SearchDAOImpl implements SearchDAO {
     private Map<String, IndexFieldDTO> indexFieldMap = null;
     private Map<String, StatsIndexFieldDTO> rangeFieldCache = null;
     private Set<String> authIndexFields = null;
+    
+    
 
     /**
      * Initialise the SOLR server instance
@@ -732,17 +737,17 @@ public class SearchDAOImpl implements SearchDAO {
             List<FacetField> facets = qr.getFacetFields();
             for(FacetField facet : facets){
                 if(facet.getName().equals("assertions") && facet.getValueCount()>0){
-            		
-	               for(FacetField.Count facetEntry : facet.getValues()){
-	                   //System.out.println("facet: " + facetEntry.getName());
-	                   if(qasb.length()>0)
-	                       qasb.append(",");
-	                   qasb.append(facetEntry.getName());
-	               }
+                
+                 for(FacetField.Count facetEntry : facet.getValues()){
+                     //System.out.println("facet: " + facetEntry.getName());
+                     if(qasb.length()>0)
+                         qasb.append(",");
+                     qasb.append(facetEntry.getName());
+                 }
                 }else if(facet.getName().equals("data_resource_uid") && checkDownloadLimits){
                     //populate the download limit
                     initDownloadLimits(downloadLimit, facet);
-            	}
+              }
             }
             
             //Write the header line
@@ -1505,7 +1510,7 @@ public class SearchDAOImpl implements SearchDAO {
                 // use of AND/OR requires correctly formed fq.
                 // Can overlap with values containing the same,
                 // case sensitivity may help.
-                if(fq.contains(" OR ") || fq.contains(" AND ") || fq.contains("{!spatial") || fq.contains("{-!spatial")) { 
+                if(fq.contains(" OR ") || fq.contains(" AND ") || fq.contains("Intersects(")) { 
                     solrQuery.addFilterQuery(fq);
                     logger.info("adding filter query: " + fq);
                     continue;
@@ -1732,30 +1737,46 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      */
     protected String buildSpatialQueryString(String fullTextQuery, Float latitude, Float longitude, Float radius) {
-        String queryString = "{!spatial circles=" + latitude.toString() + "," + longitude.toString()
-                + "," + radius.toString() + "}" +  fullTextQuery;
-        return queryString;
+        StringBuilder sb= new StringBuilder();
+        sb.append(spatialField).append(":\"Intersects(Circle(").append(longitude.toString());
+        sb.append(" ").append(latitude.toString()).append(" d=").append(SpatialUtils.convertToDegrees(radius).toString());
+        sb.append("))\"");
+        if(StringUtils.isNotEmpty(fullTextQuery))
+          sb.append(" AND ").append(fullTextQuery);
+//        String queryString = "{!spatial circles=" + latitude.toString() + "," + longitude.toString()
+//                + "," + radius.toString() + "}" +  fullTextQuery;
+        return sb.toString();
     }
     
     protected String buildSpatialQueryString(SpatialSearchRequestParams searchParams){
         if(searchParams != null){
             StringBuilder sb = new StringBuilder();
             if(searchParams.getLat() != null){
-                sb.append("{!spatial ");
-                sb.append("circles=").append(searchParams.getLat().toString()).append(",");
-                sb.append(searchParams.getLon().toString()).append(",");
-                sb.append(searchParams.getRadius().toString()).append("}");
+                sb.append(spatialField).append(":\"Intersects(Circle(");
+                sb.append(searchParams.getLon().toString()).append(" ").append(searchParams.getLat().toString());
+                sb.append(" d=").append(SpatialUtils.convertToDegrees(searchParams.getRadius()).toString());
+                sb.append("))\"");
+                //sb.append("{!spatial ");
+                //sb.append("circles=").append(searchParams.getLat().toString()).append(",");
+                //sb.append(searchParams.getLon().toString()).append(",");
+                //sb.append(searchParams.getRadius().toString()).append("}");
             }
             else if(!StringUtils.isEmpty(searchParams.getWkt())){
                 //format the wkt
-                sb.append("{!spatial ");
-                sb.append("wkt=").append(searchParams.getWkt()).append("}");
+                //sb.append("{!spatial ");
+                //sb.append("wkt=").append(searchParams.getWkt()).append("}");
+                sb.append(spatialField).append(":\"Intersects(");
+                sb.append(searchParams.getWkt());
+                sb.append(")\"");
             }
             String query = StringUtils.isEmpty(searchParams.getFormattedQuery())? searchParams.getQ() : searchParams.getFormattedQuery();
-            if(StringUtils.isNotEmpty(query))
+            if(StringUtils.isNotEmpty(query)){
+                if(sb.length()>0)
+                  sb.append(" AND ");
                 sb.append(query);
-            else
-                sb.append("*:*"); //default to all records when no query has been provided.
+            }
+//            else
+//                sb.append("*:*"); //default to all records when no query has been provided.
             return sb.toString();
         }
         return null;
@@ -1793,8 +1814,12 @@ public class SearchDAOImpl implements SearchDAO {
                             searchParams.setDisplayString(pco.getDisplayString());
                             if(searchParams instanceof SpatialSearchRequestParams) {
                                 ((SpatialSearchRequestParams) searchParams).setWkt(pco.getWkt());
-                            } else if(!StringUtils.isEmpty(pco.getWkt())) {                            
-                                searchParams.setQ(pco.getWkt() + "{!spatial wkt=" + pco.getWkt() + "}" + pco.getQ() );
+                            } else if(!StringUtils.isEmpty(pco.getWkt())) {
+                                String originalQ = searchParams.getQ();
+                                searchParams.setQ(spatialField +":\"Intersects(" + pco.getWkt() +")");
+                                if(StringUtils.isNotEmpty(originalQ))
+                                  searchParams.setQ(searchParams.getQ() + " AND " + originalQ);
+                                //searchParams.setQ(pco.getWkt() + "{!spatial wkt=" + pco.getWkt() + "}" + pco.getQ() );
                             }
                             searchParams.setFormattedQuery(searchParams.getQ());
                             return;
@@ -1937,7 +1962,7 @@ public class SearchDAOImpl implements SearchDAO {
                 query = queryString.toString();
             }
 
-            if(query.contains("{!spatial")){
+            if(query.contains("Intersects")){
                 Matcher matcher = spatialPattern.matcher(query);
                 if(matcher.find()){
                     String spatial = matcher.group();
@@ -2216,9 +2241,9 @@ public class SearchDAOImpl implements SearchDAO {
             String fsort = "".equals(searchParams.getFsort()) ? "count":searchParams.getFsort();
             solrQuery.setFacetSort(fsort);
             if(searchParams.getFoffset()>0)
-            	solrQuery.add("facet.offset", Integer.toString(searchParams.getFoffset()));
+              solrQuery.add("facet.offset", Integer.toString(searchParams.getFoffset()));
             if(StringUtils.isNotEmpty(searchParams.getFprefix()))
-            	solrQuery.add("facet.prefix", searchParams.getFprefix());
+              solrQuery.add("facet.prefix", searchParams.getFprefix());
 
         }
 
