@@ -39,7 +39,7 @@ import static org.junit.Assert.*;
 public class QueryFormatTest {
 
     private TestContextManager testContextManager;
-	@Inject protected SearchDAOImpl searchDAO;
+  @Inject protected SearchDAOImpl searchDAO;
     private static final Logger logger = Logger.getLogger(QueryFormatTest.class);
     protected static String qid = "";
 
@@ -67,10 +67,10 @@ public class QueryFormatTest {
                 new SearchQueryTester("lsid:urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb", "taxon_concept_lsid:urn\\:lsid\\:biodiversity.org.au\\:afd.taxon\\:test0064f\\-4ef7\\-4742\\-8112\\-6b0528d5f3fb","taxon_concept_lsid:urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb", true),
                 new SearchQueryTester("lsid:urn:lsid:biodiversity.org.au:afd.taxon:7790064f-4ef7-4742-8112-6b0528d5ftest OR lsid:urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb", "taxon_concept_lsid:urn\\:lsid\\:biodiversity.org.au\\:afd.taxon\\:7790064f\\-4ef7\\-4742\\-8112\\-6b0528d5ftest OR taxon_concept_lsid:urn\\:lsid\\:biodiversity.org.au\\:afd.taxon\\:test0064f\\-4ef7\\-4742\\-8112\\-6b0528d5f3fb","taxon_concept_lsid:urn:lsid:biodiversity.org.au:afd.taxon:7790064f-4ef7-4742-8112-6b0528d5ftest OR taxon_concept_lsid:urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb", true),
                 new SearchQueryTester("(lsid:urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb)", "(taxon_concept_lsid:urn\\:lsid\\:biodiversity.org.au\\:afd.taxon\\:test0064f\\-4ef7\\-4742\\-8112\\-6b0528d5f3fb)","(taxon_concept_lsid:urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb)", true),
-                new SearchQueryTester("{!spatial circles=-35.277676,149.11298,1.0}*:*","spatial circles","within", false),
+                new SearchQueryTester("geohash:\"Intersects(Circle(125.0 -14.0 d=0.9009009))\" AND *:*","Intersects(Circle","within", false),
                 new SearchQueryTester("qid:"+ qid, "", "", false),
                 new SearchQueryTester("water", "water", "water", true),
-                new SearchQueryTester("basis_of_record:PreservedSpecimen", "basis_of_record:PreservedSpecimen", "Record Type:PreservedSpecimen", true),
+                new SearchQueryTester("basis_of_record:PreservedSpecimen", "basis_of_record:PreservedSpecimen", "Record type:PreservedSpecimen", true),
                 new SearchQueryTester("state:\"New South Wales\"", "state:\"New\\ South\\ Wales\"", "State/Territory:\"New South Wales\"", true),
                 new SearchQueryTester("state:New\\ South\\ Wales", "state:New\\\\ South\\\\ Wales", "State/Territory:New\\ South\\ Wales", true),
                 new SearchQueryTester("text:water species_group:Animals","text:water species_group:Animals","text:water species_group:Animals", true),
@@ -80,6 +80,7 @@ public class QueryFormatTest {
                 new SearchQueryTester("matched_name:\"kangurus lanosus\"", "taxon_name:\"Macropus\\ rufus\"","Scientific name:\"kangurus lanosus\"", true),
                 new SearchQueryTester("matched_name_children:\"kangurus lanosus\"", "lft:[", "species:", false),
                 new SearchQueryTester("(matched_name_children:Mammalia OR matched_name_children:whales)", "lft:[", "class:", false),
+                //new SearchQueryTester("collector_text:Latz AND matched_name_children:\"Pluchea tetranthera\"", "as","as",false)
         };
     }
 

@@ -38,6 +38,17 @@ public class SpatialUtils {
   
   public static void main(String[] args){
       System.out.println(getInverseWKT("POLYGON((140 -37,151 -37,151 -26, 140.1310 -26, 140 -37))"));
+      System.out.println(convertToDegrees(5f));
+      System.out.println(convertToDegrees(1f));
+      System.out.println(convertToDegrees(10f));
+      
+  }
+  
+  public static Float convertToDegrees(Float kilometres){
+      if(kilometres != null)
+          return kilometres /111;
+      else
+          return kilometres;
   }
   
 }

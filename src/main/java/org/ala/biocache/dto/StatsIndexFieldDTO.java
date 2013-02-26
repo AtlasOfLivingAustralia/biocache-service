@@ -38,8 +38,8 @@ public class StatsIndexFieldDTO {
             int length = Integer.toString(sdint).length()-1;
             int mult = (int)Math.pow(10,length);
             int igap = Math.round(sdint/mult)*mult;
-            long lstart = Math.round(stats.getMin()/mult)*mult;
-            long lend = Math.round(stats.getMax()/mult)*mult;
+            long lstart = Math.round((Double)stats.getMin()/mult)*mult;
+            long lend = Math.round((Double)stats.getMax()/mult)*mult;
             if(dataType.equals("int")){               
                 gap = new Integer(igap);
                 start = new Integer((int)lstart);
@@ -54,8 +54,8 @@ public class StatsIndexFieldDTO {
         else{
           //TODO may need a better algorithm for this situation... But need to find a use case first.
             gap = new Double(0.5);
-            start = stats.getMin();
-            end = stats.getMax();
+            start = (Double)stats.getMin();
+            end = (Double)stats.getMax();
         }
         
     }

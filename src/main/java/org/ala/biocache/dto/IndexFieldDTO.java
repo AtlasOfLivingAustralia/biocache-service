@@ -92,6 +92,16 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     public int compareTo(IndexFieldDTO other) {        
         return this.getName().compareTo(other.getName());
     }
+
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
+    @Override
+    public String toString() {
+      return "IndexFieldDTO [name=" + name + ", dataType=" + dataType
+          + ", indexed=" + indexed + ", stored=" + stored
+          + ", numberDistinctValues=" + numberDistinctValues + "]";
+    }
     
     
 }
