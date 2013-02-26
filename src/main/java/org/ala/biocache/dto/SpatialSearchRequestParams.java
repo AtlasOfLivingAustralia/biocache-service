@@ -66,7 +66,7 @@ public class SpatialSearchRequestParams extends SearchRequestParams {
             req.append("&lon=").append(lon);
             req.append("&radius=").append(radius);
         }
-        if(wkt.length() >0)
+        if(wkt != null && wkt.length() >0)
             req.append("&wkt=").append(super.conditionalEncode(wkt, encodeParams));
         if(gk)
             req.append("&gk=true");
@@ -81,7 +81,7 @@ public class SpatialSearchRequestParams extends SearchRequestParams {
             req.append("&lon=").append(lon);
             req.append("&radius=").append(radius);
         }
-        if(wkt.length() >0)
+        if(wkt != null && wkt.length() >0)
             req.append("&wkt=").append(wkt);
         return req.toString();
     }
@@ -115,8 +115,10 @@ public class SpatialSearchRequestParams extends SearchRequestParams {
     }
 
     public void setWkt(String wkt) {
+        this.wkt =wkt;
+        //NC: switched the replace statement so that the incorrect WKT format required for the OLD Spatial Plugin is replaced with correct values.
         if(wkt != null){
-            this.wkt = wkt.replace(' ', ':');
+            this.wkt = wkt.replace(':', ' ');
         }
     }
     /**
