@@ -19,13 +19,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import javax.servlet.ServletOutputStream;
 
@@ -563,7 +557,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @param includeSensitive
      * @throws Exception
      */
-    public Map<String, Integer> writeResultsFromIndexToStream(DownloadRequestParams downloadParams,
+    public Map<String, Integer> writeResultsFromIndexToStream(final DownloadRequestParams downloadParams,
                                                                          OutputStream out,
                                                                          boolean includeSensitive, final DownloadDetailsDTO dd) throws Exception {
         long start = System.currentTimeMillis();

@@ -14,9 +14,7 @@
  ***************************************************************************/
 package org.ala.biocache.web;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.zip.ZipOutputStream;
@@ -26,7 +24,11 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import au.com.bytecode.opencsv.CSVReader;
 import au.org.ala.biocache.*;
+import au.org.ala.biocache.MediaStore;
+import au.org.ala.biocache.Store;
+import org.ala.biocache.dao.BieService;
 import org.ala.biocache.dao.SearchDAO;
 import org.ala.biocache.dto.*;
 import org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
@@ -508,6 +510,8 @@ public class OccurrenceController extends AbstractSecureController {
         final File file = new File(filepath);
 
         final BieService myBieService = this.bieService;
+        final DownloadDetailsDTO dd = registerDownload(params, request.getLocalAddr(), DownloadType.RECORDS_INDEX);
+
         if(file.exists()){
             Thread t = new Thread(){
                 @Override
@@ -528,7 +532,7 @@ public class OccurrenceController extends AbstractSecureController {
                                     logger.debug("Outputing results to:" + outputFilePath + ", with LSID: " + lsid);
                                     FileOutputStream output = new FileOutputStream(outputFilePath);
                                     params.setQ("lsid:\""+lsid+"\"");
-                                    Map<String,Integer> uidStats = searchDAO.writeResultsFromIndexToStream(params, output, false);
+                                    Map<String,Integer> uidStats = searchDAO.writeResultsFromIndexToStream(params, output, false, dd);
                                     FileOutputStream citationOutput = new FileOutputStream(citationFilePath);
                                     getCitations(uidStats, citationOutput);
                                     citationOutput.flush();
@@ -541,11 +545,12 @@ public class OccurrenceController extends AbstractSecureController {
                             } else {
                                 logger.error("Unable to match name: " + row[0]);
                             }
-
                             row = reader.readNext();
                         }
                     } catch(Exception e){
                         logger.error(e.getMessage(),e);
+                    } finally {
+                        unregisterDownload(dd);
                     }
                 }
             };
@@ -1026,7 +1031,7 @@ public class OccurrenceController extends AbstractSecureController {
                 String[] files = Store.getAlternativeFormats(sound);
                 for(String fileName: files){
                     String contentType = MimeType.getForFileExtension(fileName).getMimeType();
-                    String filePath = MediaStore.convertPathToUrl(fileName,OccurrenceIndex.biocacheMediaUrl);
+                    String filePath = MediaStore.convertPathToUrl(fileName, OccurrenceIndex.biocacheMediaUrl);
                     //System.out.println("#########Adding media path: " + m.getFilePath());
                     m.getAlternativeFormats().put(contentType,filePath);
                 }
