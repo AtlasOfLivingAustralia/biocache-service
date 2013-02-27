@@ -80,6 +80,7 @@ import au.com.bytecode.opencsv.CSVWriter;
 import com.googlecode.ehcache.annotations.Cacheable;
 import com.ibm.icu.text.SimpleDateFormat;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -564,11 +565,10 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public Map<String, Integer> writeResultsFromIndexToStream(DownloadRequestParams downloadParams,
                                                                          OutputStream out,
-                                                                         boolean includeSensitive, DownloadDetailsDTO dd) throws Exception {
+                                                                         boolean includeSensitive, final DownloadDetailsDTO dd) throws Exception {
         long start = System.currentTimeMillis();
 
-        int resultsCount = 0;
-        Map<String, Integer> uidStats = new HashMap<String, Integer>();
+        final Map<String, Integer> uidStats = new HashMap<String, Integer>();
 
         try{
             SolrQuery solrQuery = new SolrQuery();
@@ -593,7 +593,7 @@ public class SearchDAOImpl implements SearchDAO {
             logger.debug("The headers in downloads: "+indexedFields[2]);
 
             //set the fields to the ones that are available in the index
-            String[] fields = indexedFields[0].toArray(new String[]{});
+            final String[] fields = indexedFields[0].toArray(new String[]{});
             solrQuery.setFields(fields);
             solrQuery.addField("assertions")
                 .addField("institution_uid")
@@ -629,40 +629,82 @@ public class SearchDAOImpl implements SearchDAO {
             }
 
             String qas = qasb.toString();
-            String[] qaFields = qas.equals("") ? new String[]{} : qas.split(",");
+            final String[] qaFields = qas.equals("") ? new String[]{} : qas.split(",");
             String[] qaTitles = downloadFields.getHeader(qaFields, false);
 
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[2].toArray(new String[]{}),qaTitles);
-            au.org.ala.biocache.RecordWriter rw = new org.ala.biocache.writer.CSVRecordWriter(out, header);
+            final au.org.ala.biocache.RecordWriter rw = new org.ala.biocache.writer.CSVRecordWriter(out, header);
 
             //for each month create a separate query that pages through 500 records per page
             List<SolrQuery> queries = new ArrayList<SolrQuery>();
             for(Count facet: splitByFacet){
-                SolrQuery splitByFacetQuery = solrQuery.getCopy().addFilterQuery(facet.getFacetField().getName() + ":" + facet.getName());
-                splitByFacetQuery.setFacet(false);
-                queries.add(splitByFacetQuery);
-            }
-            SolrQuery remainderQuery = solrQuery.getCopy().addFilterQuery("-"+splitByFacet.get(0).getFacetField().getName() + ":[* TO *]");
-            queries.add(remainderQuery);
-
-            //execute each query, writing the results to stream
-            for(SolrQuery splitByFacetQuery: queries){
-                //if count exceeds thresholds, get facets on year and split query again
-                int startIndex = 0;
-                //now perform the download from the index
-                QueryResponse qr = runSolrQuery(splitByFacetQuery, downloadParams.getFq(), downloadBatchSize, startIndex, "score", "asc");
-                while (!qr.getResults().isEmpty()) {
-                    logger.debug("Start index: " + startIndex + ", " + splitByFacetQuery.getQuery());
-                    resultsCount += processQueryResults(uidStats, fields, qaFields, rw, qr, dd);
-                    startIndex += downloadBatchSize;
-                    //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
-                    qr = runSolrQuery(splitByFacetQuery, null, downloadBatchSize, startIndex, "score", "asc");
+                if(facet.getCount()>0){
+                    SolrQuery splitByFacetQuery = solrQuery.getCopy().addFilterQuery(facet.getFacetField().getName() + ":" + facet.getName());
+                    splitByFacetQuery.setFacet(false);
+                    queries.add(splitByFacetQuery);
                 }
             }
+            SolrQuery remainderQuery = solrQuery.getCopy().addFilterQuery("-"+splitByFacet.get(0).getFacetField().getName() + ":[* TO *]");
+            queries.add(0, remainderQuery);
+
+            //multi-thread the requests...
+            ExecutorService pool = Executors.newFixedThreadPool(6);
+            Set<Future<Integer>> futures = new HashSet<Future<Integer>>();
+            final Integer resultsCount = 0;
+
+            //execute each query, writing the results to stream
+            for(final SolrQuery splitByFacetQuery: queries){
+                //define a thread
+                Callable<Integer> solrCallable = new Callable<Integer>(){
+
+                    int startIndex = 0;
+
+                    @Override
+                    public Integer call() throws Exception {
+                        QueryResponse qr = runSolrQuery(splitByFacetQuery, downloadParams.getFq(), downloadBatchSize, startIndex, "score", "asc");
+                        int recordsForThread = 0;
+                        logger.debug(splitByFacetQuery.getQuery() + " - results: " + qr.getResults().size());
+
+                        while (!qr.getResults().isEmpty()) {
+                            logger.debug("Start index: " + startIndex + ", " + splitByFacetQuery.getQuery());
+                            synchronized (rw) {
+                                recordsForThread += processQueryResults(uidStats, fields, qaFields, rw, qr, dd);
+                            }
+                            startIndex += downloadBatchSize;
+                            //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
+                            qr = runSolrQuery(splitByFacetQuery, null, downloadBatchSize, startIndex, "score", "asc");
+                        }
+                        return recordsForThread;
+                    }
+                };
+                futures.add(pool.submit(solrCallable));
+            }
+
+            //check the futures until all have finished
+            int totalDownload = 0;
+            Set<Future<Integer>> completeFutures = new HashSet<Future<Integer>>();
+            boolean allComplete = false;
+            while(!allComplete){
+                for(Future future: futures){
+                    if(!completeFutures.contains(future)){
+                        if(future.isDone()){
+                            totalDownload += (Integer) future.get();
+                            completeFutures.add(future);
+                        }
+                    }
+                }
+                allComplete = completeFutures.size() == futures.size();
+                if(!allComplete){
+                    Thread.sleep(1000);
+                }
+            }
+            pool.shutdown();
             rw.finalise();
+            out.flush();
 
             long finish = System.currentTimeMillis();
             long timeTakenInSecs = (finish-start)/1000;
+            if(timeTakenInSecs ==0) timeTakenInSecs =1;
             logger.info("Download of " + resultsCount + " records in " + timeTakenInSecs + " seconds. Record/sec: " + resultsCount/timeTakenInSecs);
 
         } catch (SolrServerException ex) {
@@ -1803,6 +1845,10 @@ public class SearchDAOImpl implements SearchDAO {
         return null;
     }
 
+    protected void formatSearchQuery(SpatialSearchRequestParams searchParams) {
+        formatSearchQuery(searchParams,false);
+    }
+
     /**
      * Format the search input query for a full-text search.
      *
@@ -1813,9 +1859,9 @@ public class SearchDAOImpl implements SearchDAO {
      *
      * @param searchParams
      */
-    protected void formatSearchQuery(SpatialSearchRequestParams searchParams) {
+    protected void formatSearchQuery(SpatialSearchRequestParams searchParams, boolean forceQueryFormat) {
         //Only format the query if it doesn't already supply a formattedQuery.
-        if(StringUtils.isEmpty(searchParams.getFormattedQuery())){
+        if(forceQueryFormat || StringUtils.isEmpty(searchParams.getFormattedQuery())){
             // set the query
             String query = searchParams.getQ();
             

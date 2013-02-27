@@ -81,13 +81,13 @@ public class OccurrenceController extends AbstractSecureController {
 	protected SearchUtils searchUtils;
 	@Inject
 	protected RestfulClient restfulClient;
-	  @Inject
+	@Inject
     private RestOperations restTemplate;
-	  
-	  @Inject
+	@Inject
+    protected BieService bieService;
+	@Inject
     protected AuthService authService;
-	
-	/** Name of view for site home page */
+    /** Name of view for site home page */
 	private String HOME = "homePage";
 	/** Name of view for list of taxa */
 	private final String LIST = "occurrences/list";
@@ -496,6 +496,63 @@ public class OccurrenceController extends AbstractSecureController {
         }
     }
 
+    @RequestMapping(value = "/occurrences/download/batchFile", method = RequestMethod.GET)
+    public void batchDownload(
+            HttpServletResponse response,
+            HttpServletRequest request,
+            final DownloadRequestParams params,
+            @RequestParam(value="file", required = true) String filepath,
+            @RequestParam(value="directory", required = true, defaultValue = "/data/biocache-exports") final String directory
+            ) throws Exception {
+
+        final File file = new File(filepath);
+
+        final BieService myBieService = this.bieService;
+        if(file.exists()){
+            Thread t = new Thread(){
+                @Override
+                public void run() {
+                    try {
+                        //start a thread
+                        CSVReader reader  = new CSVReader(new FileReader(file));
+                        String[] row = reader.readNext();
+                        while(row != null){
+
+                            //get an lsid for the name
+                            String lsid = myBieService.getGuidForName(row[0]);
+                            if(lsid != null){
+                                try {
+                                    //download records for this row
+                                    String outputFilePath = directory + File.separatorChar + row[0].replace(" ", "_") + ".txt";
+                                    String citationFilePath = directory + File.separatorChar + row[0].replace(" ", "_") + "_citations.txt";
+                                    logger.debug("Outputing results to:" + outputFilePath + ", with LSID: " + lsid);
+                                    FileOutputStream output = new FileOutputStream(outputFilePath);
+                                    params.setQ("lsid:\""+lsid+"\"");
+                                    Map<String,Integer> uidStats = searchDAO.writeResultsFromIndexToStream(params, output, false);
+                                    FileOutputStream citationOutput = new FileOutputStream(citationFilePath);
+                                    getCitations(uidStats, citationOutput);
+                                    citationOutput.flush();
+                                    citationOutput.close();
+                                    output.flush();
+                                    output.close();
+                                } catch(Exception e){
+                                    e.printStackTrace();
+                                }
+                            } else {
+                                logger.error("Unable to match name: " + row[0]);
+                            }
+
+                            row = reader.readNext();
+                        }
+                    } catch(Exception e){
+                        logger.error(e.getMessage(),e);
+                    }
+                }
+            };
+            t.start();
+        }
+    }
+
     /**
      * Given a list of queries for a single field, return an AJAX response with the qid (cached query id)
      * NOTE: triggered on "Search" button
@@ -626,7 +683,7 @@ public class OccurrenceController extends AbstractSecureController {
             return;
         }
         try{
-        writeQueryToStream(requestParams, response, ip, out, false,true);
+           writeQueryToStream(requestParams, response, ip, out, false,true);
         }
         catch(Exception e){
             e.printStackTrace();
@@ -1117,4 +1174,8 @@ public class OccurrenceController extends AbstractSecureController {
 	public void setCitationServiceUrl(String citationServiceUrl) {
 		this.citationServiceUrl = citationServiceUrl;
 	}
+
+    public void setBieService(BieService bieService) {
+        this.bieService = bieService;
+    }
 }
