@@ -27,6 +27,7 @@ import org.ala.biocache.dto.FieldResultDTO;
 import org.ala.biocache.dto.OccurrenceIndex;
 
 import org.ala.biocache.dto.BreakdownRequestParams;
+import org.ala.biocache.dto.DownloadDetailsDTO;
 import org.ala.biocache.dto.DownloadRequestParams;
 import org.ala.biocache.dto.FacetResultDTO;
 import org.ala.biocache.dto.IndexFieldDTO;
@@ -107,7 +108,7 @@ public interface SearchDAO {
      * @return A map of uids and counts that needs to be logged to the ala-logger
      * @throws Exception
      */
-	Map<String,Integer> writeResultsToStream(DownloadRequestParams searchParams, OutputStream out, int maxNoOfRecords, boolean includeSensitive) throws Exception;
+	Map<String,Integer> writeResultsToStream(DownloadRequestParams searchParams, OutputStream out, int maxNoOfRecords, boolean includeSensitive, DownloadDetailsDTO dd) throws Exception;
 	
 	/**
 	 * Writes the results of this query to the output stream using the index as a source of the data.
@@ -117,7 +118,7 @@ public interface SearchDAO {
 	 * @return
 	 * @throws Exception
 	 */
-	Map<String, Integer> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, boolean includeSensitive) throws Exception;
+	Map<String, Integer> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, boolean includeSensitive, DownloadDetailsDTO dd) throws Exception;
 
 //    Map<String, Integer> writeResultsFromIndexToStreamWithThreads(DownloadRequestParams downloadParams,
 //                                                                         OutputStream out,
@@ -132,7 +133,7 @@ public interface SearchDAO {
      */
     void writeCoordinatesToStream(SearchRequestParams searchParams,OutputStream out) throws Exception;
     
-    void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, OutputStream out) throws Exception;
+    void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, OutputStream out, DownloadDetailsDTO dd) throws Exception;
     
     Set<IndexFieldDTO> getIndexedFields() throws Exception;
     

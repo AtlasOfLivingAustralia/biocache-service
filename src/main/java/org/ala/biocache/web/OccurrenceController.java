@@ -29,6 +29,7 @@ import javax.servlet.http.HttpServletResponse;
 import au.org.ala.biocache.*;
 import org.ala.biocache.dao.SearchDAO;
 import org.ala.biocache.dto.*;
+import org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import org.ala.biocache.dto.store.OccurrenceDTO;
 import org.ala.biocache.service.AuthService;
 import org.ala.biocache.util.MimeType;
@@ -106,6 +107,7 @@ public class OccurrenceController extends AbstractSecureController {
 	protected Pattern austLsidPattern = Pattern.compile("urn:lsid:biodiversity.org.au[a-zA-Z0-9\\.:-]*");
 	
 	private final String dataFieldDescriptionURL="https://docs.google.com/spreadsheet/ccc?key=0AjNtzhUIIHeNdHhtcFVSM09qZ3c3N3ItUnBBc09TbHc";
+	private List<DownloadDetailsDTO> currentDownloads = Collections.synchronizedList(new ArrayList<DownloadDetailsDTO>());
 	
 	/**
 	 * Custom handler for the welcome view.
@@ -119,6 +121,11 @@ public class OccurrenceController extends AbstractSecureController {
 	@RequestMapping("/")
 	public String homePageHandler() {
 		return HOME;
+	}
+	
+	@RequestMapping("/active/download/stats")
+	public @ResponseBody List<DownloadDetailsDTO> getCurrentDownloads(){
+	    return currentDownloads;
 	}
 
 	/**
@@ -415,6 +422,17 @@ public class OccurrenceController extends AbstractSecureController {
         searchDAO.refreshCaches();
 		return null;
 	}
+	
+	private DownloadDetailsDTO registerDownload(DownloadRequestParams requestParams, String ip, DownloadDetailsDTO.DownloadType type){
+	    DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams.toString(), ip, type);
+	    currentDownloads.add(dd);
+	    return dd;
+	}
+	
+	private void unregisterDownload(DownloadDetailsDTO dd){
+	    //remove it from the list
+	    currentDownloads.remove(dd);
+	}
 
 	/**
 	 * Downloads the complete list of values in the supplied facet 
@@ -430,14 +448,21 @@ public class OccurrenceController extends AbstractSecureController {
         DownloadRequestParams requestParams,
         @RequestParam(value = "count", required = false, defaultValue="false") boolean includeCount,
         @RequestParam(value="lookup" ,required=false, defaultValue="false") boolean lookupName,
-        HttpServletResponse response) throws Exception {
+        HttpServletRequest request,
+        HttpServletResponse response) throws Exception {	      
         if(requestParams.getFacets().length >0){
-            String filename = requestParams.getFile() != null ? requestParams.getFile():requestParams.getFacets()[0];
-            response.setHeader("Cache-Control", "must-revalidate");
-            response.setHeader("Pragma", "must-revalidate");
-            response.setHeader("Content-Disposition", "attachment;filename=" + filename +".csv");
-            response.setContentType("text/csv");
-            searchDAO.writeFacetToStream(requestParams,includeCount, lookupName, response.getOutputStream());
+            DownloadDetailsDTO dd = registerDownload(requestParams, request.getLocalAddr(), DownloadDetailsDTO.DownloadType.FACET);
+            try{
+                String filename = requestParams.getFile() != null ? requestParams.getFile():requestParams.getFacets()[0];
+                response.setHeader("Cache-Control", "must-revalidate");
+                response.setHeader("Pragma", "must-revalidate");
+                response.setHeader("Content-Disposition", "attachment;filename=" + filename +".csv");
+                response.setContentType("text/csv");
+                searchDAO.writeFacetToStream(requestParams,includeCount, lookupName, response.getOutputStream(),dd);
+            }
+            finally{
+              unregisterDownload(dd);
+            }
         }
 	}
 
@@ -645,13 +670,18 @@ public class OccurrenceController extends AbstractSecureController {
         //put the facets
         requestParams.setFacets(new String[]{"assertions", "data_resource_uid"});
         Map<String, Integer> uidStats = null;
+        DownloadDetailsDTO.DownloadType type= fromIndex ? DownloadType.RECORDS_INDEX:DownloadType.RECORDS_DB;
+        DownloadDetailsDTO dd = registerDownload(requestParams, ip, type);
         try {
             if(fromIndex)
-                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, zop, includeSensitive);
+                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, zop, includeSensitive,dd);
             else
-                uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100, includeSensitive);
+                uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100, includeSensitive,dd);
         } catch (Exception e){
             logger.error(e);
+        }
+        finally{
+            unregisterDownload(dd);
         }
         zop.closeEntry();
         

@@ -32,6 +32,7 @@ import javax.servlet.ServletOutputStream;
 import au.org.ala.biocache.RecordWriter;
 import org.ala.biocache.dto.BreakdownRequestParams;
 import org.ala.biocache.dto.DataProviderCountDTO;
+import org.ala.biocache.dto.DownloadDetailsDTO;
 import org.ala.biocache.dto.DownloadRequestParams;
 import org.ala.biocache.dto.FacetResultDTO;
 import org.ala.biocache.dto.FacetThemes;
@@ -291,7 +292,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public ArrayList<FieldResultDTO> getValuesForFacet(SpatialSearchRequestParams requestParams) throws Exception{
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        writeFacetToStream(requestParams, true, false, outputStream);
+        writeFacetToStream(requestParams, true, false, outputStream,null);
         outputStream.flush();
         outputStream.close();
         String includedValues = outputStream.toString();
@@ -420,7 +421,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @param lookupName true when a name lsid should be looked up in the bie
      * 
      */
-    public void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, OutputStream out) throws Exception{
+    public void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, OutputStream out, DownloadDetailsDTO dd) throws Exception{
         //set to unlimited facets
         searchParams.setFlimit(-1);
         formatSearchQuery(searchParams);
@@ -499,6 +500,8 @@ public class SearchDAOImpl implements SearchDAO {
                             }
                         }
                         offset += FACET_PAGE_SIZE;
+                        if(dd != null)
+                            dd.updateCounts(FACET_PAGE_SIZE);
                         //get the next values
                         solrQuery.remove("facet.offset");
                         solrQuery.add("facet.offset", Integer.toString(offset));
@@ -561,7 +564,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public Map<String, Integer> writeResultsFromIndexToStream(DownloadRequestParams downloadParams,
                                                                          OutputStream out,
-                                                                         boolean includeSensitive) throws Exception {
+                                                                         boolean includeSensitive, DownloadDetailsDTO dd) throws Exception {
         long start = System.currentTimeMillis();
 
         int resultsCount = 0;
@@ -605,6 +608,9 @@ public class SearchDAOImpl implements SearchDAO {
             //get the assertion facets to add them to the download fields
             SolrQuery monthAssertionsQuery = solrQuery.getCopy().addFacetField("month", "assertions");
             QueryResponse facetQuery = runSolrQuery(monthAssertionsQuery, downloadParams.getFq(), 0, 0, "score", "asc");
+            
+            //set the totalrecords for the download details
+            dd.setTotalRecords(facetQuery.getResults().getNumFound());
 
             //get the month facets to add them to the download fields get the assertion facets.
             List<Count> splitByFacet = null;
@@ -647,7 +653,7 @@ public class SearchDAOImpl implements SearchDAO {
                 QueryResponse qr = runSolrQuery(splitByFacetQuery, downloadParams.getFq(), downloadBatchSize, startIndex, "score", "asc");
                 while (!qr.getResults().isEmpty()) {
                     logger.debug("Start index: " + startIndex + ", " + splitByFacetQuery.getQuery());
-                    resultsCount += processQueryResults(uidStats, fields, qaFields, rw, qr);
+                    resultsCount += processQueryResults(uidStats, fields, qaFields, rw, qr, dd);
                     startIndex += downloadBatchSize;
                     //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
                     qr = runSolrQuery(splitByFacetQuery, null, downloadBatchSize, startIndex, "score", "asc");
@@ -665,7 +671,7 @@ public class SearchDAOImpl implements SearchDAO {
         return uidStats;
     }
 
-    private int processQueryResults( Map<String, Integer> uidStats, String[] fields, String[] qaFields, RecordWriter rw, QueryResponse qr) {
+    private int processQueryResults( Map<String, Integer> uidStats, String[] fields, String[] qaFields, RecordWriter rw, QueryResponse qr, DownloadDetailsDTO dd) {
         int resultsCount = 0;
         for (SolrDocument sd : qr.getResults()) {
             if(sd.getFieldValue("data_resource_uid") != null){
@@ -705,6 +711,7 @@ public class SearchDAOImpl implements SearchDAO {
                 incrementCount(uidStats,  sd.getFieldValue("data_resource_uid"));
             }
         }
+        dd.updateCounts(resultsCount);
         return resultsCount;
     }
 
@@ -713,7 +720,7 @@ public class SearchDAOImpl implements SearchDAO {
      *
      * @see org.ala.biocache.dao.SearchDAO#writeResultsToStream(org.ala.biocache.dto.DownloadRequestParams, java.io.OutputStream, int, boolean) 
      */
-    public Map<String, Integer> writeResultsToStream(DownloadRequestParams downloadParams, OutputStream out, int i, boolean includeSensitive) throws Exception {
+    public Map<String, Integer> writeResultsToStream(DownloadRequestParams downloadParams, OutputStream out, int i, boolean includeSensitive, DownloadDetailsDTO dd) throws Exception {
         
         int resultsCount = 0;
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
@@ -745,6 +752,7 @@ public class SearchDAOImpl implements SearchDAO {
                 sb.append(",").append(downloadParams.getExtra());
             StringBuilder qasb = new StringBuilder();
             QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), 0, 0, "score", "asc");
+            dd.setTotalRecords(qr.getResults().getNumFound());
             //get the assertion facets to add them to the download fields
             List<FacetField> facets = qr.getFacetFields();
             for(FacetField facet : facets){
@@ -780,7 +788,7 @@ public class SearchDAOImpl implements SearchDAO {
                 for(String dr : downloadLimit.keySet()){
                     //add another fq to the search for data_resource_uid                    
                      downloadParams.setFq((String[])ArrayUtils.add(originalFq, "data_resource_uid:" + dr));
-                     resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, dr, includeSensitive);
+                     resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, dr, includeSensitive,dd);
                      if(fqBuilder.length()>2)
                          fqBuilder.append(" OR ");
                      fqBuilder.append("data_resource_uid:").append(dr);
@@ -789,11 +797,11 @@ public class SearchDAOImpl implements SearchDAO {
                 //now include the rest of the data resources
                 //add extra fq for the remaining records
                 downloadParams.setFq((String[])ArrayUtils.add(originalFq, fqBuilder.toString()));
-                resultsCount =downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive);
+                resultsCount =downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive,dd);
             }
             else{
                 //download all at once
-                downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive);
+                downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive,dd);
             }
             rw.finalise();
 
@@ -820,7 +828,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     private int downloadRecords(DownloadRequestParams downloadParams, au.org.ala.biocache.RecordWriter writer,
                 Map<String, Integer> downloadLimit,  Map<String, Integer> uidStats,
-                String[] fields, String[] qaFields,int resultsCount, String dataResource, boolean includeSensitive) throws Exception {
+                String[] fields, String[] qaFields,int resultsCount, String dataResource, boolean includeSensitive, DownloadDetailsDTO dd) throws Exception {
         logger.info("download query: " + downloadParams.getQ());
         SolrQuery solrQuery = initSolrQuery(downloadParams,false,null);
         solrQuery.setRows(MAX_DOWNLOAD_SIZE);
@@ -860,6 +868,7 @@ public class SearchDAOImpl implements SearchDAO {
                     fields, qaFields, includeSensitive);
             startIndex += pageSize;
             uuids.clear();
+            dd.updateCounts(qr.getResults().size());
             if (resultsCount < MAX_DOWNLOAD_SIZE) {
                 //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
                 qr = runSolrQuery(solrQuery, null, pageSize, startIndex, "score", "asc");
