@@ -48,8 +48,10 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.SolrQuery.ORDER;
+import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.client.solrj.response.GroupCommand;
@@ -112,6 +114,7 @@ public class SearchDAOImpl implements SearchDAO {
     private static final Logger logger = Logger.getLogger(SearchDAOImpl.class);
     /** SOLR server instance */
     protected SolrServer server;
+    protected SolrRequest.METHOD queryMethod;
     /** Limit search results - for performance reasons */
     protected Integer MAX_DOWNLOAD_SIZE = 500000;
     /** Batch size for a download */
@@ -158,7 +161,7 @@ public class SearchDAOImpl implements SearchDAO {
     @Inject
     protected AuthService authService;
     
-    protected Integer maxMultiPartThreads = 20;
+    protected Integer maxMultiPartThreads = 10;
 
     //thread pool for multipart queries that take awhile:
     private ExecutorService executor = null;
@@ -197,6 +200,7 @@ public class SearchDAOImpl implements SearchDAO {
                     .getInstance(IndexDAO.class);
                 dao.init();
                 server = dao.solrServer();
+                queryMethod = server instanceof EmbeddedSolrServer? SolrRequest.METHOD.GET:SolrRequest.METHOD.POST;
                 downloadFields = new DownloadFields(getIndexedFields());
       
             } catch (Exception ex) {
@@ -242,13 +246,20 @@ public class SearchDAOImpl implements SearchDAO {
         ArrayList<FieldResultDTO> list1 = getValuesForFacet(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));  
         logger.debug("Retrieved species within area...("+list1.size()+")");                     
         // 2)get a list of species that occur in the inverse WKT
-        String newWKT = SpatialUtils.getInverseWKT(requestParams.getWkt().replaceAll(":", " "));      
-        requestParams.setWkt(newWKT);
+        //String newWKT = SpatialUtils.getInverseWKT(requestParams.getWkt().replaceAll(":", " "));
+        
+        //requestParams.setWkt(newWKT);
+        String wkt = requestParams.getWkt();
+        String reverseQuery = "-geohash:\"Intersects(" +wkt + ")\"";
+        requestParams.setWkt(null);
+        
         int maxFqs=1000; // there is a term limit in a SOLR query.
         int i =0,localterms=0;
         
         String facet = requestParams.getFacets()[0];
         String[] originalFqs = requestParams.getFq();
+        //add the negated WKT query to the fq
+        originalFqs= (String[])ArrayUtils.add(originalFqs ,reverseQuery);
 //        ArrayList list2 = new ArrayList();
         ArrayList<Future<List<FieldResultDTO>>> threads = new ArrayList<Future<List<FieldResultDTO>>>();
         //batch up the rest of the world query so that we have fqs based on species we want to test for. This should improve the performance of the endemic services.       
@@ -1618,7 +1629,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setStart(requestParams.getStart());
         solrQuery.setSortField(requestParams.getSort(), ORDER.valueOf(requestParams.getDir()));
         logger.info("runSolrQuery: " + solrQuery.toString());
-        QueryResponse qr =  getServer().query(solrQuery); // can throw exception
+        QueryResponse qr =  getServer().query(solrQuery, queryMethod); // can throw exception
         if(logger.isDebugEnabled()){
             logger.debug("matched records: " + qr.getResults().getNumFound());
         }
@@ -2531,7 +2542,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
         else
             params.set("numTerms", "0");        
-        QueryResponse response = getServer().query(params);
+        QueryResponse response = getServer().query(params, queryMethod);
         return parseLukeResponse(response.toString(), fields != null);
     }
     /**
@@ -2558,7 +2569,7 @@ public class SearchDAOImpl implements SearchDAO {
             //query.add("sort", facet + " asc");
             query.add("group.field",facet);
         }
-        QueryResponse response = getServer().query(query);
+        QueryResponse response = getServer().query(query, queryMethod);
         GroupResponse groupResponse = response.getGroupResponse();
         //System.out.println(groupResponse);
         List<FacetResultDTO> facetResults = new ArrayList<FacetResultDTO>();
