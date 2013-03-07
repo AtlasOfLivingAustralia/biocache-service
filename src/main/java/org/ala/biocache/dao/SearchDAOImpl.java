@@ -161,7 +161,7 @@ public class SearchDAOImpl implements SearchDAO {
     @Inject
     protected AuthService authService;
     
-    protected Integer maxMultiPartThreads = 10;
+    protected Integer maxMultiPartThreads = 5;
 
     //thread pool for multipart queries that take awhile:
     private ExecutorService executor = null;
@@ -1572,7 +1572,7 @@ public class SearchDAOImpl implements SearchDAO {
             for (String fq : requestParams.getFq()) {
                 // pull apart fq. E.g. Rank:species and then sanitize the string parts
                 // so that special characters are escaped apporpriately
-                if (fq.isEmpty()) {
+                if (fq ==null || fq.isEmpty()) {
                     continue;
                 }
                 // use of AND/OR requires correctly formed fq.

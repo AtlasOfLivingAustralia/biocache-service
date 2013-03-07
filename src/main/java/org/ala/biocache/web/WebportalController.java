@@ -800,17 +800,19 @@ public class WebportalController /* implements ServletConfigAware*/ {
         ObjectMapper om = new ObjectMapper();
         String guid = null;
         JsonNode guidLookupNode = om.readTree(new URL("http://bie.ala.org.au/ws/guid/" + URLEncoder.encode(taxonName, "UTF-8")));
-        if(guidLookupNode.isArray()){
-            JsonNode idNode = guidLookupNode.get(0).get("identifier");
+        //NC: Fixed the ArraryOutOfBoundsException when the lookup fails to yield a result
+        if(guidLookupNode.isArray() && guidLookupNode.size()>0){
+            JsonNode idNode = guidLookupNode.get(0).get("acceptedIdentifier");//NC: changed to used the acceptedIdentifier because this will always hold the guid for the accepted taxon concept whether or not a synonym name is provided
             guid = idNode!=null ? idNode.asText(): null;
         }
-
+        String newQuery ="raw_name:" + taxonName;
         if(guid != null){
 
             model.addAttribute("guid", guid);
             model.addAttribute("speciesPageUrl", "http://bie.ala.org.au/species/" + guid);
             JsonNode node = om.readTree(new URL("http://bie.ala.org.au/ws/species/info/" + guid + ".json"));
-            JsonNode imageNode = node.get("taxonConcept").get("smallImageUrl");
+            JsonNode tc = node.get("taxonConcept");
+            JsonNode imageNode = tc.get("smallImageUrl");
             String imageUrl = imageNode != null ? imageNode.asText() : null;
             if(imageUrl!=null) {
                 model.addAttribute("imageUrl", imageUrl);
@@ -822,16 +824,19 @@ public class WebportalController /* implements ServletConfigAware*/ {
                 model.addAttribute("imageLicence",imageMetadata.get("http://purl.org/dc/elements/1.1/license").asText());
                 model.addAttribute("imageSource",imageMetadata.get("http://purl.org/dc/elements/1.1/source").asText());
             }
-
+            JsonNode leftNode = tc.get("left");
+            JsonNode rightNode = tc.get("right");
+            newQuery = leftNode != null && rightNode!=null?"lft:[" +leftNode.asText() + " TO " +rightNode.asText() + "]":"taxon_concept_lsid:"+guid;
+            logger.debug("The new query : " + newQuery);
             //common name
-            JsonNode commonNameNode  = node.get("taxonConcept").get("commonNameSingle");
+            JsonNode commonNameNode  = tc.get("commonNameSingle");
             if(commonNameNode!=null) {
                 model.addAttribute("commonName",commonNameNode.asText());
                 logger.debug("retrieved name: "+commonNameNode.asText());
             }
 
             //name
-            JsonNode nameNode  = node.get("taxonConcept").get("nameComplete");
+            JsonNode nameNode  = tc.get("nameComplete");
             if(nameNode!=null) {
                 model.addAttribute("name",nameNode.asText());
                 logger.debug("retrieved name: "+nameNode.asText());
@@ -843,11 +848,11 @@ public class WebportalController /* implements ServletConfigAware*/ {
         }
 
         SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
-        searchParams.setQ(rank + ":\"" + taxonName + "\"");
+        searchParams.setQ(newQuery);
         searchParams.setFacets(new String[]{"data_resource"});
         searchParams.setPageSize(0);
         List<FacetResultDTO> facets = searchDAO.getFacetCounts(searchParams);
-        model.addAttribute("query", rank + ":\"" + taxonName + "\""); //need a facet on data providers
+        model.addAttribute("query", newQuery); //need a facet on data providers
         model.addAttribute("dataProviders", facets.get(0).getFieldResult()); //need a facet on data providers
         return "metadata/mcp";
     }
