@@ -316,7 +316,10 @@ public class OccurrenceIndex {
         addToMapIfNotNull(map,"multimedia", arrToString(multimedia));
         addToMapIfNotNull(map,"collector",collector);
         addToMapIfNotNull(map,"collectors",arrToString(collectors));
-        addToMapIfNotNull(map,"record_number", recordNumber);        
+        addToMapIfNotNull(map,"record_number", recordNumber);
+        addToMapIfNotNull(map,"occurrence_details", occurrenceDetails);
+        addToMapIfNotNull(map,"rights", rights);
+        addToMapIfNotNull(map,"photographer_s", photographer);
         return map;
     }
 
