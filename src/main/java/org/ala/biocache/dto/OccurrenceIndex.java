@@ -122,7 +122,11 @@ public class OccurrenceIndex {
     @Field("sensitive") String sensitive;
     //AVH extra fields
     @Field("record_number") String recordNumber;
-
+    //For harvesting of images into the BIE
+    @Field("occurrence_details") String occurrenceDetails;
+    @Field("rights") String rights; 
+    @Field("photographer_s") String photographer;
+    
     String imageUrl;
     String largeImageUrl;
     String smallImageUrl;
@@ -944,6 +948,48 @@ public class OccurrenceIndex {
      */
     public void setRecordNumber(String recordNumber) {
         this.recordNumber = recordNumber;
+    }
+    
+    /**
+     * @return the occurrence details
+     */
+    public String getOccurrenceDetails() {
+        return occurrenceDetails;
+    }
+
+    /**
+     * @param occurrenceDetails the occurrence details
+     */
+    public void setOccurrenceDetails(String occurrenceDetails) {
+        this.occurrenceDetails = occurrenceDetails;
+    }
+
+    /**
+     * @return rights information
+     */
+    public String getRights() {
+        return rights;
+    }
+
+    /**
+     * @param rights rights information
+     */
+    public void setRights(String rights) {
+        this.rights = rights;
+    }
+
+    /**
+     * @return photographer of the occurrence
+     */
+    public String getPhotographer() {
+        return photographer;
+    }
+
+    /**
+     * @param photographer photographer of the occurrence
+     */
+    public void setPhotographer(String photographer) {
+        this.photographer = photographer;
     }
     
 }
