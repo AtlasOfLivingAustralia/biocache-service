@@ -25,6 +25,7 @@ public class DownloadDetailsDTO {
         this.ipAddress = ipAddress;
         this.downloadType = type;
         this.startDate = new Date();
+        this.lastUpdate = new Date();
     }
     
     public String getLastUpdate(){
