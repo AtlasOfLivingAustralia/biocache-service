@@ -77,6 +77,8 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <li><strong>Test - a GET method to test if a short value is valid: </strong> /webportal/params/<b>value</b>
                         Test if a short query parameter is valid.<br>
                         Returns true or false</li>
+                    <li><strong>Details - a GET method to return the query that is represented by the qid: </strong> /webportal/params/details<b>value</b>
+                    Returns a JSON representation of the query details that have been cached. </li>
                 </ul>
                 You should only use the short query parameter in your subsequent searches and downloads if the "Test" service returns true.
             </li>           
@@ -350,6 +352,8 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <li><strong>Test: </strong> /webportal/params/<b>value</b>
                         Test if a short query parameter is valid.<br>
                         Returns true or false</li>
+                        <li><strong>Details: </strong> /webportal/params/details<b>value</b>
+                    Returns a JSON representation of the query details that have been cached. </li>
                 </ul>
                 </li>
              <li><strong>Occurrences Bounding Box:</strong> /mapping/bbox <br>

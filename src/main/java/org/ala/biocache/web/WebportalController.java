@@ -27,6 +27,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.ala.biocache.dao.SearchDAO;
 import org.ala.biocache.util.LegendItem;
+import org.ala.biocache.util.ParamsCacheObject;
 import org.ala.biocache.util.SearchUtils;
 import org.ala.biocache.util.WMSCache;
 import org.ala.biocache.util.WMSCacheObject;
@@ -103,10 +104,9 @@ public class WebportalController /* implements ServletConfigAware*/ {
      * Store query params list
      */
     @RequestMapping(value = {"/webportal/params","/mapping/params"}, method = RequestMethod.POST)
-    public
-    @ResponseBody
-    Long storeParams(SpatialSearchRequestParams requestParams,
-            @RequestParam(value = "bbox", required = false, defaultValue = "false") String bbox) throws Exception {
+    public void storeParams(SpatialSearchRequestParams requestParams,
+            @RequestParam(value = "bbox", required = false, defaultValue = "false") String bbox,
+            HttpServletResponse response) throws Exception {
 
         //get bbox (also cleans up Q)
         double[] bb = null;
@@ -119,7 +119,9 @@ public class WebportalController /* implements ServletConfigAware*/ {
         }
 
         //store
-        return ParamsCache.put(requestParams.getFormattedQuery(), requestParams.getDisplayString(), requestParams.getWkt(), bb);
+        Long qid= ParamsCache.put(requestParams.getFormattedQuery(), requestParams.getDisplayString(), requestParams.getWkt(), bb);
+        response.setContentType("text/plain");
+        writeBytes(response, qid.toString().getBytes());        
     }
 
     /**
@@ -131,6 +133,17 @@ public class WebportalController /* implements ServletConfigAware*/ {
     Boolean storeParams(@PathVariable("id") Long id) throws Exception {
         return ParamsCache.get(id) != null;
     }
+    /**
+     * Allows the details of a cached query to be viewed.
+     * @param id
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = {"/webportal/params/details/{id}","/mapping/params/details/{id}"}, method = RequestMethod.GET)
+    public @ResponseBody ParamsCacheObject getParamCacheObject(@PathVariable("id") Long id) throws Exception{
+        return ParamsCache.get(id);
+    }
+    
 
     /**
      *
