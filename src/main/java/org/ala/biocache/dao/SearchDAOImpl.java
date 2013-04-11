@@ -353,7 +353,8 @@ public class SearchDAOImpl implements SearchDAO {
     @Override
     public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, boolean includeSensitive, Map<String,String[]> extraParams) throws Exception {
         SearchResultDTO searchResults = new SearchResultDTO();
-
+        SpatialSearchRequestParams original = new SpatialSearchRequestParams(); 
+        BeanUtils.copyProperties(searchParams, original);
         try {
             //String queryString = formatSearchQuery(query);            
             formatSearchQuery(searchParams);            
@@ -365,10 +366,13 @@ public class SearchDAOImpl implements SearchDAO {
             solrQuery.setQuery(queryString);
 
             QueryResponse qr = runSolrQuery(solrQuery, searchParams);
+            //need to set the original q to the processed value so that we remove the wkt etc that is added from paramcache object
+            original.setQ(searchParams.getQ());
+            
             Class resultClass = includeSensitive? org.ala.biocache.dto.SensitiveOccurrenceIndex.class:OccurrenceIndex.class;
-            searchResults = processSolrResponse(searchParams, qr, solrQuery,resultClass);
+            searchResults = processSolrResponse(original, qr, solrQuery,resultClass);
             searchResults.setQueryTitle(searchParams.getDisplayString());
-            searchResults.setUrlParameters(searchParams.getUrlParams());
+            searchResults.setUrlParameters(original.getUrlParams());
             //now update the fq display map...
             searchResults.setActiveFacetMap(searchUtils.addFacetMap(searchParams.getFq(), getAuthIndexFields()));
             
