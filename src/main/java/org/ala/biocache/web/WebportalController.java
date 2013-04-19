@@ -858,6 +858,19 @@ public class WebportalController /* implements ServletConfigAware*/ {
             //authorship
             JsonNode authorshipNode  = node.get("taxonConcept").get("author");
             if(authorshipNode!=null) model.addAttribute("authorship",authorshipNode.asText());
+            
+            //taxonomic information
+            JsonNode node2 = om.readTree(new URL("http://bie.ala.org.au/ws/species/" + guid + ".json"));
+            JsonNode classificationNode = node2.get("classification");
+            model.addAttribute("kingdom", classificationNode.get("kingdom").asText());
+            model.addAttribute("phylum", classificationNode.get("phylum").asText());
+            model.addAttribute("class", classificationNode.get("clazz").asText());
+            model.addAttribute("order", classificationNode.get("order").asText());
+            model.addAttribute("family", classificationNode.get("family").asText());
+            model.addAttribute("genus", classificationNode.get("genus").asText());
+            
+            JsonNode taxonNameNode = node.get("taxonName");
+            model.addAttribute("specificEpithet", taxonNameNode.get("specificEpithet").asText());
         }
 
         SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
