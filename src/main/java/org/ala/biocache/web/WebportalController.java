@@ -869,7 +869,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
             model.addAttribute("family", classificationNode.get("family").asText());
             model.addAttribute("genus", classificationNode.get("genus").asText());
             
-            JsonNode taxonNameNode = node.get("taxonName");
+            JsonNode taxonNameNode = node2.get("taxonName");
             model.addAttribute("specificEpithet", taxonNameNode.get("specificEpithet").asText());
         }
 
