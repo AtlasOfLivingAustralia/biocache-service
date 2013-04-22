@@ -124,7 +124,7 @@
 			<mcp:taxonomicCoverage>
 				<mcp:TC_Taxon>
 					<mcp:taxonInfo>
-						<dwc:Taxon xmlns:dwc="http://rs/tdwg/org/dwc/terms/">
+						<dwc:Taxon xmlns:dwc="http://rs.tdwg.org/dwc/terms/">
 							<dwc:taxonID>${guid}</dwc:taxonID>
 							<dwc:scientificName>${name}</dwc:scientificName>
 							<dwc:vernacularName>${commonName}</dwc:vernacularName>
