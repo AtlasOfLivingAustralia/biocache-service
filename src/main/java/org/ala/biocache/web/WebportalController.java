@@ -866,7 +866,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
             model.addAttribute("phylum", StringUtils.capitalize(classificationNode.get("phylum").asText().toLowerCase()));
             model.addAttribute("class", StringUtils.capitalize(classificationNode.get("clazz").asText().toLowerCase()));
             model.addAttribute("order", StringUtils.capitalize(classificationNode.get("order").asText().toLowerCase()));
-            model.addAttribute("family", classificationNode.get("family").asText());
+            model.addAttribute("family", StringUtils.capitalize(classificationNode.get("family").asText().toLowerCase()));
             model.addAttribute("genus", classificationNode.get("genus").asText());
             
             JsonNode taxonNameNode = node2.get("taxonName");
