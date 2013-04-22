@@ -862,10 +862,10 @@ public class WebportalController /* implements ServletConfigAware*/ {
             //taxonomic information
             JsonNode node2 = om.readTree(new URL("http://bie.ala.org.au/ws/species/" + guid + ".json"));
             JsonNode classificationNode = node2.get("classification");
-            model.addAttribute("kingdom", classificationNode.get("kingdom").asText());
-            model.addAttribute("phylum", classificationNode.get("phylum").asText());
-            model.addAttribute("class", classificationNode.get("clazz").asText());
-            model.addAttribute("order", classificationNode.get("order").asText());
+            model.addAttribute("kingdom", StringUtils.capitalize(classificationNode.get("kingdom").asText().toLowerCase()));
+            model.addAttribute("phylum", StringUtils.capitalize(classificationNode.get("phylum").asText().toLowerCase()));
+            model.addAttribute("class", StringUtils.capitalize(classificationNode.get("clazz").asText().toLowerCase()));
+            model.addAttribute("order", StringUtils.capitalize(classificationNode.get("order").asText().toLowerCase()));
             model.addAttribute("family", classificationNode.get("family").asText());
             model.addAttribute("genus", classificationNode.get("genus").asText());
             

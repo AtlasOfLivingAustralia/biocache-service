@@ -122,19 +122,23 @@
 	<gmd:identificationInfo>
 		<mcp:MD_DataIdentification gco:isoType="gmd:MD_DataIdentification">
 			<mcp:taxonomicCoverage>
-				<mcp:taxonInfo>
-					<dwc:taxonID>${guid}</dwc:taxonID>
-					<dwc:scientificName>${name}</dwc:scientificName>
-					<dwc:vernacularName>${commonName}</dwc:vernacularName>
-					<dwc:kingdom>${kingdom}</dwc:kingdom>
-					<dwc:phylum>${phylum}</dwc:phylum>
-					<dwc:class>${class}</dwc:class>
-					<dwc:order>${order}</dwc:order>
-					<dwc:family>${family}</dwc:family>
-					<dwc:genus>${genus}</dwc:genus>
-					<dwc:specificEpithet>${specificEpithet}</dwc:specificEpithet>
-					<dwc:scientificNameAuthorship>${authorship}</dwc:scientificNameAuthorship>
-				</mcp:taxonInfo>
+				<mcp:TC_Taxon>
+					<mcp:taxonInfo>
+						<dwc:Taxon xmlns:dwc="http://rs/tdwg/org/dwc/terms/">
+							<dwc:taxonID>${guid}</dwc:taxonID>
+							<dwc:scientificName>${name}</dwc:scientificName>
+							<dwc:vernacularName>${commonName}</dwc:vernacularName>
+							<dwc:kingdom>${kingdom}</dwc:kingdom>
+							<dwc:phylum>${phylum}</dwc:phylum>
+							<dwc:class>${class}</dwc:class>
+							<dwc:order>${order}</dwc:order>
+							<dwc:family>${family}</dwc:family>
+							<dwc:genus>${genus}</dwc:genus>
+							<dwc:specificEpithet>${specificEpithet}</dwc:specificEpithet>
+							<dwc:scientificNameAuthorship>${authorship}</dwc:scientificNameAuthorship>
+						</dwc:Taxon>
+					</mcp:taxonInfo>
+				</mcp:TC_Taxon>
 			</mcp:taxonomicCoverage>
 			<gmd:citation>
 				<gmd:CI_Citation>
