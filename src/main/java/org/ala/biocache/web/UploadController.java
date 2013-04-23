@@ -6,6 +6,7 @@ import au.org.ala.util.ParsedRecord;
 import au.org.ala.util.AdHocParser;
 import org.ala.biocache.dto.Facet;
 import org.ala.biocache.dto.SpatialSearchRequestParams;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
@@ -115,6 +116,7 @@ public class UploadController {
         try {
             InputStream input = request.getInputStream();
             String json = IOUtils.toString(input);
+            logger.debug(json);
             String utf8String = new String(json.getBytes(), "UTF-8");
             LinkedHashMap<String,String> record = om.readValue(utf8String, new TypeReference<LinkedHashMap<String,String>>() {});
             input.close();
@@ -192,11 +194,19 @@ public class UploadController {
             String[] facetsRaw = au.org.ala.biocache.Store.retrieveCustomIndexFields(dr);
             for (String f: facetsRaw){
                 String displayName = f;
+                boolean isRange=false;
                 if(displayName.endsWith("_s")) {
                     displayName = displayName.substring(0, displayName.length()-2);
                 }
+                else if(displayName.endsWith("_i") || displayName.endsWith("_d")){
+                    displayName = displayName.substring(0, displayName.length()-2);
+                    isRange=true;
+                }
                 displayName = displayName.replaceAll("_", " ");
                 fs.add(new Facet(f, StringUtils.capitalize(displayName)));
+                //when the custom field is an _i or _d automatically include the range as an available facet
+                if(isRange)
+                  fs.add(new Facet(f + "_RNG", StringUtils.capitalize(displayName)));
             }
         }
         return fs;
@@ -345,7 +355,7 @@ class UploaderThread implements Runnable {
     protected String tempUid;
     protected String uploadStatusDir;
     protected Integer recordsToLoad = null;
-    protected String[] customIndexFields = null;
+    protected String[] customIndexFields = null;    
 
     String[] cleanUpHeaders(String[] headers){
         int i=0;
@@ -362,6 +372,9 @@ class UploaderThread implements Runnable {
         File statusDir = null;
         File statusFile = null;
         ObjectMapper om = new ObjectMapper();
+        List<String> intList = new ArrayList<String>();        
+        List<String> floatList = new ArrayList<String>();
+        List<String> stringList = new ArrayList<String>();
 
         try {
             statusDir = new File(uploadStatusDir);
@@ -392,12 +405,15 @@ class UploaderThread implements Runnable {
                     filteredHeaders = filterCustomIndexFields(filteredHeaders);
                     customIndexFields = filteredHeaders.toArray(new String[0]);
                 }
-
+                
+                //default data type for the "customIndexFields" is a string                
+                CollectionUtils.addAll(intList, customIndexFields);
+                
                 //System.out.println("Matched headers: " + StringUtils.join(headerArray));
 
                 //if the first line is data, add a record, else discard
                 if(firstLineIsData){
-                    addRecord(tempUid, currentLine, headerArray);
+                    addRecord(tempUid, currentLine, headerArray,intList,floatList,stringList);
                 }
 
                 //write the data
@@ -409,7 +425,7 @@ class UploaderThread implements Runnable {
                         percentComplete = loadComplete;
                         FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("LOADING",counter,loadComplete,recordsToLoad)));
                     }
-                    addRecord(tempUid, currentLine, headerArray);
+                    addRecord(tempUid, currentLine, headerArray, intList, floatList, stringList);
                 }
             } catch(Exception e) {
                 logger.error(e.getMessage(),e);
@@ -417,6 +433,18 @@ class UploaderThread implements Runnable {
                 csvReader.close();
             }
 
+            //update the custom index fields so that the are appended with the data type _i for int and _d for float/double
+            List<String> tmpCustIndexFields = new ArrayList<String>();
+            for(String f : customIndexFields){
+                if(intList.contains(f))
+                   tmpCustIndexFields.add(f +"_i");
+                else if(floatList.contains(f))
+                   tmpCustIndexFields.add(f+"_d");
+                else
+                    tmpCustIndexFields.add(f); //default is a string
+            }
+            
+            
             status = "SAMPLING";
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,0,25, recordsToLoad)));
             au.org.ala.biocache.Store.sample(tempUid);
@@ -424,8 +452,9 @@ class UploaderThread implements Runnable {
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,0,50, recordsToLoad)));
             au.org.ala.biocache.Store.process(tempUid, 1);
             status = "INDEXING";
+            logger.debug("Indexing " + tempUid + " " + tmpCustIndexFields);
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,0,75, recordsToLoad)));
-            au.org.ala.biocache.Store.index(tempUid, customIndexFields);
+            au.org.ala.biocache.Store.index(tempUid, tmpCustIndexFields.toArray(new String[0]));
             status = "COMPLETE";
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,counter,100,recordsToLoad)));
         } catch(Exception ex){
@@ -499,11 +528,32 @@ class UploaderThread implements Runnable {
         return filterList;
     }
 
-    private void addRecord(String tempUid, String[] currentLine, String[] headers) {
+    private void addRecord(String tempUid, String[] currentLine, String[] headers, List<String> intList, List<String> floatList, List<String> stringList) {
         Map<String,String> map = new HashMap<String, String>();
         for(int i=0; i< headers.length && i< currentLine.length; i++){
             if(currentLine[i] !=null && currentLine[i].trim().length() >0 ){
                 map.put(headers[i], currentLine[i].trim());
+                //now test of the header value is part of the custom index fields and perform a data check
+                if(intList.contains(headers[i])){
+                    try{
+                        Integer.parseInt(currentLine[i].trim());
+                    }
+                    catch(Exception e){
+                        //this custom index column could not possible be an integer
+                        intList.remove(headers[i]);
+                        floatList.add(headers[i]);
+                    }
+                }
+                if(floatList.contains(headers[i])){
+                    try{
+                        Float.parseFloat(currentLine[i].trim());
+                    }
+                    catch(Exception e){
+                        //this custom index column can only be a string
+                      floatList.remove(headers[i]);
+                      stringList.add(headers[i]);
+                    }
+                }
             }
         }
         if(!map.isEmpty()){
