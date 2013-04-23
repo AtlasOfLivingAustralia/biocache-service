@@ -64,10 +64,18 @@ public class StatsIndexFieldDTO {
             }  
         }
         else{
-          //TODO may need a better algorithm for this situation... But need to find a use case first.
-            gap = new Double(0.5);
-            start = (Double)stats.getMin();
-            end = (Double)stats.getMax();
+          if(dataType.equals("int")){
+              //a SD of under 1 for an integer means that the values are all very close together.
+              start = new Integer(((Double)stats.getMin()).intValue());
+              end = new Integer(((Double)stats.getMax()).intValue());
+              gap = new Integer(end.intValue() - start.intValue()+1);
+          }
+          else{
+              //TODO may need a better algorithm for this situation... But need to find a use case first.
+              gap = new Double(0.5);
+              start = (Double)stats.getMin();
+              end = (Double)stats.getMax();
+          }
         }
         
     }
