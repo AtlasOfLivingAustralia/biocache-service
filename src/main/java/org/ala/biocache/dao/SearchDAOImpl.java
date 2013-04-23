@@ -2365,10 +2365,18 @@ public class SearchDAOImpl implements SearchDAO {
             searchParams.setFacets(new String[]{field});
             try{
                 Map<String, FieldStatsInfo> stats = getStatistics(searchParams);
-                if(stats != null){                                        
-                    String type = indexFieldMap.get(field).getDataType();                    
-                    details = new StatsIndexFieldDTO(stats.get(field), type);
-                    rangeFieldCache.put(field, details);                    
+                if(stats != null){
+                    IndexFieldDTO ifdto =indexFieldMap.get(field);
+                    if(ifdto !=null){
+                        String type = ifdto.getDataType();                    
+                        details = new StatsIndexFieldDTO(stats.get(field), type);
+                        rangeFieldCache.put(field, details);
+                    }
+                    else{
+                        logger.debug("Unable to locate field:  " + field);
+                        return null;
+                    }
+                    
                 }
             }
             catch(Exception e){
