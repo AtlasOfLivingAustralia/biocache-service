@@ -51,6 +51,18 @@ public class StatsIndexFieldDTO {
                 end = new Double(lend);
             }            
         }
+        else if(stats.getStddev()==0.0f){
+            if(dataType.equals("int")){
+                gap = new Integer(0);
+                start = new Integer(((Double)stats.getMin()).intValue());
+                end = new Integer(((Double)stats.getMax()).intValue());
+            }
+            else{
+                gap = new Double(0);
+                start = new Double((Double)stats.getMin());
+                end = new Double((Double)stats.getMax());
+            }  
+        }
         else{
           //TODO may need a better algorithm for this situation... But need to find a use case first.
             gap = new Double(0.5);
