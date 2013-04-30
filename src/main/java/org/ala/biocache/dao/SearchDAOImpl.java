@@ -367,7 +367,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             QueryResponse qr = runSolrQuery(solrQuery, searchParams);
             //need to set the original q to the processed value so that we remove the wkt etc that is added from paramcache object
-            original.setQ(searchParams.getQ());
+            //original.setQ(searchParams.getQ());
             
             Class resultClass = includeSensitive? org.ala.biocache.dto.SensitiveOccurrenceIndex.class:OccurrenceIndex.class;
             searchResults = processSolrResponse(original, qr, solrQuery,resultClass);
@@ -1814,7 +1814,7 @@ public class SearchDAOImpl implements SearchDAO {
         sb.append(" ").append(latitude.toString()).append(" d=").append(SpatialUtils.convertToDegrees(radius).toString());
         sb.append("))\"");
         if(StringUtils.isNotEmpty(fullTextQuery))
-          sb.append(" AND ").append(fullTextQuery);
+          sb.append(" AND (").append(fullTextQuery).append(")");
 //        String queryString = "{!spatial circles=" + latitude.toString() + "," + longitude.toString()
 //                + "," + radius.toString() + "}" +  fullTextQuery;
         return sb.toString();
@@ -1828,24 +1828,21 @@ public class SearchDAOImpl implements SearchDAO {
                 sb.append(searchParams.getLon().toString()).append(" ").append(searchParams.getLat().toString());
                 sb.append(" d=").append(SpatialUtils.convertToDegrees(searchParams.getRadius()).toString());
                 sb.append("))\"");
-                //sb.append("{!spatial ");
-                //sb.append("circles=").append(searchParams.getLat().toString()).append(",");
-                //sb.append(searchParams.getLon().toString()).append(",");
-                //sb.append(searchParams.getRadius().toString()).append("}");
             }
             else if(!StringUtils.isEmpty(searchParams.getWkt())){
-                //format the wkt
-                //sb.append("{!spatial ");
-                //sb.append("wkt=").append(searchParams.getWkt()).append("}");
+                //format the wkt                
                 sb.append(spatialField).append(":\"Intersects(");
                 sb.append(searchParams.getWkt());
                 sb.append(")\"");
             }
             String query = StringUtils.isEmpty(searchParams.getFormattedQuery())? searchParams.getQ() : searchParams.getFormattedQuery();
             if(StringUtils.isNotEmpty(query)){
-                if(sb.length()>0)
-                  sb.append(" AND ");
-                sb.append(query);
+                if(sb.length()>0){
+                    sb.append(" AND (");
+                    sb.append(query).append(")");
+                }
+                else
+                    sb.append(query);
             }
 //            else
 //                sb.append("*:*"); //default to all records when no query has been provided.

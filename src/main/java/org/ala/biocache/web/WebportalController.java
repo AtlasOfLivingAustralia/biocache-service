@@ -106,6 +106,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
     @RequestMapping(value = {"/webportal/params","/mapping/params"}, method = RequestMethod.POST)
     public void storeParams(SpatialSearchRequestParams requestParams,
             @RequestParam(value = "bbox", required = false, defaultValue = "false") String bbox,
+            @RequestParam(value = "title", required = false) String title,
             HttpServletResponse response) throws Exception {
 
         //get bbox (also cleans up Q)
@@ -118,8 +119,10 @@ public class WebportalController /* implements ServletConfigAware*/ {
             searchDAO.findByFulltext(requestParams);
         }
 
-        //store
-        Long qid= ParamsCache.put(requestParams.getFormattedQuery(), requestParams.getDisplayString(), requestParams.getWkt(), bb);
+        //store the title if necessary
+        if(title == null)
+            title = requestParams.getDisplayString();
+        Long qid= ParamsCache.put(requestParams.getFormattedQuery(), title, requestParams.getWkt(), bb);
         response.setContentType("text/plain");
         writeBytes(response, qid.toString().getBytes());        
     }
