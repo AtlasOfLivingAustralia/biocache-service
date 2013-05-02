@@ -450,10 +450,12 @@ public class OccurrenceController extends AbstractSecureController {
         DownloadRequestParams requestParams,
         @RequestParam(value = "count", required = false, defaultValue="false") boolean includeCount,
         @RequestParam(value="lookup" ,required=false, defaultValue="false") boolean lookupName,
+        @RequestParam(value="ip", required=false) String ip,
         HttpServletRequest request,
         HttpServletResponse response) throws Exception {	      
         if(requestParams.getFacets().length >0){
-            DownloadDetailsDTO dd = registerDownload(requestParams, request.getLocalAddr(), DownloadDetailsDTO.DownloadType.FACET);
+            ip = ip == null?request.getRemoteAddr():ip;
+            DownloadDetailsDTO dd = registerDownload(requestParams, ip, DownloadDetailsDTO.DownloadType.FACET);
             try{
                 String filename = requestParams.getFile() != null ? requestParams.getFile():requestParams.getFacets()[0];
                 response.setHeader("Cache-Control", "must-revalidate");
@@ -504,13 +506,15 @@ public class OccurrenceController extends AbstractSecureController {
             HttpServletRequest request,
             final DownloadRequestParams params,
             @RequestParam(value="file", required = true) String filepath,
-            @RequestParam(value="directory", required = true, defaultValue = "/data/biocache-exports") final String directory
+            @RequestParam(value="directory", required = true, defaultValue = "/data/biocache-exports") final String directory,
+            @RequestParam(value="ip", required=false) String ip
             ) throws Exception {
 
         final File file = new File(filepath);
 
         final BieService myBieService = this.bieService;
-        final DownloadDetailsDTO dd = registerDownload(params, request.getLocalAddr(), DownloadType.RECORDS_INDEX);
+        ip = ip == null?request.getRemoteAddr():ip;
+        final DownloadDetailsDTO dd = registerDownload(params, ip, DownloadType.RECORDS_INDEX);
 
         if(file.exists()){
             Thread t = new Thread(){
@@ -653,18 +657,19 @@ public class OccurrenceController extends AbstractSecureController {
 	@RequestMapping(value = "/occurrences/download*", method = RequestMethod.GET)
 	public String occurrenceDownload(
 			DownloadRequestParams requestParams,
+			@RequestParam(value="ip", required=false) String ip,
 			@RequestParam(value="apiKey", required=false) String apiKey,
 			HttpServletResponse response,
             HttpServletRequest request) throws Exception {
        
-        String ip = request.getLocalAddr();
+        ip = ip == null?request.getRemoteAddr():ip;
         ServletOutputStream out = response.getOutputStream();
         //search params must have a query or formatted query for the downlaod to work
         if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
             return null;
         }
         if(apiKey != null){
-            return occurrenceSensitiveDownload(requestParams, apiKey, false, response, request);
+            return occurrenceSensitiveDownload(requestParams, apiKey, ip, false, response, request);
         }
 
         writeQueryToStream(requestParams, response, ip, out, false,false);
@@ -674,17 +679,18 @@ public class OccurrenceController extends AbstractSecureController {
 	@RequestMapping(value = "/occurrences/index/download*", method = RequestMethod.GET)
 	public void occurrenceIndexDownload(DownloadRequestParams requestParams,
             @RequestParam(value="apiKey", required=false) String apiKey,
+            @RequestParam(value="ip", required=false) String ip,
             HttpServletResponse response,
             HttpServletRequest request) throws Exception{
 	    
-	    String ip = request.getLocalAddr();
+	      ip = ip == null?request.getRemoteAddr():ip;
         ServletOutputStream out = response.getOutputStream();
         //search params must have a query or formatted query for the downlaod to work
         if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
             return;
         }
         if(apiKey != null){
-            occurrenceSensitiveDownload(requestParams, apiKey, true, response, request);
+            occurrenceSensitiveDownload(requestParams, apiKey, ip, true, response, request);
             return;
         }
         try{
@@ -700,13 +706,14 @@ public class OccurrenceController extends AbstractSecureController {
     public String occurrenceSensitiveDownload(
             DownloadRequestParams requestParams,
             String apiKey,
+            String ip,
             boolean fromIndex,
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
        
         
         if(shouldPerformOperation(apiKey, response, false)){        
-            String ip = request.getLocalAddr();
+            ip = ip == null?request.getRemoteAddr():ip;
             ServletOutputStream out = response.getOutputStream();
             //search params must have a query or formatted query for the downlaod to work
             if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
@@ -949,24 +956,28 @@ public class OccurrenceController extends AbstractSecureController {
 	@RequestMapping(value = {"/occurrence/{uuid:.+}","/occurrences/{uuid:.+}", "/occurrence/{uuid:.+}.json", "/occurrences/{uuid:.+}.json"}, method = RequestMethod.GET)
 	public @ResponseBody Object showOccurrence(@PathVariable("uuid") String uuid,
 	        @RequestParam(value="apiKey", required=false) String apiKey,
+	        @RequestParam(value="ip", required=false) String ip,
         HttpServletRequest request, HttpServletResponse response) throws Exception {
+	    ip = ip == null?request.getRemoteAddr():ip;
 	    if(apiKey != null){
-	        return showSensitiveOccurrence(uuid, apiKey, request, response);
+	        return showSensitiveOccurrence(uuid, apiKey, ip, request, response);
 	    }
-		return getOccurrenceInformation(uuid, request, false);
+		return getOccurrenceInformation(uuid,ip, request, false);
 	}
 	
 	@RequestMapping(value = {"/sensitive/occurrence/{uuid:.+}","/sensitive/occurrences/{uuid:.+}", "/sensitive/occurrence/{uuid:.+}.json", "/senstive/occurrences/{uuid:.+}.json"}, method = RequestMethod.GET)
     public @ResponseBody Object showSensitiveOccurrence(@PathVariable("uuid") String uuid,
             @RequestParam(value="apiKey", required=true) String apiKey,
+            @RequestParam(value="ip", required=false) String ip,
         HttpServletRequest request,HttpServletResponse response) throws Exception {
+	    ip = ip == null?request.getRemoteAddr():ip;
 	    if(shouldPerformOperation(apiKey, response)){
-	        return getOccurrenceInformation(uuid, request, true);
+	        return getOccurrenceInformation(uuid, ip, request, true);
 	    }
 	    return null;
     }
 	
-	private Object getOccurrenceInformation(String uuid, HttpServletRequest request, boolean includeSensitive) throws Exception{
+	private Object getOccurrenceInformation(String uuid, String ip, HttpServletRequest request, boolean includeSensitive) throws Exception{
 	    logger.debug("Retrieving occurrence record with guid: '"+uuid+"'");
 
         FullRecord[] fullRecord = Store.getAllVersionsByUuid(uuid, includeSensitive);
@@ -1046,7 +1057,7 @@ public class OccurrenceController extends AbstractSecureController {
         //log the statistics for viewing the record
         String email = null;
         String reason = "Viewing Occurrence Record " + uuid;
-        String ip = request.getLocalAddr();
+        //String ip = request.getLocalAddr();
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
         if(occ.getProcessed() != null && occ.getProcessed().getAttribution()!=null){
             if (occ.getProcessed().getAttribution().getCollectionUid() != null) {
