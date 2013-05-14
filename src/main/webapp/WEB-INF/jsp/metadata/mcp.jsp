@@ -23,7 +23,7 @@
 			codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#MD_CharacterSetCode">utf8</gmd:MD_CharacterSetCode>
 	</gmd:characterSet>
 	<gmd:parentIdentifier>
-		<gco:CharacterString>${name} ${authorship}</gco:CharacterString>
+		<gco:CharacterString><![CDATA[${name} ${authorship}]]></gco:CharacterString>
 	</gmd:parentIdentifier>
 	<gmd:hierarchyLevel>
 		<gmd:MD_ScopeCode
@@ -135,7 +135,7 @@
 							<dwc:family>${family}</dwc:family>
 							<dwc:genus>${genus}</dwc:genus>
 							<dwc:specificEpithet>${specificEpithet}</dwc:specificEpithet>
-							<dwc:scientificNameAuthorship>${authorship}</dwc:scientificNameAuthorship>
+							<dwc:scientificNameAuthorship><![CDATA[${authorship}]]></dwc:scientificNameAuthorship>
 						</dwc:Taxon>
 					</mcp:taxonInfo>
 				</mcp:TC_Taxon>
