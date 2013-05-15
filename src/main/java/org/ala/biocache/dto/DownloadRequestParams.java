@@ -31,7 +31,7 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     protected String fields="uuid,catalogNumber,taxonConceptID.p,scientificName,vernacularName,scientificName.p,taxonRank.p,"+
     "vernacularName.p,kingdom.p,phylum.p,classs.p,order.p,family.p,genus.p,species.p,subspecies.p,institutionCode,collectionCode" +
     ",locality,decimalLatitude.p,decimalLongitude.p,coordinatePrecision,coordinateUncertaintyInMeters.p,country.p,ibra.p,imcra.p,stateProvince.p," +
-    "lga.p,minimumElevationInMeters,maximumElevationInMeters,minimumDepthInMeters,maximumDepthInMeters,individualCount,recordedBy,year.p,month.p,day.p," +
+    "cl959,minimumElevationInMeters,maximumElevationInMeters,minimumDepthInMeters,maximumDepthInMeters,individualCount,recordedBy,year.p,month.p,day.p," +
     "eventDate.p,eventTime.p,basisOfRecord,sex,preparations,informationWithheld.p,dataGeneralizations.p,speciesHabitats.p,outlierForLayers.p," +
     "taxonomicIssue.p,geospatiallyKosher";
     /** CSV list of extra fields to be added to the download - useful if wish to make use of default list */

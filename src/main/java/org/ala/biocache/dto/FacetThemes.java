@@ -15,7 +15,7 @@ public class FacetThemes {
                 new Facet("order","index"),new Facet("class","index"), new Facet("phylum","index"), new Facet("kingdom","index"), new Facet("species_group","index"),new Facet("rank","count"),new Facet("interaction","count"),new Facet("species_habitats","count")));
         allThemes.add(new FacetTheme("Geospatial",new Facet("uncertainty","index"),new Facet("sensitive","count"),new Facet("state_conservation","count"),
                      new Facet("raw_state_conservation","count"), new Facet("cl966","count"),new Facet("cl959","count"),new Facet("state","count"), new Facet("country","index"),
-                     new Facet("biogeographic_region","count"),new Facet("ibra","count"),new Facet("imcra", "count"),new Facet("cl918","count"),
+                     new Facet("biogeographic_region","count"),new Facet("ibra","count"),new Facet("imcra", "count"),new Facet("cl1918","count"),
                      new Facet("cl617", "count"),new Facet("cl620","count"), new Facet("geospatial_kosher","count")));
         allThemes.add(new FacetTheme("Temporal",new Facet("month","index"),new Facet("year","index"),new Facet("decade","index")));
         allThemes.add(new FacetTheme("Record Details", new Facet("basis_of_record","index"),new Facet("type_status","index"),new Facet("multimedia","count"),new Facet("collector","index")));
