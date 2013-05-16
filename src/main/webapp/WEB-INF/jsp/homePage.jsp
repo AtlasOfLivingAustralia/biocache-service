@@ -5,13 +5,13 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
         <meta name="pageName" content="home"/>
-        <title>Occurrence  Webservices | Atlas of Living Australia</title>
+        <title>Occurrence Web Services | Atlas of Living Australia</title>
     </head>
     <body>
         <style type="text/css">
             .code { font-family: courier new;}
             .webserviceList { margin-left:30px; }
-            .paramList { margin-left:60px; }
+            .paramList { margin-left:40px; }
             .examples  { margin-left:60px; }
             .paramOptionsList { margin-left:90px; }
             .exampleResponse { margin-left:60px; }
@@ -19,7 +19,6 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         </style>
     	<div class="section">
         <h1> Web Services </h1>
-        
         <p>
             These webservices provide spatial search capabilities for occurrence records, mapping service (WMS) and parsing services.
             <br/>
@@ -62,8 +61,21 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <li><strong>foffset</strong> - facet offset, to enable paging</li>
                     <li><strong>fprefix</strong> - limits facets to values that start with the supplied value</li>                    
                 </ul>
-                Range based faceting is supported by using the <a href="http://wiki.apache.org/solr/SimpleFacetParameters#Facet_by_Range">SOLR parameters</a>. For Example:<br>
-                <a href="${initParam.webservicesRoot}/occurrences/search?q=AdjustedSeedQuantity_i:[* TO *]&pageSize=0&facets=uncertainty&facet.range=ViabilitySummary_d&f.ViabilitySummary_d.facet.range.start=20.0&f.ViabilitySummary_d.facet.range.end=100.0&f.ViabilitySummary_d.facet.range.gap=10&facet.range=AdjustedSeedQuantity_i&f.AdjustedSeedQuantity_i.facet.range.start=0&f.AdjustedSeedQuantity_i.facet.range.end=100000&f.AdjustedSeedQuantity_i.facet.range.gap=50000">/occurrences/search?q=AdjustedSeedQuantity_i:[* TO *]&pageSize=0&facets=uncertainty&facet.range=ViabilitySummary_d&f.ViabilitySummary_d.facet.range.start=20.0&f.ViabilitySummary_d.facet.range.end=100.0&f.ViabilitySummary_d.facet.range.gap=10&facet.range=AdjustedSeedQuantity_i&f.AdjustedSeedQuantity_i.facet.range.start=0&f.AdjustedSeedQuantity_i.facet.range.end=100000&f.AdjustedSeedQuantity_i.facet.range.gap=50000</a>
+                Range based faceting is supported by using the <a href="http://wiki.apache.org/solr/SimpleFacetParameters#Facet_by_Range">SOLR parameters</a>. For Example (formatted for readability):<br>
+                <a href="${initParam.webservicesRoot}/occurrences/search?q=AdjustedSeedQuantity_i:[* TO *]&pageSize=0&facets=uncertainty&facet.range=ViabilitySummary_d&f.ViabilitySummary_d.facet.range.start=20.0&f.ViabilitySummary_d.facet.range.end=100.0&f.ViabilitySummary_d.facet.range.gap=10&facet.range=AdjustedSeedQuantity_i&f.AdjustedSeedQuantity_i.facet.range.start=0&f.AdjustedSeedQuantity_i.facet.range.end=100000&f.AdjustedSeedQuantity_i.facet.range.gap=50000">
+                    <p class="examples">
+                    /occurrences/search?q=AdjustedSeedQuantity_i:[* TO *]<br/>
+                    &pageSize=0&facets=uncertainty<br/>
+                    &facet.range=ViabilitySummary_d<br/>
+                    &f.ViabilitySummary_d.facet.range.start=20.0<br/>
+                    &f.ViabilitySummary_d.facet.range.end=100.0<br/>
+                    &f.ViabilitySummary_d.facet.range.gap=10<br/>
+                    &facet.range=AdjustedSeedQuantity_i<br/>
+                    &f.AdjustedSeedQuantity_i.facet.range.start=0<br/>
+                    &f.AdjustedSeedQuantity_i.facet.range.end=100000<br/>
+                    &f.AdjustedSeedQuantity_i.facet.range.gap=50000
+                    </p>
+                </a>
             </li>
             <li><strong><a href="#postQueryDetails" name="postQueryDetails" id="postQueryDetails">POST query details:</a></strong>
             	If you find that your q or wkt are too large or cumbersome to be passing around there is the facility to POST 
