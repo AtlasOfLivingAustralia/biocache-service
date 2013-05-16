@@ -25,8 +25,7 @@ public class FieldResultDTO implements Comparable<FieldResultDTO>{
         this(fieldValue,count);
         this.fq = fq;
     }
-    
-    
+
     /**
      * Constructor
      * 

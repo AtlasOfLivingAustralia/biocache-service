@@ -80,7 +80,7 @@ public class UploadController {
             List<String> terms = om.readValue(input, new TypeReference<List<String>>() {});
             input.close();
             String[] termArray = terms.toArray(new String[]{});
-            return AdHocParser.guessColumnHeaders(termArray);
+            return AdHocParser.guessColumnHeadersArray(termArray);
         } catch(Exception e) {
             logger.error(e.getMessage(),e);
             response.sendError(HttpURLConnection.HTTP_BAD_REQUEST);
@@ -96,7 +96,7 @@ public class UploadController {
             List<String> terms = om.readValue(input, new TypeReference<List<String>>() {});
             input.close();
             String[] termArray = terms.toArray(new String[]{});
-            String[] matchedTerms = AdHocParser.mapColumnHeaders(termArray);
+            String[] matchedTerms = AdHocParser.mapColumnHeadersArray(termArray);
             //create a map and return this
             Map<String,String> map = new LinkedHashMap<String,String>();
             for(int i=0; i<termArray.length; i++){
@@ -120,7 +120,7 @@ public class UploadController {
             String utf8String = new String(json.getBytes(), "UTF-8");
             LinkedHashMap<String,String> record = om.readValue(utf8String, new TypeReference<LinkedHashMap<String,String>>() {});
             input.close();
-            String[] headers = AdHocParser.mapOrReturnColumnHeaders(record.keySet().toArray(new String[]{}));
+            String[] headers = AdHocParser.mapOrReturnColumnHeadersArray(record.keySet().toArray(new String[]{}));
             return AdHocParser.processLine(headers, record.values().toArray(new String[]{}));
         } catch(Exception e) {
             logger.error(e.getMessage(),e);
@@ -397,7 +397,7 @@ class UploaderThread implements Runnable {
             try {
                 String[] currentLine = csvReader.readNext();
                 String[] headerUnmatched = cleanUpHeaders(headers.split(","));
-                String[] headerArray = AdHocParser.mapOrReturnColumnHeaders(headerUnmatched);
+                String[] headerArray = AdHocParser.mapOrReturnColumnHeadersArray(headerUnmatched);
 
                 if(customIndexFields == null){
                     List<String> filteredHeaders = filterByMaxColumnLengths(headerArray, new CSVReader(new StringReader(csvData), separatorChar), 50);
