@@ -5,13 +5,13 @@ import java.io.*;
 import java.net.URLEncoder;
 import java.util.*;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ala.biocache.dao.TaxonDAO;
 import org.ala.biocache.dto.*;
 import org.ala.biocache.util.ParamsCache;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.ResponseBody;
 

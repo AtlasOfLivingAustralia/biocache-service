@@ -12,7 +12,7 @@
     <!-- This project uses UTF8 for Regular Expressions -->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <openrdf.sesame.version>2.2</openrdf.sesame.version>
-    <spring.version>3.0.4.RELEASE</spring.version>
+    <spring.version>3.0.6.RELEASE</spring.version>
     <junit.version>4.8.2</junit.version>
     <netbeans.hint.deploy.server>Tomcat</netbeans.hint.deploy.server>
   </properties>
@@ -71,22 +71,6 @@
         <artifactId>ehcache-spring-annotations</artifactId>
         <version>1.2.0</version>
     </dependency>    
-    <!-- Jackson -->
-      <dependency>
-          <groupId>org.codehaus.jackson</groupId>
-          <artifactId>jackson-core-asl</artifactId>
-          <version>1.9.2</version>
-      </dependency>
-      <dependency>
-          <groupId>org.codehaus.jackson</groupId>
-          <artifactId>jackson-mapper-asl</artifactId>
-          <version>1.9.2</version>
-      </dependency>
-      <dependency>
-          <groupId>com.fasterxml</groupId>
-          <artifactId>jackson-module-scala</artifactId>
-          <version>1.9.2</version>
-      </dependency>
     <!-- LOG4J -->
     <dependency>
       <groupId>log4j</groupId>

@@ -6,6 +6,8 @@ import au.org.ala.util.ParsedRecord;
 import au.org.ala.util.AdHocParser;
 import org.ala.biocache.dto.Facet;
 import org.ala.biocache.dto.SpatialSearchRequestParams;
+import org.ala.layers.dao.IntersectCallback;
+import org.ala.layers.dto.IntersectionFile;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
@@ -120,8 +122,10 @@ public class UploadController {
             String utf8String = new String(json.getBytes(), "UTF-8");
             LinkedHashMap<String,String> record = om.readValue(utf8String, new TypeReference<LinkedHashMap<String,String>>() {});
             input.close();
+            logger.debug("Mapping column headers...");
             String[] headers = AdHocParser.mapOrReturnColumnHeadersArray(record.keySet().toArray(new String[]{}));
-            return AdHocParser.processLine(headers, record.values().toArray(new String[]{}));
+            logger.debug("Processing line...");
+            return AdHocParser.processLineArrays(headers, record.values().toArray(new String[]{}));
         } catch(Exception e) {
             logger.error(e.getMessage(),e);
             response.sendError(HttpURLConnection.HTTP_BAD_REQUEST);
@@ -138,14 +142,20 @@ public class UploadController {
     public @ResponseBody Map<String,String> uploadStatus(@PathVariable String tempDataResourceUid, HttpServletResponse response) throws Exception {
        response.setContentType("application/json");
        File file = new File(uploadStatusDir + File.separator + tempDataResourceUid);
-       if(file.exists()){
-         String value = FileUtils.readFileToString(file);
-         ObjectMapper om = new ObjectMapper();
-         return om.readValue(value, Map.class);
-       } else {
-         response.sendError(404);
-         return null;
+       int retries = 5;
+       while(file.exists() && retries>0){
+         try {
+             String value = FileUtils.readFileToString(file);
+             ObjectMapper om = new ObjectMapper();
+             return om.readValue(value, Map.class);
+         } catch (Exception e){
+             Thread.sleep(50);
+             retries--;
+         }
        }
+
+       response.sendError(404);
+       return null;
     }
 
     /**
@@ -295,51 +305,28 @@ public class UploadController {
     }
 }
 
-class UploadStatus {
-    protected String status;
-    protected Integer totalRecords;
-    protected Integer completed;
-    protected Integer percentage;
+final class UploadStatus {
 
-    UploadStatus(){}
+    final String status;
+    final String description;
+    final Integer percentage;
 
-    UploadStatus(String status, Integer completed, Integer percentage, Integer totalRecords) {
+    public UploadStatus(String status, String description, Integer percentage) {
         this.status = status;
-        this.completed = completed;
+        this.description = description;
         this.percentage = percentage;
-        this.totalRecords = totalRecords;
     }
 
     public String getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public Integer getCompleted() {
-        return completed;
-    }
-
-    public void setCompleted(Integer completed) {
-        this.completed = completed;
+    public String getDescription() {
+        return description;
     }
 
     public Integer getPercentage() {
         return percentage;
-    }
-
-    public void setPercentage(Integer percentage) {
-        this.percentage = percentage;
-    }
-
-    public Integer getTotalRecords() {
-        return totalRecords;
-    }
-
-    public void setTotalRecords(Integer totalRecords) {
-        this.totalRecords = totalRecords;
     }
 }
 
@@ -358,7 +345,7 @@ class UploaderThread implements Runnable {
     protected String[] customIndexFields = null;    
 
     String[] cleanUpHeaders(String[] headers){
-        int i=0;
+        int i = 0;
         for(String hdr: headers){
             headers[i] = hdr.replaceAll("[^a-zA-Z0-9]+","_");
             i++;
@@ -366,9 +353,9 @@ class UploaderThread implements Runnable {
         return headers;
     }
 
-
     @Override
     public void run(){
+
         File statusDir = null;
         File statusFile = null;
         ObjectMapper om = new ObjectMapper();
@@ -390,7 +377,14 @@ class UploaderThread implements Runnable {
 
         try {
 
-            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("LOADING",0,0,recordsToLoad)));
+            //count the lines
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("LOADING","Starting...",0)));
+            Integer recordCount = 0;
+            BufferedReader reader = new BufferedReader(new StringReader(csvData));
+            while(reader.readLine()!=null)
+               recordCount++;
+            if(!firstLineIsData)
+                recordCount--;
 
             Integer counter = 0;
             CSVReader csvReader = new CSVReader(new StringReader(csvData), separatorChar);
@@ -408,27 +402,28 @@ class UploaderThread implements Runnable {
                 
                 //default data type for the "customIndexFields" is a string                
                 CollectionUtils.addAll(intList, customIndexFields);
-                
-                //System.out.println("Matched headers: " + StringUtils.join(headerArray));
 
                 //if the first line is data, add a record, else discard
                 if(firstLineIsData){
                     addRecord(tempUid, currentLine, headerArray,intList,floatList,stringList);
                 }
 
-                //write the data
+                //write the data to DB
                 Integer percentComplete  = 0;
                 while((currentLine = csvReader.readNext())!=null){
                     counter++;
-                    loadComplete = (int) ((counter.floatValue() / recordsToLoad.floatValue()) * 100);
-                    if(percentComplete.equals(loadComplete)){
-                        percentComplete = loadComplete;
-                        FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("LOADING",counter,loadComplete,recordsToLoad)));
-                    }
                     addRecord(tempUid, currentLine, headerArray, intList, floatList, stringList);
+                    if(counter % 100 == 0){
+                        Integer percentageComplete = 0;
+                        if(counter != 0){
+                            percentageComplete = (int) ((float) (counter + 1) / (float) recordCount * 25);
+                        }
+                        FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("LOADING",String.format("%d of %d records loaded.", counter, recordCount),percentageComplete)));
+                    }
                 }
             } catch(Exception e) {
                 logger.error(e.getMessage(),e);
+                throw e;
             } finally {
                 csvReader.close();
             }
@@ -444,23 +439,28 @@ class UploaderThread implements Runnable {
                     tmpCustIndexFields.add(f); //default is a string
             }
             
-            
             status = "SAMPLING";
-            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,0,25, recordsToLoad)));
-            au.org.ala.biocache.Store.sample(tempUid);
+            UploadIntersectCallback u = new UploadIntersectCallback(statusFile);
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("SAMPLING","Starting",25)));
+            au.org.ala.biocache.Store.sample(tempUid, u);
+
             status = "PROCESSING";
-            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,0,50, recordsToLoad)));
-            au.org.ala.biocache.Store.process(tempUid, 1);
+            logger.debug("Processing " + tempUid);
+            DefaultObserverCallback processingCallback = new DefaultObserverCallback("PROCESSING", recordCount, statusFile, 50, "processed");
+            au.org.ala.biocache.Store.process(tempUid, 4, processingCallback);
+
             status = "INDEXING";
             logger.debug("Indexing " + tempUid + " " + tmpCustIndexFields);
-            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,0,75, recordsToLoad)));
-            au.org.ala.biocache.Store.index(tempUid, tmpCustIndexFields.toArray(new String[0]));
+            DefaultObserverCallback indexingCallback = new DefaultObserverCallback("INDEXING", recordCount, statusFile, 75, "indexed");
+            au.org.ala.biocache.Store.index(tempUid, tmpCustIndexFields.toArray(new String[0]), indexingCallback);
+
             status = "COMPLETE";
-            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,counter,100,recordsToLoad)));
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,"Loading complete",100)));
+
         } catch(Exception ex){
           try {
             status = "FAILED";
-            FileUtils.writeStringToFile(statusFile,status);
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,"The system was unable to load this data.",0)));
           } catch (IOException ioe){
             logger.error("Loading failed and failed to update the status: " + ex.getMessage(), ex);
           }
@@ -499,7 +499,6 @@ class UploaderThread implements Runnable {
         List<String> customIndexFields = new ArrayList<String>();
         for(String hdr: suppliedHeaders){
             if(!alreadyIndexedFields.contains(hdr)){
-
                 customIndexFields.add(hdr);
             }
         }
@@ -520,7 +519,7 @@ class UploaderThread implements Runnable {
         }
         List<String> filterList = new ArrayList<String>();
         for(int k=0; k< columnLengths.length; k++){
-            System.out.println("Column length: " + headers[k] + " = " + columnLengths[k]);
+            logger.debug("Column length: " + headers[k] + " = " + columnLengths[k]);
             if(columnLengths[k] <= maxColumnLength ){
                 filterList.add(headers[k]);
             }
@@ -560,5 +559,90 @@ class UploaderThread implements Runnable {
             au.org.ala.biocache.Store.loadRecord(tempUid, map, false);
         }
     }
-}
 
+    public class DefaultObserverCallback implements ObserverCallback {
+
+        private String processName = "";
+        private Integer total = -1;
+        private File fileToWriteTo;
+        private Integer startingPercentage = 0;
+        private String verb = ""; // "processing" or "indexing"
+
+        public DefaultObserverCallback(String processName, Integer total, File fileToWriteTo, Integer startingPercentage, String verb){
+            this.total = total;
+            this.processName = processName;
+            this.fileToWriteTo = fileToWriteTo;
+            this.startingPercentage = startingPercentage;
+            this.verb = verb;
+        }
+
+        @Override
+        public void progressMessage(int recordCount) {
+            try {
+                ObjectMapper om = new ObjectMapper();
+                Integer percentageComplete = 0;
+                if(recordCount>-1){
+                    percentageComplete =  (int) ((float) (recordCount + 1) / (float) total * 25);
+                    FileUtils.writeStringToFile(fileToWriteTo, om.writeValueAsString(
+                            new UploadStatus(processName,
+                                    String.format("%d of %d records %s.", recordCount, total, verb),
+                                    startingPercentage + percentageComplete)));
+                }
+            } catch(Exception e){
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public class UploadIntersectCallback implements IntersectCallback {
+
+        File theFile = null;
+        IntersectionFile[] intersectionFiles;
+        IntersectionFile intersectionFile;
+        Integer currentLayerIdx = -1;
+        String message = "";
+
+        public UploadIntersectCallback(File fileToWriteTo){
+            this.theFile = fileToWriteTo;
+        }
+
+        @Override
+        public void setLayersToSample(IntersectionFile[] intersectionFiles) {
+            this.intersectionFiles = intersectionFiles;
+        }
+
+        @Override
+        public void setCurrentLayer(IntersectionFile intersectionFile) {
+            this.intersectionFile = intersectionFile;
+        }
+
+        @Override
+        public void setCurrentLayerIdx(Integer currentLayerIdx) {
+            synchronized (this){
+                if(currentLayerIdx > this.currentLayerIdx){
+                    this.currentLayerIdx = currentLayerIdx;
+                }
+            }
+        }
+
+        @Override
+        public void progressMessage(String message) {
+            this.message = message;
+            try {
+                ObjectMapper om = new ObjectMapper();
+                Integer percentageComplete = 0;
+                if(currentLayerIdx>-1){
+                    percentageComplete =  (int) ((float) (currentLayerIdx + 1) / (float) intersectionFiles.length * 25);
+                }
+                if(intersectionFile !=null && currentLayerIdx>0){
+                    FileUtils.writeStringToFile(theFile, om.writeValueAsString(new UploadStatus("SAMPLING",
+                        String.format("%d of %d layers sampled. Currently sampling %s.",
+                                currentLayerIdx+1, intersectionFiles.length,
+                                intersectionFile.getLayerName()), 25 + percentageComplete)));
+                }
+            } catch(Exception e){
+                e.printStackTrace();
+            }
+        }
+    }
+}
