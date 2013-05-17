@@ -55,8 +55,8 @@ collectionsWebappContext=http://localhost:8080/collectory/
 # Google Analytics Key - either "UA-4355440-1" or "N/A"
 googleAnalyticsKey=UA-4355440-1
 
-fieldsToSample=el882,el889,el887,el865,el894,cl21,cl22,cl927,cl23,cl617,cl620
-
+fieldsToSample=el882,el889,el887,el865,el894,cl20,cl21,cl22,cl927,cl23,cl617,cl620,cl678,cl959
+#fieldsToSample=cl20,el882,el889,el887,el865,el894,cl22,cl678,cl959,cl617,cl620
 
 # base directory for heatmap images (including base templates)
 mapController.heatmapBase=/data/output/heatmap
