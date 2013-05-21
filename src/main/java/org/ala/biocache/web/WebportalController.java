@@ -578,8 +578,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
                 mbbox[i] = Double.parseDouble(s);
                 i++;
             } catch (Exception e) {
-                logger.error("Problem parsing BBOX: '" + bboxString + "'");
-                e.printStackTrace();
+                logger.error("Problem parsing BBOX: '" + bboxString + "'", e);
             }
         }
 
@@ -873,7 +872,9 @@ public class WebportalController /* implements ServletConfigAware*/ {
             model.addAttribute("genus", classificationNode.get("genus").asText());
             
             JsonNode taxonNameNode = node2.get("taxonName");
-            model.addAttribute("specificEpithet", taxonNameNode.get("specificEpithet").asText());
+            if(taxonNameNode.get("specificEpithet") != null){
+                model.addAttribute("specificEpithet", taxonNameNode.get("specificEpithet").asText());
+            }
         }
 
         SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
@@ -1025,7 +1026,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
             ImageIO.write(img,"png", out);
             out.close();
         } catch (Exception e){
-            e.printStackTrace();
+            logger.error(e.getMessage(),e);
         }
     }
 
@@ -1239,7 +1240,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
 
             writer.write("</Layer></Capability></WMT_MS_Capabilities>\n");
         } catch (Exception e){
-            e.printStackTrace();
+            logger.error(e.getMessage(),e);
         }
     }
 
@@ -2080,6 +2081,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
 
 class WmsEnv {
 
+    private final static Logger logger = Logger.getLogger(WmsEnv.class);
     public int red, green, blue, alpha, size, colour;
     public boolean uncertainty;
     public String colourMode, highlight;
@@ -2093,7 +2095,7 @@ class WmsEnv {
         try {
             env = URLDecoder.decode(env, "UTF-8");
         } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage(),e);
         }
 
         red = green = blue = alpha = 0;
