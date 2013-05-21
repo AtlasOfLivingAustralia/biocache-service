@@ -872,7 +872,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
             model.addAttribute("genus", classificationNode.get("genus").asText());
             
             JsonNode taxonNameNode = node2.get("taxonName");
-            if(taxonNameNode.get("specificEpithet") != null){
+            if(taxonNameNode!=null && taxonNameNode.get("specificEpithet") != null){
                 model.addAttribute("specificEpithet", taxonNameNode.get("specificEpithet").asText());
             }
         }
@@ -962,7 +962,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
         );
 
 
-        model.addAttribute("pointType",pointType.name());
+model.addAttribute("pointType",pointType.name());
         model.addAttribute("minLng",minLng);
         model.addAttribute("maxLng",maxLng);
         model.addAttribute("minLat",minLat);
