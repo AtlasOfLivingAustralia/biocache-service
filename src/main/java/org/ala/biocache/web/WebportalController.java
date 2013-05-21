@@ -820,7 +820,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
             JsonNode idNode = guidLookupNode.get(0).get("acceptedIdentifier");//NC: changed to used the acceptedIdentifier because this will always hold the guid for the accepted taxon concept whether or not a synonym name is provided
             guid = idNode!=null ? idNode.asText(): null;
         }
-        String newQuery ="raw_name:" + taxonName;
+        String newQuery = "raw_name:" + taxonName;
         if(guid != null){
 
             model.addAttribute("guid", guid);
@@ -833,16 +833,24 @@ public class WebportalController /* implements ServletConfigAware*/ {
                 model.addAttribute("imageUrl", imageUrl);
                 JsonNode imageMetadataNode = node.get("taxonConcept").get("imageMetadataUrl");
                 String imageMetadataUrl = imageMetadataNode != null ? imageMetadataNode.asText() : null;
+
                 //image metadata
                 JsonNode imageMetadata = om.readTree(new URL(imageMetadataUrl));
-                model.addAttribute("imageCreator",imageMetadata.get("http://purl.org/dc/elements/1.1/creator").asText());
-                model.addAttribute("imageLicence",imageMetadata.get("http://purl.org/dc/elements/1.1/license").asText());
-                model.addAttribute("imageSource",imageMetadata.get("http://purl.org/dc/elements/1.1/source").asText());
+                if(imageMetadata!=null){
+                    if(imageMetadata.get("http://purl.org/dc/elements/1.1/creator")!=null)
+                       model.addAttribute("imageCreator",imageMetadata.get("http://purl.org/dc/elements/1.1/creator").asText());
+                    if(imageMetadata.get("http://purl.org/dc/elements/1.1/license")!=null)
+                        model.addAttribute("imageLicence",imageMetadata.get("http://purl.org/dc/elements/1.1/license").asText());
+                    if(imageMetadata.get("http://purl.org/dc/elements/1.1/source")!=null)
+                        model.addAttribute("imageSource",imageMetadata.get("http://purl.org/dc/elements/1.1/source").asText());
+                }
             }
+
             JsonNode leftNode = tc.get("left");
             JsonNode rightNode = tc.get("right");
-            newQuery = leftNode != null && rightNode!=null?"lft:[" +leftNode.asText() + " TO " +rightNode.asText() + "]":"taxon_concept_lsid:"+guid;
+            newQuery = leftNode != null && rightNode!=null ? "lft:[" +leftNode.asText() + " TO " +rightNode.asText() + "]":"taxon_concept_lsid:"+guid;
             logger.debug("The new query : " + newQuery);
+
             //common name
             JsonNode commonNameNode  = tc.get("commonNameSingle");
             if(commonNameNode!=null) {
