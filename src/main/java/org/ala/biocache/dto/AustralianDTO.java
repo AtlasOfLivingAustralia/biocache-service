@@ -21,12 +21,14 @@ public class AustralianDTO {
     public boolean getIsNSL() {
         return isNSL;
     }
+
     /**
      * @param isNSL the isNSL to set
      */
     public void setIsNSL(boolean isNSL) {
         this.isNSL = isNSL;
     }
+
     /**
      * @return the hasOccurrenceRecords
      */
@@ -34,7 +36,7 @@ public class AustralianDTO {
         return hasOccurrences;
     }
     /**
-     * @param hasOccurrenceRecords the hasOccurrenceRecords to set
+     * @param hasOccurrences the hasOccurrenceRecords to set
      */
     public void setHasOccurrenceRecords(boolean hasOccurrences) {
         this.hasOccurrences = hasOccurrences;
@@ -46,27 +48,28 @@ public class AustralianDTO {
     public String getTaxonGuid() {
         return taxonGuid;
     }
+
     /**
      * @param taxonGuid the taxonGuid to set
      */
     public void setTaxonGuid(String taxonGuid) {
         this.taxonGuid = taxonGuid;
     }
-    
-    
-    
+
     /**
      * @return the hasCSOnly
      */
     public boolean isHasCSOnly() {
         return hasCSOnly;
     }
+
     /**
      * @param hasCSOnly the hasCSOnly to set
      */
     public void setHasCSOnly(boolean hasCSOnly) {
         this.hasCSOnly = hasCSOnly;
     }
+
     /**
      * 
      * @return True when the species is considered Australian.
@@ -74,5 +77,4 @@ public class AustralianDTO {
     public boolean getIsAustralian(){
         return isNSL || hasOccurrences;
     }    
-    
 }

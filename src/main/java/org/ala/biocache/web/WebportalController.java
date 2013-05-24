@@ -5,6 +5,7 @@ import java.io.*;
 import java.net.URLEncoder;
 import java.util.*;
 
+import au.org.ala.biocache.Config;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ala.biocache.dao.TaxonDAO;
@@ -146,7 +147,6 @@ public class WebportalController /* implements ServletConfigAware*/ {
     public @ResponseBody ParamsCacheObject getParamCacheObject(@PathVariable("id") Long id) throws Exception{
         return ParamsCache.get(id);
     }
-    
 
     /**
      *
@@ -155,9 +155,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
      * @throws Exception
      */
     @RequestMapping(value = {"/webportal/species", "/mapping/species" }, method = RequestMethod.GET)
-    public
-    @ResponseBody
-    List<TaxaCountDTO> listSpecies(SpatialSearchRequestParams requestParams) throws Exception {
+    public @ResponseBody List<TaxaCountDTO> listSpecies(SpatialSearchRequestParams requestParams) throws Exception {
         return searchDAO.findAllSpecies(requestParams);
     }
 
@@ -354,7 +352,6 @@ public class WebportalController /* implements ServletConfigAware*/ {
             bbox = getBBox(requestParams);
         }
 
-        //writeBytes(response, (bbox[0] + "," + bbox[1] + "," + bbox[2] + "," + bbox[3]).getBytes("UTF-8"));
         return bbox;
     }
 
@@ -483,14 +480,6 @@ public class WebportalController /* implements ServletConfigAware*/ {
 
     int convertLngToPixel(double lng) {
         return (int) Math.round(map_offset + map_radius * lng * Math.PI / 180);
-    }
-
-    public double convertPixelToLng(int px) {
-        return (px - map_offset) / map_radius * 180 / Math.PI;
-    }
-
-    public double convertPixelToLat(int px) {
-        return Math.asin((Math.pow(Math.E, ((map_offset - px) / map_radius * 2)) - 1) / (1 + Math.pow(Math.E, ((map_offset - px) / map_radius * 2)))) * 180 / Math.PI;
     }
 
     double convertMetersToLng(double meters) {
@@ -800,12 +789,16 @@ public class WebportalController /* implements ServletConfigAware*/ {
         if(StringUtils.trimToNull(layer) != null){
             String[] parts = layer.split(":");
             taxonName = parts[parts.length-1];
-            if(parts.length>1) rank = parts[0];
+            if(parts.length>1) {
+                rank = parts[0];
+            }
             q = layer;
         } else if(StringUtils.trimToNull(query) != null) {
             String[] parts = query.split(":");
             taxonName = parts[parts.length-1];
-            if(parts.length>1) rank = parts[0];
+            if(parts.length>1){
+                rank = parts[0];
+            }
             q = query;
         } else {
             response.sendError(400);
@@ -970,15 +963,13 @@ public class WebportalController /* implements ServletConfigAware*/ {
         );
 
 
-model.addAttribute("pointType",pointType.name());
+        model.addAttribute("pointType",pointType.name());
         model.addAttribute("minLng",minLng);
         model.addAttribute("maxLng",maxLng);
         model.addAttribute("minLat",minLat);
         model.addAttribute("maxLat",maxLat);
-
         model.addAttribute("latitudeClicked",latitude);
         model.addAttribute("longitudeClicked",longitude);
-
 
         return "metadata/getFeatureInfo";
     }
@@ -1025,12 +1016,9 @@ model.addAttribute("pointType",pointType.name());
             Paint fill = new Color(wmsEnv.colour | wmsEnv.alpha <<24);
             g.setPaint(fill);
             g.fillOval(0, 0, size, size);
-
             OutputStream out = response.getOutputStream();
             logger.debug("WMS - GetLegendGraphic requested : " + request.getQueryString());
             response.setContentType("image/png");
-            //out.write(IOUtils.toByteArray(GeospatialController.class.getResourceAsStream("/logo16x16.png")));
-            //out.flush();
             ImageIO.write(img,"png", out);
             out.close();
         } catch (Exception e){
@@ -1038,6 +1026,37 @@ model.addAttribute("pointType",pointType.name());
         }
     }
 
+    /**
+     * Returns a get capabilities response by default.
+     *
+     * @param requestParams
+     * @param cql_filter
+     * @param env
+     * @param srs
+     * @param styles
+     * @param style
+     * @param bboxString
+     * @param width
+     * @param height
+     * @param cache
+     * @param requestString
+     * @param outlinePoints
+     * @param outlineColour
+     * @param layers
+     * @param query
+     * @param filterQueries
+     * @param x
+     * @param y
+     * @param spatiallyValidOnly
+     * @param marineOnly
+     * @param terrestrialOnly
+     * @param limitToFocus
+     * @param useSpeciesGroups
+     * @param request
+     * @param response
+     * @param model
+     * @throws Exception
+     */
     @RequestMapping(value = {"/ogc/ows"}, method = RequestMethod.GET)
     public void getCapabilities(
             SpatialSearchRequestParams requestParams,
@@ -1110,6 +1129,8 @@ model.addAttribute("pointType",pointType.name());
                     model);
             return;
         }
+
+        //add the get capabilities request
 
         response.setContentType("text/xml");
         response.setHeader("Content-Description", "File Transfer");
@@ -1240,13 +1261,17 @@ model.addAttribute("pointType",pointType.name());
             //http://biocache-test.ala.org.au/ws/
             String baseWsUrl = request.getSession().getServletContext().getInitParameter("webservicesRoot");
 
+            query = searchUtils.convertRankAndName(query);
+            logger.debug("GetCapabilities query in use: "  + query);
+
             if(useSpeciesGroups){
-                taxonDAO.extractBySpeciesGroups(baseWsUrl+"/ogc/getMetadata",query, filterQueries, writer);
+                taxonDAO.extractBySpeciesGroups(baseWsUrl+"/ogc/getMetadata", query, filterQueries, writer);
             } else {
-                taxonDAO.extractHierarchy(baseWsUrl+"/ogc/getMetadata",query, filterQueries, writer);
+                taxonDAO.extractHierarchy(baseWsUrl+"/ogc/getMetadata", query, filterQueries, writer);
             }
 
             writer.write("</Layer></Capability></WMT_MS_Capabilities>\n");
+
         } catch (Exception e){
             logger.error(e.getMessage(),e);
         }

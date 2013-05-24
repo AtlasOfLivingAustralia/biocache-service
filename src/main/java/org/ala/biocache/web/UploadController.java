@@ -33,6 +33,10 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Controller that supports the upload of CSV data to be indexed and processed in the biocache.
+ * This controller also includes code for adhoc data parsing webservices.
+ */
 @Controller
 public class UploadController {
 
@@ -153,7 +157,6 @@ public class UploadController {
              retries--;
          }
        }
-
        response.sendError(404);
        return null;
     }
@@ -169,6 +172,11 @@ public class UploadController {
         return au.org.ala.biocache.Store.retrieveCustomIndexFields(tempDataResourceUid);
     }
 
+    /**
+     * Retrieve a list of data resource UIDs
+     * @param queryExpression
+     * @return
+     */
     private List<String> getDrs(String queryExpression){
         List<String> drs = new ArrayList<String>();
         if(queryExpression != null){
@@ -368,7 +376,7 @@ class UploaderThread implements Runnable {
             if(!statusDir.exists()){
                 FileUtils.forceMkdir(statusDir);
             }
-            statusFile = new File(uploadStatusDir+File.separator+tempUid);
+            statusFile = new File(uploadStatusDir + File.separator + tempUid);
             statusFile.createNewFile();
         } catch (Exception e1){
             logger.error(e1.getMessage(), e1);
@@ -457,11 +465,11 @@ class UploaderThread implements Runnable {
             status = "COMPLETE";
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,"Loading complete",100)));
 
-        } catch(Exception ex){
+        } catch (Exception ex) {
           try {
             status = "FAILED";
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,"The system was unable to load this data.",0)));
-          } catch (IOException ioe){
+          } catch (IOException ioe) {
             logger.error("Loading failed and failed to update the status: " + ex.getMessage(), ex);
           }
           logger.error("Loading failed: " + ex.getMessage(), ex);
@@ -529,8 +537,8 @@ class UploaderThread implements Runnable {
 
     private void addRecord(String tempUid, String[] currentLine, String[] headers, List<String> intList, List<String> floatList, List<String> stringList) {
         Map<String,String> map = new HashMap<String, String>();
-        for(int i=0; i< headers.length && i< currentLine.length; i++){
-            if(currentLine[i] !=null && currentLine[i].trim().length() >0 ){
+        for(int i = 0; i < headers.length && i < currentLine.length; i++){
+            if(currentLine[i] != null && currentLine[i].trim().length() > 0 ){
                 map.put(headers[i], currentLine[i].trim());
                 //now test of the header value is part of the custom index fields and perform a data check
                 if(intList.contains(headers[i])){
@@ -544,10 +552,9 @@ class UploaderThread implements Runnable {
                     }
                 }
                 if(floatList.contains(headers[i])){
-                    try{
+                    try {
                         Float.parseFloat(currentLine[i].trim());
-                    }
-                    catch(Exception e){
+                    } catch(Exception e) {
                         //this custom index column can only be a string
                       floatList.remove(headers[i]);
                       stringList.add(headers[i]);
@@ -589,7 +596,7 @@ class UploaderThread implements Runnable {
                                     startingPercentage + percentageComplete)));
                 }
             } catch(Exception e){
-                e.printStackTrace();
+                logger.debug(e.getMessage(),e);
             }
         }
     }
@@ -641,7 +648,7 @@ class UploaderThread implements Runnable {
                                 intersectionFile.getLayerName()), 25 + percentageComplete)));
                 }
             } catch(Exception e){
-                e.printStackTrace();
+                logger.debug(e.getMessage(),e);
             }
         }
     }

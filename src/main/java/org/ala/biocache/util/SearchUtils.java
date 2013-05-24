@@ -6,9 +6,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import au.org.ala.biocache.Config;
 import au.org.ala.biocache.TaxonProfile;
 
+import au.org.ala.checklist.lucene.model.NameSearchResult;
+import au.org.ala.data.util.RankType;
 import org.ala.biocache.dao.BieService;
 import org.ala.biocache.dto.Facet;
 import org.ala.biocache.dto.OccurrenceSource;
@@ -17,7 +22,6 @@ import org.ala.biocache.dto.SearchQuery;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
-
 
 import au.org.ala.biocache.TaxonProfileDAO;
 import javax.inject.Inject;
@@ -37,62 +41,57 @@ import scala.Option;
 @Component("searchUtils")
 public class SearchUtils {
 
-  /** Logger initialisation */
-  private final static Logger logger = Logger.getLogger(SearchUtils.class);
-      
-  protected String collectoryBaseUrl = "http://collections.ala.org.au";
+    /** Logger initialisation */
+    private final static Logger logger = Logger.getLogger(SearchUtils.class);
 
-  protected String bieBaseUrl = "http://bie.ala.org.au";
+    protected String collectoryBaseUrl = "http://collections.ala.org.au";
+
+    protected String bieBaseUrl = "http://bie.ala.org.au";
 
     @Inject
     private CollectionsCache collectionCache;
-    
-    @Inject 
+
+    @Inject
     private AuthService authService;
     //for i18n of display values for facets
     @Inject
     private AbstractMessageSource messageSource;
     @Inject
     private BieService bieService;
-    
-    protected static List<String> defaultParams=new ArrayList<String>();
-    
-    static{
+
+    protected static List<String> defaultParams = new ArrayList<String>();
+
+    static {
         java.lang.reflect.Field[] fields = (java.lang.reflect.Field[])ArrayUtils.addAll(SpatialSearchRequestParams.class.getDeclaredFields(),SearchRequestParams.class.getDeclaredFields());
         for(java.lang.reflect.Field field:fields){
             defaultParams.add(field.getName());
         }
     }
 
-  private  final List<String> ranks = (List<String>) org.springframework.util.CollectionUtils
-      .arrayToList(new String[] { "kingdom", "phylum", "class", "order",
-          "family", "genus", "species" });
+    private  final List<String> ranks = (List<String>) org.springframework.util.CollectionUtils
+      .arrayToList(new String[]{"kingdom", "phylum", "class", "order",
+              "family", "genus", "species"});
 
-  /**
-   * Returns an array that contains the search string to use for a collection
-   * search and display name for the results.
-   *
-   * @return true when UID could be located and query updated correctly
-   */
-
-        public boolean updateCollectionSearchString(SearchRequestParams searchParams, String uid) {
-    try {
-      // query the collectory for the institute and collection codes
-      // needed to perform the search
-                        String[] uids = uid.split(",");
-      searchParams.setQ(getUIDSearchString(uids));
-      return true;
-
-    } catch (Exception e) {
-      logger.error("Problem contacting the collectory: " + e.getMessage(), e);
-      return false;
-      // TODO work out what we want to do to the search if an exception
-      // occurs while
-      // contacting the collectory etc
+    /**
+    * Returns an array that contains the search string to use for a collection
+    * search and display name for the results.
+    *
+    * @return true when UID could be located and query updated correctly
+    */
+    public boolean updateCollectionSearchString(SearchRequestParams searchParams, String uid) {
+        try {
+            // query the collectory for the institute and collection codes
+            // needed to perform the search
+            String[] uids = uid.split(",");
+            searchParams.setQ(getUIDSearchString(uids));
+            return true;
+        } catch (Exception e) {
+            logger.error("Problem contacting the collectory: " + e.getMessage(), e);
+            return false;
+        }
     }
-  }
 
-        public  String getUIDSearchString(String[] uids){
+    public String getUIDSearchString(String[] uids){
         StringBuilder sb = new StringBuilder();
         for(String uid : uids){
             if(sb.length()>0)
@@ -105,7 +104,7 @@ public class SearchUtils {
     }
 
     public static String stripEscapedQuotes(String uid){
-        if(uid==null) return null;
+        if(uid == null) return null;
         if(uid.startsWith("\"") && uid.endsWith("\"") && uid.length()>2)
             return uid.substring(1,uid.length()-1);
         else if(uid.startsWith("\\\"") && uid.endsWith("\\\"") && uid.length()>4){
@@ -113,18 +112,16 @@ public class SearchUtils {
         }
         return uid;
     }
-    
-    public String getUidDisplayString(String fieldName,String uid){
-        return getUidDisplayString(fieldName,uid, true);
+
+    public String getUidDisplayString(String fieldName, String uid){
+        return getUidDisplayString(fieldName, uid, true);
     }
 
     /**
      * Returns the display string for the supplied uid
      *
-     * TODO support  data_hub
-     *
      * @param uid
-     * @return
+     * @return a user friendly display name for this UID
      */
     public String getUidDisplayString(String fieldName, String uid, boolean includeField) {
 
@@ -162,100 +159,81 @@ public class SearchUtils {
             else
                 return collectionCache.getDataHubs().get(uid);
         }
-        return messageSource.getMessage(fieldName+"."+StringUtils.remove(uid, "\""), null, uid, null);
+        return messageSource.getMessage(fieldName + "." + StringUtils.remove(uid, "\""), null, uid, null);
     }
 
-        /**
-         * Updates the searchParams for a query by taxon concept
-         * @param searchParams
-         * @param guid
-         * @return
-         */
-        public boolean updateTaxonConceptSearchString(SearchRequestParams searchParams, String guid) {
-                // Get the taxon profile from the biocache cache - this could be replaced with a webservice call if necessary
-    Option<TaxonProfile> opt = TaxonProfileDAO.getByGuid(guid);
+    /**
+     * Extracts the a rank and name from a query.
+     *
+     * E.g. genus:Macropus will return an a array of
+     *
+     * <code>
+     * new String[]{"genus", "Macropus"};
+     * </code>
+     *
+     * @param query
+     */
+    public String convertRankAndName(String query){
 
-    if (!opt.isEmpty()) {
-                    TaxonProfile tc = opt.get();
-                    StringBuffer entityQuerySb = new StringBuffer(tc.getRankString()
-          + ": " + tc.getScientificName());
-      if (tc.getCommonName() != null) {
-        entityQuerySb.append(" : ");
-        entityQuerySb.append(tc.getCommonName());
-      }
-                        List<String> fq = new ArrayList<String>(java.util.Arrays.asList(searchParams.getFq()));
-
-      fq.add("lft:[" + tc.getLeft() + " TO "
-          + tc.getRight() + "]");
-                        searchParams.setFq(fq.toArray(new String[]{}));
-
-      if (logger.isDebugEnabled()) {
-        for (String filter : searchParams.getFq()) {
-          logger.debug("Filter: " + filter);
-        }
-      }
-      searchParams.setQ("*:*");
-      searchParams.setDisplayString(entityQuerySb.toString());
-      return true;
-    }
-    return false;
-  }
-        /**
-         * Returns an array where the first value is the search string and the
-         * second is a display string.
-         * @param lsid
-         * @return
-         */
-        public String[] getTaxonSearch(String lsid){
-            // Get the taxon profile from the biocache cache - this could be replaced with a webservice call if necessary
-            Option<TaxonProfile> opt = TaxonProfileDAO.getByGuid(lsid);
-         
-            if (!opt.isEmpty()) {                
-                TaxonProfile tc = opt.get();
-                StringBuffer dispSB = new StringBuffer(tc.getRankString()
-          + ": " + tc.getScientificName());
-      if (tc.getCommonName() != null) {
-        dispSB.append(" : ");
-        dispSB.append(tc.getCommonName());
-      }
-          //return the lft and rgt range if they exist otherwise return the scientific name
-          if(tc.getLeft() == null || tc.getRight() == null)
-              return new String[]{"taxon_name:\""+ tc.getScientificName()+"\" OR taxon_concept_lsid:"+ClientUtils.escapeQueryChars(lsid) , dispSB.toString()};
-                StringBuilder sb = new StringBuilder("lft:[");
-                sb.append(tc.getLeft()).append(" TO ").append(tc.getRight()).append("]");
-                return new String[] {sb.toString(),dispSB.toString()};
+        Pattern rankAndName = Pattern.compile("([a-z]{1,})\\:([A-Za-z ]{1,})");
+        int position = 0;
+        Matcher m = rankAndName.matcher(query);
+        if(m.find(position) && m.groupCount()==2){
+            String rank = m.group(1);
+            String scientificName = m.group(2);
+            RankType rankType = RankType.getForName(rank.toLowerCase());
+            if(rankType != null){
+                try {
+                    NameSearchResult r = Config.nameIndex().searchForRecord(scientificName, rankType);
+                    if(r != null){
+                        return "lft:[" + r.getLeft() + " TO " + r.getRight() + "]";
+                    }
+                } catch (Exception e) {
+                    //fail silently if the parse failed
+                }
             }
-            //If the lsid for the taxon concept can not be found just return the original string
-            return new String[]{"taxon_concept_lsid:" +ClientUtils.escapeQueryChars(lsid), "taxon_concept_lsid:" +lsid};
         }
-        /**
-         * updates the query ready for a spatial search
-         * Obsolete method for this. I don't think that it is being used
-         * 
-         * @param searchParams
-         * @return
-         */
-        @Deprecated
-        public boolean updateSpatial(SpatialSearchRequestParams searchParams){
-            String query = searchParams.getQ();
+        return query;
+    }
 
-            StringBuilder displayQuery = new StringBuilder(StringUtils.substringAfter(query, ":").replace("*", "(all taxa)"));
-            displayQuery.append(" - within ").append(searchParams.getRadius()).append(" km of point (").append(searchParams.getLat()).append(", ").append(searchParams.getLon()).append(")");
-            searchParams.setDisplayString(displayQuery.toString());
-            query = formatSearchQuery(query);
-            
-            query  = "{!spatial circles=" + searchParams.getLat().toString() + "," + searchParams.getLon().toString() +
-                "," + searchParams.getRadius().toString() + "}" + query; 
-             searchParams.setQ(query);
-            return true;
+    /**
+     * Returns an array where the first value is the search string and the
+     * second is a display string.
+     *
+     * @param lsid
+     * @return
+     */
+    public String[] getTaxonSearch(String lsid) {
+        // Get the taxon profile from the biocache cache - this could be replaced with a webservice call if necessary
+        Option<TaxonProfile> opt = TaxonProfileDAO.getByGuid(lsid);
+
+        if (!opt.isEmpty()) {
+            TaxonProfile tc = opt.get();
+            StringBuffer dispSB = new StringBuffer(tc.getRankString()
+                    + ": " + tc.getScientificName());
+            if (tc.getCommonName() != null) {
+                dispSB.append(" : ");
+                dispSB.append(tc.getCommonName());
+            }
+            //return the lft and rgt range if they exist otherwise return the scientific name
+            if (tc.getLeft() == null || tc.getRight() == null)
+                return new String[]{"taxon_name:\"" + tc.getScientificName() + "\" OR taxon_concept_lsid:" + ClientUtils.escapeQueryChars(lsid), dispSB.toString()};
+
+            StringBuilder sb = new StringBuilder("lft:[");
+            sb.append(tc.getLeft()).append(" TO ").append(tc.getRight()).append("]");
+            return new String[]{sb.toString(), dispSB.toString()};
         }
+        //If the lsid for the taxon concept can not be found just return the original string
+        return new String[]{"taxon_concept_lsid:" + ClientUtils.escapeQueryChars(lsid), "taxon_concept_lsid:" + lsid};
+    }
 
-        /**
-         * Formats the query string before
-         * @param query
-         * @return
-         */
-        public static String formatSearchQuery(String query) {
+    /**
+     * Formats the query string before
+     *
+     * @param query
+     * @return
+     */
+    public static String formatSearchQuery(String query) {
         // set the query
         StringBuilder queryString = new StringBuilder();
         if (query.equals("*:*") || query.contains(" AND ") || query.contains(" OR ") || query.startsWith("(")
@@ -273,207 +251,92 @@ public class SearchUtils {
 
     public static String formatGuid(String guid) {
         String[] bits = StringUtils.split(guid, ":", 2);
-        StringBuffer queryString =  new StringBuffer();
+        StringBuffer queryString = new StringBuffer();
         queryString.append(ClientUtils.escapeQueryChars(bits[0]));
         queryString.append(":");
         queryString.append(ClientUtils.escapeQueryChars(bits[1]));
         return queryString.toString();
     }
 
-  /**
-   * Returns the query string based on the type of search that needs to be
-   * performed.
-   *
-   * @return true when the query updated correctly, false otherwise
-   */
-  public boolean updateQueryDetails(SearchQuery searchQuery) {
-    logger.debug("Processing " + searchQuery.getQuery() + " using type: "
-        + searchQuery.getType());
-    boolean success = true;
-    
-    // otherwise we can leave the query with its default values ("normal"
-    // type)
+    /**
+     * returns the solr field that should be used to search for a particular uid
+     *
+     * @param uid
+     * @return
+     */
+    public String getUidSearchField(String uid) {
+        if (uid.startsWith("co"))
+            return "collection_uid";
+        if (uid.startsWith("in"))
+            return "institution_uid";
+        if (uid.startsWith("dr"))
+            return "data_resource_uid";
+        if (uid.startsWith("dp"))
+            return "data_provider_uid";
+        if (uid.startsWith("dh"))
+            return "data_hub_uid";
+        return null;
+    }
 
-    // upate the filterQuery if it contains an "OccurrenceSource" so that it
-    // has the correct filter query specified
-    String[] queries = searchQuery.getFilterQuery();
-    if (queries != null) {
-      for (String q : queries) {
-        if (q.startsWith(OccurrenceSource.FACET_NAME + ":")) {
-          searchQuery.removeFromFilterQuery(q);
-          OccurrenceSource oc = OccurrenceSource.getForDisplayName(q
-              .substring(q.indexOf(":") + 1));
-          if (oc != null) {
-            searchQuery.addToFilterQuery("confidence:"
-                + oc.getRange());
-          }
+    /**
+     * Returns an ordered list of the next ranks after the supplied rank.
+     *
+     * @param rank
+     * @return
+     */
+    public List<String> getNextRanks(String rank, boolean includeSuppliedRank) {
+        int start = includeSuppliedRank ? ranks.indexOf(rank) : ranks.indexOf(rank) + 1;
+        if (start > 0)
+            return ranks.subList(start, ranks.size());
+        return ranks;
+    }
+
+    public List<String> getRanks() {
+        return ranks;
+    }
+
+    /**
+     * Returns the information for the supplied source keys
+     * <p/>
+     * TODO: There may be a better location for this method.
+     *
+     * @param sources
+     * @return
+     */
+    public List<OccurrenceSourceDTO> getSourceInformation(Map<String, Integer> sources) {
+
+        Set<String> keys = sources.keySet();
+        logger.debug("Listing the source information for : " + keys);
+        List<OccurrenceSourceDTO> lsources = new ArrayList<OccurrenceSourceDTO>();
+        try {
+            for (String key : keys) {
+                String name = key;
+                if (key.startsWith("co"))
+                    name = collectionCache.getCollections().get(key);
+                else if (key.startsWith("in"))
+                    name = collectionCache.getInstitutions().get(key);
+                else if (key.startsWith("dr"))
+                    name = collectionCache.getDataResources().get(key);
+                lsources.add(new OccurrenceSourceDTO(name, key, sources.get(key)));
+            }
+        } catch (Exception e) {
+            logger.error(e.getMessage());
         }
-      }
+
+        // sort the sources based on count
+        java.util.Collections.sort(lsources,
+                new java.util.Comparator<OccurrenceSourceDTO>() {
+                    @Override
+                    public int compare(OccurrenceSourceDTO o1,
+                                       OccurrenceSourceDTO o2) {
+                        //sort the counts in reverse order so that max count appears at the top of the list
+                        return o2.getCount() - o1.getCount();
+                    }
+                });
+        return lsources;
     }
-    return success;
 
-  }
-
-//  /**
-//   * Set the initial point values in the index.
-//   */
-//  public void initialPointValues(OccurrenceDTO occurrence) {
-//    Double lat = occurrence.getLatitude();
-//    Double lon = occurrence.getLongitude();
-//    if (lat != null && lon != null) {
-//      occurrence.setPoint1(MathUtils.round(lat, 0) + ","
-//          + MathUtils.round(lon, 0));
-//      occurrence.setPoint01(MathUtils.round(lat, 1) + ","
-//          + MathUtils.round(lon, 1));
-//      occurrence.setPoint001(MathUtils.round(lat, 2) + ","
-//          + MathUtils.round(lon, 2));
-//      occurrence.setPoint0001(MathUtils.round(lat, 3) + ","
-//          + MathUtils.round(lon, 3));
-//      occurrence.setPoint00001(MathUtils.round(lat, 4) + ","
-//          + MathUtils.round(lon, 4));
-//    }
-//  }
-
-  /**
-   * returns the solr field that should be used to search for a particular uid
-   *
-   * @param uid
-   * @return
-   */
-  public String getUidSearchField(String uid) {
-    if (uid.startsWith("co"))
-      return "collection_uid";
-    if (uid.startsWith("in"))
-      return "institution_uid";
-    if (uid.startsWith("dr"))
-      return "data_resource_uid";
-    if (uid.startsWith("dp"))
-      return "data_provider_uid";
-                if(uid.startsWith("dh"))
-                    return "data_hub_uid";
-    return null;
-  }
-
-  /**
-   * returns the title that should be used to search for a particular uid
-   *
-   * @param uid
-   * @return
-   */
-  public String getUidTitle(String uid) {
-    if (uid.startsWith("co"))
-      return "Collection";
-    if (uid.startsWith("in"))
-      return "Institution";
-    if (uid.startsWith("dr"))
-      return "Data Resource";
-    if (uid.startsWith("dp"))
-      return "Data Provider";
-                if (uid.startsWith("dh"))
-                        return "Data Hub";
-    return null;
-  }
-
-  /**
-   * Returns the rank name based on an integer position
-   *
-   * @param position
-   * @return
-   */
-  public String getRankFacetName(int position) {
-    switch (position) {
-    case 1:
-      return "kingdom";
-    case 2:
-      return "phylum";
-    case 3:
-      return "class";
-    case 4:
-      return "order";
-    case 5:
-      return "family";
-    case 6:
-      return "genus";
-    case 7:
-      return "species";
-    default:
-      return "unknown";
-    }
-  }
-
-  /**
-   * Returns an ordered list of the next ranks after the supplied rank.
-   *
-   * @param rank
-   * @return
-   */
-  public List<String> getNextRanks(String rank,
-      boolean includeSuppliedRank) {
-    int start = includeSuppliedRank ? ranks.indexOf(rank) : ranks
-        .indexOf(rank) + 1;
-    if (start > 0)
-      return ranks.subList(start, ranks.size());
-    return ranks;
-  }
-  
-  public List<String> getRanks(){
-      return ranks;
-  }
-
-  /**
-   * Returns the information for the supplied source keys
-   *
-   * TODO: There may be a better location for this method.
-   *
-   * @param keys
-   * @return
-   */
-  public List<OccurrenceSourceDTO> getSourceInformation(
-      Map<String, Integer> sources) {
-    Set<String> keys = sources.keySet();
-    logger.debug("Listing the source information for : " + keys);
-    List<OccurrenceSourceDTO> lsources = new ArrayList<OccurrenceSourceDTO>();
-    try {
-      for (String key : keys) {
-          String name=key;
-          if (key.startsWith("co"))
-                name = collectionCache.getCollections().get(key);
-          else if (key.startsWith("in"))
-                name = collectionCache.getInstitutions().get(key);
-            else if (key.startsWith("dr"))
-                name = collectionCache.getDataResources().get(key);
-          lsources.add(new OccurrenceSourceDTO(name, key, sources.get(key)));
-        // get the information for the uid
-//        String jsonObject = OccurrenceController
-//            .getUrlContentAsString(collectoryBaseUrl
-//                + "/lookup/summary/" + key);
-//        JSONObject j = new JSONObject(jsonObject);
-//        lsources.add(new OccurrenceSourceDTO(j.getString("name"), key,
-//            sources.get(key)));
-      }
-    } catch (Exception e) {
-      logger.error(e.getMessage());
-    }
-    // sort the sources based on count
-    java.util.Collections.sort(lsources,
-        new java.util.Comparator<OccurrenceSourceDTO>() {
-
-          @Override
-          public int compare(OccurrenceSourceDTO o1,
-              OccurrenceSourceDTO o2) {
-            return o2.getCount() - o1.getCount();// sort the counts
-                                // in reverse
-                                // order so that
-                                // max count
-                                // appears at
-                                // the top of
-                                // the list
-          }
-        });
-    return lsources;
-  }
-
-  /**
+    /**
      * Provide default values for parameters if they have any null or "empty" values
      *
      * @param requestParams
@@ -505,8 +368,7 @@ public class SearchUtils {
             extraParams.remove(field);
         return extraParams;
     }
-    
-    
+
     /**
      * Create a HashMap for the filter queries, using the first SOLR field as the key and subsequent
      * query string as the value.
@@ -615,11 +477,9 @@ public class SearchUtils {
                 }
             }
         }
-
         return afs;
     }
-    
-    
+
     /**
      * Lookup a taxon name for a GUID
      *
@@ -640,33 +500,8 @@ public class SearchUtils {
     }
 
     /**
-     * Lookup an institution/collection/data resource name via its collectory ID
-     *
-     * @param fieldValue
-     * @return
-     */
-//    private String substituteCollectoryNames(String fieldValue, String fieldName) {
-//        // substitute collectory names
-//        logger.debug("collectory maps: " + fieldValue);
-//        if (collectionsContainer.getCollectionMap().containsKey(fieldValue)) {
-//            fieldValue = collectionsContainer.getCollectionMap().get(fieldValue);
-//        } else if (collectionsContainer.getInstitutionMap().containsKey(fieldValue)) {
-//            fieldValue = collectionsContainer.getInstitutionMap().get(fieldValue);
-//        } else if (collectionsContainer.getDataResourceMap().containsKey(fieldValue)) {
-//            fieldValue = collectionsContainer.getDataResourceMap().get(fieldValue);
-//        } else if (collectionsContainer.getDataProviderMap().containsKey(fieldValue)) {
-//            fieldValue = collectionsContainer.getDataProviderMap().get(fieldValue);
-//        } else {
-//            // attempt to substitute i18n values
-//            fieldValue = messageSource.getMessage(fieldName+"."+StringUtils.remove(fieldValue, "\""), null, fieldValue, null);
-//            logger.debug("i18n subst: " + fieldName + "|" + fieldValue + " = " + fieldValue);
-//        }
-//        logger.debug("=> " + fieldValue);
-//        return fieldValue;
-//    }
-    
-    /**
-     * Convert month number to its name. E.g. 12 -> December
+     * Convert month number to its name. E.g. 12 -> December.
+     * Silently fails if the conversion cant happen.
      *
      * @param fv
      * @return monthStr
@@ -710,25 +545,22 @@ public class SearchUtils {
      */
     protected enum Month {
         January, February, March, April, May, June, July, August, September, October, November, December;
-
         public static Month get(int i){
             return values()[i];
         }
-    }   
+    }
 
     /**
-   * @param collectoryBaseUrl
-   *            the collectoryBaseUrl to set
-   */
-  public void setCollectoryBaseUrl(String collectoryBaseUrl) {
-    this.collectoryBaseUrl = collectoryBaseUrl;
-  }
+     * @param collectoryBaseUrl the collectoryBaseUrl to set
+     */
+    public void setCollectoryBaseUrl(String collectoryBaseUrl) {
+        this.collectoryBaseUrl = collectoryBaseUrl;
+    }
 
-  /**
-   * @param bieBaseUrl
-   *            the bieBaseUrl to set
-   */
-  public void setBieBaseUrl(String bieBaseUrl) {
-    this.bieBaseUrl = bieBaseUrl;
-  }
+    /**
+     * @param bieBaseUrl the bieBaseUrl to set
+     */
+    public void setBieBaseUrl(String bieBaseUrl) {
+        this.bieBaseUrl = bieBaseUrl;
+    }
 }

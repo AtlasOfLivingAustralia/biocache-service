@@ -10,6 +10,7 @@ package org.ala.biocache.util;
  * @author Adam
  */
 public class LegendItem implements Comparable<LegendItem> {
+
     String name;
     long count;
     int colour;

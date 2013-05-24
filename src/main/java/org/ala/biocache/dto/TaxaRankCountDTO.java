@@ -9,6 +9,7 @@ import java.util.List;
  * @author Natasha
  */
 public class TaxaRankCountDTO {
+
     protected String rank;
     protected List<FieldResultDTO> taxa;
 
@@ -32,6 +33,4 @@ public class TaxaRankCountDTO {
     public void setTaxa(List<FieldResultDTO> taxa) {
         this.taxa = taxa;
     }
-
-
 }

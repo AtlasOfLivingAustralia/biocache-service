@@ -71,7 +71,7 @@ public class TaxonDAOImpl implements TaxonDAO {
     @Override
     public void extractHierarchy(String metadataUrl, String q, String[] fq, Writer writer) throws Exception {
 
-        List<FacetField.Count> kingdoms = extractFacet(q,fq, "kingdom");
+        List<FacetField.Count> kingdoms = extractFacet(q,fq,"kingdom");
         for(FacetField.Count k: kingdoms){
             outputNestedLayerStart(k.getName(), writer);
             List<FacetField.Count> phyla = extractFacet(q, (String[]) ArrayUtils.add(fq, "kingdom:" + k.getName()), "phylum");
@@ -150,8 +150,10 @@ public class TaxonDAOImpl implements TaxonDAO {
             for(String fq: filterQueries) query.addFilterQuery(fq);
         }
         QueryResponse response = server.query(query);
-        List<FacetField.Count> fc =  response.getFacetField(facetName).getValues();
-        if(fc==null) fc = new ArrayList<FacetField.Count>();
+        List<FacetField.Count> fc = response.getFacetField(facetName).getValues();
+        if(fc == null){
+            fc = new ArrayList<FacetField.Count>();
+        }
         return fc;
     }
 }

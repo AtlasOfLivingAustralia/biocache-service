@@ -45,8 +45,6 @@ public class TaxaCountDTO {
         return "TaxaCountDTO{" + "name=" + name + "; commonName=" + commonName + "; guid=" + guid + "; kingdom=" + kingdom + "; family=" + family + "; count=" + count + "; rank=" + rank + '}';
     }
 
-
-
     public Long getCount() {
         return count;
     }

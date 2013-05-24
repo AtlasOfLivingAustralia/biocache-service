@@ -5,6 +5,9 @@ import java.util.HashSet;
 import java.util.ResourceBundle;
 import java.util.Set;
 import au.org.ala.biocache.Store;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.servlet.http.HttpServletResponse;
 
 /**
@@ -14,19 +17,19 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class AbstractSecureController {
 
+    private final static Logger logger = LoggerFactory.getLogger(AbstractSecureController.class);
+
     protected Set<String> apiKeys;
     
     public AbstractSecureController(){
       //Initialise the set of API keys that will allow edits to the biocache store
         ResourceBundle rb = ResourceBundle.getBundle("biocache"); 
         apiKeys = new HashSet<String>();
-        try{
-                      
+        try {
             String[] keys= rb.getString("apiKeys").split(",");
             Collections.addAll(apiKeys, keys);
-        }
-        catch(Exception e){
-            
+        } catch(Exception e){
+            logger.error(e.getMessage(),e);
         }
     }
     
@@ -50,5 +53,4 @@ public class AbstractSecureController {
         }
         return !response.isCommitted();
     }
-    
 }

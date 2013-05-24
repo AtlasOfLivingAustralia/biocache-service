@@ -24,20 +24,21 @@ import org.apache.commons.lang.StringUtils;
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
 public class DownloadRequestParams extends SpatialSearchRequestParams {
-    protected String email="";
-    protected String reason ="";
-    protected String file="data";
+
+    protected String email = "";
+    protected String reason = "";
+    protected String file = "data";
     /** CSV list of fields that should be downloaded.  If el or cl will need to map to appropriate column name */
-    protected String fields="uuid,catalogNumber,taxonConceptID.p,scientificName,vernacularName,scientificName.p,taxonRank.p,"+
+    protected String fields = "uuid,catalogNumber,taxonConceptID.p,scientificName,vernacularName,scientificName.p,taxonRank.p,"+
     "vernacularName.p,kingdom.p,phylum.p,classs.p,order.p,family.p,genus.p,species.p,subspecies.p,institutionCode,collectionCode" +
     ",locality,decimalLatitude.p,decimalLongitude.p,coordinatePrecision,coordinateUncertaintyInMeters.p,country.p,ibra.p,imcra.p,stateProvince.p," +
     "cl959,minimumElevationInMeters,maximumElevationInMeters,minimumDepthInMeters,maximumDepthInMeters,individualCount,recordedBy,year.p,month.p,day.p," +
     "eventDate.p,eventTime.p,basisOfRecord,sex,preparations,informationWithheld.p,dataGeneralizations.p,speciesHabitats.p,outlierForLayers.p," +
     "taxonomicIssue.p,geospatiallyKosher";
     /** CSV list of extra fields to be added to the download - useful if wish to make use of default list */
-    protected String extra="";
-    protected Integer reasonTypeId=null;
-    protected Integer sourceTypeId=null;
+    protected String extra = "";
+    protected Integer reasonTypeId = null;
+    protected Integer sourceTypeId = null;
 
     /**
      * Custom toString method to produce a String to be used as the request parameters
@@ -61,7 +62,7 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
         return req.toString();
     }
 
-       public String getEmail() {
+    public String getEmail() {
         return email;
     }
 
@@ -135,11 +136,9 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     }
 
     /**
-     * @param sourceId the sourceId to set
+     * @param sourceTypeId the sourceId to set
      */
     public void setSourceTypeId(Integer sourceTypeId) {
         this.sourceTypeId = sourceTypeId;
     }
-    
-
 }

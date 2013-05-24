@@ -19,19 +19,14 @@ public class BreakdownRequestParams extends SpatialSearchRequestParams {
         if(max != null) req.append("&max=").append(max);
         if(level != null) req.append("&level=").append(level);
         return req.toString();
-        
     }
     
-   
-
     /**
      * @return the rank
      */
     public String getRank() {
         return rank;
     }
-
-
 
     /**
      * @param rank the rank to set
@@ -40,16 +35,12 @@ public class BreakdownRequestParams extends SpatialSearchRequestParams {
         this.rank = rank;
     }
 
-
-
     /**
      * @return the name
      */
     public String getName() {
         return name;
     }
-
-
 
     /**
      * @param name the name to set
@@ -65,16 +56,12 @@ public class BreakdownRequestParams extends SpatialSearchRequestParams {
         return max;
     }
 
-
-
     /**
      * @param max the max to set
      */
     public void setMax(Integer max) {
         this.max = max;
     }
-
-
 
     /**
      * @return the level
@@ -89,7 +76,4 @@ public class BreakdownRequestParams extends SpatialSearchRequestParams {
     public void setLevel(String level) {
         this.level = level;
     }
-    
-    
-
 }

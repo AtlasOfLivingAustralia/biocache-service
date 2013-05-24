@@ -17,39 +17,36 @@ import javax.inject.Inject;
 @Controller
 public class DuplicationController {
 
-  /** Logger initialisation */
-  private final static Logger logger = Logger.getLogger(DuplicationController.class);
-  /** Fulltext search DAO */
-  @Inject
-  protected SearchDAO searchDAO;
-  
-  
+    /** Logger initialisation */
+    private final static Logger logger = Logger.getLogger(DuplicationController.class);
+    /** Fulltext search DAO */
+    @Inject
+    protected SearchDAO searchDAO;
+
     /**
      * Retrieves the duplication information for the supplied guid.
-     * 
+     * <p/>
      * Returns empty details when the record is not the "representative" occurrence.
+     *
      * @param guid
      * @return
      * @throws Exception
      */
-    @RequestMapping(value={"/duplicates/{guid:.+}.json*","/duplicates/{guid:.+}*" })
+    @RequestMapping(value = {"/duplicates/{guid:.+}.json*", "/duplicates/{guid:.+}*"})
     public @ResponseBody DuplicateRecordDetails getDuplicateStats(@PathVariable("guid") String guid) throws Exception {
-      try{
-          return Store.getDuplicateDetails(guid);
-      }
-      catch(Exception e){
-          logger.error("Unable to get duplicate details for " + guid, e);
-          return new DuplicateRecordDetails();
-      }
+        try {
+            return Store.getDuplicateDetails(guid);
+        } catch (Exception e) {
+            logger.error("Unable to get duplicate details for " + guid, e);
+            return new DuplicateRecordDetails();
+        }
     }
 
-    @RequestMapping(value={"/stats/{guid:.+}.json*","/stats/{guid:.+}*" })
+    @RequestMapping(value = {"/stats/{guid:.+}.json*", "/stats/{guid:.+}*"})
     public @ResponseBody Map<String, FieldStatsInfo> printStats(@PathVariable("guid") String guid) throws Exception {
         SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
         searchParams.setQ("*:*");
         searchParams.setFacets(new String[]{guid});
         return searchDAO.getStatistics(searchParams);
     }
-    
-    
 }

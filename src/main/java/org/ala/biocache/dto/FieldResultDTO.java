@@ -1,5 +1,3 @@
-
-
 package org.ala.biocache.dto;
 
 import org.codehaus.jackson.annotate.JsonIgnore;

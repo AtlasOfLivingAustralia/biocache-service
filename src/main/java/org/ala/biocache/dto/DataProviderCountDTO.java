@@ -22,55 +22,55 @@ public class DataProviderCountDTO {
     
     public DataProviderCountDTO() {}
     
-        public DataProviderCountDTO(String id, String name, long count) {
-                super();
-                this.id = id;
-                this.name = name;
-                this.count = count;
-        }
-        /**
-         * @return the count
-         */
-        public long getCount() {
-                return count;
-        }
-        /**
-         * @param count the count to set
-         */
-        public void setCount(long count) {
-                this.count = count;
-        }
-        /**
-         * @return the id
-         */
-        public String getId() {
-                return id;
-        }
-        /**
-         * @param id the id to set
-         */
-        public void setId(String id) {
-                this.id = id;
-        }
-        /**
-         * @return the name
-         */
-        public String getName() {
-                return name;
-        }
-        /**
-         * @param name the name to set
-         */
-        public void setName(String name) {
-                this.name = name;
-        }
+    public DataProviderCountDTO(String id, String name, long count) {
+            super();
+            this.id = id;
+            this.name = name;
+            this.count = count;
+    }
+    /**
+     * @return the count
+     */
+    public long getCount() {
+            return count;
+    }
+    /**
+     * @param count the count to set
+     */
+    public void setCount(long count) {
+            this.count = count;
+    }
+    /**
+     * @return the id
+     */
+    public String getId() {
+            return id;
+    }
+    /**
+     * @param id the id to set
+     */
+    public void setId(String id) {
+            this.id = id;
+    }
+    /**
+     * @return the name
+     */
+    public String getName() {
+            return name;
+    }
+    /**
+     * @param name the name to set
+     */
+    public void setName(String name) {
+            this.name = name;
+    }
 
-        /**
-         * @see java.lang.Object#toString()
-         */
-        @Override
-        public String toString() {
-                return "DataProviderCountDTO [count=" + count + ", id=" + id
-                                + ", name=" + name + "]";
-        }
+    /**
+     * @see java.lang.Object#toString()
+     */
+    @Override
+    public String toString() {
+            return "DataProviderCountDTO [count=" + count + ", id=" + id
+                            + ", name=" + name + "]";
+    }
 }

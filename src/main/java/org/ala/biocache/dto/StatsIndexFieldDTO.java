@@ -11,14 +11,15 @@ import org.apache.solr.client.solrj.response.FieldStatsInfo;
  *
  */
 public class StatsIndexFieldDTO {
+
     private FieldStatsInfo stats;
     private String dataType;
     private Number start;
     private Number end;
     private Number gap;
-    public StatsIndexFieldDTO(){
-      
-    }
+
+    public StatsIndexFieldDTO(){}
+
     public StatsIndexFieldDTO(FieldStatsInfo stats, String type){
         this.dataType = type;
         setStats(stats);        
@@ -146,6 +147,4 @@ public class StatsIndexFieldDTO {
     public void setGap(Number gap) {
         this.gap = gap;
     }
-    
-    
 }

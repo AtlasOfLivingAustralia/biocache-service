@@ -59,15 +59,6 @@ public interface SearchDAO {
     List<FieldResultDTO> getEndemicSpecies(SpatialSearchRequestParams requestParams) throws Exception;
     
     ArrayList<FieldResultDTO> getValuesForFacet(SpatialSearchRequestParams requestParams) throws Exception;
-  
-    /**
-     * Find all occurrences for a given (full text) query
-     *
-     * @param requestParams
-     * @return
-     * @throws Exception
-     */
-    SearchResultDTO findByFulltextQuery(SearchRequestParams requestParams) throws Exception;
 
     /**
      * Find all occurrences for a given (full text) query, latitude, longitude & radius (km). I.e.
@@ -119,10 +110,6 @@ public interface SearchDAO {
 	 * @throws Exception
 	 */
 	Map<String, Integer> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, boolean includeSensitive, DownloadDetailsDTO dd) throws Exception;
-
-//    Map<String, Integer> writeResultsFromIndexToStreamWithThreads(DownloadRequestParams downloadParams,
-//                                                                         OutputStream out,
-//                                                                         boolean includeSensitive) throws Exception;
 
     /**
      * Write coordinates out to the supplied stream.
@@ -198,14 +185,8 @@ public interface SearchDAO {
      * @return
      */
     List<DataProviderCountDTO> getDataProviderCounts() throws Exception;
-    
-    List<FieldResultDTO> findRecordByDecadeFor(String query) throws Exception;
-    
+
     List<FieldResultDTO> findRecordByStateFor(String query) throws Exception;
-
-    List<TaxaCountDTO> findTaxaByUserId(String userId) throws Exception;
-
-//    List<OccurrenceIndex> findPointsForUserId(String userId) throws Exception;
 
     /**
      * Find all the sources for the supplied query
@@ -218,8 +199,6 @@ public interface SearchDAO {
     
     TaxaRankCountDTO calculateBreakdown(BreakdownRequestParams queryParams) throws Exception;
 
-    TaxaRankCountDTO findTaxonCountForUid(String query, String queryContext, int maximumFacets) throws Exception;
-    
     /**
      * Returns the occurrence counts based on lft and rgt values for each of the supplied taxa.
      * @param taxa
@@ -284,7 +263,14 @@ public interface SearchDAO {
      * @throws Exception
      */
     List<DataProviderCountDTO> getDataProviderList(SpatialSearchRequestParams requestParams) throws Exception;
-    
+
+    /**
+     * Retrieve facet counts for this query
+     *
+     * @param searchParams
+     * @return
+     * @throws Exception
+     */
     List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception;
 }
 
