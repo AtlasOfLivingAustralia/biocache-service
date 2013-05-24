@@ -1,0 +1,62 @@
+<!DOCTYPE log4j:configuration  SYSTEM "log4j.dtd">
+<log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/" debug="false">
+  <appender name="CONSOLE" class="org.apache.log4j.ConsoleAppender">
+    <param name="Threshold" value="DEBUG"/>
+    <layout class="org.apache.log4j.PatternLayout">
+      <param name="ConversionPattern" value="%d %-5p: [%c{1}] - %m%n"/>
+    </layout>
+    <filter class="org.apache.log4j.varia.LevelMatchFilter">
+      <param name="LevelToMatch" value="REMOTE#org.ala.client.appender.RestLevel" />
+      <param name="AcceptOnMatch" value="false"/>
+    </filter>
+  </appender>
+  <category name="org.ala.biocache">
+    <priority value="DEBUG"/>
+  </category>
+  <category name="au.org.ala">
+    <priority value="DEBUG"/>
+  </category>
+  <category name="org.ala">
+    <priority value="DEBUG"/>
+  </category>
+  <category name="org.scale7">
+    <priority value="ERROR"/>
+  </category>
+  <category name="au.org.ala.sds.model">
+    <priority value="DEBUG"/>
+  </category>
+  <category name="au.org.ala.cas">
+    <priority value="ERROR"/>
+  </category>
+  <category name="org.jasig">
+    <priority value="ERROR"/>
+  </category>
+  <category name="org.springframework">
+    <priority value="ERROR"/>
+  </category>
+  <category name="org.apache">
+    <priority value="ERROR"/>
+  </category>
+  <category name="httpclient">
+    <priority value="ERROR"/>
+  </category>
+  <category name="org.hibernate">
+    <priority value="ERROR"/>
+  </category>
+  <category name="net.sf">
+    <priority value="ERROR"/>
+  </category>
+  <category name="org.springframework.aop.interceptor.cache">
+    <priority value="ERROR"/>
+  </category>
+  <category name="org.springframework.jdbc.core">
+    <priority value="ERROR"/>
+  </category>
+  <category name="org.quartz">
+    <priority value="ERROR"/>
+  </category>
+  <root>
+    <priority value ="DEBUG" />
+    <appender-ref ref="CONSOLE"/>
+  </root>
+ </log4j:configuration>
