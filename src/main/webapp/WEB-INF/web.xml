@@ -5,15 +5,13 @@
     version="2.4" id="biocache-service">
 
     <display-name>Biocache Service</display-name>
-
-    <!-- For spring context initialisation -->
-    <context-param>
-            <param-name>contextConfigLocation</param-name>
-            <param-value>classpath*:/applicationContext-webapp.xml</param-value>
-    </context-param>
+    <description>
+        This web application provides web services on top of the occurrence search index.
+        These include WMS support and JSON query services on top of records.
+    </description>
 
     <listener>
-            <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+        <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
     </listener>
     
     <servlet>
@@ -49,9 +47,8 @@
     <!-- Used in the homepage to provide a configurable root URL -->
     <context-param>
         <param-name>webservicesRoot</param-name>
-        <param-value>http://localhost:8080</param-value>
+        <param-value>http://localhost:8080/biocache-service/</param-value>
     </context-param>
-
 
     <context-param>
         <param-name>casServerName</param-name>
