@@ -15,6 +15,7 @@
 package org.ala.biocache.dao;
 
 import org.apache.log4j.Logger;
+import org.junit.Ignore;
 import org.junit.experimental.theories.DataPoints;
 import org.junit.experimental.theories.Theories;
 import org.junit.experimental.theories.Theory;
@@ -30,16 +31,18 @@ import static org.junit.Assert.*;
          
 /**
  * JUnit tests for SOLR Query formatting methods in SearchDAOImpl
- * 
+ *
+ * FIXME these tests need to be rewritten in a mocked fashion.
+ *
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
-//@RunWith(SpringJUnit4ClassRunner.class)
+@Ignore
 @RunWith(Theories.class)
 @ContextConfiguration(locations={"classpath:springTest.xml"})
 public class QueryFormatTest {
 
     private TestContextManager testContextManager;
-  @Inject protected SearchDAOImpl searchDAO;
+    @Inject protected SearchDAOImpl searchDAO;
     private static final Logger logger = Logger.getLogger(QueryFormatTest.class);
     protected static String qid = "";
 
@@ -103,7 +106,6 @@ public class QueryFormatTest {
             assertTrue("display query does not have expected 'contains' match. ", StringUtils.containsIgnoreCase(ssrp.getDisplayString(), queryTest.displayString) );
         }
     }
-
 
     /**
      * Inner "theory" class to hold test queries and expected output

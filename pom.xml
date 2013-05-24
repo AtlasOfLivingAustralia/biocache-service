@@ -244,30 +244,6 @@
       <version>1.0</version>
       <scope>provided</scope>
     </dependency>
-    <!-- SOLR this comes from biocache-store dependency-->
-<!--         <dependency>
-            <artifactId>solr-core</artifactId>
-            <groupId>org.apache.solr</groupId>
-            <version>3.5.0</version>
-            <exclusions>
-            	<exclusion>
-            		<groupId>org.slf4j</groupId>
-            		<artifactId>slf4j-jdk14</artifactId>
-            	</exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <artifactId>solr-solrj</artifactId>
-            <groupId>org.apache.solr</groupId>
-            <version>3.5.0</version>
-        </dependency>
-        Spatial-SORL plugin patched by Adam Collins (ALA Spatial Team) to have wkt support
-        <dependency>
-            <groupId>nl.jteam</groupId>
-            <artifactId>spatial-solr</artifactId>
-            <version>2.0-RC5_ssplex_wkt</version>
-        </dependency> -->
-
     <!-- DOM4J -->
     <dependency>
       <groupId>dom4j</groupId>
@@ -301,13 +277,6 @@
       <artifactId>json-lib</artifactId>
       <version>2.2.3</version>
     </dependency>
-    <!-- TWITTER4J -->
-    <dependency>
-      <groupId>twitter4j</groupId>
-      <artifactId>twitter4j</artifactId>
-      <version>2.1.7-SNAPSHOT</version>
-    </dependency>
-    
     <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-jdbc</artifactId>

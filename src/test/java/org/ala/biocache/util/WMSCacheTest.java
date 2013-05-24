@@ -9,7 +9,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import junit.framework.TestCase;
 import org.ala.biocache.dto.PointType;
+import org.junit.Ignore;
 
+/**
+ * This test isnt written in a fashion that can be executed as part of a build.
+ */
+@Ignore
 public class WMSCacheTest extends TestCase {
 
     /**

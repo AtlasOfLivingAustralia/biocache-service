@@ -5,7 +5,9 @@ import au.org.ala.biocache.FullRecord;
 import au.org.ala.biocache.OccurrenceConsumer;
 import au.org.ala.biocache.Store;
 import au.org.ala.biocache.Versions;
+import org.junit.Ignore;
 
+@Ignore
 public class PagingTest extends TestCase {
 
 	/**
@@ -39,6 +41,5 @@ public class PagingTest extends TestCase {
 		
 		System.out.println("Processed values");
 		Store.writeToStream(System.out, "\t", "\n", uuids,  new String[]{"uuid","scientificName", "eventDate"}, new String[] {});
-
 	}
 }
