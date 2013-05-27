@@ -546,7 +546,7 @@ public class OccurrenceController extends AbstractSecureController {
                             }
                             row = reader.readNext();
                         }
-                    } catch(Exception e){
+                    } catch (Exception e) {
                         logger.error(e.getMessage(),e);
                     } finally {
                         unregisterDownload(dd);
