@@ -57,11 +57,10 @@ import org.springframework.web.context.ServletConfigAware;
 
 /**
  * WMS and static map controller
- * 
+ *
  * @author "Ajay Ranipeta <Ajay.Ranipeta@csiro.au>"
  *
- * TODO this should be factored out as its been superceded by functionality
- * in WebportalController.
+ * @Deprecated this should be factored out as its been superceded by functionality in WebportalController.
  */
 @Controller("mapController")
 public class MapController implements ServletConfigAware {

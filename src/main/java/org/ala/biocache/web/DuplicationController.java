@@ -1,4 +1,5 @@
 package org.ala.biocache.web;
+import au.org.ala.biocache.Store;
 import org.ala.biocache.dao.SearchDAO;
 import org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.apache.log4j.Logger;
@@ -7,7 +8,6 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
-import au.org.ala.biocache.*;
 import au.org.ala.util.DuplicateRecordDetails;
 
 import java.util.Map;

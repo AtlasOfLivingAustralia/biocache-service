@@ -42,10 +42,14 @@ public class OccurrenceDTO implements Serializable{
     public OccurrenceDTO() {}
 
     public OccurrenceDTO(FullRecord[] record){
-        if(record != null && record.length==3){
-            raw = record[0];
-            processed = record[1];
-            consensus = record[2];
+        if(record != null){
+            if(record.length >= 2){
+                raw = record[0];
+                processed = record[1];
+            }
+            if(record.length == 3){
+                consensus = record[2];
+            }
         }
     }
 
@@ -126,5 +130,4 @@ public class OccurrenceDTO implements Serializable{
     public void setAlaUserName(String alaUserName) {
         this.alaUserName = alaUserName;
     }
-    
 }
