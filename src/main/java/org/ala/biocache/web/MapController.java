@@ -597,7 +597,7 @@ public class MapController implements ServletConfigAware {
             @RequestParam(value = "opacity", required = false, defaultValue = "1.0") Float opacity,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
         
-    	response.setContentType("image/png");
+        response.setContentType("image/png");
         File baseDir = new File(heatmapBase);
         String outputHMFile = requestParams.getQ().replace(":", "_") + "_hm.png";
         
@@ -605,11 +605,11 @@ public class MapController implements ServletConfigAware {
         String[] facetValues = null;
         String[] facetColours = null;
         if( StringUtils.trimToNull(colourByFqCSV) != null && StringUtils.trimToNull(coloursCSV) != null){
-        	facetValues = colourByFqCSV.split(",");
-        	facetColours = coloursCSV.split(",");
-        	if(facetValues.length == 0 || facetValues.length != facetColours.length){
-        		throw new IllegalArgumentException(String.format("Mismatch in facet values and colours. Values: %d, Colours: %d", facetValues.length, facetColours.length));
-        	}
+            facetValues = colourByFqCSV.split(",");
+            facetColours = coloursCSV.split(",");
+            if(facetValues.length == 0 || facetValues.length != facetColours.length){
+                throw new IllegalArgumentException(String.format("Mismatch in facet values and colours. Values: %d, Colours: %d", facetValues.length, facetColours.length));
+            }
         }
                
         //Does file exist on disk?
@@ -694,18 +694,18 @@ public class MapController implements ServletConfigAware {
      * @param response 
      */
     public void generateStaticHeatmapImages(
-    		SpatialSearchRequestParams requestParams, 
-    		Model model, 
-    		HttpServletRequest request, 
-    		HttpServletResponse response, 
-    		boolean generateLegend,
-    		boolean forcePointsDisplay,
-    		Integer pointHeatMapThreshold,
-    		String defaultPointColour,
-    		String[] colourByFq,
-    		String[] colours,
-    		Float opacity
-    		) {
+            SpatialSearchRequestParams requestParams, 
+            Model model, 
+            HttpServletRequest request, 
+            HttpServletResponse response, 
+            boolean generateLegend,
+            boolean forcePointsDisplay,
+            Integer pointHeatMapThreshold,
+            String defaultPointColour,
+            String[] colourByFq,
+            String[] colours,
+            Float opacity
+            ) {
         
         File baseDir = new File(heatmapBase);
         logger.info("heatmap base is " + heatmapBase);
@@ -716,31 +716,31 @@ public class MapController implements ServletConfigAware {
 
         double[] points = retrievePoints(requestParams, pointType);
         
-        if (points != null && points.length > 0) {
+        if (points.length > 0) {
             HeatMap hm = new HeatMap(baseDir, outputHMFile);
             
             //heatmap versus points
             if (forcePointsDisplay || (points.length / 2) < pointHeatMapThreshold) {
                 if (!generateLegend){
-                	
-                	if(colourByFq != null){
-                		
-                		String[] originalFq = requestParams.getFq();
-                		
-                		for(int k=0; k<colourByFq.length; k++){
-                			if(originalFq != null){
-                				requestParams.setFq(ArrayUtils.add(originalFq, colourByFq[k]));
-                			} else {
-                				requestParams.setFq(new String[]{colourByFq[k]});
-                			}
-                			double[] pointsForFacet = retrievePoints(requestParams, pointType);
-                			Color pointColor = ColorUtil.getColor(colours[k], opacity);
-                			hm.generatePoints(pointsForFacet, pointColor);
-                		}
-                	} else {
-                		Color pointColor = ColorUtil.getColor(defaultPointColour, opacity);
-                		hm.generatePoints(points, pointColor);
-                	}
+                    
+                    if(colourByFq != null){
+                        
+                        String[] originalFq = requestParams.getFq();
+                        
+                        for(int k=0; k<colourByFq.length; k++){
+                            if(originalFq != null){
+                                requestParams.setFq(ArrayUtils.add(originalFq, colourByFq[k]));
+                            } else {
+                                requestParams.setFq(new String[]{colourByFq[k]});
+                            }
+                            double[] pointsForFacet = retrievePoints(requestParams, pointType);
+                            Color pointColor = ColorUtil.getColor(colours[k], opacity);
+                            hm.generatePoints(pointsForFacet, pointColor);
+                        }
+                    } else {
+                        Color pointColor = ColorUtil.getColor(defaultPointColour, opacity);
+                        hm.generatePoints(points, pointColor);
+                    }
                     hm.drawOutput(baseDir + "/" + outputHMFile, false);
                 }
             } else {
@@ -769,20 +769,30 @@ public class MapController implements ServletConfigAware {
         }
     }
 
-	private double[] retrievePoints(SpatialSearchRequestParams requestParams,
-			PointType pointType) {
-		double[] points = null;
-		try {
+    /**
+     * Returns an array of points in the format [lat1,long1,lat2,lat2,.....]
+     *
+     * @param requestParams
+     * @param pointType
+     * @return returns an empty array if none found.
+     */
+    private double[] retrievePoints(SpatialSearchRequestParams requestParams, PointType pointType) {
+
+        double[] points = new double[0];
+        try {
             requestParams.setQ(requestParams.getQ());
             List<OccurrencePoint> occ_points = searchDAO.getFacetPoints(requestParams, pointType);
-            logger.debug("Points search for " + pointType.getLabel() + " - found: " + occ_points.size());
+            if(logger.isDebugEnabled()){
+                logger.debug("Points search for " + pointType.getLabel() + " - found: " + occ_points.size());
+            }
 
             int totalItems = 0;
             for (int i = 0; i < occ_points.size(); i++) {
                 OccurrencePoint pt = occ_points.get(i);
                 totalItems = (int) (totalItems + pt.getCount());
             }
-            logger.info("total number of occurrence points is " + totalItems);
+
+            logger.debug("total number of occurrence points is " + totalItems);
 
             points = new double[totalItems * 2];
 
@@ -797,10 +807,10 @@ public class MapController implements ServletConfigAware {
                 j = j + 2;
             }
         } catch (Exception e) {
-            logger.error("An error occurred getting heatmap points");
+            logger.error("An error occurred getting heatmap points", e);
         }
-		return points;
-	}
+        return points;
+    }
 
     public void setSearchDAO(SearchDAO searchDAO) {
         this.searchDAO = searchDAO;

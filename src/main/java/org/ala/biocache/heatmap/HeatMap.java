@@ -21,8 +21,7 @@ import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.log4j.Logger;
 
 /**
- *
- * HeatMap generator for species. 
+ * HeatMap generator for species.
  * 
  * Code based on http://www.itstud.chalmers.se/~liesen/heatmap/
  *
@@ -86,8 +85,7 @@ public class HeatMap {
         colorTable = createColorLookupTable(colorImage, .5f);
         colorOp = new LookupOp(colorTable, null);
 
-        monochromeImage = createCompatibleTranslucentImage(
-                width, height);
+        monochromeImage = createCompatibleTranslucentImage(width, height);
 
         Graphics g = monochromeImage.getGraphics();
         g.setColor(Color.WHITE);
@@ -235,14 +233,6 @@ public class HeatMap {
         return Toolkit.getDefaultToolkit().createImage(ip);
     }
 
-    public BufferedImage colorize(LookupOp colorOp) {
-        return colorOp.filter(monochromeImage, null);
-    }
-
-    public BufferedImage colorize(LookupTable colorTable) {
-        return colorize(new LookupOp(colorTable, null));
-    }
-
     public static BufferedImage createFadedCircleImage(int size) {
         BufferedImage im = createCompatibleTranslucentImage(size, size);
         float radius = size / 2f;
@@ -261,21 +251,6 @@ public class HeatMap {
         return im;
     }
 
-//    private void addDotImage(Point p, float alpha) {
-//        int circleRadius = dotImage.getWidth() / 2;
-//
-//        //System.out.println("adding point at: " + p.x + ", " + p.y);
-//
-//        Graphics2D g = (Graphics2D) monochromeImage.getGraphics();
-//
-//        g.setComposite(BlendComposite.Multiply.derive(alpha));
-//        g.drawImage(dotImage, null, p.x - circleRadius, p.y - circleRadius);
-//    }
-
-    private void addDotImage(Point p) {
-    	addDotImage(p,Color.blue);
-    }
-    
     private void addDotImage(Point p, Color pointColor) {
         //int circleRadius = dotImage.getWidth() / 2;
         Graphics2D g = (Graphics2D) monochromeImage.getGraphics();
@@ -294,61 +269,16 @@ public class HeatMap {
                 return ImageIO.read(new File(baseDir.getAbsolutePath() + "/base/bullet_blue.png"));
             }
         } catch (Exception ex) {
-            logger.error("Unable to load Dot Image File: " + baseDir.getAbsolutePath() + "/base/bullet_blue.png");
+            logger.error("Unable to load Dot Image File: " + baseDir.getAbsolutePath() + "/base/bullet_blue.png", ex);
         }
         return createFadedCircleImage(radius);
     }
 
-    private void setMinMax(Vector v) {
-        try {
-
-            minX = bMinX;
-            minY = bMinY;
-            maxX = bMaxX;
-            maxY = bMaxY;
-
-            /*
-            System.out.println("Setting the base min-max");
-            String idxpts[] = ((String) v.get(0)).split(",");
-            double ix = Double.parseDouble(idxpts[0]);
-            double iy = Double.parseDouble(idxpts[1]);
-            minX = ix;
-            minY = iy;
-            maxX = ix;
-            maxY = iy;
-            
-            
-            for (int i = 1; i < v.size(); i++) {
-            //for (int j = 0; j < points[i].length; j++) {}
-            //if (points[i][0] < minX) minX = points[i][0];
-            //else if (points[i][0] < minX) minX = points[i][0];
-            String strpts[] = ((String) v.get(i)).split(",");
-            double cx = Double.parseDouble(strpts[0]);
-            double cy = Double.parseDouble(strpts[1]);
-            
-            System.out.println("Have: " + (String) v.get(i));
-            System.out.println("checking minx: " + (cx < minX));
-            if (cx < minX) {
-            minX = cx;
-            }
-            System.out.println("checking miny: " + (cy < minY));
-            if (cy < minY) {
-            minY = cy;
-            }
-            System.out.println("checking maxX: " + (cx > maxX));
-            if (cx > maxX) {
-            maxX = cx;
-            }
-            System.out.println("checking maxY: " + (cy > maxY));
-            if (cy > maxY) {
-            maxY = cy;
-            }
-            }
-             * 
-             */
-        } catch (Exception e) {
-            logger.error("error generating min-max" + ExceptionUtils.getStackTrace(e));
-        }
+    private void setMinMax() {
+        minX = bMinX;
+        minY = bMinY;
+        maxX = bMaxX;
+        maxY = bMaxY;
     }
 
     private Point translate(double x, double y) {
@@ -366,26 +296,9 @@ public class HeatMap {
             //System.out.println("pixeled: " + x + ", " + y);
             return new Point(new Double(x).intValue(), new Double(y).intValue());
         } catch (Exception e) {
-            logger.error("Exception with translating:" + ExceptionUtils.getStackTrace(e));
+            logger.error("Exception with translating " + e.getMessage(), e);
         }
         return null;
-    }
-
-    private void generateWMSRequest(String baseUrl, String lsid) {
-        try {
-
-            Color c = new Color(0, 0, 255);
-            String hexColour = Integer.toHexString(c.getRGB() & 0x00ffffff);
-            baseUrl = "http://spatial.ala.org.au/geoserver/wms?";
-            baseUrl += "service=WMS&version=1.1.0&request=GetMap&styles=&format=image/png";
-            baseUrl += "&layers=ALA:occurrences";
-            baseUrl += "&transparent=true"; //
-            baseUrl += "&env=color:" + hexColour + ";name:circle;size:8;opacity:1";
-            baseUrl += "&CQL_FILTER=";
-
-
-        } catch (Exception e) {
-        }
     }
 
     private void generateLogScaleCircle(int dPoints[][]) {
@@ -431,77 +344,12 @@ public class HeatMap {
                 generateLegend(maxValue);
             }
         } catch (Exception e) {
-            logger.error("Error generating log scale circle:" + ExceptionUtils.getStackTrace(e));
+            logger.error("Error generating log scale circle: " + e.getMessage(), e);
         }
-    }
-
-    public File loadData(String filename) {
-        return new File(filename);
-    }
-
-    public void loadData(File filename) {
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(filename));
-            Vector v = new Vector();
-            //System.out.println("reading file...");
-
-            while (true) {
-                String line = in.readLine();
-                if (line == null) {
-                    break;
-                }
-                //System.out.println("> " + line);
-                v.add(line);
-            }
-            in.close();
-
-            //System.out.println("Setting min-max");
-            setMinMax(v);
-            generateClasses(v);
-
-            //drawOuput();
-        } catch (Exception e) {
-            logger.error("Opps, error reading file: " + ExceptionUtils.getStackTrace(e));
-        }
-    }
-
-    private void generateClasses(Vector<String> v) {
-        setMinMax(null);
-        int width = backgroundImage.getWidth();
-        int height = backgroundImage.getHeight();
-        //System.out.println("bounding box: " + minX + "," + minY + "," + maxX + "," + maxY);
-        //System.out.println("Adding " + v.size() + " points to base image...");
-        //System.out.println("Adding to base image...");
-        int dPoints[][] = new int[width][height];
-        for (int i = 0; i < v.size(); i++) {
-            String strpts[] = (v.get(i)).split(",");
-            double cx = Double.parseDouble(strpts[0]);
-            double cy = Double.parseDouble(strpts[1]);
-            Point p = translate(cx, cy);
-
-            int pradius = radius * radius;
-
-            for (int ci = (int) (p.x - radius); ci <= (p.x + radius); ci++) {
-                for (int cj = (int) (p.y - radius); cj <= (p.y + radius); cj++) {
-                    if (ci >= 0 && ci < width && cj >= 0 && cj < height) {
-                        double d = Math.pow((p.x - ci), 2) + Math.pow((p.y - cj), 2);
-                        if ((int) d <= pradius) {
-                            // applying gradient to this circle so outter influence is low
-                            // and at the peak it's maximum
-                            dPoints[ci][cj] += numColours - ((d * numColours) / pradius);
-                        }
-                    }
-                }
-            }
-
-            //addDotImage(p, .75f);
-        }
-
-        generateLogScaleCircle(dPoints);
     }
 
     public void generateClasses(double[] v) {
-        setMinMax(null);
+        setMinMax();
 
         int width = backgroundImage.getWidth();
         int height = backgroundImage.getHeight();
@@ -536,22 +384,17 @@ public class HeatMap {
         generateLogScaleCircle(dPoints);
     }
 
-    public void generatePoints(double[] v, Color pointColour) {
-        setMinMax(null);
-        //System.out.println("bounding box: " + minX + "," + minY + "," + maxX + "," + maxY);
-        //System.out.println("Adding " + (v.length / 2) + " points to base image...");
-        //System.out.println("Adding to base image...");
-        for (int i = 0; i < v.length; i += 2) {
-            double cx = v[i];
-            double cy = v[i + 1];
+    public void generatePoints(double[] points, Color pointColour) {
+        setMinMax();
+        for (int i = 0; i < points.length; i += 2) {
+            double cx = points[i];
+            double cy = points[i + 1];
             Point p = translate(cx, cy);
             addDotImage(p, pointColour);
         }
     }
 
     private void generateLegend(int maxValue) {
-
-        //System.out.println("generating legend...");
 
         int scale[] = new int[numColours - 1];
         scale[0] = maxValue;
@@ -609,7 +452,7 @@ public class HeatMap {
         try {
             ImageIO.write(legendImage, "png", legOut);
         } catch (Exception e) {
-            logger.error("Unable to write legendImage:" + ExceptionUtils.getStackTrace(e));
+            logger.error("Unable to write legendImage: " + e.getMessage(), e);
         }
     }
 
@@ -628,21 +471,8 @@ public class HeatMap {
             ImageIO.write(backgroundImage, "png", hmOut);
 
         } catch (Exception ex) {
-            logger.error("An error occurred drawing output " + ExceptionUtils.getStackTrace(ex));
+            logger.error("An error occurred drawing output to outfile: '"  + outfile
+                    + "' Error message: " + ex.getMessage(), ex);
         }
-    }
-
-    public static String toRgbText(int rgb) {
-        // clip input value.
-
-        if (rgb > 0xFFFFFF) {
-            rgb = 0xFFFFFF;
-        }
-        if (rgb < 0) {
-            rgb = 0;
-        }
-
-        String str = "000000" + Integer.toHexString(rgb); //$NON-NLS-1$
-        return "#" + str.substring(str.length() - 6); //$NON-NLS-1$
     }
 }

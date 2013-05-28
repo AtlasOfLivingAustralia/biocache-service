@@ -175,7 +175,7 @@ public class SearchUtils {
      */
     public String convertRankAndName(String query){
 
-        Pattern rankAndName = Pattern.compile("([a-z]{1,})\\:([A-Za-z ]{1,})");
+        Pattern rankAndName = Pattern.compile("([a-z]{1,})\\:([A-Za-z \\(\\)\\.]{1,})");
         int position = 0;
         Matcher m = rankAndName.matcher(query);
         if(m.find(position) && m.groupCount()==2){
