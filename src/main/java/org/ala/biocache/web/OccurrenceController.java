@@ -1022,7 +1022,7 @@ public class OccurrenceController extends AbstractSecureController {
         String rowKey = occ.getProcessed().getRowKey();
 
         //assertions are based on the row key not uuid
-        occ.setSystemAssertions(Store.getSystemAssertions(rowKey));
+        occ.setSystemAssertions(Store.getAllSystemAssertions(rowKey));
 
         //set the user assertions
         occ.setUserAssertions(Store.getUserAssertions(rowKey));

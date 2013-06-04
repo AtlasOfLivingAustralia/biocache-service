@@ -20,6 +20,7 @@ import org.ala.biocache.dto.MediaDTO;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Holds the Occurrence information about a specific occurrence
@@ -32,7 +33,7 @@ public class OccurrenceDTO implements Serializable{
     private FullRecord raw;
     private FullRecord processed;
     private FullRecord consensus;
-    private List<QualityAssertion> systemAssertions;
+    private Map<String,List<QualityAssertion>> systemAssertions;
     private List<QualityAssertion> userAssertions;
     private List<MediaDTO> sounds;
     private List<MediaDTO> video;
@@ -77,11 +78,11 @@ public class OccurrenceDTO implements Serializable{
         this.raw = raw;
     }
 
-    public List<QualityAssertion> getSystemAssertions() {
+    public Map<String,List<QualityAssertion>> getSystemAssertions() {
         return systemAssertions;
     }
 
-    public void setSystemAssertions(List<QualityAssertion> systemAssertions) {
+    public void setSystemAssertions(Map<String,List<QualityAssertion>> systemAssertions) {
         this.systemAssertions = systemAssertions;
     }
 
