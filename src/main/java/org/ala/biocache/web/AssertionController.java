@@ -11,6 +11,7 @@ import org.ala.biocache.dao.BieService;
 import org.ala.biocache.dao.SearchDAO;
 import org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.ala.biocache.service.AuthService;
+import org.ala.biocache.util.AssertionUtils;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -20,21 +21,14 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import java.net.HttpURLConnection;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.ResourceBundle;
-import java.util.Set;
-
-import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.NameValuePair;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.StringRequestEntity;
 import org.codehaus.jackson.map.ObjectMapper;
 
 /**
- * This controller provides webservices for assertion creation/deletion.
+ * This controller provides web services for assertion creation/deletion.
  *
  * TODO Add support for API keys so that only registered applications can
  * use these functions.
@@ -43,7 +37,8 @@ import org.codehaus.jackson.map.ObjectMapper;
 public class AssertionController extends AbstractSecureController {
 
     private final static Logger logger = Logger.getLogger(AssertionController.class);
-
+    @Inject
+    protected AssertionUtils assertionUtils;
     //TODO Move this so all classes can refer to the same property
     protected String collectoryBaseUrl = "http://collections.ala.org.au"; 
     @Inject
@@ -60,32 +55,32 @@ public class AssertionController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping(value = {"/assertions/codes", "/assertions/codes/"}, method = RequestMethod.GET)
-	public @ResponseBody ErrorCode[] showCodes() throws Exception {
+    public @ResponseBody ErrorCode[] showCodes() throws Exception {
         return Store.retrieveAssertionCodes();
     }
 
     @RequestMapping(value = {"/assertions/geospatial/codes", "/assertions/geospatial/codes/"}, method = RequestMethod.GET)
-	public @ResponseBody ErrorCode[] showGeospatialCodes() throws Exception {
+    public @ResponseBody ErrorCode[] showGeospatialCodes() throws Exception {
         return Store.retrieveGeospatialCodes();
     }
 
     @RequestMapping(value = {"/assertions/taxonomic/codes", "/assertions/taxonomic/codes/"}, method = RequestMethod.GET)
-	public @ResponseBody ErrorCode[] showTaxonomicCodes() throws Exception {
+    public @ResponseBody ErrorCode[] showTaxonomicCodes() throws Exception {
         return Store.retrieveTaxonomicCodes();
     }
 
     @RequestMapping(value = {"/assertions/temporal/codes", "/assertions/temporal/codes/"}, method = RequestMethod.GET)
-	public @ResponseBody ErrorCode[] showTemporalCodes() throws Exception {
+    public @ResponseBody ErrorCode[] showTemporalCodes() throws Exception {
         return Store.retrieveTemporalCodes();
     }
 
     @RequestMapping(value = {"/assertions/miscellaneous/codes", "/assertions/miscellaneous/codes/"}, method = RequestMethod.GET)
-	public @ResponseBody ErrorCode[] showMiscellaneousCodes() throws Exception {
+    public @ResponseBody ErrorCode[] showMiscellaneousCodes() throws Exception {
         return Store.retrieveMiscellaneousCodes();
     }
 
     @RequestMapping(value = {"/assertions/user/codes", "/assertions/user/codes/"}, method = RequestMethod.GET)
-	public @ResponseBody ErrorCode[] showUserCodes() throws Exception {
+    public @ResponseBody ErrorCode[] showUserCodes() throws Exception {
         return Store.retrieveUserAssertionCodes();
     }
     
@@ -125,15 +120,13 @@ public class AssertionController extends AbstractSecureController {
     public void addAssertionQuery(HttpServletRequest request,
         HttpServletResponse response) throws Exception {
 
-      ObjectMapper om = new ObjectMapper();
-      
       try {
           String rawValue = org.apache.commons.io.IOUtils.toString(request.getInputStream(), "UTF-8");
-          //java.util.Map<String, Object> suppliedDetails = om.readValue(rawValue,new org.codehaus.jackson.type.TypeReference<java.util.Map<String, Object>>() {});
           logger.debug("The raw value :" + rawValue);
           
           try {
-              au.org.ala.biocache.JCUAssertion jcuAssertion =om.readValue(rawValue, au.org.ala.biocache.JCUAssertion.class);              
+              ObjectMapper om = new ObjectMapper();
+              au.org.ala.biocache.JCUAssertion jcuAssertion = om.readValue(rawValue, au.org.ala.biocache.JCUAssertion.class);
               
               //we know that it is a JCU assertion
               if(shouldPerformOperation(jcuAssertion.getApiKey(), response)){
@@ -143,7 +136,7 @@ public class AssertionController extends AbstractSecureController {
                   } else {
                       //new or update
                       //does the species exist
-                      String guid =bieService.getGuidForName(jcuAssertion.getSpecies());
+                      String guid = bieService.getGuidForName(jcuAssertion.getSpecies());
                       if (guid != null){
                           //check to see if the area is well formed.
                           SpatialSearchRequestParams ssr = new SpatialSearchRequestParams();
@@ -154,10 +147,14 @@ public class AssertionController extends AbstractSecureController {
                               searchDAO.findByFulltext(ssr);
                               //now create the query assertion
                               au.org.ala.biocache.AssertionQuery aq = new au.org.ala.biocache.AssertionQuery(jcuAssertion);
+                              String id = authService.getMapOfEmailToId().get(aq.getUserName());
+                              aq.setUserId(id); //retrieve from auth service
+                              aq.setUserEmail(aq.getUserName());
                               aq.setRawAssertion(rawValue);
-                              aq.setRawQuery("?q="+ssr.getQ()+"&wkt="+ssr.getWkt());
-                              if(jcuAssertion.getStatus().equals("new"))
-                                  aq.setCreatedDate(jcuAssertion.getLastModified());                                                            
+                              aq.setRawQuery("?q=" + ssr.getQ() + "&wkt=" + ssr.getWkt());
+                              if(jcuAssertion.getStatus().equals("new")){
+                                  aq.setCreatedDate(jcuAssertion.getLastModified());
+                              }
                               //TODO create a "permanent" query cache so that qids can be used
                               Store.addAssertionQuery(aq);
                           } catch(Exception e) {
@@ -192,8 +189,7 @@ public class AssertionController extends AbstractSecureController {
     public void addAssertionWithParams(
             @RequestParam(value="recordUuid", required=true) String recordUuid,
             HttpServletRequest request,
-            HttpServletResponse response) throws Exception{
-            
+            HttpServletResponse response) throws Exception {
         addAssertion(recordUuid, request,response);
     }
 
@@ -201,7 +197,7 @@ public class AssertionController extends AbstractSecureController {
      * add an assertion
      */
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/add"}, method = RequestMethod.POST)
-	public void addAssertion(
+    public void addAssertion(
        @PathVariable(value="recordUuid") String recordUuid,
         HttpServletRequest request,
         HttpServletResponse response) throws Exception {
@@ -214,8 +210,8 @@ public class AssertionController extends AbstractSecureController {
 
         if (shouldPerformOperation(apiKey, response)) {
             try {
-                logger.debug("Adding assertion to:"+recordUuid+", code:"+code+", comment:"+comment
-                        + ", userId:" +userId + ", userDisplayName:" +userDisplayName);
+                logger.debug("Adding assertion to:" + recordUuid + ", code:" + code + ", comment:" + comment
+                        + ", userId:" +userId + ", userDisplayName:" + userDisplayName);
     
                 QualityAssertion qa = au.org.ala.biocache.QualityAssertion.apply(Integer.parseInt(code));
                 qa.setComment(comment);
@@ -232,7 +228,7 @@ public class AssertionController extends AbstractSecureController {
                 String server = request.getSession().getServletContext().getInitParameter("serverName");
                 response.setHeader("Location", server + "/occurrences/" + recordUuid + "/assertions/" + qa.getUuid());
                 response.setStatus(HttpServletResponse.SC_CREATED);
-            } catch(Exception e) {
+            } catch (Exception e) {
                 logger.error(e.getMessage(), e);
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             }
@@ -264,7 +260,7 @@ public class AssertionController extends AbstractSecureController {
      * Remove an assertion
      */
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/delete"}, method = RequestMethod.POST)
-	public void deleteAssertion(
+    public void deleteAssertion(
         @PathVariable(value="recordUuid") String recordUuid,
         @RequestParam(value="assertionUuid", required=true) String assertionUuid,
         HttpServletRequest request,
@@ -287,18 +283,18 @@ public class AssertionController extends AbstractSecureController {
     private void postNotificationEvent(String type, String recordUuid, String id) {
         //get the processed record so that we can get the collection_uid
         FullRecord processed = Store.getByUuid(recordUuid, Versions.PROCESSED());
-        if (processed == null)
-        	processed = Store.getByRowKey(recordUuid, Versions.PROCESSED());
-        
-        String uid = processed==null?null:processed.getAttribution().getCollectionUid();
-        
+        if (processed == null){
+            processed = Store.getByRowKey(recordUuid, Versions.PROCESSED());
+        }
+
+        String uid = processed == null ? null : processed.getAttribution().getCollectionUid();
+
         if (uid != null) {
             final String uri = collectoryBaseUrl + "/ws/notify";
             HttpClient h = new HttpClient();
-
             PostMethod m = new PostMethod(uri);
-            try {
 
+            try {
                 m.setRequestEntity(new StringRequestEntity("{ event: 'user annotation', id: '" + id + "', uid: '" + uid + "', type:'" + type + "' }", "text/json", "UTF-8"));
 
                 logger.debug("Adding notification: " + type + ":" + uid + " - " + id);
@@ -321,22 +317,23 @@ public class AssertionController extends AbstractSecureController {
             @RequestParam(value="recordUuid", required=true) String recordUuid,
             @RequestParam(value="assertionUuid",required=false) String assertionUuid,
             HttpServletResponse response) throws Exception{
-        if(assertionUuid != null)
+        if(assertionUuid != null){
             return getAssertion(recordUuid, assertionUuid, response);
-        else
+        } else {
             return getAssertions(recordUuid);
+        }
     }
 
     /**
      * Get single assertion
      */
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/{assertionUuid}", "/occurrences/{recordUuid}/assertions/{assertionUuid}/"}, method = RequestMethod.GET)
-	public @ResponseBody QualityAssertion getAssertion(
+    public @ResponseBody QualityAssertion getAssertion(
         @PathVariable(value="recordUuid") String recordUuid,
         @PathVariable(value="assertionUuid") String assertionUuid,
         HttpServletResponse response) throws Exception {
-        QualityAssertion qa = Store.getUserAssertion(recordUuid, assertionUuid);
-        if(qa!=null){
+        QualityAssertion qa = assertionUtils.getUserAssertion(recordUuid, assertionUuid);
+        if(qa != null){
             return qa;
         } else {
             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
@@ -345,11 +342,28 @@ public class AssertionController extends AbstractSecureController {
     }
 
     /**
-     * Get systemAssertions
+     * Get user assertions
      */
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions", "/occurrences/{recordUuid}/assertions/"}, method = RequestMethod.GET)
-	public @ResponseBody List<QualityAssertion> getAssertions(
+    public @ResponseBody List<QualityAssertion> getAssertions(
         @PathVariable(value="recordUuid") String recordUuid) throws Exception {
-        return Store.getUserAssertions(recordUuid);
+        return assertionUtils.getUserAssertions(recordUuid);
+    }
+
+    /**
+     * Returns a list of query assertions.
+     *
+     * @param recordUuid
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = {"/occurrences/{recordUuid}/assertionQueries", "/occurrences/{recordUuid}/assertionQueries/"}, method = RequestMethod.GET)
+    public @ResponseBody AssertionQuery[] getAssertionQueries(
+        @PathVariable(value="recordUuid") String recordUuid) throws Exception {
+        return assertionUtils.getQueryAssertions(recordUuid);
+    }
+
+    public void setAssertionUtils(AssertionUtils assertionUtils) {
+        this.assertionUtils = assertionUtils;
     }
 }

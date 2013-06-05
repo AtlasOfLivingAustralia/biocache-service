@@ -403,7 +403,6 @@ public class HeatMap {
         }
         scale[scale.length - 1] = 0;
 
-
         Graphics2D cg = (Graphics2D) legendImage.getGraphics();
         cg.setColor(Color.BLACK);
         //1.2em/1.6em Arial, Helvetica, sans-serif

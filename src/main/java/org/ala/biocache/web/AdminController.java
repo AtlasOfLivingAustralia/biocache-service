@@ -4,8 +4,11 @@ import java.util.List;
 
 import au.org.ala.biocache.Store;
 
+import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import org.ala.biocache.service.AuthService;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,9 +27,12 @@ import org.apache.log4j.Logger;
  */
 @Controller
 public class AdminController extends AbstractSecureController {
+
     /** Logger initialisation */
     private final static Logger logger = Logger.getLogger(AdminController.class);
-    
+    @Inject
+    protected AuthService authService;
+
     /**
      * Optimises the SOLR index.  Use this API to optimise the index so that the biocache-service
      * can enter read only mode during this process.
@@ -95,5 +101,19 @@ public class AdminController extends AbstractSecureController {
     @RequestMapping(value="/admin/isReadOnly", method=RequestMethod.GET)
     public @ResponseBody boolean isReadOnly() {
         return Store.isReadOnly();
+    }
+
+    /**
+     * Returns true when in service is in readonly mode.
+     * @return
+     */
+    @RequestMapping(value="/admin/refreshAuth", method=RequestMethod.GET)
+    public @ResponseBody String refreshAuth() {
+        authService.reloadCaches();
+        return "Done";
+    }
+
+    public void setAuthService(AuthService authService) {
+        this.authService = authService;
     }
 }

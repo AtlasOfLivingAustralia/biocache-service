@@ -23,13 +23,15 @@ import org.springframework.web.client.RestOperations;
 
 import javax.inject.Inject;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Service to lookup and cache user details from auth.ala.org.au (CAS)
  *
- *  NC 2013-01-09: Copied across from hubs-webapp.  This is because we want to substitute the values as early as possible to 
- *  prevent large maps of users being passed around.  
+ * NC 2013-01-09: Copied across from hubs-webapp.
+ * This is because we want to substitute the values as early as possible to
+ * prevent large maps of users being passed around.
  *
  * User: dos009
  * Date: 21/11/12
@@ -37,6 +39,7 @@ import java.util.Map;
  */
 @Component("authService")
 public class AuthService {
+
     private final static Logger logger = Logger.getLogger(AuthService.class);
     @Inject
     protected RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
@@ -49,15 +52,22 @@ public class AuthService {
     // Keep a reference to the output Map in case subsequent web service lookups fail
     protected Map<String, String> userNamesById = new HashMap<String, String>();
     protected Map<String, String> userNamesByNumericIds = new HashMap<String, String>();
+    protected Map<String, String> userEmailToId = new HashMap<String, String>();
 
-    
     public AuthService() {
         logger.info("Instantiating AuthService: " + this);       
     }
     
-    //@Cacheable(cacheName = "authCache")
     public Map<String, String> getMapOfAllUserNamesById() {
         return userNamesById;
+    }
+
+    public Map<String, String> getMapOfAllUserNamesByNumericId() {
+        return userNamesByNumericIds;
+    }
+
+    public Map<String, String> getMapOfEmailToId() {
+        return userEmailToId;
     }
 
     /**
@@ -71,18 +81,18 @@ public class AuthService {
     public String getDisplayNameFor(String value){
         String displayName = value;
         if(value != null){
-            if(userNamesById.containsKey(value))
+            if(userNamesById.containsKey(value)){
                 displayName = userNamesById.get(value);
-            else if(userNamesByNumericIds.containsKey(value)){                
+            } else if(userNamesByNumericIds.containsKey(value)){
                 displayName=userNamesByNumericIds.get(value);
-            }
-            else 
+            } else {
                 displayName = displayName.replaceAll("\\@\\w+", "@..");
+            }
         }
         return displayName;
     }
 
-    protected void loadMapOfAllUserNamesById() {
+    private void loadMapOfAllUserNamesById() {
         try {
             final String jsonUri = userDetailsUrl + userNamesForIdPath;
             logger.info("authCache requesting: " + jsonUri);
@@ -90,15 +100,9 @@ public class AuthService {
         } catch (Exception ex) {
             logger.error("RestTemplate error: " + ex.getMessage(), ex);
         }
-        //logger.debug("userNamesById = " + StringUtils.join(userNamesById.keySet(), "|"));
     }
 
-    //@Cacheable(cacheName = "authCache")
-    public Map<String, String> getMapOfAllUserNamesByNumericId() {
-        return userNamesByNumericIds;
-    }
-
-    public void loadMapOfAllUserNamesByNumericId() {
+    private void loadMapOfAllUserNamesByNumericId() {
         try {
             final String jsonUri = userDetailsUrl + userNamesForNumericIdPath;
             logger.info("authCache requesting: " + jsonUri);
@@ -106,23 +110,33 @@ public class AuthService {
         } catch (Exception ex) {
             logger.error("RestTemplate error: " + ex.getMessage(), ex);
         }
-        //logger.debug("userNamesByIds = " + StringUtils.join(userNamesByNumericIds.keySet(), "|"));
     }
 
-    //@PostConstruct
+    private void loadMapOfEmailToUserId() {
+        try {
+            final String jsonUri = userDetailsUrl + "getUserListFull";
+            logger.info("authCache requesting: " + jsonUri);
+            List<Map<String,Object>> users = restTemplate.postForObject(jsonUri, null, List.class);
+            for(Map<String,Object> user: users){
+                userEmailToId.put(user.get("email").toString(), user.get("id").toString());
+            }
+            logger.info("authCache userEmail cache: " + userEmailToId.size());
+            if(userEmailToId.size()>0){
+                String email = userEmailToId.keySet().iterator().next();
+                String id = userEmailToId.get(email);
+                logger.info("authCache userEmail example: " + email +" -> " + id);
+            }
+        } catch (Exception ex) {
+            logger.error("RestTemplate error: " + ex.getMessage(), ex);
+        }
+    }
+
     @Scheduled(fixedRate = 600000) // schedule to run every 10 min
     @Async
     public void reloadCaches() {
-        logger.info("Triggering reload of auth user names for " + this);
+        logger.info("Triggering reload of auth user names");
         loadMapOfAllUserNamesById();
         loadMapOfAllUserNamesByNumericId();
-    }
-
-    //@Scheduled(fixedRate = 60000) // schedule to run every 1 min
-    public void checkMemoryUsage() {
-        int mb = 1024*1024;
-        Runtime runtime = Runtime.getRuntime();
-        logger.info("Memory usage: " + (runtime.totalMemory() - runtime.freeMemory()) / mb + " MB");
-
+        loadMapOfEmailToUserId();
     }
 }

@@ -34,10 +34,7 @@ import org.ala.biocache.dto.*;
 import org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import org.ala.biocache.dto.store.OccurrenceDTO;
 import org.ala.biocache.service.AuthService;
-import org.ala.biocache.util.MimeType;
-import org.ala.biocache.util.ParamsCache;
-import org.ala.biocache.util.ParamsCacheSizeException;
-import org.ala.biocache.util.SearchUtils;
+import org.ala.biocache.util.*;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
@@ -89,23 +86,20 @@ public class OccurrenceController extends AbstractSecureController {
     protected BieService bieService;
     @Inject
     protected AuthService authService;
+    @Inject
+    protected ContactUtils contactUtils;
+    @Inject
+    protected AssertionUtils assertionUtils;
+
     /** Name of view for site home page */
     private String HOME = "homePage";
-    /** Name of view for list of taxa */
-    private final String LIST = "occurrences/list";
-    /** Name of view for a single taxon */
-    private final String SHOW = "occurrences/show";
 
     protected String hostUrl = "http://localhost:8080/biocache-service";
     protected String bieBaseUrl = "http://bie.ala.org.au/";
     protected String collectoryBaseUrl = "http://collections.ala.org.au";
     protected String citationServiceUrl = collectoryBaseUrl + "/ws/citations";
-    protected String summaryServiceUrl  = collectoryBaseUrl + "/ws/summary";
-    
+
     /** The response to be returned for the isAustralian test */
-    private final String NOT_AUSTRALIAN = "Not Australian";
-    private final String AUSTRALIAN_WITH_OCC = "Australian with occurrences";
-    private final String AUSTRALIAN_LSID = "Australian based on LSID";
     protected Pattern austLsidPattern = Pattern.compile("urn:lsid:biodiversity.org.au[a-zA-Z0-9\\.:-]*");
     
     private final String dataFieldDescriptionURL="https://docs.google.com/spreadsheet/ccc?key=0AjNtzhUIIHeNdHhtcFVSM09qZ3c3N3ItUnBBc09TbHc";
@@ -168,8 +162,7 @@ public class OccurrenceController extends AbstractSecureController {
         if (is != null) {
             byte[] buffer = new byte[1024];
             int bytesRead;
-            while ((bytesRead = is.read(buffer)) != -1)
-            {
+            while ((bytesRead = is.read(buffer)) != -1){
                 os.write(buffer, 0, bytesRead);
             }
         }
@@ -189,6 +182,7 @@ public class OccurrenceController extends AbstractSecureController {
         else
             return searchDAO.getIndexFieldDetails(fields.split(","));
     }
+
     /**
      * Returns a facet list including the number of distinct values for a field
      * @param requestParams
@@ -329,8 +323,6 @@ public class OccurrenceController extends AbstractSecureController {
         //update the request params so the search caters for the supplied uid
         searchUtils.updateCollectionSearchString(requestParams, uid);
         logger.debug("solr query: " + requestParams);
-        //searchResult = searchDAO.findByFulltextQuery(requestParams);
-        //model.addAttribute("searchResult", searchResult);
         return occurrenceSearch(requestParams);
     }
 
@@ -874,6 +866,8 @@ public class OccurrenceController extends AbstractSecureController {
      *
      * Returns a SearchResultDTO when there is more than 1 record with the supplied UUID
      *
+     * TODO move to service layer
+     *
      * @param uuid
      * @throws Exception
      */
@@ -939,7 +933,7 @@ public class OccurrenceController extends AbstractSecureController {
      * Occurrence record page
      *
      * When user supplies a uuid that is not found search for a unique record
-     * with the supplied occurrenc_id
+     * with the supplied occurrence_id
      *
      * Returns a SearchResultDTO when there is more than 1 record with the supplied UUID
      *
@@ -972,14 +966,14 @@ public class OccurrenceController extends AbstractSecureController {
     }
     
     private Object getOccurrenceInformation(String uuid, String ip, HttpServletRequest request, boolean includeSensitive) throws Exception{
-        logger.debug("Retrieving occurrence record with guid: '"+uuid+"'");
+        logger.debug("Retrieving occurrence record with guid: '" + uuid + "'");
 
         FullRecord[] fullRecord = Store.getAllVersionsByUuid(uuid, includeSensitive);
         if(fullRecord == null){
             //get the rowKey for the supplied uuid in the index
             //This is a workaround.  There seems to be an issue on Cassandra with retrieving uuids that start with e or f
             SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
-            srp.setQ("id:"+uuid);
+            srp.setQ("id:" + uuid);
             srp.setPageSize(1);
             srp.setFacets(new String[]{});
             SearchResultDTO results = occurrenceSearch(srp);
@@ -992,9 +986,9 @@ public class OccurrenceController extends AbstractSecureController {
             SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
             srp.setQ("occurrence_id:" + uuid);
             SearchResultDTO result = occurrenceSearch(srp);
-            if(result.getTotalRecords()>1)
+            if(result.getTotalRecords() > 1)
                 return result;
-            else if(result.getTotalRecords()==0)
+            else if(result.getTotalRecords() == 0)
                 return new OccurrenceDTO();
             else
                 fullRecord = Store.getAllVersionsByUuid(result.getOccurrences().get(0).getUuid(), includeSensitive);
@@ -1003,8 +997,9 @@ public class OccurrenceController extends AbstractSecureController {
         OccurrenceDTO occ = new OccurrenceDTO(fullRecord);
         // now update the values required for the authService
         if(fullRecord != null){
-            //raw record may need recordedBy to be changed 
-            fullRecord[0].getOccurrence().setRecordedBy(authService.getDisplayNameFor(fullRecord[0].getOccurrence().getRecordedBy()));            
+            //TODO - move this logic to service layer
+            //raw record may need recordedBy to be changed
+            fullRecord[0].getOccurrence().setRecordedBy(authService.getDisplayNameFor(fullRecord[0].getOccurrence().getRecordedBy()));
             //processed record may need recordedBy modified in case it was an email address.
             fullRecord[1].getOccurrence().setRecordedBy(authService.getDisplayNameFor(fullRecord[1].getOccurrence().getRecordedBy()));
             //hide the email addresses in the raw miscProperties
@@ -1024,9 +1019,8 @@ public class OccurrenceController extends AbstractSecureController {
         //assertions are based on the row key not uuid
         occ.setSystemAssertions(Store.getAllSystemAssertions(rowKey));
 
-        //set the user assertions
-        occ.setUserAssertions(Store.getUserAssertions(rowKey));
-        
+        occ.setUserAssertions(assertionUtils.getUserAssertions(occ));
+
         //retrieve details of the media files
         List<MediaDTO> soundDtos = getSoundDtos(occ);
         if(!soundDtos.isEmpty()){
@@ -1045,6 +1039,7 @@ public class OccurrenceController extends AbstractSecureController {
 
         return occ;
     }
+
 
     private void logViewEvent(String ip, OccurrenceDTO occ, String email, String reason) {
         //String ip = request.getLocalAddr();
@@ -1189,5 +1184,13 @@ public class OccurrenceController extends AbstractSecureController {
 
     public void setBieService(BieService bieService) {
         this.bieService = bieService;
+    }
+
+    public void setContactUtils(ContactUtils contactUtils) {
+        this.contactUtils = contactUtils;
+    }
+
+    public void setAssertionUtils(AssertionUtils assertionUtils) {
+        this.assertionUtils = assertionUtils;
     }
 }
