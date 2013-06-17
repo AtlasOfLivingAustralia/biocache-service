@@ -273,6 +273,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         	<li><strong>Check for Read Only Mode: </strong><a href="${initParam.webservicesRoot}/admin/isReadOnly">/admin/isReadOnly</a></li>
         	<li><strong>Modify Read Only Mode: </strong>/admin/modify?ro={true OR false}</li>
         	<li><strong>Reopen Index: </strong> /admin/modify?reopenIndex=true</li>
+        	<li><strong>View Active Downloads: </strong><a href="${initParam.webservicesRoot}/active/download/stats">/active/download/stats</a></li>
         </ul>
 
         The remaining services in the section only support POST. All services must supply apiKey as a parameter.
