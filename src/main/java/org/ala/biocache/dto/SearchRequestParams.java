@@ -15,6 +15,8 @@
 
 package org.ala.biocache.dto;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.Arrays;
 
 import org.apache.commons.httpclient.URIException;
@@ -158,13 +160,17 @@ public class SearchRequestParams {
         if(qId != null){
             req.append("?q=qid:").append(qId);
         } else {
-            req.append("?q=").append(q);
+            try{
+                req.append("?q=").append(URLEncoder.encode(q, "UTF-8"));
+            } catch(UnsupportedEncodingException e){}
         }
 
         for(String f : fq){
             //only add the fq if it is not the query context
           if(f.length()>0 && !f.equals(qc))
-              req.append("&fq=").append(f);
+            try{
+                req.append("&fq=").append(URLEncoder.encode(f, "UTF-8"));
+            } catch(UnsupportedEncodingException e){}
         }
 //        if(fq.length>0 && !fq[0].equals(""))
 //            req.append("&fq=").append(StringUtils.join(fq, "&fq="));
