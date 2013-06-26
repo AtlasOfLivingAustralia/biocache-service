@@ -62,24 +62,27 @@ public class AssertionUtils {
      * @return quality assertions
      */
     public List<QualityAssertion> getUserAssertions(OccurrenceDTO occ) {
-
-        //set the user assertions
-        List<QualityAssertion> userAssertions = Store.getUserAssertions(occ.getRaw().getRowKey());
-        //Legacy integration - fix up the user assertions - legacy - to add replace with CAS IDs....
-        for(QualityAssertion ua : userAssertions){
-            if(ua.getUserId().contains("@")){
-                String email = ua.getUserId();
-                String userId = authService.getMapOfEmailToId().get(email);
-                ua.setUserEmail(email);
-                ua.setUserId(userId);
+        if(occ.getRaw() != null){
+            //set the user assertions
+            List<QualityAssertion> userAssertions = Store.getUserAssertions(occ.getRaw().getRowKey());
+            //Legacy integration - fix up the user assertions - legacy - to add replace with CAS IDs....
+            for(QualityAssertion ua : userAssertions){
+                if(ua.getUserId().contains("@")){
+                    String email = ua.getUserId();
+                    String userId = authService.getMapOfEmailToId().get(email);
+                    ua.setUserEmail(email);
+                    ua.setUserId(userId);
+                }
             }
+    
+            //add user roles....
+            for(QualityAssertion ua : userAssertions){
+                enhanceQA(occ, ua);
+            }
+            return userAssertions;
+        } else{
+            return null;
         }
-
-        //add user roles....
-        for(QualityAssertion ua : userAssertions){
-            enhanceQA(occ, ua);
-        }
-        return userAssertions;
     }
 
     public QualityAssertion enhanceQA(OccurrenceDTO occ, QualityAssertion ua) {
