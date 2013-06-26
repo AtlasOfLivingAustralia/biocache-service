@@ -1782,7 +1782,7 @@ public class SearchDAOImpl implements SearchDAO {
                     matcher.appendReplacement(queryString, lsidHeader +values[0]);
                     displaySb.append(query.substring(last, matcher.start()));
                     if(!values[1].startsWith("taxon_concept_lsid:"))
-                        displaySb.append("<span class='lsid' id='").append(lsid).append("'>").append(lsidHeader).append(values[1]).append("</span>");
+                        displaySb.append(lsidHeader).append("<span class='lsid' id='").append(lsid).append("'>").append(values[1]).append("</span>");
                     else
                         displaySb.append(lsidHeader).append(values[1]);
                     last = matcher.end();
