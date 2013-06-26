@@ -884,8 +884,8 @@ public class OccurrenceController extends AbstractSecureController {
             for(au.org.ala.util.ProcessedValue pv : compareList){              
                 if(pv.getName().equals("recordedBy")){
                     logger.info(pv);
-                    String raw = authService.getDisplayNameFor(pv.getRaw());
-                    String processed = authService.getDisplayNameFor(pv.getProcessed());                    
+                    String raw = authService.substituteEmailAddress(pv.getRaw());
+                    String processed = authService.substituteEmailAddress(pv.getProcessed());                    
                     au.org.ala.util.ProcessedValue newpv = new au.org.ala.util.ProcessedValue("recordedBy", raw, processed);
                     newList.add(newpv);
                 } else {
@@ -999,14 +999,15 @@ public class OccurrenceController extends AbstractSecureController {
         if(fullRecord != null){
             //TODO - move this logic to service layer
             //raw record may need recordedBy to be changed
-            fullRecord[0].getOccurrence().setRecordedBy(authService.getDisplayNameFor(fullRecord[0].getOccurrence().getRecordedBy()));
+            //NC 2013-06-26: The substitution was removed in favour of email obscuring due to numeric id's being used for non-ALA data resources 
+            fullRecord[0].getOccurrence().setRecordedBy(authService.substituteEmailAddress(fullRecord[0].getOccurrence().getRecordedBy()));
             //processed record may need recordedBy modified in case it was an email address.
-            fullRecord[1].getOccurrence().setRecordedBy(authService.getDisplayNameFor(fullRecord[1].getOccurrence().getRecordedBy()));
+            fullRecord[1].getOccurrence().setRecordedBy(authService.substituteEmailAddress(fullRecord[1].getOccurrence().getRecordedBy()));
             //hide the email addresses in the raw miscProperties
             Map<String,String> miscProps = fullRecord[0].miscProperties();
             for(Map.Entry<String,String> entry: miscProps.entrySet()){
                 if(entry.getValue().contains("@"))
-                  entry.setValue(authService.getDisplayNameFor(entry.getValue()));
+                  entry.setValue(authService.substituteEmailAddress(entry.getValue()));
             }
             //if the raw record contains a userId we will need to include the alaUserName in the DTO
             if(fullRecord[0].getOccurrence().getUserId() != null){

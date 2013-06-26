@@ -91,6 +91,9 @@ public class AuthService {
         }
         return displayName;
     }
+    public String substituteEmailAddress(String raw){
+      return raw.replaceAll("\\@\\w+", "@..");
+    }
 
     private void loadMapOfAllUserNamesById() {
         try {
