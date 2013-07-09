@@ -92,7 +92,7 @@ public class AuthService {
         return displayName;
     }
     public String substituteEmailAddress(String raw){
-      return raw.replaceAll("\\@\\w+", "@..");
+      return raw == null?raw:raw.replaceAll("\\@\\w+", "@..");
     }
 
     private void loadMapOfAllUserNamesById() {
