@@ -65,6 +65,7 @@
       <artifactId>opencsv</artifactId>
       <version>2.2</version>
     </dependency>
+
     <!--  Cache  -->
     <dependency>
         <groupId>com.googlecode.ehcache-spring-annotations</groupId>
@@ -156,6 +157,11 @@
       <groupId>org.springframework</groupId>
       <artifactId>spring-webmvc</artifactId>
       <version>${spring.version}</version>
+    </dependency>
+    <dependency>
+     <groupId>javax.mail</groupId>
+     <artifactId>mail</artifactId>
+     <version>1.4.3</version>
     </dependency>
     <dependency>
       <groupId>org.springframework</groupId>
