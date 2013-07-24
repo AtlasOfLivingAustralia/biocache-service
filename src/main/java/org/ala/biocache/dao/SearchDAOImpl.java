@@ -86,6 +86,7 @@ import org.ala.biocache.util.DownloadFields;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.params.ModifiableSolrParams;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import org.apache.commons.lang.ArrayUtils;
 import au.org.ala.biocache.IndexDAO;
@@ -182,7 +183,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
         return server;
     }
-    
+    @PostConstruct
     private void initServer() {
         if (this.server == null) {
             try {
@@ -601,6 +602,9 @@ public class SearchDAOImpl implements SearchDAO {
 
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[2].toArray(new String[]{}),qaTitles);
             final au.org.ala.biocache.RecordWriter rw = new org.ala.biocache.writer.CSVRecordWriter(out, header);
+            
+            //order the query by _docid_ for faster paging
+            solrQuery.addSortField("_docid_", ORDER.asc);
 
             //for each month create a separate query that pages through 500 records per page
             List<SolrQuery> queries = new ArrayList<SolrQuery>();
@@ -755,7 +759,8 @@ public class SearchDAOImpl implements SearchDAO {
             if(downloadParams.getExtra().length()>0)
                 sb.append(",").append(downloadParams.getExtra());
             StringBuilder qasb = new StringBuilder();
-            QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), 0, 0, "score", "asc");
+                        
+            QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), 0, 0, "_docid_", "asc");
             dd.setTotalRecords(qr.getResults().getNumFound());
             //get the assertion facets to add them to the download fields
             List<FacetField> facets = qr.getFacetFields();
@@ -872,7 +877,7 @@ public class SearchDAOImpl implements SearchDAO {
             dd.updateCounts(qr.getResults().size());
             if (resultsCount < MAX_DOWNLOAD_SIZE) {
                 //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
-                qr = runSolrQuery(solrQuery, null, pageSize, startIndex, "score", "asc");
+                qr = runSolrQuery(solrQuery, null, pageSize, startIndex, "_docid_", "asc");
             }
         }
         return resultsCount;
@@ -2346,7 +2351,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * Returns details about the fields in the index.
      */
-    public Set<IndexFieldDTO> getIndexedFields() throws Exception{
+    public Set<IndexFieldDTO> getIndexedFields() throws Exception{        
         if(indexFields == null){
             indexFields = getIndexFieldDetails(null);
             indexFieldMap = new HashMap<String, IndexFieldDTO>();

@@ -26,14 +26,13 @@ import javax.servlet.http.HttpServletResponse;
 
 import au.com.bytecode.opencsv.CSVReader;
 import au.org.ala.biocache.*;
-import au.org.ala.biocache.MediaStore;
-import au.org.ala.biocache.Store;
 import org.ala.biocache.dao.BieService;
 import org.ala.biocache.dao.SearchDAO;
 import org.ala.biocache.dto.*;
 import org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import org.ala.biocache.dto.store.OccurrenceDTO;
 import org.ala.biocache.service.AuthService;
+import org.ala.biocache.service.DownloadService;
 import org.ala.biocache.util.*;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventType;
@@ -90,20 +89,22 @@ public class OccurrenceController extends AbstractSecureController {
     protected ContactUtils contactUtils;
     @Inject
     protected AssertionUtils assertionUtils;
+    @Inject 
+    protected DownloadService downloadService;
 
     /** Name of view for site home page */
     private String HOME = "homePage";
 
     protected String hostUrl = "http://localhost:8080/biocache-service";
     protected String bieBaseUrl = "http://bie.ala.org.au/";
-    protected String collectoryBaseUrl = "http://collections.ala.org.au";
-    protected String citationServiceUrl = collectoryBaseUrl + "/ws/citations";
+    
+    
 
     /** The response to be returned for the isAustralian test */
     protected Pattern austLsidPattern = Pattern.compile("urn:lsid:biodiversity.org.au[a-zA-Z0-9\\.:-]*");
     
-    private final String dataFieldDescriptionURL="https://docs.google.com/spreadsheet/ccc?key=0AjNtzhUIIHeNdHhtcFVSM09qZ3c3N3ItUnBBc09TbHc";
-    private List<DownloadDetailsDTO> currentDownloads = Collections.synchronizedList(new ArrayList<DownloadDetailsDTO>());
+    
+    
     
     /**
      * Custom handler for the welcome view.
@@ -121,7 +122,7 @@ public class OccurrenceController extends AbstractSecureController {
     
     @RequestMapping("/active/download/stats")
     public @ResponseBody List<DownloadDetailsDTO> getCurrentDownloads(){
-        return currentDownloads;
+        return downloadService.getCurrentDownloads();
     }
 
     /**
@@ -413,16 +414,8 @@ public class OccurrenceController extends AbstractSecureController {
         return null;
     }
     
-    private DownloadDetailsDTO registerDownload(DownloadRequestParams requestParams, String ip, DownloadDetailsDTO.DownloadType type){
-        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams.toString(), ip, type);
-        currentDownloads.add(dd);
-        return dd;
-    }
+
     
-    private void unregisterDownload(DownloadDetailsDTO dd){
-        //remove it from the list
-        currentDownloads.remove(dd);
-    }
 
     /**
      * Downloads the complete list of values in the supplied facet 
@@ -443,7 +436,7 @@ public class OccurrenceController extends AbstractSecureController {
         HttpServletResponse response) throws Exception {          
         if(requestParams.getFacets().length > 0){
             ip = ip == null?request.getRemoteAddr():ip;
-            DownloadDetailsDTO dd = registerDownload(requestParams, ip, DownloadDetailsDTO.DownloadType.FACET);
+            DownloadDetailsDTO dd = downloadService.registerDownload(requestParams, ip, DownloadDetailsDTO.DownloadType.FACET);
             try {
                 String filename = requestParams.getFile() != null ? requestParams.getFile():requestParams.getFacets()[0];
                 response.setHeader("Cache-Control", "must-revalidate");
@@ -452,7 +445,7 @@ public class OccurrenceController extends AbstractSecureController {
                 response.setContentType("text/csv");
                 searchDAO.writeFacetToStream(requestParams,includeCount, lookupName, response.getOutputStream(),dd);
             } finally {
-              unregisterDownload(dd);
+              downloadService.unregisterDownload(dd);
             }
         }
     }
@@ -501,7 +494,7 @@ public class OccurrenceController extends AbstractSecureController {
 
         final BieService myBieService = this.bieService;
         ip = ip == null?request.getRemoteAddr():ip;
-        final DownloadDetailsDTO dd = registerDownload(params, ip, DownloadType.RECORDS_INDEX);
+        final DownloadDetailsDTO dd = downloadService.registerDownload(params, ip, DownloadType.RECORDS_INDEX);
 
         if(file.exists()){
             Thread t = new Thread(){
@@ -525,7 +518,7 @@ public class OccurrenceController extends AbstractSecureController {
                                     params.setQ("lsid:\""+lsid+"\"");
                                     Map<String,Integer> uidStats = searchDAO.writeResultsFromIndexToStream(params, output, false, dd);
                                     FileOutputStream citationOutput = new FileOutputStream(citationFilePath);
-                                    getCitations(uidStats, citationOutput);
+                                    downloadService.getCitations(uidStats, citationOutput);
                                     citationOutput.flush();
                                     citationOutput.close();
                                     output.flush();
@@ -541,7 +534,7 @@ public class OccurrenceController extends AbstractSecureController {
                     } catch (Exception e) {
                         logger.error(e.getMessage(),e);
                     } finally {
-                        unregisterDownload(dd);
+                        downloadService.unregisterDownload(dd);
                     }
                 }
             };
@@ -659,7 +652,7 @@ public class OccurrenceController extends AbstractSecureController {
             return occurrenceSensitiveDownload(requestParams, apiKey, ip, false, response, request);
         }
 
-        writeQueryToStream(requestParams, response, ip, out, false,false);
+        downloadService.writeQueryToStream(requestParams, response, ip, out, false,false);
         return null;
     }
     
@@ -681,7 +674,7 @@ public class OccurrenceController extends AbstractSecureController {
             return;
         }
         try {
-           writeQueryToStream(requestParams, response, ip, out, false,true);
+           downloadService.writeQueryToStream(requestParams, response, ip, out, false,true);
         } catch(Exception e){
             logger.error(e.getMessage(), e);
         }
@@ -705,97 +698,14 @@ public class OccurrenceController extends AbstractSecureController {
                 return null;
             }
     
-            writeQueryToStream(requestParams, response, ip, out, true,fromIndex);
+            downloadService.writeQueryToStream(requestParams, response, ip, out, true,fromIndex);
         }
         return null;
     }    
 
-    private void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, ServletOutputStream out, boolean includeSensitive, boolean fromIndex) throws Exception {
-        String filename = requestParams.getFile();
 
-        response.setHeader("Cache-Control", "must-revalidate");
-        response.setHeader("Pragma", "must-revalidate");
-        response.setHeader("Content-Disposition", "attachment;filename=" + filename +".zip");
-        response.setContentType("application/zip");
 
-        //Use a zip output stream to include the data and citation together in the download
-        ZipOutputStream zop = new ZipOutputStream(out);
-        zop.putNextEntry(new java.util.zip.ZipEntry(filename + ".csv"));
-        //put the facets
-        requestParams.setFacets(new String[]{"assertions", "data_resource_uid"});
-        Map<String, Integer> uidStats = null;
-        DownloadDetailsDTO.DownloadType type= fromIndex ? DownloadType.RECORDS_INDEX:DownloadType.RECORDS_DB;
-        DownloadDetailsDTO dd = registerDownload(requestParams, ip, type);
-        try {
-            if(fromIndex)
-                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, zop, includeSensitive,dd);
-            else
-                uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100, includeSensitive,dd);
-        } catch (Exception e) {
-            logger.error(e);
-        } finally {
-            unregisterDownload(dd);
-        }
-        zop.closeEntry();
-        
-        //add the Readme for the data field descriptions
-        zop.putNextEntry(new java.util.zip.ZipEntry("README.html"));
-        zop.write(("For more information about the fields that are being downloaded please consult <a href='" +dataFieldDescriptionURL+"'>Download Fields</a>.").getBytes());
-        
-        //Add the data citation to the download
-        if (uidStats != null &&!uidStats.isEmpty()) {
-            //add the citations for the supplied uids
-            zop.putNextEntry(new java.util.zip.ZipEntry("citation.csv"));
-            try {
-                getCitations(uidStats, zop);
-            } catch (Exception e) {
-                logger.error(e);
-            }
-            zop.closeEntry();
-        }
-        zop.flush();
-        zop.close();
 
-        //logger.debug("UID stats : " + uidStats);
-        //log the stats to ala logger        
-        LogEventVO vo = new LogEventVO(1002,requestParams.getReasonTypeId(), requestParams.getSourceTypeId(), requestParams.getEmail(), requestParams.getReason(), ip,null, uidStats);        
-        logger.log(RestLevel.REMOTE, vo);
-    }
-
-    /**
-     * get citation info from citation web service and write it into citation.txt file.
-     * 
-     * @param uidStats
-     * @param out
-     * @throws HttpException
-     * @throws IOException
-     */
-    private void getCitations(Map<String, Integer> uidStats, OutputStream out) throws IOException{
-        if(uidStats == null || uidStats.isEmpty() || out == null){
-            throw new NullPointerException("keys and/or out is null!!");
-        }
-        
-        //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
-        List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl, uidStats.keySet(), List.class);
-        if(entities.size()>0){
-            out.write("\"Data resource ID\",\"Data resource\",\"Citation\",\"Rights\",\"More information\",\"Data generalizations\",\"Information withheld\",\"Download limit\",\"Number of Records in Download\"\n".getBytes());
-            for(Map<String,Object> record : entities){
-                StringBuilder sb = new StringBuilder();
-                sb.append("\"").append(record.get("uid")).append("\",");
-                sb.append("\"").append(record.get("name")).append("\",");
-                sb.append("\"").append(record.get("citation")).append("\",");
-                sb.append("\"").append(record.get("rights")).append("\",");
-                sb.append("\"").append(record.get("link")).append("\",");
-                sb.append("\"").append(record.get("dataGeneralizations")).append("\",");
-                sb.append("\"").append(record.get("informationWithheld")).append("\",");
-                sb.append("\"").append(record.get("downloadLimit")).append("\",");
-                String count = uidStats.get(record.get("uid")).toString();
-                sb.append("\"").append(count).append("\"");
-                sb.append("\n");
-                out.write(sb.toString().getBytes());
-            }
-        }
-    }
 
     /**
      * Utility method for retrieving a list of occurrences. Mainly added to help debug
@@ -1165,13 +1075,7 @@ public class OccurrenceController extends AbstractSecureController {
         this.bieBaseUrl = bieBaseUrl;
     }
 
-    /**
-     * @param collectoryBaseUrl the collectoryBaseUrl to set
-     */
-    public void setCollectoryBaseUrl(String collectoryBaseUrl) {
-        this.collectoryBaseUrl = collectoryBaseUrl;
-    }
-
+   
     /**
      * @param searchUtils the searchUtils to set
      */
@@ -1179,9 +1083,7 @@ public class OccurrenceController extends AbstractSecureController {
         this.searchUtils = searchUtils;
     }
 
-    public void setCitationServiceUrl(String citationServiceUrl) {
-        this.citationServiceUrl = citationServiceUrl;
-    }
+
 
     public void setBieService(BieService bieService) {
         this.bieService = bieService;
