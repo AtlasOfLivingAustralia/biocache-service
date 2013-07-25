@@ -110,13 +110,14 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
      */
     @Override
     public void removeDownloadFromQueue(DownloadDetailsDTO download) {
-        logger.warn("Removing the download from the queue");
+        logger.debug("Removing the download from the queue");
         // delete it from the directory
         File f = getFile(download.getStartTime());
-        logger.warn("Deleting " + f.getAbsolutePath() + " " + f.exists());
-        f.delete();
+        logger.info("Deleting " + f.getAbsolutePath() + " " + f.exists());        
         FileUtils.deleteQuietly(f);
-        offlineDownloadList.remove(download);        
+        offlineDownloadList.remove(download);
+        //add the download JSON String to the download directory
+        
     }
     
     /**
@@ -132,6 +133,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
      */
     @Override
     public void refreshFromPersistent() {
+        offlineDownloadList.clear();
         File file = new File(cacheDirectory);
       //load the list with the available downloads ordering by the least recently modified
         File[] files = file.listFiles();
