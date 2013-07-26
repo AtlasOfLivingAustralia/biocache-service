@@ -516,7 +516,7 @@ public class OccurrenceController extends AbstractSecureController {
                                     logger.debug("Outputting results to:" + outputFilePath + ", with LSID: " + lsid);
                                     FileOutputStream output = new FileOutputStream(outputFilePath);
                                     params.setQ("lsid:\""+lsid+"\"");
-                                    Map<String,Integer> uidStats = searchDAO.writeResultsFromIndexToStream(params, output, false, dd);
+                                    Map<String,Integer> uidStats = searchDAO.writeResultsFromIndexToStream(params, output, false, dd,false);
                                     FileOutputStream citationOutput = new FileOutputStream(citationFilePath);
                                     downloadService.getCitations(uidStats, citationOutput);
                                     citationOutput.flush();

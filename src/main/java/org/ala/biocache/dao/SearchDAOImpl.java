@@ -77,6 +77,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -115,6 +116,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected SolrRequest.METHOD queryMethod;
     /** Limit search results - for performance reasons */
     protected Integer MAX_DOWNLOAD_SIZE = 500000;
+    private Integer throttle = 100;
     /** Batch size for a download */
     protected Integer downloadBatchSize = 500;
     public static final String NAMES_AND_LSID = "names_and_lsid";
@@ -534,7 +536,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public Map<String, Integer> writeResultsFromIndexToStream(final DownloadRequestParams downloadParams,
                                                                          OutputStream out,
-                                                                         boolean includeSensitive, final DownloadDetailsDTO dd) throws Exception {
+                                                                         boolean includeSensitive, final DownloadDetailsDTO dd, boolean checkLimit) throws Exception {
         long start = System.currentTimeMillis();
         final Map<String, Integer> uidStats = new HashMap<String, Integer>();
 
@@ -579,7 +581,9 @@ public class SearchDAOImpl implements SearchDAO {
             
             //set the totalrecords for the download details
             dd.setTotalRecords(facetQuery.getResults().getNumFound());
-
+            if(checkLimit && dd.getTotalRecords() < MAX_DOWNLOAD_SIZE){
+                checkLimit = false;
+            }
             //get the month facets to add them to the download fields get the assertion facets.
             List<Count> splitByFacet = null;
             StringBuilder qasb = new StringBuilder();
@@ -621,7 +625,8 @@ public class SearchDAOImpl implements SearchDAO {
             //multi-thread the requests...
             ExecutorService pool = Executors.newFixedThreadPool(6);
             Set<Future<Integer>> futures = new HashSet<Future<Integer>>();
-            final Integer resultsCount = 0;
+            final AtomicInteger resultsCount = new AtomicInteger(0);
+            final boolean threadCheckLimit = checkLimit;
 
             //execute each query, writing the results to stream
             for(final SolrQuery splitByFacetQuery: queries){
@@ -632,18 +637,32 @@ public class SearchDAOImpl implements SearchDAO {
 
                     @Override
                     public Integer call() throws Exception {
-                        QueryResponse qr = runSolrQuery(splitByFacetQuery, downloadParams.getFq(), downloadBatchSize, startIndex, "score", "asc");
+                        QueryResponse qr = runSolrQuery(splitByFacetQuery, downloadParams.getFq(), downloadBatchSize, startIndex, "_docid_", "asc");
                         int recordsForThread = 0;
                         logger.debug(splitByFacetQuery.getQuery() + " - results: " + qr.getResults().size());
 
-                        while (!qr.getResults().isEmpty()) {
+                        while (qr != null &&!qr.getResults().isEmpty()) {
                             logger.debug("Start index: " + startIndex + ", " + splitByFacetQuery.getQuery());
+                            int count=0;
                             synchronized (rw) {
-                                recordsForThread += processQueryResults(uidStats, fields, qaFields, rw, qr, dd);
+                                count = processQueryResults(uidStats, fields, qaFields, rw, qr, dd, threadCheckLimit, resultsCount);
+                                recordsForThread += count;
                             }
                             startIndex += downloadBatchSize;
                             //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
-                            qr = runSolrQuery(splitByFacetQuery, null, downloadBatchSize, startIndex, "score", "asc");
+                            if(!threadCheckLimit || resultsCount.intValue()<MAX_DOWNLOAD_SIZE){
+                                if(!threadCheckLimit){
+                                    //throttle the download by sleeping
+                                    try{
+                                        Thread.currentThread().sleep(throttle);
+                                    } catch(InterruptedException e){
+                                        //don't care if the sleep was interrupted
+                                    }
+                                }
+                                qr = runSolrQuery(splitByFacetQuery, null, downloadBatchSize, startIndex, "_docid_", "asc");
+                            } else {
+                                qr = null;
+                            }
                         }
                         return recordsForThread;
                     }
@@ -676,7 +695,7 @@ public class SearchDAOImpl implements SearchDAO {
             long finish = System.currentTimeMillis();
             long timeTakenInSecs = (finish-start)/1000;
             if(timeTakenInSecs ==0) timeTakenInSecs =1;
-            logger.info("Download of " + resultsCount + " records in " + timeTakenInSecs + " seconds. Record/sec: " + resultsCount/timeTakenInSecs);
+            logger.info("Download of " + resultsCount + " records in " + timeTakenInSecs + " seconds. Record/sec: " + resultsCount.intValue()/timeTakenInSecs);
 
         } catch (SolrServerException ex) {
             logger.error("Problem communicating with SOLR server while processing download. " + ex.getMessage(), ex);
@@ -684,12 +703,16 @@ public class SearchDAOImpl implements SearchDAO {
         return uidStats;
     }
 
-    private int processQueryResults( Map<String, Integer> uidStats, String[] fields, String[] qaFields, RecordWriter rw, QueryResponse qr, DownloadDetailsDTO dd) {
-        int resultsCount = 0;
+    private int processQueryResults( Map<String, Integer> uidStats, String[] fields, String[] qaFields, RecordWriter rw, QueryResponse qr, DownloadDetailsDTO dd, boolean checkLimit,AtomicInteger resultsCount) {
+        int count = 0;
         for (SolrDocument sd : qr.getResults()) {
-            if(sd.getFieldValue("data_resource_uid") != null){
+            if(sd.getFieldValue("data_resource_uid") != null &&(!checkLimit || (checkLimit && resultsCount.intValue()<MAX_DOWNLOAD_SIZE))){
 
-                resultsCount++;
+                //resultsCount++;
+                count++;
+                synchronized(resultsCount){
+                    resultsCount.incrementAndGet();
+                }
 
                 //add the record
                 String[] values = new String[fields.length + qaFields.length];
@@ -724,8 +747,8 @@ public class SearchDAOImpl implements SearchDAO {
                 incrementCount(uidStats,  sd.getFieldValue("data_resource_uid"));
             }
         }
-        dd.updateCounts(resultsCount);
-        return resultsCount;
+        dd.updateCounts(count);
+        return count;
     }
 
     /**
@@ -2707,4 +2730,19 @@ public class SearchDAOImpl implements SearchDAO {
     public void setAuthServiceFields(String authServiceFields) {
         this.authServiceFields = authServiceFields;
     }
+
+    /**
+     * @return the throttle
+     */
+    public Integer getThrottle() {
+        return throttle;
+    }
+
+    /**
+     * @param throttle the throttle to set
+     */
+    public void setThrottle(Integer throttle) {
+        this.throttle = throttle;        
+    }
+    
 }

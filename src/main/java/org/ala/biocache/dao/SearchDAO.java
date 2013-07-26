@@ -109,7 +109,7 @@ public interface SearchDAO {
 	 * @return
 	 * @throws Exception
 	 */
-	Map<String, Integer> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, boolean includeSensitive, DownloadDetailsDTO dd) throws Exception;
+	Map<String, Integer> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, boolean includeSensitive, DownloadDetailsDTO dd,boolean checkLimit) throws Exception;
 
     /**
      * Write coordinates out to the supplied stream.

@@ -101,6 +101,10 @@ public class DownloadService {
     public List<DownloadDetailsDTO> getCurrentDownloads(){
         return currentDownloads;
     }
+    private void writeQueryToStream(DownloadDetailsDTO dd,DownloadRequestParams requestParams, String ip, OutputStream out, boolean includeSensitive, boolean fromIndex) throws Exception {
+        writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex, true);
+    }
+    
     /**
      * Writes the supplied download to the supplied output stream. It will include all the appropriate citations etc.
      * 
@@ -112,7 +116,7 @@ public class DownloadService {
      * @param fromIndex
      * @throws Exception
      */
-    private void writeQueryToStream(DownloadDetailsDTO dd,DownloadRequestParams requestParams, String ip, OutputStream out, boolean includeSensitive, boolean fromIndex) throws Exception {
+    private void writeQueryToStream(DownloadDetailsDTO dd,DownloadRequestParams requestParams, String ip, OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit) throws Exception {
         String filename = requestParams.getFile();
         //Use a zip output stream to include the data and citation together in the download
         ZipOutputStream zop = new ZipOutputStream(out);
@@ -122,7 +126,7 @@ public class DownloadService {
         Map<String, Integer> uidStats = null;
         try {
             if(fromIndex)
-                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, zop, includeSensitive,dd);
+                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, zop, includeSensitive,dd, limit);
             else
                 uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100, includeSensitive,dd);
         } catch (Exception e) {
@@ -262,7 +266,7 @@ public class DownloadService {
                         currentDownloads.add(currentDownload);
                         writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
                                 currentDownload.getIpAddress(), fos, currentDownload.getIncludeSensitive(), 
-                                currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX);
+                                currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false);
                       //now that the download is complete email a link to the recipient.
                         String subject = messageSource.getMessage("offlineEmailSubject",null,"Occurrence Download Complete - "+currentDownload.getRequestParams().getFile(),null);
                         String fileLocation = currentDownload.getFileLocation().replace(biocacheMediaDir, biocacheMediaUrl);
