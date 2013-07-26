@@ -219,11 +219,11 @@ public class AssertionController extends AbstractSecureController {
                 qa.setUserDisplayName(userDisplayName);
     
                 Store.addUserAssertion(recordUuid, qa);
-
-                if(qa.getUuid() != null) {
-                    //send this assertion addition event to the notification service
-                    postNotificationEvent("create", recordUuid, qa.getUuid());
-                }
+                  //NC 2013-07-25 No need to post a notification to the collectory the biocache service is queried for the annotations required by the notification service
+//                if(qa.getUuid() != null) {
+//                    //send this assertion addition event to the notification service
+//                    postNotificationEvent("create", recordUuid, qa.getUuid());
+//                }
 
                 String server = request.getSession().getServletContext().getInitParameter("serverName");
                 response.setHeader("Location", server + "/occurrences/" + recordUuid + "/assertions/" + qa.getUuid());
@@ -269,7 +269,7 @@ public class AssertionController extends AbstractSecureController {
         
         if(shouldPerformOperation(apiKey, response)){
             Store.deleteUserAssertion(recordUuid, assertionUuid);
-            postNotificationEvent("delete", recordUuid, assertionUuid);
+            //postNotificationEvent("delete", recordUuid, assertionUuid);
             response.setStatus(HttpServletResponse.SC_OK);
         }
     }
@@ -279,7 +279,9 @@ public class AssertionController extends AbstractSecureController {
      * @param type
      * @param recordUuid
      * @param id
+     * @deprecated assertion notifications are not obtained through biocache ws NOT the collectory. This method should not be called.
      */
+    @Deprecated
     private void postNotificationEvent(String type, String recordUuid, String id) {
         //get the processed record so that we can get the collection_uid
         FullRecord processed = Store.getByUuid(recordUuid, Versions.PROCESSED());
