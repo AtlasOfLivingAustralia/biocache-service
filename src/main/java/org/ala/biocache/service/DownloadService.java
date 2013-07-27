@@ -35,14 +35,13 @@ import org.springframework.web.client.RestOperations;
  * 
  * Can configure the number of offline download processors
  * @author Natasha Carter (natasha.carter@csiro.au)
- *
  */
 @Component("downloadService")
 public class DownloadService {
     /** log4 j logger */
     private static final Logger logger = Logger.getLogger(DownloadService.class);
     /** Number of threads to perform to offline downloads on can be configured. */
-    private int concurrentDownloads=1;
+    private int concurrentDownloads = 1;
     @Inject
     protected PersistentQueueDAO persistentQueueDAO;
     @Inject 
@@ -101,6 +100,7 @@ public class DownloadService {
     public List<DownloadDetailsDTO> getCurrentDownloads(){
         return currentDownloads;
     }
+
     private void writeQueryToStream(DownloadDetailsDTO dd,DownloadRequestParams requestParams, String ip, OutputStream out, boolean includeSensitive, boolean fromIndex) throws Exception {
         writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex, true);
     }
@@ -126,11 +126,11 @@ public class DownloadService {
         Map<String, Integer> uidStats = null;
         try {
             if(fromIndex)
-                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, zop, includeSensitive,dd, limit);
+                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, zop, includeSensitive, dd, limit);
             else
-                uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100, includeSensitive,dd);
+                uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100, includeSensitive ,dd);
         } catch (Exception e) {
-            logger.error(e);
+            logger.error(e.getMessage(),e);
         } finally {
             unregisterDownload(dd);
         }
@@ -147,7 +147,7 @@ public class DownloadService {
             try {
                 getCitations(uidStats, zop);
             } catch (Exception e) {
-                logger.error(e);
+                logger.error(e.getMessage(),e);
             }
             zop.closeEntry();
         }
@@ -281,7 +281,6 @@ public class DownloadService {
                         logger.error("Error in offline download", e);
                         //TODO maybe send an email to support saying that the offline email failed??
                     }
-                    
                 }
             }
         }
