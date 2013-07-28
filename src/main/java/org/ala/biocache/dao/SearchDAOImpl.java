@@ -14,7 +14,6 @@
  ***************************************************************************/
 package org.ala.biocache.dao;
 
-
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
@@ -120,15 +119,14 @@ public class SearchDAOImpl implements SearchDAO {
     /** Batch size for a download */
     protected Integer downloadBatchSize = 500;
     public static final String NAMES_AND_LSID = "names_and_lsid";
-    public static final String COMMON_NAME_AND_LSID ="common_name_and_lsid";
-    protected static final String TAXON_CONCEPT_LSID = "taxon_concept_lsid";
+    public static final String COMMON_NAME_AND_LSID = "common_name_and_lsid";
     protected static final String DECADE_FACET_NAME = "decade";
-    protected static final Integer FACET_PAGE_SIZE =1000;
+    protected static final Integer FACET_PAGE_SIZE = 1000;
     protected static final String QUOTE = "\"";
     protected static final char[] CHARS = {' ',':'};
     protected static final String RANGE_SUFFIX = "_RNG";  
 
-    private String spatialField="geohash";
+    private String spatialField = "geohash";
     
     //Patterns that are used to prepare a SOLR query for execution
     protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9\\.:-]*)\"?");
@@ -180,12 +178,12 @@ public class SearchDAOImpl implements SearchDAO {
     public SearchDAOImpl() {}
     
     private SolrServer getServer(){
-        if(server ==null){
+        if(server == null){
             initServer();
         }
         return server;
     }
-    @PostConstruct
+
     private void initServer() {
         if (this.server == null) {
             try {
@@ -195,8 +193,8 @@ public class SearchDAOImpl implements SearchDAO {
                 dao.init();
                 server = dao.solrServer();
                 queryMethod = server instanceof EmbeddedSolrServer? SolrRequest.METHOD.GET:SolrRequest.METHOD.POST;
+                //CAUSING THE HANG....
                 downloadFields = new DownloadFields(getIndexedFields());
-      
             } catch (Exception ex) {
                 logger.error(
                     "Error initialising embedded SOLR server: " + ex.getMessage(), ex);
@@ -330,8 +328,6 @@ public class SearchDAOImpl implements SearchDAO {
 
             QueryResponse qr = runSolrQuery(solrQuery, searchParams);
             //need to set the original q to the processed value so that we remove the wkt etc that is added from paramcache object
-            //original.setQ(searchParams.getQ());
-            
             Class resultClass = includeSensitive? org.ala.biocache.dto.SensitiveOccurrenceIndex.class:OccurrenceIndex.class;
             searchResults = processSolrResponse(original, qr, solrQuery,resultClass);
             searchResults.setQueryTitle(searchParams.getDisplayString());
@@ -1687,15 +1683,20 @@ public class SearchDAOImpl implements SearchDAO {
                         if(pco != null) {
                             searchParams.setQId(qid);
                             searchParams.setQ(pco.getQ());
-                            searchParams.setDisplayString(pco.getDisplayString());
+                            String displayString = pco.getDisplayString();
+
+                            if(StringUtils.isNotEmpty(pco.getWkt())){
+                                displayString = displayString + " within user defined polygon" ;
+                            }
+                            searchParams.setDisplayString(displayString);
+
                             if(searchParams instanceof SpatialSearchRequestParams) {
                                 ((SpatialSearchRequestParams) searchParams).setWkt(pco.getWkt());
-                            } else if(!StringUtils.isEmpty(pco.getWkt())) {
+                            } else if(StringUtils.isNotEmpty(pco.getWkt())) {
                                 String originalQ = searchParams.getQ();
                                 searchParams.setQ(spatialField +":\"Intersects(" + pco.getWkt() +")");
                                 if(StringUtils.isNotEmpty(originalQ))
                                   searchParams.setQ(searchParams.getQ() + " AND " + originalQ);
-                                //searchParams.setQ(pco.getWkt() + "{!spatial wkt=" + pco.getWkt() + "}" + pco.getQ() );
                             }
                             searchParams.setFormattedQuery(searchParams.getQ());
                             return;
@@ -1785,7 +1786,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
             
             //if the query string contains lsid: we will need to replace it with the corresponding lft range
-            int last =0;
+            int last = 0;
             if (query.contains("lsid:")) {
                 Matcher matcher = lsidPattern.matcher(query);
                 queryString.setLength(0);
@@ -1824,6 +1825,7 @@ public class SearchDAOImpl implements SearchDAO {
                 query = queryString.toString();
                 displayString = displaySb.toString();
             }
+
             if (query.contains("urn")) {
                 //escape the URN strings before escaping the rest this avoids the issue with attempting to search on a urn field
                 Matcher matcher = urnPattern.matcher(query);
@@ -1849,14 +1851,14 @@ public class SearchDAOImpl implements SearchDAO {
                     formatSearchQuery(subQuery);
                     
                     //now append Q's together
-                queryString.setLength(0);
+                    queryString.setLength(0);
                     queryString.append(spatial);
                     queryString.append(subQuery.getFormattedQuery());
                     searchParams.setFormattedQuery(queryString.toString());
                     //add the spatial information to the display string
                     if(spatial.contains("circles")){
                         String[] values = spatial.substring(spatial.indexOf("=") +1 , spatial.indexOf("}")).split(",");
-                        if(values.length ==3){
+                        if(values.length == 3){
                             displaySb.setLength(0);
                             displaySb.append(subQuery.getDisplayString());
                             displaySb.append(" - within ").append(values[2]).append(" km of point(")
@@ -1864,7 +1866,7 @@ public class SearchDAOImpl implements SearchDAO {
                             searchParams.setDisplayString(displaySb.toString());
                         }
                         
-                    } else{
+                    } else {
                         searchParams.setDisplayString(subQuery.getDisplayString() + " - within supplied region");
                     }
                 }
