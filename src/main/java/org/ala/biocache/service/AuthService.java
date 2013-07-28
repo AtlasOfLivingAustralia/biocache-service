@@ -134,12 +134,13 @@ public class AuthService {
         }
     }
 
-    @Scheduled(fixedRate = 600000) // schedule to run every 10 min
-    @Async
+    @Scheduled(fixedDelay = 600000) // schedule to run every 10 min
+    //@Async NC 2013-07-29: Disabled the Async so that we don't get bombarded with calls.
     public void reloadCaches() {
-        logger.info("Triggering reload of auth user names");
+        logger.info("Triggering reload of auth user names");               
         loadMapOfAllUserNamesById();
         loadMapOfAllUserNamesByNumericId();
         loadMapOfEmailToUserId();
+        logger.info("Finished reload of auth user names");
     }
 }
