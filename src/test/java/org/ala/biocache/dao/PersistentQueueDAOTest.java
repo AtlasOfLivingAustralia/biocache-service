@@ -1,25 +1,30 @@
 package org.ala.biocache.dao;
 
+import static org.junit.Assert.*;
+
 import javax.inject.Inject;
 
 import org.ala.biocache.dto.DownloadDetailsDTO;
 import org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import org.ala.biocache.dto.DownloadRequestParams;
 import org.apache.commons.io.FileUtils;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.springframework.test.context.ContextConfiguration;
 
 import junit.framework.TestCase;
 
-public class PersistentQueueDAOTest extends TestCase{
-    //protected static final DB4OPersistentQueueDAOImpl queueDAO= new DB4OPersistentQueueDAOImpl("/tmp/db4o.test");
+public class PersistentQueueDAOTest {
+
     protected static final JsonPersistentQueueDAOImpl queueDAO = new JsonPersistentQueueDAOImpl();
-    static{
-        //FileUtils.deleteQuietly(new java.io.File("/tmp/db4o.test"));
+
+    
+    @Before
+    public void setup(){
+        System.out.println("BEFORE...");
         FileUtils.deleteQuietly(new java.io.File("/data/cache/downloads"));
         queueDAO.init();
-        
     }
 
     private DownloadRequestParams getParams(String query){
@@ -29,9 +34,14 @@ public class PersistentQueueDAOTest extends TestCase{
         d.setEmail("natasha.carter@csiro.au");
         return d;
     }
+    private void addQueue(String title){
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(getParams(title), "127.0.0.1", DownloadType.FACET);        
+        queueDAO.addDownloadToQueue(dd);
+    }
     
     @Test
     public void testAdd(){
+        System.out.println("test add");
         DownloadDetailsDTO dd = new DownloadDetailsDTO(getParams("test1"), "127.0.0.1", DownloadType.FACET);
         
         queueDAO.addDownloadToQueue(dd);
@@ -43,10 +53,14 @@ public class PersistentQueueDAOTest extends TestCase{
         //now test that they are persisted
         queueDAO.refreshFromPersistent();
         assertEquals(2,queueDAO.getTotalDownloads());
+        
     }
     
     @Test
     public void testRemove(){
+        //set up some test data so that the remove operation can be tested correctly
+        addQueue("test1");
+        addQueue("test2");
         DownloadDetailsDTO dd = queueDAO.getNextDownload();
         assertEquals("?q=test1", dd.getDownloadParams());
         //all thedownloads should still be on the queue
