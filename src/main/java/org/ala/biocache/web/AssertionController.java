@@ -7,6 +7,7 @@ import au.org.ala.biocache.Store;
 import au.org.ala.biocache.QualityAssertion;
 import au.org.ala.biocache.Versions;
 
+
 import org.ala.biocache.dao.BieService;
 import org.ala.biocache.dao.SearchDAO;
 import org.ala.biocache.dto.SpatialSearchRequestParams;
@@ -20,12 +21,16 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.StringRequestEntity;
+import org.apache.commons.io.IOUtils;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.type.TypeReference;
 
 /**
  * This controller provides web services for assertion creation/deletion.
@@ -192,6 +197,57 @@ public class AssertionController extends AbstractSecureController {
             HttpServletResponse response) throws Exception {
         addAssertion(recordUuid, request,response);
     }
+    /**
+     * Adds a bulk list of assertions.
+     * 
+     * This method expects certain request params to be provided
+     * apiKey
+     * userId
+     * userDisplayName
+     * assertions - a json list of assertion maps to be applied.
+     * 
+     * @param request
+     * @param response
+     * @throws Exception
+     */
+    @RequestMapping(value="/bulk/assertions/add", method = RequestMethod.POST)
+    public void addBulkAssertions(HttpServletRequest request, HttpServletResponse response) throws Exception {
+        ObjectMapper om = new ObjectMapper();
+        try {
+            String json = request.getParameter("assertions");            
+            
+            String userId = request.getParameter("userId");
+            String userDisplayName = request.getParameter("userDisplayName");
+            String apiKey = request.getParameter("apiKey");
+            //check to see that the assertions have come from a valid source before adding
+            if (shouldPerformOperation(apiKey, response)) {
+                List<java.util.Map<String,String>> assertions = om.readValue(json, new TypeReference<List<java.util.Map<String,String>>>(){});
+                logger.debug("The assertions in a list of maps: " +assertions);
+                java.util.HashMap<String,QualityAssertion> qas = new java.util.HashMap<String,QualityAssertion>(assertions.size());
+                for(java.util.Map<String,String> assertion : assertions){
+                    String code = assertion.get("code");
+                    String comment = assertion.get("comment");
+                    String recordUuid = assertion.get("recordUuid");
+                    QualityAssertion qa = au.org.ala.biocache.QualityAssertion.apply(Integer.parseInt(code));
+                    qa.setComment(comment);
+                    qa.setUserId(userId);
+                    qa.setUserDisplayName(userDisplayName);
+                    qas.put(recordUuid, qa);
+                }
+                if(qas.size()>0){
+                    //add the qas in bulk
+                    Store.addUserAssertions(qas);
+                }
+            
+            }
+            
+           
+        } catch(Exception e) {
+            logger.error(e.getMessage(),e);
+            response.sendError(HttpURLConnection.HTTP_BAD_REQUEST);
+            
+        }
+    }
 
     /**
      * add an assertion
@@ -279,7 +335,7 @@ public class AssertionController extends AbstractSecureController {
      * @param type
      * @param recordUuid
      * @param id
-     * @deprecated assertion notifications are not obtained through biocache ws NOT the collectory. This method should not be called.
+     * @deprecated assertion notifications are obtained through biocache ws NOT the collectory. This method should not be called.
      */
     @Deprecated
     private void postNotificationEvent(String type, String recordUuid, String id) {

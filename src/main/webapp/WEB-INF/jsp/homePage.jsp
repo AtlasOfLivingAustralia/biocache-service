@@ -211,6 +211,27 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             <li><strong>Delete an assertion using params:</strong> /occurrences/assertions/delete?recordUuid={uuid}&assertionUuid={assertioniUuid}</li>
             <li><strong>List assertions for occurrence:</strong> /occurrences/{uuid}/assertions/</li>
             <li><strong>List assertions for occurrence with params:</strong> /occurrences/assertions?recordUuid={uuid}</li>
+            <li><strong>Add a bulk list of assertions via a POST: </strong> /bulk/assertions/add?apiKey={key}&userId={id}&userDisplayName={userDisplayName}&assertions={assertions}
+                <ul class="paramList">
+                    <li><strong>apiKey</strong> - the shared key necessary for making edits to the system</li>
+                    <li><strong>userId</strong> - the id of the user to apply the assertions against</li>
+                    <li><strong>userDisplayName</strong> - the display name for the user that suppplied the assertions</li>
+                    <li><strong>assertions</strong> - a json string representation of a list of assertions, each assertion must have a recordUuid, code and comment. Example:
+                   <span class="code exampleResponse"><br>
+                   [     
+                        {"recordUuid": "d2687ef5-7ce9-472b-b7cb-8d2ace2676e8", 
+                         "code": "0",
+                         "comment": "a comment"},     
+                         {"recordUuid": "73aadf23-1fc2-478e-ae29-3a0646ddb3a3",
+                          "code": "0",
+                          "comment": "My next comment"} 
+                   ]
+                
+                </span> 
+                    </li>
+                </ul>
+            </li>
+            
         </ul>
 
 		<h3>Explore services</h3>
@@ -505,14 +526,14 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 			<li><strong>/duplicates/[representative record uuid]</strong><br>eg <a href="${initParams.webservicesRoot}/duplicates/3cde1570-7a38-4a58-b121-e95c35585a29">/duplicates/3cde1570-7a38-4a58-b121-e95c35585a29</a></li>
 		</ul>
 		
-	  <a href="#queryAssertions" name="queryAssertions" id="queryAssertions"><h3>Query Assertions</h3></a>
-        <p>A query assertion allows a group of occurrences to have the same assertion applied at once.  
+	  <a href="#queryAssertions" name="queryAssertions" id="queryAssertions"><h3>Assertion Query</h3></a>
+        <p>A assertion query allows a group of occurrences to have the same assertion applied at once.  
         The occurrences that make up the assertions are identified by a reusable query.  New occurrences that satisfy the query will have the assertion added the next time it is applied.
         The only supported query type is based on a wkt area and species name as defined below.  In the future we may support custom queries. </p>
         <p>These are webservices for working with the query assertions. </p>
 		<ul class="webserviceList">
 			<li>
-                <a href="#addQueryAssertion" name="outlierInfo" id="addQueryAssertion"><strong>Add Query Assertion</strong></a><br/>
+                <a href="#addQueryAssertion" name="outlierInfo" id="addQueryAssertion"><strong>Add Assertion Query</strong></a><br/>
 			    To add a query POST a JSON body to the following URL: /assertions/query/add.<br>
 			    Example JSON body 
 			    <span class="code exampleResponse"><br>
@@ -533,7 +554,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 			    </span>
 			</li>
 			<li>
-                <a href="#viewQueryAssertion" name="viewQueryAssertion" id="viewQueryAssertion"><strong>View Query Assertion details</strong></a><br/>
+                <a href="#viewQueryAssertion" name="viewQueryAssertion" id="viewQueryAssertion"><strong>View Assertion Query details</strong></a><br/>
                 This service will return the assertion information. It will NOT return the details of the query.
 			    <br>/assertions/query/{uuid}</a>                
 			</li>
