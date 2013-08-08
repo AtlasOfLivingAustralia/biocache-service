@@ -22,6 +22,14 @@
            http://ehcache-spring-annotations.googlecode.com/svn/schema/ehcache-spring/ehcache-spring-1.1.xsd
            http://www.springframework.org/schema/task
            http://www.springframework.org/schema/task/spring-task-3.0.xsd">
+      
+    <!-- Allows us to use system properties as variables in this configuration file -->
+    <bean id="properties" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="locations">
+            <value>file:/data/biocache-config/biocache.properties</value>
+        </property>
+    </bean>  
+      
           
     <!--<context:spring-configured/>-->
     <context:component-scan base-package="org.ala.biocache"/>
@@ -158,38 +166,6 @@
         <property name="configLocation"  value="/WEB-INF/ehcache.xml"/>
     </bean>
     
-    <!-- ActiveMQ JMS setting start -->
-    <!-- start up active with security enabled: activemq xbean:activemq-security.xml -->
-	<!-- see C:\tools\apache-activemq-5.4.1\conf\credentials.properties and activemq-security.xml --> 
-    
-    <!-- jms listener -->
-    <!-- 
-    <bean id="jmsMessageListener" class="org.ala.jms.service.JmsMessageListener" />
-    -->
-    
-    <!-- activemq url -->
-	<!-- <property name="brokerURL" value="tcp://ala-biocachedb1.vm.csiro.au:61616" /> -->
-	<!-- <property name="brokerURL" value="tcp://ala-biocache1.vm.csiro.au:61616" /> -->	
-	<!--  
-	<bean id="jmsConnectionFactory" class="org.apache.activemq.ActiveMQConnectionFactory">
-		<property name="brokerURL" value="tcp://localhost:61616" />    
-		<property name="userName" value="system" />
-		<property name="password" value="manager" />
-	</bean>	
-	<bean id="pooledJmsConnectionFactory" class="org.apache.activemq.pool.PooledConnectionFactory"
-	  destroy-method="stop">
-		<property name="connectionFactory" ref="jmsConnectionFactory" />
-	</bean>
-	-->
-	
-	<!-- DefaultMessageListenerContainer (DMLC): JMS Consumer Configuration -->
-	<!--         
-	<jms:listener-container container-type="default" 
-	                        connection-factory="pooledJmsConnectionFactory"
-	                        acknowledge="auto">
-		<jms:listener destination="org.ala.jms.cs" ref="jmsMessageListener" />
-	</jms:listener-container>
-	-->    
-    <!-- ActiveMQ JMS setting end -->
+
     
 </beans>

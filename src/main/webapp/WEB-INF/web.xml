@@ -37,29 +37,12 @@
         <location>/WEB-INF/jsp/error/general.jsp</location>
     </error-page>
 
-    <!-- CAS Authentication related properties -->
+    <!-- NC 2013-08-08: This configuration allows the application context XML Spring bean file to be stored external to the  -->
     <context-param>
-        <!-- Parameter used by CAS filters -->
-        <param-name>serverName</param-name>
-        <param-value>http://biocache.ala.org.au</param-value>
+        <param-name>contextConfigLocation</param-name>
+        <param-value>file:/data/biocache-config/applicationContext.xml</param-value>
     </context-param>
 
-    <!-- Used in the homepage to provide a configurable root URL -->
-    <context-param>
-        <param-name>webservicesRoot</param-name>
-        <param-value>http://localhost:8080/biocache-service/</param-value>
-    </context-param>
-
-    <context-param>
-        <param-name>casServerName</param-name>
-        <param-value>https://auth.ala.org.au</param-value>
-    </context-param>
-
-	<!-- The Central Server hosting the CMS -->
-    <context-param>
-        <param-name>centralServer</param-name>
-        <param-value>http://www.ala.org.au</param-value>
-    </context-param>
 
     <!-- SiteMesh -->
     <filter>
