@@ -193,6 +193,7 @@ public class SearchDAOImpl implements SearchDAO {
                 dao.init();
                 server = dao.solrServer();
                 queryMethod = server instanceof EmbeddedSolrServer? SolrRequest.METHOD.GET:SolrRequest.METHOD.POST;
+                logger.debug("The server " + server.getClass());
                 //CAUSING THE HANG....
                 downloadFields = new DownloadFields(getIndexedFields());
             } catch (Exception ex) {
@@ -237,8 +238,11 @@ public class SearchDAOImpl implements SearchDAO {
         ArrayList<FieldResultDTO> list1 = getValuesForFacet(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));  
         logger.debug("Retrieved species within area...("+list1.size()+")");                     
         // 2)get a list of species that occur in the inverse WKT
-        String wkt = requestParams.getWkt();
-        String reverseQuery = "-geohash:\"Intersects(" +wkt + ")\"";
+        
+        String reverseQuery = SpatialUtils.getWKTQuery(spatialField, requestParams.getWkt(), true);//"-geohash:\"Intersects(" +wkt + ")\"";
+        
+        logger.debug("The reverse query:" + reverseQuery);
+        
         requestParams.setWkt(null);
         
         int maxFqs=1000; // there is a term limit in a SOLR query.
@@ -1631,10 +1635,8 @@ public class SearchDAOImpl implements SearchDAO {
                 sb.append(" d=").append(SpatialUtils.convertToDegrees(searchParams.getRadius()).toString());
                 sb.append("))\"");
             } else if(!StringUtils.isEmpty(searchParams.getWkt())){
-                //format the wkt                
-                sb.append(spatialField).append(":\"Intersects(");
-                sb.append(searchParams.getWkt());
-                sb.append(")\"");
+                //format the wkt               
+                sb.append(SpatialUtils.getWKTQuery(spatialField, searchParams.getWkt(), false));
             }
             String query = StringUtils.isEmpty(searchParams.getFormattedQuery())? searchParams.getQ() : searchParams.getFormattedQuery();
             if(StringUtils.isNotEmpty(query)){
@@ -2145,7 +2147,7 @@ public class SearchDAOImpl implements SearchDAO {
         if(rangeFieldCache == null)
             rangeFieldCache = new HashMap<String, StatsIndexFieldDTO>();
         StatsIndexFieldDTO details=rangeFieldCache.get(field);
-        if(details == null){
+        if(details == null && indexFieldMap!=null){
             //get the details
             SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
             searchParams.setQ("*:*");
