@@ -40,7 +40,7 @@
     <!-- NC 2013-08-08: This configuration allows the application context XML Spring bean file to be stored external to the  -->
     <context-param>
         <param-name>contextConfigLocation</param-name>
-        <param-value>file:/data/biocache-config/applicationContext.xml</param-value>
+        <param-value>file:/data/biocache/config/applicationContext.xml</param-value>
     </context-param>
 
 

@@ -65,7 +65,7 @@
       <artifactId>opencsv</artifactId>
       <version>2.2</version>
     </dependency>
-
+    
     <!--  Cache  -->
     <dependency>
         <groupId>com.googlecode.ehcache-spring-annotations</groupId>
@@ -389,6 +389,12 @@
         <artifactId>jetty-maven-plugin</artifactId>
         <version>7.0.0.pre5</version>
         <configuration>
+       
+          <webAppConfig>
+            <contextPath>/biocache-service</contextPath>
+            <!-- NC 20130808: Add the external directory to the classpath to allow biocache.properties to be override-->
+            <extraClasspath>/data/biocache/config/</extraClasspath>
+          </webAppConfig> 
           <scanIntervalSeconds>10</scanIntervalSeconds>
           <stopKey>foo</stopKey>
           <stopPort>9099</stopPort>

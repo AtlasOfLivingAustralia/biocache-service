@@ -5,5 +5,5 @@
     NC 20130808: Use a virtual webapp loader to provide external directory where it will look for resources first,
     thus allowing biocache.properties to be configured external to tomcat 
  -->
-<Loader className="org.apache.catalina.loader.VirtualWebappLoader" virtualClasspath="/data/biocache-config" searchVirtualFirst="true"/>
+<Loader className="org.apache.catalina.loader.VirtualWebappLoader" virtualClasspath="/data/biocache/config" searchVirtualFirst="true"/>
 </Context>

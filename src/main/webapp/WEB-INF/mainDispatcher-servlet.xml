@@ -26,7 +26,7 @@
     <!-- Allows us to use system properties as variables in this configuration file -->
     <bean id="properties" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
         <property name="locations">
-            <value>file:/data/biocache-config/biocache.properties</value>
+            <value>file:/data/biocache/config/biocache-config.properties</value>
         </property>
     </bean>  
       
@@ -59,8 +59,8 @@
         <property name="useDefaultSuffixPattern" value="false"/>
     </bean>
 
-    <context:property-override location="classpath:biocache.properties" ignore-unresolvable="true" ignore-resource-not-found="true" />
-    <context:property-placeholder location="classpath:biocache.properties" />
+    <context:property-override location="classpath:biocache-config.properties" ignore-unresolvable="true" ignore-resource-not-found="true" />
+    <context:property-placeholder location="classpath:biocache-config.properties" />
 
     <!--
       - This bean resolves specific types of exceptions to corresponding logical
