@@ -59,8 +59,8 @@
         <property name="useDefaultSuffixPattern" value="false"/>
     </bean>
 
-    <context:property-override location="classpath:biocache-config.properties" ignore-unresolvable="true" ignore-resource-not-found="true" />
-    <context:property-placeholder location="classpath:biocache-config.properties" />
+    <context:property-override location="file:/data/biocache/config/biocache-config.properties" ignore-unresolvable="true" ignore-resource-not-found="true" />
+    <context:property-placeholder location="file:/data/biocache/config/biocache-config.properties" />
 
     <!--
       - This bean resolves specific types of exceptions to corresponding logical

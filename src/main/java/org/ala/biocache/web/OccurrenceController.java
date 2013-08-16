@@ -44,6 +44,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -94,7 +95,7 @@ public class OccurrenceController extends AbstractSecureController {
 
     /** Name of view for site home page */
     private String HOME = "homePage";
-
+    @Value("${webservicesRoot}")
     protected String hostUrl = "http://localhost:8080/biocache-service";
     protected String bieBaseUrl = "http://bie.ala.org.au/";
     
@@ -116,7 +117,8 @@ public class OccurrenceController extends AbstractSecureController {
      * @return viewname to render
      */
     @RequestMapping("/")
-    public String homePageHandler() {
+    public String homePageHandler(Model model) {
+        model.addAttribute("webservicesRoot", hostUrl);
         return HOME;
     }
     
