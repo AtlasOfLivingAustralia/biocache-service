@@ -37,6 +37,10 @@
         	<groupId>org.slf4j</groupId>
             <artifactId>slf4j-jdk14</artifactId>
         </exclusion>
+        <exclusion>
+            <groupId>javax.servlet.jsp</groupId>
+            <artifactId>jsp-api</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <!-- ALA logging -->
@@ -65,7 +69,7 @@
       <artifactId>opencsv</artifactId>
       <version>2.2</version>
     </dependency>
-    
+
     <!--  Cache  -->
     <dependency>
         <groupId>com.googlecode.ehcache-spring-annotations</groupId>
