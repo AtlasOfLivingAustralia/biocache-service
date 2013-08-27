@@ -2431,9 +2431,8 @@ public class SearchDAOImpl implements SearchDAO {
                             schema = schemaMatcher.group(1);
                         }
                         if(schema != null){
-                            logger.debug("fieldName:" + fieldName);
-                            logger.debug("type:" + type);
-                            logger.debug("schema:" + schema);
+                            //logger.debug("fieldName:" + fieldName +", type:" + type);
+//                            logger.debug("schema:" + schema);
                             //don't allow the sensitive coordinates to be exposed via ws
                             if(fieldName != null && !fieldName.startsWith("sensitive")){
                                 

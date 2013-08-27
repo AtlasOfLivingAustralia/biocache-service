@@ -456,8 +456,7 @@ public class SearchUtils {
                                         fv = fv.replaceAll("\\@\\w+", "@.."); // hide email addresses
                                     }
 
-                                } 
-                                else {
+                                } else {
                                     fv = getUidDisplayString(fn, fv,false);
                                 }
 

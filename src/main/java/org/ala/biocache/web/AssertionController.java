@@ -238,14 +238,10 @@ public class AssertionController extends AbstractSecureController {
                     //add the qas in bulk
                     Store.addUserAssertions(qas);
                 }
-            
             }
-            
-           
         } catch(Exception e) {
             logger.error(e.getMessage(),e);
             response.sendError(HttpURLConnection.HTTP_BAD_REQUEST);
-            
         }
     }
 

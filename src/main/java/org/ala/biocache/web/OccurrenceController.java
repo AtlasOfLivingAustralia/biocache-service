@@ -71,7 +71,6 @@ public class OccurrenceController extends AbstractSecureController {
 
     /** Logger initialisation */
     private final static Logger logger = Logger.getLogger(OccurrenceController.class);
-
     /** Fulltext search DAO */
     @Inject
     protected SearchDAO searchDAO;
@@ -98,15 +97,10 @@ public class OccurrenceController extends AbstractSecureController {
     @Value("${webservicesRoot}")
     protected String hostUrl = "http://localhost:8080/biocache-service";
     protected String bieBaseUrl = "http://bie.ala.org.au/";
-    
-    
 
     /** The response to be returned for the isAustralian test */
     protected Pattern austLsidPattern = Pattern.compile("urn:lsid:biodiversity.org.au[a-zA-Z0-9\\.:-]*");
-    
-    
-    
-    
+
     /**
      * Custom handler for the welcome view.
      * <p>
@@ -145,6 +139,7 @@ public class OccurrenceController extends AbstractSecureController {
     public @ResponseBody List groupFacets() {
         return FacetThemes.allThemes;
     }
+
     /**
      * Returns the content of the messages.properties file.
      * Can also return language specific versions, such as
@@ -830,12 +825,11 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = {"/occurrence/deleted"}, method = RequestMethod.GET)
     public @ResponseBody String[] getDeleteOccurrences(@RequestParam(value ="date", required = true) String fromDate,
             HttpServletResponse response) throws Exception{
-        try{
+        try {
             //date must be in a yyyy-MM-dd format
             Date date = org.apache.commons.lang.time.DateUtils.parseDate(fromDate,new String[]{"yyyy-MM-dd"});
             return Store.getDeletedRecords(date);
-        }
-        catch(Exception e){
+        } catch(Exception e) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid date format.  Please provide date as yyyy-MM-dd.");
         }
         return null;
@@ -952,7 +946,6 @@ public class OccurrenceController extends AbstractSecureController {
 
         return occ;
     }
-
 
     private void logViewEvent(String ip, OccurrenceDTO occ, String email, String reason) {
         //String ip = request.getLocalAddr();
