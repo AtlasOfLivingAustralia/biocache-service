@@ -259,7 +259,7 @@ public class UploadController {
 
                 //do a line count
                 lineCount = doLineCount(csvFile);
-                System.out.println("Line count: " + lineCount);
+                logger.debug("Line count: " + lineCount);
 
                 //derive a list of custom index field
                 CSVReader readerForCol = new CSVReader(new FileReader(csvFile), ',', '"');
@@ -290,11 +290,13 @@ public class UploadController {
                 csvData = new CSVReader(new StringReader(csvDataAsString), separatorChar, '"');
             }
 
-            String tempUid = createTempResource(request, lineCount);
+            String datasetName = request.getParameter("datasetName");
+            String tempUid = createTempResource(request, datasetName, lineCount);
 
             //do the upload asynchronously
             UploaderThread ut = new UploaderThread();
             ut.headers = headers;
+            ut.datasetName = datasetName;
             ut.firstLineIsData = firstLineIsData;
             ut.csvData = csvData;
             ut.lineCount = lineCount;
@@ -367,8 +369,8 @@ public class UploadController {
         return new File(unzippedFilePath);
     }
 
-    private String createTempResource(HttpServletRequest request, int lineCount) throws IOException {
-        String datasetName = request.getParameter("datasetName");
+    private String createTempResource(HttpServletRequest request, String datasetName, int lineCount) throws IOException {
+
         ObjectMapper mapper = new ObjectMapper();
 
         UserUpload uu = new UserUpload();
@@ -418,6 +420,7 @@ class UploaderThread implements Runnable {
     private final static Logger logger = Logger.getLogger(UploaderThread.class);
     public String status = "LOADING";
     protected String[] headers;
+    protected String datasetName = "";
     protected CSVReader csvData;
     protected int lineCount = 0;
     protected boolean firstLineIsData;
@@ -466,15 +469,15 @@ class UploaderThread implements Runnable {
 
                 //if the first line is data, add a record, else discard
                 if(firstLineIsData){
-                    addRecord(tempUid, currentLine, headers, intList, floatList, stringList);
+                    addRecord(tempUid, datasetName, currentLine, headers, intList, floatList, stringList);
                 }
 
                 //write the data to DB
                 Integer percentComplete  = 0;
                 while((currentLine = csvData.readNext()) != null){
-                    System.out.println("######## loading line: " + counter);
+                    //System.out.println("######## loading line: " + counter);
                     counter++;
-                    addRecord(tempUid, currentLine, headers, intList, floatList, stringList);
+                    addRecord(tempUid, datasetName, currentLine, headers, intList, floatList, stringList);
                     if(counter % 100 == 0){
                         Integer percentageComplete = 0;
                         if(counter != 0){
@@ -532,7 +535,7 @@ class UploaderThread implements Runnable {
         }
     }
 
-    private void addRecord(String tempUid, String[] currentLine, String[] headers, List<String> intList, List<String> floatList, List<String> stringList) {
+    private void addRecord(String tempUid, String datasetName, String[] currentLine, String[] headers, List<String> intList, List<String> floatList, List<String> stringList) {
         Map<String,String> map = new HashMap<String, String>();
         for(int i = 0; i < headers.length && i < currentLine.length; i++){
             if(currentLine[i] != null && currentLine[i].trim().length() > 0 ){
@@ -558,6 +561,7 @@ class UploaderThread implements Runnable {
                 }
             }
         }
+        map.put("datasetName", datasetName);
         if(!map.isEmpty()){
             au.org.ala.biocache.Store.loadRecord(tempUid, map, false);
         }
