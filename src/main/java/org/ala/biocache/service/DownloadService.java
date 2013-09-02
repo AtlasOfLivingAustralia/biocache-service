@@ -49,6 +49,8 @@ public class DownloadService {
     @Inject
     private RestOperations restTemplate;
     @Inject
+    private org.codehaus.jackson.map.ObjectMapper objectMapper;
+    @Inject
     private EmailService emailService;
     @Inject
     private AbstractMessageSource messageSource;
@@ -276,6 +278,13 @@ public class DownloadService {
                                 body);
                         //now take the job off the list
                         persistentQueueDAO.removeDownloadFromQueue(currentDownload);
+                        
+                        //save the statistics to the download directory                        
+                        FileOutputStream statsStream = FileUtils.openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()+File.separator+"downloadStats.json"));
+                        String json = objectMapper.writeValueAsString(currentDownload);
+                        statsStream.write(json.getBytes() );
+                        statsStream.flush();
+                        statsStream.close();
                     }                    
                     catch(Exception e){
                         logger.error("Error in offline download", e);
