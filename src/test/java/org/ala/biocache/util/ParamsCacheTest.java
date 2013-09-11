@@ -23,8 +23,8 @@ public class ParamsCacheTest extends TestCase {
         configPath();
 
         //test a cache put returns a valid ordered key
-        long key1 = ParamsCache.put("q1", "displayQ", "wkt", new double[]{1, 2, 3, 4});
-        long key2 = ParamsCache.put("q2", "displayQ", "wkt", new double[]{1, 2, 3, 4});
+        long key1 = ParamsCache.put("q1", "displayQ", "wkt", new double[]{1, 2, 3, 4},null);
+        long key2 = ParamsCache.put("q2", "displayQ", "wkt", new double[]{1, 2, 3, 4},null);
         assertTrue(key1 >= 0);
         assertTrue((key1 - key2) < 0);
 
@@ -66,7 +66,7 @@ public class ParamsCacheTest extends TestCase {
             for (int i = 0; i < 10000; i++) {
                 largeString.append("123");
             }
-            ParamsCache.put("large q", "displayString", largeString.toString(), null);
+            ParamsCache.put("large q", "displayString", largeString.toString(), null,null);
             assertTrue(false);
         } catch (ParamsCacheSizeException e) {
             System.out.println(e.getMessage());
@@ -103,7 +103,7 @@ public class ParamsCacheTest extends TestCase {
         int cacheSizeDropCount = 0;
         for (int i = 0; i < 1000; i++) {
             long beforeSize = ParamsCache.getSize();
-            keys.add(ParamsCache.put("q" + i, "displayString", "wkt", defaultbbox));
+            keys.add(ParamsCache.put("q" + i, "displayString", "wkt", defaultbbox, null));
             long afterSize = ParamsCache.getSize();
 
             if (beforeSize > afterSize) {
@@ -175,7 +175,7 @@ public class ParamsCacheTest extends TestCase {
         Collection<Callable<Integer>> tasks = new ArrayList<Callable<Integer>>();
 
         for (int i = 0; i < 30000; i++) {
-            pcos.add(new ParamsCacheObject(0, "q" + i, "displayString", "wkt", defaultbbox));
+            pcos.add(new ParamsCacheObject(0, "q" + i, "displayString", "wkt", defaultbbox,null));
             getpcos.add(null);
             keys.add(-1L);
             idxs.put(i);
@@ -187,7 +187,7 @@ public class ParamsCacheTest extends TestCase {
                     //put
                     int i = idxs.take();
                     ParamsCacheObject pco = pcos.get(i);
-                    keys.set(i, ParamsCache.put(pco.getQ(), pco.getDisplayString(), pco.getWkt(), pco.getBbox()));
+                    keys.set(i, ParamsCache.put(pco.getQ(), pco.getDisplayString(), pco.getWkt(), pco.getBbox(),null));
 
                     //get
                     getpcos.set(i, (ParamsCache.get(keys.get(i))));
