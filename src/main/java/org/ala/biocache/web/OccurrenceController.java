@@ -594,7 +594,7 @@ public class OccurrenceController extends AbstractSecureController {
 
         String q = StringUtils.join(parts.toArray(new String[0]), " OR ");
         title = title == null?q : title;
-        long qid = ParamsCache.put(q, title, null, null);
+        long qid = ParamsCache.put(q, title, null, null,null);
         logger.info("batchSearch: qid = " + qid);
 
         return qid;

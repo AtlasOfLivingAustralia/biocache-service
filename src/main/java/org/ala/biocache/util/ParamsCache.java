@@ -116,9 +116,9 @@ public class ParamsCache {
      * @param displayQ Search display q to store.
      * @return id to retrieve stored value as long.
      */
-    public static long put(String q, String displayQ, String wkt, double[] bbox) throws ParamsCacheSizeException {
+    public static long put(String q, String displayQ, String wkt, double[] bbox, String[]fqs) throws ParamsCacheSizeException {
         long key = getNextKey();
-        ParamsCacheObject pco = new ParamsCacheObject(key, q, displayQ, wkt, bbox);
+        ParamsCacheObject pco = new ParamsCacheObject(key, q, displayQ, wkt, bbox, fqs);
 
         if(pco.getSize() > LARGEST_CACHEABLE_SIZE) {
             throw new ParamsCacheSizeException(pco.getSize());

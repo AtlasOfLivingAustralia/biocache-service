@@ -123,7 +123,11 @@ public class WebportalController /* implements ServletConfigAware*/ {
         //store the title if necessary
         if(title == null)
             title = requestParams.getDisplayString();
-        Long qid= ParamsCache.put(requestParams.getFormattedQuery(), title, requestParams.getWkt(), bb);
+        String[] fqs = requestParams.getFq();
+        if(fqs != null && fqs.length==1 && fqs[0].length()==0){
+            fqs =null;
+        }
+        Long qid= ParamsCache.put(requestParams.getFormattedQuery(), title, requestParams.getWkt(), bb,fqs);
         response.setContentType("text/plain");
         writeBytes(response, qid.toString().getBytes());        
     }

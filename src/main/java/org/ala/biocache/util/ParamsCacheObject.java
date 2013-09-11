@@ -16,10 +16,11 @@ public class ParamsCacheObject {
     double [] bbox;
     long lastUse;
     long size;
+    String[] fqs;
 
     public ParamsCacheObject() {}
 
-    public ParamsCacheObject(long lastUse, String q, String displayString, String wkt, double [] bbox) {
+    public ParamsCacheObject(long lastUse, String q, String displayString, String wkt, double [] bbox, String[] fqs) {
         this.lastUse = lastUse;
         this.q = q;
         this.displayString = displayString;
@@ -96,6 +97,20 @@ public class ParamsCacheObject {
         if(bbox != null) {
             size += 4*4;
         }
+        if(fqs != null){
+            for(String fq:fqs){
+                size += fq.getBytes().length;
+            }
+        }
         size += 8 + 8; //size, lastuse
     }
+
+    public String[] getFqs() {
+        return fqs;
+    }
+
+    public void setFqs(String[] fqs) {
+        this.fqs = fqs;
+    }
+    
 }

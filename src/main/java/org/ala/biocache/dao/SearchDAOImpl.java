@@ -548,7 +548,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             if(includeSensitive){
                 //include raw latitude and longitudes
-                dFields = dFields.replaceFirst("decimalLatitude.p","sensitive_latitude,sensitive_longitude,decimalLatitude.p");
+                dFields = dFields.replaceFirst("decimalLatitude.p","sensitive_latitude,sensitive_longitude,decimalLatitude.p").replaceFirst(",locality,", ",locality,sensitive_locality,");
             }
 
             StringBuilder sb = new StringBuilder(dFields);
@@ -775,7 +775,7 @@ public class SearchDAOImpl implements SearchDAO {
             
             if(includeSensitive){
                 //include raw latitude and longitudes
-                dFields = dFields.replaceFirst("decimalLatitude.p", "decimalLatitude,decimalLongitude,decimalLatitude.p");
+                dFields = dFields.replaceFirst("decimalLatitude.p", "decimalLatitude,decimalLongitude,decimalLatitude.p").replaceFirst(",locality,", ",locality,sensitive_locality,");
             }
             
             StringBuilder  sb = new StringBuilder(dFields);
@@ -1685,6 +1685,16 @@ public class SearchDAOImpl implements SearchDAO {
                         if(pco != null) {
                             searchParams.setQId(qid);
                             searchParams.setQ(pco.getQ());
+                            //add the fqs from the params cache
+                            if(pco.getFqs() != null){
+                                String [] currentFqs = searchParams.getFq();
+                                if(currentFqs == null || (currentFqs.length==1&&currentFqs[0].length()==0)){
+                                    searchParams.setFq(pco.getFqs());
+                                } else{
+                                    //we need to add the current Fqs together
+                                    searchParams.setFq((String[])ArrayUtils.addAll(currentFqs, pco.getFqs()));
+                                }
+                            }
                             String displayString = pco.getDisplayString();
 
                             if(StringUtils.isNotEmpty(pco.getWkt())){
@@ -1847,13 +1857,16 @@ public class SearchDAOImpl implements SearchDAO {
                 if(matcher.find()){
                     String spatial = matcher.group();
                     SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
+                    logger.debug("region Start : " + matcher.regionStart() + " start :  "+ matcher.start() + " spatial length " + spatial.length() + " query length " + query.length());
                     //format the search query of the remaining text only
-                    subQuery.setQ(query.substring(matcher.regionStart() + spatial.length(), query.length()));
+                    subQuery.setQ(query.substring(matcher.start() + spatial.length(), query.length()));
                     //format the remaining query
                     formatSearchQuery(subQuery);
                     
                     //now append Q's together
                     queryString.setLength(0);
+                    //need to include the prefix
+                    queryString.append(query.substring(0, matcher.start()));
                     queryString.append(spatial);
                     queryString.append(subQuery.getFormattedQuery());
                     searchParams.setFormattedQuery(queryString.toString());
