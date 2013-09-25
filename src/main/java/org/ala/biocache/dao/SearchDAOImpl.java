@@ -539,7 +539,9 @@ public class SearchDAOImpl implements SearchDAO {
                                                                          boolean includeSensitive, final DownloadDetailsDTO dd, boolean checkLimit) throws Exception {
         long start = System.currentTimeMillis();
         final Map<String, Integer> uidStats = new HashMap<String, Integer>();
-
+        if(server == null){
+            initServer();
+        }
         try{
             SolrQuery solrQuery = new SolrQuery();
             formatSearchQuery(downloadParams);

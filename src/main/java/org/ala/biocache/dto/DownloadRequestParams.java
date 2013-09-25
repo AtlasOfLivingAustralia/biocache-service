@@ -15,7 +15,11 @@
 
 package org.ala.biocache.dto;
 
+import javax.validation.constraints.NotNull;
+
+import org.ala.biocache.validate.LogType;
 import org.apache.commons.lang.StringUtils;
+import org.hibernate.validator.constraints.Range;
 
 /**
  * Data Transfer Object to represent the request parameters required to download
@@ -37,7 +41,10 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     "taxonomicIssue.p,geospatiallyKosher";
     /** CSV list of extra fields to be added to the download - useful if wish to make use of default list */
     protected String extra = "";
-    protected Integer reasonTypeId = null;
+    
+    @NotNull @LogType(type="reason")//@Range(min=0, max=10)
+    protected Integer reasonTypeId = null;    
+    @LogType(type="source")
     protected Integer sourceTypeId = null;
 
     /**

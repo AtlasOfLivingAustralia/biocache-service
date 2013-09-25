@@ -23,6 +23,7 @@ import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
 
 import au.com.bytecode.opencsv.CSVReader;
 import au.org.ala.biocache.*;
@@ -44,9 +45,14 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.*;
+import org.springframework.web.bind.WebDataBinder;
+import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -91,9 +97,14 @@ public class OccurrenceController extends AbstractSecureController {
     protected AssertionUtils assertionUtils;
     @Inject 
     protected DownloadService downloadService;
+    @Inject
+    private AbstractMessageSource messageSource;
+    @Autowired
+    private Validator validator;
 
     /** Name of view for site home page */
     private String HOME = "homePage";
+    private String VALIDATION_ERROR="error/validationError";
     @Value("${webservicesRoot}")
     protected String hostUrl = "http://localhost:8080/biocache-service";
     protected String bieBaseUrl = "http://bie.ala.org.au/";
@@ -101,6 +112,15 @@ public class OccurrenceController extends AbstractSecureController {
     /** The response to be returned for the isAustralian test */
     protected Pattern austLsidPattern = Pattern.compile("urn:lsid:biodiversity.org.au[a-zA-Z0-9\\.:-]*");
 
+    /**
+     * Need to initialise the validator to be used otherwise the @Valid annotation will not work
+     * @param binder
+     */
+    @InitBinder  
+    protected void initBinder(WebDataBinder binder) {  
+        binder.setValidator(validator);  
+    }
+    
     /**
      * Custom handler for the welcome view.
      * <p>
@@ -432,7 +452,7 @@ public class OccurrenceController extends AbstractSecureController {
         HttpServletRequest request,
         HttpServletResponse response) throws Exception {          
         if(requestParams.getFacets().length > 0){
-            ip = ip == null?request.getRemoteAddr():ip;
+            ip = ip == null?getIPAddress(request):ip;
             DownloadDetailsDTO dd = downloadService.registerDownload(requestParams, ip, DownloadDetailsDTO.DownloadType.FACET);
             try {
                 String filename = requestParams.getFile() != null ? requestParams.getFile():requestParams.getFacets()[0];
@@ -478,19 +498,30 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     @RequestMapping(value = "/occurrences/download/batchFile", method = RequestMethod.GET)
-    public void batchDownload(
+    public String batchDownload(
             HttpServletResponse response,
             HttpServletRequest request,
-            final DownloadRequestParams params,
+            @Valid final DownloadRequestParams params,
+            BindingResult result,
             @RequestParam(value="file", required = true) String filepath,
             @RequestParam(value="directory", required = true, defaultValue = "/data/biocache-exports") final String directory,
-            @RequestParam(value="ip", required=false) String ip
+            @RequestParam(value="ip", required=false) String ip,
+            Model model
             ) throws Exception {
 
+        
+        if(result.hasErrors()){
+            logger.info("validation failed  " + result.getErrorCount() + " checks");
+            logger.debug(result.toString());
+            model.addAttribute("errorMessage", getValidationErrorMessage(result));
+            //response.setStatus(response.SC_INTERNAL_SERVER_ERROR);
+            return VALIDATION_ERROR;//result.toString();
+        }
+        
         final File file = new File(filepath);
 
         final BieService myBieService = this.bieService;
-        ip = ip == null?request.getRemoteAddr():ip;
+        ip = ip == null?getIPAddress(request):ip;
         final DownloadDetailsDTO dd = downloadService.registerDownload(params, ip, DownloadType.RECORDS_INDEX);
 
         if(file.exists()){
@@ -537,6 +568,7 @@ public class OccurrenceController extends AbstractSecureController {
             };
             t.start();
         }
+        return null;
     }
 
     /**
@@ -633,13 +665,25 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping(value = "/occurrences/download*", method = RequestMethod.GET)
     public String occurrenceDownload(
-            DownloadRequestParams requestParams,
+            @Valid DownloadRequestParams requestParams,
+            BindingResult result,
             @RequestParam(value="ip", required=false) String ip,
             @RequestParam(value="apiKey", required=false) String apiKey,
+            Model model,
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
-       
-        ip = ip == null?request.getRemoteAddr():ip;
+        //org.springframework.validation.BindException errors = new org.springframework.validation.BindException(requestParams,"requestParams");
+        //validator.validate(requestParams, errors);
+        //check to see if the DownloadRequestParams are valid
+        if(result.hasErrors()){
+            logger.info("validation failed  " + result.getErrorCount() + " checks");
+            logger.debug(result.toString());
+            model.addAttribute("errorMessage", getValidationErrorMessage(result));
+            //response.setStatus(response.SC_INTERNAL_SERVER_ERROR);
+            return VALIDATION_ERROR;//result.toString();
+        }
+        
+        ip = ip == null?getIPAddress(request):ip;//request.getRemoteAddr():ip;
         ServletOutputStream out = response.getOutputStream();
         //search params must have a query or formatted query for the downlaod to work
         if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
@@ -654,27 +698,38 @@ public class OccurrenceController extends AbstractSecureController {
     }
     
     @RequestMapping(value = "/occurrences/index/download*", method = RequestMethod.GET)
-    public void occurrenceIndexDownload(DownloadRequestParams requestParams,
+    public String occurrenceIndexDownload(@Valid DownloadRequestParams requestParams,
+            BindingResult result,
             @RequestParam(value="apiKey", required=false) String apiKey,
             @RequestParam(value="ip", required=false) String ip,
+            Model model,
             HttpServletResponse response,
             HttpServletRequest request) throws Exception{
         
-        ip = ip == null ? request.getRemoteAddr() : ip;
+        if(result.hasErrors()){
+            logger.info("validation failed  " + result.getErrorCount() + " checks");
+            logger.debug(result.toString());
+            model.addAttribute("errorMessage", getValidationErrorMessage(result));
+            //response.setStatus(response.SC_INTERNAL_SERVER_ERROR);
+            return VALIDATION_ERROR;//result.toString();
+        }
+        
+        ip = ip == null ? getIPAddress(request) : ip;
         ServletOutputStream out = response.getOutputStream();
         //search params must have a query or formatted query for the downlaod to work
         if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
-            return;
+            return null;
         }
         if(apiKey != null){
             occurrenceSensitiveDownload(requestParams, apiKey, ip, true, response, request);
-            return;
+            return null;
         }
         try {
            downloadService.writeQueryToStream(requestParams, response, ip, out, false,true);
         } catch(Exception e){
             logger.error(e.getMessage(), e);
         }
+        return null;
     }
     
     //@RequestMapping(value = "/sensitive/occurrences/download*", method = RequestMethod.GET)
@@ -688,7 +743,7 @@ public class OccurrenceController extends AbstractSecureController {
        
         
         if(shouldPerformOperation(apiKey, response, false)){        
-            ip = ip == null?request.getRemoteAddr():ip;
+            ip = ip == null?getIPAddress(request):ip;
             ServletOutputStream out = response.getOutputStream();
             //search params must have a query or formatted query for the downlaod to work
             if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
@@ -699,8 +754,17 @@ public class OccurrenceController extends AbstractSecureController {
         }
         return null;
     }    
-
-
+    /**
+     * Returns the IP address for the supplied request. It will look for the existence of 
+     * an X-Forwarded-For Header before extracting it from the request.
+     * @param request
+     * @return IP Address of the request
+     */
+    private String getIPAddress(HttpServletRequest request){
+        //check to see if proxied.
+        String forwardedFor=request.getHeader("X-Forwarded-For");
+        return forwardedFor == null ? request.getRemoteAddr(): forwardedFor;
+    }
 
 
 
@@ -852,7 +916,7 @@ public class OccurrenceController extends AbstractSecureController {
             @RequestParam(value="apiKey", required=false) String apiKey,
             @RequestParam(value="ip", required=false) String ip,
         HttpServletRequest request, HttpServletResponse response) throws Exception {
-        ip = ip == null?request.getRemoteAddr():ip;
+        ip = ip == null?getIPAddress(request):ip;
         if(apiKey != null){
             return showSensitiveOccurrence(uuid, apiKey, ip, request, response);
         }
@@ -864,7 +928,7 @@ public class OccurrenceController extends AbstractSecureController {
             @RequestParam(value="apiKey", required=true) String apiKey,
             @RequestParam(value="ip", required=false) String ip,
         HttpServletRequest request,HttpServletResponse response) throws Exception {
-        ip = ip == null?request.getRemoteAddr():ip;
+        ip = ip == null?getIPAddress(request):ip;
         if(shouldPerformOperation(apiKey, response)){
             return getOccurrenceInformation(uuid, ip, request, true);
         }
@@ -965,6 +1029,28 @@ public class OccurrenceController extends AbstractSecureController {
 
         LogEventVO vo = new LogEventVO(LogEventType.OCCURRENCE_RECORDS_VIEWED, email, reason, ip, uidStats);
         logger.log(RestLevel.REMOTE, vo);
+    }
+    /**
+     * Constructs an error message to be displayed. The error message is based on validation checks that 
+     * were performed and stored in the supplied result.
+     * 
+     * TODO: If we decide to perform more detailed validations elsewhere it maybe worth providing this in a
+     * util or service class.
+     * 
+     * @param result The result from the validation.
+     * @return A string representation that can be displayed in a browser.
+     */
+    private String getValidationErrorMessage(BindingResult result){
+        StringBuilder sb = new StringBuilder();
+        List<ObjectError> errors =result.getAllErrors();
+        for(ObjectError error :errors){
+            logger.info("Code:: " + error.getCode());
+            logger.info(StringUtils.join(error.getCodes(),"@#$^"));
+            String code = (error.getCodes() != null && error.getCodes().length>0)? error.getCodes()[0]:null;
+            logger.info("The code in use:" + code);
+            sb.append(messageSource.getMessage(code, null, error.getDefaultMessage(),null)).append("<br/>");
+        }
+        return sb.toString();
     }
 
     private List<MediaDTO> getSoundDtos(OccurrenceDTO occ) {
