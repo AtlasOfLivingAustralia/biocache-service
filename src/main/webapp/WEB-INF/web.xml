@@ -43,7 +43,7 @@
         <param-value>file:/data/biocache/config/applicationContext.xml</param-value>
     </context-param>
 
-
+<!-- 20130926:  This filter needs to be applied first so that URLs are encoded correctly for tomcat -->
     <filter>
         <filter-name>encodingFilter</filter-name>
         <filter-class>
