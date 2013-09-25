@@ -26,7 +26,9 @@
 	<dependency>
 		<groupId>org.hibernate</groupId>
 		<artifactId>hibernate-validator</artifactId>
-		<version>5.0.1.Final</version>
+		<version>4.3.1.Final</version>
+		<!--  version 5.0.1 is incompatible with tomcat 6 due to el 2.1 being used. -->
+		<!-- <version>5.0.1.Final</version> -->
 	</dependency>
   
     <!-- ALA header and tails -->
