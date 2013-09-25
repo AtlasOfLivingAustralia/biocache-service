@@ -12,6 +12,9 @@
   
   <context:property-override location="classpath:biocache.properties" ignore-unresolvable="true" ignore-resource-not-found="true" />
 
+<bean id="validator"
+      class="org.springframework.validation.beanvalidation.LocalValidatorFactoryBean"/>
+
   <bean id="restfulClient" class="org.ala.client.util.RestfulClient"/>
         <bean class="org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter">
         <property name="messageConverters">

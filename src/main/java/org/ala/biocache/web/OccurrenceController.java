@@ -1044,10 +1044,10 @@ public class OccurrenceController extends AbstractSecureController {
         StringBuilder sb = new StringBuilder();
         List<ObjectError> errors =result.getAllErrors();
         for(ObjectError error :errors){
-            logger.info("Code:: " + error.getCode());
-            logger.info(StringUtils.join(error.getCodes(),"@#$^"));
+            logger.debug("Code: " + error.getCode());
+            logger.debug(StringUtils.join(error.getCodes(),"@#$^"));
             String code = (error.getCodes() != null && error.getCodes().length>0)? error.getCodes()[0]:null;
-            logger.info("The code in use:" + code);
+            logger.debug("The code in use:" + code);
             sb.append(messageSource.getMessage(code, null, error.getDefaultMessage(),null)).append("<br/>");
         }
         return sb.toString();
