@@ -26,6 +26,7 @@ import org.ala.client.model.LogEventVO;
 import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
@@ -54,6 +55,9 @@ public class DownloadService {
     private EmailService emailService;
     @Inject
     private AbstractMessageSource messageSource;
+    //default value is supplied for the property below
+    @Value("${webservicesRoot:http://localhost:8080/biocache-service}")
+    protected String webservicesRoot = "http://localhost:8080/biocache-service";
     /**
      * Stores the current list of downloads that are being performed.
      */
@@ -120,6 +124,7 @@ public class DownloadService {
      */
     private void writeQueryToStream(DownloadDetailsDTO dd,DownloadRequestParams requestParams, String ip, OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit) throws Exception {
         String filename = requestParams.getFile();
+        String originalParams = requestParams.toString();
         //Use a zip output stream to include the data and citation together in the download
         ZipOutputStream zop = new ZipOutputStream(out);
         zop.putNextEntry(new java.util.zip.ZipEntry(filename + ".csv"));
@@ -155,10 +160,13 @@ public class DownloadService {
         }
         zop.flush();
         zop.close();
+        
+        //now construct the sourceUrl for the log event
+        String sourceUrl = originalParams.contains("qid:")? webservicesRoot +"?"+ requestParams.toString(): webservicesRoot +"?"+ originalParams;
 
         //logger.debug("UID stats : " + uidStats);
         //log the stats to ala logger        
-        LogEventVO vo = new LogEventVO(1002,requestParams.getReasonTypeId(), requestParams.getSourceTypeId(), requestParams.getEmail(), requestParams.getReason(), ip,null, uidStats);        
+        LogEventVO vo = new LogEventVO(1002,requestParams.getReasonTypeId(), requestParams.getSourceTypeId(), requestParams.getEmail(), requestParams.getReason(), ip,null, uidStats, sourceUrl);        
         logger.log(RestLevel.REMOTE, vo);
     }
     
