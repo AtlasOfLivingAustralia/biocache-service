@@ -24,6 +24,9 @@ public class FilterQueryParserTest {
   @Inject SearchDAO searchDao;
   protected Map<String, Facet> facetMap = null;
 
+  @Inject 
+  protected CollectionsCache collectionCache;
+
   @Before
   public void setUp() throws Exception {
       String[] fqs = {"species_guid:urn:lsid:biodiversity.org.au:afd.taxon:2482313b-9d1e-4694-8f51-795213c8bb56",
@@ -32,6 +35,8 @@ public class FilterQueryParserTest {
                       "occurrence_year:[1940-01-01T00:00:00Z%20TO%201949-12-31T00:00:00Z]",
                       "collector:\"Copland, S J\" OR collector:\"Sadlier, R.\" OR collector:\"Mcreaddie, W\" OR collector:\"Rollo, G\" OR collector:\"Harlow, Pete\"",
                       "month:09 OR month:10 OR month:11"};
+      //update the collections cache - necessary because this is on a timer 
+      collectionCache.updateCache();
       facetMap = searchUtils.addFacetMap(fqs, ((SearchDAOImpl)searchDao).getAuthIndexFields());
       System.out.println(facetMap);
   }
