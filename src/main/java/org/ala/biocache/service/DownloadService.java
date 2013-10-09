@@ -127,7 +127,8 @@ public class DownloadService {
         String originalParams = requestParams.toString();
         //Use a zip output stream to include the data and citation together in the download
         ZipOutputStream zop = new ZipOutputStream(out);
-        zop.putNextEntry(new java.util.zip.ZipEntry(filename + ".csv"));
+        String suffix = requestParams.getFileType().equals("shp")?"zip":requestParams.getFileType(); 
+        zop.putNextEntry(new java.util.zip.ZipEntry(filename + "." +suffix));
         //put the facets
         requestParams.setFacets(new String[]{"assertions", "data_resource_uid"});
         Map<String, Integer> uidStats = null;
@@ -146,6 +147,18 @@ public class DownloadService {
         //add the Readme for the data field descriptions
         zop.putNextEntry(new java.util.zip.ZipEntry("README.html"));
         zop.write(("For more information about the fields that are being downloaded please consult <a href='" +dataFieldDescriptionURL+"'>Download Fields</a>.").getBytes());
+        
+        //add the readme for the Shape file header mappings if necessary
+        if(dd.getHeaderMap() !=null){
+            zop.putNextEntry(new java.util.zip.ZipEntry("Shape-README.html"));
+            zop.write(("The name of features is limited to 10 characters. Listed below are the mappings of feature name to download field:").getBytes());
+            zop.write(("<table><td><b>Feature</b></td><td><b>Download Field<b></td>").getBytes());
+            for(String key:dd.getHeaderMap().keySet()){
+                zop.write(("<tr><td>"+key+"</td><td>"+dd.getHeaderMap().get(key)+"</td></tr>").getBytes());
+            }
+            zop.write(("</table>").getBytes());
+            //logger.debug("JSON::: " + objectMapper.writeValueAsString(dd));
+        }
         
         //Add the data citation to the download
         if (uidStats != null &&!uidStats.isEmpty()) {
