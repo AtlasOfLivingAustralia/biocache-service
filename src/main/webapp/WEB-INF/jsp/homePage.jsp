@@ -125,6 +125,8 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <li><strong>file</strong> - the name to use for the fileto download</li>
                     <li><strong>fields</strong> - a CSV list of fields to include in the download (contains a list of default)</li>
                     <li><strong>extra</strong> - a CSV list of fields in include in addition to the "fields"</li>
+                    <li><strong>reasonTypeId</strong> - a mandatory value that indicates the reason for the download. See <a href="http://logger.ala.org.au/service/logger/reasons">reasons</a> for valid id's
+                    <li><strong>fileType</strong> - the file format for the download. Valid values are csv and shp. If no value is supplied csv is assumed.
                 </ul>
                 <p>
                     Example: <a href="${webservicesRoot}/occurrences/download?q=genus:Macropus">/occurrences/download?q=genus:Macropus</a>
