@@ -16,6 +16,7 @@
 package org.ala.biocache.dto;
 
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Pattern;
 
 import org.ala.biocache.validate.LogType;
 import org.apache.commons.lang.StringUtils;
@@ -46,6 +47,9 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     protected Integer reasonTypeId = null;    
     @LogType(type="source")
     protected Integer sourceTypeId = null;
+    //The file type for the download file."shp" or "csv"
+    @Pattern(regexp="(csv|shp)")
+    protected String fileType="csv";
 
     /**
      * Custom toString method to produce a String to be used as the request parameters
@@ -61,11 +65,16 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
         req.append("&file=").append(file);
         req.append("&fields=").append(fields);
         req.append("&extra=").append(extra);
-        if(reasonTypeId != null)
+        if(reasonTypeId != null) {
             req.append("&reasonTypeId=").append(reasonTypeId);
-        if(sourceTypeId != null)
+        }
+        if(sourceTypeId != null) {
             req.append("&sourceTypeId=").append(sourceTypeId);
-
+        } 
+        if(!"csv".equals(fileType)){
+            req.append("&fileType=").append(fileType);
+        }
+        
         return req.toString();
     }
 
@@ -148,4 +157,19 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     public void setSourceTypeId(Integer sourceTypeId) {
         this.sourceTypeId = sourceTypeId;
     }
+
+    /**
+     * @return the fileType
+     */
+    public String getFileType() {
+        return fileType;
+    }
+
+    /**
+     * @param fileType the fileType to set
+     */
+    public void setFileType(String fileType) {
+        this.fileType = fileType;
+    }
+    
 }

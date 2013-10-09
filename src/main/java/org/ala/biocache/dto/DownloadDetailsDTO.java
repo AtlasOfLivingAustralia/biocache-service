@@ -1,6 +1,7 @@
 package org.ala.biocache.dto;
 
 import java.util.Date;
+import java.util.Map;
 
 import org.codehaus.jackson.annotate.JsonIgnore;
 
@@ -24,6 +25,7 @@ public class DownloadDetailsDTO {
     private DownloadRequestParams requestParams;
     private String fileLocation;
     private boolean includeSensitive=false;
+    private Map<String,String> headerMap=null;
     
     /**
      * Default constructor necessary for Jackson to create an object from the JSON. 
@@ -168,6 +170,20 @@ public class DownloadDetailsDTO {
      */
     public void setIpAddress(String ipAddress) {
         this.ipAddress = ipAddress;
+    }
+
+    /**
+     * @return the headerMap
+     */
+    @JsonIgnore //don't want to display this in the status...
+    public Map<String, String> getHeaderMap() {
+        return headerMap;
+    }
+    /**
+     * @param headerMap the headerMap to set
+     */
+    public void setHeaderMap(Map<String, String> headerMap) {
+        this.headerMap = headerMap;
     }
 
 

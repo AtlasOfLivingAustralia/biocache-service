@@ -96,6 +96,7 @@ import org.ala.biocache.util.LegendItem;
 import org.ala.biocache.util.ParamsCache;
 import org.ala.biocache.util.ParamsCacheObject;
 import org.ala.biocache.util.thread.EndemicCallable;
+import org.ala.biocache.writer.*;
 import org.ala.biocache.service.AuthService;
 import org.apache.solr.client.solrj.SolrServer;
 
@@ -607,7 +608,13 @@ public class SearchDAOImpl implements SearchDAO {
             String[] qaTitles = downloadFields.getHeader(qaFields, false);
 
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[2].toArray(new String[]{}),qaTitles);
-            final au.org.ala.biocache.RecordWriter rw = new org.ala.biocache.writer.CSVRecordWriter(out, header);
+            
+            //construct correct RecordWriter based on the supplied fileType
+            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv")? new CSVRecordWriter(out, header) : new ShapeFileRecordWriter(downloadParams.getFile(), out, (String[])ArrayUtils.addAll(fields, qaFields));
+            
+            if(rw instanceof ShapeFileRecordWriter){
+                dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
+            }
             
             //order the query by _docid_ for faster paging
             solrQuery.addSortField("_docid_", ORDER.asc);
@@ -679,7 +686,7 @@ public class SearchDAOImpl implements SearchDAO {
             while(!allComplete){
                 for(Future future: futures){
                     if(!completeFutures.contains(future)){
-                        if(future.isDone()){
+                        if(future.isDone()){                            
                             totalDownload += (Integer) future.get();
                             completeFutures.add(future);
                         }
@@ -813,7 +820,13 @@ public class SearchDAOImpl implements SearchDAO {
             String[] titles = downloadFields.getHeader(fields,true);
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(titles,qaTitles);
             //Create the Writer that will be used to format the records
-            au.org.ala.biocache.RecordWriter rw = new org.ala.biocache.writer.CSVRecordWriter(out, header);
+            //construct correct RecordWriter based on the supplied fileType
+            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv")? new CSVRecordWriter(out, header) : new ShapeFileRecordWriter(downloadParams.getFile(), out, (String[])ArrayUtils.addAll(fields, qaFields));
+            
+            if(rw instanceof ShapeFileRecordWriter){
+                dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
+            }
+            
 
             //download the records that have limits first...
             if(downloadLimit.size() > 0){
