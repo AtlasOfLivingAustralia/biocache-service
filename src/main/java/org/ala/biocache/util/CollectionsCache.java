@@ -21,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import javax.inject.Inject;
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
@@ -52,6 +53,9 @@ public class CollectionsCache {
     protected Date lastDownloadLimitUpdate = new Date();
     protected Long timeout = 3600000L; // in milliseconds (1 hour)
     protected String collectoryUriPrefix = "http://collections.ala.org.au";
+    //NC 20131018: Allow cache to be disabled via config (enabled by default)
+    @Value("${caches.collections.enabled:true}")
+    protected Boolean enabled =null;
     /** Spring injected RestTemplate object */
     @Inject
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
@@ -153,15 +157,19 @@ public class CollectionsCache {
      */
     @Scheduled(fixedDelay = 3600000L) //every hour
     public void updateCache() {
-        logger.info("Updating collectory cache...");
-        
-        this.collections = getCodesMap(ResourceType.COLLECTION, collection_uid);
-        this.institutions = getCodesMap(ResourceType.INSTITUTION, institution_uid);
-        this.dataResources = getCodesMap(ResourceType.DATA_RESOURCE,data_resource_uid);
-        this.dataProviders = getCodesMap(ResourceType.DATA_PROVIDER, data_provider_uid);
-        this.tempDataResources = getCodesMap(ResourceType.TEMP_DATA_RESOURCE,null);
-        this.dataHubs = getCodesMap(ResourceType.DATA_HUB, data_hub_uid);
-        this.dataResources.putAll(tempDataResources);
+        if(enabled){
+            logger.info("Updating collectory cache...");
+            
+            this.collections = getCodesMap(ResourceType.COLLECTION, collection_uid);
+            this.institutions = getCodesMap(ResourceType.INSTITUTION, institution_uid);
+            this.dataResources = getCodesMap(ResourceType.DATA_RESOURCE,data_resource_uid);
+            this.dataProviders = getCodesMap(ResourceType.DATA_PROVIDER, data_provider_uid);
+            this.tempDataResources = getCodesMap(ResourceType.TEMP_DATA_RESOURCE,null);
+            this.dataHubs = getCodesMap(ResourceType.DATA_HUB, data_hub_uid);
+            this.dataResources.putAll(tempDataResources);
+        } else{
+            logger.info("Collectory cache has been disabled");
+        }
         
     }
     

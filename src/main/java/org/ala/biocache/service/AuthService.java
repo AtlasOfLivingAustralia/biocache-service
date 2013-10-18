@@ -49,6 +49,9 @@ public class AuthService {
     protected String userNamesForIdPath = null;
     @Value("${auth.userNamesForNumericIdPath}")
     protected String userNamesForNumericIdPath = null;
+    //NC 20131018: Allow cache to be disabled via config (enabled by default)
+    @Value("${caches.auth.enabled:true}")
+    protected Boolean enabled =null;
     // Keep a reference to the output Map in case subsequent web service lookups fail
     protected Map<String, String> userNamesById = new HashMap<String, String>();
     protected Map<String, String> userNamesByNumericIds = new HashMap<String, String>();
@@ -137,10 +140,14 @@ public class AuthService {
     @Scheduled(fixedDelay = 600000) // schedule to run every 10 min
     //@Async NC 2013-07-29: Disabled the Async so that we don't get bombarded with calls.
     public void reloadCaches() {
-        logger.info("Triggering reload of auth user names");               
-        loadMapOfAllUserNamesById();
-        loadMapOfAllUserNamesByNumericId();
-        loadMapOfEmailToUserId();
-        logger.info("Finished reload of auth user names");
+        if(enabled){
+            logger.info("Triggering reload of auth user names");               
+            loadMapOfAllUserNamesById();
+            loadMapOfAllUserNamesByNumericId();
+            loadMapOfEmailToUserId();
+            logger.info("Finished reload of auth user names");
+        } else{
+            logger.info("Authentication Cache has been disabled");
+        }
     }
 }

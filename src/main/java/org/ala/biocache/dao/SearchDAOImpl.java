@@ -130,7 +130,7 @@ public class SearchDAOImpl implements SearchDAO {
     private String spatialField = "geohash";
     
     //Patterns that are used to prepare a SOLR query for execution
-    protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9\\.:-_]*)\"?");
+    protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9\\.:\\-_]*)\"?");
     protected Pattern urnPattern = Pattern.compile("urn:[a-zA-Z0-9\\.:-]*");
     protected Pattern spacesPattern = Pattern.compile("[^\\s\"\\(\\)\\[\\]{}']+|\"[^\"]*\"|'[^']*'");
     protected Pattern uidPattern = Pattern.compile("(?:[\"]*)?([a-z_]*_uid:)([a-z0-9]*)(?:[\"]*)?");

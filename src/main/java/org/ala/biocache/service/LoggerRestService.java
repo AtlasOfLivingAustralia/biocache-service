@@ -15,6 +15,7 @@
 package org.ala.biocache.service;
 
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
@@ -40,6 +41,9 @@ public class LoggerRestService implements LoggerService {
     private List<Map<String,Object>> loggerSources;
     private List<Integer> reasonIds;
     private List<Integer> sourceIds;
+    //NC 20131018: Allow cache to be disabled via config (enabled by default)
+    @Value("${caches.log.enabled:true}")
+    protected Boolean enabled =null;
     @Inject
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
 
@@ -67,11 +71,28 @@ public class LoggerRestService implements LoggerService {
     //Use a fixed delay so that the next time it is run depends on the last time it finished
     @Scheduled(fixedDelay = 43200000)// schedule to run every 12 hours
     public void reloadCache(){
-        loggerReasons = getEntities(LoggerType.reasons);
-        loggerSources = getEntities(LoggerType.sources);
-        //now get the ids
-        reasonIds = getIdList(loggerReasons);
-        sourceIds = getIdList(loggerSources);
+        if(enabled){
+            logger.info("Refreshing the log sources and reasons");
+            loggerReasons = getEntities(LoggerType.reasons);
+            loggerSources = getEntities(LoggerType.sources);
+            //now get the ids
+            reasonIds = getIdList(loggerReasons);
+            sourceIds = getIdList(loggerSources);
+        } else{
+            if(reasonIds== null){
+                logger.info("Providing some sensible default values for the log cache");
+                reasonIds = new ArrayList<Integer>();
+                sourceIds = new ArrayList<Integer>();
+                //provide sensible defaults for the ID lists
+                for(Integer i = 0 ; i<11;i++){
+                    reasonIds.add(i);
+                    if(i<8){
+                        sourceIds.add(i);
+                    }
+                }
+                
+            }
+        }
     }
     /**
      * Generates an id list from the supplied list

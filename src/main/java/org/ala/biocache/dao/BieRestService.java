@@ -17,6 +17,7 @@ package org.ala.biocache.dao;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
@@ -39,6 +40,11 @@ public class BieRestService implements BieService {
     /** URI prefix for bie-service - may be overridden in properties file */
     protected String bieUriPrefix = "http://bie.ala.org.au/ws";
 
+    
+    //NC 20131018: Allow service to be disabled via config (enabled by default)
+    @Value("${service.bie.enabled:true}")
+    protected Boolean enabled;
+    
     private final static Logger logger = Logger.getLogger(BieRestService.class);
     
     /**
@@ -50,23 +56,25 @@ public class BieRestService implements BieService {
     @Override
     public String getGuidForName(String name) {
         String guid = null;
-        
-        try {
-            final String jsonUri = bieUriPrefix + "/ws/guid/" + name;            
-            logger.info("Requesting: " + jsonUri);
-            List<Object> jsonList = restTemplate.getForObject(jsonUri, List.class);
+        if(enabled){
             
-            if (!jsonList.isEmpty()) {
-                Map<String, String> jsonMap = (Map<String, String>) jsonList.get(0);
+            try {
+                final String jsonUri = bieUriPrefix + "/ws/guid/" + name;            
+                logger.info("Requesting: " + jsonUri);
+                List<Object> jsonList = restTemplate.getForObject(jsonUri, List.class);
                 
-                if (jsonMap.containsKey("acceptedIdentifier")) {
-                    guid = jsonMap.get("acceptedIdentifier");
+                if (!jsonList.isEmpty()) {
+                    Map<String, String> jsonMap = (Map<String, String>) jsonList.get(0);
+                    
+                    if (jsonMap.containsKey("acceptedIdentifier")) {
+                        guid = jsonMap.get("acceptedIdentifier");
+                    }
                 }
+                
+            } catch (Exception ex) {
+                logger.error("RestTemplate error: " + ex.getMessage(), ex);
+                //searchResults.setStatus("Error: " + ex.getMessage());
             }
-            
-        } catch (Exception ex) {
-            logger.error("RestTemplate error: " + ex.getMessage(), ex);
-            //searchResults.setStatus("Error: " + ex.getMessage());
         }
         
         return guid;
@@ -80,19 +88,20 @@ public class BieRestService implements BieService {
     @Override
     public String getAcceptedNameForGuide(String guid) {
         String acceptedName = "";
-
-        try {
-            final String jsonUri = bieUriPrefix + "/species/shortProfile/" + guid + ".json";
-            logger.info("Requesting: " + jsonUri);
-            Map<String, String> jsonMap = restTemplate.getForObject(jsonUri, Map.class);
-
-            if (jsonMap.containsKey("scientificName")) {
-                acceptedName = jsonMap.get("scientificName");
+        if(enabled){
+            try {
+                final String jsonUri = bieUriPrefix + "/species/shortProfile/" + guid + ".json";
+                logger.info("Requesting: " + jsonUri);
+                Map<String, String> jsonMap = restTemplate.getForObject(jsonUri, Map.class);
+    
+                if (jsonMap.containsKey("scientificName")) {
+                    acceptedName = jsonMap.get("scientificName");
+                }
+    
+            } catch (Exception ex) {
+                logger.error("RestTemplate error: " + ex.getMessage(), ex);
+                //searchResults.setStatus("Error: " + ex.getMessage());
             }
-
-        } catch (Exception ex) {
-            logger.error("RestTemplate error: " + ex.getMessage(), ex);
-            //searchResults.setStatus("Error: " + ex.getMessage());
         }
 
         return acceptedName;
@@ -108,15 +117,16 @@ public class BieRestService implements BieService {
     @Override
     public List<String> getNamesForGuids(List<String> guids) {
         List<String> names = null;
-
-        try {
-            final String jsonUri = bieUriPrefix + "/species/namesFromGuids.json";
-            String params = "?guid=" + StringUtils.join(guids, "&guid=");
-            names = restTemplate.postForObject(jsonUri + params, null, List.class);
-        } catch (Exception ex) {
-            logger.error("Requested URI: " + bieUriPrefix + "/species/namesFromGuids.json");
-            logger.error("With POST body: guid=" + StringUtils.join(guids, "&guid="));
-            logger.error("RestTemplate error: " + ex.getMessage(), ex);
+        if(enabled){
+            try {
+                final String jsonUri = bieUriPrefix + "/species/namesFromGuids.json";
+                String params = "?guid=" + StringUtils.join(guids, "&guid=");
+                names = restTemplate.postForObject(jsonUri + params, null, List.class);
+            } catch (Exception ex) {
+                logger.error("Requested URI: " + bieUriPrefix + "/species/namesFromGuids.json");
+                logger.error("With POST body: guid=" + StringUtils.join(guids, "&guid="));
+                logger.error("RestTemplate error: " + ex.getMessage(), ex);
+            }
         }
         
         return names;
