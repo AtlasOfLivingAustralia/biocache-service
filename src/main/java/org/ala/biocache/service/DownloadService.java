@@ -58,6 +58,10 @@ public class DownloadService {
     //default value is supplied for the property below
     @Value("${webservicesRoot:http://localhost:8080/biocache-service}")
     protected String webservicesRoot = "http://localhost:8080/biocache-service";
+    //NC 20131018: Allow citations to be disabled via config (enabled by default)
+    @Value("${citations.enabled:true}")
+    protected Boolean citationsEnabled;
+    
     /**
      * Stores the current list of downloads that are being performed.
      */
@@ -161,7 +165,7 @@ public class DownloadService {
         }
         
         //Add the data citation to the download
-        if (uidStats != null &&!uidStats.isEmpty()) {
+        if (uidStats != null &&!uidStats.isEmpty() && citationsEnabled) {
             //add the citations for the supplied uids
             zop.putNextEntry(new java.util.zip.ZipEntry("citation.csv"));
             try {
@@ -170,6 +174,8 @@ public class DownloadService {
                 logger.error(e.getMessage(),e);
             }
             zop.closeEntry();
+        } else {
+            logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " +uidStats);
         }
         zop.flush();
         zop.close();
@@ -207,28 +213,30 @@ public class DownloadService {
      * @throws IOException
      */
     public void getCitations(Map<String, Integer> uidStats, OutputStream out) throws IOException{
-        if(uidStats == null || uidStats.isEmpty() || out == null){
-            throw new NullPointerException("keys and/or out is null!!");
-        }
-        
-        //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
-        List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl, uidStats.keySet(), List.class);
-        if(entities.size()>0){
-            out.write("\"Data resource ID\",\"Data resource\",\"Citation\",\"Rights\",\"More information\",\"Data generalizations\",\"Information withheld\",\"Download limit\",\"Number of Records in Download\"\n".getBytes());
-            for(Map<String,Object> record : entities){
-                StringBuilder sb = new StringBuilder();
-                sb.append("\"").append(record.get("uid")).append("\",");
-                sb.append("\"").append(record.get("name")).append("\",");
-                sb.append("\"").append(record.get("citation")).append("\",");
-                sb.append("\"").append(record.get("rights")).append("\",");
-                sb.append("\"").append(record.get("link")).append("\",");
-                sb.append("\"").append(record.get("dataGeneralizations")).append("\",");
-                sb.append("\"").append(record.get("informationWithheld")).append("\",");
-                sb.append("\"").append(record.get("downloadLimit")).append("\",");
-                String count = uidStats.get(record.get("uid")).toString();
-                sb.append("\"").append(count).append("\"");
-                sb.append("\n");
-                out.write(sb.toString().getBytes());
+        if(citationsEnabled){
+            if(uidStats == null || uidStats.isEmpty() || out == null){
+                throw new NullPointerException("keys and/or out is null!!");
+            }
+            
+            //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
+            List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl, uidStats.keySet(), List.class);
+            if(entities.size()>0){
+                out.write("\"Data resource ID\",\"Data resource\",\"Citation\",\"Rights\",\"More information\",\"Data generalizations\",\"Information withheld\",\"Download limit\",\"Number of Records in Download\"\n".getBytes());
+                for(Map<String,Object> record : entities){
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("\"").append(record.get("uid")).append("\",");
+                    sb.append("\"").append(record.get("name")).append("\",");
+                    sb.append("\"").append(record.get("citation")).append("\",");
+                    sb.append("\"").append(record.get("rights")).append("\",");
+                    sb.append("\"").append(record.get("link")).append("\",");
+                    sb.append("\"").append(record.get("dataGeneralizations")).append("\",");
+                    sb.append("\"").append(record.get("informationWithheld")).append("\",");
+                    sb.append("\"").append(record.get("downloadLimit")).append("\",");
+                    String count = uidStats.get(record.get("uid")).toString();
+                    sb.append("\"").append(count).append("\"");
+                    sb.append("\n");
+                    out.write(sb.toString().getBytes());
+                }
             }
         }
     }
