@@ -568,8 +568,15 @@ public class SearchDAOImpl implements SearchDAO {
             //set the fields to the ones that are available in the index
             final String[] fields = indexedFields[0].toArray(new String[]{});
             solrQuery.setFields(fields);
-            solrQuery.addField("assertions")
-                .addField("institution_uid")
+            StringBuilder qasb = new StringBuilder();
+            if(!"none".equals(downloadParams.getQa())){
+                solrQuery.addField("assertions"); 
+                if(!"all".equals(downloadParams.getQa())){
+                    //add all the qa fields
+                    qasb.append(downloadParams.getQa());
+                }
+            } 
+                solrQuery.addField("institution_uid")
                 .addField("collection_uid")
                 .addField("data_resource_uid")
                 .addField("data_provider_uid");
@@ -579,7 +586,7 @@ public class SearchDAOImpl implements SearchDAO {
             solrQuery.setQuery(buildSpatialQueryString(downloadParams));
 
             //get the assertion facets to add them to the download fields
-            SolrQuery monthAssertionsQuery = solrQuery.getCopy().addFacetField("month", "assertions");
+            SolrQuery monthAssertionsQuery = "all".equals(downloadParams.getQa())?solrQuery.getCopy().addFacetField("month", "assertions"):solrQuery.getCopy().addFacetField("month");
             QueryResponse facetQuery = runSolrQuery(monthAssertionsQuery, downloadParams.getFq(), 0, 0, "score", "asc");
             
             //set the totalrecords for the download details
@@ -589,7 +596,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
             //get the month facets to add them to the download fields get the assertion facets.
             List<Count> splitByFacet = null;
-            StringBuilder qasb = new StringBuilder();
+           
             for(FacetField facet : facetQuery.getFacetFields()){
                 if(facet.getName().equals("assertions") && facet.getValueCount()>0){
                    for(FacetField.Count facetEntry : facet.getValues()){

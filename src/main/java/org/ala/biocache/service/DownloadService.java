@@ -134,7 +134,11 @@ public class DownloadService {
         String suffix = requestParams.getFileType().equals("shp")?"zip":requestParams.getFileType(); 
         zop.putNextEntry(new java.util.zip.ZipEntry(filename + "." +suffix));
         //put the facets
-        requestParams.setFacets(new String[]{"assertions", "data_resource_uid"});
+        if("all".equals(requestParams.getQa())){
+            requestParams.setFacets(new String[]{"assertions", "data_resource_uid"});
+        } else{
+            requestParams.setFacets(new String[]{"data_resource_uid"});
+        }
         Map<String, Integer> uidStats = null;
         try {
             if(fromIndex)

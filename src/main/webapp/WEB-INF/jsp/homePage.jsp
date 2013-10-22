@@ -127,6 +127,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
                     <li><strong>extra</strong> - a CSV list of fields in include in addition to the "fields"</li>
                     <li><strong>reasonTypeId</strong> - a mandatory value that indicates the reason for the download. See <a href="http://logger.ala.org.au/service/logger/reasons">reasons</a> for valid id's
                     <li><strong>fileType</strong> - the file format for the download. Valid values are csv and shp. If no value is supplied csv is assumed.
+                    <li><strong>qa</strong> - A CSV list of record issues to include in the download.  By default it will include all applicable issues. To include no issue supply none as the value (eg &qa=none) 
                 </ul>
                 <p>
                     Example: <a href="${webservicesRoot}/occurrences/download?q=genus:Macropus">/occurrences/download?q=genus:Macropus</a>
