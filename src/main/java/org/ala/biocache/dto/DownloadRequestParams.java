@@ -42,6 +42,8 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     "taxonomicIssue.p,geospatiallyKosher";
     /** CSV list of extra fields to be added to the download - useful if wish to make use of default list */
     protected String extra = "";
+    /** the CSV list of issue types to include in the download, defaults to all. Also supports none. */
+    protected String qa="all";
     
     @NotNull @LogType(type="reason")//@Range(min=0, max=10)
     protected Integer reasonTypeId = null;    
@@ -73,6 +75,9 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
         } 
         if(!"csv".equals(fileType)){
             req.append("&fileType=").append(fileType);
+        }
+        if(!"all".equals(qa)){
+            req.append("&qa=").append(qa);
         }
         
         return req.toString();
@@ -170,6 +175,20 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
      */
     public void setFileType(String fileType) {
         this.fileType = fileType;
+    }
+
+    /**
+     * @return the qa
+     */
+    public String getQa() {
+        return qa;
+    }
+
+    /**
+     * @param qa the qa to set
+     */
+    public void setQa(String qa) {
+        this.qa = qa;
     }
     
 }
