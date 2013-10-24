@@ -26,7 +26,7 @@
     <!-- Allows us to use system properties as variables in this configuration file -->
     <bean id="properties" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
         <property name="locations">
-            <value>file:/data/biocache/config/biocache-config.properties</value>
+            <value>file:///data/biocache/config/biocache-config.properties</value>
         </property>
     </bean>  
       
@@ -40,6 +40,10 @@
 
     <!-- Where to load static resources (css, js, images) -->
     <mvc:resources mapping="/static/**" location="/" />
+
+<!-- <bean id="validator"
+      class="org.springframework.validation.beanvalidation.LocalValidatorFactoryBean"/>
+ -->
 
     <bean id="jspViewResolver" class="org.springframework.web.servlet.view.InternalResourceViewResolver" p:order="10">
         <property name="viewClass" value="org.springframework.web.servlet.view.JstlView"/>
@@ -59,8 +63,8 @@
         <property name="useDefaultSuffixPattern" value="false"/>
     </bean>
 
-    <context:property-override location="file:/data/biocache/config/biocache-config.properties" ignore-unresolvable="true" ignore-resource-not-found="true" />
-    <context:property-placeholder location="file:/data/biocache/config/biocache-config.properties" />
+    <context:property-override location="file:///data/biocache/config/biocache-config.properties" ignore-unresolvable="true" ignore-resource-not-found="true" />
+    <context:property-placeholder location="file:///data/biocache/config/biocache-config.properties" />
 
     <!--
       - This bean resolves specific types of exceptions to corresponding logical
