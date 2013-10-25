@@ -98,6 +98,7 @@ import org.ala.biocache.util.ParamsCacheObject;
 import org.ala.biocache.util.thread.EndemicCallable;
 import org.ala.biocache.writer.*;
 import org.ala.biocache.service.AuthService;
+import org.ala.biocache.service.LayersService;
 import org.apache.solr.client.solrj.SolrServer;
 
 /**
@@ -138,6 +139,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected Pattern qidPattern = ParamsCache.qidPattern;//Pattern.compile("qid:[0-9]*");
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
     protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("[a-z_]{1,}:");
+    protected Pattern layersPattern = Pattern.compile("(el|cl)[0-9]+");
 
     /** Download properties */
     protected DownloadFields downloadFields;
@@ -156,6 +158,9 @@ public class SearchDAOImpl implements SearchDAO {
     
     @Inject
     protected AuthService authService;
+    
+    @Inject
+    protected LayersService layersService;
     
     protected Integer maxMultiPartThreads = 5;
 
@@ -2476,6 +2481,20 @@ public class SearchDAOImpl implements SearchDAO {
                                 //interpret the schema information
                                 f.setIndexed(schema.contains("I"));
                                 f.setStored(schema.contains("S"));
+                                
+                                //now add the i18n string associated with the field
+                                if(layersPattern.matcher(fieldName).matches()){
+                                    //System.out.println(layersService.getLayerNameMap());
+                                    String description = layersService.getLayerNameMap().get(fieldName);                                    
+                                    f.setDescription(description);
+                                } else{
+                                    //check as a field name
+                                    String description =messageSource.getMessage("facet."+fieldName, null, "", Locale.getDefault());
+                                    if(!description.startsWith("facet.")){
+                                        f.setDescription(description);
+                                    }
+                                    
+                                }
                                 
                                 fieldList.add(f);
                             }

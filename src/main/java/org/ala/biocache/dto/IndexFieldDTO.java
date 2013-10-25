@@ -18,6 +18,8 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     private boolean stored;
     /** Stores the number of distinct values that are in the field */
     private Integer numberDistinctValues;
+    /** the i18n string to used for the field. */
+    private String description;
     
     @Override
     public boolean equals(Object obj){
@@ -88,6 +90,20 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
         this.numberDistinctValues = numberDistinctValues;
     }
 
+    /**
+     * @return the description
+     */
+    public String getDescription() {
+        return description;
+    }
+
+    /**
+     * @param description the description to set
+     */
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
     @Override
     public int compareTo(IndexFieldDTO other) {        
         return this.getName().compareTo(other.getName());
@@ -102,6 +118,7 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
           + ", indexed=" + indexed + ", stored=" + stored
           + ", numberDistinctValues=" + numberDistinctValues + "]";
     }
+    
     
     
 }
