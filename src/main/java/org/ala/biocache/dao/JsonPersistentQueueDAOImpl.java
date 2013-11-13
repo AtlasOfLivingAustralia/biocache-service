@@ -155,16 +155,13 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
         //value = jsonMapper.readValue(file, ParamsCacheObject.class);
         for(File f :files){
             if(f.isFile()){
-                try{
+                try {
                     DownloadDetailsDTO dd = jsonMapper.readValue(f, DownloadDetailsDTO.class);
                     offlineDownloadList.add(dd);
-                }
-                catch(Exception e){
+                } catch(Exception e){
                     logger.error("Unable to load cached downlaod " + f.getAbsolutePath(), e);
-                }
-                
+                }                
             }
-        }
-        
+        }        
     }
 }
