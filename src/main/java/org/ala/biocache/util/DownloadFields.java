@@ -1,14 +1,28 @@
-
+/**************************************************************************
+ *  Copyright (C) 2010 Atlas of Living Australia
+ *  All Rights Reserved.
+ * 
+ *  The contents of this file are subject to the Mozilla Public
+ *  License Version 1.1 (the "License"); you may not use this file
+ *  except in compliance with the License. You may obtain a copy of
+ *  the License at http://www.mozilla.org/MPL/
+ * 
+ *  Software distributed under the License is distributed on an "AS
+ *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ *  implied. See the License for the specific language governing
+ *  rights and limitations under the License.
+ ***************************************************************************/
 package org.ala.biocache.util;
 
 import java.io.InputStream;
 import java.util.*;
+
 import au.org.ala.biocache.Store;
 
 import org.ala.biocache.dto.IndexFieldDTO;
 import org.apache.commons.lang.StringUtils;
-import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Stores the download fields whose values can be overridden in
@@ -17,6 +31,8 @@ import org.springframework.util.CollectionUtils;
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
 public class DownloadFields {
+	
+    private final static Logger logger = LoggerFactory.getLogger(DownloadFields.class);	
 
     private String defaultFields = "uuid,dataResourceUid,catalogNumber,taxonConceptID.p,scientificName,vernacularName,scientificName.p," +
             "taxonRank.p,vernacularName.p,kingdom.p,phylum.p,classs.p,order.p,family.p,genus.p,species.p,subspecies.p," +
@@ -25,23 +41,25 @@ public class DownloadFields {
             "maximumDepthInMeters,year.p,month.p,day.p,eventDate.p,eventTime.p,basisOfRecord,typeStatus.p,sex,preparations";
 
     private Properties downloadProperties;
-    private Map<String,IndexFieldDTO>indexFieldMaps;
+    private Map<String,IndexFieldDTO> indexFieldMaps;
 
     public DownloadFields(Set<IndexFieldDTO> indexFields){
         //initialise the properties
-        try{
+        try {
             downloadProperties = new Properties();
             InputStream is = getClass().getResourceAsStream("/download.properties");
             downloadProperties.load(is);
             indexFieldMaps = new TreeMap<String,IndexFieldDTO>();
-            for(IndexFieldDTO field: indexFields)
+            for(IndexFieldDTO field: indexFields){
                 indexFieldMaps.put(field.getName(), field);
+            }
+        } catch(Exception e) {
+        	logger.error(e.getMessage(), e);
         }
-        catch(Exception e){
-            e.printStackTrace();
-        }
-        if(downloadProperties.getProperty("fields") == null)
+        
+        if(downloadProperties.getProperty("fields") == null){
             downloadProperties.setProperty("fields", defaultFields);
+        }
     }
 
     /**
@@ -103,9 +121,9 @@ public class DownloadFields {
             if((field != null && field.isStored()) || value.startsWith("sensitive")){
                 mappedNames.add(indexName);
                 headers.add(downloadProperties.getProperty(value, generateTitle(value,true)));
-            }
-            else
+            } else {
                 unmappedNames.add(indexName);
+            }
         }
         return new List[]{mappedNames,unmappedNames,headers};
     }

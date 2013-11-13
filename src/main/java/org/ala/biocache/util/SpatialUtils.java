@@ -7,13 +7,10 @@ import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryCollection;
 import com.vividsolutions.jts.io.WKTReader;
 
-
 /**
- * 
  * Supplies spatial utilities that can be used for the geospatial seaches
  * 
  * @author Natasha Carter
- *
  */
 public class SpatialUtils {
   

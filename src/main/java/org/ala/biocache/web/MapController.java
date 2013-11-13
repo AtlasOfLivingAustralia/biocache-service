@@ -1,5 +1,5 @@
-/* *************************************************************************
- *  Copyright (C) 2010 Atlas of Living Australia
+/**************************************************************************
+ *  Copyright (C) 2013 Atlas of Living Australia
  *  All Rights Reserved.
  *
  *  The contents of this file are subject to the Mozilla Public
@@ -56,7 +56,11 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.context.ServletConfigAware;
 
 /**
- * WMS and static map controller
+ * WMS and static map controller. This controller generates static PNG image files
+ * that provide a heatmap of occurrences. 
+ * 
+ * TODO: This functionality is currently only supporting
+ * overview maps for Australia but could be extended to support other regions.
  *
  * @author "Ajay Ranipeta <Ajay.Ranipeta@csiro.au>"
  *
@@ -78,6 +82,9 @@ public class MapController implements ServletConfigAware {
     @Inject
     protected SearchUtils searchUtils;
     private ServletConfig cfg;
+    
+    private static final int map_offset = 268435456; // half the Earth's circumference at zoom level 21
+    private static final double map_radius = map_offset / Math.PI;    
 
     @RequestMapping(value = "/occurrences/wms", method = RequestMethod.GET)
     public void pointsWmsImage(SpatialSearchRequestParams requestParams,
@@ -240,6 +247,7 @@ public class MapController implements ServletConfigAware {
         }
     }
 
+    @Deprecated
     @RequestMapping(value = "/occurrences/static", method = RequestMethod.GET)
     public void pointsStaticImage(SpatialSearchRequestParams requestParams,
             @RequestParam(value = "colourby", required = false, defaultValue = "") String colourby,
@@ -418,7 +426,7 @@ public class MapController implements ServletConfigAware {
         model.addAttribute("points", points);
         model.addAttribute("count", points.size());
 
-        return "json/infoPointGeojson"; //POINTS_GEOJSON;
+        return "json/infoPointGeojson";
     }
 
     private void displayBlankImage(int width, int height, boolean useBase, HttpServletRequest request, HttpServletResponse response) {
@@ -502,8 +510,6 @@ public class MapController implements ServletConfigAware {
 
         return shape;
     }
-    private int map_offset = 268435456; // half the Earth's circumference at zoom level 21
-    private double map_radius = map_offset / Math.PI;
 
     public int convertLatToPixel(double lat) {
         return (int) Math.round(map_offset - map_radius
@@ -688,6 +694,7 @@ public class MapController implements ServletConfigAware {
 
     /**
      * Generate heatmap image (and associated legend if applicable)
+     * 
      * @param requestParams
      * @param model
      * @param request
@@ -704,8 +711,7 @@ public class MapController implements ServletConfigAware {
             String defaultPointColour,
             String[] colourByFq,
             String[] colours,
-            Float opacity
-            ) {
+            Float opacity) {
         
         File baseDir = new File(heatmapBase);
         logger.info("heatmap base is " + heatmapBase);
@@ -747,8 +753,7 @@ public class MapController implements ServletConfigAware {
                 hm.generateClasses(points); //this will create legend
                 if (generateLegend){
                     hm.drawLegend(baseDir + "/legend_" + outputHMFile);
-                }
-                else {
+                } else {
                     hm.drawOutput(baseDir + "/" + outputHMFile, true);
                 }
             }

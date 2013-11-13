@@ -20,7 +20,7 @@ import java.util.Map;
 /**
  * Service for ALA logger
  *
- *  NC 20130913: copied across from hubs-webapp so that we can cache log items on the server.
+ * NC 20130913: copied across from hubs-webapp so that we can cache log items on the server.
  *
  * @author Nick dos Remedios (nick.dosremedios@csiro.au)
  */

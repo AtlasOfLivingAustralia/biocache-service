@@ -1,4 +1,4 @@
-/* *************************************************************************
+/**************************************************************************
  *  Copyright (C) 2011 Atlas of Living Australia
  *  All Rights Reserved.
  * 
@@ -12,7 +12,6 @@
  *  implied. See the License for the specific language governing
  *  rights and limitations under the License.
  ***************************************************************************/
-
 package org.ala.biocache.util;
 
 import java.lang.reflect.Field;
@@ -31,7 +30,7 @@ import org.springframework.web.client.RestOperations;
  * Uses the Collectory webservices to get a map of codes & names for institutions and collections
  * and caches these. Cache is automatically updated after a configurable timeout period.
  *
- *  NC 2013-0925 Changed the collection cache to be async scheduled
+ * NC 2013-0925 Changed the collection cache to be async scheduled
  *
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */

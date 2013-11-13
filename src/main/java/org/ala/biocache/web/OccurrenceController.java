@@ -243,15 +243,15 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value={"/australian/taxon/{guid:.+}.json*","/australian/taxon/{guid:.+}*" })
-    public @ResponseBody AustralianDTO isAustralian(@PathVariable("guid") String guid) throws Exception {
+    @RequestMapping(value={"/australian/taxon/{guid:.+}.json*","/australian/taxon/{guid:.+}*","/native/taxon/{guid:.+}.json*","/native/taxon/{guid:.+}*" })
+    public @ResponseBody NativeDTO isAustralian(@PathVariable("guid") String guid) throws Exception {
         //check to see if we have any occurrences on Australia  country:Australia or state != empty
         SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
         requestParams.setPageSize(0);
         requestParams.setFacets(new String[]{});
         String query = "lsid:" +guid + " AND " + "(country:Australia OR state:[* TO *]) AND geospatial_kosher:true";
         requestParams.setQ(query);
-        AustralianDTO adto= new AustralianDTO();
+        NativeDTO adto= new NativeDTO();
         adto.setTaxonGuid(guid);
         SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(requestParams,null);
         adto.setHasOccurrenceRecords(results.getTotalRecords() > 0);

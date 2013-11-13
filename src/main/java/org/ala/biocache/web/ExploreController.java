@@ -16,13 +16,8 @@ package org.ala.biocache.web;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
 
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
@@ -37,9 +32,6 @@ import org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.ala.biocache.dto.TaxaCountDTO;
 import org.ala.biocache.util.ParamsCache;
 import org.ala.biocache.util.ParamsCacheObject;
-import org.ala.biocache.util.SpatialUtils;
-import org.ala.biocache.util.TaxaGroup;
-import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -49,8 +41,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import com.googlecode.ehcache.annotations.Cacheable;
-import com.maxmind.geoip.Location;
 import com.maxmind.geoip.LookupService;
 import org.ala.biocache.dto.*;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -78,8 +68,6 @@ public class ExploreController {
     private final String DEFAULT_LOCATION = "Clunies Ross St, Black Mountain, ACT";
     private static LookupService lookupService = null;
     private final String POINTS_GEOJSON = "json/pointsGeoJson";
-
-
 
     /** Mapping of radius in km to OpenLayers zoom level */
     public final static HashMap<Float, Integer> radiusToZoomLevelMap = new HashMap<Float, Integer>();
@@ -130,7 +118,7 @@ public class ExploreController {
         speciesGroups.add(all);
 
         String oldName = null;
-        String kingdom =null;
+        String kingdom = null;
         //set the counts an indent levels for all the species groups
         for(au.org.ala.biocache.SpeciesGroup sg : sgs){
             logger.debug("name: " + sg.name() + " parent: " +sg.parent());
@@ -155,8 +143,8 @@ public class ExploreController {
             speciesGroups.add(sdto);
         }
         return speciesGroups;
-
 	}
+    
     /**
      * Returns the number of records and distinct species in a particular species group
      * 
@@ -207,9 +195,6 @@ public class ExploreController {
      * GeoJSON view of records as clusters of points within a specified radius of a given location
      *
      * This service will be used by explore your area.
-     *
-     * 
-     *
      */
     @RequestMapping(value = "/geojson/radius-points", method = RequestMethod.GET)
         public String radiusPointsGeoJson(SpatialSearchRequestParams requestParams,
@@ -260,24 +245,6 @@ public class ExploreController {
         }
         return pointType;
     }
-    
-    /**
-     * Returns the number of species in all the groups.
-     * @param requestParams
-     * @return
-     * @throws Exception
-     */
-//    @RequestMapping(value="/explore/counts*", method = RequestMethod.GET)
-//    public @ResponseBody Map<String,String> getYourAreaCounts(SpatialSearchRequestParams requestParams) throws Exception{
-//        Map<String,String> values = new HashMap<String, String>();
-//        List<au.org.ala.biocache.SpeciesGroup> sgs =au.org.ala.biocache.Store.retrieveSpeciesGroups();
-//        values.put("ALL_SPECIES", getYourAreaCount(requestParams, "ALL_SPECIES"));
-//        for(au.org.ala.biocache.SpeciesGroup sg : sgs){
-//            values.put(sg.name(), getYourAreaCount(requestParams,sg.name()));
-//        }
-//        return values;
-//    }
-    
  
     private void  applyFacetForCounts(SpatialSearchRequestParams requestParams, boolean useCommonName){
     	if(useCommonName)
@@ -286,7 +253,7 @@ public class ExploreController {
     		requestParams.setFacets(new String[]{SearchDAOImpl.NAMES_AND_LSID});
     }
 
-        /**
+    /**
 	 * Occurrence search page uses SOLR JSON to display results
 	 *
      * @param query
@@ -364,7 +331,7 @@ public class ExploreController {
 	          HttpServletResponse response) 
 	          throws Exception{  
 	    List list = getSpeciesOnlyInWKT(requestParams,response);
-	    if(list !=null)
+	    if(list != null)
 	        return list.size();
 	    return 0;
 	}
@@ -405,12 +372,10 @@ public class ExploreController {
 //	            if(logger.isDebugEnabled())
 //	                logger.debug("FINAL Species WKT " + list1.size() + " " + list1);
 //	            return list1;
-	        }
-	        else{
+	        } else {
 	            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply only one facet.");
 	        }
-	    }
-	    else{
+	    } else {
 	        response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply a WKT area.");
 	    }
 	    return null;

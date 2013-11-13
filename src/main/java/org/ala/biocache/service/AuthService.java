@@ -1,5 +1,5 @@
-/* *************************************************************************
- *  Copyright (C) 2012 Atlas of Living Australia
+/**************************************************************************
+ *  Copyright (C) 2013 Atlas of Living Australia
  *  All Rights Reserved.
  * 
  *  The contents of this file are subject to the Mozilla Public
@@ -16,7 +16,6 @@ package org.ala.biocache.service;
 
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
@@ -51,7 +50,7 @@ public class AuthService {
     protected String userNamesForNumericIdPath = null;
     //NC 20131018: Allow cache to be disabled via config (enabled by default)
     @Value("${caches.auth.enabled:true}")
-    protected Boolean enabled =null;
+    protected Boolean enabled = null;
     // Keep a reference to the output Map in case subsequent web service lookups fail
     protected Map<String, String> userNamesById = new HashMap<String, String>();
     protected Map<String, String> userNamesByNumericIds = new HashMap<String, String>();
@@ -94,6 +93,7 @@ public class AuthService {
         }
         return displayName;
     }
+    
     public String substituteEmailAddress(String raw){
       return raw == null?raw:raw.replaceAll("\\@\\w+", "@..");
     }

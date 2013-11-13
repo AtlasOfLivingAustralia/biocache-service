@@ -1,3 +1,17 @@
+/**************************************************************************
+ *  Copyright (C) 2013 Atlas of Living Australia
+ *  All Rights Reserved.
+ * 
+ *  The contents of this file are subject to the Mozilla Public
+ *  License Version 1.1 (the "License"); you may not use this file
+ *  except in compliance with the License. You may obtain a copy of
+ *  the License at http://www.mozilla.org/MPL/
+ * 
+ *  Software distributed under the License is distributed on an "AS
+ *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ *  implied. See the License for the specific language governing
+ *  rights and limitations under the License.
+ ***************************************************************************/
 package org.ala.biocache.web;
 
 import java.awt.*;
@@ -5,7 +19,6 @@ import java.io.*;
 import java.net.URLEncoder;
 import java.util.*;
 
-import au.org.ala.biocache.Config;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ala.biocache.dao.TaxonDAO;
@@ -42,7 +55,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
- * Web portal specific services.
+ * This controller provides  mapping services which include WMS services (includes GetCapabilities support).
  */
 @Controller
 public class WebportalController /* implements ServletConfigAware*/ {
@@ -536,11 +549,6 @@ public class WebportalController /* implements ServletConfigAware*/ {
         return pointType;
     }
 
-//    @Override
-//    public void setServletConfig(ServletConfig cfg) {
-//        this.cfg = cfg;
-//    }
-
     void displayBlankImage(HttpServletResponse response) {
         try {
             ServletOutputStream outStream = response.getOutputStream();
@@ -909,7 +917,6 @@ public class WebportalController /* implements ServletConfigAware*/ {
             Model model) throws Exception {
 
         logger.debug("WMS - GetFeatureInfo requested for: " + queryLayers);
-        String originalBBox = bboxString;
 
         if("EPSG:4326".equals(srs))
             bboxString = convertBBox4326To900913(bboxString);    // to work around a UDIG bug

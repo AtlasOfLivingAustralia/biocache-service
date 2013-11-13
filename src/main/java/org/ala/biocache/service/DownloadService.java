@@ -1,3 +1,17 @@
+/**************************************************************************
+ *  Copyright (C) 2013 Atlas of Living Australia
+ *  All Rights Reserved.
+ * 
+ *  The contents of this file are subject to the Mozilla Public
+ *  License Version 1.1 (the "License"); you may not use this file
+ *  except in compliance with the License. You may obtain a copy of
+ *  the License at http://www.mozilla.org/MPL/
+ * 
+ *  Software distributed under the License is distributed on an "AS
+ *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ *  implied. See the License for the specific language governing
+ *  rights and limitations under the License.
+ ***************************************************************************/
 package org.ala.biocache.service;
 
 import java.io.File;
@@ -34,7 +48,7 @@ import org.springframework.web.client.RestOperations;
 /**
  * Services to perform the downloads.
  * 
- * Can configure the number of offline download processors
+ * Can configure the number of off-line download processors
  * @author Natasha Carter (natasha.carter@csiro.au)
  */
 @Component("downloadService")
@@ -76,7 +90,7 @@ public class DownloadService {
     @PostConstruct    
     public void init(){
         //create the threads that will be used to perform the downloads
-        int i =0;
+        int i = 0;
         while(i<concurrentDownloads){
             new Thread(new DownloadThread()).start();
             i++;
@@ -200,12 +214,10 @@ public class DownloadService {
         response.setHeader("Pragma", "must-revalidate");
         response.setHeader("Content-Disposition", "attachment;filename=" + filename +".zip");
         response.setContentType("application/zip");
-
         
         DownloadDetailsDTO.DownloadType type= fromIndex ? DownloadType.RECORDS_INDEX:DownloadType.RECORDS_DB;
         DownloadDetailsDTO dd = registerDownload(requestParams, ip, type);
         writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex);
-        
     }
     
     /**
@@ -318,8 +330,7 @@ public class DownloadService {
                         statsStream.write(json.getBytes() );
                         statsStream.flush();
                         statsStream.close();
-                    }                    
-                    catch(Exception e){
+                    } catch(Exception e){
                         logger.error("Error in offline download", e);
                         //TODO maybe send an email to support saying that the offline email failed??
                     }

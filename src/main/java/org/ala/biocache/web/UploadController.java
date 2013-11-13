@@ -72,7 +72,11 @@ public class UploadController {
         "basisOfRecord",
         "typeStatus",
         "collector",
-        "establishmentMeans"});
+        "establishmentMeans",
+        "coordinateUncertaintyInMeters",
+        "decimalLatitude",
+        "decimalLongitude"
+    });
 
     /**
      * Upload a dataset using a POST, returning a UID for this data
@@ -233,7 +237,20 @@ public class UploadController {
      * @return an identifier for this temporary dataset
      */
     @RequestMapping(value="/upload/post", method = RequestMethod.POST)
-    public @ResponseBody Map<String,String> uploadOccurrenceData(HttpServletRequest request) throws Exception {
+    public @ResponseBody Map<String,String> uploadOccurrenceData(HttpServletRequest request, HttpServletResponse response) throws Exception {
+
+        final String urlToZippedData = request.getParameter("csvZippedUrl");
+        final String csvDataAsString = request.getParameter("csvData");
+        final String datasetName = request.getParameter("datasetName");
+        if(StringUtils.isEmpty(urlToZippedData) && StringUtils.isEmpty(csvDataAsString)){
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Must supply 'csvZippedUrl' or 'csvData'");
+            return null;
+        }
+
+        if(StringUtils.isEmpty(datasetName)){
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Must supply 'datasetName'");
+            return null;
+        }
 
         try {
             mkWorkingDirs();
@@ -247,10 +264,6 @@ public class UploadController {
             int lineCount = -1;
 
             CSVReader csvData = null;
-
-            //check for file upload
-            String urlToZippedData = request.getParameter("csvZippedUrl");
-
 
             if(urlToZippedData != null) {
 
@@ -274,7 +287,6 @@ public class UploadController {
             } else {
 
                 final char separatorChar = getSeparatorChar(request);
-                final String csvDataAsString = request.getParameter("csvData");
 
                 //do a line count
                 lineCount = doLineCount(csvDataAsString);
@@ -290,7 +302,6 @@ public class UploadController {
                 csvData = new CSVReader(new StringReader(csvDataAsString), separatorChar, '"');
             }
 
-            String datasetName = request.getParameter("datasetName");
             String tempUid = createTempResource(request, datasetName, lineCount);
 
             //do the upload asynchronously

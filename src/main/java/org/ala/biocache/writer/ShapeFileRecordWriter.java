@@ -1,3 +1,17 @@
+/**************************************************************************
+ *  Copyright (C) 2013 Atlas of Living Australia
+ *  All Rights Reserved.
+ * 
+ *  The contents of this file are subject to the Mozilla Public
+ *  License Version 1.1 (the "License"); you may not use this file
+ *  except in compliance with the License. You may obtain a copy of
+ *  the License at http://www.mozilla.org/MPL/
+ * 
+ *  Software distributed under the License is distributed on an "AS
+ *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ *  implied. See the License for the specific language governing
+ *  rights and limitations under the License.
+ ***************************************************************************/
 package org.ala.biocache.writer;
 
 import java.io.File;
@@ -31,9 +45,16 @@ import com.vividsolutions.jts.geom.Point;
 
 import au.org.ala.biocache.RecordWriter;
 
-public class ShapeFileRecordWriter implements RecordWriter{
+/**
+ * A record writer that produces a shapefile.
+ * 
+ * @author Natasha Carter
+ */
+public class ShapeFileRecordWriter implements RecordWriter {
+	
     private final static Logger logger = LoggerFactory.getLogger(ShapeFileRecordWriter.class);
-    private static final String tmpDownloadDirectory="/data/biocache-download/tmp";
+    
+    private static final String tmpDownloadDirectory = "/data/biocache-download/tmp";
     private ShapefileDataStoreFactory dataStoreFactory = new ShapefileDataStoreFactory();
     private SimpleFeatureBuilder featureBuilder;
     private SimpleFeatureType simpleFeature;
@@ -42,9 +63,8 @@ public class ShapeFileRecordWriter implements RecordWriter{
     private int latIdx,longIdx;
     private SimpleFeatureCollection collection = FeatureCollections.newCollection();
     private Map<String,String> headerMappings = null;
-    
 
-    /*
+    /**
      * GeometryFactory will be used to create the geometry attribute of each feature (a Point
      * object for the location)
      */
@@ -79,6 +99,7 @@ public class ShapeFileRecordWriter implements RecordWriter{
             logger.error("Unable to create the temporary file necessary for ShapeFile exporting.",e);
         }
     }
+    
     /**
      * dynamically creates the feature type based on the headers for the download
      * @param features
@@ -112,6 +133,7 @@ public class ShapeFileRecordWriter implements RecordWriter{
         logger.debug("LOCATION INFO:::" +LOCATION.getAttributeCount() +" " + i +" " + LOCATION.getAttributeDescriptors());
         return LOCATION;
     }
+    
     /**
      * Indicates that the download has completed and the shape file should be generated and 
      * written to the supplied output stream.
@@ -141,7 +163,7 @@ public class ShapeFileRecordWriter implements RecordWriter{
                  //   transaction.commit();
 
                 } catch (Exception problem) {
-                    problem.printStackTrace();
+                    logger.error(problem.getMessage(), problem);
                    // transaction.rollback();
 
                 } finally {
@@ -161,11 +183,10 @@ public class ShapeFileRecordWriter implements RecordWriter{
                 logger.error(typeName + " does not support read/write access");                
             }
             
-            
         } catch (java.io.IOException e){
             logger.error("Unable to create ShapeFile", e);
-        } finally{
-            try{
+        } finally {
+            try {
                 outputStream.flush();
                 IOUtils.closeQuietly(inputStream);                
             } catch(Exception e){
@@ -173,6 +194,7 @@ public class ShapeFileRecordWriter implements RecordWriter{
             }
         }
     }
+    
     /**
      * Writes a new record to the download. As a shape file each of the fields are added as a feature. 
      */
@@ -187,7 +209,7 @@ public class ShapeFileRecordWriter implements RecordWriter{
             featureBuilder.add(point);
             
             //now add all the applicable features
-            int i =0;
+            int i = 0;
             
             //logger.debug("FEATURE ATTRIBUT COUNT" + simpleFeature.getAttributeCount());
             int max = simpleFeature.getAttributeCount() + 2;//+2 is the lat and long...
@@ -202,15 +224,15 @@ public class ShapeFileRecordWriter implements RecordWriter{
             //build the feature and add it to the collection
             SimpleFeature feature = featureBuilder.buildFeature(null);
             collection.add(feature);
-        } else{
+        } else {
             logger.debug("Not adding record with missing lat/long: " + record[0]);
         }
     }
+    
     /**
      * @return the headerMappings
      */
     public Map<String, String> getHeaderMappings() {
         return headerMappings;
     }
-
 }
