@@ -5,12 +5,10 @@ import java.util.List;
 import org.ala.biocache.dto.DownloadDetailsDTO;
 
 /**
- * 
  * A DAO for a persistent FIFO QUEUE.  To be used to persist downloads
  * independent to the service running.
  * 
  * @author Natasha Carter (natasha.carter@csiro.au)
- *
  */
 public interface PersistentQueueDAO {
     /**
@@ -43,5 +41,4 @@ public interface PersistentQueueDAO {
      * Refreshes the list from the persistent data store
      */
     void refreshFromPersistent();
-
 }

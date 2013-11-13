@@ -18,60 +18,16 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.*;
-
-import javax.servlet.ServletOutputStream;
-
-import au.org.ala.biocache.RecordWriter;
-import org.ala.biocache.dto.BreakdownRequestParams;
-import org.ala.biocache.dto.DataProviderCountDTO;
-import org.ala.biocache.dto.DownloadDetailsDTO;
-import org.ala.biocache.dto.DownloadRequestParams;
-import org.ala.biocache.dto.FacetResultDTO;
-import org.ala.biocache.dto.FacetThemes;
-import org.ala.biocache.dto.FieldResultDTO;
-import org.ala.biocache.dto.IndexFieldDTO;
-import org.ala.biocache.dto.OccurrencePoint;
-import org.ala.biocache.dto.PointType;
-import org.ala.biocache.dto.SearchResultDTO;
-import org.ala.biocache.dto.StatsIndexFieldDTO;
-import org.ala.biocache.dto.TaxaCountDTO;
-import org.ala.biocache.dto.TaxaRankCountDTO;
-import org.ala.biocache.util.CollectionsCache;
-import org.ala.biocache.util.ParamsCacheMissingException;
-import org.ala.biocache.util.RangeBasedFacets;
-import org.ala.biocache.util.SearchUtils;
-import org.ala.biocache.util.SpatialUtils;
-import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.commons.lang.StringUtils;
-import org.apache.log4j.Logger;
-import org.apache.solr.client.solrj.SolrQuery;
-import org.apache.solr.client.solrj.SolrRequest;
-import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.SolrQuery.ORDER;
-import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
-import org.apache.solr.client.solrj.response.FacetField;
-import org.apache.solr.client.solrj.response.FieldStatsInfo;
-import org.apache.solr.client.solrj.response.GroupCommand;
-import org.apache.solr.client.solrj.response.GroupResponse;
-import org.apache.solr.client.solrj.response.QueryResponse;
-import org.apache.solr.client.solrj.response.FacetField.Count;
-import org.apache.solr.client.solrj.response.RangeFacet;
-import org.apache.solr.client.solrj.response.RangeFacet.Numeric;
-import org.apache.solr.client.solrj.util.ClientUtils;
-import org.apache.solr.common.SolrDocumentList;
-import org.springframework.beans.BeanUtils;
-import org.springframework.context.support.AbstractMessageSource;
-import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
-
-
-import org.ala.biocache.dto.OccurrenceIndex;
-
-import au.com.bytecode.opencsv.CSVWriter;
-
-import com.googlecode.ehcache.annotations.Cacheable;
-
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -80,26 +36,74 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.ala.biocache.dto.SearchRequestParams;
-import org.ala.biocache.dto.SpatialSearchRequestParams;
-import org.ala.biocache.util.DownloadFields;
-import org.apache.solr.common.SolrDocument;
-import org.apache.solr.common.params.ModifiableSolrParams;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import org.apache.commons.lang.ArrayUtils;
-import au.org.ala.biocache.IndexDAO;
-import au.org.ala.biocache.SolrIndexDAO;
-import java.util.Map.Entry;
-import org.ala.biocache.util.LegendItem;
-import org.ala.biocache.util.ParamsCache;
-import org.ala.biocache.util.ParamsCacheObject;
-import org.ala.biocache.util.thread.EndemicCallable;
-import org.ala.biocache.writer.*;
+import javax.servlet.ServletOutputStream;
+
+import org.ala.biocache.dto.BreakdownRequestParams;
+import org.ala.biocache.dto.DataProviderCountDTO;
+import org.ala.biocache.dto.DownloadDetailsDTO;
+import org.ala.biocache.dto.DownloadRequestParams;
+import org.ala.biocache.dto.FacetResultDTO;
+import org.ala.biocache.dto.FacetThemes;
+import org.ala.biocache.dto.FieldResultDTO;
+import org.ala.biocache.dto.IndexFieldDTO;
+import org.ala.biocache.dto.OccurrenceIndex;
+import org.ala.biocache.dto.OccurrencePoint;
+import org.ala.biocache.dto.PointType;
+import org.ala.biocache.dto.SearchRequestParams;
+import org.ala.biocache.dto.SearchResultDTO;
+import org.ala.biocache.dto.SpatialSearchRequestParams;
+import org.ala.biocache.dto.StatsIndexFieldDTO;
+import org.ala.biocache.dto.TaxaCountDTO;
+import org.ala.biocache.dto.TaxaRankCountDTO;
 import org.ala.biocache.service.AuthService;
 import org.ala.biocache.service.LayersService;
+import org.ala.biocache.util.CollectionsCache;
+import org.ala.biocache.util.DownloadFields;
+import org.ala.biocache.util.LegendItem;
+import org.ala.biocache.util.ParamsCache;
+import org.ala.biocache.util.ParamsCacheMissingException;
+import org.ala.biocache.util.ParamsCacheObject;
+import org.ala.biocache.util.RangeBasedFacets;
+import org.ala.biocache.util.SearchUtils;
+import org.ala.biocache.util.SpatialUtils;
+import org.ala.biocache.util.thread.EndemicCallable;
+import org.ala.biocache.writer.CSVRecordWriter;
+import org.ala.biocache.writer.ShapeFileRecordWriter;
+import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang.StringUtils;
+import org.apache.log4j.Logger;
+import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrQuery.ORDER;
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
+import org.apache.solr.client.solrj.response.FacetField;
+import org.apache.solr.client.solrj.response.FacetField.Count;
+import org.apache.solr.client.solrj.response.FieldStatsInfo;
+import org.apache.solr.client.solrj.response.GroupCommand;
+import org.apache.solr.client.solrj.response.GroupResponse;
+import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.client.solrj.response.RangeFacet;
+import org.apache.solr.client.solrj.response.RangeFacet.Numeric;
+import org.apache.solr.client.solrj.util.ClientUtils;
+import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrDocumentList;
+import org.apache.solr.common.params.ModifiableSolrParams;
+import org.springframework.beans.BeanUtils;
+import org.springframework.context.support.AbstractMessageSource;
+import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+
+import au.com.bytecode.opencsv.CSVWriter;
+import au.org.ala.biocache.IndexDAO;
+import au.org.ala.biocache.RecordWriter;
+import au.org.ala.biocache.SolrIndexDAO;
+
+import com.googlecode.ehcache.annotations.Cacheable;
 
 /**
  * SOLR implementation of SearchDao. Uses embedded SOLR server (can be a memory hog).
@@ -162,15 +166,16 @@ public class SearchDAOImpl implements SearchDAO {
     @Inject
     protected LayersService layersService;
     
+    /** Max number of threads to use in endemic queries */
     protected Integer maxMultiPartThreads = 5;
 
-    //thread pool for multipart queries that take awhile:
+    /** thread pool for multipart queries that take awhile */
     private ExecutorService executor = null;
     
-    //should we check download limits
+    /** should we check download limits */
     private boolean checkDownloadLimits = false;
     
-    //Comma separated list of solr fields that need to have the authService substitute values if they are used in a facet. - CAN be overridden
+    /** Comma separated list of solr fields that need to have the authService substitute values if they are used in a facet. - CAN be overridden */
     private String authServiceFields = "";
     
     private Set<IndexFieldDTO> indexFields = null;
@@ -230,6 +235,7 @@ public class SearchDAOImpl implements SearchDAO {
             logger.error("Unable to refresh cache.", e);
         }
     }
+    
     /**
      * Returns a list of species that are endemic to the supplied region. Values are cached 
      * due to the "expensive" operation.
@@ -321,6 +327,7 @@ public class SearchDAOImpl implements SearchDAO {
     public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, Map<String,String[]> extraParams) throws Exception {
         return findByFulltextSpatialQuery(searchParams,false,extraParams);
     }
+    
     @Override
     public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, boolean includeSensitive, Map<String,String[]> extraParams) throws Exception {
         SearchResultDTO searchResults = new SearchResultDTO();

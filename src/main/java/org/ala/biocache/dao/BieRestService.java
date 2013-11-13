@@ -1,5 +1,5 @@
-/* *************************************************************************
- *  Copyright (C) 2011 Atlas of Living Australia
+/**************************************************************************
+ *  Copyright (C) 2013 Atlas of Living Australia
  *  All Rights Reserved.
  * 
  *  The contents of this file are subject to the Mozilla Public
@@ -26,13 +26,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Implementation of BieService.java that calls the bie-webapp application
+ * Implementation of BieService.java that calls the bie-service application
  * via JSON REST web services.
  * 
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
 @Component("bieRestService")
 public class BieRestService implements BieService {
+    
+    private final static Logger logger = Logger.getLogger(BieRestService.class);	
+	
     @Inject
     @Qualifier("restTemplate")
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
@@ -44,8 +47,6 @@ public class BieRestService implements BieService {
     //NC 20131018: Allow service to be disabled via config (enabled by default)
     @Value("${service.bie.enabled:true}")
     protected Boolean enabled;
-    
-    private final static Logger logger = Logger.getLogger(BieRestService.class);
     
     /**
      * @see org.ala.biocache.dao.BieService#getGuidForName(String)

@@ -1,4 +1,4 @@
-/* *************************************************************************
+/**************************************************************************
  *  Copyright (C) 2011 Atlas of Living Australia
  *  All Rights Reserved.
  * 
@@ -17,7 +17,7 @@ package org.ala.biocache.dao;
 import java.util.List;
 
 /**
- * Service layer interface for accessing BIE data
+ * Service layer interface for accessing species lookups.
  * 
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
@@ -28,27 +28,19 @@ public interface BieService {
      * @param name
      * @return 
      */
-    public String getGuidForName(String name);
-    
-    /**
-     * Lookup acccepted name and common name for a TC GUID
-     * 
-     * @param guid
-     * @return 
-     */
-    //public String getDisplayNameForGuid(String guid);
+    String getGuidForName(String name);
 
     /**
      * Lookup the accepted name for a GUID
      *
      * @return
      */
-    public String getAcceptedNameForGuide(String guid);
+    String getAcceptedNameForGuide(String guid);
     
     /**
      * Lookup service for list of guids to names
      * @param guids
      * @return
      */
-    public List<String> getNamesForGuids(List<String> guids);
+    List<String> getNamesForGuids(List<String> guids);
 }

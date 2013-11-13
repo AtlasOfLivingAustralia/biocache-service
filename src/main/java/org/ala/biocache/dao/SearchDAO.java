@@ -22,14 +22,12 @@ import java.util.Set;
 
 import javax.servlet.ServletOutputStream;
 
-import org.ala.biocache.dto.DataProviderCountDTO;
-import org.ala.biocache.dto.FieldResultDTO;
-import org.ala.biocache.dto.OccurrenceIndex;
-
 import org.ala.biocache.dto.BreakdownRequestParams;
+import org.ala.biocache.dto.DataProviderCountDTO;
 import org.ala.biocache.dto.DownloadDetailsDTO;
 import org.ala.biocache.dto.DownloadRequestParams;
 import org.ala.biocache.dto.FacetResultDTO;
+import org.ala.biocache.dto.FieldResultDTO;
 import org.ala.biocache.dto.IndexFieldDTO;
 import org.ala.biocache.dto.OccurrencePoint;
 import org.ala.biocache.dto.PointType;
@@ -243,7 +241,7 @@ public interface SearchDAO {
     /**
      * Get legend items for a query and specified facet.
      *
-     * Continous variable cutpoints can be specified.  Includes the minimum
+     * Continuous variable cut-points can be specified.  Includes the minimum
      * and maximum values.
      *
      * Returns an empty list if no valid values are found.
@@ -273,4 +271,3 @@ public interface SearchDAO {
      */
     List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception;
 }
-
