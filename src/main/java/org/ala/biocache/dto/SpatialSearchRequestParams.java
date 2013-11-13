@@ -1,4 +1,4 @@
-/* *************************************************************************
+/**************************************************************************
  *  Copyright (C) 2011 Atlas of Living Australia
  *  All Rights Reserved.
  *
@@ -17,7 +17,6 @@ package org.ala.biocache.dto;
 import java.util.Arrays;
 
 import org.apache.commons.lang.ArrayUtils;
-import org.apache.commons.lang.StringUtils;
 
 /**
  * Data Transfer Object to represent the request parameters required to perform
@@ -26,6 +25,7 @@ import org.apache.commons.lang.StringUtils;
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
 public class SpatialSearchRequestParams extends SearchRequestParams {
+	
     protected Float radius = null;
     protected Float lat = null;
     protected Float lon = null;
@@ -143,10 +143,11 @@ public class SpatialSearchRequestParams extends SearchRequestParams {
      * @return the value of fq
      */
     public String[] getFq() {
-        if(gk)
-            return (String[])ArrayUtils.addAll(fq,gkFq);
-        else
+        if(gk) {
+            return (String[]) ArrayUtils.addAll(fq,gkFq);
+        } else {
             return fq;
+        }
     }
 
     /* (non-Javadoc)

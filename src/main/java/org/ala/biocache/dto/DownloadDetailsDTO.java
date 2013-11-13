@@ -1,3 +1,17 @@
+/**************************************************************************
+ *  Copyright (C) 2013 Atlas of Living Australia
+ *  All Rights Reserved.
+ * 
+ *  The contents of this file are subject to the Mozilla Public
+ *  License Version 1.1 (the "License"); you may not use this file
+ *  except in compliance with the License. You may obtain a copy of
+ *  the License at http://www.mozilla.org/MPL/
+ * 
+ *  Software distributed under the License is distributed on an "AS
+ *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ *  implied. See the License for the specific language governing
+ *  rights and limitations under the License.
+ ***************************************************************************/
 package org.ala.biocache.dto;
 
 import java.util.Date;
@@ -6,33 +20,30 @@ import java.util.Map;
 import org.codehaus.jackson.annotate.JsonIgnore;
 
 /**
- * 
  * Stores the details of a download.  Will allow for monitoring of downloads
  * 
  * @author Natasha Carter
- *
  */
 public class DownloadDetailsDTO {
 
     private DownloadType downloadType;
     private Date startDate;
     private Date lastUpdate;
-    private long totalRecords=0;
-    private long recordsDownloaded=0;
+    private long totalRecords = 0;
+    private long recordsDownloaded = 0;
     private String downloadParams;
     private String ipAddress;
     private String email;
     private DownloadRequestParams requestParams;
     private String fileLocation;
-    private boolean includeSensitive=false;
-    private Map<String,String> headerMap=null;
+    private boolean includeSensitive = false;
+    private Map<String,String> headerMap = null;
     
     /**
      * Default constructor necessary for Jackson to create an object from the JSON. 
      */
-    public DownloadDetailsDTO(){
-        
-    }
+    public DownloadDetailsDTO(){}
+    
     public DownloadDetailsDTO(String params, String ipAddress, DownloadType type){
         this.downloadParams = params;
         this.ipAddress = ipAddress;
@@ -50,6 +61,7 @@ public class DownloadDetailsDTO {
     public String getLastUpdate(){
         return lastUpdate == null ? null:lastUpdate.toString();
     }
+    
     @JsonIgnore
     public long getStartTime(){
         return startDate.getTime();
@@ -58,9 +70,11 @@ public class DownloadDetailsDTO {
     public String getStartDateString(){
         return startDate.toString();
     }
+    
     public Date getStartDate(){
         return this.startDate;
     }
+    
     public void setStartDate(Date startDate){
         this.startDate = startDate;
     }
@@ -105,7 +119,6 @@ public class DownloadDetailsDTO {
     public long getTotalRecords(){
         return totalRecords;
     }
-    
   
     /**
      * @return the email
@@ -134,7 +147,6 @@ public class DownloadDetailsDTO {
         this.fileLocation = fileLocation;
     }
 
-
     /**
      * @return the requestParams
      */
@@ -148,7 +160,6 @@ public class DownloadDetailsDTO {
     public void setRequestParams(DownloadRequestParams requestParams) {
         this.requestParams = requestParams;
     }
-
 
     /**
      * @return the includeSensitive
@@ -164,7 +175,6 @@ public class DownloadDetailsDTO {
         this.includeSensitive = includeSensitive;
     }
 
-
     /**
      * @param ipAddress the ipAddress to set
      */
@@ -179,13 +189,13 @@ public class DownloadDetailsDTO {
     public Map<String, String> getHeaderMap() {
         return headerMap;
     }
+    
     /**
      * @param headerMap the headerMap to set
      */
     public void setHeaderMap(Map<String, String> headerMap) {
         this.headerMap = headerMap;
     }
-
 
     /**
      * Encompasses the different types of downloads that can be performed.
@@ -196,8 +206,7 @@ public class DownloadDetailsDTO {
         RECORDS_INDEX
     }
 
-
-    /* (non-Javadoc)
+    /**
      * @see java.lang.Object#toString()
      */
     @Override
@@ -214,7 +223,5 @@ public class DownloadDetailsDTO {
                 .append("]");
         return builder.toString();
     }
-
-    
   
 }

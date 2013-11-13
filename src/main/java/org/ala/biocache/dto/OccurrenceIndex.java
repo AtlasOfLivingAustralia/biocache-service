@@ -1,16 +1,29 @@
+/**************************************************************************
+ *  Copyright (C) 2010 Atlas of Living Australia
+ *  All Rights Reserved.
+ * 
+ *  The contents of this file are subject to the Mozilla Public
+ *  License Version 1.1 (the "License"); you may not use this file
+ *  except in compliance with the License. You may obtain a copy of
+ *  the License at http://www.mozilla.org/MPL/
+ * 
+ *  Software distributed under the License is distributed on an "AS
+ *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ *  implied. See the License for the specific language governing
+ *  rights and limitations under the License.
+ ***************************************************************************/
 package org.ala.biocache.dto;
+
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
 
 import org.apache.commons.lang.time.DateFormatUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.beans.Field;
 import org.codehaus.jackson.annotate.JsonIgnore;
 import org.codehaus.jackson.map.ObjectMapper;
-
-import java.io.InputStream;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
 
 /**
  * A DTO representing an result from the search indexes.
@@ -39,7 +52,19 @@ public class OccurrenceIndex {
             e.printStackTrace();
         }
     }
-    public static final String defaultFields="id,row_key,occurrence_id,data_hub_uid,data_hub,institution_uid,institution_code,institution_name,collection_uid,collection_code,collection_name,catalogue_number,taxon_concept_lsid,occurrence_date,occurrence_year,taxon_name,common_name,rank,rank_id,country_code,country,kingdom,phylum,class,order,family,genus,genus_guid,species,species_guid,subspecies,subspecies_guid,state,latitude,longitude,coordinate_uncertainty,year,month,basis_of_record,type_status,location_remarks,occurrence_remarks,lft,rgt,ibra,imcra,places,data_provider_uid,data_provider,data_resource_uid,data_resource,assertions,user_assertions,species_group,image_url,all_image_url,geospatial_kosher,taxonomic_kosher,collector,collectors,raw_taxon_name,raw_basis_of_record,raw_type_status,raw_common_name,lat_long,point-1,point-0.1,point-0.01,point-0.001,point-0.0001,names_and_lsid,multimedia,aust_conservation,state_conservation,sensitive,record_number";
+    
+    public static final String defaultFields = "id,row_key,occurrence_id,data_hub_uid,data_hub,"
+    		+ "institution_uid,institution_code,institution_name,collection_uid,collection_code,"
+    		+ "collection_name,catalogue_number,taxon_concept_lsid,occurrence_date,occurrence_year,"
+    		+ "taxon_name,common_name,rank,rank_id,country_code,country,kingdom,phylum,class,order,"
+    		+ "family,genus,genus_guid,species,species_guid,subspecies,subspecies_guid,state,latitude,"
+    		+ "longitude,coordinate_uncertainty,year,month,basis_of_record,type_status,location_remarks,"
+    		+ "occurrence_remarks,lft,rgt,ibra,imcra,places,data_provider_uid,data_provider,"
+    		+ "data_resource_uid,data_resource,assertions,user_assertions,species_group,image_url,"
+    		+ "all_image_url,geospatial_kosher,taxonomic_kosher,collector,collectors,raw_taxon_name,"
+    		+ "raw_basis_of_record,raw_type_status,raw_common_name,lat_long,"
+    		+ "point-1,point-0.1,point-0.01,point-0.001,point-0.0001,"
+    		+ "names_and_lsid,multimedia,aust_conservation,state_conservation,sensitive,record_number";
 
     @Field("id") String uuid;
     @Field("row_key") String rowKey;
@@ -264,62 +289,62 @@ public class OccurrenceIndex {
         addToMapIfNotNull(map, "taxon_name",scientificName);
         addToMapIfNotNull(map, "common_name",vernacularName);
         addToMapIfNotNull(map, "rank",taxonRank);
-        addToMapIfNotNull(map,"rank_id",safeIntToString(taxonRankID)); 
-        addToMapIfNotNull(map,"country_code", raw_countryCode);
-        addToMapIfNotNull(map,"country", country);
+        addToMapIfNotNull(map, "rank_id",safeIntToString(taxonRankID)); 
+        addToMapIfNotNull(map, "country_code", raw_countryCode);
+        addToMapIfNotNull(map, "country", country);
         addToMapIfNotNull(map, "kingdom",kingdom); 
-        addToMapIfNotNull(map,"phylum", phylum);
+        addToMapIfNotNull(map, "phylum", phylum);
         addToMapIfNotNull(map, "class", classs); 
-        addToMapIfNotNull(map,"order", order); 
-        addToMapIfNotNull(map,"family", family);
+        addToMapIfNotNull(map, "order", order); 
+        addToMapIfNotNull(map, "family", family);
         addToMapIfNotNull(map, "genus",genus);
         addToMapIfNotNull(map, "genus_guid",genusGuid);
-        addToMapIfNotNull(map,"species", species);
-        addToMapIfNotNull(map,"species_guid", speciesGuid);
-        addToMapIfNotNull(map,"subspecies", subspecies);
-        addToMapIfNotNull(map,"subspecies_guid", subspeciesGuid);
-        addToMapIfNotNull(map,"state", stateProvince); 
-        addToMapIfNotNull(map,"latitude", safeDblToString(decimalLatitude));
+        addToMapIfNotNull(map, "species", species);
+        addToMapIfNotNull(map, "species_guid", speciesGuid);
+        addToMapIfNotNull(map, "subspecies", subspecies);
+        addToMapIfNotNull(map, "subspecies_guid", subspeciesGuid);
+        addToMapIfNotNull(map, "state", stateProvince); 
+        addToMapIfNotNull(map, "latitude", safeDblToString(decimalLatitude));
         addToMapIfNotNull(map, "longitude", safeDblToString(decimalLongitude)); 
-        addToMapIfNotNull(map,"year", year); 
-        addToMapIfNotNull(map,"month", month); 
-        addToMapIfNotNull(map,"basis_of_record", basisOfRecord);
+        addToMapIfNotNull(map, "year", year); 
+        addToMapIfNotNull(map, "month", month); 
+        addToMapIfNotNull(map, "basis_of_record", basisOfRecord);
         addToMapIfNotNull(map, "type_status", typeStatus); 
-        addToMapIfNotNull(map,"location_remarks", raw_locationRemarks); 
-        addToMapIfNotNull(map,"occurrence_remarks", raw_occurrenceRemarks);
+        addToMapIfNotNull(map, "location_remarks", raw_locationRemarks); 
+        addToMapIfNotNull(map, "occurrence_remarks", raw_occurrenceRemarks);
         addToMapIfNotNull(map, "lft", safeIntToString(left)); 
-        addToMapIfNotNull(map,"rgt", safeIntToString(right));
-        addToMapIfNotNull(map,"ibra", ibra); 
-        addToMapIfNotNull(map,"imcra", imcra);
+        addToMapIfNotNull(map, "rgt", safeIntToString(right));
+        addToMapIfNotNull(map, "ibra", ibra); 
+        addToMapIfNotNull(map, "imcra", imcra);
         addToMapIfNotNull(map, "places", lga); 
-        addToMapIfNotNull(map,"data_provider_uid", dataProviderUid); 
-        addToMapIfNotNull(map,"data_provider", dataProviderName);
+        addToMapIfNotNull(map, "data_provider_uid", dataProviderUid); 
+        addToMapIfNotNull(map, "data_provider", dataProviderName);
         addToMapIfNotNull(map, "data_resource_uid", dataResourceUid);
-        addToMapIfNotNull(map,"data_resource", dataResourceName); 
-        addToMapIfNotNull(map,"assertions", arrToString(assertions));
+        addToMapIfNotNull(map, "data_resource", dataResourceName); 
+        addToMapIfNotNull(map, "assertions", arrToString(assertions));
         addToMapIfNotNull(map, "user_assertions", hasUserAssertions); 
-        addToMapIfNotNull(map,"species_group", arrToString(speciesGroups));
+        addToMapIfNotNull(map, "species_group", arrToString(speciesGroups));
         addToMapIfNotNull(map, "image_url", image); 
-        addToMapIfNotNull(map,"geospatial_kosher", geospatialKosher); 
-        addToMapIfNotNull(map,"taxonomic_kosher", taxonomicKosher);
+        addToMapIfNotNull(map, "geospatial_kosher", geospatialKosher); 
+        addToMapIfNotNull(map, "taxonomic_kosher", taxonomicKosher);
         addToMapIfNotNull(map, "raw_taxon_name", raw_scientificName); 
-        addToMapIfNotNull(map,"raw_basis_of_record", raw_basisOfRecord);
+        addToMapIfNotNull(map, "raw_basis_of_record", raw_basisOfRecord);
         addToMapIfNotNull(map, "raw_type_status", raw_typeStatus); 
-        addToMapIfNotNull(map,"raw_common_name", raw_vernacularName); 
-        addToMapIfNotNull(map,"lat_long", latLong);
+        addToMapIfNotNull(map, "raw_common_name", raw_vernacularName); 
+        addToMapIfNotNull(map, "lat_long", latLong);
         addToMapIfNotNull(map, "point-1", point1); 
-        addToMapIfNotNull(map,"point-0.1", point01); 
-        addToMapIfNotNull(map,"point-0.01", point001); 
-        addToMapIfNotNull(map,"point-0.001", point0001);
+        addToMapIfNotNull(map, "point-0.1", point01); 
+        addToMapIfNotNull(map, "point-0.01", point001); 
+        addToMapIfNotNull(map, "point-0.001", point0001);
         addToMapIfNotNull(map, "point-0.0001", point00001); 
-        addToMapIfNotNull(map,"names_and_lsid", namesLsid); 
-        addToMapIfNotNull(map,"multimedia", arrToString(multimedia));
-        addToMapIfNotNull(map,"collector",collector);
-        addToMapIfNotNull(map,"collectors",arrToString(collectors));
-        addToMapIfNotNull(map,"record_number", recordNumber);
-        addToMapIfNotNull(map,"occurrence_details", occurrenceDetails);
-        addToMapIfNotNull(map,"rights", rights);
-        addToMapIfNotNull(map,"photographer_s", photographer);
+        addToMapIfNotNull(map, "names_and_lsid", namesLsid); 
+        addToMapIfNotNull(map, "multimedia", arrToString(multimedia));
+        addToMapIfNotNull(map, "collector",collector);
+        addToMapIfNotNull(map, "collectors",arrToString(collectors));
+        addToMapIfNotNull(map, "record_number", recordNumber);
+        addToMapIfNotNull(map, "occurrence_details", occurrenceDetails);
+        addToMapIfNotNull(map, "rights", rights);
+        addToMapIfNotNull(map, "photographer_s", photographer);
         return map;
     }
 
@@ -994,5 +1019,4 @@ public class OccurrenceIndex {
     public void setPhotographer(String photographer) {
         this.photographer = photographer;
     }
-    
 }

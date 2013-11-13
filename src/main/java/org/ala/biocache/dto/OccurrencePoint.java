@@ -17,7 +17,6 @@ package org.ala.biocache.dto;
 import java.util.ArrayList;
 import java.util.List;
 
-
 /**
  * Model object to store a list of occurrence coordinates
  *

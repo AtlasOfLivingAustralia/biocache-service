@@ -1,3 +1,17 @@
+/**************************************************************************
+ *  Copyright (C) 2013 Atlas of Living Australia
+ *  All Rights Reserved.
+ * 
+ *  The contents of this file are subject to the Mozilla Public
+ *  License Version 1.1 (the "License"); you may not use this file
+ *  except in compliance with the License. You may obtain a copy of
+ *  the License at http://www.mozilla.org/MPL/
+ * 
+ *  Software distributed under the License is distributed on an "AS
+ *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ *  implied. See the License for the specific language governing
+ *  rights and limitations under the License.
+ ***************************************************************************/
 package org.ala.biocache.dto;
 
 import java.math.BigDecimal;
@@ -11,6 +25,7 @@ import java.math.BigDecimal;
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
 public enum PointType {
+	
     POINT_1     ("point-1", 1.0f, 0),
     POINT_01    ("point-0.1", 0.1f, 1),
     POINT_001   ("point-0.01", 0.01f, 2),
@@ -22,7 +37,7 @@ public enum PointType {
     private Float value;
     private int rounding;
 
-    PointType(String label,Float value, int rounding) {
+    private PointType(String label,Float value, int rounding) {
         this.label = label;
         this.value = value;
         this.rounding = rounding;

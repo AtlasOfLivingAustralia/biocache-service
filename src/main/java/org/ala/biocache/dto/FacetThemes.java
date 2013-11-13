@@ -1,10 +1,28 @@
+/**************************************************************************
+ *  Copyright (C) 2013 Atlas of Living Australia
+ *  All Rights Reserved.
+ * 
+ *  The contents of this file are subject to the Mozilla Public
+ *  License Version 1.1 (the "License"); you may not use this file
+ *  except in compliance with the License. You may obtain a copy of
+ *  the License at http://www.mozilla.org/MPL/
+ * 
+ *  Software distributed under the License is distributed on an "AS
+ *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ *  implied. See the License for the specific language governing
+ *  rights and limitations under the License.
+ ***************************************************************************/
 package org.ala.biocache.dto;
 
 import java.util.LinkedHashMap;
 
-import org.apache.commons.lang.ArrayUtils;
-
+/**
+ * This class provides thematic grouping of facets to aid rendering in UIs. 
+ * 
+ * @author Natasha Carter
+ */
 public class FacetThemes {
+	
     public static String[] allFacets = new String[]{};
     public static java.util.List<FacetTheme> allThemes = new java.util.ArrayList<FacetTheme>();
     public static LinkedHashMap<String, Facet> facetsMap = new LinkedHashMap<String, Facet>();
@@ -64,7 +82,7 @@ public class FacetThemes {
         }
     }
  
-    static class FacetTheme{
+    static class FacetTheme {
         private String title;
         private Facet[] facets;
         FacetTheme(String title, Facet... facets){

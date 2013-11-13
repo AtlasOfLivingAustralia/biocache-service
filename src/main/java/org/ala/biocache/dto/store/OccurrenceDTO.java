@@ -1,4 +1,4 @@
-/*
+/**
  *  Copyright (C) 2011 Atlas of Living Australia
  *  All Rights Reserved.
  *
@@ -28,9 +28,10 @@ import java.util.Map;
  *
  * @author "Natasha Carter <natasha.carter@csiro.au>"
  */
-public class OccurrenceDTO implements Serializable{
+public class OccurrenceDTO implements Serializable {
 
-    private FullRecord raw;
+	private static final long serialVersionUID = 2240957361572672142L;
+	private FullRecord raw;
     private FullRecord processed;
     private FullRecord consensus;
     private Map<String,List<QualityAssertion>> systemAssertions;

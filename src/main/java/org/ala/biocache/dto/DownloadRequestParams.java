@@ -19,8 +19,6 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 
 import org.ala.biocache.validate.LogType;
-import org.apache.commons.lang.StringUtils;
-import org.hibernate.validator.constraints.Range;
 
 /**
  * Data Transfer Object to represent the request parameters required to download
