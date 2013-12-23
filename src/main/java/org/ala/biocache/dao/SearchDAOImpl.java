@@ -1522,7 +1522,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * Process the {@see org.​apache.​solr.​client.​solrj.​response.QueryResponse} from a SOLR search and return
+     * Process the {@see org.apache.solr.client.solrj.response.QueryResponse} from a SOLR search and return
      * a {@link org.ala.biocache.dto.SearchResultDTO}
      *
      * @param qr
@@ -1559,11 +1559,17 @@ public class SearchDAOImpl implements SearchDAO {
                 List<FacetField.Count> facetEntries = facet.getValues();                
                 if ((facetEntries != null) && (facetEntries.size() > 0)) {
                     ArrayList<FieldResultDTO> r = new ArrayList<FieldResultDTO>();
+                    Matcher m = uidPattern.matcher(facet.getName()+":value");
+                    boolean isUid = m.matches();
                     for (FacetField.Count fcount : facetEntries) {
 //                        String msg = fcount.getName() + ": " + fcount.getCount();                       
                         //logger.trace(fcount.getName() + ": " + fcount.getCount());
-                        //if the facet field is collector or assertion_user_id we need to perform the substitution
-                        if(getAuthIndexFields().contains(facet.getName())){
+                        //check to see if the facet field is an uid value that needs substitution                        
+                        if(isUid){
+                            String displayName = searchUtils.getUidDisplayString(facet.getName(), fcount.getName(), false);
+                            r.add(new FieldResultDTO(displayName, fcount.getCount(),facet.getName()+":\"" + fcount.getName()+"\""));
+                        } else if(getAuthIndexFields().contains(facet.getName())){
+                          //if the facet field is collector or assertion_user_id we need to perform the substitution
                             String displayName = authService.getDisplayNameFor(fcount.getName());                            
                             //now add the facet with the correct fq being supplied
                             r.add(new FieldResultDTO(displayName, fcount.getCount(),facet.getName()+":\"" + fcount.getName()+"\""));
