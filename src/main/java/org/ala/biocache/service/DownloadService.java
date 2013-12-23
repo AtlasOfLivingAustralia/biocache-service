@@ -231,7 +231,8 @@ public class DownloadService {
     public void getCitations(Map<String, Integer> uidStats, OutputStream out) throws IOException{
         if(citationsEnabled){
             if(uidStats == null || uidStats.isEmpty() || out == null){
-                throw new NullPointerException("keys and/or out is null!!");
+                //throw new NullPointerException("keys and/or out is null!!");
+                logger.error("Unable to generate citations: keys and/or out is null!!");
             }
             
             //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
@@ -240,18 +241,23 @@ public class DownloadService {
                 out.write("\"Data resource ID\",\"Data resource\",\"Citation\",\"Rights\",\"More information\",\"Data generalizations\",\"Information withheld\",\"Download limit\",\"Number of Records in Download\"\n".getBytes());
                 for(Map<String,Object> record : entities){
                     StringBuilder sb = new StringBuilder();
-                    sb.append("\"").append(record.get("uid")).append("\",");
-                    sb.append("\"").append(record.get("name")).append("\",");
-                    sb.append("\"").append(record.get("citation")).append("\",");
-                    sb.append("\"").append(record.get("rights")).append("\",");
-                    sb.append("\"").append(record.get("link")).append("\",");
-                    sb.append("\"").append(record.get("dataGeneralizations")).append("\",");
-                    sb.append("\"").append(record.get("informationWithheld")).append("\",");
-                    sb.append("\"").append(record.get("downloadLimit")).append("\",");
-                    String count = uidStats.get(record.get("uid")).toString();
-                    sb.append("\"").append(count).append("\"");
-                    sb.append("\n");
-                    out.write(sb.toString().getBytes());
+                    //ensure that the record is not null to prevent NPE on the "get"s
+                    if(record != null){
+                        sb.append("\"").append(record.get("uid")).append("\",");
+                        sb.append("\"").append(record.get("name")).append("\",");
+                        sb.append("\"").append(record.get("citation")).append("\",");
+                        sb.append("\"").append(record.get("rights")).append("\",");
+                        sb.append("\"").append(record.get("link")).append("\",");
+                        sb.append("\"").append(record.get("dataGeneralizations")).append("\",");
+                        sb.append("\"").append(record.get("informationWithheld")).append("\",");
+                        sb.append("\"").append(record.get("downloadLimit")).append("\",");
+                        String count = uidStats.get(record.get("uid")).toString();
+                        sb.append("\"").append(count).append("\"");
+                        sb.append("\n");                    
+                        out.write(sb.toString().getBytes());
+                    } else{
+                        logger.warn("A null record was returned from the collectory citation service: " + entities);
+                    }
                 }
             }
         }
