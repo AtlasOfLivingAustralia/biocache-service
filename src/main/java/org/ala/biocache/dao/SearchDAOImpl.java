@@ -598,7 +598,13 @@ public class SearchDAOImpl implements SearchDAO {
             solrQuery.setQuery(buildSpatialQueryString(downloadParams));
 
             //get the assertion facets to add them to the download fields
-            SolrQuery monthAssertionsQuery = "all".equals(downloadParams.getQa())?solrQuery.getCopy().addFacetField("month", "assertions"):solrQuery.getCopy().addFacetField("month");
+            boolean getAssertionsFromFacets = "all".equals(downloadParams.getQa());
+            SolrQuery monthAssertionsQuery = getAssertionsFromFacets?solrQuery.getCopy().addFacetField("month", "assertions"):solrQuery.getCopy().addFacetField("month");
+            if(getAssertionsFromFacets){
+                //set the order for the facet to be based on the index - this will force the assertions to be returned in the same order each time
+                //based on alphabetical sort.  The number of QA's may change between searches so we can't guarantee that the order won't change
+                monthAssertionsQuery.add("f.assertions.facet.sort","index");
+            }
             QueryResponse facetQuery = runSolrQuery(monthAssertionsQuery, downloadParams.getFq(), 0, 0, "score", "asc");
             
             //set the totalrecords for the download details
@@ -791,6 +797,13 @@ public class SearchDAOImpl implements SearchDAO {
         
         try {
             SolrQuery solrQuery = initSolrQuery(downloadParams,false,null);
+            //ensure that the qa facet is being ordered alphabetically so that the order is consistent.
+            boolean getAssertionsFromFacets = "all".equals(downloadParams.getQa());            
+            if(getAssertionsFromFacets){
+                //set the order for the facet to be based on the index - this will force the assertions to be returned in the same order each time
+                //based on alphabetical sort.  The number of QA's may change between searches so we can't guarantee that the order won't change
+                solrQuery.add("f.assertions.facet.sort","index");
+            }
             formatSearchQuery(downloadParams);            
             //add context information
             updateQueryContext(downloadParams);
