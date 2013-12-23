@@ -142,8 +142,8 @@ public class SearchDAOImpl implements SearchDAO {
     protected Pattern spatialPattern = Pattern.compile(spatialField+":\"Intersects\\([a-zA-Z=\\-\\s0-9\\.\\,():]*\\)\\\"");
     protected Pattern qidPattern = ParamsCache.qidPattern;//Pattern.compile("qid:[0-9]*");
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
-    protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("[a-z_]{1,}:");
-    protected Pattern layersPattern = Pattern.compile("(el|cl)[0-9]+");
+    protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("[a-z_0-9]{1,}:");
+    protected Pattern layersPattern = Pattern.compile("(el|cl)[0-9abc]+");
 
     /** Download properties */
     protected DownloadFields downloadFields;
@@ -2011,7 +2011,17 @@ public class SearchDAOImpl implements SearchDAO {
             while(m.find(currentPos)){
                 String matchedIndexTerm = m.group(0).replaceAll(":","");
                 MatchResult mr = m.toMatchResult();
-                String i18n = messageSource.getMessage("facet."+matchedIndexTerm, null, matchedIndexTerm, null);
+                //if the matched term represents a layer lookup the title in the layers service
+                Matcher lm = layersPattern.matcher(matchedIndexTerm);
+                String i18n="";
+                if(lm.matches()){
+                    i18n = layersService.getName(matchedIndexTerm);
+                    if(i18n == null){
+                        i18n = matchedIndexTerm;
+                    }
+                } else {
+                    i18n = messageSource.getMessage("facet."+matchedIndexTerm, null, matchedIndexTerm, null);
+                }
                 //System.out.println("i18n for " + matchedIndexTerm + " = " + i18n);
                 if (!matchedIndexTerm.equals(i18n)) {
 

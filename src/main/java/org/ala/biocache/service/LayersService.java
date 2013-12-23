@@ -20,4 +20,5 @@ package org.ala.biocache.service;
  */
 public interface LayersService {
     public java.util.Map<String,String> getLayerNameMap();
+    public String getName(String code);
 }

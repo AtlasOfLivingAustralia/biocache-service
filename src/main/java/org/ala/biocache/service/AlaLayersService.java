@@ -69,4 +69,8 @@ public class AlaLayersService implements LayersService {
             //System.out.println("LAYERS::: " + tmpMap);
         } 
     }
+    @Override
+    public String getName(String code) {        
+        return idToNameMap!=null?idToNameMap.get(code):null;
+    }
 }
