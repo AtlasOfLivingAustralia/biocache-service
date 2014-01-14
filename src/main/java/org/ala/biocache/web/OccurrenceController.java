@@ -105,7 +105,7 @@ public class OccurrenceController extends AbstractSecureController {
     /** Name of view for site home page */
     private String HOME = "homePage";
     private String VALIDATION_ERROR="error/validationError";
-    @Value("${webservicesRoot}")
+    @Value("${webservicesRoot:http://localhost:8080/biocache-service}")
     protected String hostUrl = "http://localhost:8080/biocache-service";
     protected String bieBaseUrl = "http://bie.ala.org.au/";
 
@@ -448,6 +448,7 @@ public class OccurrenceController extends AbstractSecureController {
         DownloadRequestParams requestParams,
         @RequestParam(value = "count", required = false, defaultValue="false") boolean includeCount,
         @RequestParam(value="lookup" ,required=false, defaultValue="false") boolean lookupName,
+        @RequestParam(value="synonym", required=false, defaultValue="false") boolean includeSynonyms,
         @RequestParam(value="ip", required=false) String ip,
         HttpServletRequest request,
         HttpServletResponse response) throws Exception {          
@@ -460,7 +461,7 @@ public class OccurrenceController extends AbstractSecureController {
                 response.setHeader("Pragma", "must-revalidate");
                 response.setHeader("Content-Disposition", "attachment;filename=" + filename +".csv");
                 response.setContentType("text/csv");
-                searchDAO.writeFacetToStream(requestParams,includeCount, lookupName, response.getOutputStream(),dd);
+                searchDAO.writeFacetToStream(requestParams,includeCount, lookupName,includeSynonyms, response.getOutputStream(),dd);
             } finally {
               downloadService.unregisterDownload(dd);
             }

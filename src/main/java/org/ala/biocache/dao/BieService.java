@@ -15,6 +15,7 @@
 package org.ala.biocache.dao;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Service layer interface for accessing species lookups.
@@ -43,4 +44,18 @@ public interface BieService {
      * @return
      */
     List<String> getNamesForGuids(List<String> guids);
+    
+    /**
+     * Looks up the complete taxon concept details for the supplied guids in a bulk manner. 
+     * @param guids
+     * @return
+     */
+    List<Map<String,String>> getNameDetailsForGuids(List<String> guids);
+    
+    /**
+     * Gets a all the names associated with the supplied list of guids.
+     * @param guids
+     * @return
+     */
+    Map<String,List<Map<String, String>>> getSynonymDetailsForGuids(List<String> guids);
 }

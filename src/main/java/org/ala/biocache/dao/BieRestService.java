@@ -141,4 +141,40 @@ public class BieRestService implements BieService {
         this.bieUriPrefix = bieUriPrefix;
     }
 
+    @Override
+    public List<Map<String, String>> getNameDetailsForGuids(List<String> guids) {
+        List<Map<String,String>> results =null;
+        if(enabled){
+            final String url = bieUriPrefix + "/species/guids/bulklookup.json";
+            try{
+                //String jsonString="";
+                Map searchDTOList = restTemplate.postForObject(url, guids, Map.class);
+                //System.out.println(test);
+                results = (List<Map<String,String>>)searchDTOList.get("searchDTOList");
+            } catch (Exception ex) {
+                logger.error("Requested URI: " + url);
+                logger.error("With POST body: guid=" + StringUtils.join(guids, "&guid="));
+                logger.error("RestTemplate error: " + ex.getMessage(), ex);
+            }
+        }
+        return results;
+    }
+
+    @Override
+    public Map<String, List<Map<String, String>>> getSynonymDetailsForGuids(
+            List<String> guids) {
+        Map<String,List<Map<String, String>>> results = null;
+        if(enabled){
+            final String url = bieUriPrefix + "/species/bulklookup/namesFromGuids.json";
+            try{
+                results = restTemplate.postForObject(url, guids, Map.class); 
+            } catch(Exception ex){
+                logger.error("Requested URI: " + url);
+                logger.error("With POST body: guid=" + StringUtils.join(guids, "&guid="));
+                logger.error("RestTemplate error: " + ex.getMessage(), ex);
+            }
+        }
+        return results;
+    }
+
 }

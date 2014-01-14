@@ -118,7 +118,7 @@ public interface SearchDAO {
      */
     void writeCoordinatesToStream(SearchRequestParams searchParams,OutputStream out) throws Exception;
     
-    void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, OutputStream out, DownloadDetailsDTO dd) throws Exception;
+    void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, OutputStream out, DownloadDetailsDTO dd) throws Exception;
     
     Set<IndexFieldDTO> getIndexedFields() throws Exception;
     

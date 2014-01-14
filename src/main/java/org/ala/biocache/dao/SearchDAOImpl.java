@@ -301,7 +301,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public ArrayList<FieldResultDTO> getValuesForFacet(SpatialSearchRequestParams requestParams) throws Exception{
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        writeFacetToStream(requestParams, true, false, outputStream,null);
+        writeFacetToStream(requestParams, true, false, false, outputStream,null);
         outputStream.flush();
         outputStream.close();
         String includedValues = outputStream.toString();
@@ -407,7 +407,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @param lookupName true when a name lsid should be looked up in the bie
      * 
      */
-    public void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, OutputStream out, DownloadDetailsDTO dd) throws Exception{
+    public void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, OutputStream out, DownloadDetailsDTO dd) throws Exception{
         //set to unlimited facets
         searchParams.setFlimit(-1);
         formatSearchQuery(searchParams);
@@ -427,15 +427,25 @@ public class SearchDAOImpl implements SearchDAO {
         logger.debug("Retrieved facet results from server...");
         if (!qr.getResults().isEmpty()) {
             FacetField ff = qr.getFacetField(searchParams.getFacets()[0]);
+            
             //write the header line
             if(ff != null){
-                out.write(ff.getName().getBytes());
+                String[] header = new String[]{ff.getName()};
+               // out.write(ff.getName().getBytes());
                 if(shouldLookup){
-                    out.write((",species name").getBytes());
+                    header = new String[]{ff.getName(),"taxon name","kingdom","phylum","class","order","family","genus"};
+                    //out.write((",species name,kingdom,phylum,class,order,family,genus").getBytes());
+                    if(includeSynonyms){
+                        header = new String[]{ff.getName(),"taxon name","kingdom","phylum","class","order","family","genus","synonyms"};
+                        //out.write(",synonyms".getBytes());
+                    }
                 }
-                if(includeCount)
-                    out.write(",Count".getBytes());
-                out.write("\n".getBytes());
+                if(includeCount){
+                    //out.write(",Count".getBytes());
+                    header = (String[])ArrayUtils.add(header, "count");
+                }
+                CSVRecordWriter writer = new CSVRecordWriter(out, header);
+                //out.write("\n".getBytes());
                 //PAGE through the facets until we reach the end.
                 while(ff.getValueCount() >0){
                     if(ff.getValueCount() >0){
@@ -453,35 +463,17 @@ public class SearchDAOImpl implements SearchDAO {
                                 if(guids.size()==30){
                                   //now get the list of species from the web service TODO may need to move this code                                   
                                     //handle null values being returned from the service...
-                                    List<String> entities =  bieService.getNamesForGuids(guids);// restTemplate.getForObject(jsonUri, List.class);
-                                    for(int j = 0 ; j<guids.size();j++){
-                                        out.write((guids.get(j) + ",").getBytes());
-                                        String entity = entities.get(j) == null?"":entities.get(j);
-                                        out.write(entity.getBytes());
-                                        if(includeCount)
-                                            out.write((","+Long.toString(counts.get(j))).getBytes());
-                                        out.write("\n".getBytes());
-                                    }
+                                    writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, writer);
                                     guids.clear();
                                 }
                             }
-                            //now get the list of species from the web service
-                            List<String> entities = bieService.getNamesForGuids(guids);
-                            for(int i = 0 ; i<guids.size();i++){
-                                out.write((guids.get(i) + ",").getBytes());
-                                String entity = entities.get(i) == null ? "null":entities.get(i);
-                                out.write(entity.getBytes());
-                                if(includeCount)
-                                    out.write((","+Long.toString(counts.get(i))).getBytes());
-                                out.write("\n".getBytes());
-                            }
+                            //now write any guids that remain at the end of the looping
+                            writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, writer);
                         } else {
                             //default processing of facets
                             for(FacetField.Count value : ff.getValues()){
-                                out.write(value.getName().getBytes());
-                                if(includeCount)
-                                    out.write((","+Long.toString(value.getCount())).getBytes());
-                                out.write("\n".getBytes());
+                                String[] row = includeCount?new String[]{value.getName(), Long.toString(value.getCount())}:new String[]{value.getName()};
+                                writer.write(row);
                             }
                         }
                         offset += FACET_PAGE_SIZE;
@@ -493,8 +485,66 @@ public class SearchDAOImpl implements SearchDAO {
                         qr = runSolrQuery(solrQuery, searchParams);
                         ff = qr.getFacetField(searchParams.getFacets()[0]);
                     }
+                    writer.finalise();
                 }
             }
+        }
+    }
+    /**
+     * Writes additional taxon information to the stream. It performs bulk lookups to the 
+     * BIE in order to obtain extra classification information
+     * @param guids The guids to lookup 
+     * @param counts The occurrence counts for each guid if "includeCounts = true"
+     * @param includeCounts Whether or not to include the occurrence counts in the download
+     * @param includeSynonyms whether or not to include the synonyms in the download - when 
+     * true this will perform additional lookups in the BIE
+     * @param writer The CSV writer to write to.
+     * @throws Exception
+     */
+    private void writeTaxonDetailsToStream(List<String> guids,List<Long> counts, boolean includeCounts, boolean includeSynonyms, CSVRecordWriter writer) throws Exception{
+        List<Map<String,String>> values = bieService.getNameDetailsForGuids(guids);
+        Map<String,List<Map<String, String>>> synonyms = includeSynonyms?bieService.getSynonymDetailsForGuids(guids):new HashMap<String,List<Map<String,String>>>();
+        int size = includeSynonyms&&includeCounts?10:((includeCounts && !includeSynonyms)||(includeSynonyms && !includeCounts))?9:8;
+        
+        for(int i =0 ;i<guids.size();i++){
+            int countIdx=8;
+            String[] row = new String[size];
+            //guid
+            String guid = guids.get(i);
+            row[0]=guid;
+            if(values!= null && synonyms != null){
+                Map<String,String> map = values.get(i);                               
+                if(map!=null){
+                    //scientific name
+                    row[1]=map.get("nameComplete");
+                    row[2]=map.get("kingdom");
+                    row[3]=map.get("phylum");
+                    row[4]=map.get("classs");
+                    row[5]=map.get("order");
+                    row[6]=map.get("family");
+                    row[7]=map.get("genus");                
+                }
+                
+                if(includeSynonyms){
+                    //retrieve a list of the synonyms
+                    List<Map<String,String>> names =synonyms.get(guid);
+                    StringBuilder sb =new StringBuilder();
+                    for(Map<String,String> n :names){
+                        if(!guid.equals(n.get("guid"))){
+                            if(sb.length()>0){
+                                sb.append(",");
+                            }
+                            sb.append(n.get("name"));
+                        }
+                    }
+                    row[8] =sb.toString();
+                    countIdx=9;
+                }
+            }
+            if(includeCounts){
+                row[countIdx] = counts.get(i).toString();
+            }
+            writer.write(row);
         }
     }
     
