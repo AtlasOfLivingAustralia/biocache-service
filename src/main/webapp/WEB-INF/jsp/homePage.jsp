@@ -112,7 +112,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             <li><strong>Occurrence for data provider:</strong> /occurrences/dataProviders/{uid}</li>
             <li><strong>Occurrence for data hub:</strong> /occurrences/dataHubs/{uid}
                 e.g. <a href="${webservicesRoot}/occurrences/dataHubs/dh1">/occurrences/collections/dh1</a></li>
-            <li><a href="#downloadFromDB"><strong>Occurrence download:</strong></a> /occurrences/download - needs request param definition<br>
+            <li><a href="#downloadFromDB" name="downloadFromDB" id="downloadFromDB"><strong>Occurrence download:</strong></a> /occurrences/download - needs request param definition<br>
                 The download will include all records that satisfy the q, fq and wkt parameters.  The number of records
                 for a data resource may be restricted based on a collectory configured download limit.  Params:
                 <ul class="paramList">
@@ -164,11 +164,12 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             Example:<br>
             <a href="${webservicesRoot}/index/fields?fl=lat_long">/index/fields?fl=lat_long</a>           
            
-            <li><strong>Facet based download:</strong> /occurrences/facets/download - requires a 'q' and optional 'fq' and one 'facets'. Optional Params:
+            <li><a href="#downloadFacet" name="downloadFacet" id="downloadFacet"><strong>Facet based download:</strong></a> /occurrences/facets/download - requires a 'q' and optional 'fq' and one 'facets'. Optional Params:
                 <ul class="paramList">
 	            	<li><strong>count</strong> - set to true if you would like the count included</li>
-	            	<li><strong>lookup</strong> - set to true if you would like the download include the scientific names for the supplied guids.  Downloads that include this param will take extra time as a lookup need to be performed</li>
+	            	<li><strong>lookup</strong> - set to true if you would like the download include the scientific names and higher classification for the supplied guids.  Downloads that include this param will take extra time as a lookup need to be performed</li>
 	            	<li><strong>fsort</strong> - used to sort values in the file - either 'count' or 'index'
+	            	<li><strong>synonym</strong> - set to true if you want the lookup to include synonyms. Use with care as this will perform an additional lookup.</li>
             	</ul> 
 	            <br>This can be used to download distinct lists of species:
 	            <ul>
