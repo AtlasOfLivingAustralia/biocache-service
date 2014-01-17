@@ -433,10 +433,10 @@ public class SearchDAOImpl implements SearchDAO {
                 String[] header = new String[]{ff.getName()};
                // out.write(ff.getName().getBytes());
                 if(shouldLookup){
-                    header = new String[]{ff.getName(),"taxon name","kingdom","phylum","class","order","family","genus"};
+                    header = new String[]{ff.getName(),"taxon name","kingdom","phylum","class","order","family","genus","vernacular name"};
                     //out.write((",species name,kingdom,phylum,class,order,family,genus").getBytes());
                     if(includeSynonyms){
-                        header = new String[]{ff.getName(),"taxon name","kingdom","phylum","class","order","family","genus","synonyms"};
+                        header = new String[]{ff.getName(),"taxon name","kingdom","phylum","class","order","family","genus","vernacular name","synonyms"};
                         //out.write(",synonyms".getBytes());
                     }
                 }
@@ -504,10 +504,10 @@ public class SearchDAOImpl implements SearchDAO {
     private void writeTaxonDetailsToStream(List<String> guids,List<Long> counts, boolean includeCounts, boolean includeSynonyms, CSVRecordWriter writer) throws Exception{
         List<Map<String,String>> values = bieService.getNameDetailsForGuids(guids);
         Map<String,List<Map<String, String>>> synonyms = includeSynonyms?bieService.getSynonymDetailsForGuids(guids):new HashMap<String,List<Map<String,String>>>();
-        int size = includeSynonyms&&includeCounts?10:((includeCounts && !includeSynonyms)||(includeSynonyms && !includeCounts))?9:8;
+        int size = includeSynonyms&&includeCounts?11:((includeCounts && !includeSynonyms)||(includeSynonyms && !includeCounts))?10:9;
         
         for(int i =0 ;i<guids.size();i++){
-            int countIdx=8;
+            int countIdx=9;
             String[] row = new String[size];
             //guid
             String guid = guids.get(i);
@@ -522,7 +522,8 @@ public class SearchDAOImpl implements SearchDAO {
                     row[4]=map.get("classs");
                     row[5]=map.get("order");
                     row[6]=map.get("family");
-                    row[7]=map.get("genus");                
+                    row[7]=map.get("genus"); 
+                    row[8]=map.get("commonNameSingle");
                 }
                 
                 if(includeSynonyms){
@@ -537,8 +538,8 @@ public class SearchDAOImpl implements SearchDAO {
                             sb.append(n.get("name"));
                         }
                     }
-                    row[8] =sb.toString();
-                    countIdx=9;
+                    row[9] =sb.toString();
+                    countIdx=10;
                 }
             }
             if(includeCounts){
