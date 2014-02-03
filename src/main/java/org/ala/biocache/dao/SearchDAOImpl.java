@@ -971,7 +971,7 @@ public class SearchDAOImpl implements SearchDAO {
         if(downloadParams.getExtra().length()>0)
             sb.append(",").append(downloadParams.getExtra());
         StringBuilder qasb = new StringBuilder();
-        QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), pageSize, startIndex, "score", "asc");
+        QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), pageSize, startIndex, "_docid_", "asc");
         List<String> uuids = new ArrayList<String>();
         
         while (qr.getResults().size() > 0 && resultsCount < MAX_DOWNLOAD_SIZE && shouldDownload(dataResource, downloadLimit, false)) {
