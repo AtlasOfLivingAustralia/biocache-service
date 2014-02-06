@@ -261,10 +261,11 @@ public class WebportalController /* implements ServletConfigAware*/ {
 
         String[] acceptableTypes=new String[]{"application/json", "application/csv"};
         
-        String accepts=request.getHeader("Accept");
-        returnType = StringUtils.isNotEmpty(accepts) ?accepts:returnType;
+        String accepts=request.getHeader("Accept"); 
+        //only allow a single format to be supplied in the header otherwise use the default returnType
+        returnType = StringUtils.isNotEmpty(accepts) && !accepts.contains(",") ?accepts:returnType;
         if(!Arrays.asList(acceptableTypes).contains(returnType)){
-            response.sendError(response.SC_NOT_ACCEPTABLE, "Unable to produce a legend in the supplied format");
+            response.sendError(response.SC_NOT_ACCEPTABLE, "Unable to produce a legend in the supplied \"Accept\" format: " + returnType);
             return null;
         }
         boolean isCsv = returnType.equals("application/csv");
