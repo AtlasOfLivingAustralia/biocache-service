@@ -26,6 +26,7 @@ import org.ala.biocache.dto.*;
 import org.ala.biocache.util.ParamsCache;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
+import org.apache.zookeeper.server.Request;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.ResponseBody;
 
@@ -237,10 +238,12 @@ public class WebportalController /* implements ServletConfigAware*/ {
         }
 
         writeBytes(response, sb.toString().getBytes("UTF-8"));
-    }
+    }   
 
     /**
-     * Get csv legend for a query and facet field (colourMode).
+     * Get legend for a query and facet field (colourMode).
+     *
+     *if "Accept" header is application/json return json otherwise
      *
      * @param requestParams
      * @param colourMode
@@ -248,12 +251,23 @@ public class WebportalController /* implements ServletConfigAware*/ {
      * @throws Exception
      */
     @RequestMapping(value = {"/webportal/legend", "/mapping/legend"}, method = RequestMethod.GET)
-    public void legend(
+    @ResponseBody public List<LegendItem> legend(
             SpatialSearchRequestParams requestParams,
             @RequestParam(value = "cm", required = false, defaultValue = "") String colourMode,
+            @RequestParam(value="type",required=false,defaultValue="application/csv") String returnType,
+            HttpServletRequest request,
             HttpServletResponse response)
             throws Exception {
 
+        String[] acceptableTypes=new String[]{"application/json", "application/csv"};
+        
+        String accepts=request.getHeader("Accept");
+        returnType = StringUtils.isNotEmpty(accepts) ?accepts:returnType;
+        if(!Arrays.asList(acceptableTypes).contains(returnType)){
+            response.sendError(response.SC_NOT_ACCEPTABLE, "Unable to produce a legend in the supplied format");
+            return null;
+        }
+        boolean isCsv = returnType.equals("application/csv");
         //test for cutpoints on the back of colourMode
         String[] s = colourMode.split(",");
         String[] cutpoints = null;
@@ -266,12 +280,15 @@ public class WebportalController /* implements ServletConfigAware*/ {
             java.util.Collections.sort(legend);
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("name,red,green,blue,count");
+        if(isCsv){
+            sb.append("name,red,green,blue,count");
+        }
         int i = 0;
         //add legend entries.
         int offset = 0;
         for (i = 0; i < legend.size(); i++) {
-            String name = legend.get(i).getName();
+            LegendItem li = legend.get(i);
+            String name = li.getName();
             if (name == null) {
                 name = NULL_NAME;
             }
@@ -286,11 +303,20 @@ public class WebportalController /* implements ServletConfigAware*/ {
                     colour = getRangedColour(i - offset, cutpoints.length/2);
                 }
             }
-            sb.append("\n\"").append(name.replace("\"", "\"\"")).append("\",").append(getRGB(colour)) //repeat last colour if required
-                    .append(",").append(legend.get(i).getCount());
+            li.setRBG(colour);
+            if(isCsv){
+                sb.append("\n\"").append(name.replace("\"", "\"\"")).append("\",").append(getRGB(colour)) //repeat last colour if required
+                        .append(",").append(legend.get(i).getCount());
+            }
         }
 
-        writeBytes(response, sb.toString().getBytes("UTF-8"));
+        //now generate the JSON if necessary
+        if(returnType.equals("application/json")){
+            return legend;
+        } else{        
+            writeBytes(response, sb.toString().getBytes("UTF-8"));
+            return null;
+        }
     }
 
     /**

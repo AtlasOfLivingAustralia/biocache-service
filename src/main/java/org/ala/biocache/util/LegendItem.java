@@ -25,6 +25,9 @@ public class LegendItem implements Comparable<LegendItem> {
     long count;
     int colour;
     String fq;
+    int red;
+    int blue;
+    int green;
 
     public LegendItem(String name, long count, String fq) {
         this.name = name;
@@ -50,6 +53,33 @@ public class LegendItem implements Comparable<LegendItem> {
     
     public int getColour() {
         return colour;
+    }
+    
+    public void setRBG(int colour) {
+        red = (colour >> 16) & 0x000000ff;
+        blue = (colour >> 8) & 0x000000ff;
+        green = colour & 0x000000ff;        
+    }
+
+    /**
+     * @return the red
+     */
+    public int getRed() {
+        return red;
+    }
+
+    /**
+     * @return the blue
+     */
+    public int getBlue() {
+        return blue;
+    }
+
+    /**
+     * @return the green
+     */
+    public int getGreen() {
+        return green;
     }
 
     /**
