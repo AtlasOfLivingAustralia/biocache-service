@@ -304,7 +304,7 @@ public class WebportalController /* implements ServletConfigAware*/ {
                     colour = getRangedColour(i - offset, cutpoints.length/2);
                 }
             }
-            li.setRBG(colour);
+            li.setRGB(colour);
             if(isCsv){
                 sb.append("\n\"").append(name.replace("\"", "\"\"")).append("\",").append(getRGB(colour)) //repeat last colour if required
                         .append(",").append(legend.get(i).getCount());

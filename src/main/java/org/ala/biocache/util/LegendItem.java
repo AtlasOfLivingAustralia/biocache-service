@@ -55,10 +55,10 @@ public class LegendItem implements Comparable<LegendItem> {
         return colour;
     }
     
-    public void setRBG(int colour) {
+    public void setRGB(int colour) {
         red = (colour >> 16) & 0x000000ff;
-        blue = (colour >> 8) & 0x000000ff;
-        green = colour & 0x000000ff;        
+        green = (colour >> 8) & 0x000000ff;
+        blue = colour & 0x000000ff;        
     }
 
     /**
