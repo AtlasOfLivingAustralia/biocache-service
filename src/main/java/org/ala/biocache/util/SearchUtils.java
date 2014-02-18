@@ -244,7 +244,7 @@ public class SearchUtils {
                 }
                 NameSearchResult nsr = nameIndex.searchForRecordByLsid(lsid);
                 if(nsr != null ){
-                    StringBuffer dispSB = new StringBuffer(nsr.getRank().toString() + ": " + nsr.getCleanName());
+                    StringBuffer dispSB = new StringBuffer(nsr.getRank().toString() + ": " + nsr.getRankClassification().getScientificName());
                     StringBuilder sb = new StringBuilder("lft:[");
                     sb.append(nsr.getLeft()).append(" TO ").append(nsr.getRight()).append("]");
                     return new String[]{sb.toString(), dispSB.toString()};
@@ -367,6 +367,7 @@ public class SearchUtils {
                 });
         return lsources;
     }
+
 
     /**
      * Provide default values for parameters if they have any null or "empty" values
