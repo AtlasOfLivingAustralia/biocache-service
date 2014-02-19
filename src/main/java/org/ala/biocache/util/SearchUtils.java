@@ -244,9 +244,13 @@ public class SearchUtils {
                 }
                 NameSearchResult nsr = nameIndex.searchForRecordByLsid(lsid);
                 if(nsr != null ){
-                    StringBuffer dispSB = new StringBuffer(nsr.getRank().toString() + ": " + nsr.getRankClassification().getScientificName());
+                    String rank = nsr.getRank() != null ? nsr.getRank().toString() : "Unknown Rank";
+                    String scientificName = nsr.getRankClassification() != null ? nsr.getRankClassification().getScientificName():null;
+                    StringBuffer dispSB = new StringBuffer(rank + ": " + scientificName);
                     StringBuilder sb = new StringBuilder("lft:[");
-                    sb.append(nsr.getLeft()).append(" TO ").append(nsr.getRight()).append("]");
+                    String lft = nsr.getLeft() != null ? nsr.getLeft():"0";
+                    String rgt = nsr.getRight() != null ? nsr.getRight() : "0";
+                    sb.append(lft).append(" TO ").append(rgt).append("]");
                     return new String[]{sb.toString(), dispSB.toString()};
                 } else {
                     return new String[]{"taxon_concept_lsid:" + ClientUtils.escapeQueryChars(lsid), "taxon_concept_lsid:" + lsid};
