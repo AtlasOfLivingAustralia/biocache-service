@@ -15,4 +15,4 @@
         <property name="maxWait" value="30000"/>
         <property name="poolPreparedStatements" value="true"/>
     </bean>
-    </beans>
+</beans>
