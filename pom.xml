@@ -1,10 +1,9 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>au.org.ala</groupId>
   <artifactId>biocache-service</artifactId>
   <packaging>war</packaging>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.0</version>
   <name>biocache-service</name>
   <url>http://www.ala.org.au</url>
   <description>This is a the service layer for the BioCache</description>
@@ -19,7 +18,7 @@
 
 <!-- AN SCM entry that points to the SVN directory that contains the pom file for the project  -->
     <scm>
-        <developerConnection>scm:svn:https://ala-portal.googlecode.com/svn/trunk/biocache-service/</developerConnection>
+        <developerConnection>scm:svn:https://ala-portal.googlecode.com/svn/tags/biocache-service-1.0</developerConnection>
     </scm>
 
   <dependencies>
