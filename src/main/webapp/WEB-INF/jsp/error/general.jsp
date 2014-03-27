@@ -1,8 +1,10 @@
 <%@ page import="org.apache.solr.common.SolrException"%><%@page contentType="application/json" pageEncoding="UTF-8"%>{
 <%
     try {
+
         // The Servlet spec guarantees this attribute will be available
         Throwable exception = (Throwable) request.getAttribute("javax.servlet.error.exception");
+        exception.printStackTrace();
         if (exception != null) {
             if (exception instanceof SolrException) {
                 response.setContentType("application/json");

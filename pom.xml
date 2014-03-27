@@ -1,12 +1,13 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>au.org.ala</groupId>
   <artifactId>biocache-service</artifactId>
   <packaging>war</packaging>
   <version>1.1-SNAPSHOT</version>
   <name>biocache-service</name>
-  <url>http://www.ala.org.au</url>
-  <description>This is a the service layer for the BioCache</description>
+  <url>http://biocache.ala.org.au/ws</url>
+  <description>This is a the service layer for the Biocache</description>
   <properties>
     <!-- This project uses UTF8 for Regular Expressions -->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -15,13 +16,12 @@
     <junit.version>4.8.2</junit.version>
     <netbeans.hint.deploy.server>Tomcat</netbeans.hint.deploy.server>
   </properties>
-
-<!-- AN SCM entry that points to the SVN directory that contains the pom file for the project  -->
+    <!-- AN SCM entry that points to the SVN directory that contains the pom file for the project  -->
     <scm>
         <developerConnection>scm:svn:https://ala-portal.googlecode.com/svn/trunk/biocache-service/</developerConnection>
     </scm>
 
-  <dependencies>
+    <dependencies>
 	<!-- JSR 303 validation support -->
 	<dependency>
 		<groupId>javax.validation</groupId>
@@ -35,18 +35,17 @@
 		<!--  version 5.0.1 is incompatible with tomcat 6 due to el 2.1 being used. -->
 		<!-- <version>5.0.1.Final</version> -->
 	</dependency>
-  
-    <!-- ALA header and tails -->
-    <dependency>
-      <groupId>au.org.ala</groupId>
-      <artifactId>ala-header-and-tails</artifactId>
-      <version>2.0</version>
-    </dependency>
+      <!-- ALA header and tails -->
+      <dependency>
+          <groupId>au.org.ala</groupId>
+          <artifactId>ala-header-and-tails</artifactId>
+          <version>2.0</version>
+      </dependency>
     <!-- ALA logging -->
     <dependency>
       <groupId>au.org.ala</groupId>
       <artifactId>biocache-store</artifactId>
-      <version>1.0</version>
+      <version>1.1-SNAPSHOT</version>
        <exclusions>
         <exclusion>
             <artifactId>google-collect</artifactId>
@@ -55,6 +54,10 @@
         <exclusion>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-jdk14</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>javax.servlet</groupId>
+            <artifactId>servlet-api</artifactId>
         </exclusion>
         <exclusion>
             <groupId>javax.servlet.jsp</groupId>
@@ -88,12 +91,6 @@
       <artifactId>opencsv</artifactId>
       <version>2.3</version>
     </dependency>
-    <!-- Lightweight Persistent DB  -->
-    <!-- <dependency>
-        <groupId>com.db40</groupId>
-        <artifactId>db4o-core</artifactId>
-        <version>8.0</version>
-    </dependency> -->
     <!--  Cache  -->
     <dependency>
         <groupId>com.googlecode.ehcache-spring-annotations</groupId>
@@ -416,18 +413,17 @@
 		<artifactId>jetty-maven-plugin</artifactId>
 		<version>7.0.0.pre5</version>
 		<configuration>
-
 			<webAppConfig>
 				<contextPath>/biocache-service</contextPath>
 				<!-- NC 20130808: Add the external directory to the classpath to allow 
 					biocache.properties to be override -->
 				<!-- <extraClasspath>/data/biocache/config/</extraClasspath> -->
 			</webAppConfig>
-			<systemProperty>
-				<!-- <name>org.eclipse.jetty.server.Request.maxFormContentSize</name> -->
-				<name>org.mortbay.jetty.Request.maxFormContentSize</name>
-				<value>-1</value>
-			</systemProperty>
+			<!--<systemProperty>-->
+				<!--&lt;!&ndash; <name>org.eclipse.jetty.server.Request.maxFormContentSize</name> &ndash;&gt;-->
+				<!--<name>org.mortbay.jetty.Request.maxFormContentSize</name>-->
+				<!--<value>-1</value>-->
+			<!--</systemProperty>-->
 			<scanIntervalSeconds>10</scanIntervalSeconds>
 			<stopKey>foo</stopKey>
 			<stopPort>9099</stopPort>
@@ -488,12 +484,12 @@
          </execution>
       </executions>
    </plugin>
-   <plugin>
-       <groupId>org.apache.maven.plugins</groupId>
-       <artifactId>maven-release-plugin</artifactId>
-       <version>2.5</version>
-   </plugin> 
-  </plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-release-plugin</artifactId>
+            <version>2.5</version>
+        </plugin>
+    </plugins>
   </build>
     <distributionManagement>
     <downloadUrl>https://maven.ala.org.au/repository</downloadUrl>
