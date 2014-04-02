@@ -228,9 +228,13 @@ public class AssertionController extends AbstractSecureController {
         String apiKey = request.getParameter("apiKey");
         
         if(shouldPerformOperation(apiKey, response)){
-            Store.deleteUserAssertion(recordUuid, assertionUuid);
-            //postNotificationEvent("delete", recordUuid, assertionUuid);
-            response.setStatus(HttpServletResponse.SC_OK);
+            try{
+                Store.deleteUserAssertion(recordUuid, assertionUuid);
+                //postNotificationEvent("delete", recordUuid, assertionUuid);
+                response.setStatus(HttpServletResponse.SC_OK);
+            } catch(Exception e){
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+            }
         }
     }
 
