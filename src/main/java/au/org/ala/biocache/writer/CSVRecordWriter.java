@@ -37,6 +37,11 @@ public class CSVRecordWriter implements RecordWriter{
         csvWriter = new CSVWriter(new OutputStreamWriter(out), ',', '"');  
         csvWriter.writeNext(header);
     }
+
+    public CSVRecordWriter(OutputStream out, String[] header, char sep, char esc){
+        csvWriter = new CSVWriter(new OutputStreamWriter(out), sep, '"', esc);
+        csvWriter.writeNext(header);
+    }
     
     /**
      * Writes the supplied record to output stream  

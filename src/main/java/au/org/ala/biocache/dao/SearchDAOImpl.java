@@ -689,7 +689,7 @@ public class SearchDAOImpl implements SearchDAO {
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[2].toArray(new String[]{}),qaTitles);
             
             //construct correct RecordWriter based on the supplied fileType
-            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv")? new CSVRecordWriter(out, header) : new ShapeFileRecordWriter(downloadParams.getFile(), out, (String[])ArrayUtils.addAll(fields, qaFields));
+            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv")? new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) : new ShapeFileRecordWriter(downloadParams.getFile(), out, (String[])ArrayUtils.addAll(fields, qaFields));
             
             if(rw instanceof ShapeFileRecordWriter){
                 dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
@@ -907,7 +907,7 @@ public class SearchDAOImpl implements SearchDAO {
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(titles,qaTitles);
             //Create the Writer that will be used to format the records
             //construct correct RecordWriter based on the supplied fileType
-            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv")? new CSVRecordWriter(out, header) : new ShapeFileRecordWriter(downloadParams.getFile(), out, (String[])ArrayUtils.addAll(fields, qaFields));
+            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv")? new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) : new ShapeFileRecordWriter(downloadParams.getFile(), out, (String[])ArrayUtils.addAll(fields, qaFields));
             
             if(rw instanceof ShapeFileRecordWriter){
                 dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());

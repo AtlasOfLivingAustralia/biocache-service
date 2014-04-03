@@ -14,15 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.*;
+import java.util.*;
 import java.util.zip.ZipOutputStream;
 
 import javax.annotation.PostConstruct;
@@ -30,6 +23,7 @@ import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletResponse;
 
+import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
@@ -196,7 +190,7 @@ public class DownloadService {
             //add the citations for the supplied uids
             zop.putNextEntry(new java.util.zip.ZipEntry("citation.csv"));
             try {
-                getCitations(uidStats, zop);
+                getCitations(uidStats, zop, requestParams.getSep(), requestParams.getEsc());
             } catch (Exception e) {
                 logger.error(e.getMessage(),e);
             }
@@ -237,38 +231,53 @@ public class DownloadService {
      * @throws HttpException
      * @throws IOException
      */
-    public void getCitations(Map<String, Integer> uidStats, OutputStream out) throws IOException{
+    public void getCitations(Map<String, Integer> uidStats, OutputStream out, char sep, char esc) throws IOException{
         if(citationsEnabled){
             if(uidStats == null || uidStats.isEmpty() || out == null){
                 //throw new NullPointerException("keys and/or out is null!!");
                 logger.error("Unable to generate citations: keys and/or out is null!!");
+                return;
             }
-            
+
+            CSVWriter writer = new CSVWriter(new OutputStreamWriter(out), sep, '"',esc);
             //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
             List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl, uidStats.keySet(), List.class);
             if(entities.size()>0){
-                out.write("\"Data resource ID\",\"Data resource\",\"Citation\",\"Rights\",\"More information\",\"Data generalizations\",\"Information withheld\",\"Download limit\",\"Number of Records in Download\"\n".getBytes());
+                //i18n of the citation header
+                writer.writeNext(new String[]{messageSource.getMessage("citation.uid", null, "UID", null),
+                        messageSource.getMessage("citation.name", null,"Name", null),
+                        messageSource.getMessage("citation.citation", null,"Citation", null),
+                        messageSource.getMessage("citation.rights", null,"Rights", null),
+                        messageSource.getMessage("citation.link", null,"More Information", null),
+                        messageSource.getMessage("citation.dataGeneralizations", null,"Data generalisations", null),
+                        messageSource.getMessage("citation.informationWithheld", null,"Information withheld", null),
+                        messageSource.getMessage("citation.downloadLimit", null,"Download limit", null),
+                        messageSource.getMessage("citation.count", null,"Number of Records in Download", null)});
+
                 for(Map<String,Object> record : entities){
                     StringBuilder sb = new StringBuilder();
                     //ensure that the record is not null to prevent NPE on the "get"s
                     if(record != null){
-                        sb.append("\"").append(record.get("uid")).append("\",");
-                        sb.append("\"").append(record.get("name")).append("\",");
-                        sb.append("\"").append(record.get("citation")).append("\",");
-                        sb.append("\"").append(record.get("rights")).append("\",");
-                        sb.append("\"").append(record.get("link")).append("\",");
-                        sb.append("\"").append(record.get("dataGeneralizations")).append("\",");
-                        sb.append("\"").append(record.get("informationWithheld")).append("\",");
-                        sb.append("\"").append(record.get("downloadLimit")).append("\",");
                         String count = uidStats.get(record.get("uid")).toString();
-                        sb.append("\"").append(count).append("\"");
-                        sb.append("\n");                    
-                        out.write(sb.toString().getBytes());
+                        String[] row = new String[]{getOrElse(record,"uid",""),getOrElse(record, "name",""), getOrElse(record, "citation",""),
+                                getOrElse(record,"rights", ""), getOrElse(record, "link",""),getOrElse(record,"dataGeneralizations",""),
+                                getOrElse(record, "informationWithheld",""), getOrElse(record, "downloadLimit", ""), count};
+                        writer.writeNext(row);
+
                     } else{
                         logger.warn("A null record was returned from the collectory citation service: " + entities);
                     }
                 }
             }
+            writer.flush();
+        }
+    }
+
+    private String getOrElse(Map map, String key, String value){
+        if(map.containsKey(key)){
+            return map.get(key).toString();
+        } else{
+            return value;
         }
     }
     

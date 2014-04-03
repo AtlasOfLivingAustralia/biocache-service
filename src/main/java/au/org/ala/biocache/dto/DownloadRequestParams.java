@@ -42,6 +42,10 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     protected String extra = "";
     /** the CSV list of issue types to include in the download, defaults to all. Also supports none. */
     protected String qa="all";
+    /** The CSV separator to use */
+    protected Character sep=',';
+    /** The CSV escape character to use*/
+    protected Character esc='"';
     
     @NotNull @LogType(type="reason")//@Range(min=0, max=10)
     protected Integer reasonTypeId = null;    
@@ -188,5 +192,20 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     public void setQa(String qa) {
         this.qa = qa;
     }
-    
+
+    public Character getEsc() {
+        return esc;
+    }
+
+    public void setEsc(Character esc) {
+        this.esc = esc;
+    }
+
+    public Character getSep() {
+        return sep;
+    }
+
+    public void setSep(Character sep) {
+        this.sep = sep;
+    }
 }
