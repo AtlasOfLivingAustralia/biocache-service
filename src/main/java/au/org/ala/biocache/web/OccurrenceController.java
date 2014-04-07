@@ -15,15 +15,15 @@
 package au.org.ala.biocache.web;
 
 import au.com.bytecode.opencsv.CSVReader;
-import au.org.ala.biocache.load.MediaStore;
 import au.org.ala.biocache.Store;
-import au.org.ala.biocache.model.FullRecord;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
-import au.org.ala.biocache.dto.OccurrenceDTO;
+import au.org.ala.biocache.load.MediaStore;
+import au.org.ala.biocache.model.FullRecord;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
+import au.org.ala.biocache.service.ImageMetadataService;
 import au.org.ala.biocache.service.SpeciesLookupService;
 import au.org.ala.biocache.util.*;
 import org.ala.client.appender.RestLevel;
@@ -89,6 +89,8 @@ public class OccurrenceController extends AbstractSecureController {
     protected DownloadService downloadService;
     @Inject
     private AbstractMessageSource messageSource;
+    @Inject
+    private ImageMetadataService imageMetadataService;
     @Autowired
     private Validator validator;
 
@@ -392,7 +394,7 @@ public class OccurrenceController extends AbstractSecureController {
     }
     
     private SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams)throws Exception{
-        return occurrenceSearch(requestParams,null,null,null);
+        return occurrenceSearch(requestParams,null,false,null,null);
     }
 
     /**
@@ -404,6 +406,7 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = {"/occurrences/search.json*","/occurrences/search*"}, method = RequestMethod.GET)
     public @ResponseBody SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams,
             @RequestParam(value="apiKey", required=false) String apiKey,
+            @RequestParam(value="im", required=false, defaultValue = "false") Boolean lookupImageMetadata,
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
         // handle empty param values, e.g. &sort=&dir=
@@ -412,11 +415,33 @@ public class OccurrenceController extends AbstractSecureController {
         if(map != null){
             map.remove("apiKey");
         }
-        logger.debug("occurrence search params= " + requestParams);
-        if(apiKey == null)
-            return searchDAO.findByFulltextSpatialQuery(requestParams,map);
-        else
-            return occurrenceSearchSensitive(requestParams,apiKey,request, response);
+        logger.debug("occurrence search params = " + requestParams);
+
+        SearchResultDTO srtdto = null;
+        if(apiKey == null){
+            srtdto = searchDAO.findByFulltextSpatialQuery(requestParams,map);
+        } else {
+            srtdto = occurrenceSearchSensitive(requestParams,apiKey,request, response);
+        }
+
+        if(lookupImageMetadata){
+            //use the image service API
+
+            //grab the list of IDs
+            List<String> occurrenceIDs = new ArrayList<String>();
+            for(OccurrenceIndex oi : srtdto.getOccurrences()){
+                occurrenceIDs.add(oi.getUuid());
+            }
+
+            Map<String, List<Map<String, Object>>> imageMap = imageMetadataService.getImageMetadataForOccurrences(occurrenceIDs);
+
+            for(OccurrenceIndex oi : srtdto.getOccurrences()){
+                //lookup metadata
+                List<Map<String, Object>> imageMetadata = imageMap.get(oi.getUuid());
+                oi.setImageMetadata(imageMetadata);
+            }
+        }
+        return srtdto;
     }
     
     public @ResponseBody SearchResultDTO occurrenceSearchSensitive(SpatialSearchRequestParams requestParams,
@@ -430,7 +455,7 @@ public class OccurrenceController extends AbstractSecureController {
             if(map != null){
                 map.remove("apiKey");
             }
-            logger.debug("occurrence search params= " + requestParams);
+            logger.debug("occurrence search params = " + requestParams);
             SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, true,map);
             return searchResult;
         }
@@ -448,9 +473,6 @@ public class OccurrenceController extends AbstractSecureController {
         searchDAO.refreshCaches();
         return null;
     }
-    
-
-    
 
     /**
      * Downloads the complete list of values in the supplied facet 

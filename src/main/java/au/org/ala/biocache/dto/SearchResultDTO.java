@@ -14,13 +14,12 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import org.apache.solr.client.solrj.response.QueryResponse;
+import org.codehaus.jackson.annotate.JsonIgnore;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.solr.client.solrj.response.QueryResponse;
-
-import org.codehaus.jackson.annotate.JsonIgnore;
 
 /**
  * DTO to represents the results from a Lucene search
@@ -212,6 +211,5 @@ public class SearchResultDTO {
     public void setActiveFacetMap(Map<String, Facet> activeFacetMap) {
         this.activeFacetMap = activeFacetMap;
     }
-    
     
 }

@@ -14,16 +14,13 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-
 import org.apache.commons.lang.time.DateFormatUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.beans.Field;
 import org.codehaus.jackson.annotate.JsonIgnore;
 import org.codehaus.jackson.map.ObjectMapper;
+
+import java.util.*;
 
 /**
  * A DTO representing an result from the search indexes.
@@ -151,6 +148,7 @@ public class OccurrenceIndex {
     @Field("occurrence_details") String occurrenceDetails;
     @Field("rights") String rights; 
     @Field("photographer_s") String photographer;
+    List<Map<String, Object>> imageMetadata;
     
     String imageUrl;
     String largeImageUrl;
@@ -958,7 +956,7 @@ public class OccurrenceIndex {
     }
 
     /**
-     * @param collector the collector to set
+     * @param collectors the collector to set
      */
     public void setCollectors(String[] collectors) {
         this.collectors = collectors;
@@ -1018,5 +1016,14 @@ public class OccurrenceIndex {
      */
     public void setPhotographer(String photographer) {
         this.photographer = photographer;
+    }
+
+
+    public List<Map<String, Object>> getImageMetadata() {
+        return imageMetadata;
+    }
+
+    public void setImageMetadata(List<Map<String, Object>> imageMetadata) {
+        this.imageMetadata = imageMetadata;
     }
 }

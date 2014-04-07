@@ -72,7 +72,10 @@ public class LoggerRestService implements LoggerService {
     public List<Integer> getSourceIds(){
         return sourceIds;
     }
-    //Use a fixed delay so that the next time it is run depends on the last time it finished
+
+    /**
+     * Use a fixed delay so that the next time it is run depends on the last time it finished
+     */
     @Scheduled(fixedDelay = 43200000)// schedule to run every 12 hours
     public void reloadCache(){
         if(enabled){
@@ -82,7 +85,7 @@ public class LoggerRestService implements LoggerService {
             //now get the ids
             reasonIds = getIdList(loggerReasons);
             sourceIds = getIdList(loggerSources);
-        } else{
+        } else {
             if(reasonIds== null){
                 logger.info("Providing some sensible default values for the log cache");
                 reasonIds = new ArrayList<Integer>();
@@ -98,6 +101,7 @@ public class LoggerRestService implements LoggerService {
             }
         }
     }
+
     /**
      * Generates an id list from the supplied list
      * @param list
