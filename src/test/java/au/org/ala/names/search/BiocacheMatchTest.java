@@ -46,7 +46,12 @@ public class BiocacheMatchTest {
             cl.setFamily("LASIOCAMPIDAE");
             MetricsResultDTO metrics =searcher.searchForRecordMetrics(cl, true);
             assertTrue("Failed the cross rank homonym test",metrics.getErrors().contains(ErrorType.HOMONYM));
-            //test resolved
+            //test resolved based on rank
+            cl.setRank("genus");
+            metrics = searcher.searchForRecordMetrics(cl, true);
+            assertFalse("Cross rank homonym should have been resolved",metrics.getErrors().contains(ErrorType.HOMONYM));
+            //test resolved based on rank being determined
+            cl.setRank(null);
             cl.setGenus("Symphyta");
             metrics = searcher.searchForRecordMetrics(cl, true);
             assertFalse("Cross rank homonym should have been resolved",metrics.getErrors().contains(ErrorType.HOMONYM));

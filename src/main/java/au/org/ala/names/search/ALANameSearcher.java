@@ -475,7 +475,7 @@ public class ALANameSearcher {
         MetricsResultDTO metrics = new MetricsResultDTO();
 
 
-        RankType rank = null;
+        RankType rank = cl.getRank()!=null ?RankType.getForStrRank(cl.getRank()):null;
         String name = cl.getScientificName();
         String originalName = name;
 
@@ -505,7 +505,7 @@ public class ALANameSearcher {
                 name = cl.getSpecies();
                 //check to see of the name is a binomial
                 if (!name.trim().contains(" ")) {
-                    //construct the bionomial
+                    //construct the binomial
                     if (StringUtils.isNotEmpty(cl.getGenus())) {
                         name = cl.getGenus() + " " + cl.getSpecificEpithet();
                     } else {
