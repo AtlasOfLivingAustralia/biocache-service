@@ -46,6 +46,7 @@ public class LinnaeanRankClassification {
     protected String infraspecificEpithet; // cus
     protected String scientificName;
     protected String authorship;
+    protected String rank;
 
     public LinnaeanRankClassification() {
     }
@@ -86,6 +87,7 @@ public class LinnaeanRankClassification {
         this.infraspecificEpithet = cl.infraspecificEpithet;
         this.authorship = cl.authorship;
         this.scientificName = cl.scientificName;
+        this.rank = cl.rank;
     }
 
     /**
@@ -341,6 +343,13 @@ public class LinnaeanRankClassification {
         this.authorship = authorship;
     }
 
+    public String getRank() {
+        return rank;
+    }
+
+    public void setRank(String rank) {
+        this.rank = rank;
+    }
 
     /**
      * @see java.lang.Object#toString()
