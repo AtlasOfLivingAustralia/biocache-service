@@ -424,7 +424,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setRows(0);
         solrQuery.setFacetLimit(FACET_PAGE_SIZE);        
         int offset = 0;
-        boolean shouldLookup = lookupName && searchParams.getFacets()[0].contains("_guid");
+        boolean shouldLookup = lookupName && (searchParams.getFacets()[0].contains("_guid")||searchParams.getFacets()[0].contains("_lsid"));
         
         QueryResponse qr = runSolrQuery(solrQuery, searchParams);
         logger.debug("Retrieved facet results from server...");
@@ -436,14 +436,9 @@ public class SearchDAOImpl implements SearchDAO {
                 String[] header = new String[]{ff.getName()};
                // out.write(ff.getName().getBytes());
                 if(shouldLookup){
-                    header = new String[]{ff.getName(),"taxon name","kingdom","phylum","class","order","family","genus","vernacular name"};
-                    //out.write((",species name,kingdom,phylum,class,order,family,genus").getBytes());
-                    if(includeSynonyms){
-                        header = new String[]{ff.getName(),"taxon name","kingdom","phylum","class","order","family","genus","vernacular name","synonyms"};
-                        //out.write(",synonyms".getBytes());
-                    }
+                    header = speciesLookupService.getHeaderDetails(ff.getName(), includeCount, includeSynonyms);
                 }
-                if(includeCount){
+                else if(includeCount){
                     //out.write(",Count".getBytes());
                     header = (String[])ArrayUtils.add(header, "count");
                 }
@@ -505,51 +500,11 @@ public class SearchDAOImpl implements SearchDAO {
      * @throws Exception
      */
     private void writeTaxonDetailsToStream(List<String> guids,List<Long> counts, boolean includeCounts, boolean includeSynonyms, CSVRecordWriter writer) throws Exception{
-        List<Map<String,String>> values = speciesLookupService.getNameDetailsForGuids(guids);
-        Map<String,List<Map<String, String>>> synonyms = includeSynonyms? speciesLookupService.getSynonymDetailsForGuids(guids):new HashMap<String,List<Map<String,String>>>();
-        int size = includeSynonyms&&includeCounts?11:((includeCounts && !includeSynonyms)||(includeSynonyms && !includeCounts))?10:9;
-        
-        for(int i =0 ;i<guids.size();i++){
-            int countIdx=9;
-            String[] row = new String[size];
-            //guid
-            String guid = guids.get(i);
-            row[0]=guid;
-            if(values!= null && synonyms != null){
-                Map<String,String> map = values.get(i);                               
-                if(map!=null){
-                    //scientific name
-                    row[1]=map.get("nameComplete");
-                    row[2]=map.get("kingdom");
-                    row[3]=map.get("phylum");
-                    row[4]=map.get("classs");
-                    row[5]=map.get("order");
-                    row[6]=map.get("family");
-                    row[7]=map.get("genus"); 
-                    row[8]=map.get("commonNameSingle");
-                }
-                
-                if(includeSynonyms){
-                    //retrieve a list of the synonyms
-                    List<Map<String,String>> names =synonyms.get(guid);
-                    StringBuilder sb =new StringBuilder();
-                    for(Map<String,String> n :names){
-                        if(!guid.equals(n.get("guid"))){
-                            if(sb.length()>0){
-                                sb.append(",");
-                            }
-                            sb.append(n.get("name"));
-                        }
-                    }
-                    row[9] =sb.toString();
-                    countIdx=10;
-                }
-            }
-            if(includeCounts){
-                row[countIdx] = counts.get(i).toString();
-            }
-            writer.write(row);
+        List<String[]> values=speciesLookupService.getSpeciesDetails(guids, counts, includeCounts, includeSynonyms);
+        for(String[] value :values){
+            writer.write(value);
         }
+
     }
     
     /**
@@ -1921,7 +1876,7 @@ public class SearchDAOImpl implements SearchDAO {
                     if (lsid.contains("\\")) {
                         //remove internal \ chars, if present
                         //noinspection MalformedRegex
-                        lsid = lsid.replaceAll("\\","");
+                        lsid = lsid.replaceAll("\\\\","");
                     }
                     logger.debug("lsid = " + lsid);
                     String[] values = searchUtils.getTaxonSearch(lsid);

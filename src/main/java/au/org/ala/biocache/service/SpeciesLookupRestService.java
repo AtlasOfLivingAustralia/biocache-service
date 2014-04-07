@@ -14,14 +14,17 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
 import javax.inject.Inject;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -47,6 +50,15 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
     //NC 20131018: Allow service to be disabled via config (enabled by default)
     @Value("${service.bie.enabled:true}")
     protected Boolean enabled;
+
+    @Inject
+    private AbstractMessageSource messageSource; // use for i18n of the headers
+
+    private String[] baseHeader;
+    private String[] countBaseHeader;
+    private String[] synonymHeader;
+    private String[] countSynonymHeader;
+
     
     /**
      * @see SpeciesLookupService#getGuidForName(String)
@@ -162,5 +174,98 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
             }
         }
         return results;
+    }
+    @Override
+    public List<String[]> getSpeciesDetails(List<String> guids,List<Long> counts, boolean includeCounts, boolean includeSynonyms){
+        List<String[]> details= new  java.util.ArrayList<String[]>(guids.size());
+        List<Map<String,String>> values =getNameDetailsForGuids(guids);
+        Map<String,List<Map<String, String>>> synonyms = includeSynonyms? getSynonymDetailsForGuids(guids):new HashMap<String,List<Map<String,String>>>();
+        int size = includeSynonyms&&includeCounts?13:((includeCounts && !includeSynonyms)||(includeSynonyms && !includeCounts))?12:11;
+
+
+        for(int i =0 ;i<guids.size();i++){
+            int countIdx=11;
+            String[] row = new String[size];
+            //guid
+            String guid = guids.get(i);
+            row[0]=guid;
+            if(values!= null && synonyms != null){
+                Map<String,String> map = values.get(i);
+                if(map!=null){
+                    //scientific name
+                    row[1]=map.get("nameComplete");
+                    row[2]=map.get("author");
+                    row[3]=map.get("rank");
+                    row[4]=map.get("kingdom");
+                    row[5]=map.get("phylum");
+                    row[6]=map.get("classs");
+                    row[7]=map.get("order");
+                    row[8]=map.get("family");
+                    row[9]=map.get("genus");
+                    row[10]=map.get("commonNameSingle");
+                }
+
+                if(includeSynonyms){
+                    //retrieve a list of the synonyms
+                    List<Map<String,String>> names =synonyms.get(guid);
+                    StringBuilder sb =new StringBuilder();
+                    for(Map<String,String> n :names){
+                        if(!guid.equals(n.get("guid"))){
+                            if(sb.length()>0){
+                                sb.append(",");
+                            }
+                            sb.append(n.get("name"));
+                        }
+                    }
+                    row[11] =sb.toString();
+                    countIdx=12;
+                }
+            }
+            if(includeCounts){
+                row[countIdx] = counts.get(i).toString();
+            }
+            details.add(row);
+        }
+
+
+        return details;
+    }
+
+    @Override
+    public String[] getHeaderDetails(String field,boolean includeCounts, boolean includeSynonyms){
+        if(baseHeader == null){
+            //initialise all the headers
+            initHeaders();
+        }
+        String[] startArray = baseHeader;
+        if(includeCounts){
+            if(includeSynonyms){
+                startArray=countSynonymHeader;
+            } else{
+                startArray = countBaseHeader;
+            }
+        } else if(includeSynonyms){
+            startArray = synonymHeader;
+        }
+        return (String[])ArrayUtils.add(startArray, 0, messageSource.getMessage("facet."+field, null, field,null));
+    }
+
+    /**
+     * initialise the common header components that will be added to the the supplied header field.
+     */
+    private void initHeaders(){
+        baseHeader = new String[]{messageSource.getMessage("species.name", null,"Species Name", null),
+                messageSource.getMessage("species.author", null,"Scientific Name Author", null),
+                messageSource.getMessage("species.rank", null,"Taxon Rank", null),
+                messageSource.getMessage("species.kingdom", null,"Kingdom", null),
+                messageSource.getMessage("species.phylum", null,"Phylum", null),
+                messageSource.getMessage("species.class", null,"Class", null),
+                messageSource.getMessage("species.order", null,"Order", null),
+                messageSource.getMessage("species.family", null,"Family", null),
+                messageSource.getMessage("species.genus", null,"Genus", null),
+                messageSource.getMessage("species.common", null,"Vernacular Name", null)};
+        countBaseHeader = (String[]) ArrayUtils.add(baseHeader,messageSource.getMessage("species.count", null,"Number of Records", null));
+        synonymHeader = (String[]) ArrayUtils.add(baseHeader,messageSource.getMessage("species.synonyms", null,"Synonyms", null));
+        countSynonymHeader = (String[]) ArrayUtils.add(synonymHeader,messageSource.getMessage("species.count", null,"Number of Records", null));
     }
 }

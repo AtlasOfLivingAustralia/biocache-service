@@ -59,4 +59,23 @@ public interface SpeciesLookupService {
      * @return
      */
     Map<String,List<Map<String, String>>> getSynonymDetailsForGuids(List<String> guids);
+
+    /**
+     * Retrieves an list of arrays that contains the information that need to be included in the CSV details.
+     * @param guids The guild/lsids for the species to get the details about
+     * @param counts The corresponding counts
+     * @param includeCounts whether or not to included the count in the details row
+     * @param includeSynonyms whether or not whether or not synonyms should be included in the details row
+     * @return a list of arrays to use as rows for the CSV species list download
+     */
+    List<String[]> getSpeciesDetails(List<String> guids,List<Long> counts, boolean includeCounts, boolean includeSynonyms);
+
+    /**
+     * Returns the header fields to use based on the species lookup service. Different implementations may include different fields.
+     * @param field The field name that is causing the lookup to occur.
+     * @param includeCounts whether or not counts should be included in the header
+     * @param includeSynonyms whether or not synonyms should be included in the header
+     * @return The header row to be used in a CSV species list
+     */
+    String[] getHeaderDetails(String field,boolean includeCounts, boolean includeSynonyms);
 }
