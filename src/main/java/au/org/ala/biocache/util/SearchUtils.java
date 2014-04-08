@@ -407,7 +407,8 @@ public class SearchUtils {
      * Refactor: now returns a Map<String, ActiveFacet> with an additional field "label" that is used to
      * provide a human readable version of the filter query.
      * 
-     * NC 2013-01-11: This method has been moved from hubs-webapp so that all the processing is performedby the service rather than the client. 
+     * NC 2013-01-11: This method has been moved from hubs-webapp so that all the processing is performed
+     * by the service rather than the client.
      * This means that the authService will perform the lookup here.
      *
      * @param filterQuery
@@ -415,22 +416,26 @@ public class SearchUtils {
      */
     public Map<String, Facet> addFacetMap(String[] filterQuery,Set<String> authIndexFields) {
         Map<String, Facet> afs = new HashMap<String, Facet>();
-        //Map<String, String> userNamesByIds = authService.getMapOfAllUserNamesById(); // cached by Eh Cache
 
         if (filterQuery != null && filterQuery.length > 0) {
             // iterate over the fq params
             for (String fq : filterQuery) {
                 if (fq != null && !fq.isEmpty()) {
                     Boolean isExcludeFilter = false;
+                    String prefix="",suffix="";
                     // remove Boolean braces if present
                     if (fq.startsWith("(") && fq.endsWith(")")){
                         fq = StringUtils.remove(fq, "(");
                         fq = StringUtils.removeEnd(fq, ")");
+                        prefix="(";
+                        suffix=")";
                     } else if (fq.startsWith("-(") && fq.endsWith(")")) {
                         fq = StringUtils.remove(fq, "-(");
                         fq = StringUtils.removeEnd(fq, ")");
                         //fq = "-" + fq;
                         isExcludeFilter = true;
+                        prefix="(";
+                        suffix=")";
                     }
 
                     String[] fqBits = StringUtils.split(fq, ":", 2);
@@ -495,14 +500,14 @@ public class SearchUtils {
                             }
                         }
 
-                        String label = StringUtils.join(labels, " OR "); // join sub-queries back together
+                        String label = prefix + StringUtils.join(labels, " OR ") + suffix; // join sub-queries back together
                         if (isExcludeFilter) {
                             label = "-" + label;
                         }
                         logger.debug("label = " + label);
                         f.setDisplayName(label);
 
-                        afs.put(key, f); // add to map
+                        afs.put(StringUtils.removeStart(key, "-"), f); // add to map
                     }
                 }
             }
