@@ -26,11 +26,18 @@ import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.service.ImageMetadataService;
 import au.org.ala.biocache.service.SpeciesLookupService;
 import au.org.ala.biocache.util.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
 import org.ala.client.util.RestfulClient;
 import org.apache.commons.lang.StringUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -101,6 +108,9 @@ public class OccurrenceController extends AbstractSecureController {
 
     @Value("${webservices.root:http://localhost:8080/biocache-service}")
     protected String hostUrl;
+
+    @Value("${image.service.url:http://images-dev.ala.org.au/ws}")
+    protected String imageServiceUrl;
 
     /** The response to be returned for the isAustralian test */
     @Value("${taxon.id.pattern:urn:lsid:biodiversity.org.au[a-zA-Z0-9\\.:-]*}")

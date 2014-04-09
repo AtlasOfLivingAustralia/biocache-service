@@ -393,7 +393,7 @@ public class UploadController {
         uu.setName(datasetName);
 
         String json = mapper.writeValueAsString(uu);
-        PostMethod post = new PostMethod(registryUrl + "/ws/tempDataResource");
+        PostMethod post = new PostMethod(registryUrl + "/tempDataResource");
         post.setRequestBody(json);
         HttpClient httpClient = new HttpClient();
         httpClient.executeMethod(post);
