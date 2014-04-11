@@ -36,10 +36,10 @@ public class FacetThemes {
                      new Facet("biogeographic_region","count"),new Facet("ibra","count"),new Facet("imcra", "count"),new Facet("cl1918","count"),
                      new Facet("cl617", "count"),new Facet("cl620","count"), new Facet("geospatial_kosher","count")));
         allThemes.add(new FacetTheme("Temporal",new Facet("month","index"),new Facet("year","index"),new Facet("decade","index")));
-        allThemes.add(new FacetTheme("Record Details", new Facet("basis_of_record","index"),new Facet("type_status","index"),new Facet("multimedia","count"),new Facet("collector","index")));
+        allThemes.add(new FacetTheme("Record details", new Facet("basis_of_record","index"),new Facet("type_status","index"),new Facet("multimedia","count"),new Facet("collector","index")));
         allThemes.add(new FacetTheme("Attribution", new Facet("data_provider_uid","count"),new Facet("data_resource_uid","count"), 
                       new Facet("institution_uid","count"), new Facet("collection_uid", "count"), new Facet("provenance", "count")));
-        allThemes.add(new FacetTheme("Record Assertions", new Facet("assertions","count"), new Facet("outlier_layer","count"), 
+        allThemes.add(new FacetTheme("Record assertions", new Facet("assertions","count"), new Facet("outlier_layer","count"), 
                       new Facet("outlier_layer_count","count"),new Facet("taxonomic_issue","count"), new Facet("duplicate_status","count")));
         
         for (FacetTheme theme : allThemes) {
