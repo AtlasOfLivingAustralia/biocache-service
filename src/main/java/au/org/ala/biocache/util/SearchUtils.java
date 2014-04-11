@@ -37,15 +37,8 @@ public class SearchUtils {
 
     /** Logger initialisation */
     private final static Logger logger = Logger.getLogger(SearchUtils.class);
-
-    @Value("${registry.url:\"http://collections.ala.org.au\"}")
-    protected String registryUrl = "http://collections.ala.org.au";
-
-    protected String bieBaseUrl = "http://bie.ala.org.au";
-
     @Inject
     private CollectionsCache collectionCache;
-
     @Inject
     private AuthService authService;
     //for i18n of display values for facets
@@ -583,19 +576,5 @@ public class SearchUtils {
         public static Month get(int i){
             return values()[i];
         }
-    }
-
-    /**
-     * @param registryUrl the registryUrl to set
-     */
-    public void setRegistryUrl(String registryUrl) {
-        this.registryUrl = registryUrl;
-    }
-
-    /**
-     * @param bieBaseUrl the bieBaseUrl to set
-     */
-    public void setBieBaseUrl(String bieBaseUrl) {
-        this.bieBaseUrl = bieBaseUrl;
     }
 }
