@@ -78,7 +78,15 @@ public class ALAParsedName<T> extends ParsedName<T> {
         this.setYear(pn.getYear());
     }
 
+    /**
+     * @deprecated typo with the getter. Use correct spelling.
+     * @return
+     */
     public String getLocationPhraseDesciption() {
+        return locationPhraseDescription;
+    }
+
+    public String getLocationPhraseDescription() {
         return locationPhraseDescription;
     }
 
