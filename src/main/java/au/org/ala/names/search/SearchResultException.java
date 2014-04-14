@@ -22,6 +22,8 @@ import java.util.List;
 import au.org.ala.names.model.NameSearchResult;
 
 /**
+ * The generic search result exception that can be thrown during a search.  This exception
+ * will be used to wrap any exception that occurs that do not fall into the other categories.
  * @author Natasha
  * @see HomonymException
  */

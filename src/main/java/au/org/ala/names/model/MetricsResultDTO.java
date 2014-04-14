@@ -25,6 +25,7 @@ import org.gbif.ecat.voc.NameType;
  * <p/>
  * Allows a metrics to be returned even when a match is not found.
  *
+ *
  * @author Natasha Carter
  */
 public class MetricsResultDTO {
@@ -33,6 +34,11 @@ public class MetricsResultDTO {
     private Set<ErrorType> errors;
     private SearchResultException lastException;
 
+    /**
+     *
+     * @return ALl the ErrorTypes that occurred during the match. This can have
+     * multiple values when a recursive search is performed.
+     */
     public Set<ErrorType> getErrors() {
         return errors;
     }
@@ -41,6 +47,10 @@ public class MetricsResultDTO {
         this.errors = errors;
     }
 
+    /**
+     *
+     * @return The "parsed" name type {@see org.gbif.ecat.voc.NameType}
+     */
     public NameType getNameType() {
         return nameType;
     }
@@ -49,6 +59,10 @@ public class MetricsResultDTO {
         this.nameType = nameType;
     }
 
+    /**
+     *
+     * @return The result of the search OR null when no result has been found.
+     */
     public NameSearchResult getResult() {
         return result;
     }
@@ -57,6 +71,10 @@ public class MetricsResultDTO {
         this.result = result;
     }
 
+    /**
+     *
+     * @return The last error that occurred during the search.
+     */
     public SearchResultException getLastException() {
         return lastException;
     }

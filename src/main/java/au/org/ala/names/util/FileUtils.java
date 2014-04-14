@@ -25,7 +25,9 @@ import java.util.Set;
 import org.apache.commons.io.LineIterator;
 import org.apache.commons.lang.StringUtils;
 
-
+/**
+ * Some Generic file utilities.
+ */
 public class FileUtils {
 
 

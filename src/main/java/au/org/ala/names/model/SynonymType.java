@@ -15,7 +15,9 @@
 package au.org.ala.names.model;
 
 /**
- * Stores the Synonym type information
+ * Stores the Synonym type information.  These synonyms types are based on the ones supplied in NSL relationship CSV.
+ * The numeric values come from the dictionary_relationship table of the ala_names as setup by
+ * http://code.google.com/p/ala-portal/source/browse/trunk/ala-names-generator/src/main/resources/ala-names-setup.sql
  * <p/>
  * TODO: Get a correct description for the synonym types.
  *

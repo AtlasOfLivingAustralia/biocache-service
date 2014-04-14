@@ -10,10 +10,7 @@ import org.apache.commons.lang.StringUtils;
 
 /**
  * A Java implementation of the sound ex algorithm supplied by Tony Rees
- *
- * @author trobertson
- *         <p/>
- *         Copied from Taxamatch project. We don't need full taxamatch...
+ * Copied from Taxamatch project. We don't need full taxamatch...
  */
 public class TaxonNameSoundEx {
 

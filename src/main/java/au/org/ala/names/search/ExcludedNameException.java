@@ -18,7 +18,9 @@ package au.org.ala.names.search;
 import au.org.ala.names.model.NameSearchResult;
 
 /**
- * An exception that is thrown when the match is to a name that has been excluded.
+ * An exception that is thrown when the match is to a name that has been excluded. A name
+ * is typically excluded in the National Species List when it is know not to be included in
+ * Australia.
  * <p/>
  * In the BIE we would want to use the match anyway because all excluded names will have
  * a species page.
@@ -38,6 +40,12 @@ public class ExcludedNameException extends SearchResultException {
 
     }
 
+    /**
+     * Constructs an ExcludedNameException that represents that we have a match that is excluded and one that is not.
+     * @param message
+     * @param nonExcludedName
+     * @param excludedName
+     */
     public ExcludedNameException(String message, NameSearchResult nonExcludedName, NameSearchResult excludedName) {
         this(message, excludedName);
         this.nonExcludedName = nonExcludedName;

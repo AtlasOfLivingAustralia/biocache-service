@@ -60,7 +60,7 @@ import org.gbif.ecat.parser.UnparsableException;
 import org.gbif.ecat.voc.Rank;
 
 /**
- * The API used to perform a search on the CB Lucene Index.  It follows the following
+ * The API used to perform a search on the ALA Name Matching Lucene Index.  It follows the following
  * algorithm when trying to find a match:
  * <p/>
  * 1. Search for a direct match for supplied name on the name field (with the optional rank provided).
@@ -70,13 +70,13 @@ import org.gbif.ecat.voc.Rank;
  * 3. Generate a searchable canonical name for the supplied name.  Search for a match on
  * the searchable canonical field using the generated name
  * <p/>
- * 4. Clean up the supplied name using the ECAT name parser. Repeat steps 1 to 3 on
- * the clean name until a match is found
- * <p/>
- * 5. No match is found
- * <p/>
+ *
  * When a match is found the existence of homonyms are checked.  Where a homonym exists,
  * if the kingdom of the result does not match the supplied kingdom a HomonymException is thrown.
+ *
+ * For more details about the algorithm please see
+ * http://code.google.com/p/ala-portal/wiki/ALANames#Understanding_the_Name_Matching_Algorithm
+ *
  *
  * @author Natasha
  */
@@ -107,7 +107,7 @@ public class ALANameSearcher {
      * Creates a new name searcher. Using the indexDirectory
      * as the source directory
      *
-     * @param indexDirectory The directory that contains the CB and IRMNG index.
+     * @param indexDirectory The directory that contains the index files for the scientific names, irmng and vernacular names.
      * @throws CorruptIndexException
      * @throws IOException
      */

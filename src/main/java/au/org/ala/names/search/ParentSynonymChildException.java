@@ -19,7 +19,8 @@ import au.org.ala.names.model.NameSearchResult;
 
 /**
  * An exception that is thrown when the result represents a situation
- * where the parent is a synonym of the child concept.
+ * where the parent is a synonym of the child concept. This situation typically
+ * occurs when a species has been split into one or more subspecies.
  *
  * @author Natasha Carter
  */

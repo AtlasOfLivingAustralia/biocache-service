@@ -23,8 +23,7 @@ import java.util.TreeSet;
 import org.gbif.ecat.voc.Rank;
 
 /**
- * An enumeration of the rank types available in ALA.  The rank names come
- * from Checklist Bank and the identifiers come from ALA Portal.
+ * An enumeration of the rank types available in ALA, with some text vocabulary that can be used to match to a RankType.
  * <p/>
  * This is based on org.ala.web.util.RankFacet
  *

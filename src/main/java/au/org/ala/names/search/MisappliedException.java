@@ -20,7 +20,7 @@ import au.org.ala.names.model.NameSearchResult;
 /**
  * Indicates that the matched name has been misapplied in the past.
  * <p/>
- * If there is a "misaapliedResult" value it means that there is also an acceptedConcept
+ * If there is a "misappliedResult" value it means that there is also an acceptedConcept
  * for the same name.
  *
  * @author Natasha Carter

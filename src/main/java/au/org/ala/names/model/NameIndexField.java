@@ -15,7 +15,9 @@
 package au.org.ala.names.model;
 
 /**
- * An Enum for all the fields that are indexed for the name matching
+ * An Enum for all the fields that are indexed for the name matching.  This enum is used by
+ * {@link au.org.ala.names.search.ALANameIndexer} to create the index and
+ * {@link au.org.ala.names.search.ALANameSearcher} to search the index
  *
  * @author Natasha Carter
  */

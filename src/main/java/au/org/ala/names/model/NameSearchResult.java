@@ -87,10 +87,21 @@ public class NameSearchResult {
         return synonymType;
     }
 
+    /**
+     *
+     * @return The classification for the match
+     */
     public LinnaeanRankClassification getRankClassification() {
         return rankClass;
     }
 
+    /**
+     *
+     * @return
+     * @deprecated Use the kingdom from the "getRankClassification"
+     *
+     */
+    @Deprecated
     public String getKingdom() {
         return kingdom;
     }
@@ -110,22 +121,31 @@ public class NameSearchResult {
         return id;
     }
 
+    /**
+     *
+     * @return The match type used to get this result
+     */
     public MatchType getMatchType() {
         return matchType;
     }
 
+    /**
+     * Set the match type that was used to get this result
+     * @param type
+     */
     public void setMatchType(MatchType type) {
         matchType = type;
     }
 
+    @Deprecated
     public String getCleanName() {
         return cleanName;
     }
-
+    @Deprecated
     public void setCleanName(String name) {
         cleanName = name;
     }
-
+    @Deprecated
     public boolean hasBeenCleaned() {
         return cleanName != null;
     }

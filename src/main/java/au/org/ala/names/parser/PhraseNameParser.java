@@ -35,6 +35,10 @@ import org.gbif.ecat.voc.Rank;
  * <p/>
  * It expects everything to the right of the rank marker.
  *
+ * It extends the GBIF NameParser {@see org.gbif.ecat.parser.NameParser}, when the name is not wellformed this parser will then
+ * attempt parse it into a phrase name. See https://code.google.com/p/ala-portal/wiki/ALANames#Glossary
+ * for more information about phrase names.
+ *
  * @author Natasha Carter
  */
 public class PhraseNameParser extends NameParser {
@@ -87,7 +91,6 @@ public class PhraseNameParser extends NameParser {
     @Override
     public <T> ParsedName<T> parse(String scientificName) throws UnparsableException {
         ParsedName pn = super.parse(scientificName);
-        //System.out.println(pn.authorsParsed + " " + pn.type + pn.rank);
         if (pn.getType() != NameType.wellformed && isPhraseRank(pn.rank) && (!pn.authorsParsed || pn.specificEpithet == null || SPECIES_PATTERN.matcher(pn.specificEpithet).matches())) {
             //if the rank marker is sp. and the word after the rank marker is lower case check to see if removing the marker will result is a wellformed name
             if (SPECIES_PATTERN.matcher(pn.rank).matches()) {

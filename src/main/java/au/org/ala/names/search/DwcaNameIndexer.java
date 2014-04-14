@@ -52,6 +52,21 @@ import java.util.Iterator;
  * Create a name index from a DWCA.  All the required names should exist in the supplied
  * DWCA.
  *
+ * The indexer will create a temporary index in order to generate the higher level classification and nested sets for
+ * the hierarchy
+ *
+ * <p>
+ *     The main method uses the following options:
+ *     <li>load - flag to indicate that only the load index should be created</li>
+ *     <li>search - flag to indicate that only the search index should be created</li>
+ *     <li>all - flag to indicate that both the load and search index should be created</li>
+ *     <li>irmng - optional param that is used to specify where the IRMNG dwca archive is located.  When this is NOT provided no homonym index is created.</li>
+ *     <li>dwca - compulsory param that provides the unzipped location of the DWCA for the scientific names</li>
+ *     <li>target - optional param to provide the target location for the name matching index. This value will default to /data/namematching when not provided</li>
+ *     <li>tmp - optional param to provide the location for the temporary index. This value will default to /data/tmp/lucene/nmload when not provided</li>
+ *     <li>common - optional param to specify when the common name CSV file is located.  When this is NOT provided no common name index is created.</li>
+ * </p>
+ *
  * @author Natasha Quimby (natasha.quimby@csiro.au)
  */
 public class DwcaNameIndexer extends ALANameIndexer {
@@ -67,8 +82,8 @@ public class DwcaNameIndexer extends ALANameIndexer {
      * @param sciIndex True when the name matching index should be generated
      * @param indexDirectory The directory in which to create the name matching index
      * @param tmpLoadIndex The directory in which to create the temporary loading index
-     * @param namesDwc The absolute path to the
-     * @param irmngDwc
+     * @param namesDwc The absolute path to the directory that contains the unzipped DWC archive to index
+     * @param irmngDwc The absolute path to the directory that contains the unzipped IRMNG DWCA
      * @param commonNameFile
      * @throws Exception
      */
@@ -98,6 +113,17 @@ public class DwcaNameIndexer extends ALANameIndexer {
         }
     }
 
+    /**
+     * Index the common names CSV file supplied.
+     *
+     * CSV header need to be txaonId, taxonLsid, scientificName, vernacularName, languageCode, countryCode
+     *
+     * The languageCode and countryCode are not necessary as they are not used.
+     *
+     * @param iw
+     * @param file
+     * @throws Exception
+     */
     private void indexCommonNames(IndexWriter iw, String file) throws Exception{
         //assumes that the quoted TSV file is in the following format
         //taxon id, taxon lsid, scientific name, vernacular name, language code, country code
@@ -320,6 +346,12 @@ public class DwcaNameIndexer extends ALANameIndexer {
         writer.addDocument(indexDoc);
         return right +1;
     }
+
+    /**
+     *
+     * @param name
+     * @return The canonical form of the supplied name.
+     */
     private String getCanonical(String name){
         try{
             ParsedName pn =parser.parse(name);
