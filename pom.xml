@@ -3,7 +3,7 @@
   <groupId>au.org.ala</groupId>
   <artifactId>biocache-service</artifactId>
   <packaging>war</packaging>
-  <version>1.1</version>
+  <version>1.2-SNAPSHOT</version>
   <name>biocache-service</name>
   <url>http://biocache.ala.org.au/ws</url>
   <description>This is a the service layer for the Biocache</description>
@@ -17,7 +17,7 @@
   </properties>
     <!-- AN SCM entry that points to the SVN directory that contains the pom file for the project  -->
     <scm>
-        <developerConnection>scm:svn:https://ala-portal.googlecode.com/svn/tags/biocache-service-1.1</developerConnection>
+        <developerConnection>scm:svn:https://ala-portal.googlecode.com/svn/trunk/biocache-service/</developerConnection>
     </scm>
 
     <dependencies>
