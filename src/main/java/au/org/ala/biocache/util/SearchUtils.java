@@ -46,7 +46,7 @@ public class SearchUtils {
     private AbstractMessageSource messageSource;
     @Inject
     private SpeciesLookupService speciesLookupService;
-    @Value("${nameIndexLocation:/data/lucene/namematching_v13}")
+    @Value("${name.index.dir:/data/lucene/namematching_v13}")
     protected String nameIndexLocation;
     @Value("${taxon.profile.enabled:false}")
     protected boolean taxonProfileEnabled;
