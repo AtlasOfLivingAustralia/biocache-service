@@ -48,20 +48,41 @@ public class AdminController extends AbstractSecureController {
 
     @Value("${ingest.process.threads:4}")
     protected Integer ingestProcessingThreads;
+    private java.util.Set<String> ingestingDrs = new java.util.HashSet<String>();
 
+    /**
+     * Ingests the list of supplied data resource uids. When no dr param is provided all data resources with the
+     * configured collectory are ingested.
+     *
+     * Prevents the exact same ingestion from being started multiple times. Only prevents the exact same list of drs being
+     * started.
+     *
+     * @param request
+     * @param response
+     * @throws Exception
+     */
     @RequestMapping(value="/admin/ingest", method = RequestMethod.GET)
     public void ingestResources(HttpServletRequest request, HttpServletResponse response) throws Exception{
         //performs an asynchronous ingest.
         String apiKey = request.getParameter("apiKey");
         final String dataResources = request.getParameter("dr");
+        final String ingest = dataResources == null ? "all":dataResources;
         if(shouldPerformOperation(apiKey, response)){
-            Thread t = new Thread(){
-                public void run(){
-                    String[] drs = dataResources != null ? dataResources.split(","):null;
-                    Store.ingest(drs,ingestProcessingThreads);
-                }
-            };
-            t.start();
+            logger.debug("Attempting to ingest " + ingest);
+            if(ingestingDrs.contains(ingest)){
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST,  "Already ingesting " + ingest + ". Unable able to start a new ingestion.");
+            } else {
+                ingestingDrs.add(ingest);
+                Thread t = new Thread(){
+                    public void run(){
+                        String[] drs = dataResources != null ? dataResources.split(","):null;
+                        Store.ingest(drs,ingestProcessingThreads);
+                        //remove the url from ingesting
+                        ingestingDrs.remove(ingest);
+                    }
+                };
+                t.start();
+            }
         }
     }
 
