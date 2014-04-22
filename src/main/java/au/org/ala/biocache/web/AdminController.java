@@ -23,6 +23,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import au.org.ala.biocache.service.AuthService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -44,6 +45,25 @@ public class AdminController extends AbstractSecureController {
     private final static Logger logger = Logger.getLogger(AdminController.class);
     @Inject
     protected AuthService authService;
+
+    @Value("${ingest.process.threads:4}")
+    protected Integer ingestProcessingThreads;
+
+    @RequestMapping(value="/admin/ingest", method = RequestMethod.GET)
+    public void ingestResources(HttpServletRequest request, HttpServletResponse response) throws Exception{
+        //performs an asynchronous ingest.
+        String apiKey = request.getParameter("apiKey");
+        final String dataResources = request.getParameter("dr");
+        if(shouldPerformOperation(apiKey, response)){
+            Thread t = new Thread(){
+                public void run(){
+                    String[] drs = dataResources != null ? dataResources.split(","):null;
+                    Store.ingest(drs,ingestProcessingThreads);
+                }
+            };
+            t.start();
+        }
+    }
 
     /**
      * Optimises the SOLR index.  Use this API to optimise the index so that the biocache-service
