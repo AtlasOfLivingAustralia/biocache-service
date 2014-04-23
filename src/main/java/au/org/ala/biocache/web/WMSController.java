@@ -1659,6 +1659,9 @@ public class WMSController {
                 pColour.set(0, vars.colour | (vars.alpha << 24));
             }
 
+            //initialise the image object
+            imgObj = ImgObj.create(width,height);
+
             for (int j = 0; j < points.size(); j++) {
 
                 if(hq != null && hq.contains(j)){
@@ -1666,15 +1669,11 @@ public class WMSController {
                     continue;
                 }
 
-
                 float[] ps = points.get(j);
 
                 if (ps == null || ps.length == 0) {
                     continue;
                 }
-
-                //initialise the image object
-                imgObj = ImgObj.create(width,height);
 
                 if (vars.colourMode.equals("grid")) {
                     //render grids
