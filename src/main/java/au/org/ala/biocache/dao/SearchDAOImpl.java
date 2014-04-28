@@ -605,6 +605,8 @@ public class SearchDAOImpl implements SearchDAO {
             //add context information
             updateQueryContext(downloadParams);
             solrQuery.setQuery(buildSpatialQueryString(downloadParams));
+            solrQuery.setFacetMinCount(1);
+            solrQuery.setFacetLimit(-1);
 
             //get the assertion facets to add them to the download fields
             boolean getAssertionsFromFacets = "all".equals(downloadParams.getQa());
