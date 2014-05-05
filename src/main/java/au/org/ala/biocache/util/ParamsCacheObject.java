@@ -36,6 +36,7 @@ public class ParamsCacheObject {
         this.displayString = displayString;
         this.bbox = bbox;
         this.wkt = wkt;
+        this.fqs = fqs;
 
         updateSize();
     }
