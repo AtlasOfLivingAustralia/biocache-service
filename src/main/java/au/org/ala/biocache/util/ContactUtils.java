@@ -35,9 +35,9 @@ public class ContactUtils {
 
     private final static Logger logger = LoggerFactory.getLogger(ContactUtils.class);
 
-    @Value("${registry.url:\"http://collections.ala.org.au\"}")
+    @Value("${registry.url:http://collections.ala.org.au}")
     protected String registryUrl;
-    @Value("${contacts.url:\"http://collections.ala.org.au/ws/collection\"}")
+    @Value("${contacts.url:http://collections.ala.org.au/ws/collection}")
     protected String collectionContactsUrl;
 
     @Inject
@@ -132,14 +132,6 @@ public class ContactUtils {
             }
         }
         return null;
-    }
-
-    public void setRegistryUrl(String registryUrl) {
-        this.registryUrl = registryUrl;
-    }
-
-    public void setCollectionContactsUrl(String collectionContactsUrl) {
-        this.collectionContactsUrl = collectionContactsUrl;
     }
 
     public void setRestTemplate(RestOperations restTemplate) {
