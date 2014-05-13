@@ -298,12 +298,12 @@ public class SearchDAOImpl implements SearchDAO {
      * @see au.org.ala.biocache.dao.SearchDAO#findByFulltextSpatialQuery
      */
     @Override
-    public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, Map<String,String[]> extraParams) throws Exception {
+    public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, Map<String,String[]> extraParams) {
         return findByFulltextSpatialQuery(searchParams,false,extraParams);
     }
     
     @Override
-    public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, boolean includeSensitive, Map<String,String[]> extraParams) throws Exception {
+    public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, boolean includeSensitive, Map<String,String[]> extraParams) {
         SearchResultDTO searchResults = new SearchResultDTO();
         SpatialSearchRequestParams original = new SpatialSearchRequestParams(); 
         BeanUtils.copyProperties(searchParams, original);
@@ -327,9 +327,8 @@ public class SearchDAOImpl implements SearchDAO {
             searchResults.setActiveFacetMap(searchUtils.addFacetMap(searchParams.getFq(), getAuthIndexFields()));
             
             logger.info("spatial search query: " + queryString);
-        } catch (SolrServerException ex) {
-            //logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
-            logger.error("Error executing query  with requestParams: " + searchParams.toString()+ " EXCEPTION: " + ex.getMessage());
+        } catch (Exception ex) {
+            logger.error("Error executing query with requestParams: " + searchParams.toString()+ " EXCEPTION: " + ex.getMessage());
             searchResults.setStatus("ERROR"); // TODO also set a message field on this bean with the error message(?)
             searchResults.setErrorMessage(ex.getMessage());
         }
@@ -374,6 +373,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
         return count;
     }
+
     /**
      * Writes the values for the first supplied facet to output stream
      * 
@@ -416,8 +416,8 @@ public class SearchDAOImpl implements SearchDAO {
                 CSVRecordWriter writer = new CSVRecordWriter(out, header);
                 //out.write("\n".getBytes());
                 //PAGE through the facets until we reach the end.
-                while(ff.getValueCount() >0){
-                    if(ff.getValueCount() >0){
+                while(ff.getValueCount() > 0){
+                    if(ff.getValueCount() > 0){
                       //process the "species_guid_ facet by looking up the list of guids                
                         if(shouldLookup){
                             
@@ -426,11 +426,13 @@ public class SearchDAOImpl implements SearchDAO {
                             logger.debug("Downloading " +  ff.getValueCount() + " species guids");
                             for(FacetField.Count value : ff.getValues()){
                                 guids.add(value.getName());
-                                if(includeCount)
+                                if(includeCount) {
                                     counts.add(value.getCount());
+                                }
+
                                 //Only want to send a sub set of the list so that the URI is not too long for BIE
                                 if(guids.size()==30){
-                                  //now get the list of species from the web service TODO may need to move this code                                   
+                                    //now get the list of species from the web service TODO may need to move this code
                                     //handle null values being returned from the service...
                                     writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, writer);
                                     guids.clear();
@@ -446,8 +448,9 @@ public class SearchDAOImpl implements SearchDAO {
                             }
                         }
                         offset += FACET_PAGE_SIZE;
-                        if(dd != null)
+                        if(dd != null) {
                             dd.updateCounts(FACET_PAGE_SIZE);
+                        }
                         //get the next values
                         solrQuery.remove("facet.offset");
                         solrQuery.add("facet.offset", Integer.toString(offset));
@@ -475,7 +478,6 @@ public class SearchDAOImpl implements SearchDAO {
         for(String[] value :values){
             writer.write(value);
         }
-
     }
     
     /**
@@ -499,18 +501,18 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setQuery(searchParams.getQ());
 
         QueryResponse qr = runSolrQuery(solrQuery, srp);
-         if (qr.getResults().size() > 0) {
-                FacetField ff = qr.getFacetField(searchParams.getFacets()[0]);
-                if(ff != null && ff.getValueCount() > 0){
-                    out.write("latitude,longitude\n".getBytes());
-                    //write the facets to file
-                    for(FacetField.Count value : ff.getValues()){
-                        //String[] slatlon = value.getName().split(",");
-                        out.write(value.getName().getBytes());
-                        out.write("\n".getBytes());
-                        
-                    }
+        if (qr.getResults().size() > 0) {
+            FacetField ff = qr.getFacetField(searchParams.getFacets()[0]);
+            if(ff != null && ff.getValueCount() > 0){
+                out.write("latitude,longitude\n".getBytes());
+                //write the facets to file
+                for(FacetField.Count value : ff.getValues()){
+                    //String[] slatlon = value.getName().split(",");
+                    out.write(value.getName().getBytes());
+                    out.write("\n".getBytes());
+
                 }
+            }
         }
     }
 
@@ -535,7 +537,7 @@ public class SearchDAOImpl implements SearchDAO {
         if(server == null){
             initServer();
         }
-        try{
+        try {
             SolrQuery solrQuery = new SolrQuery();
             formatSearchQuery(downloadParams);
 
@@ -568,7 +570,7 @@ public class SearchDAOImpl implements SearchDAO {
                     qasb.append(downloadParams.getQa());
                 }
             } 
-                solrQuery.addField("institution_uid")
+            solrQuery.addField("institution_uid")
                 .addField("collection_uid")
                 .addField("data_resource_uid")
                 .addField("data_provider_uid");
@@ -956,6 +958,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
         return true;
     }
+
     /**
      * Initialises the download limit tracking
      * @param map
@@ -1036,7 +1039,6 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             }
         }
-
         return points;
     }
 
@@ -1116,7 +1118,6 @@ public class SearchDAOImpl implements SearchDAO {
         }
 
         return points;
-
     }
 
     /**
@@ -1248,7 +1249,6 @@ public class SearchDAOImpl implements SearchDAO {
         return speciesWithCounts;
     }
 
-
     /**
      * @see au.org.ala.biocache.dao.SearchDAO#findRecordByStateFor(java.lang.String)
      * IS THIS BEGIN USED OR NECESSARY
@@ -1354,7 +1354,6 @@ public class SearchDAOImpl implements SearchDAO {
         }
         return trDTO;
     }
-
 
     /**
      * @see au.org.ala.biocache.dao.SearchDAO#findTaxonCountForUid(au.org.ala.biocache.dto.BreakdownRequestParams, String)
