@@ -1,501 +1,533 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>au.org.ala</groupId>
-  <artifactId>biocache-service</artifactId>
-  <packaging>war</packaging>
-  <version>1.2-SNAPSHOT</version>
-  <name>biocache-service</name>
-  <url>http://biocache.ala.org.au/ws</url>
-  <description>This is a the service layer for the Biocache</description>
-  <properties>
-    <!-- This project uses UTF8 for Regular Expressions -->
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <openrdf.sesame.version>2.2</openrdf.sesame.version>
-    <spring.version>3.0.6.RELEASE</spring.version>
-    <junit.version>4.8.2</junit.version>
-    <netbeans.hint.deploy.server>Tomcat</netbeans.hint.deploy.server>
-  </properties>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>au.org.ala</groupId>
+    <artifactId>biocache-service</artifactId>
+    <packaging>war</packaging>
+    <version>1.2-SNAPSHOT</version>
+    <name>biocache-service</name>
+    <url>http://biocache.ala.org.au/ws</url>
+    <description>This is a the service layer for the Biocache</description>
+    <properties>
+        <!-- This project uses UTF8 for Regular Expressions -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <openrdf.sesame.version>2.2</openrdf.sesame.version>
+        <spring.version>3.0.6.RELEASE</spring.version>
+        <junit.version>4.8.2</junit.version>
+        <netbeans.hint.deploy.server>Tomcat</netbeans.hint.deploy.server>
+    </properties>
     <!-- AN SCM entry that points to the SVN directory that contains the pom file for the project  -->
     <scm>
         <developerConnection>scm:svn:https://ala-portal.googlecode.com/svn/trunk/biocache-service/</developerConnection>
     </scm>
 
     <dependencies>
-	<!-- JSR 303 validation support -->
-	<dependency>
-		<groupId>javax.validation</groupId>
-		<artifactId>validation-api</artifactId>
-		<version>1.1.0.Final</version>
-	</dependency>
-	<dependency>
-		<groupId>org.hibernate</groupId>
-		<artifactId>hibernate-validator</artifactId>
-		<version>4.3.1.Final</version>
-		<!--  version 5.0.1 is incompatible with tomcat 6 due to el 2.1 being used. -->
-		<!-- <version>5.0.1.Final</version> -->
-	</dependency>
-      <!-- ALA header and tails -->
-      <dependency>
-          <groupId>au.org.ala</groupId>
-          <artifactId>ala-header-and-tails</artifactId>
-          <version>2.0</version>
-      </dependency>
-    <!-- ALA logging -->
-    <dependency>
-      <groupId>au.org.ala</groupId>
-      <artifactId>biocache-store</artifactId>
-      <version>1.2-SNAPSHOT</version>
-       <exclusions>
-        <exclusion>
-            <artifactId>google-collect</artifactId>
-            <groupId>com.google.code.google-collections</groupId>
-        </exclusion>
-        <exclusion>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-jdk14</artifactId>
-        </exclusion>
-        <exclusion>
+        <!-- JSR 303 validation support -->
+        <dependency>
+            <groupId>javax.validation</groupId>
+            <artifactId>validation-api</artifactId>
+            <version>1.1.0.Final</version>
+        </dependency>
+        <dependency>
+            <groupId>org.hibernate</groupId>
+            <artifactId>hibernate-validator</artifactId>
+            <version>4.3.1.Final</version>
+            <!--  version 5.0.1 is incompatible with tomcat 6 due to el 2.1 being used. -->
+            <!-- <version>5.0.1.Final</version> -->
+        </dependency>
+        <!-- ALA header and tails -->
+        <dependency>
+            <groupId>au.org.ala</groupId>
+            <artifactId>ala-header-and-tails</artifactId>
+            <version>2.0</version>
+        </dependency>
+        <!-- ALA logging -->
+        <dependency>
+            <groupId>au.org.ala</groupId>
+            <artifactId>biocache-store</artifactId>
+            <version>1.2-SNAPSHOT</version>
+            <exclusions>
+                <exclusion>
+                    <artifactId>google-collect</artifactId>
+                    <groupId>com.google.code.google-collections</groupId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-jdk14</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>servlet-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.servlet.jsp</groupId>
+                    <artifactId>jsp-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- ALA logging -->
+        <dependency>
+            <groupId>au.org.ala</groupId>
+            <artifactId>ala-logger</artifactId>
+            <version>1.0</version>
+        </dependency>
+        <!-- ALA common UI -->
+        <dependency>
+            <groupId>au.org.ala</groupId>
+            <artifactId>ala-common-ui</artifactId>
+            <version>1.0</version>
+        </dependency>
+        <!-- ALA CAS CLIENT -->
+        <dependency>
+            <groupId>au.org.ala</groupId>
+            <artifactId>ala-cas-client</artifactId>
+            <version>2.0</version>
+            <type>jar</type>
+            <scope>compile</scope>
+        </dependency>
+        <!-- CSV -->
+        <dependency>
+            <groupId>net.sf.opencsv</groupId>
+            <artifactId>opencsv</artifactId>
+            <version>2.3</version>
+        </dependency>
+        <!--  Cache  -->
+        <dependency>
+            <groupId>com.googlecode.ehcache-spring-annotations</groupId>
+            <artifactId>ehcache-spring-annotations</artifactId>
+            <version>1.2.0</version>
+        </dependency>
+        <!-- LOG4J -->
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>1.2.16</version>
+        </dependency>
+        <!-- COMMONS -->
+        <dependency>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+            <version>2.6</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.4</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-math</groupId>
+            <artifactId>commons-math</artifactId>
+            <version>1.1</version>
+        </dependency>
+        <!-- Sun's Servlet API -->
+        <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>servlet-api</artifactId>
-        </exclusion>
-        <exclusion>
-            <groupId>javax.servlet.jsp</groupId>
+            <version>2.4</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- Sun's JSP API-->
+        <dependency>
+            <groupId>javax.servlet</groupId>
             <artifactId>jsp-api</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <!-- ALA logging -->
-    <dependency>
-      <groupId>au.org.ala</groupId>
-      <artifactId>ala-logger</artifactId>
-      <version>1.0</version>
-    </dependency>
-    <!-- ALA common UI -->
-    <dependency>
-      <groupId>au.org.ala</groupId>
-      <artifactId>ala-common-ui</artifactId>
-      <version>1.0</version>
-    </dependency>
-    <!-- ALA CAS CLIENT -->
-    <dependency>
-      <groupId>au.org.ala</groupId>
-      <artifactId>ala-cas-client</artifactId>
-      <version>2.0</version>
-      <type>jar</type>
-      <scope>compile</scope>
-    </dependency>
-    <!-- CSV -->
-    <dependency>
-      <groupId>net.sf.opencsv</groupId>
-      <artifactId>opencsv</artifactId>
-      <version>2.3</version>
-    </dependency>
-    <!--  Cache  -->
-    <dependency>
-        <groupId>com.googlecode.ehcache-spring-annotations</groupId>
-        <artifactId>ehcache-spring-annotations</artifactId>
-        <version>1.2.0</version>
-    </dependency>    
-    <!-- LOG4J -->
-    <dependency>
-      <groupId>log4j</groupId>
-      <artifactId>log4j</artifactId>
-      <version>1.2.16</version>
-    </dependency>
-    <!-- COMMONS -->
-    <dependency>
-      <groupId>commons-lang</groupId>
-      <artifactId>commons-lang</artifactId>
-      <version>2.6</version>
-    </dependency>
-    <dependency>
-      <groupId>commons-io</groupId>
-      <artifactId>commons-io</artifactId>
-      <version>2.4</version>
-    </dependency>
-    <dependency>
-      <groupId>commons-math</groupId>
-      <artifactId>commons-math</artifactId>
-      <version>1.1</version>
-    </dependency>
-    <!-- Sun's Servlet API -->
-    <dependency>
-      <groupId>javax.servlet</groupId>
-      <artifactId>servlet-api</artifactId>
-      <version>2.4</version>
-      <scope>provided</scope>
-    </dependency>
-    <!-- Sun's JSP API-->
-    <dependency>
-      <groupId>javax.servlet</groupId>
-      <artifactId>jsp-api</artifactId>
-      <version>2.0</version>
-      <scope>provided</scope>
-    </dependency>
-    <!-- Sun's JSTL API-->
-    <dependency>
-      <groupId>javax.servlet</groupId>
-      <artifactId>jstl</artifactId>
-      <version>1.1.2</version>
-    </dependency>
-    <dependency>
-      <groupId>taglibs</groupId>
-      <artifactId>standard</artifactId>
-      <version>1.1.2</version>
-    </dependency>
-    <!-- Sun's DI API -->
-    <dependency>
-      <groupId>javax.inject</groupId>
-      <artifactId>javax.inject</artifactId>
-      <version>1</version>
-    </dependency>
-    <!-- JUNIT -->
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>${junit.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <!-- SPRING 3.0 -->
-    <dependency>
-      <groupId>org.springframework</groupId>
-      <artifactId>spring-core</artifactId>
-      <version>${spring.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework</groupId>
-      <artifactId>spring-context</artifactId>
-      <version>${spring.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework</groupId>
-      <artifactId>spring-oxm</artifactId>
-      <version>${spring.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework</groupId>
-      <artifactId>spring-web</artifactId>
-      <version>${spring.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework</groupId>
-      <artifactId>spring-webmvc</artifactId>
-      <version>${spring.version}</version>
-    </dependency>
-      <dependency>
-          <groupId>org.springframework</groupId>
-          <artifactId>spring-test</artifactId>
-          <version>2.5</version>
-      </dependency>
-    <dependency>
-     <groupId>javax.mail</groupId>
-     <artifactId>mail</artifactId>
-     <version>1.4.3</version>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework</groupId>
-      <artifactId>org.springframework.web.servlet</artifactId>
-      <version>${spring.version}</version>
-      <exclusions>
-        <exclusion>
-          <artifactId>com.springsource.org.aopalliance</artifactId>
-          <groupId>org.aopalliance</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>com.springsource.org.apache.commons.logging</artifactId>
-          <groupId>org.apache.commons</groupId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.webflow</groupId>
-      <artifactId>org.springframework.js</artifactId>
-      <version>2.0.8.RELEASE</version>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework</groupId>
-      <artifactId>org.springframework.context.support</artifactId>
-      <version>${spring.version}</version>
-    </dependency>
-    <!-- JMS lib start-->
-    <dependency>
-      <groupId>au.org.ala</groupId>
-      <artifactId>biocache-jms</artifactId>
-      <version>1.0</version>
-    </dependency>
-    <dependency>
-        <groupId>org.springframework</groupId>
-        <artifactId>spring-jms</artifactId>
-        <version>${spring.version}</version>
-    </dependency>
-    <dependency>
-        <groupId>org.apache.xbean</groupId>
-        <artifactId>xbean-spring</artifactId>
-        <version>3.6</version>
-    </dependency>
-    <dependency>
-         <groupId>org.apache.activemq</groupId>
-         <artifactId>activemq-core</artifactId>
-         <version>5.4.2</version>
-    </dependency>
-    <dependency>
-        <groupId>org.apache.activemq</groupId>
-        <artifactId>activemq-pool</artifactId>
-        <version>5.3.2</version>
-    </dependency>
-    <dependency>
-        <groupId>commons-pool</groupId>
-        <artifactId>commons-pool</artifactId>
-        <version>1.5.5</version>
-    </dependency>
-   <!-- JMS setting end-->
-    <!-- SITEMESH -->
-    <dependency>
-      <groupId>opensymphony</groupId>
-      <artifactId>sitemesh</artifactId>
-      <version>2.4.2</version>
-    </dependency>
-    <!-- XSTREAM -->
-    <dependency>
-      <groupId>com.thoughtworks.xstream</groupId>
-      <artifactId>com.springsource.com.thoughtworks.xstream</artifactId>
-      <version>1.3.0</version>
-    </dependency>
-    <!-- SLF4J -->
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-      <version>1.6.1</version>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-log4j12</artifactId>
-      <version>1.6.1</version>
-    </dependency>
-    <!-- JSR-250 -->
-    <dependency>
-      <groupId>javax.annotation</groupId>
-      <artifactId>jsr250-api</artifactId>
-      <version>1.0</version>
-      <scope>provided</scope>
-    </dependency>
-    <!-- DOM4J -->
-    <dependency>
-      <groupId>dom4j</groupId>
-      <artifactId>dom4j</artifactId>
-      <version>1.6.1</version>
-    </dependency>
-    <dependency>
-      <groupId>jaxen</groupId>
-      <artifactId>jaxen</artifactId>
-      <version>1.1.1</version>
-    </dependency>
-    <!-- VELOCITY -->
-    <dependency>
-      <groupId>org.apache.velocity</groupId>
-      <artifactId>velocity</artifactId>
-      <version>1.5</version>
-    </dependency>
-    <!-- JSON -->
-    <dependency>
-      <groupId>org.json</groupId>
-      <artifactId>json</artifactId>
-      <version>20090211</version>
-    </dependency>
-    <dependency>
-      <groupId>atg</groupId>
-      <artifactId>json-taglib</artifactId>
-      <version>0.4.1</version>
-    </dependency>
-    <dependency>
-      <groupId>net.sf.json-lib</groupId>
-      <artifactId>json-lib</artifactId>
-      <version>2.2.3</version>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework</groupId>
-      <artifactId>spring-jdbc</artifactId>
-      <version>3.0.3.RELEASE</version>
-      <type>jar</type>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.kenai.nbpwr</groupId>
-      <artifactId>org-apache-commons-dbcp</artifactId>
-      <version>1.2.2-201002241055</version>
-      <type>nbm</type>
-      <scope>compile</scope>
-    </dependency>
-    <!--  Central Authorisation Service (CAS) client -->
-    <dependency>
-      <groupId>org.jasig.cas</groupId>
-      <artifactId>cas-client-core</artifactId>
-      <version>3.1.10</version>
-      <type>jar</type>
-      <scope>compile</scope>
-    </dependency>
-    <!--  XERCES -->
-    <dependency>
-      <groupId>xerces</groupId>
-      <artifactId>xercesImpl</artifactId>
-      <version>2.10.0</version>
-      <type>jar</type>
-    </dependency>
-    <dependency>
-      <groupId>xerces</groupId>
-      <artifactId>xml-apis</artifactId>
-      <version>2.10.0</version>
-      <type>jar</type>
-    </dependency>
-    <!-- GEOIP - geocoding from IP address -->
-    <dependency>
-      <groupId>org.dspace.dependencies</groupId>
-      <artifactId>dspace-geoip</artifactId>
-      <version>1.2.3</version>
-    </dependency>
-      <dependency>
-          <groupId>commons-httpclient</groupId>
-          <artifactId>commons-httpclient</artifactId>
-          <version>3.1</version>
-      </dependency>
-  </dependencies>
-  <repositories>
-    <!-- ALA repository  -->
-    <repository>
-      <id>ala-repository</id>
-      <name>ala-repository</name>
-      <url>http://maven.ala.org.au/repository</url>
-    </repository>
-    <!-- Spring 3.0 -->
-    <repository>
-      <id>springsource maven repo</id>
-      <name>Springsource Maven Repository</name>
-      <url>http://maven.springframework.org/milestone</url>
-    </repository>
-    <repository>
-      <id>com.springsource.repository.bundles.milestone</id>
-      <name>SpringSource Enterprise Bundle Repository - External Bundle Milestones</name>
-      <url>http://maven.springframework.org/milestone</url>
-    </repository>
-    <repository>
-      <id>com.springsource.repository.bundles.external</id>
-      <name>SpringSource Enterprise Bundle Repository - External Bundle Releases</name>
-      <url>http://repository.springsource.com/maven/bundles/external</url>
-    </repository>
-    <repository>
-      <id>com.springsource.repository.maven.release</id>
-      <url>http://maven.springframework.org/release/</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-    <repository>
-      <id>com.springsource.repository.bundles.release</id>
-      <name>SpringSource Enterprise Bundle Repository - SpringSource Bundle Releases</name>
-      <url>http://repository.springsource.com/maven/bundles/release/</url>
-    </repository>
-  </repositories>
-  <build>
-    <finalName>biocache-service</finalName>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <configuration>
-          <source>1.6</source>
-          <target>1.6</target>
-          <encoding>UTF8</encoding>
-        </configuration>
-      </plugin>
-	<plugin>
-		<groupId>org.mortbay.jetty</groupId>
-		<artifactId>jetty-maven-plugin</artifactId>
-		<version>7.0.0.pre5</version>
-		<configuration>
-			<webAppConfig>
-				<contextPath>/biocache-service</contextPath>
-				<!-- NC 20130808: Add the external directory to the classpath to allow 
-					biocache.properties to be override -->
-				<!-- <extraClasspath>/data/biocache/config/</extraClasspath> -->
-			</webAppConfig>
-			<!--<systemProperty>-->
-				<!--&lt;!&ndash; <name>org.eclipse.jetty.server.Request.maxFormContentSize</name> &ndash;&gt;-->
-				<!--<name>org.mortbay.jetty.Request.maxFormContentSize</name>-->
-				<!--<value>-1</value>-->
-			<!--</systemProperty>-->
-			<scanIntervalSeconds>10</scanIntervalSeconds>
-			<stopKey>foo</stopKey>
-			<stopPort>9099</stopPort>
-		</configuration>
-	</plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>${project.artifactId}</id>
-            <phase>compile</phase>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-install-plugin</artifactId>
-        <executions>
-          <execution>
-            <phase>install</phase>
-            <goals>
-              <goal>install-file</goal>
-            </goals>
-            <configuration>
-              <packaging>jar</packaging>
-              <artifactId>${project.artifactId}</artifactId>
-              <groupId>${project.groupId}</groupId>
-              <version>${project.version}</version>
-              <file>${project.build.directory}/${project.artifactId}.jar</file>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-      <groupId>org.apache.maven.plugins</groupId>
-      <artifactId>maven-deploy-plugin</artifactId>
-      <executions>
-         <execution>
-            <phase>deploy</phase>
-            <goals>
-               <goal>deploy-file</goal>
-            </goals>
-            <configuration>
-               <packaging>jar</packaging>
-               <repositoryId>ala-repository</repositoryId>               
-               <url>${project.distributionManagement.repository.url}</url>
-               <artifactId>${project.artifactId}</artifactId>
-               <groupId>${project.groupId}</groupId>
-               <version>${project.version}</version>
-               <file>${project.build.directory}/${project.artifactId}.jar</file>
-               <uniqueVersion>false</uniqueVersion>
-               <pomFile>${basedir}/pom.xml</pomFile>
-            </configuration>
-         </execution>
-      </executions>
-   </plugin>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-release-plugin</artifactId>
+            <version>2.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- Sun's JSTL API-->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>jstl</artifactId>
+            <version>1.1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>taglibs</groupId>
+            <artifactId>standard</artifactId>
+            <version>1.1.2</version>
+        </dependency>
+        <!-- Sun's DI API -->
+        <dependency>
+            <groupId>javax.inject</groupId>
+            <artifactId>javax.inject</artifactId>
+            <version>1</version>
+        </dependency>
+        <!-- JUNIT -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- SPRING 3.0 -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-oxm</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
             <version>2.5</version>
-        </plugin>
-    </plugins>
-  </build>
+        </dependency>
+        <dependency>
+            <groupId>javax.mail</groupId>
+            <artifactId>mail</artifactId>
+            <version>1.4.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>org.springframework.web.servlet</artifactId>
+            <version>${spring.version}</version>
+            <exclusions>
+                <exclusion>
+                    <artifactId>com.springsource.org.aopalliance</artifactId>
+                    <groupId>org.aopalliance</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>com.springsource.org.apache.commons.logging</artifactId>
+                    <groupId>org.apache.commons</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.webflow</groupId>
+            <artifactId>org.springframework.js</artifactId>
+            <version>2.0.8.RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>org.springframework.context.support</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <!-- JMS lib start-->
+        <dependency>
+            <groupId>au.org.ala</groupId>
+            <artifactId>biocache-jms</artifactId>
+            <version>1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jms</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.xbean</groupId>
+            <artifactId>xbean-spring</artifactId>
+            <version>3.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.activemq</groupId>
+            <artifactId>activemq-core</artifactId>
+            <version>5.4.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.activemq</groupId>
+            <artifactId>activemq-pool</artifactId>
+            <version>5.3.2</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-pool</groupId>
+            <artifactId>commons-pool</artifactId>
+            <version>1.5.5</version>
+        </dependency>
+        <!-- JMS setting end-->
+        <!-- SITEMESH -->
+        <dependency>
+            <groupId>opensymphony</groupId>
+            <artifactId>sitemesh</artifactId>
+            <version>2.4.2</version>
+        </dependency>
+        <!-- XSTREAM -->
+        <dependency>
+            <groupId>com.thoughtworks.xstream</groupId>
+            <artifactId>com.springsource.com.thoughtworks.xstream</artifactId>
+            <version>1.3.0</version>
+        </dependency>
+        <!-- SLF4J -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.6.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>1.6.1</version>
+        </dependency>
+        <!-- JSR-250 -->
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>jsr250-api</artifactId>
+            <version>1.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- DOM4J -->
+        <dependency>
+            <groupId>dom4j</groupId>
+            <artifactId>dom4j</artifactId>
+            <version>1.6.1</version>
+        </dependency>
+        <dependency>
+            <groupId>jaxen</groupId>
+            <artifactId>jaxen</artifactId>
+            <version>1.1.1</version>
+        </dependency>
+        <!-- VELOCITY -->
+        <dependency>
+            <groupId>org.apache.velocity</groupId>
+            <artifactId>velocity</artifactId>
+            <version>1.5</version>
+        </dependency>
+        <!-- JSON -->
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20090211</version>
+        </dependency>
+        <dependency>
+            <groupId>atg</groupId>
+            <artifactId>json-taglib</artifactId>
+            <version>0.4.1</version>
+        </dependency>
+        <dependency>
+            <groupId>net.sf.json-lib</groupId>
+            <artifactId>json-lib</artifactId>
+            <version>2.2.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <version>3.0.3.RELEASE</version>
+            <type>jar</type>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.kenai.nbpwr</groupId>
+            <artifactId>org-apache-commons-dbcp</artifactId>
+            <version>1.2.2-201002241055</version>
+            <type>nbm</type>
+            <scope>compile</scope>
+        </dependency>
+        <!--  Central Authorisation Service (CAS) client -->
+        <dependency>
+            <groupId>org.jasig.cas</groupId>
+            <artifactId>cas-client-core</artifactId>
+            <version>3.1.10</version>
+            <type>jar</type>
+            <scope>compile</scope>
+        </dependency>
+        <!--  XERCES -->
+        <dependency>
+            <groupId>xerces</groupId>
+            <artifactId>xercesImpl</artifactId>
+            <version>2.10.0</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>xerces</groupId>
+            <artifactId>xml-apis</artifactId>
+            <version>2.10.0</version>
+            <type>jar</type>
+        </dependency>
+        <!-- GEOIP - geocoding from IP address -->
+        <dependency>
+            <groupId>org.dspace.dependencies</groupId>
+            <artifactId>dspace-geoip</artifactId>
+            <version>1.2.3</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-httpclient</groupId>
+            <artifactId>commons-httpclient</artifactId>
+            <version>3.1</version>
+        </dependency>
+    </dependencies>
+    <repositories>
+        <!-- ALA repository  -->
+        <repository>
+            <id>ala-repository</id>
+            <name>ala-repository</name>
+            <url>http://maven.ala.org.au/repository</url>
+        </repository>
+        <!-- Spring 3.0 -->
+        <repository>
+            <id>springsource maven repo</id>
+            <name>Springsource Maven Repository</name>
+            <url>http://maven.springframework.org/milestone</url>
+        </repository>
+        <repository>
+            <id>com.springsource.repository.bundles.milestone</id>
+            <name>SpringSource Enterprise Bundle Repository - External Bundle Milestones</name>
+            <url>http://maven.springframework.org/milestone</url>
+        </repository>
+        <repository>
+            <id>com.springsource.repository.bundles.external</id>
+            <name>SpringSource Enterprise Bundle Repository - External Bundle Releases</name>
+            <url>http://repository.springsource.com/maven/bundles/external</url>
+        </repository>
+        <repository>
+            <id>com.springsource.repository.maven.release</id>
+            <url>http://maven.springframework.org/release/</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>com.springsource.repository.bundles.release</id>
+            <name>SpringSource Enterprise Bundle Repository - SpringSource Bundle Releases</name>
+            <url>http://repository.springsource.com/maven/bundles/release/</url>
+        </repository>
+    </repositories>
+    <build>
+        <finalName>biocache-service</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>1.6</source>
+                    <target>1.6</target>
+                    <encoding>UTF8</encoding>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.google.code.maven-svn-revision-number-plugin</groupId>
+                <artifactId>svn-revision-number-maven-plugin</artifactId>
+                <version>1.13</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <entries>
+                        <entry>
+                            <prefix>scm</prefix>
+                        </entry>
+                    </entries>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>2.2</version>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <SCM-Revision>${scm.revision}</SCM-Revision>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.mortbay.jetty</groupId>
+                <artifactId>jetty-maven-plugin</artifactId>
+                <version>7.0.0.pre5</version>
+                <configuration>
+                    <webAppConfig>
+                        <contextPath>/biocache-service</contextPath>
+                        <!-- NC 20130808: Add the external directory to the classpath to allow
+                            biocache.properties to be override -->
+                        <!-- <extraClasspath>/data/biocache/config/</extraClasspath> -->
+                    </webAppConfig>
+                    <!--<systemProperty>-->
+                    <!--&lt;!&ndash; <name>org.eclipse.jetty.server.Request.maxFormContentSize</name> &ndash;&gt;-->
+                    <!--<name>org.mortbay.jetty.Request.maxFormContentSize</name>-->
+                    <!--<value>-1</value>-->
+                    <!--</systemProperty>-->
+                    <scanIntervalSeconds>10</scanIntervalSeconds>
+                    <stopKey>foo</stopKey>
+                    <stopPort>9099</stopPort>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>${project.artifactId}</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <packaging>jar</packaging>
+                            <artifactId>${project.artifactId}</artifactId>
+                            <groupId>${project.groupId}</groupId>
+                            <version>${project.version}</version>
+                            <file>${project.build.directory}/${project.artifactId}.jar</file>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>deploy</phase>
+                        <goals>
+                            <goal>deploy-file</goal>
+                        </goals>
+                        <configuration>
+                            <packaging>jar</packaging>
+                            <repositoryId>ala-repository</repositoryId>
+                            <url>${project.distributionManagement.repository.url}</url>
+                            <artifactId>${project.artifactId}</artifactId>
+                            <groupId>${project.groupId}</groupId>
+                            <version>${project.version}</version>
+                            <file>${project.build.directory}/${project.artifactId}.jar</file>
+                            <uniqueVersion>false</uniqueVersion>
+                            <pomFile>${basedir}/pom.xml</pomFile>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-release-plugin</artifactId>
+                <version>2.5</version>
+            </plugin>
+        </plugins>
+    </build>
     <distributionManagement>
-    <downloadUrl>https://maven.ala.org.au/repository</downloadUrl>
-    <repository>
-      <id>ala-repository</id>
-      <url>${ala.repository.url}</url>
-      <uniqueVersion>false</uniqueVersion>
-    </repository>
-  </distributionManagement>
+        <downloadUrl>https://maven.ala.org.au/repository</downloadUrl>
+        <repository>
+            <id>ala-repository</id>
+            <url>${ala.repository.url}</url>
+            <uniqueVersion>false</uniqueVersion>
+        </repository>
+    </distributionManagement>
 </project>
