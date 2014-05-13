@@ -44,20 +44,27 @@ public class AuthService {
     protected RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
     @Value("${auth.user.details.url}")
     protected String userDetailsUrl = null;
-    @Value("${auth.user.names.id.path}")
+    @Value("${auth.user.names.id.path:getUserList}")
     protected String userNamesForIdPath = null;
-    @Value("${auth.usernames.for.numeric.id.path}")
+    @Value("${auth.usernames.for.numeric.id.path:getUserListWithIds}")
     protected String userNamesForNumericIdPath = null;
-    //NC 20131018: Allow cache to be disabled via config (enabled by default)
+    @Value("${auth.usernames.full.path:getUserListWithIds}")
+    protected String userNamesFullPath = null;
+    @Value("${auth.startup.initialise:false}")
+    protected boolean startupInitialise = false;
     @Value("${caches.auth.enabled:true}")
-    protected Boolean enabled = null;
+    protected Boolean enabled = true;
     // Keep a reference to the output Map in case subsequent web service lookups fail
     protected Map<String, String> userNamesById = new HashMap<String, String>();
     protected Map<String, String> userNamesByNumericIds = new HashMap<String, String>();
     protected Map<String, String> userEmailToId = new HashMap<String, String>();
 
     public AuthService() {
-        logger.info("Instantiating AuthService: " + this);       
+        logger.info("Instantiating AuthService: " + this);
+        if(startupInitialise){
+            logger.info("Loading auth caches now");
+            reloadCaches();
+        }
     }
     
     public Map<String, String> getMapOfAllUserNamesById() {
@@ -95,7 +102,7 @@ public class AuthService {
     }
     
     public String substituteEmailAddress(String raw){
-      return raw == null?raw:raw.replaceAll("\\@\\w+", "@..");
+      return raw == null ? raw : raw.replaceAll("\\@\\w+", "@..");
     }
 
     private void loadMapOfAllUserNamesById() {
@@ -120,7 +127,7 @@ public class AuthService {
 
     private void loadMapOfEmailToUserId() {
         try {
-            final String jsonUri = userDetailsUrl + "getUserListFull";
+            final String jsonUri = userDetailsUrl + userNamesFullPath;
             logger.info("authCache requesting: " + jsonUri);
             List<Map<String,Object>> users = restTemplate.postForObject(jsonUri, null, List.class);
             for(Map<String,Object> user: users){

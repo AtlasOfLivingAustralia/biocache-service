@@ -14,15 +14,16 @@
  ***************************************************************************/
 package au.org.ala.biocache.util;
 
-import java.lang.reflect.Field;
-import java.util.LinkedHashMap;
-import java.util.List;
-import javax.inject.Inject;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
+
+import javax.inject.Inject;
+import java.lang.reflect.Field;
+import java.util.LinkedHashMap;
+import java.util.List;
 
 /**
  * Provides access to the collection and institution codes and names from the Collectory.
@@ -140,7 +141,7 @@ public class CollectionsCache {
     }
 
     public void updateUidLists(List<String> couids, List<String> inuids, List<String> druids, List<String> dpuids, List<String>dhuids){
-        boolean refresh =data_resource_uid == null;
+        boolean refresh = data_resource_uid == null;
         this.collection_uid = couids;
         this.institution_uid = inuids;
         this.data_resource_uid = druids;
@@ -158,7 +159,6 @@ public class CollectionsCache {
     public void updateCache() {
         if(enabled){
             logger.info("Updating collectory cache...");
-            
             this.collections = getCodesMap(ResourceType.COLLECTION, collection_uid);
             this.institutions = getCodesMap(ResourceType.INSTITUTION, institution_uid);
             this.dataResources = getCodesMap(ResourceType.DATA_RESOURCE,data_resource_uid);

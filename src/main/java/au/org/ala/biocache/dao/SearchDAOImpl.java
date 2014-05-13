@@ -14,64 +14,19 @@
  ***************************************************************************/
 package au.org.ala.biocache.dao;
 
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.MatchResult;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import javax.inject.Inject;
-import javax.servlet.ServletOutputStream;
-
-import au.org.ala.biocache.dto.BreakdownRequestParams;
-import au.org.ala.biocache.dto.DataProviderCountDTO;
-import au.org.ala.biocache.dto.DownloadDetailsDTO;
-import au.org.ala.biocache.dto.DownloadRequestParams;
-import au.org.ala.biocache.dto.FacetResultDTO;
-import au.org.ala.biocache.dto.FacetThemes;
-import au.org.ala.biocache.dto.FieldResultDTO;
-import au.org.ala.biocache.dto.IndexFieldDTO;
-import au.org.ala.biocache.dto.OccurrenceIndex;
-import au.org.ala.biocache.dto.OccurrencePoint;
-import au.org.ala.biocache.dto.PointType;
-import au.org.ala.biocache.dto.SearchRequestParams;
-import au.org.ala.biocache.dto.SearchResultDTO;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
-import au.org.ala.biocache.dto.StatsIndexFieldDTO;
-import au.org.ala.biocache.dto.TaxaCountDTO;
-import au.org.ala.biocache.dto.TaxaRankCountDTO;
+import au.com.bytecode.opencsv.CSVWriter;
+import au.org.ala.biocache.RecordWriter;
+import au.org.ala.biocache.dto.*;
+import au.org.ala.biocache.index.IndexDAO;
+import au.org.ala.biocache.index.SolrIndexDAO;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.LayersService;
 import au.org.ala.biocache.service.SpeciesLookupService;
-import au.org.ala.biocache.util.CollectionsCache;
-import au.org.ala.biocache.util.DownloadFields;
-import au.org.ala.biocache.util.LegendItem;
-import au.org.ala.biocache.util.ParamsCache;
-import au.org.ala.biocache.util.ParamsCacheMissingException;
-import au.org.ala.biocache.util.ParamsCacheObject;
-import au.org.ala.biocache.util.RangeBasedFacets;
-import au.org.ala.biocache.util.SearchUtils;
-import au.org.ala.biocache.util.SpatialUtils;
+import au.org.ala.biocache.util.*;
 import au.org.ala.biocache.util.thread.EndemicCallable;
 import au.org.ala.biocache.writer.CSVRecordWriter;
 import au.org.ala.biocache.writer.ShapeFileRecordWriter;
+import com.googlecode.ehcache.annotations.Cacheable;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
@@ -82,29 +37,35 @@ import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
-import org.apache.solr.client.solrj.response.FacetField;
+import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.client.solrj.response.FacetField.Count;
-import org.apache.solr.client.solrj.response.FieldStatsInfo;
-import org.apache.solr.client.solrj.response.GroupCommand;
-import org.apache.solr.client.solrj.response.GroupResponse;
-import org.apache.solr.client.solrj.response.QueryResponse;
-import org.apache.solr.client.solrj.response.RangeFacet;
 import org.apache.solr.client.solrj.response.RangeFacet.Numeric;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import au.com.bytecode.opencsv.CSVWriter;
-import au.org.ala.biocache.index.IndexDAO;
-import au.org.ala.biocache.RecordWriter;
-import au.org.ala.biocache.index.SolrIndexDAO;
-
-import com.googlecode.ehcache.annotations.Cacheable;
+import javax.inject.Inject;
+import javax.servlet.ServletOutputStream;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.MatchResult;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * SOLR implementation of SearchDao. Uses embedded SOLR server (can be a memory hog).
@@ -168,20 +129,29 @@ public class SearchDAOImpl implements SearchDAO {
     protected LayersService layersService;
     
     /** Max number of threads to use in endemic queries */
+    @Value("${max.query.thread:5}")
     protected Integer maxMultiPartThreads = 5;
 
     /** thread pool for multipart queries that take awhile */
     private ExecutorService executor = null;
     
     /** should we check download limits */
+    @Value("${check.download.limits:false}")
     private boolean checkDownloadLimits = false;
 
-    /** should we check download limits */
-    private int termQueryLimit = 1000;
+    @Value("${term.query.limit:1000}")
+    protected Integer termQueryLimit = 1000;
     
-    /** Comma separated list of solr fields that need to have the authService substitute values if they are used in a facet. - CAN be overridden */
-    private String authServiceFields = "";
-    
+    /** Comma separated list of solr fields that need to have the authService substitute values if they are used in a facet. */
+    @Value("${auth.substitution.fields:}")
+    protected String authServiceFields = "";
+
+    @Value("${media.url:http://biocache.ala.org.au/biocache-media/}")
+    public static String biocacheMediaUrl = "http://biocache.ala.org.au/biocache-media/";
+
+    @Value("${media.dir:/data/biocache-media/}")
+    public static String biocacheMediaDir = "/data/biocache-media/";
+
     private Set<IndexFieldDTO> indexFields = null;
     private Map<String, IndexFieldDTO> indexFieldMap = null;
     private Map<String, StatsIndexFieldDTO> rangeFieldCache = null;
@@ -220,6 +190,7 @@ public class SearchDAOImpl implements SearchDAO {
     public Set<String> getAuthIndexFields(){
         if(authIndexFields == null){
             //set up the hash set of the fields that need to have the authentication service substitute
+            logger.debug("Auth substiution fields to use: " + authServiceFields);
             authIndexFields = new java.util.HashSet<String>();
             CollectionUtils.mergeArrayIntoCollection(authServiceFields.split(","), authIndexFields);
         }
@@ -349,7 +320,7 @@ public class SearchDAOImpl implements SearchDAO {
             QueryResponse qr = runSolrQuery(solrQuery, searchParams);
             //need to set the original q to the processed value so that we remove the wkt etc that is added from paramcache object
             Class resultClass = includeSensitive? au.org.ala.biocache.dto.SensitiveOccurrenceIndex.class:OccurrenceIndex.class;
-            searchResults = processSolrResponse(original, qr, solrQuery,resultClass);
+            searchResults = processSolrResponse(original, qr, solrQuery, resultClass);
             searchResults.setQueryTitle(searchParams.getDisplayString());
             searchResults.setUrlParameters(original.getUrlParams());
             //now update the fq display map...
@@ -1100,7 +1071,7 @@ public class SearchDAOImpl implements SearchDAO {
         updateQueryContext(searchParams);
 
         QueryResponse qr = runSolrQuery(solrQuery, searchParams);
-        SearchResultDTO searchResults = processSolrResponse(searchParams, qr, solrQuery,OccurrenceIndex.class);
+        SearchResultDTO searchResults = processSolrResponse(searchParams, qr, solrQuery, OccurrenceIndex.class);
         List<OccurrenceIndex> ocs = searchResults.getOccurrences();
 
         if (!ocs.isEmpty() && ocs.size() > 0) {
@@ -1550,7 +1521,6 @@ public class SearchDAOImpl implements SearchDAO {
             logger.debug("Facet dates size: " + facetDates.size());
             facets.addAll(facetDates);
         }
-        //Map<String, Map<String, List<String>>> highlights = qr.getHighlighting();
         List<OccurrenceIndex> results = qr.getBeans(resultClass);
         List<FacetResultDTO> facetResults = new ArrayList<FacetResultDTO>();
         searchResult.setTotalRecords(sdl.getNumFound());
@@ -1572,14 +1542,12 @@ public class SearchDAOImpl implements SearchDAO {
                     Matcher m = uidPattern.matcher(facet.getName()+":value");
                     boolean isUid = m.matches();
                     for (FacetField.Count fcount : facetEntries) {
-//                        String msg = fcount.getName() + ": " + fcount.getCount();                       
-                        //logger.trace(fcount.getName() + ": " + fcount.getCount());
-                        //check to see if the facet field is an uid value that needs substitution                        
+                        //check to see if the facet field is an uid value that needs substitution
                         if(isUid){
                             String displayName = searchUtils.getUidDisplayString(facet.getName(), fcount.getName(), false);
                             r.add(new FieldResultDTO(displayName, fcount.getCount(),facet.getName()+":\"" + fcount.getName()+"\""));
                         } else if(getAuthIndexFields().contains(facet.getName())){
-                          //if the facet field is collector or assertion_user_id we need to perform the substitution
+                            //if the facet field is collector or assertion_user_id we need to perform the substitution
                             String displayName = authService.getDisplayNameFor(fcount.getName());                            
                             //now add the facet with the correct fq being supplied
                             r.add(new FieldResultDTO(displayName, fcount.getCount(),facet.getName()+":\"" + fcount.getName()+"\""));
@@ -1595,6 +1563,7 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             }
         }
+
         //all belong to uncertainty range for now
         if(facetQueries != null && !facetQueries.isEmpty()) {
             Map<String, String> rangeMap = RangeBasedFacets.getRangeMap("uncertainty");
@@ -1612,7 +1581,7 @@ public class SearchDAOImpl implements SearchDAO {
                 List<FieldResultDTO> fqr = new ArrayList<FieldResultDTO>();
                 if(rfacet instanceof Numeric){
                     Numeric nrfacet = (Numeric)rfacet;
-                    List<RangeFacet.Count> counts= nrfacet.getCounts();
+                    List<RangeFacet.Count> counts = nrfacet.getCounts();
                     //handle the before
                     if(nrfacet.getBefore().intValue()>0){
                       fqr.add(new FieldResultDTO("[* TO "+getUpperRange(nrfacet.getStart().toString(), nrfacet.getGap(),false)+"]",nrfacet.getBefore().intValue()));
@@ -1627,10 +1596,12 @@ public class SearchDAOImpl implements SearchDAO {
                     }
                     facetResults.add(new FacetResultDTO(nrfacet.getName(), fqr));
                 }
-              //org.apache.solr.client.solrj.response.RangeFacet$Numeric
-                //int gap = rfacet.getGap() -1;
-                //System.out.println(rfacet.getClass());
             }
+        }
+
+        //update image URLs
+        for(OccurrenceIndex oi : results){
+            updateImageUrls(oi);
         }
 
         searchResult.setFacetResults(facetResults);
@@ -1639,7 +1610,33 @@ public class SearchDAOImpl implements SearchDAO {
         searchResult.setQr(qr);
         return searchResult;
     }
-    
+
+    private void updateImageUrls(OccurrenceIndex oi){
+
+        if(oi.getImage() != null && oi.getImage().startsWith(biocacheMediaDir)){
+            String url = oi.getImage().replace(biocacheMediaDir, biocacheMediaUrl);
+            String extension = url.substring(url.lastIndexOf("."));
+            //set urls
+            oi.setImageUrl(url);
+            oi.setThumbnailUrl(url.replace(extension, "__thumb" + extension));
+            oi.setSmallImageUrl(url.replace(extension, "__small" + extension));
+            oi.setLargeImageUrl(url.replace(extension, "__large" + extension));
+
+            //set image urls..
+            String[] images = oi.getImages();
+            if(images != null && images.length > 0){
+                String [] imageUrls = new String[images.length];
+                for(int i = 0; i < images.length; i++){
+                    if(images[i].startsWith(biocacheMediaDir))
+                        imageUrls[i] = images[i].replace(biocacheMediaDir, biocacheMediaUrl);
+                    else
+                        imageUrls[i] = images[i];
+                }
+                oi.setImageUrls(imageUrls);
+            }
+        }
+    }
+
     private String getRangeValue(String lower, Number gap){
         StringBuilder value=new StringBuilder("[");
         value.append(lower). append(" TO ").append(getUpperRange(lower,gap,true));
@@ -1654,8 +1651,9 @@ public class SearchDAOImpl implements SearchDAO {
           return upper.toString();
         } else if (gap instanceof Double) {
           BigDecimal upper = new BigDecimal(lower).add(new BigDecimal(-0.001));
-          if(addGap)
+          if(addGap) {
               upper = upper.add(new BigDecimal(gap.doubleValue()));
+          }
           return upper.setScale(3, RoundingMode.HALF_UP).toString();
         } else {
           return lower;
@@ -2796,34 +2794,6 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public void setMaxMultiPartThreads(Integer maxMultiPartThreads) {
       this.maxMultiPartThreads = maxMultiPartThreads;
-    }
-
-    /**
-     * @return the checkDownloadLimits
-     */
-    public boolean getCheckDownloadLimits() {
-        return checkDownloadLimits;
-    }
-
-    /**
-     * @param checkDownloadLimits the checkDownloadLimits to set
-     */
-    public void setCheckDownloadLimits(boolean checkDownloadLimits) {
-        this.checkDownloadLimits = checkDownloadLimits;
-    }
-
-    /**
-     * @return the authServiceFields
-     */
-    public String getAuthServiceFields() {
-        return authServiceFields;
-    }
-
-    /**
-     * @param authServiceFields the authServiceFields to set
-     */
-    public void setAuthServiceFields(String authServiceFields) {
-        this.authServiceFields = authServiceFields;
     }
 
     /**

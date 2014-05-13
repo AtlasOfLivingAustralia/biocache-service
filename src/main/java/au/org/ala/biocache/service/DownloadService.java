@@ -14,21 +14,12 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
-import java.io.*;
-import java.util.*;
-import java.util.zip.ZipOutputStream;
-
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServletResponse;
-
 import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
-import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
+import au.org.ala.biocache.dto.DownloadRequestParams;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.httpclient.HttpException;
@@ -38,6 +29,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
+
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletResponse;
+import java.io.*;
+import java.util.*;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Services to perform the downloads.
@@ -50,7 +49,8 @@ public class DownloadService {
 
     private static final Logger logger = Logger.getLogger(DownloadService.class);
     /** Number of threads to perform to offline downloads on can be configured. */
-    private int concurrentDownloads = 1;
+    @Value("${concurrent.downloads:1}")
+    protected int concurrentDownloads = 1;
     @Inject
     protected PersistentQueueDAO persistentQueueDAO;
     @Inject 
@@ -63,9 +63,11 @@ public class DownloadService {
     private EmailService emailService;
     @Inject
     private AbstractMessageSource messageSource;
+
     //default value is supplied for the property below
     @Value("${webservices.root:http://localhost:8080/biocache-service}")
     protected String webservicesRoot;
+
     //NC 20131018: Allow citations to be disabled via config (enabled by default)
     @Value("${citations.enabled:true}")
     protected Boolean citationsEnabled;
@@ -282,43 +284,13 @@ public class DownloadService {
     }
     
     /**
-     * @return the concurrentDownloads
-     */
-    public int getConcurrentDownloads() {
-        return concurrentDownloads;
-    }
-
-    /**
-     * @param concurrentDownloads the concurrentDownloads to set
-     */
-    public void setConcurrentDownloads(int concurrentDownloads) {
-        this.concurrentDownloads = concurrentDownloads;
-    }
-    
-    /**
-     * @param registryUrl the registryUrl to use
-     */
-    public void setRegistryUrl(String registryUrl) {
-        this.registryUrl = registryUrl;
-    }
-
-    public void setCitationServiceUrl(String citationServiceUrl) {
-        this.citationServiceUrl = citationServiceUrl;
-    }
-
-
-    public void setDataFieldDescriptionURL(String dataFieldDescriptionURL) {
-        this.dataFieldDescriptionURL = dataFieldDescriptionURL;
-    }
-    
-    /**
      * A thread responsible for creating a records dump offline.
      * 
      * @author Natasha Carter (natasha.carter@csiro.au)
      */
     private class DownloadThread implements Runnable{
         
-        private DownloadDetailsDTO currentDownload =null;       
+        private DownloadDetailsDTO currentDownload = null;
 
         @Override
         public void run() {
@@ -327,14 +299,14 @@ public class DownloadService {
                     try {
                         Thread.currentThread().sleep(10000);
                     } catch(InterruptedException e){
-                        //I don't care thatI have been interrupted.
+                        //I don't care that I have been interrupted.
                     }
                 }
                 currentDownload = persistentQueueDAO.getNextDownload();
                 if(currentDownload != null){
                     logger.info("Starting to download the offline request: " + currentDownload);
                     //we are now ready to start the download
-                    //we need to create an outputstream to the file syste,
+                    //we need to create an output stream to the file system
                     try{
                         FileOutputStream fos = FileUtils.openOutputStream(new File(currentDownload.getFileLocation()));
                         //register the download
@@ -342,13 +314,12 @@ public class DownloadService {
                         writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
                                 currentDownload.getIpAddress(), fos, currentDownload.getIncludeSensitive(), 
                                 currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false);
-                      //now that the download is complete email a link to the recipient.
+                        //now that the download is complete email a link to the recipient.
                         String subject = messageSource.getMessage("offlineEmailSubject",null,"Occurrence Download Complete - "+currentDownload.getRequestParams().getFile(),null);
                         String fileLocation = currentDownload.getFileLocation().replace(biocacheMediaDir, biocacheMediaUrl);
-                        String body = messageSource.getMessage("offlineEmailBody",new Object[]{fileLocation}, "The file has been generated. Please download you file from " +fileLocation , null);
-                        emailService.sendEmail(currentDownload.getEmail(), 
-                                subject, 
-                                body);
+                        String body = messageSource.getMessage("offlineEmailBody", new Object[]{fileLocation}, "The file has been generated. Please download you file from " + fileLocation , null);
+                        emailService.sendEmail(currentDownload.getEmail(), subject, body);
+
                         //now take the job off the list
                         persistentQueueDAO.removeDownloadFromQueue(currentDownload);
                         

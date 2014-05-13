@@ -108,6 +108,9 @@ public class OccurrenceController extends AbstractSecureController {
     
     /** Compiled pattern for taxon IDs */
     protected Pattern taxonIDPattern;
+
+    @Value("${media.url:http://biocache.ala.org.au/biocache-media/}")
+    protected String biocacheMediaUrl;
     
     public Pattern getTaxonIDPattern(){
         if(taxonIDPattern == null){
@@ -1041,8 +1044,8 @@ public class OccurrenceController extends AbstractSecureController {
         setupImageUrls(occ);
         
         //fix media store URLs
-        MediaStore.convertPathsToUrls(occ.getRaw(), OccurrenceIndex.biocacheMediaUrl);
-        MediaStore.convertPathsToUrls(occ.getProcessed(), OccurrenceIndex.biocacheMediaUrl);
+        MediaStore.convertPathsToUrls(occ.getRaw(), biocacheMediaUrl);
+        MediaStore.convertPathsToUrls(occ.getProcessed(), biocacheMediaUrl);
         
         //log the statistics for viewing the record
         logViewEvent(ip, occ, null, "Viewing Occurrence Record " + uuid);
@@ -1099,12 +1102,12 @@ public class OccurrenceController extends AbstractSecureController {
             for(String sound: sounds){
                 MediaDTO m = new MediaDTO();
                 m.setContentType(MimeType.getForFileExtension(sound).getMimeType());
-                m.setFilePath(MediaStore.convertPathToUrl(sound, OccurrenceIndex.biocacheMediaUrl));
+                m.setFilePath(MediaStore.convertPathToUrl(sound, biocacheMediaUrl));
                 
                 String[] files = Store.getAlternativeFormats(sound);
                 for(String fileName: files){
                     String contentType = MimeType.getForFileExtension(fileName).getMimeType();
-                    String filePath = MediaStore.convertPathToUrl(fileName, OccurrenceIndex.biocacheMediaUrl);
+                    String filePath = MediaStore.convertPathToUrl(fileName, biocacheMediaUrl);
                     //System.out.println("#########Adding media path: " + m.getFilePath());
                     m.getAlternativeFormats().put(contentType,filePath);
                 }
@@ -1120,7 +1123,7 @@ public class OccurrenceController extends AbstractSecureController {
             List<MediaDTO> ml = new ArrayList<MediaDTO>();
             for(String fileName: images){
                 MediaDTO m = new MediaDTO();
-                String url =  MediaStore.convertPathToUrl(fileName,OccurrenceIndex.biocacheMediaUrl);
+                String url =  MediaStore.convertPathToUrl(fileName, biocacheMediaUrl);
                 String extension = url.substring(url.lastIndexOf("."));
                 m.getAlternativeFormats().put("thumbnailUrl", url.replace(extension, "__thumb" + extension));
                 m.getAlternativeFormats().put("smallImageUrl", url.replace(extension, "__small" + extension));

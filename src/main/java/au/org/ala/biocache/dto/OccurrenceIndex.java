@@ -27,29 +27,8 @@ import java.util.*;
  */
 public class OccurrenceIndex {
 
-    public static String biocacheMediaUrl = "http://biocache.ala.org.au/biocache-media/";
-    public static String biocacheMediaDir = "/data/biocache-media/";
     protected static final Logger logger = Logger.getLogger(OccurrenceIndex.class);
 
-    static {
-        //check the properties file for an override
-        try {
-            Properties p = new Properties();
-		    p.load(OccurrenceIndex.class.getResourceAsStream("/biocache.properties"));
-            //InputStream inStream = Thread.currentThread().getContextClassLoader().getResourceAsStream("biocache.properties");
-            //p.load(inStream);
-            logger.debug("Retrieved biocacheMediaUrl: " + p.getProperty("biocacheMediaUrl"));
-            logger.debug("Retrieved biocacheMediaDir: " + p.getProperty("biocacheMediaDir"));
-            
-            if(p.getProperty("biocacheMediaUrl") != null)
-                biocacheMediaUrl = p.getProperty("biocacheMediaUrl");
-            if(p.getProperty("biocacheMediaDir") != null)
-                biocacheMediaDir = p.getProperty("biocacheMediaDir");
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-    }
-    
     public static final String defaultFields = "id,row_key,occurrence_id,data_hub_uid,data_hub,"
     		+ "institution_uid,institution_code,institution_name,collection_uid,collection_code,"
     		+ "collection_name,catalogue_number,taxon_concept_lsid,occurrence_date,occurrence_year,"
@@ -156,10 +135,6 @@ public class OccurrenceIndex {
     String thumbnailUrl;
     String[] imageUrls;
 
-    public static void setBiocacheMediaDir(String biocacheMediaDir) {
-        OccurrenceIndex.biocacheMediaDir = biocacheMediaDir;
-    }
-
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
     }
@@ -177,38 +152,14 @@ public class OccurrenceIndex {
     }
 
     public String getImageUrl(){
-        if(imageUrl == null){
-            if(image != null && image.startsWith(biocacheMediaDir)){
-                imageUrl= image.replace(biocacheMediaDir, biocacheMediaUrl);
-            }
-        }
         return imageUrl;
     }
     
     public String[] getImageUrls(){
-        if(imageUrls == null){
-            if(images != null && images.length>0){
-                imageUrls = new String[images.length];
-                for(int i = 0;i<images.length; i++){
-                    if(images[i].startsWith(biocacheMediaDir))
-                        imageUrls[i] = images[i].replace(biocacheMediaDir, biocacheMediaUrl);
-                    else
-                        imageUrls[i] = images[i];
-                }
-            }
-        }
         return imageUrls;
     }
 
     public String getLargeImageUrl(){
-        if(largeImageUrl==null){
-            if(image != null && image.startsWith(biocacheMediaDir)){
-                String url =  image.replace(biocacheMediaDir, biocacheMediaUrl);
-                String extension = url.substring(url.lastIndexOf("."));
-                url = url.replace(extension, "__large"+extension);
-                largeImageUrl =  url;
-            }
-        }
         return largeImageUrl;
     }
     
@@ -217,26 +168,10 @@ public class OccurrenceIndex {
     }
 
     public String getSmallImageUrl(){
-        if(smallImageUrl ==null){
-            if(image != null && image.startsWith(biocacheMediaDir)){
-                String url =  image.replace(biocacheMediaDir, biocacheMediaUrl);
-                String extension = url.substring(url.lastIndexOf("."));
-                url = url.replace(extension, "__small"+extension);
-                smallImageUrl =  url;
-            }
-        }
         return smallImageUrl;
     }
 
     public String getThumbnailUrl(){
-        if(thumbnailUrl ==null){
-            if(image != null && image.startsWith(biocacheMediaDir)){
-                String url =  image.replace(biocacheMediaDir, biocacheMediaUrl);
-                String extension = url.substring(url.lastIndexOf("."));
-                url = url.replace(extension, "__thumb"+extension);
-                thumbnailUrl =  url;
-            }
-        }
         return thumbnailUrl;
     }
 
@@ -247,18 +182,18 @@ public class OccurrenceIndex {
     }
     
     private String safeDblToString(Double d){
-        if(d!=null) return d.toString();
+        if(d != null) return d.toString();
         return null;
     }
 
     private String safeIntToString(Integer d){
-        if(d!=null) return d.toString();
+        if(d != null) return d.toString();
         return null;
     }
 
     private String arrToString(String[] arr){
         try{
-            if(arr !=null) {
+            if(arr != null) {
                 ObjectMapper o = new ObjectMapper();
                 return o.writeValueAsString(arr);
             }
@@ -269,7 +204,9 @@ public class OccurrenceIndex {
     @JsonIgnore
     public Map<String,String> toMap() {
         String sdate = null;
-        if(eventDate != null) sdate = DateFormatUtils.format(eventDate, "yyyy-MM-dd");
+        if(eventDate != null) {
+            sdate = DateFormatUtils.format(eventDate, "yyyy-MM-dd");
+        }
         Map<String,String> map = new HashMap<String,String>();
         addToMapIfNotNull(map, "id", uuid);
         addToMapIfNotNull(map, "occurrence_id",occurrenceID);
@@ -930,10 +867,6 @@ public class OccurrenceIndex {
         this.stateConservation = stateConservation;
     }
 
-    public void setBiocacheMediaUrl(String biocacheMediaUrl) {
-        this.biocacheMediaUrl = biocacheMediaUrl;
-    }
-
     /**
      * @return the sensitive
      */
@@ -1017,7 +950,6 @@ public class OccurrenceIndex {
     public void setPhotographer(String photographer) {
         this.photographer = photographer;
     }
-
 
     public List<Map<String, Object>> getImageMetadata() {
         return imageMetadata;

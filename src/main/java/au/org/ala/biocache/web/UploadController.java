@@ -92,7 +92,7 @@ public class UploadController {
        response.setContentType("application/json");
        File file = new File(uploadStatusDir + File.separator + tempDataResourceUid);
        int retries = 5;
-       while(file.exists() && retries>0){
+       while(file.exists() && retries > 0){
          try {
              String value = FileUtils.readFileToString(file);
              ObjectMapper om = new ObjectMapper();
@@ -665,10 +665,10 @@ class UploaderThread implements Runnable {
             try {
                 ObjectMapper om = new ObjectMapper();
                 Integer percentageComplete = 0;
-                if(currentLayerIdx>-1){
+                if(currentLayerIdx > -1){
                     percentageComplete =  (int) ((float) (currentLayerIdx + 1) / (float) intersectionFiles.length * 25);
                 }
-                if(intersectionFile !=null && currentLayerIdx>0){
+                if(intersectionFile != null && currentLayerIdx > 0){
                     FileUtils.writeStringToFile(theFile, om.writeValueAsString(new UploadStatus("SAMPLING",
                         String.format("%d of %d layers sampled. Currently sampling %s.",
                                 currentLayerIdx+1, intersectionFiles.length,

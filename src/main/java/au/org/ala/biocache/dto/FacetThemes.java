@@ -18,7 +18,7 @@ import java.util.LinkedHashMap;
 
 /**
  * This class provides thematic grouping of facets to aid rendering in UIs. 
- * 
+ * TODO this should be refactored so these groups can be reloaded.
  * @author Natasha Carter
  */
 public class FacetThemes {
@@ -27,20 +27,73 @@ public class FacetThemes {
     public static java.util.List<FacetTheme> allThemes = new java.util.ArrayList<FacetTheme>();
     public static LinkedHashMap<String, Facet> facetsMap = new LinkedHashMap<String, Facet>();
     static {
-        allThemes.add(new FacetTheme("Taxonomic", new Facet("taxon_name","index"), new Facet("raw_taxon_name","index"),
-                new Facet("common_name","index"), new Facet("subspecies_name","index"),
-                new Facet("species","index"), new Facet("genus","index"),new Facet("family","index"),
-                new Facet("order","index"),new Facet("class","index"), new Facet("phylum","index"), new Facet("kingdom","index"), new Facet("species_group","index"),new Facet("rank","count"),new Facet("interaction","count"),new Facet("species_habitats","count")));
-        allThemes.add(new FacetTheme("Geospatial",new Facet("uncertainty","index"),new Facet("sensitive","count"),new Facet("state_conservation","count"),
-                     new Facet("raw_state_conservation","count"), new Facet("cl966","count"),new Facet("cl959","count"),new Facet("state","count"), new Facet("country","index"),
-                     new Facet("biogeographic_region","count"),new Facet("ibra","count"),new Facet("imcra", "count"),new Facet("cl1918","count"),
-                     new Facet("cl617", "count"),new Facet("cl620","count"), new Facet("geospatial_kosher","count")));
-        allThemes.add(new FacetTheme("Temporal",new Facet("month","index"),new Facet("year","index"),new Facet("decade","index")));
-        allThemes.add(new FacetTheme("Record details", new Facet("basis_of_record","index"),new Facet("type_status","index"),new Facet("multimedia","count"),new Facet("collector","index")));
-        allThemes.add(new FacetTheme("Attribution", new Facet("data_provider_uid","count"),new Facet("data_resource_uid","count"), 
-                      new Facet("institution_uid","count"), new Facet("collection_uid", "count"), new Facet("provenance", "count")));
-        allThemes.add(new FacetTheme("Record assertions", new Facet("assertions","count"), new Facet("outlier_layer","count"), 
-                      new Facet("outlier_layer_count","count"),new Facet("taxonomic_issue","count"), new Facet("duplicate_status","count")));
+
+        allThemes.add(new FacetTheme("Taxonomic",
+                new Facet("taxon_name","index"),
+                new Facet("raw_taxon_name","index"),
+                new Facet("common_name","index"),
+                new Facet("subspecies_name","index"),
+                new Facet("species","index"),
+                new Facet("genus","index"),
+                new Facet("family","index"),
+                new Facet("order","index"),
+                new Facet("class","index"),
+                new Facet("phylum","index"),
+                new Facet("kingdom","index"),
+                new Facet("species_group","index"),
+                new Facet("rank","count"),
+                new Facet("interaction","count"),
+                new Facet("species_habitats","count")));
+
+        allThemes.add(new FacetTheme("Geospatial",
+                new Facet("uncertainty","index"),
+                new Facet("sensitive","count"),
+                new Facet("state_conservation","count"),
+                new Facet("raw_state_conservation","count"),
+                new Facet("cl966","count"),
+                new Facet("cl959","count"),
+                new Facet("state","count"),
+                new Facet("country","index"),
+                new Facet("biogeographic_region","count"),
+                new Facet("ibra","count"),
+                new Facet("imcra", "count"),
+                new Facet("cl1918","count"),
+                new Facet("cl617", "count"),
+                new Facet("cl620","count"),
+                new Facet("geospatial_kosher","count")
+        ));
+
+        allThemes.add(new FacetTheme("Temporal",
+                new Facet("month","index"),
+                new Facet("year","index"),
+                new Facet("decade","index"))
+        );
+
+        allThemes.add(new FacetTheme("Record details",
+                new Facet("basis_of_record","index"),
+                new Facet("type_status","index"),
+                new Facet("multimedia","count"),
+                new Facet("collector","index"))
+        );
+
+        allThemes.add(new FacetTheme("Attribution",
+                new Facet("alau_user_id","count"),
+                new Facet("alau_user_id","count"),
+                new Facet("data_provider_uid","count"),
+                new Facet("data_resource_uid","count"),
+                new Facet("institution_uid","count"),
+                new Facet("collection_uid", "count"),
+                new Facet("provenance", "count"))
+        );
+
+        allThemes.add(new FacetTheme("Record assertions",
+                new Facet("assertions","count"),
+                new Facet("user_assertions_id","index"),
+                new Facet("outlier_layer","count"),
+                new Facet("outlier_layer_count","count"),
+                new Facet("taxonomic_issue","count"),
+                new Facet("duplicate_status","count")
+        ));
         
         for (FacetTheme theme : allThemes) {
             for(Facet f : theme.facets)
@@ -49,9 +102,11 @@ public class FacetThemes {
         }
     }
     
-    static public class Facet{
+    static public class Facet {
+
         private String field;
         private String sort;
+
         Facet(String title, String sort){
             this.field = title;
             this.sort = sort;
@@ -83,8 +138,10 @@ public class FacetThemes {
     }
  
     static class FacetTheme {
+
         private String title;
         private Facet[] facets;
+
         FacetTheme(String title, Facet... facets){
             this.title = title;
             this.facets = facets;
