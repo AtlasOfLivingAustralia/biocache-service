@@ -88,7 +88,7 @@ public class FacetThemes {
 
         allThemes.add(new FacetTheme("Record assertions",
                 new Facet("assertions","count"),
-                new Facet("user_assertions_id","index"),
+                new Facet("assertion_user_id","index"),
                 new Facet("outlier_layer","count"),
                 new Facet("outlier_layer_count","count"),
                 new Facet("taxonomic_issue","count"),
