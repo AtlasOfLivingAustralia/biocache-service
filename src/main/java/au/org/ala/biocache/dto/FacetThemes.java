@@ -78,7 +78,6 @@ public class FacetThemes {
 
         allThemes.add(new FacetTheme("Attribution",
                 new Facet("alau_user_id","count"),
-                new Facet("alau_user_id","count"),
                 new Facet("data_provider_uid","count"),
                 new Facet("data_resource_uid","count"),
                 new Facet("institution_uid","count"),
