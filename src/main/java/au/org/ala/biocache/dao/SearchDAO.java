@@ -40,7 +40,14 @@ public interface SearchDAO {
      * @throws Exception
      */
     List<FieldResultDTO> getEndemicSpecies(SpatialSearchRequestParams requestParams) throws Exception;
-    
+
+    /**
+     * Retrieve a list of facet values for the supplied query.
+     *
+     * @param requestParams
+     * @return
+     * @throws Exception
+     */
     List<FieldResultDTO> getValuesForFacet(SpatialSearchRequestParams requestParams) throws Exception;
 
     /**
@@ -102,9 +109,26 @@ public interface SearchDAO {
      * @throws Exception
      */
     void writeCoordinatesToStream(SearchRequestParams searchParams,OutputStream out) throws Exception;
-    
+
+    /**
+     * Write facet content to supplied output stream
+     *
+     * @param searchParams
+     * @param includeCount
+     * @param lookupName
+     * @param includeSynonyms
+     * @param out
+     * @param dd
+     * @throws Exception
+     */
     void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, OutputStream out, DownloadDetailsDTO dd) throws Exception;
-    
+
+    /**
+     * Retrieve a list of the indexed fields.
+     *
+     * @return
+     * @throws Exception
+     */
     Set<IndexFieldDTO> getIndexedFields() throws Exception;
     
     /**
@@ -179,7 +203,14 @@ public interface SearchDAO {
      * @throws Exception
      */
     Map<String,Integer> getSourcesForQuery(SpatialSearchRequestParams searchParams) throws Exception;
-    
+
+    /**
+     * Calculate taxon breakdown.
+     *
+     * @param queryParams
+     * @return
+     * @throws Exception
+     */
     TaxaRankCountDTO calculateBreakdown(BreakdownRequestParams queryParams) throws Exception;
 
     /**

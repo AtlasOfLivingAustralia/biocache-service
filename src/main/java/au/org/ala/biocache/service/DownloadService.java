@@ -247,14 +247,14 @@ public class DownloadService {
             if(entities.size()>0){
                 //i18n of the citation header
                 writer.writeNext(new String[]{messageSource.getMessage("citation.uid", null, "UID", null),
-                        messageSource.getMessage("citation.name", null,"Name", null),
-                        messageSource.getMessage("citation.citation", null,"Citation", null),
-                        messageSource.getMessage("citation.rights", null,"Rights", null),
-                        messageSource.getMessage("citation.link", null,"More Information", null),
-                        messageSource.getMessage("citation.dataGeneralizations", null,"Data generalisations", null),
-                        messageSource.getMessage("citation.informationWithheld", null,"Information withheld", null),
-                        messageSource.getMessage("citation.downloadLimit", null,"Download limit", null),
-                        messageSource.getMessage("citation.count", null,"Number of Records in Download", null)});
+                    messageSource.getMessage("citation.name", null,"Name", null),
+                    messageSource.getMessage("citation.citation", null,"Citation", null),
+                    messageSource.getMessage("citation.rights", null,"Rights", null),
+                    messageSource.getMessage("citation.link", null,"More Information", null),
+                    messageSource.getMessage("citation.dataGeneralizations", null,"Data generalisations", null),
+                    messageSource.getMessage("citation.informationWithheld", null,"Information withheld", null),
+                    messageSource.getMessage("citation.downloadLimit", null,"Download limit", null),
+                    messageSource.getMessage("citation.count", null,"Number of Records in Download", null)});
 
                 for(Map<String,Object> record : entities){
                     StringBuilder sb = new StringBuilder();
@@ -266,7 +266,7 @@ public class DownloadService {
                                 getOrElse(record, "informationWithheld",""), getOrElse(record, "downloadLimit", ""), count};
                         writer.writeNext(row);
 
-                    } else{
+                    } else {
                         logger.warn("A null record was returned from the collectory citation service: " + entities);
                     }
                 }
@@ -288,7 +288,7 @@ public class DownloadService {
      * 
      * @author Natasha Carter (natasha.carter@csiro.au)
      */
-    private class DownloadThread implements Runnable{
+    private class DownloadThread implements Runnable {
         
         private DownloadDetailsDTO currentDownload = null;
 

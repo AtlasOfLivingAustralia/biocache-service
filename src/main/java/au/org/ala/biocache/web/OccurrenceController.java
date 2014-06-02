@@ -15,11 +15,11 @@
 package au.org.ala.biocache.web;
 
 import au.com.bytecode.opencsv.CSVReader;
+import au.org.ala.biocache.Config;
 import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
-import au.org.ala.biocache.load.MediaStore;
 import au.org.ala.biocache.model.FullRecord;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
@@ -736,8 +736,12 @@ public class OccurrenceController extends AbstractSecureController {
         if(apiKey != null){
             return occurrenceSensitiveDownload(requestParams, apiKey, ip, false, response, request);
         }
-        
-        downloadService.writeQueryToStream(requestParams, response, ip, out, false,false);
+
+        try {
+            downloadService.writeQueryToStream(requestParams, response, ip, out, false, false);
+        } catch (Exception e){
+            logger.error(e.getMessage(),e);
+        }
         return null;
     }
     
@@ -1044,8 +1048,8 @@ public class OccurrenceController extends AbstractSecureController {
         setupImageUrls(occ);
         
         //fix media store URLs
-        MediaStore.convertPathsToUrls(occ.getRaw(), biocacheMediaUrl);
-        MediaStore.convertPathsToUrls(occ.getProcessed(), biocacheMediaUrl);
+        Config.mediaStore().convertPathsToUrls(occ.getRaw(), biocacheMediaUrl);
+        Config.mediaStore().convertPathsToUrls(occ.getProcessed(), biocacheMediaUrl);
         
         //log the statistics for viewing the record
         logViewEvent(ip, occ, null, "Viewing Occurrence Record " + uuid);
@@ -1102,12 +1106,12 @@ public class OccurrenceController extends AbstractSecureController {
             for(String sound: sounds){
                 MediaDTO m = new MediaDTO();
                 m.setContentType(MimeType.getForFileExtension(sound).getMimeType());
-                m.setFilePath(MediaStore.convertPathToUrl(sound, biocacheMediaUrl));
+                m.setFilePath(Config.mediaStore().convertPathToUrl(sound, biocacheMediaUrl));
                 
                 String[] files = Store.getAlternativeFormats(sound);
                 for(String fileName: files){
                     String contentType = MimeType.getForFileExtension(fileName).getMimeType();
-                    String filePath = MediaStore.convertPathToUrl(fileName, biocacheMediaUrl);
+                    String filePath = Config.mediaStore().convertPathToUrl(fileName, biocacheMediaUrl);
                     //System.out.println("#########Adding media path: " + m.getFilePath());
                     m.getAlternativeFormats().put(contentType,filePath);
                 }
@@ -1123,7 +1127,7 @@ public class OccurrenceController extends AbstractSecureController {
             List<MediaDTO> ml = new ArrayList<MediaDTO>();
             for(String fileName: images){
                 MediaDTO m = new MediaDTO();
-                String url =  MediaStore.convertPathToUrl(fileName, biocacheMediaUrl);
+                String url =  Config.mediaStore().convertPathToUrl(fileName, biocacheMediaUrl);
                 String extension = url.substring(url.lastIndexOf("."));
                 m.getAlternativeFormats().put("thumbnailUrl", url.replace(extension, "__thumb" + extension));
                 m.getAlternativeFormats().put("smallImageUrl", url.replace(extension, "__small" + extension));

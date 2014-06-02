@@ -48,7 +48,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
     protected String bieUriPrefix;
 
     //NC 20131018: Allow service to be disabled via config (enabled by default)
-    @Value("${service.bie.enabled:true}")
+    @Value("${service.bie.enabled:false}")
     protected Boolean enabled;
 
     @Inject
@@ -59,7 +59,6 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
     private String[] synonymHeader;
     private String[] countSynonymHeader;
 
-    
     /**
      * @see SpeciesLookupService#getGuidForName(String)
      * 

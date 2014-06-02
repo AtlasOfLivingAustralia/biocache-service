@@ -190,7 +190,7 @@ public class SearchDAOImpl implements SearchDAO {
     public Set<String> getAuthIndexFields(){
         if(authIndexFields == null){
             //set up the hash set of the fields that need to have the authentication service substitute
-            logger.debug("Auth substiution fields to use: " + authServiceFields);
+            logger.debug("Auth substitution fields to use: " + authServiceFields);
             authIndexFields = new java.util.HashSet<String>();
             CollectionUtils.mergeArrayIntoCollection(authServiceFields.split(","), authIndexFields);
         }
@@ -630,15 +630,19 @@ public class SearchDAOImpl implements SearchDAO {
 
             //for each month create a separate query that pages through 500 records per page
             List<SolrQuery> queries = new ArrayList<SolrQuery>();
-            for(Count facet: splitByFacet){
-                if(facet.getCount()>0){
-                    SolrQuery splitByFacetQuery = solrQuery.getCopy().addFilterQuery(facet.getFacetField().getName() + ":" + facet.getName());
-                    splitByFacetQuery.setFacet(false);
-                    queries.add(splitByFacetQuery);
+            if(splitByFacet != null){
+                for(Count facet: splitByFacet){
+                    if(facet.getCount() > 0){
+                        SolrQuery splitByFacetQuery = solrQuery.getCopy().addFilterQuery(facet.getFacetField().getName() + ":" + facet.getName());
+                        splitByFacetQuery.setFacet(false);
+                        queries.add(splitByFacetQuery);
+                    }
                 }
+                SolrQuery remainderQuery = solrQuery.getCopy().addFilterQuery("-"+splitByFacet.get(0).getFacetField().getName() + ":[* TO *]");
+                queries.add(0, remainderQuery);
+            } else {
+                queries.add(0, solrQuery);
             }
-            SolrQuery remainderQuery = solrQuery.getCopy().addFilterQuery("-"+splitByFacet.get(0).getFacetField().getName() + ":[* TO *]");
-            queries.add(0, remainderQuery);
 
             //multi-thread the requests...
             ExecutorService pool = Executors.newFixedThreadPool(6);
