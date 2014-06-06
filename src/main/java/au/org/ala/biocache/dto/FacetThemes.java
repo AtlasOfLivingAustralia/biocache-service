@@ -17,8 +17,10 @@ package au.org.ala.biocache.dto;
 import java.util.LinkedHashMap;
 
 /**
- * This class provides thematic grouping of facets to aid rendering in UIs. 
- * TODO this should be refactored so these groups can be reloaded.
+ * This class provides thematic grouping of facets to aid rendering in UIs.
+ *
+ * TODO this should be refactored so these groups can be reloaded from external configuration.
+ *
  * @author Natasha Carter
  */
 public class FacetThemes {
@@ -95,8 +97,9 @@ public class FacetThemes {
         ));
         
         for (FacetTheme theme : allThemes) {
-            for(Facet f : theme.facets)
-                facetsMap.put(f.field,f);
+            for(Facet f : theme.facets) {
+                facetsMap.put(f.field, f);
+            }
             allFacets = facetsMap.keySet().toArray(new String[]{});
         }
     }
@@ -110,6 +113,7 @@ public class FacetThemes {
             this.field = title;
             this.sort = sort;
         }
+
         /**
          * @return the title
          */
@@ -145,6 +149,7 @@ public class FacetThemes {
             this.title = title;
             this.facets = facets;
         }
+
         /**
          * @return the title
          */

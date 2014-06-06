@@ -44,10 +44,6 @@ public class WMSCache {
     static long LARGEST_CACHEABLE_SIZE = 52428800;
     //max age of any one object in the cache in ms
     static long MAX_AGE = 3600000;
-    //geoserver url for base layer in /webportal/wms/image
-    static String GEOSERVER_URL = null;
-    //biocache url for /webportal/wms/image
-    static String BIOCACHE_URL = null;
     //in memory store of params
     static ConcurrentHashMap<String, WMSTile> cache = new ConcurrentHashMap<String, WMSTile>();
     //cache size management
@@ -98,15 +94,11 @@ public class WMSCache {
             MIN_CACHE_SIZE = Long.parseLong(wmsProperties.getProperty("MIN_CACHE_SIZE", String.valueOf(MIN_CACHE_SIZE)));
             LARGEST_CACHEABLE_SIZE = Long.parseLong(wmsProperties.getProperty("LARGEST_CACHEABLE_SIZE", String.valueOf(LARGEST_CACHEABLE_SIZE)));
             MAX_AGE = Long.parseLong(wmsProperties.getProperty("MAX_AGE", String.valueOf(MAX_AGE)));
-            GEOSERVER_URL = wmsProperties.getProperty("GEOSERVER_URL");
-            BIOCACHE_URL = wmsProperties.getProperty("BIOCACHE_URL");
 
             logger.info("MAX_CACHE_SIZE > " + MAX_CACHE_SIZE);
             logger.info("MIN_CACHE_SIZE > " + MIN_CACHE_SIZE);
             logger.info("LARGEST_CACHEABLE_SIZE > " + LARGEST_CACHEABLE_SIZE);
             logger.info("MAX_AGE > " + MAX_AGE);
-            logger.info("GEOSERVER_URL > " + GEOSERVER_URL);
-            logger.info("BIOCACHE_URL > " + BIOCACHE_URL);
         } catch (Exception e) {
             logger.error("cannot load wms.properties", e);
         }
@@ -335,21 +327,5 @@ public class WMSCache {
     static void updateTriggerCleanSize() {
         triggerCleanSize = MIN_CACHE_SIZE + (MAX_CACHE_SIZE - MIN_CACHE_SIZE) / 2;
         logger.debug("triggerCleanSize=" + triggerCleanSize + " MIN_CACHE_SIZE=" + MIN_CACHE_SIZE + " MAX_CACHE_SIZE=" + MAX_CACHE_SIZE);
-    }
-
-    static public String getGeoserverUrl() {
-        return GEOSERVER_URL;
-    }
-
-    static public void setGeoserverUrl(String geoserverUrl) {
-        GEOSERVER_URL = geoserverUrl;
-    }
-
-    static public String getBiocacheUrl() {
-        return BIOCACHE_URL;
-    }
-
-    static public void setBiocacheUrl(String biocacheUrl) {
-        BIOCACHE_URL = biocacheUrl;
     }
 }

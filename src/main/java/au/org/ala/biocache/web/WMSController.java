@@ -95,8 +95,10 @@ public class WMSController {
     /** Load a smaller 256x256 png than java.image produces */
     final static byte[] blankImageBytes;
 
-    @Value("${webservicesRoot:http://biocache.ala.org.au/ws}")
+    @Value("${webservices.root:http://biocache.ala.org.au/ws}")
     protected String baseWsUrl;
+    @Value("${geoserver.url:http://spatial.ala.org.au/geoserver}")
+    protected String geoserverUrl;
 
     @Value("${organizationName:Atlas of Living Australia}")
     protected String organizationName;
@@ -1559,7 +1561,7 @@ public class WMSController {
         //"http://biocache.ala.org.au/ws/webportal/wms/reflect?
         //q=macropus&ENV=color%3Aff0000%3Bname%3Acircle%3Bsize%3A3%3Bopacity%3A1
         //&BBOX=12523443.0512,-2504688.2032,15028131.5936,0.33920000120997&WIDTH=256&HEIGHT=256");
-        String speciesAddress = WMSCache.getBiocacheUrl()
+        String speciesAddress = baseWsUrl
                 + "/ogc/wms/reflect?"
                 + "ENV=color%3A" + pointColour
                 + "%3Bname%3Acircle%3Bsize%3A" + pointSize
@@ -1578,7 +1580,7 @@ public class WMSController {
         if (!scale.equals("off")) {
             layout += "layout:scale";
         }
-        String basemapAddress = WMSCache.getGeoserverUrl() + "/wms/reflect?"
+        String basemapAddress = geoserverUrl + "/wms/reflect?"
                 + "LAYERS=ALA%3A" + baselayer
                 + "&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&STYLES="
                 + "&FORMAT=image%2Fpng&SRS=EPSG%3A900913"     //specify the mercator projection
