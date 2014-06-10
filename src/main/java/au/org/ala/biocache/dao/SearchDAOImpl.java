@@ -15,6 +15,7 @@
 package au.org.ala.biocache.dao;
 
 import au.com.bytecode.opencsv.CSVWriter;
+import au.org.ala.biocache.Config;
 import au.org.ala.biocache.RecordWriter;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.index.IndexDAO;
@@ -127,7 +128,11 @@ public class SearchDAOImpl implements SearchDAO {
     
     @Inject
     protected LayersService layersService;
-    
+
+    /** Max number of threads to use in endemic queries */
+    @Value("${media.store.local:true}")
+    protected Boolean usingLocalMediaRepo = true;
+
     /** Max number of threads to use in endemic queries */
     @Value("${max.query.thread:5}")
     protected Integer maxMultiPartThreads = 5;
@@ -1616,27 +1621,22 @@ public class SearchDAOImpl implements SearchDAO {
 
     private void updateImageUrls(OccurrenceIndex oi){
 
-        if(oi.getImage() != null && oi.getImage().startsWith(biocacheMediaDir)){
-            String url = oi.getImage().replace(biocacheMediaDir, biocacheMediaUrl);
-            String extension = url.substring(url.lastIndexOf("."));
-            //set urls
-            oi.setImageUrl(url);
-            oi.setThumbnailUrl(url.replace(extension, "__thumb" + extension));
-            oi.setSmallImageUrl(url.replace(extension, "__small" + extension));
-            oi.setLargeImageUrl(url.replace(extension, "__large" + extension));
+        if(!StringUtils.isNotBlank(oi.getImage()))
+            return;
 
-            //set image urls..
-            String[] images = oi.getImages();
-            if(images != null && images.length > 0){
-                String [] imageUrls = new String[images.length];
-                for(int i = 0; i < images.length; i++){
-                    if(images[i].startsWith(biocacheMediaDir))
-                        imageUrls[i] = images[i].replace(biocacheMediaDir, biocacheMediaUrl);
-                    else
-                        imageUrls[i] = images[i];
-                }
-                oi.setImageUrls(imageUrls);
+        Map<String, String> formats = Config.mediaStore().getImageFormats(oi.getImage());
+        oi.setImageUrl(formats.get("raw"));
+        oi.setThumbnailUrl(formats.get("thumb"));
+        oi.setSmallImageUrl(formats.get("small"));
+        oi.setLargeImageUrl(formats.get("large"));
+        String[] images = oi.getImages();
+        if (images != null && images.length > 0) {
+            String[] imageUrls = new String[images.length];
+            for (int i = 0; i < images.length; i++) {
+                Map<String, String> availableFormats = Config.mediaStore().getImageFormats(images[i]);
+                imageUrls[i] = availableFormats.get("large");
             }
+            oi.setImageUrls(imageUrls);
         }
     }
 

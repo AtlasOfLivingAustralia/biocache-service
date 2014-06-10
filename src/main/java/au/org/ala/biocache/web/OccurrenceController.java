@@ -105,6 +105,10 @@ public class OccurrenceController extends AbstractSecureController {
     /** The response to be returned for the isAustralian test */
     @Value("${taxon.id.pattern:urn:lsid:biodiversity.org.au[a-zA-Z0-9\\.:-]*}")
     protected String taxonIDPatternString;
+
+    @Value("${native.country:Australia")
+    protected String nativeCountry;
+
     
     /** Compiled pattern for taxon IDs */
     protected Pattern taxonIDPattern;
@@ -272,7 +276,7 @@ public class OccurrenceController extends AbstractSecureController {
         SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
         requestParams.setPageSize(0);
         requestParams.setFacets(new String[]{});
-        String query = "lsid:" +guid + " AND " + "(country:Australia OR state:[* TO *]) AND geospatial_kosher:true";
+        String query = "lsid:" +guid + " AND " + "(country:\""+nativeCountry+"\" OR state:[* TO *]) AND geospatial_kosher:true";
         requestParams.setQ(query);
         NativeDTO adto= new NativeDTO();
         adto.setTaxonGuid(guid);
@@ -1076,6 +1080,7 @@ public class OccurrenceController extends AbstractSecureController {
         LogEventVO vo = new LogEventVO(LogEventType.OCCURRENCE_RECORDS_VIEWED, email, reason, ip, uidStats);
         logger.log(RestLevel.REMOTE, vo);
     }
+
     /**
      * Constructs an error message to be displayed. The error message is based on validation checks that
      * were performed and stored in the supplied result.
@@ -1103,17 +1108,11 @@ public class OccurrenceController extends AbstractSecureController {
         String[] sounds = occ.getProcessed().getOccurrence().getSounds();
         List<MediaDTO> soundDtos = new ArrayList<MediaDTO>();
         if(sounds != null && sounds.length > 0){
-            for(String sound: sounds){
+            for(String soundFile: sounds){
                 MediaDTO m = new MediaDTO();
-                m.setContentType(MimeType.getForFileExtension(sound).getMimeType());
-                m.setFilePath(Config.mediaStore().convertPathToUrl(sound, biocacheMediaUrl));
-                
-                String[] files = Store.getAlternativeFormats(sound);
-                for(String fileName: files){
-                    String contentType = MimeType.getForFileExtension(fileName).getMimeType();
-                    String filePath = Config.mediaStore().convertPathToUrl(fileName, biocacheMediaUrl);
-                    //System.out.println("#########Adding media path: " + m.getFilePath());
-                    m.getAlternativeFormats().put(contentType,filePath);
+                Map<String,String> mimeToUrl = Config.mediaStore().getSoundFormats(soundFile);
+                for(String mimeType: mimeToUrl.keySet()){
+                    m.getAlternativeFormats().put(mimeType, mimeToUrl.get(mimeType));
                 }
                 soundDtos.add(m);
             }
@@ -1125,79 +1124,24 @@ public class OccurrenceController extends AbstractSecureController {
         String[] images = dto.getProcessed().getOccurrence().getImages();
         if(images != null && images.length > 0){
             List<MediaDTO> ml = new ArrayList<MediaDTO>();
-            for(String fileName: images){
+            for(String fileNameOrID: images){
                 MediaDTO m = new MediaDTO();
-                String url =  Config.mediaStore().convertPathToUrl(fileName, biocacheMediaUrl);
-                String extension = url.substring(url.lastIndexOf("."));
-                m.getAlternativeFormats().put("thumbnailUrl", url.replace(extension, "__thumb" + extension));
-                m.getAlternativeFormats().put("smallImageUrl", url.replace(extension, "__small" + extension));
-                m.getAlternativeFormats().put("largeImageUrl", url.replace(extension, "__large" + extension));
-                m.getAlternativeFormats().put("imageUrl", url);
-                m.setFilePath(fileName);
+                Map<String, String> urls = Config.mediaStore().getImageFormats(fileNameOrID);
+                m.getAlternativeFormats().put("thumbnailUrl", urls.get("thumb"));
+                m.getAlternativeFormats().put("smallImageUrl", urls.get("small"));
+                m.getAlternativeFormats().put("largeImageUrl", urls.get("large"));
+                m.getAlternativeFormats().put("imageUrl",urls.get("raw"));
+                m.setFilePath(fileNameOrID);
                 ml.add(m);
             }
             dto.setImages(ml);
         }
     }
-    
-    /**
-     * Create a HashMap for the filter queries
-     *
-     * @param filterQuery
-     * @return
-     */
-    private Map<String, String> addFacetMap(String[] filterQuery) {
-        HashMap<String, String> facetMap = new HashMap<String, String>();
-        
-        if (filterQuery != null && filterQuery.length > 0) {
-            if(logger.isDebugEnabled()){
-                logger.debug("filterQuery = " + StringUtils.join(filterQuery, "|"));
-            }
-            for (String fq : filterQuery) {
-                if (fq != null && !fq.isEmpty()) {
-                    String[] fqBits = StringUtils.split(fq, ":", 2);
-                    facetMap.put(fqBits[0], fqBits[1]);
-                }
-            }
-        }
-        return facetMap;
-    }
-    
-    /**
-     * Calculate the last page number for pagination
-     * 
-     * @param totalRecords
-     * @param pageSize
-     * @return
-     */
-    private Integer calculateLastPage(Long totalRecords, Integer pageSize) {
-        Integer lastPage = 0;
-        Integer lastRecordNum = totalRecords.intValue();
-        
-        if (pageSize > 0) {
-            lastPage = (lastRecordNum / pageSize) + ((lastRecordNum % pageSize > 0) ? 1 : 0);
-        }
-        
-        return lastPage;
-    }
-    
-    /**
-     * @param hostUrl the hostUrl to set
-     */
-    public void setHostUrl(String hostUrl) {
-        this.hostUrl = hostUrl;
-    }
-    
-    /**
-     * @param searchDAO the searchDAO to set
-     */
+
     public void setSearchDAO(SearchDAO searchDAO) {
         this.searchDAO = searchDAO;
     }
     
-    /**
-     * @param searchUtils the searchUtils to set
-     */
     public void setSearchUtils(SearchUtils searchUtils) {
         this.searchUtils = searchUtils;
     }
