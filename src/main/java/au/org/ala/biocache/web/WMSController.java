@@ -913,7 +913,7 @@ public class WMSController {
             JsonNode classificationNode = node2.get("classification");
             model.addAttribute("kingdom", StringUtils.capitalize(classificationNode.get("kingdom").asText().toLowerCase()));
             model.addAttribute("phylum", StringUtils.capitalize(classificationNode.get("phylum").asText().toLowerCase()));
-            model.addAttribute("class", StringUtils.capitalize(classificationNode.get("clazz").asText().toLowerCase()));
+            model.addAttribute("clazz", StringUtils.capitalize(classificationNode.get("clazz").asText().toLowerCase()));
             model.addAttribute("order", StringUtils.capitalize(classificationNode.get("order").asText().toLowerCase()));
             model.addAttribute("family", StringUtils.capitalize(classificationNode.get("family").asText().toLowerCase()));
             model.addAttribute("genus", classificationNode.get("genus").asText());

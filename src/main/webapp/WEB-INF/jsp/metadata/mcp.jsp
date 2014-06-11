@@ -130,7 +130,7 @@
 							<dwc:vernacularName>${commonName}</dwc:vernacularName>
 							<dwc:kingdom>${kingdom}</dwc:kingdom>
 							<dwc:phylum>${phylum}</dwc:phylum>
-							<dwc:class>${class}</dwc:class>
+							<dwc:class>${clazz}</dwc:class>
 							<dwc:order>${order}</dwc:order>
 							<dwc:family>${family}</dwc:family>
 							<dwc:genus>${genus}</dwc:genus>
