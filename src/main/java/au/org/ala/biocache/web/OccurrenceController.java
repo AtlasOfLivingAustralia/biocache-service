@@ -106,10 +106,9 @@ public class OccurrenceController extends AbstractSecureController {
     @Value("${taxon.id.pattern:urn:lsid:biodiversity.org.au[a-zA-Z0-9\\.:-]*}")
     protected String taxonIDPatternString;
 
-    @Value("${native.country:Australia")
+    @Value("${native.country:Australia}")
     protected String nativeCountry;
 
-    
     /** Compiled pattern for taxon IDs */
     protected Pattern taxonIDPattern;
 
