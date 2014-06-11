@@ -1,15 +1,15 @@
 <!DOCTYPE log4j:configuration  SYSTEM "log4j.dtd">
 <log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/" debug="false">
-    <appender name="CONSOLE" class="org.apache.log4j.ConsoleAppender">
-        <param name="Threshold" value="ERROR"/>
-        <layout class="org.apache.log4j.PatternLayout">
-            <param name="ConversionPattern" value="%d %-5p: [%c{1}] - %m%n"/>
-        </layout>
-        <filter class="org.apache.log4j.varia.LevelMatchFilter">
-            <param name="LevelToMatch" value="REMOTE#org.ala.client.appender.RestLevel" />
-            <param name="AcceptOnMatch" value="false"/>
-        </filter>
-    </appender>
+    <!--<appender name="CONSOLE" class="org.apache.log4j.ConsoleAppender">-->
+        <!--<param name="Threshold" value="ERROR"/>-->
+        <!--<layout class="org.apache.log4j.PatternLayout">-->
+            <!--<param name="ConversionPattern" value="%d %-5p: [%c{1}] - %m%n"/>-->
+        <!--</layout>-->
+        <!--<filter class="org.apache.log4j.varia.LevelMatchFilter">-->
+            <!--<param name="LevelToMatch" value="REMOTE#org.ala.client.appender.RestLevel" />-->
+            <!--<param name="AcceptOnMatch" value="false"/>-->
+        <!--</filter>-->
+    <!--</appender>-->
     <appender name="FILE" class="org.apache.log4j.RollingFileAppender">
         <param name="File" value="${catalina.base}/logs/biocache-service.log"/>
         <param name="Append" value="true"/>
@@ -36,7 +36,10 @@
         <appender-ref ref="ALA_LOGGER" />
     </appender>
     <category name="org.ala.biocache">
-        <priority value="DEBUG"/>
+        <priority value="INFO"/>
+    </category>
+    <category name="au.org.ala.biocache">
+        <priority value="INFO"/>
     </category>
     <category name="au.org.ala">
         <priority value="WARN"/>
@@ -78,7 +81,7 @@
         <priority value="ERROR"/>
     </category>
     <root>
-        <priority value ="ERROR" />
+        <priority value ="INFO" />
         <!-- <appender-ref ref="CONSOLE"/> -->
         <appender-ref ref="FILE"/>
         <appender-ref ref="ASYNC" />
