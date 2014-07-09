@@ -152,7 +152,7 @@ public class WMSController {
         //store the title if necessary
         if(title == null)
             title = requestParams.getDisplayString();
-        String[] fqs = requestParams.getFq();
+        String[] fqs = getFq(requestParams);
         if(fqs != null && fqs.length==1 && fqs[0].length()==0){
             fqs =null;
         }
@@ -537,6 +537,14 @@ public class WMSController {
                 / (1 - Math.sin(lat * Math.PI / 180))) / 2);
     }
 
+    int convertLatToPixel4326(double lat, double top, double bottom, int pixelHeight) {
+        return (int) (((lat - top) / (bottom - top)) * pixelHeight);
+    }
+
+    int convertLngToPixel4326(double lng, double left, double right, int pixelWidth) {
+        return (int) (((lng - left) / (right - left)) * pixelWidth);
+    }
+
     int convertLngToPixel(double lng) {
         return (int) Math.round(map_offset + map_radius * lng * Math.PI / 180);
     }
@@ -606,11 +614,12 @@ public class WMSController {
      * @param pbbox  the pbbox to initialise
      * @return
      */
-    private double getBBoxes(String bboxString, int width, int height, int size, boolean uncertainty, double[] mbbox, double[] bbox, double[] pbbox) {
+    private double getBBoxes(String bboxString, int width, int height, int size, boolean uncertainty, double[] mbbox, double[] bbox, double[] pbbox, double [] tilebbox) {
         int i = 0;
         for (String s : bboxString.split(",")) {
             try {
-                mbbox[i] = Double.parseDouble(s);
+                tilebbox[i] = Double.parseDouble(s);
+                mbbox[i] = tilebbox[i];
                 i++;
             } catch (Exception e) {
                 logger.error("Problem parsing BBOX: '" + bboxString + "'", e);
@@ -658,6 +667,75 @@ public class WMSController {
         return degreesPerPixel;
     }
 
+    /**
+     *
+     * @param bboxString
+     * @param width
+     * @param height
+     * @param size
+     * @param uncertainty
+     * @param mbbox  the mbbox to initialise
+     * @param bbox  the bbox to initialise
+     * @param pbbox  the pbbox to initialise
+     * @return
+     */
+    private double getBBoxes4326(String bboxString, int width, int height, int size, boolean uncertainty, double[] mbbox, double[] bbox, double[] pbbox, double [] tilebbox) {
+        int i = 0;
+        for (String s : bboxString.split(",")) {
+            try {
+                tilebbox[i] = Double.parseDouble(s);
+                mbbox[i] = tilebbox[i];
+                i++;
+            } catch (Exception e) {
+                logger.error("Problem parsing BBOX: '" + bboxString + "'", e);
+            }
+        }
+
+        //adjust bbox extents with half pixel width/height
+        double pixelWidth = (mbbox[2] - mbbox[0]) / width;
+        double pixelHeight = (mbbox[3] - mbbox[1]) / height;
+        mbbox[0] += pixelWidth / 2;
+        mbbox[2] -= pixelWidth / 2;
+        mbbox[1] += pixelHeight / 2;
+        mbbox[3] -= pixelHeight / 2;
+
+        //offset for points bounding box by dot size
+        double xoffset = (mbbox[2] - mbbox[0]) / (double) width * size;
+        double yoffset = (mbbox[3] - mbbox[1]) / (double) height * size;
+
+        //check offset for points bb by maximum uncertainty
+        if (uncertainty) {
+            //estimate 0.01 degrees is 1000m
+            double scale = 0.01 / 1000;
+            if (xoffset < MAX_UNCERTAINTY * scale) {
+                xoffset = MAX_UNCERTAINTY * scale;
+            }
+            if (yoffset < MAX_UNCERTAINTY * scale) {
+                yoffset = MAX_UNCERTAINTY * scale;
+            }
+        }
+
+        //adjust offset for pixel height/width
+        xoffset += pixelWidth;
+        yoffset += pixelHeight;
+
+        /* not required for 4326
+        pbbox[0] = convertLngToPixel(convertMetersToLng(mbbox[0]));
+        pbbox[1] = convertLatToPixel(convertMetersToLat(mbbox[1]));
+        pbbox[2] = convertLngToPixel(convertMetersToLng(mbbox[2]));
+        pbbox[3] = convertLatToPixel(convertMetersToLat(mbbox[3]));
+        */
+
+        //actual bounding box
+        bbox[0] = mbbox[0] - xoffset;
+        bbox[1] = mbbox[1] - yoffset;
+        bbox[2] = mbbox[2] + xoffset;
+        bbox[3] = mbbox[3] + yoffset;
+
+        double degreesPerPixel = Math.min(pixelWidth, pixelHeight);
+        return degreesPerPixel;
+    }
+
     private String getQ(String cql_filter) {
         String q = cql_filter;
         int p1 = cql_filter.indexOf("qid:");
@@ -697,7 +775,7 @@ public class WMSController {
             SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
             requestParams.setQ(request.getQ());
             requestParams.setQc(request.getQc());
-            requestParams.setFq(request.getFq());
+            requestParams.setFq(getFq(request));
 
             //test for cutpoints on the back of colourMode
             String[] s = colourMode.split(",");
@@ -785,7 +863,7 @@ public class WMSController {
         String[] dir = {"asc", "asc", "desc", "desc"};
 
         //remove instances of null longitude or latitude
-        String[] fq = (String[]) ArrayUtils.addAll(requestParams.getFq(), new String[]{"longitude:[* TO *]", "latitude:[* TO *]"});
+        String[] fq = (String[]) ArrayUtils.addAll(getFq(requestParams), new String[]{"longitude:[* TO *]", "latitude:[* TO *]"});
         requestParams.setFq(fq);
         requestParams.setPageSize(10);
 
@@ -959,10 +1037,11 @@ public class WMSController {
         double[] mbbox = new double[4];
         double[] bbox = new double[4];
         double[] pbbox = new double[4];
+        double[] tilebbox = new double[4];
         int size = vars.size + (vars.highlight != null ? HIGHLIGHT_RADIUS * 2 + (int) (vars.size * 0.2) : 0) + 5;  //bounding box buffer
 
         //what is the size of the dot in degrees
-        double resolution = getBBoxes(bboxString, width, height, size, vars.uncertainty, mbbox, bbox, pbbox);
+        double resolution = getBBoxes(bboxString, width, height, size, vars.uncertainty, mbbox, bbox, pbbox, tilebbox);
 
         //resolution should be a value < 1
         PointType pointType = getPointTypeForDegreesPerPixel(resolution);
@@ -1401,16 +1480,24 @@ public class WMSController {
         response.setHeader("Cache-Control", "max-age=86400"); //age == 1 day
         response.setContentType("image/png"); //only png images generated
 
-        if("EPSG:4326".equals(srs))
-            bboxString = convertBBox4326To900913(bboxString);    // to work around a UDIG bug
-
+        boolean is4326 = false;
         WmsEnv vars = new WmsEnv(env, styles);
         double[] mbbox = new double[4];
         double[] bbox = new double[4];
         double[] pbbox = new double[4];
+        double[] tilebbox = new double[4];
         int size = vars.size + (vars.highlight != null ? HIGHLIGHT_RADIUS * 2 + (int) (vars.size * 0.2) : 0) + 5;  //bounding box buffer
 
-        double resolution = getBBoxes(bboxString, width, height, size, vars.uncertainty, mbbox, bbox, pbbox);
+        double resolution;
+        if("EPSG:4326".equals(srs)) {
+            is4326 = true;
+            //bboxString = convertBBox4326To900913(bboxString);    // to work around a UDIG bug
+
+            resolution = getBBoxes4326(bboxString, width, height, size, vars.uncertainty, mbbox, bbox, pbbox, tilebbox);
+        } else {
+            resolution = getBBoxes(bboxString, width, height, size, vars.uncertainty, mbbox, bbox, pbbox, tilebbox);
+        }
+
         PointType pointType = getPointTypeForDegreesPerPixel(resolution);
         logger.debug("Rendering: " + pointType.name());
 
@@ -1421,7 +1508,7 @@ public class WMSController {
             q = getQ(cql_filter);
         } else if(StringUtils.trimToNull(layers) != null && !"ALA:Occurrences".equalsIgnoreCase(layers)){  
         	q = convertLayersParamToQ(layers);
-        } 
+        }
         
         String[] boundingBoxFqs = new String[2];
         boundingBoxFqs[0] = String.format("longitude:[%f TO %f]", bbox[0], bbox[2]);
@@ -1434,6 +1521,8 @@ public class WMSController {
         //build request
         if (q.length() > 0) {
             requestParams.setQ(q);
+        } else {
+            q = requestParams.getQ();
         }
 
         //bounding box test (q must be 'qid:' + number)
@@ -1446,7 +1535,7 @@ public class WMSController {
             }
         }
 
-        String[] originalFqs = requestParams.getFq();
+        String[] originalFqs = getFq(requestParams);
 
         //get from cache
         WMSTile wco = null;
@@ -1460,11 +1549,11 @@ public class WMSController {
         if (wco == null) {
             imgObj = wmsUncached(requestParams, vars, pointType, pbbox, mbbox,
                     width, height, width_mult, height_mult, pointWidth,
-                    originalFqs, hq, boundingBoxFqs, outlinePoints, outlineColour, response);
+                    originalFqs, hq, boundingBoxFqs, outlinePoints, outlineColour, response, is4326, tilebbox);
         } else {
             imgObj = wmsCached(wco, requestParams, vars, pointType, pbbox, bbox, mbbox,
                     width, height, width_mult, height_mult, pointWidth,
-                    originalFqs, hq, boundingBoxFqs, outlinePoints, outlineColour, response);
+                    originalFqs, hq, boundingBoxFqs, outlinePoints, outlineColour, response, is4326, tilebbox);
         }
 
         if (imgObj != null && imgObj.g != null) {
@@ -1638,7 +1727,8 @@ public class WMSController {
                              double height_mult, int pointWidth, String[] originalFqs, Set<Integer> hq,
                              String[] boundingBoxFqs, boolean outlinePoints,
                              String outlineColour,
-                             HttpServletResponse response) throws Exception {
+                             HttpServletResponse response,
+                             boolean is4326, double [] tilebbox) throws Exception {
 
         ImgObj imgObj = null;
 
@@ -1677,6 +1767,12 @@ public class WMSController {
                     continue;
                 }
 
+                //for 4326
+                double top = tilebbox[3];
+                double bottom = tilebbox[1];
+                double left = tilebbox[0];
+                double right = tilebbox[2];
+
                 if (vars.colourMode.equals("grid")) {
                     //render grids
                     int[] count = counts.get(j);
@@ -1687,8 +1783,15 @@ public class WMSController {
                         float lat = ps[i + 1];
                         if (lng >= bbox[0] && lng <= bbox[2]
                                 && lat >= bbox[1] && lat <= bbox[3]) {
-                            x = (int) ((convertLngToPixel(lng) - pbbox[0]) * grid_width_mult);
-                            y = (int) ((convertLatToPixel(lat) - pbbox[3]) * grid_height_mult);
+
+
+                            if (is4326) {
+                                x = convertLngToPixel4326(lng, left, right, width);
+                                y = convertLatToPixel4326(lat, top, bottom, height);
+                            } else {
+                                x = (int) ((convertLngToPixel(lng) - pbbox[0]) * grid_width_mult);
+                                y = (int) ((convertLatToPixel(lat) - pbbox[3]) * grid_height_mult);
+                            }
 
                             if (x >= 0 && x < divs && y >= 0 && y < divs) {
                                 gridCounts[x][y] += count[i / 2];
@@ -1705,8 +1808,14 @@ public class WMSController {
                         float lat = ps[i + 1];
                         if (lng >= bbox[0] && lng <= bbox[2]
                                 && lat >= bbox[1] && lat <= bbox[3]) {
-                            x = (int) ((convertLngToPixel(lng) - pbbox[0]) * width_mult);
-                            y = (int) ((convertLatToPixel(lat) - pbbox[3]) * height_mult);
+
+                            if (is4326) {
+                                x = convertLngToPixel4326(lng, left, right, width);
+                                y = convertLatToPixel4326(lat, top, bottom, height);
+                            } else {
+                                x = (int) ((convertLngToPixel(lng) - pbbox[0]) * width_mult);
+                                y = (int) ((convertLatToPixel(lat) - pbbox[3]) * height_mult);
+                            }
 
                             imgObj.g.fillOval(x - vars.size, y - vars.size, pointWidth, pointWidth);
                             if(outlinePoints){
@@ -1742,18 +1851,18 @@ public class WMSController {
                 }
             }
         } else {
-            drawUncertaintyCircles(requestParams, vars, height, pbbox, mbbox, width_mult, height_mult, imgObj.g, originalFqs, boundingBoxFqs);
+            drawUncertaintyCircles(requestParams, vars, height, width, pbbox, mbbox, width_mult, height_mult, imgObj.g, originalFqs, boundingBoxFqs, is4326, tilebbox);
         }
 
         //highlight
         if (vars.highlight != null) {
-            imgObj = drawHighlight(requestParams, vars, pointType, width, height, pbbox, width_mult, height_mult, imgObj, originalFqs, boundingBoxFqs);
+            imgObj = drawHighlight(requestParams, vars, pointType, width, height, pbbox, width_mult, height_mult, imgObj, originalFqs, boundingBoxFqs, is4326, tilebbox);
         }
 
         return imgObj;
     }
 
-    void drawUncertaintyCircles(SpatialSearchRequestParams requestParams, WmsEnv vars, int height, double[] pbbox, double[] mbbox, double width_mult, double height_mult, Graphics2D g, String[] originalFqs, String[] boundingBoxFqs) throws Exception {
+    void drawUncertaintyCircles(SpatialSearchRequestParams requestParams, WmsEnv vars, int height, int width, double[] pbbox, double[] mbbox, double width_mult, double height_mult, Graphics2D g, String[] originalFqs, String[] boundingBoxFqs, boolean is4326, double [] tilebbox) throws Exception {
         //draw uncertainty circles
         double hmult = (height / (mbbox[3] - mbbox[1]));
 
@@ -1787,6 +1896,12 @@ public class WMSController {
                 //TODO: paging
                 SolrDocumentList sdl = searchDAO.findByFulltext(requestParams);
 
+                //for 4326
+                double top = tilebbox[3];
+                double bottom = tilebbox[1];
+                double left = tilebbox[0];
+                double right = tilebbox[2];
+
                 double lng, lat;
                 int x, y;
                 int uncertaintyRadius = (int) Math.ceil(uncertaintyR[j] * hmult);
@@ -1800,8 +1915,13 @@ public class WMSController {
                         lng = (Double) sdl.get(i).getFieldValue("longitude");
                         lat = (Double) sdl.get(i).getFieldValue("latitude");
 
-                        x = (int) ((convertLngToPixel(lng) - pbbox[0]) * width_mult);
-                        y = (int) ((convertLatToPixel(lat) - pbbox[3]) * height_mult);
+                        if (is4326) {
+                            x = convertLngToPixel4326(lng, left, right, width);
+                            y = convertLatToPixel4326(lat, top, bottom, height);
+                        } else {
+                            x = (int) ((convertLngToPixel(lng) - pbbox[0]) * width_mult);
+                            y = (int) ((convertLatToPixel(lat) - pbbox[3]) * height_mult);
+                        }
 
                         if (uncertaintyRadius > 0) {
                             g.drawOval(x - uncertaintyRadius, y - uncertaintyRadius, uncertaintyRadius * 2, uncertaintyRadius * 2);
@@ -1816,7 +1936,7 @@ public class WMSController {
 
     ImgObj drawHighlight(SpatialSearchRequestParams requestParams, WmsEnv vars, PointType pointType,
                          int width, int height, double[] pbbox, double width_mult,
-                         double height_mult, ImgObj imgObj, String[] originalFqs, String[] boundingBoxFqs) throws Exception {
+                         double height_mult, ImgObj imgObj, String[] originalFqs, String[] boundingBoxFqs, boolean is4326, double [] tilebbox) throws Exception {
         String[] fqs = new String[originalFqs.length + 3];
         System.arraycopy(originalFqs, 0, fqs, 3, originalFqs.length);
         fqs[0] = vars.highlight;
@@ -1837,13 +1957,25 @@ public class WMSController {
             imgObj.g.setStroke(new BasicStroke(2));
             imgObj.g.setColor(new Color(255, 0, 0, 255));
             int x, y;
+
+            //for 4326
+            double top = tilebbox[3];
+            double bottom = tilebbox[1];
+            double left = tilebbox[0];
+            double right = tilebbox[2];
+
             for (int i = 0; i < ps.size(); i++) {
                 OccurrencePoint pt = ps.get(i);
                 float lng = pt.getCoordinates().get(0).floatValue();
                 float lat = pt.getCoordinates().get(1).floatValue();
 
-                x = (int) ((convertLngToPixel(lng) - pbbox[0]) * width_mult);
-                y = (int) ((convertLatToPixel(lat) - pbbox[3]) * height_mult);
+                if (is4326) {
+                    x = convertLngToPixel4326(lng, left, right, width);
+                    y = convertLatToPixel4326(lat, top, bottom, height);
+                } else {
+                    x = (int) ((convertLngToPixel(lng) - pbbox[0]) * width_mult);
+                    y = (int) ((convertLatToPixel(lat) - pbbox[3]) * height_mult);
+                }
 
                 imgObj.g.drawOval(x - highightRadius, y - highightRadius, highlightWidth, highlightWidth);
             }
@@ -1888,7 +2020,7 @@ public class WMSController {
             //points count
             SpatialSearchRequestParams r = new SpatialSearchRequestParams();
             r.setQ(requestParams.getQ());
-            r.setFq(requestParams.getFq());
+            r.setFq(getFq(requestParams));
             r.setQc(requestParams.getQc());
             r.setPageSize(0);
             r.setFacet(false);
@@ -1903,8 +2035,8 @@ public class WMSController {
 
             ArrayList<String> forNulls = new ArrayList<String>(sz);
             String[] fqs = null;
-            String[] originalFqs = requestParams.getFq();
-            if (requestParams.getFq() == null || requestParams.getFq().length == 0) {
+            String[] originalFqs = getFq(requestParams);
+            if (originalFqs == null || originalFqs.length == 0) {
                 fqs = new String[1];
             } else {
                 fqs = new String[originalFqs.length + 1];
@@ -1986,6 +2118,39 @@ public class WMSController {
         }
     }
 
+    private String[] getFq(SpatialSearchRequestParams requestParams) {
+        int requestParamsFqLength = requestParams.getFq() != null ? requestParams.getFq().length : 0;
+
+        String [] qidFq = null;
+        int qidFqLength = 0;
+        String q = requestParams.getQ();
+        if (q.startsWith("qid:")) {
+            try {
+                qidFq = ParamsCache.get(Long.parseLong(q.substring(4))).getFqs();
+                if (qidFq != null) {
+                    qidFqLength = qidFq.length;
+                }
+            } catch (Exception e) {
+            }
+        }
+
+        if (requestParamsFqLength + qidFqLength == 0) {
+            return null;
+        }
+
+        String [] allFqs = new String[requestParamsFqLength + qidFqLength];
+
+        if (requestParamsFqLength > 0) {
+            System.arraycopy(requestParams.getFq(), 0, allFqs, 0, requestParamsFqLength);
+        }
+
+        if (qidFqLength > 0) {
+            System.arraycopy(qidFq, 0, allFqs, requestParamsFqLength, qidFqLength);
+        }
+
+        return allFqs;
+    }
+
     /**
      * TODO remove code duplicate between wmsUncached and wmsCached
      *
@@ -1996,7 +2161,8 @@ public class WMSController {
             WmsEnv vars, PointType pointType, double[] pbbox,
             double[] mbbox, int width, int height, double width_mult,
             double height_mult, int pointWidth, String[] originalFqs, Set<Integer> hq,
-            String[] boundingBoxFqs, boolean outlinePoints, String outlineColour, HttpServletResponse response) throws Exception {
+            String[] boundingBoxFqs, boolean outlinePoints, String outlineColour, HttpServletResponse response,
+            boolean is4326, double[] tilebbox) throws Exception {
 
         //colour mapping
         List<LegendItem> colours = (vars.colourMode.equals("-1") || vars.colourMode.equals("grid")) ? null : getColours(requestParams, vars.colourMode);
@@ -2008,7 +2174,7 @@ public class WMSController {
         List<String> forNulls = new ArrayList<String>(sz);
         String[] fqs = null;
         String[] origAndBBoxFqs = null;
-        if (requestParams.getFq() == null || requestParams.getFq().length == 0) {
+        if (originalFqs == null || originalFqs.length == 0) {
             fqs = new String[3];
             fqs[1] = boundingBoxFqs[0];
             fqs[2] = boundingBoxFqs[1];
@@ -2057,7 +2223,16 @@ public class WMSController {
             } else if (colours.size() >= colourList.length - 1) {
                 fqs = new String[forNulls.size()];
                 forNulls.toArray(fqs);
-                requestParams.setFq(fqs);
+
+                String [] newFqs = new String[originalFqs.length + forNulls.size()];
+                if (originalFqs.length > 0) {
+                    System.arraycopy(originalFqs, 0, newFqs, 0, originalFqs.length);
+                }
+                if (fqs.length > 0) {
+                    System.arraycopy(fqs, 0, newFqs, originalFqs.length, fqs.length);
+                }
+                requestParams.setFq(newFqs);
+
                 points.add(searchDAO.getFacetPoints(requestParams, pointType));
                 pColour.add(colourList[colourList.length - 1] | (vars.alpha << 24));
             }
@@ -2073,6 +2248,12 @@ public class WMSController {
         double grid_width_mult = (width / (pbbox[2] - pbbox[0])) / (width / divs);
         double grid_height_mult = (height / (pbbox[1] - pbbox[3])) / (height / divs);
         int x, y;
+
+        //for 4326
+        double top = tilebbox[3];
+        double bottom = tilebbox[1];
+        double left = tilebbox[0];
+        double right = tilebbox[2];
 
         for (int j = 0; j < points.size(); j++) {
 
@@ -2098,15 +2279,20 @@ public class WMSController {
                     float lng = pt.getCoordinates().get(0).floatValue();
                     float lat = pt.getCoordinates().get(1).floatValue();
 
-                    x = (int) ((convertLngToPixel(lng) - pbbox[0]) * grid_width_mult);
-                    y = (int) ((convertLatToPixel(lat) - pbbox[3]) * grid_height_mult);
+                    if (is4326) {
+                        x = convertLngToPixel4326(lng, left, right, width);
+                        y = convertLatToPixel4326(lat, top, bottom, height);
+                    } else {
+                        x = (int) ((convertLngToPixel(lng) - pbbox[0]) * grid_width_mult);
+                        y = (int) ((convertLatToPixel(lat) - pbbox[3]) * grid_height_mult);
+                    }
 
                     if (x >= 0 && x < divs && y >= 0 && y < divs) {
                         gridCounts[x][y] += pt.getCount();
                     }
                 }
             } else {
-                renderPoints(vars, pbbox, width_mult, height_mult, pointWidth, outlinePoints, outlineColour, pColour, imgObj, j, ps);
+                renderPoints(vars, pbbox, width_mult, height_mult, pointWidth, outlinePoints, outlineColour, pColour, imgObj, j, ps, is4326, tilebbox, height, width);
             }
         }
 
@@ -2132,31 +2318,42 @@ public class WMSController {
                 }
             }
         } else {
-            drawUncertaintyCircles(requestParams, vars, height, pbbox, mbbox, width_mult, height_mult, imgObj.g, originalFqs, boundingBoxFqs);
+            drawUncertaintyCircles(requestParams, vars, height, width, pbbox, mbbox, width_mult, height_mult, imgObj.g, originalFqs, boundingBoxFqs, is4326, tilebbox);
         }
 
         //highlight
         if (vars.highlight != null) {
-            imgObj = drawHighlight(requestParams, vars, pointType, width, height, pbbox, width_mult, height_mult, imgObj, originalFqs, boundingBoxFqs);
+            imgObj = drawHighlight(requestParams, vars, pointType, width, height, pbbox, width_mult, height_mult, imgObj, originalFqs, boundingBoxFqs, is4326, tilebbox);
         }
 
         return imgObj;
     }
 
-    private void renderPoints(WmsEnv vars, double[] pbbox, double width_mult, double height_mult, int pointWidth, boolean outlinePoints, String outlineColour, List<Integer> pColour, ImgObj imgObj, int j, List<OccurrencePoint> ps) {
+    private void renderPoints(WmsEnv vars, double[] pbbox, double width_mult, double height_mult, int pointWidth, boolean outlinePoints, String outlineColour, List<Integer> pColour, ImgObj imgObj, int j, List<OccurrencePoint> ps, boolean is4326, double [] tilebbox, int height, int width) {
         int x;
         int y;
         Paint currentFill = new Color(pColour.get(j), true);
         imgObj.g.setPaint(currentFill);
         Color oColour = Color.decode(outlineColour);
 
+        //for 4326
+        double top = tilebbox[3];
+        double bottom = tilebbox[1];
+        double left = tilebbox[0];
+        double right = tilebbox[2];
+
         for (int i = 0; i < ps.size(); i++) {
             OccurrencePoint pt = ps.get(i);
             float lng = pt.getCoordinates().get(0).floatValue();
             float lat = pt.getCoordinates().get(1).floatValue();
 
-            x = (int) ((convertLngToPixel(lng) - pbbox[0]) * width_mult);
-            y = (int) ((convertLatToPixel(lat) - pbbox[3]) * height_mult);
+            if (is4326) {
+                x = convertLngToPixel4326(lng, left, right, width);
+                y = convertLatToPixel4326(lat, top, bottom, height);
+            } else {
+                x = (int) ((convertLngToPixel(lng) - pbbox[0]) * width_mult);
+                y = (int) ((convertLatToPixel(lat) - pbbox[3]) * height_mult);
+            }
 
             //System.out.println("Drawing an oval.....");
             imgObj.g.fillOval(x - vars.size, y - vars.size, pointWidth, pointWidth);
