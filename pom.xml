@@ -18,9 +18,11 @@
     </properties>
     <!-- AN SCM entry that points to the SVN directory that contains the pom file for the project  -->
     <scm>
-        <developerConnection>scm:svn:https://ala-portal.googlecode.com/svn/trunk/biocache-service/</developerConnection>
+        <connection>scm:git:git@github.com:AtlasOfLivingAustralia/biocache-service.git</connection>
+        <url>https://github.com/AtlasOfLivingAustralia/biocache-service</url>
+        <developerConnection>scm:git:git@github.com:AtlasOfLivingAustralia/biocache-service.git</developerConnection>
+        <tag>HEAD</tag>
     </scm>
-
     <dependencies>
         <!-- JSR 303 validation support -->
         <dependency>
@@ -45,7 +47,7 @@
         <dependency>
             <groupId>au.org.ala</groupId>
             <artifactId>biocache-store</artifactId>
-            <version>1.2-SNAPSHOT</version>
+            <version>1.2</version>
             <exclusions>
                 <exclusion>
                     <artifactId>google-collect</artifactId>
@@ -405,6 +407,40 @@
     <build>
         <finalName>biocache-service</finalName>
         <plugins>
+            <plugin>
+                <groupId>pl.project13.maven</groupId>
+                <artifactId>git-commit-id-plugin</artifactId>
+                <version>2.1.3</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <prefix>git</prefix>
+                    <dateFormat>dd.MM.yyyy '@' HH:mm:ss z</dateFormat>
+                    <verbose>false</verbose>
+                    <useNativeGit>false</useNativeGit>
+                    <dotGitDirectory>${project.basedir}/.git</dotGitDirectory>
+                    <skipPoms>true</skipPoms>
+                    <generateGitPropertiesFile>true</generateGitPropertiesFile>
+                    <generateGitPropertiesFilename>src/main/resources/git.properties</generateGitPropertiesFilename>
+                    <failOnNoGitDirectory>false</failOnNoGitDirectory>
+                    <abbrevLength>7</abbrevLength>
+                    <skip>false</skip>
+                    <excludeProperties>
+                    </excludeProperties>
+                    <gitDescribe>
+                        <skip>false</skip>
+                        <always>false</always>
+                        <abbrev>7</abbrev>
+                        <dirty>-dirty</dirty>
+                        <forceLongFormat>false</forceLongFormat>
+                    </gitDescribe>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

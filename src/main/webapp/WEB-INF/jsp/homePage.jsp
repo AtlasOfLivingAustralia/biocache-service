@@ -38,9 +38,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             <a href="${webservicesRoot}/oldapi">Old API reference</a>
         </p>
         <p style="display:none;">
-            SVN revision: ${revision} <br/>
-            Built by: ${builtBy} <br/>
-            Built with: ${builtWith} <br/>
+            ${versionInfoString}
         </p>
         </div>
     </body>

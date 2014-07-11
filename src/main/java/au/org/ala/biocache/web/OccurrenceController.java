@@ -143,6 +143,25 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping("/")
     public String homePageHandler(Model model) {
         model.addAttribute("webservicesRoot", hostUrl);
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        InputStream input = classLoader.getResourceAsStream("/git.properties");
+        if(input !=null){
+            try {
+                Properties versionProperties = new Properties();
+                versionProperties.load(input);
+                model.addAttribute("versionInfo", versionProperties);
+
+                StringBuffer sb  = new StringBuffer();
+                for (String name : versionProperties.stringPropertyNames()){
+                    sb.append(name + " : "  + versionProperties.getProperty(name) + "\n");
+                }
+
+                model.addAttribute("versionInfoString", sb.toString());
+
+            } catch (Exception e){
+                logger.error(e.getMessage(), e);
+            }
+        }
         return HOME;
     }
     
