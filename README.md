@@ -1,4 +1,4 @@
-biocache-service
+biocache-service [![Build Status](https://travis-ci.org/AtlasOfLivingAustralia/biocache-service.svg?branch=master)](http://travis-ci.org/AtlasOfLivingAustralia/biocache-service)
 ================
 
 Occurrence &amp; mapping webservices.
