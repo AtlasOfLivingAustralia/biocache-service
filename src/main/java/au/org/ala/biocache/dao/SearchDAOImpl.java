@@ -292,8 +292,9 @@ public class SearchDAOImpl implements SearchDAO {
             if(first){
                 first = false;
             } else {
-                int idx = value.lastIndexOf(",");                         
-                list.add(new FieldResultDTO(value.substring(0,idx), Long.parseLong(value.substring(idx+1))));
+                int idx = value.lastIndexOf(",");                   
+		//handle values enclosed in "      
+                list.add(new FieldResultDTO(value.substring(0,idx), Long.parseLong(value.substring(idx+1).replace("\"",""))));
             }
         }
         return list;
