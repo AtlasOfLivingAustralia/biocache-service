@@ -14,12 +14,6 @@
  ***************************************************************************/
 package au.org.ala.biocache.web;
 
-import java.util.List;
-
-import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
@@ -27,11 +21,12 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
+
+import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.util.List;
 
 /**
  * A Controller for downloading records based on queries.  This controller
@@ -93,7 +88,7 @@ public class DownloadController extends AbstractSecureController {
         }
         
         ip = ip == null?request.getRemoteAddr():ip;
-        DownloadType downloadType = "index".equals(type.toLowerCase())?DownloadType.RECORDS_INDEX:DownloadType.RECORDS_DB;
+        DownloadType downloadType = "index".equals(type.toLowerCase()) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
         //create a new task
         DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, downloadType);
         dd.setIncludeSensitive(sensitive);

@@ -146,16 +146,17 @@ public class DownloadService {
      * @throws Exception
      */
     private void writeQueryToStream(DownloadDetailsDTO dd,DownloadRequestParams requestParams, String ip, OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit) throws Exception {
+
         String filename = requestParams.getFile();
         String originalParams = requestParams.toString();
         //Use a zip output stream to include the data and citation together in the download
         ZipOutputStream zop = new ZipOutputStream(out);
-        String suffix = requestParams.getFileType().equals("shp")?"zip":requestParams.getFileType(); 
+        String suffix = requestParams.getFileType().equals("shp") ? "zip" : requestParams.getFileType();
         zop.putNextEntry(new java.util.zip.ZipEntry(filename + "." +suffix));
         //put the facets
         if("all".equals(requestParams.getQa())){
             requestParams.setFacets(new String[]{"assertions", "data_resource_uid"});
-        } else{
+        } else {
             requestParams.setFacets(new String[]{"data_resource_uid"});
         }
         Map<String, Integer> uidStats = null;

@@ -795,7 +795,7 @@ public class OccurrenceController extends AbstractSecureController {
             return null;
         }
         try {
-            downloadService.writeQueryToStream(requestParams, response, ip, out, false,true);
+            downloadService.writeQueryToStream(requestParams, response, ip, out, false, true);
         } catch(Exception e){
             logger.error(e.getMessage(), e);
         }

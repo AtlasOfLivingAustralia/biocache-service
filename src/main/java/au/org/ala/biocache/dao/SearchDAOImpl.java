@@ -602,18 +602,19 @@ public class SearchDAOImpl implements SearchDAO {
             if(checkLimit && dd.getTotalRecords() < MAX_DOWNLOAD_SIZE){
                 checkLimit = false;
             }
+
             //get the month facets to add them to the download fields get the assertion facets.
             List<Count> splitByFacet = null;
            
             for(FacetField facet : facetQuery.getFacetFields()){
-                if(facet.getName().equals("assertions") && facet.getValueCount()>0){
+                if(facet.getName().equals("assertions") && facet.getValueCount() > 0){
                    for(FacetField.Count facetEntry : facet.getValues()){
-                       if(qasb.length()>0)
+                       if(qasb.length() > 0)
                            qasb.append(",");
                        qasb.append(facetEntry.getName());
                    }
                 }
-                if(facet.getName().equals("month") && facet.getValueCount()>0){
+                if(facet.getName().equals("month") && facet.getValueCount() > 0){
                    splitByFacet = facet.getValues();
                 }
             }
@@ -625,7 +626,7 @@ public class SearchDAOImpl implements SearchDAO {
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[2].toArray(new String[]{}),qaTitles);
             
             //construct correct RecordWriter based on the supplied fileType
-            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv")? new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) : new ShapeFileRecordWriter(downloadParams.getFile(), out, (String[])ArrayUtils.addAll(fields, qaFields));
+            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ? new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) : new ShapeFileRecordWriter(downloadParams.getFile(), out, (String[])ArrayUtils.addAll(fields, qaFields));
             
             if(rw instanceof ShapeFileRecordWriter){
                 dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());

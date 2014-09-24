@@ -14,10 +14,10 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import org.codehaus.jackson.annotate.JsonIgnore;
+
 import java.util.Date;
 import java.util.Map;
-
-import org.codehaus.jackson.annotate.JsonIgnore;
 
 /**
  * Stores the details of a download.  Will allow for monitoring of downloads
@@ -93,6 +93,7 @@ public class DownloadDetailsDTO {
     public void setDownloadParams(String downloadParams) {
         this.downloadParams = downloadParams;
     }
+
     public String getIpAddress(){
         return ipAddress;
     }
