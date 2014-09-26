@@ -442,6 +442,7 @@ public class SearchDAOImpl implements SearchDAO {
                                     //handle null values being returned from the service...
                                     writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, writer);
                                     guids.clear();
+                                    counts.clear();
                                 }
                             }
                             //now write any guids that remain at the end of the looping
