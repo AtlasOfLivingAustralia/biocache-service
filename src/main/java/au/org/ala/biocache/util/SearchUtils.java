@@ -393,6 +393,17 @@ public class SearchUtils {
         return extraParams;
     }
 
+    private boolean isDynamicField(String fieldName){
+        return fieldName.endsWith("_s") || fieldName.endsWith("_i") || fieldName.endsWith("_d");
+    }
+
+    private String formatDynamicFieldName(String fieldName){
+        if(fieldName.length()>2){
+            return fieldName.substring(0, fieldName.length() - 2);
+        }
+        return fieldName;
+    }
+
     /**
      * Create a HashMap for the filter queries, using the first SOLR field as the key and subsequent
      * query string as the value.
@@ -458,9 +469,9 @@ public class SearchUtils {
                                 String fn = tokenBits[0];
                                 String fv = tokenBits[1];
                                 String i18n = null;
-                                if(fn.endsWith("_s")){
+                                if(isDynamicField(fn)){
                                     //hack for dynamic facets
-                                    i18n = fn.replaceAll("_s", "");
+                                    i18n = formatDynamicFieldName(fn);
                                 } else {
                                     i18n = messageSource.getMessage("facet."+fn, null, fn, null);
                                 }
