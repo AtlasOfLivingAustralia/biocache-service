@@ -14,12 +14,17 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * This class provides thematic grouping of facets to aid rendering in UIs.
- *
- * TODO this should be refactored so these groups can be reloaded from external configuration.
  *
  * @author Natasha Carter
  */
@@ -28,8 +33,48 @@ public class FacetThemes {
     public static String[] allFacets = new String[]{};
     public static java.util.List<FacetTheme> allThemes = new java.util.ArrayList<FacetTheme>();
     public static LinkedHashMap<String, Facet> facetsMap = new LinkedHashMap<String, Facet>();
-    static {
 
+    /**
+     * Takes a file path to a configuration file in JSON and parses the file
+     * into facets and facet themes.
+     *
+     * @param configFilePath
+     * @throws IOException
+     */
+    public FacetThemes(String configFilePath) throws IOException {
+
+        if(configFilePath != null && new File(configFilePath).exists()){
+            ObjectMapper om = new ObjectMapper();
+            List<Map<String,Object>> config = om.readValue(new File(configFilePath), List.class);
+            for(Map<String, Object> facetGroup : config){
+                String title = (String) facetGroup.get("title");
+                List<Map<String,String>> facetsConfig = (List<Map<String,String>>) facetGroup.get("facets");
+                List<Facet> facets = new ArrayList<Facet>();
+                for(Map<String,String> facetsMap : facetsConfig){
+                    facets.add(new Facet(facetsMap.get("field"), facetsMap.get("sort")));
+                }
+                allThemes.add(new FacetTheme(title, facets));
+            }
+            initAllFacets();
+        } else {
+            defaultInit();
+        }
+    }
+
+    private void initAllFacets() {
+        for (FacetTheme theme : allThemes) {
+            for(Facet f : theme.facets) {
+                facetsMap.put(f.field, f);
+            }
+            allFacets = facetsMap.keySet().toArray(new String[]{});
+        }
+    }
+
+    public FacetThemes() {
+        defaultInit();
+    }
+
+    private void defaultInit() {
         allThemes.add(new FacetTheme("Taxonomic",
                 new Facet("taxon_name","index"),
                 new Facet("raw_taxon_name","index"),
@@ -75,7 +120,8 @@ public class FacetThemes {
                 new Facet("basis_of_record","index"),
                 new Facet("type_status","index"),
                 new Facet("multimedia","count"),
-                new Facet("collector","index"))
+                new Facet("collector","index"),
+                new Facet("occurrence_status_s","index"))
         );
 
         allThemes.add(new FacetTheme("Attribution",
@@ -95,15 +141,10 @@ public class FacetThemes {
                 new Facet("taxonomic_issue","count"),
                 new Facet("duplicate_status","count")
         ));
-        
-        for (FacetTheme theme : allThemes) {
-            for(Facet f : theme.facets) {
-                facetsMap.put(f.field, f);
-            }
-            allFacets = facetsMap.keySet().toArray(new String[]{});
-        }
+
+        initAllFacets();
     }
-    
+
     static public class Facet {
 
         private String field;
@@ -132,12 +173,6 @@ public class FacetThemes {
         public String getSort() {
             return sort;
         }
-        /**
-         * @param sort the sort to set
-         */
-        public void setDefaultSort(String sort) {
-            this.sort = sort;
-        }
     }
  
     static class FacetTheme {
@@ -148,6 +183,11 @@ public class FacetThemes {
         FacetTheme(String title, Facet... facets){
             this.title = title;
             this.facets = facets;
+        }
+
+        FacetTheme(String title, List<Facet> facets){
+            this.title = title;
+            this.facets = facets.toArray(new Facet[0]);
         }
 
         /**

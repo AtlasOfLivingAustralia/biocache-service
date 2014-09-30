@@ -53,7 +53,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 /**
- * Occurrences controller for the BIE biocache site.
+ * Occurrences controller for the biocache web services.
  *
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
@@ -114,7 +114,10 @@ public class OccurrenceController extends AbstractSecureController {
 
     @Value("${media.url:http://biocache.ala.org.au/biocache-media/}")
     protected String biocacheMediaUrl;
-    
+
+    @Value("${facet.config:/data/biocache/config/facets.json}")
+    protected String facetConfig;
+
     public Pattern getTaxonIDPattern(){
         if(taxonIDPattern == null){
             taxonIDPattern = Pattern.compile(taxonIDPatternString);
@@ -192,8 +195,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping("/search/facets")
     public @ResponseBody String[] listAllFacets() {
-        String[] facets = new SearchRequestParams().getFacets();
-        return facets;
+        return new SearchRequestParams().getFacets();
     }
     
     /**
@@ -201,8 +203,8 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      */
     @RequestMapping("/search/grouped/facets")
-    public @ResponseBody List groupFacets() {
-        return FacetThemes.allThemes;
+    public @ResponseBody List groupFacets() throws IOException {
+        return new FacetThemes(facetConfig).allThemes;
     }
     
     /**
