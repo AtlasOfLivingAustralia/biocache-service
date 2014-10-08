@@ -158,19 +158,18 @@ public class UploadController {
             String[] facetsRaw = au.org.ala.biocache.Store.retrieveCustomIndexFields(dr);
             for (String f: facetsRaw){
                 String displayName = f;
-                boolean isRange=false;
+                boolean isRange = false;
                 if(displayName.endsWith("_s")) {
                     displayName = displayName.substring(0, displayName.length()-2);
-                }
-                else if(displayName.endsWith("_i") || displayName.endsWith("_d")){
+                } else if(displayName.endsWith("_i") || displayName.endsWith("_d")){
                     displayName = displayName.substring(0, displayName.length()-2);
-                    isRange=true;
+                    isRange = true;
                 }
                 displayName = displayName.replaceAll("_", " ");
                 fs.add(new Facet(f, StringUtils.capitalize(displayName)));
                 //when the custom field is an _i or _d automatically include the range as an available facet
                 if(isRange)
-                  fs.add(new Facet(f + "_RNG", StringUtils.capitalize(displayName)));
+                  fs.add(new Facet(f + "_RNG", StringUtils.capitalize(displayName) + "(Range)"));
             }
         }
         return fs;
@@ -306,7 +305,7 @@ public class UploadController {
                 csvData = new CSVReader(new StringReader(csvDataAsString), separatorChar, '"');
             }
 
-            String tempUid = createTempResource(request, datasetName, lineCount);
+            String tempUid = createTempResource(datasetName, lineCount);
 
             //do the upload asynchronously
             UploaderThread ut = new UploaderThread();
@@ -384,7 +383,7 @@ public class UploadController {
         return new File(unzippedFilePath);
     }
 
-    private String createTempResource(HttpServletRequest request, String datasetName, int lineCount) throws IOException {
+    private String createTempResource(String datasetName, int lineCount) throws IOException {
 
         ObjectMapper mapper = new ObjectMapper();
 

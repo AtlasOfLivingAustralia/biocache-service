@@ -132,14 +132,14 @@ public class SearchUtils {
                 return "Collection: " + collectionCache.getCollections().get(uid);
             else
                 return collectionCache.getCollections().get(uid);
+        } else if(uid.startsWith("drt")&& collectionCache.getTempDataResources().containsKey(uid)){
+            if(includeField)
+                return "Temporary Data resource: " + collectionCache.getTempDataResources().get(uid);
+            else
+                return collectionCache.getTempDataResources().get(uid);
         } else if(uid.startsWith("dr") && collectionCache.getDataResources().containsKey(uid)){
             if(includeField)
                 return "Data resource: " + collectionCache.getDataResources().get(uid);
-            else
-                return collectionCache.getDataResources().get(uid);
-        } else if(uid.startsWith("drt")&& collectionCache.getDataResources().containsKey(uid)){
-            if(includeField)
-                return "Temporary Data resource: " + collectionCache.getDataResources().get(uid);
             else
                 return collectionCache.getDataResources().get(uid);
         } else if(uid.startsWith("dp") && collectionCache.getDataProviders().containsKey(uid)){
@@ -397,9 +397,9 @@ public class SearchUtils {
         return fieldName.endsWith("_s") || fieldName.endsWith("_i") || fieldName.endsWith("_d");
     }
 
-    private String formatDynamicFieldName(String fieldName){
+    public static String formatDynamicFieldName(String fieldName){
         if(fieldName.length()>2){
-            return fieldName.substring(0, fieldName.length() - 2);
+            return StringUtils.capitalize(fieldName.substring(0, fieldName.length() - 2).replace("_", " "));
         }
         return fieldName;
     }
@@ -497,7 +497,7 @@ public class SearchUtils {
                                     }
 
                                 } else {
-                                    fv = getUidDisplayString(fn, fv,false);
+                                    fv = getUidDisplayString(fn, fv, false);
                                 }
 
                                 labels.add(i18n + ":" + fv);
