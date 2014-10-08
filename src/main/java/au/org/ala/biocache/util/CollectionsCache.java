@@ -90,66 +90,9 @@ public class CollectionsCache {
     public LinkedHashMap<String, String> getDataHubs() {
         return this.dataHubs;
     }
-    
-    /**
-     * @deprecated Unnecessary because updateUidLists provides the updated lists...
-     * @param inguids
-     * @param coguids
-     * @return
-     */
-    @Deprecated
-    public LinkedHashMap<String, String> getInstitutions(List<String> inguids, List<String> coguids){
-        return this.institutions;
-    }
-
-    /**
-     * @deprecated Unnecessary because updateUidLists provides the updated lists...
-     * @param inguids
-     * @param coguids
-     * @return
-     */
-    @Deprecated
-    public LinkedHashMap<String, String> getCollections(List<String> inguids, List<String>coguids){        
-        return this.collections;
-    }
-    
-    /**
-     * @deprecated Unnecessary because updateUidLists provides the updated lists...
-     * @param inguids
-     * @param coguids
-     * @return
-     */
-    @Deprecated
-    public LinkedHashMap<String, String> getDataResources(List<String> inguids, List<String>coguids){
-        return this.dataResources;
-    }
-
-    /**
-     * @deprecated Unnecessary because updateUidLists provides the updated lists...
-     * @param inguids
-     * @param coguids
-     * @return
-     */
-    @Deprecated
-    public LinkedHashMap<String, String> getDataProviders(List<String> inguids, List<String>coguids){     
-        return this.dataProviders;
-    }
 
     public LinkedHashMap<String, Integer> getDownloadLimits(){
-        //checkDownloadCacheAge();                  		
-        return downloadLimits;        
-    }
-
-    public void updateUidLists(List<String> couids, List<String> inuids, List<String> druids, List<String> dpuids, List<String>dhuids){
-        boolean refresh = data_resource_uid == null;
-        this.collection_uid = couids;
-        this.institution_uid = inuids;
-        this.data_resource_uid = druids;
-        this.data_provider_uid = dpuids;
-        this.data_hub_uid = dhuids;
-        if(refresh){
-            updateCache();
-        }
+        return downloadLimits;
     }
 
     /**
@@ -163,7 +106,7 @@ public class CollectionsCache {
             this.institutions = getCodesMap(ResourceType.INSTITUTION, institution_uid);
             this.dataResources = getCodesMap(ResourceType.DATA_RESOURCE,data_resource_uid);
             this.dataProviders = getCodesMap(ResourceType.DATA_PROVIDER, data_provider_uid);
-            this.tempDataResources = getCodesMap(ResourceType.TEMP_DATA_RESOURCE,null);
+            this.tempDataResources = getCodesMap(ResourceType.TEMP_DATA_RESOURCE, null);
             this.dataHubs = getCodesMap(ResourceType.DATA_HUB, data_hub_uid);
             this.dataResources.putAll(tempDataResources);
         } else{
@@ -200,7 +143,6 @@ public class CollectionsCache {
             for (LinkedHashMap<String, String> je : entities) {
                 if(addToCodeMap(je.get("uid"), guids)){
                     entityMap.put(je.get("uid"), je.get("name"));
-                    //logger.debug("uid = " + je.get("uid") + " & name = " + je.get("name"));
                 }
             }
         } catch (Exception ex) {
