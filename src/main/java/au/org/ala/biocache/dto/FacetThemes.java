@@ -44,6 +44,7 @@ public class FacetThemes {
     public FacetThemes(String configFilePath) throws IOException {
 
         if(configFilePath != null && new File(configFilePath).exists()){
+            allThemes.clear();
             ObjectMapper om = new ObjectMapper();
             List<Map<String,Object>> config = om.readValue(new File(configFilePath), List.class);
             for(Map<String, Object> facetGroup : config){
@@ -62,6 +63,7 @@ public class FacetThemes {
     }
 
     private void initAllFacets() {
+        facetsMap.clear();
         for (FacetTheme theme : allThemes) {
             for(Facet f : theme.facets) {
                 facetsMap.put(f.field, f);
@@ -75,6 +77,7 @@ public class FacetThemes {
     }
 
     private void defaultInit() {
+        allThemes.clear();
         allThemes.add(new FacetTheme("Taxonomic",
                 new Facet("taxon_name","index"),
                 new Facet("raw_taxon_name","index"),
