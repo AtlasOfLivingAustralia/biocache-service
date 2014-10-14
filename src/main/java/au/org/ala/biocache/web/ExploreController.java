@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.web;
 
+import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.*;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletResponse;
+import java.io.OutputStream;
 import java.util.*;
 
 /**
@@ -39,6 +41,7 @@ import java.util.*;
  */
 @Controller("exploreController")
 public class ExploreController {
+
     /** Logger initialisation */
 	private final static Logger logger = Logger.getLogger(ExploreController.class);
 
@@ -57,6 +60,15 @@ public class ExploreController {
 		radiusToZoomLevelMap.put(10f, 11);
 		radiusToZoomLevelMap.put(50f, 9);
 	}
+
+    @RequestMapping(value = "/explore/hierarchy", method = RequestMethod.GET)
+    public void getHierarchy(HttpServletResponse response) throws Exception {
+        response.setContentType("application/json");
+        OutputStream out = response.getOutputStream();
+        out.write(Store.retrieveSubgroupsConfig().getBytes("UTF-8"));
+        out.flush();
+        out.close();
+    }
 
     /**
      * Returns a hierarchical listing of species groups.
