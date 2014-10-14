@@ -14,16 +14,39 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import java.util.List;
+
 /**
  * DTO for species group information including counts and indent levels
  * 
  * @author "Natasha Carter <natasha.carter@csiro.au>"
  */
 public class SpeciesGroupDTO {
+
     private String name;
     private long count;
     private long speciesCount;
     private int level;
+
+    private List<SpeciesGroupDTO> childGroups = null;
+
+    public SpeciesGroupDTO(){}
+
+    public SpeciesGroupDTO(String name){
+        this.name = name;
+    }
+
+    public SpeciesGroupDTO(String name, long speciesCount, long count, int level){
+        this.name = name;
+        this.speciesCount = speciesCount;
+        this.count = count;
+        this.level = level;
+    }
+
+    public SpeciesGroupDTO(String name, List<SpeciesGroupDTO> childGroups){
+        this.name = name;
+        this.childGroups = childGroups;
+    }
 
     public long getCount() {
         return count;
@@ -67,8 +90,13 @@ public class SpeciesGroupDTO {
     public void setSpeciesCount(long speciesCount) {
         this.speciesCount = speciesCount;
     }
-    
-    
 
 
+    public List<SpeciesGroupDTO> getChildGroups() {
+        return childGroups;
+    }
+
+    public void setChildGroups(List<SpeciesGroupDTO> childGroups) {
+        this.childGroups = childGroups;
+    }
 }

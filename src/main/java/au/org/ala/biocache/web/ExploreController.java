@@ -28,10 +28,8 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 /**
  * Controller for the "explore your area" page
@@ -61,6 +59,88 @@ public class ExploreController {
 	}
 
     /**
+     * Returns a hierarchical listing of species groups.
+     *
+     * TODO push down to service implementation.
+     *
+     * @param requestParams
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/explore/hierarchy/groups*", method = RequestMethod.GET)
+    public @ResponseBody Collection<SpeciesGroupDTO> yourHierarchicalAreaView(
+            SpatialSearchRequestParams requestParams, String speciesGroup) throws Exception {
+
+        List<au.org.ala.biocache.vocab.SpeciesGroup> ssgs = au.org.ala.biocache.Store.retrieveSpeciesSubgroups();
+        Map<String, SpeciesGroupDTO> parentGroupMap = new java.util.HashMap<String, SpeciesGroupDTO>();
+
+        //create a parent lookup table
+        Map<String, String> parentLookup = new HashMap<String, String>();
+        for(au.org.ala.biocache.vocab.SpeciesGroup sg : ssgs){
+            if(sg.parent() != null && sg.parent() != ""){
+                parentLookup.put(sg.name().toLowerCase(), sg.parent());
+                if(parentGroupMap.get(sg.parent()) == null){
+                    parentGroupMap.put(sg.parent(), new SpeciesGroupDTO(sg.parent(), 0, 0, 1));
+                }
+            }
+        }
+
+        //get the species group occurrence counts
+        requestParams.setFormattedQuery(null);
+        requestParams.setFacets(new String[]{"species_subgroup"});
+        requestParams.setPageSize(0);
+        requestParams.setFlimit(-1);
+        if(speciesGroup != null){
+            requestParams.setFq(new String[]{"species_group:\"" + speciesGroup +"\""});
+        }
+
+        //retrieve a list of subgroups with occurrences matching the query
+        SearchResultDTO speciesSubgroupCounts = searchDao.findByFulltextSpatialQuery(requestParams, null);
+        Map<String, Long> occurrenceCounts = new HashMap<String,Long>();
+        if(speciesSubgroupCounts.getFacetResults().size() > 0) {
+            FacetResultDTO result = speciesSubgroupCounts.getFacetResults().iterator().next();
+            for(FieldResultDTO fr: result.getFieldResult()){
+                occurrenceCounts.put(fr.getLabel(), fr.getCount());
+            }
+        }
+
+        //do a facet query for each species subgroup
+        for(String ssg : occurrenceCounts.keySet()){
+
+            requestParams.setQ("species_subgroup:\"" + ssg +"\"");
+            requestParams.setFormattedQuery(null);
+            requestParams.setFacets(new String[]{"taxon_name"});
+
+            List<FacetResultDTO> facetResultDTO = searchDao.getFacetCounts(requestParams);
+            if(facetResultDTO.size() > 0){
+                FacetResultDTO result = facetResultDTO.get(0);
+
+                String parentName = parentLookup.get(ssg.toLowerCase());
+                SpeciesGroupDTO parentGroup = parentGroupMap.get(parentName);
+                if(parentGroup.getChildGroups() == null){
+                    parentGroup.setChildGroups(new ArrayList<SpeciesGroupDTO>());
+                }
+                parentGroup.getChildGroups().add(new SpeciesGroupDTO(ssg, result.getCount(), occurrenceCounts.get(ssg), 2));
+                parentGroup.setSpeciesCount(parentGroup.getSpeciesCount() + result.getCount());
+                parentGroup.setCount(parentGroup.getCount() + occurrenceCounts.get(ssg));
+            }
+        }
+
+        //prune empty parents
+        List<String> toRemove = new ArrayList<String>();
+        for(String parentName: parentGroupMap.keySet()){
+            if(parentGroupMap.get(parentName).getChildGroups()==null || parentGroupMap.get(parentName).getChildGroups().size()==0){
+                toRemove.add(parentName);
+            }
+        }
+        for(String key: toRemove){
+            parentGroupMap.remove(key);
+        }
+
+        return parentGroupMap.values();
+    }
+
+    /**
      *
      * Returns a list of species groups and counts that will need to be displayed.
      *
@@ -69,13 +149,7 @@ public class ExploreController {
      *
      */
     @RequestMapping(value = "/explore/groups*", method = RequestMethod.GET)
-	public @ResponseBody List<SpeciesGroupDTO> yourAreaView(
-            SpatialSearchRequestParams requestParams,
-            @RequestParam(value="address", required=false, defaultValue=DEFAULT_LOCATION) String address,
-            @RequestParam(value="location", required=false, defaultValue="") String location,
-            HttpServletRequest request,
-            Model model) throws Exception {
-        
+	public @ResponseBody List<SpeciesGroupDTO> yourAreaView(SpatialSearchRequestParams requestParams) throws Exception {
 
         //now we want to grab all the facets to get the counts associated with the species groups
         List<au.org.ala.biocache.vocab.SpeciesGroup> sgs = au.org.ala.biocache.Store.retrieveSpeciesGroups();
@@ -98,8 +172,9 @@ public class ExploreController {
             SpeciesGroupDTO sdto = new SpeciesGroupDTO();
             sdto.setName(sg.name());
 
-            if(oldName!= null && sg.parent()!= null && sg.parent().equals(kingdom))
+            if(oldName!= null && sg.parent()!= null && sg.parent().equals(kingdom)) {
                 level = 2;
+            }
             
             oldName = sg.name();
             if(sg.parent() == null){
@@ -109,6 +184,7 @@ public class ExploreController {
             sdto.setLevel(level);
             //set the original query back to default to clean up after ourselves
             requestParams.setQ(originalQ);
+            //query per group
             counts = getYourAreaCount(requestParams, sg.name());
             sdto.setCount(counts[0]);
             sdto.setSpeciesCount(counts[1]);
@@ -128,17 +204,17 @@ public class ExploreController {
     @RequestMapping(value="/explore/counts/group/{group}*", method = RequestMethod.GET)
     public @ResponseBody Integer[] getYourAreaCount(SpatialSearchRequestParams requestParams,
             @PathVariable(value="group") String group) throws Exception{
-        updateQuery(requestParams, group);        
+        addGroupFilterToQuery(requestParams, group);
         requestParams.setPageSize(0);
         requestParams.setFacets(new String[]{"taxon_name"});
         requestParams.setFlimit(-1);
-        SearchResultDTO results = searchDao.findByFulltextSpatialQuery(requestParams,null);
-        Integer speciesCount =0;        
-        if(results.getFacetResults().size() >0){
+        SearchResultDTO results = searchDao.findByFulltextSpatialQuery(requestParams, null);
+        Integer speciesCount = 0;
+        if(results.getFacetResults().size() > 0){
             speciesCount = results.getFacetResults().iterator().next().getFieldResult().size();
         }
         
-        return new Integer[]{(int)results.getTotalRecords(), speciesCount};
+        return new Integer[]{(int) results.getTotalRecords(), speciesCount};
     }
 
     /**
@@ -146,23 +222,32 @@ public class ExploreController {
      * @param requestParams
      * @param group
      */
-    private void updateQuery(SpatialSearchRequestParams requestParams, String group){
+    private void addGroupFilterToQuery(SpatialSearchRequestParams requestParams, String group){
+        addFacetFilterToQuery(requestParams, "species_group", group);
+    }
+
+    /**
+     * Updates the requestParams to take into account the provided species group
+     * @param requestParams
+     * @param facetValue
+     */
+    private void addFacetFilterToQuery(SpatialSearchRequestParams requestParams, String facetName, String facetValue){
         StringBuilder sb = new StringBuilder();
         if(requestParams.getQ() != null && !requestParams.getQ().isEmpty())
             sb.append(requestParams.getQ());
         else{
             sb.append("*:*");
         }
-        if(!group.equals("ALL_SPECIES"))
-            sb.append(" species_group:").append(group);
+        if(!facetValue.equals("ALL_SPECIES"))
+            sb.append(" " + facetName + ":").append(facetValue);
         //now ignore the records that have been identified to a rank above species
         sb.append( " -rank:kingdom -rank:phylum -rank:class -rank:order -rank:family -rank:genus");
         //String query = sb.togroup.equals("ALL_SPECIES")? "*:*" : "species_group:" + group;
         requestParams.setQ(sb.toString());
-      //don't care about the formatted query
+        //don't care about the formatted query
         requestParams.setFormattedQuery(null);
     }
-    
+
     /**
      * GeoJSON view of records as clusters of points within a specified radius of a given location
      *
@@ -175,7 +260,7 @@ public class ExploreController {
             @RequestParam(value="group", required=false, defaultValue="ALL_SPECIES") String speciesGroup,
             Model model)
             throws Exception {
-        updateQuery(requestParams, speciesGroup);
+        addGroupFilterToQuery(requestParams, speciesGroup);
         PointType pointType = PointType.POINT_00001; // default value for when zoom is null
         pointType = getPointTypeForZoomLevel(zoomLevel);
         logger.info("PointType for zoomLevel ("+zoomLevel+") = "+pointType.getLabel());
@@ -245,7 +330,7 @@ public class ExploreController {
         response.setHeader("Content-Disposition", "attachment;filename="+filename);
         response.setContentType("application/vnd.ms-excel");
        
-        updateQuery(requestParams, group);
+        addGroupFilterToQuery(requestParams, group);
         applyFacetForCounts(requestParams, common);
         
         ServletOutputStream out = response.getOutputStream();
@@ -269,7 +354,7 @@ public class ExploreController {
             Model model) throws Exception {
 
        
-        updateQuery(requestParams,group);
+        addGroupFilterToQuery(requestParams, group);
         applyFacetForCounts(requestParams, common);
         
         return searchDao.findAllSpeciesByCircleAreaAndHigherTaxa(requestParams, group);
@@ -334,7 +419,7 @@ public class ExploreController {
         writer.write("Family,Scientific name,Common name,Taxon rank,LSID,# Occurrences");
         for(FieldResultDTO item: list){
             String[] values = item.getLabel().split("\\|",6);
-            if(values.length>=5){
+            if(values.length >= 5){
                 writer.write("\n"+values[4]+",\""+values[0]+"\",\""+values[2]+"\",,"+values[1] + ","+item.getCount());
             }
         }

@@ -2434,11 +2434,12 @@ public class SearchDAOImpl implements SearchDAO {
         formatSearchQuery(searchParams);            
         //add context information
         updateQueryContext(searchParams);
-        String queryString = buildSpatialQueryString(searchParams);        
-        searchParams.setFacet(false);        
+        String queryString = buildSpatialQueryString(searchParams);
+        searchParams.setFacet(false);
         searchParams.setPageSize(0);
-        SolrQuery query = initSolrQuery(searchParams, false,null);
+        SolrQuery query = initSolrQuery(searchParams, false, null);
         query.setQuery(queryString);
+        query.setFields(null);
         //now use the supplied facets to add groups to the query
         query.add("group", "true");
         query.add("group.ngroups","true");
