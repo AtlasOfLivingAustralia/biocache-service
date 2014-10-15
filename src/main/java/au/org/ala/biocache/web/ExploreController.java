@@ -84,7 +84,7 @@ public class ExploreController {
             SpatialSearchRequestParams requestParams, String speciesGroup) throws Exception {
 
         List<au.org.ala.biocache.vocab.SpeciesGroup> ssgs = au.org.ala.biocache.Store.retrieveSpeciesSubgroups();
-        Map<String, SpeciesGroupDTO> parentGroupMap = new java.util.HashMap<String, SpeciesGroupDTO>();
+        Map<String, SpeciesGroupDTO> parentGroupMap = new LinkedHashMap<String, SpeciesGroupDTO>();
 
         //create a parent lookup table
         Map<String, String> parentLookup = new HashMap<String, String>();
