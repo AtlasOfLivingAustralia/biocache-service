@@ -102,7 +102,7 @@ public class ExploreController {
         requestParams.setFacets(new String[]{"species_subgroup"});
         requestParams.setPageSize(0);
         requestParams.setFlimit(-1);
-        if(speciesGroup != null){
+        if(StringUtils.isNotBlank(speciesGroup)){
             requestParams.setFq(new String[]{"species_group:\"" + speciesGroup +"\""});
         }
 
