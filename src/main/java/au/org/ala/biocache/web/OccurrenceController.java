@@ -788,7 +788,7 @@ public class OccurrenceController extends AbstractSecureController {
         
         ip = ip == null ? getIPAddress(request) : ip;
         ServletOutputStream out = response.getOutputStream();
-        //search params must have a query or formatted query for the downlaod to work
+        //search params must have a query or formatted query for the download to work
         if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
             return null;
         }
@@ -963,8 +963,11 @@ public class OccurrenceController extends AbstractSecureController {
             //date must be in a yyyy-MM-dd format
             Date date = org.apache.commons.lang.time.DateUtils.parseDate(fromDate,new String[]{"yyyy-MM-dd"});
             return Store.getDeletedRecords(date);
-        } catch(Exception e) {
+        } catch(java.text.ParseException e) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid date format.  Please provide date as yyyy-MM-dd.");
+        } catch(Exception e) {
+            logger.error(e.getMessage(), e);
+            response.sendError(500, "Problem retrieving details of deleted records.");
         }
         return null;
     }
@@ -1052,6 +1055,8 @@ public class OccurrenceController extends AbstractSecureController {
             //if the raw record contains a userId we will need to include the alaUserName in the DTO
             if(fullRecord[0].getOccurrence().getUserId() != null){
                 occ.setAlaUserName(authService.getDisplayNameFor(fullRecord[0].getOccurrence().getUserId()));
+            } else if(fullRecord[1].getOccurrence().getUserId() != null){
+                occ.setAlaUserName(authService.getDisplayNameFor(fullRecord[1].getOccurrence().getUserId()));
             }
         }
         
