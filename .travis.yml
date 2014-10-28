@@ -1,3 +1,4 @@
-language: java
-install: "mvn -P travis compile"
-script: "mvn -version"
+env:
+  global:
+  - secure: Cz3CJDjuIm52LplBphLsQwNv055US4oxG51PgpJE6IYdta8KJxv04QwK+ytgb3eDNA6ec7XpGPuCaMnDXhpTTdMiluN0ATZY4dEkCIVTnHWGW0Fr0ydlwutkYx/kFUYIJwu9FueEPJYMYgPZ2LTxa6rrUATJ2U13N7R2ul3A5kQ=
+  - secure: fLDJXNgi3H8PkGkquJZ3UdsdD1f99cJhbwFCv2PcaIaMyh29Y40EHIlCOmcfdYNEFa4kfOib2vj0e6u8VWDhSzJc+FzOPUU1bi7VzkWAWlQo8jPoq61VBELa+Gq/PayBvsZCN2lqE3Rb92NbyN9D/4rsRWRkKan/MZ/2KZGlK8U=
