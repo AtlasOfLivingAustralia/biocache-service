@@ -377,6 +377,11 @@
             <name>ala-repo-releases</name>
             <url>http://nexus.ala.org.au/content/repositories/releases/</url>
         </repository>
+        <repository>
+            <id>ala-repo-legacy</id>
+            <name>ala-repo-legacy</name>
+            <url>http://maven.ala.org.au/repository/</url>
+        </repository>        
         <!-- Spring 3.0 -->
         <repository>
             <id>springsource maven repo</id>
