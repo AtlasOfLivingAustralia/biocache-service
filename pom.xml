@@ -368,9 +368,14 @@
     <repositories>
         <!-- ALA repository  -->
         <repository>
-            <id>ala-repository</id>
-            <name>ala-repository</name>
-            <url>http://maven.ala.org.au/repository</url>
+            <id>ala-repo-snapshots</id>
+            <name>ala-repo</name>
+            <url>http://nexus.ala.org.au/content/repositories/snapshots/</url>
+        </repository>
+        <repository>
+            <id>ala-repo-releases</id>
+            <name>ala-repo-releases</name>
+            <url>http://nexus.ala.org.au/content/repositories/releases/</url>
         </repository>
         <!-- Spring 3.0 -->
         <repository>
