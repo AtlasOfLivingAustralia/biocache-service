@@ -50,6 +50,9 @@ public class UploadController {
     @Value("${upload.temp:/data/biocache-upload/temp}")
     protected String uploadTempDir;
 
+    @Value("${upload.threads:4}")
+    protected Integer uploadThreads;
+
     private Pattern dataResourceUidP = Pattern.compile("data_resource_uid:([\\\"]{0,1}[a-z]{2,3}[0-9]{1,}[\\\"]{0,1})");
     //TODO move to config
     protected static List<String> alreadyIndexedFields = Arrays.asList(new String[]{
@@ -318,8 +321,8 @@ public class UploadController {
             ut.recordsToLoad = lineCount;
             ut.tempUid = tempUid;
             ut.customIndexFields = customIndexFields;
-            Thread t = new Thread(ut);
-            t.start();
+            ut.threads = uploadThreads;
+            new Thread(ut).start();
 
             logger.debug("Temporary UID being returned...." + tempUid);
             Map<String,String> details = new HashMap<String,String>();
@@ -454,6 +457,7 @@ class UploaderThread implements Runnable {
     protected String uploadStatusDir;
     protected Integer recordsToLoad = null;
     protected String[] customIndexFields = null;
+    protected Integer threads = 4;
 
     @Override
     public void run(){
@@ -539,7 +543,7 @@ class UploaderThread implements Runnable {
             logger.debug("Processing " + tempUid);
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("PROCESSING","Starting",50)));
             DefaultObserverCallback processingCallback = new DefaultObserverCallback("PROCESSING", recordCount, statusFile, 50, "processed");
-            au.org.ala.biocache.Store.process(tempUid, 4, processingCallback);
+            au.org.ala.biocache.Store.process(tempUid, threads, processingCallback);
 
             status = "INDEXING";
             logger.debug("Indexing " + tempUid + " " + tmpCustIndexFields);
