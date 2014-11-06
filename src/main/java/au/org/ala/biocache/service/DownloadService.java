@@ -317,19 +317,24 @@ public class DownloadService {
                                 currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false);
                         //now that the download is complete email a link to the recipient.
                         String subject = messageSource.getMessage("offlineEmailSubject",null,"Occurrence Download Complete - "+currentDownload.getRequestParams().getFile(),null);
-                        String fileLocation = currentDownload.getFileLocation().replace(biocacheMediaDir, biocacheMediaUrl);
-                        String body = messageSource.getMessage("offlineEmailBody", new Object[]{fileLocation}, "The file has been generated. Please download you file from " + fileLocation , null);
-                        emailService.sendEmail(currentDownload.getEmail(), subject, body);
 
-                        //now take the job off the list
-                        persistentQueueDAO.removeDownloadFromQueue(currentDownload);
-                        
-                        //save the statistics to the download directory                        
-                        FileOutputStream statsStream = FileUtils.openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()+File.separator+"downloadStats.json"));
-                        String json = objectMapper.writeValueAsString(currentDownload);
-                        statsStream.write(json.getBytes() );
-                        statsStream.flush();
-                        statsStream.close();
+                        if(currentDownload!=null && currentDownload.getFileLocation() != null){
+//                            String fileLocation = currentDownload.getFileLocation().replace(biocacheMediaDir, biocacheMediaUrl);
+                            String fileLocation = currentDownload.getFileLocation(); //.replace(biocacheMediaDir, biocacheMediaUrl);
+                            String body = messageSource.getMessage("offlineEmailBody", new Object[]{fileLocation}, "The file has been generated. Please download you file from " + fileLocation , null);
+                            emailService.sendEmail(currentDownload.getEmail(), subject, body);
+
+                            //now take the job off the list
+                            persistentQueueDAO.removeDownloadFromQueue(currentDownload);
+
+                            //save the statistics to the download directory
+                            FileOutputStream statsStream = FileUtils.openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()+File.separator+"downloadStats.json"));
+                            String json = objectMapper.writeValueAsString(currentDownload);
+                            statsStream.write(json.getBytes() );
+                            statsStream.flush();
+                            statsStream.close();
+                        }
+
                     } catch(Exception e){
                         logger.error("Error in offline download", e);
                         //TODO maybe send an email to support saying that the offline email failed??
