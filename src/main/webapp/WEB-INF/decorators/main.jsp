@@ -88,8 +88,6 @@
             src="http://www.ala.org.au/wp-content/themes/ala2011/scripts/superfish/superfish.js"></script>
     <script language="JavaScript" type="text/javascript"
             src="http://www.ala.org.au/wp-content/themes/ala2011/scripts/jquery.autocomplete.js"></script>
-    <script language="JavaScript" type="text/javascript"
-            src="http://www.ala.org.au/wp-content/themes/ala2011/scripts/uservoice.js"></script>
     <style type="text/css">
             /**************************
             to highlight the correct menu item - should be in style.css
