@@ -958,18 +958,23 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping(value = {"/occurrence/deleted"}, method = RequestMethod.GET)
     public @ResponseBody String[] getDeleteOccurrences(@RequestParam(value ="date", required = true) String fromDate,
-                                                       HttpServletResponse response) throws Exception{
+                                                       HttpServletResponse response) throws Exception {
+
+       String[] deletedRecords = new String[0];
         try {
             //date must be in a yyyy-MM-dd format
             Date date = org.apache.commons.lang.time.DateUtils.parseDate(fromDate,new String[]{"yyyy-MM-dd"});
-            return Store.getDeletedRecords(date);
+            deletedRecords = Store.getDeletedRecords(date);
+            if(deletedRecords == null) {
+                deletedRecords = new String[0];
+            }
         } catch(java.text.ParseException e) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid date format.  Please provide date as yyyy-MM-dd.");
         } catch(Exception e) {
             logger.error(e.getMessage(), e);
             response.sendError(500, "Problem retrieving details of deleted records.");
         }
-        return null;
+        return deletedRecords;
     }
     
     /**
