@@ -1,2 +1,4 @@
-
-src/main/resources/git.properties
+.idea/*
+target/*
+*.iml
+out/*

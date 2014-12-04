@@ -1,5 +1,12 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>au.org.ala</groupId>
+        <artifactId>ala-parent-pom</artifactId>
+        <version>1.0</version>
+    </parent>
+
     <groupId>au.org.ala</groupId>
     <artifactId>biocache-service</artifactId>
     <packaging>war</packaging>
@@ -192,36 +199,17 @@
             <artifactId>mail</artifactId>
             <version>1.4.3</version>
         </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>org.springframework.web.servlet</artifactId>
-            <version>${spring.version}</version>
-            <exclusions>
-                <exclusion>
-                    <artifactId>com.springsource.org.aopalliance</artifactId>
-                    <groupId>org.aopalliance</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>com.springsource.org.apache.commons.logging</artifactId>
-                    <groupId>org.apache.commons</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.webflow</groupId>
-            <artifactId>org.springframework.js</artifactId>
-            <version>2.0.8.RELEASE</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>org.springframework.context.support</artifactId>
-            <version>${spring.version}</version>
-        </dependency>
         <!-- JMS lib start-->
         <dependency>
             <groupId>au.org.ala</groupId>
             <artifactId>biocache-jms</artifactId>
             <version>1.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.geronimo.specs</groupId>
+                    <artifactId>com.springsource.javax.management.j2ee</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
@@ -303,7 +291,7 @@
             <version>20090211</version>
         </dependency>
         <dependency>
-            <groupId>atg</groupId>
+            <groupId>atg.taglib.json</groupId>
             <artifactId>json-taglib</artifactId>
             <version>0.4.1</version>
         </dependency>
@@ -365,67 +353,9 @@
             <version>1.0.13</version>
         </dependency>
     </dependencies>
-    <repositories>
-        <!-- ALA repository  -->
-        <repository>
-            <id>ala-repo-snapshots</id>
-            <name>ala-repo</name>
-            <url>http://nexus.ala.org.au/content/repositories/snapshots/</url>
-        </repository>
-        <repository>
-            <id>ala-repo-releases</id>
-            <name>ala-repo-releases</name>
-            <url>http://nexus.ala.org.au/content/repositories/releases/</url>
-        </repository>
-        <repository>
-            <id>ala-repo-legacy</id>
-            <name>ala-repo-legacy</name>
-            <url>http://maven.ala.org.au/repository/</url>
-        </repository>        
-        <!-- Spring 3.0 -->
-        <repository>
-            <id>springsource maven repo</id>
-            <name>Springsource Maven Repository</name>
-            <url>http://maven.springframework.org/milestone</url>
-        </repository>
-        <repository>
-            <id>com.springsource.repository.bundles.milestone</id>
-            <name>SpringSource Enterprise Bundle Repository - External Bundle Milestones</name>
-            <url>http://maven.springframework.org/milestone</url>
-        </repository>
-        <repository>
-            <id>com.springsource.repository.bundles.external</id>
-            <name>SpringSource Enterprise Bundle Repository - External Bundle Releases</name>
-            <url>http://repository.springsource.com/maven/bundles/external</url>
-        </repository>
-        <repository>
-            <id>com.springsource.repository.maven.release</id>
-            <url>http://maven.springframework.org/release/</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-        <repository>
-            <id>com.springsource.repository.bundles.release</id>
-            <name>SpringSource Enterprise Bundle Repository - SpringSource Bundle Releases</name>
-            <url>http://repository.springsource.com/maven/bundles/release/</url>
-        </repository>
-    </repositories>
     <build>
         <finalName>biocache-service</finalName>
     </build>
-    <distributionManagement>
-        <repository>
-            <id>ala-repo</id>
-            <name>Internal Releases</name>
-            <url>http://nexus.ala.org.au/content/repositories/releases/</url>
-        </repository>
-        <snapshotRepository>
-            <id>ala-repo</id>
-            <name>Internal Releases</name>
-            <url>http://nexus.ala.org.au/content/repositories/snapshots/</url>
-        </snapshotRepository>
-    </distributionManagement>
     <profiles>
         <profile>
             <id>default</id>
@@ -449,23 +379,16 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-compiler-plugin</artifactId>
+                        <version>3.2</version>
                         <configuration>
                             <source>1.6</source>
                             <target>1.6</target>
-                            <encoding>UTF8</encoding>
                         </configuration>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-war-plugin</artifactId>
                         <version>2.2</version>
-                        <configuration>
-                            <archive>
-                                <manifestEntries>
-                                    <SCM-Revision>${scm.revision}</SCM-Revision>
-                                </manifestEntries>
-                            </archive>
-                        </configuration>
                     </plugin>
                     <plugin>
                         <groupId>org.mortbay.jetty</groupId>
@@ -496,6 +419,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-compiler-plugin</artifactId>
+                        <version>3.2</version>
                         <configuration>
                             <source>1.6</source>
                             <target>1.6</target>
