@@ -75,7 +75,7 @@
         <dependency>
             <groupId>au.org.ala</groupId>
             <artifactId>ala-logger</artifactId>
-            <version>1.2-SNAPSHOT</version>
+            <version>1.2</version>
         </dependency>
         <!-- ALA common UI -->
         <dependency>
