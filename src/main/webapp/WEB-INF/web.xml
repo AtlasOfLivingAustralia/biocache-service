@@ -84,4 +84,14 @@
         <filter-name>JsonpFilter</filter-name>
         <url-pattern>*.json</url-pattern>
     </filter-mapping>
+
+    <!-- ALA Logger Service -->
+    <filter>
+        <filter-name>LoggerServiceContextFilter</filter-name>
+        <filter-class>au.org.ala.biocache.web.LoggerConfigFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>LoggerServiceContextFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
 </web-app>
