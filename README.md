@@ -5,6 +5,43 @@ Occurrence &amp; mapping webservices.
 
 Theses services are documented here http://api.ala.org.au/apps/biocache
 
+## Release notes 1.3
+
+
+* ability to switch between name lookup services - allowing switch
+* between REST web services provided by BIE and looks against the name
+* formatting for readability
+* Added filter to make the user-agent request header available to the logger client
+* Added dependency: spring-context-suppport
+* Fixed pom dependencies
+* Added parent pom reference
+* Removed unnecessary references from pom
+* Added elements to gitignore file
+* null checks on download service
+* delete records fix
+* remove uservoice
+* configurable threads for uploads
+* added missing i18n
+* added old maven repo back in
+* removed deploy jar plugin
+* removal of redundant jar plugin
+* use mavanagaiata plugin for git commit info in artefacts
+* exception handling fix around deleted records
+* exception handling fix around deleted records
+* LinkedHashMap to preserve facets order
+* Blank speciesGroup param is ignored
+* service exposing species groups config
+* species subgroup spatial queries
+* prevent duplicates in facet list
+* formatting of dynamic facets
+* removed redundant code
+* missing i18n properties
+* configurable facet groupings
+* presence / absence facet
+* occurrences/facets/download counts
+* Fix for endemic/species
+
+
 ## Release notes 1.2
 
  * git version info which will be visible via view source on the home page
