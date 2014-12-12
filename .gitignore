@@ -2,3 +2,5 @@
 target/*
 *.iml
 out/*
+
+src/main/resources/git.properties
