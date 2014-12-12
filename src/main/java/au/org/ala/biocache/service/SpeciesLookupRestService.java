@@ -17,10 +17,7 @@ package au.org.ala.biocache.service;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
-import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
 import javax.inject.Inject;
@@ -34,21 +31,14 @@ import java.util.Map;
  * 
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
-@Component("speciesLookupService")
 public class SpeciesLookupRestService implements SpeciesLookupService {
     
     private final static Logger logger = Logger.getLogger(SpeciesLookupRestService.class);
 	
-    @Inject
-    @Qualifier("restTemplate")
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
 
-    /** URI prefix for bie-service - may be overridden in properties file */
-    @Value("${service.bie.ws.url:http://bie.ala.org.au/ws}")
     protected String bieUriPrefix;
 
-    //NC 20131018: Allow service to be disabled via config (enabled by default)
-    @Value("${service.bie.enabled:false}")
     protected Boolean enabled;
 
     @Inject
@@ -139,8 +129,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
         return names;
     }
 
-    @Override
-    public List<Map<String, String>> getNameDetailsForGuids(List<String> guids) {
+    private List<Map<String, String>> getNameDetailsForGuids(List<String> guids) {
         List<Map<String,String>> results =null;
         if(enabled){
             final String url = bieUriPrefix + "/species/guids/bulklookup.json";
@@ -158,14 +147,13 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
         return results;
     }
 
-    @Override
-    public Map<String, List<Map<String, String>>> getSynonymDetailsForGuids(
+    private Map<String, List<Map<String, String>>> getSynonymDetailsForGuids(
             List<String> guids) {
         Map<String,List<Map<String, String>>> results = null;
         if(enabled){
             final String url = bieUriPrefix + "/species/bulklookup/namesFromGuids.json";
             try{
-                results = restTemplate.postForObject(url, guids, Map.class); 
+                results = restTemplate.postForObject(url, guids, Map.class);
             } catch(Exception ex){
                 logger.error("Requested URI: " + url);
                 logger.error("With POST body: guid=" + StringUtils.join(guids, "&guid="));
@@ -174,16 +162,17 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
         }
         return results;
     }
+
     @Override
     public List<String[]> getSpeciesDetails(List<String> guids,List<Long> counts, boolean includeCounts, boolean includeSynonyms){
         List<String[]> details= new  java.util.ArrayList<String[]>(guids.size());
-        List<Map<String,String>> values =getNameDetailsForGuids(guids);
+        List<Map<String,String>> values = getNameDetailsForGuids(guids);
         Map<String,List<Map<String, String>>> synonyms = includeSynonyms? getSynonymDetailsForGuids(guids):new HashMap<String,List<Map<String,String>>>();
-        int size = includeSynonyms&&includeCounts?13:((includeCounts && !includeSynonyms)||(includeSynonyms && !includeCounts))?12:11;
+        int size = includeSynonyms && includeCounts ? 13 : ((includeCounts && !includeSynonyms) || (includeSynonyms && !includeCounts)) ? 12: 11;
 
 
-        for(int i =0 ;i<guids.size();i++){
-            int countIdx=11;
+        for(int i =0 ; i<guids.size();i++){
+            int countIdx = 11;
             String[] row = new String[size];
             //guid
             String guid = guids.get(i);
@@ -216,8 +205,8 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                             sb.append(n.get("name"));
                         }
                     }
-                    row[11] =sb.toString();
-                    countIdx=12;
+                    row[11] = sb.toString();
+                    countIdx = 12;
                 }
             }
             if(includeCounts){
@@ -225,7 +214,6 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
             }
             details.add(row);
         }
-
 
         return details;
     }
@@ -239,7 +227,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
         String[] startArray = baseHeader;
         if(includeCounts){
             if(includeSynonyms){
-                startArray=countSynonymHeader;
+                startArray = countSynonymHeader;
             } else{
                 startArray = countBaseHeader;
             }
@@ -266,5 +254,21 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
         countBaseHeader = (String[]) ArrayUtils.add(baseHeader,messageSource.getMessage("species.count", null,"Number of Records", null));
         synonymHeader = (String[]) ArrayUtils.add(baseHeader,messageSource.getMessage("species.synonyms", null,"Synonyms", null));
         countSynonymHeader = (String[]) ArrayUtils.add(synonymHeader,messageSource.getMessage("species.count", null,"Number of Records", null));
+    }
+
+    public void setBieUriPrefix(String bieUriPrefix) {
+        this.bieUriPrefix = bieUriPrefix;
+    }
+
+    public void setRestTemplate(RestOperations restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
+    public void setEnabled(Boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public void setMessageSource(AbstractMessageSource messageSource) {
+        this.messageSource = messageSource;
     }
 }

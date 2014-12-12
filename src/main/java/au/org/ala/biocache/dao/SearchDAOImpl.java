@@ -424,7 +424,7 @@ public class SearchDAOImpl implements SearchDAO {
                 //PAGE through the facets until we reach the end.
                 while(ff.getValueCount() > 0){
                     if(ff.getValueCount() > 0){
-                      //process the "species_guid_ facet by looking up the list of guids                
+                        //process the "species_guid_ facet by looking up the list of guids
                         if(shouldLookup){
                             
                             List<String> guids = new ArrayList<String>();
@@ -481,8 +481,8 @@ public class SearchDAOImpl implements SearchDAO {
      * @throws Exception
      */
     private void writeTaxonDetailsToStream(List<String> guids,List<Long> counts, boolean includeCounts, boolean includeSynonyms, CSVRecordWriter writer) throws Exception{
-        List<String[]> values=speciesLookupService.getSpeciesDetails(guids, counts, includeCounts, includeSynonyms);
-        for(String[] value :values){
+        List<String[]> values = speciesLookupService.getSpeciesDetails(guids, counts, includeCounts, includeSynonyms);
+        for(String[] value : values){
             writer.write(value);
         }
     }
