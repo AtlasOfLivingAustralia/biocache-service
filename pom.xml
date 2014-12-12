@@ -10,7 +10,7 @@
     <groupId>au.org.ala</groupId>
     <artifactId>biocache-service</artifactId>
     <packaging>war</packaging>
-    <version>1.3</version>
+    <version>1.4-SNAPSHOT</version>
     <name>biocache-service</name>
     <url>http://biocache.ala.org.au/ws</url>
     <description>This is a the service layer for the Biocache</description>
@@ -27,7 +27,7 @@
         <connection>scm:git:git@github.com:AtlasOfLivingAustralia/biocache-service.git</connection>
         <url>https://github.com/AtlasOfLivingAustralia/biocache-service</url>
         <developerConnection>scm:git:git@github.com:AtlasOfLivingAustralia/biocache-service.git</developerConnection>
-        <tag>biocache-service-1.3</tag>
+        <tag>HEAD</tag>
     </scm>
     <dependencies>
         <!-- JSR 303 validation support -->
