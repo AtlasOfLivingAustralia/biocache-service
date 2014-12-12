@@ -520,7 +520,7 @@ public class OccurrenceController extends AbstractSecureController {
                               HttpServletRequest request,
                               HttpServletResponse response) throws Exception {
         if(requestParams.getFacets().length > 0){
-            ip = ip == null?getIPAddress(request):ip;
+            ip = ip == null ? getIPAddress(request) : ip;
             DownloadDetailsDTO dd = downloadService.registerDownload(requestParams, ip, DownloadDetailsDTO.DownloadType.FACET);
             try {
                 String filename = requestParams.getFile() != null ? requestParams.getFile():requestParams.getFacets()[0];
@@ -528,7 +528,7 @@ public class OccurrenceController extends AbstractSecureController {
                 response.setHeader("Pragma", "must-revalidate");
                 response.setHeader("Content-Disposition", "attachment;filename=" + filename +".csv");
                 response.setContentType("text/csv");
-                searchDAO.writeFacetToStream(requestParams,includeCount, lookupName,includeSynonyms, response.getOutputStream(),dd);
+                searchDAO.writeFacetToStream(requestParams,includeCount, lookupName,includeSynonyms, response.getOutputStream(), dd);
             } finally {
                 downloadService.unregisterDownload(dd);
             }
