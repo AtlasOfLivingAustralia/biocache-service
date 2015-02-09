@@ -274,6 +274,164 @@ public class SearchDAOImpl implements SearchDAO {
         logger.debug("Determined final endemic list ("+list1.size()+")...");        
         return list1;
     }
+
+    /**
+     * (Endemic)
+     *
+     * Returns a list of species that are only within a subQuery.
+     *
+     * The subQuery is a subset of parentQuery.
+     */
+    public List<FieldResultDTO> getSubquerySpeciesOnly(SpatialSearchRequestParams subQuery, SpatialSearchRequestParams parentQuery) throws Exception{
+        if(executor == null){
+            executor = Executors.newFixedThreadPool(maxMultiPartThreads);
+        }
+        // 1)get a list of species that are in the WKT
+        logger.debug("Starting to get Endemic Species...");
+        subQuery.setFacet(true);
+        subQuery.setFacets(parentQuery.getFacets());
+        List<FieldResultDTO> list1 = getValuesForFacet(subQuery);
+        logger.debug("Retrieved species within area...("+list1.size()+")");
+
+        int i = 0, localterms = 0;
+
+        String facet = parentQuery.getFacets()[0];
+        String[] originalFqs = parentQuery.getFq();
+        List<Future<List<FieldResultDTO>>> threads = new ArrayList<Future<List<FieldResultDTO>>>();
+        //batch up the rest of the world query so that we have fqs based on species we want to test for. This should improve the performance of the endemic services.
+        while(i < list1.size()){
+            StringBuffer sb = new StringBuffer();
+            while((localterms == 0 || localterms % termQueryLimit != 0) && i < list1.size()){
+                if(localterms != 0)
+                    sb.append(" OR ");
+                String value = list1.get(i).getFieldValue();
+                if (facet.equals(NAMES_AND_LSID)) {
+                    if (value.startsWith("\"") && value.endsWith("\"")) {
+                        value = value.substring(1, value.length() - 1);
+                    }
+                    value = "\"" + ClientUtils.escapeQueryChars(value) + "\"";
+                } else {
+                    value = ClientUtils.escapeQueryChars(value);
+                }
+                sb.append(facet).append(":").append(value);
+                i++;
+                localterms++;
+            }
+            String newfq = sb.toString();
+            if(localterms ==1)
+                newfq = newfq+ " OR " + newfq; //cater for the situation where there is only one term.  We don't want the term to be escaped again
+            localterms=0;
+            SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
+            BeanUtils.copyProperties(parentQuery, srp);
+            srp.setFq((String[])ArrayUtils.add(originalFqs, newfq));
+            int batch = i / termQueryLimit;
+            EndemicCallable callable = new EndemicCallable(srp, batch,this);
+            threads.add(executor.submit(callable));
+        }
+
+        Collections.sort(list1);
+        for(Future<List<FieldResultDTO>> future: threads){
+            List<FieldResultDTO> list = future.get();
+            if(list != null) {
+                for (FieldResultDTO find : list) {
+                    int idx = Collections.binarySearch(list1, find);
+                    //remove if subquery count < parentquery count
+                    if (idx >= 0 && list1.get(idx).getCount() < find.getCount()) {
+                        list1.remove(idx);
+                    }
+                }
+            }
+        }
+        logger.debug("Determined final endemic list ("+list1.size()+")...");
+        return list1;
+    }
+    /*
+    public List<FieldResultDTO> getSubquerySpeciesOnly(SpatialSearchRequestParams subQuery, SpatialSearchRequestParams parentQuery) throws Exception{
+        //set subQuery facet
+        subQuery.setFacet(true);
+        subQuery.setFacets(parentQuery.getFacets());
+
+        // 1)get a list of species subQuery
+        logger.debug("Starting to get Endemic Species...");
+        List<FieldResultDTO> list1 = getValuesForFacetBasic(subQuery);
+        logger.debug("Retrieved species within area 1...("+list1.size()+")");
+
+        // 2)get a list of species parentQuery
+        List<FieldResultDTO> list2 = getValuesForFacetBasic(parentQuery);
+        logger.debug("Retrieved species within area 2...("+list2.size()+")");
+
+        int a = 0;
+        int b = 0;
+        while (a < list1.size() && b < list2.size()) {
+            if (list1.get(a).compareTo(list2.get(b)) > 0) {
+                //parentQuery species is not in subQuery
+                b++;
+            } else if (list1.get(a).compareTo(list2.get(b)) == 0) {
+                //If counts match then species occurs entirely within subQuery
+                if (list1.get(a).getCount() == list2.get(b).getCount()) {
+                    a++;
+                } else {
+                    list1.remove(a);
+                }
+
+                b++;
+            } else {
+                //should not occur when subQuery is a subset of parentQuery
+                a++;
+            }
+        }
+
+        return list1;
+    }*/
+
+    /**
+     * use index sorting on the returned facets
+     */
+    List<FieldResultDTO> getValuesForFacetBasic(SpatialSearchRequestParams searchParams) throws Exception {
+
+        List<FieldResultDTO> list = new ArrayList<FieldResultDTO>();
+
+        //set to unlimited facets
+        searchParams.setFlimit(-1);
+        formatSearchQuery(searchParams);
+        //add the context information
+        updateQueryContext(searchParams);
+        String queryString = buildSpatialQueryString(searchParams);
+        SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
+        solrQuery.setQuery(queryString);
+
+        //don't want any results returned
+        solrQuery.setRows(0);
+        solrQuery.setFacetLimit(FACET_PAGE_SIZE);
+        solrQuery.setFacetSort("index");
+        int offset = 0;
+
+        QueryResponse qr = runSolrQuery(solrQuery, searchParams);
+        logger.debug("Retrieved facet results from server...");
+        if (!qr.getResults().isEmpty()) {
+            FacetField ff = qr.getFacetField(searchParams.getFacets()[0]);
+
+            //write the header line
+            if (ff != null) {
+                while (ff.getValueCount() > 0) {
+                    //default processing of facets
+                    for (FacetField.Count value : ff.getValues()) {
+                        list.add(new FieldResultDTO(value.getName(), value.getCount()));
+                    }
+
+                    offset += FACET_PAGE_SIZE;
+
+                    //get the next values
+                    solrQuery.remove("facet.offset");
+                    solrQuery.add("facet.offset", Integer.toString(offset));
+                    qr = runSolrQuery(solrQuery, searchParams);
+                    ff = qr.getFacetField(searchParams.getFacets()[0]);
+                }
+            }
+        }
+
+        return list;
+    }
     
     /**
      * Returns the values and counts for a single facet field.    

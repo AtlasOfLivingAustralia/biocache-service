@@ -42,6 +42,19 @@ public interface SearchDAO {
     List<FieldResultDTO> getEndemicSpecies(SpatialSearchRequestParams requestParams) throws Exception;
 
     /**
+     * Returns species that only occur in the supplied subQueryQid
+     * and not in the requestParams query.
+     *
+     * If no requestParams defined the default q=geospatial_kosher:* is used.
+     *
+     * @param subQuery
+     * @param parentQuery
+     * @return
+     * @throws Exception
+     */
+    List<FieldResultDTO> getSubquerySpeciesOnly(SpatialSearchRequestParams subQuery, SpatialSearchRequestParams parentQuery) throws Exception;
+
+    /**
      * Retrieve a list of facet values for the supplied query.
      *
      * @param requestParams
