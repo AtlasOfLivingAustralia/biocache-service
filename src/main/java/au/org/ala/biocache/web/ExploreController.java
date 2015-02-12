@@ -416,6 +416,46 @@ public class ExploreController {
 	    return null;
 	}
 
+    /**
+     * Returns facet values that only occur in the supplied subQueryQid
+     * and not in the parentQuery.
+     *
+     * The facet is defined in the parentQuery. Default facet is SearchDAOImpl.NAMES_AND_LSID
+     *
+     * If no requestParams defined the default q=geospatial_kosher:* is used.
+     *
+     * @return
+     */
+    @RequestMapping(value = "/explore/endemic/species/{subQueryQid}*", method = RequestMethod.GET)
+    public @ResponseBody List<FieldResultDTO> getSpeciesOnlyInOneQuery(SpatialSearchRequestParams parentQuery,
+                                                                  @PathVariable(value="subQueryQid") Long subQueryQid,
+                                                                  HttpServletResponse response)
+            throws Exception{
+        ParamsCacheObject qid = ParamsCache.getParamCacheObjectFromQuery("qid:" + subQueryQid);
+        SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
+        subQuery.setQ(qid.getQ());
+        subQuery.setFacets(qid.getFqs());
+        subQuery.setWkt(qid.getWkt());
+
+        if (parentQuery.getQ() == null) {
+            parentQuery.setQ("geospatial_kosher:*");
+        }
+        if (parentQuery.getFacets() == null || parentQuery.getFacets().length == 0) {
+            parentQuery.setFacets(new String[]{SearchDAOImpl.NAMES_AND_LSID});
+        }
+
+        if(subQuery != null ){
+            if(parentQuery.getFacets() != null && parentQuery.getFacets().length ==1){
+                return searchDao.getSubquerySpeciesOnly(subQuery, parentQuery);
+            } else {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply only one facet.");
+            }
+        } else {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply a valid sub query qid.");
+        }
+        return null;
+    }
+
    /**
     * Returns the species that only have occurrences in the supplied WKT.
     * @return
@@ -430,13 +470,69 @@ public class ExploreController {
         java.io.PrintWriter writer = response.getWriter();
         writer.write("Family,Scientific name,Common name,Taxon rank,LSID,# Occurrences");
         for(FieldResultDTO item: list){
-            String[] values = item.getLabel().split("\\|",6);
+            String s = item.getLabel();
+            if (s.startsWith("\"") && s.endsWith("\"") && s.length() > 2) s = s.substring(1, s.length() - 1);
+            String[] values = s.split("\\|",6);
             if(values.length >= 5){
                 writer.write("\n"+values[4]+",\""+values[0]+"\",\""+values[2]+"\",,"+values[1] + ","+item.getCount());
             }
         }
         writer.flush();
         writer.close();
+    }
+
+    /**
+     * Returns facet values that only occur in the supplied subQueryQid
+     * and not in the parentQuery.
+     *
+     * The facet is defined in the parentQuery. Default facet is SearchDAOImpl.NAMES_AND_LSID
+     *
+     * If no requestParams defined the default q=geospatial_kosher:* is used.
+     *
+     * @return
+     */
+    @RequestMapping(value = "/explore/endemic/species/{subQueryQid}.csv", method = RequestMethod.GET)
+    public void getSpeciesOnlyInOneQueryCSV(SpatialSearchRequestParams parentQuery,
+                                                                       @PathVariable(value="subQueryQid") Long subQueryQid,
+                                                                       HttpServletResponse response)
+            throws Exception{
+        ParamsCacheObject qid = ParamsCache.getParamCacheObjectFromQuery("qid:" + subQueryQid);
+        SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
+        subQuery.setQ(qid.getQ());
+        subQuery.setFacets(qid.getFqs());
+        subQuery.setWkt(qid.getWkt());
+
+        if (parentQuery.getQ() == null) {
+            parentQuery.setQ("geospatial_kosher:*");
+        }
+        if (parentQuery.getFacets() == null || parentQuery.getFacets().length == 0) {
+            parentQuery.setFacets(new String[]{SearchDAOImpl.NAMES_AND_LSID});
+        }
+
+        if(subQuery != null ){
+            if(parentQuery.getFacets() != null && parentQuery.getFacets().length ==1){
+                List<FieldResultDTO> list = searchDao.getSubquerySpeciesOnly(subQuery, parentQuery);
+                response.setCharacterEncoding("UTF-8");
+                response.setContentType("text/plain");
+                java.io.PrintWriter writer = response.getWriter();
+                writer.write("Family,Scientific name,Common name,Taxon rank,LSID,# Occurrences");
+                for(FieldResultDTO item: list){
+                    String s = item.getLabel();
+                    if (s.startsWith("\"") && s.endsWith("\"") && s.length() > 2) s = s.substring(1, s.length() - 1);
+                    String[] values = s.split("\\|", 6);
+                    if(values.length >= 5){
+                        writer.write("\n"+values[4]+",\""+values[0].replace("\"","\"\"").replace("\\", "\\\\")+"\"," +
+                                "\""+values[2].replace("\"","\"\"").replace("\\", "\\\\")+"\",,"+values[1] + ","+item.getCount());
+                    }
+                }
+                writer.flush();
+                writer.close();
+            } else {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply only one facet.");
+            }
+        } else {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply a valid sub query qid.");
+        }
     }
 
     /**

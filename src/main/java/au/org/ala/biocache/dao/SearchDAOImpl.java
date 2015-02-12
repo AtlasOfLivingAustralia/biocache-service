@@ -274,6 +274,77 @@ public class SearchDAOImpl implements SearchDAO {
         logger.debug("Determined final endemic list ("+list1.size()+")...");        
         return list1;
     }
+
+    /**
+     * (Endemic)
+     *
+     * Returns a list of species that are only within a subQuery.
+     *
+     * The subQuery is a subset of parentQuery.
+     */
+    public List<FieldResultDTO> getSubquerySpeciesOnly(SpatialSearchRequestParams subQuery, SpatialSearchRequestParams parentQuery) throws Exception{
+        if(executor == null){
+            executor = Executors.newFixedThreadPool(maxMultiPartThreads);
+        }
+        // 1)get a list of species that are in the WKT
+        logger.debug("Starting to get Endemic Species...");
+        subQuery.setFacet(true);
+        subQuery.setFacets(parentQuery.getFacets());
+        List<FieldResultDTO> list1 = getValuesForFacet(subQuery);
+        logger.debug("Retrieved species within area...("+list1.size()+")");
+
+        int i = 0, localterms = 0;
+
+        String facet = parentQuery.getFacets()[0];
+        String[] originalFqs = parentQuery.getFq();
+        List<Future<List<FieldResultDTO>>> threads = new ArrayList<Future<List<FieldResultDTO>>>();
+        //batch up the rest of the world query so that we have fqs based on species we want to test for. This should improve the performance of the endemic services.
+        while(i < list1.size()){
+            StringBuffer sb = new StringBuffer();
+            while((localterms == 0 || localterms % termQueryLimit != 0) && i < list1.size()){
+                if(localterms != 0)
+                    sb.append(" OR ");
+                String value = list1.get(i).getFieldValue();
+                if (facet.equals(NAMES_AND_LSID)) {
+                    if (value.startsWith("\"") && value.endsWith("\"")) {
+                        value = value.substring(1, value.length() - 1);
+                    }
+                    value = "\"" + ClientUtils.escapeQueryChars(value) + "\"";
+                } else {
+                    value = ClientUtils.escapeQueryChars(value);
+                }
+                sb.append(facet).append(":").append(value);
+                i++;
+                localterms++;
+            }
+            String newfq = sb.toString();
+            if(localterms ==1)
+                newfq = newfq+ " OR " + newfq; //cater for the situation where there is only one term.  We don't want the term to be escaped again
+            localterms=0;
+            SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
+            BeanUtils.copyProperties(parentQuery, srp);
+            srp.setFq((String[])ArrayUtils.add(originalFqs, newfq));
+            int batch = i / termQueryLimit;
+            EndemicCallable callable = new EndemicCallable(srp, batch,this);
+            threads.add(executor.submit(callable));
+        }
+
+        Collections.sort(list1);
+        for(Future<List<FieldResultDTO>> future: threads){
+            List<FieldResultDTO> list = future.get();
+            if(list != null) {
+                for (FieldResultDTO find : list) {
+                    int idx = Collections.binarySearch(list1, find);
+                    //remove if subquery count < parentquery count
+                    if (idx >= 0 && list1.get(idx).getCount() < find.getCount()) {
+                        list1.remove(idx);
+                    }
+                }
+            }
+        }
+        logger.debug("Determined final endemic list ("+list1.size()+")...");
+        return list1;
+    }
     
     /**
      * Returns the values and counts for a single facet field.    

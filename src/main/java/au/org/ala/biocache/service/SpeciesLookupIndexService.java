@@ -4,6 +4,7 @@ package au.org.ala.biocache.service;
 import au.org.ala.names.model.LinnaeanRankClassification;
 import au.org.ala.names.model.NameSearchResult;
 import au.org.ala.names.search.ALANameSearcher;
+import com.mockrunner.util.common.StringUtil;
 import org.apache.commons.lang.ArrayUtils;
 import org.springframework.context.support.AbstractMessageSource;
 
@@ -72,6 +73,11 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
                 String lsid = getNameIndex().searchForLsidById(guid);
                 if(lsid != null){
                     nsr = getNameIndex().searchForRecordByLsid(lsid);
+                } else if (guid != null && StringUtil.countMatches(guid, "|") == 4){
+                    //is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
+                    if (guid.startsWith("\"") && guid.endsWith("\"") && guid.length() > 2) guid = guid.substring(1, guid.length() - 1);
+                    lsid = guid.split("\\|", 6)[1];
+                    nsr = getNameIndex().searchForRecordByLsid(lsid);
                 }
             }
 
@@ -89,6 +95,22 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
                         classification.getGenus(),
                         classification.getSpecies(),
                         classification.getSubspecies()
+                };
+            } else if (StringUtil.countMatches(guid, "|") == 4){
+                //not matched and is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
+                if (guid.startsWith("\"") && guid.endsWith("\"") && guid.length() > 2) guid = guid.substring(1, guid.length() - 1);
+                String [] split = guid.split("\\|", 6);
+                result = new String[]{
+                        split[0],
+                        "",
+                        split[3],
+                        "",
+                        "",
+                        "",
+                        split[4],
+                        "",
+                        "",
+                        ""
                 };
             } else {
                 result = new String[]{

@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import com.mockrunner.util.common.StringUtil;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -21,6 +22,7 @@ import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.web.client.RestOperations;
 
 import javax.inject.Inject;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -170,6 +172,24 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
         Map<String,List<Map<String, String>>> synonyms = includeSynonyms? getSynonymDetailsForGuids(guids):new HashMap<String,List<Map<String,String>>>();
         int size = includeSynonyms && includeCounts ? 13 : ((includeCounts && !includeSynonyms) || (includeSynonyms && !includeCounts)) ? 12: 11;
 
+        //case names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
+        //rebuild values using taxonConceptIds
+        if (values != null && values.get(0) == null
+                && guids.size() > 0 && StringUtil.countMatches(guids.get(0), "|") == 4) {
+            List<String> taxonConceptIds = new ArrayList(guids.size());
+            for(String s : guids) {
+                if (s != null) {
+                    if (s.startsWith("\"") && s.endsWith("\"") && s.length() > 2) s = s.substring(1, s.length() - 1);
+                    String[] split = s.split("\\|", 6);
+                    if (split.length == 5) {
+                        taxonConceptIds.add(split[1]);
+                    } else {
+                        taxonConceptIds.add("");
+                    }
+                }
+            }
+            values = getNameDetailsForGuids(taxonConceptIds);
+        }
 
         for(int i =0 ; i<guids.size();i++){
             int countIdx = 11;
@@ -191,11 +211,26 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                     row[8]=map.get("family");
                     row[9]=map.get("genus");
                     row[10]=map.get("commonNameSingle");
+                } else if (StringUtil.countMatches(guid, "|") == 4){
+                    //not matched and is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
+                    if (guid.startsWith("\"") && guid.endsWith("\"") && guid.length() > 2) guid = guid.substring(1, guid.length() - 1);
+                    String [] split = guid.split("\\|", 6);
+                    row[0] = guid;
+                    row[1] = split[0];
+                    row[2] = "";
+                    row[3] = "";
+                    row[4] = split[3];
+                    row[5] = "";
+                    row[6] = "";
+                    row[7] = "";
+                    row[8] = split[4];
+                    row[9] = "";
+                    row[10] = split[2];
                 }
 
                 if(includeSynonyms){
                     //retrieve a list of the synonyms
-                    List<Map<String,String>> names =synonyms.get(guid);
+                    List<Map<String,String>> names =synonyms.get(row[0]);
                     StringBuilder sb =new StringBuilder();
                     for(Map<String,String> n :names){
                         if(!guid.equals(n.get("guid"))){
