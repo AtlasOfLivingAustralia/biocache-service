@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.util;
 
+import au.org.ala.biocache.Config;
 import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import org.apache.commons.lang.StringUtils;
@@ -41,6 +42,8 @@ public class DownloadFields {
 
     private Properties downloadProperties;
     private Map<String,IndexFieldDTO> indexFieldMaps;
+    private Long layerNamesLastUpdated = 0L;
+    private Long layerNamesRefreshTime = (60 * 1000L);
 
     public DownloadFields(Set<IndexFieldDTO> indexFields){
         //initialise the properties
@@ -52,12 +55,29 @@ public class DownloadFields {
             for(IndexFieldDTO field: indexFields){
                 indexFieldMaps.put(field.getName(), field);
             }
+
+            updateLayerNames();
+
+            //convert property in minutes to milliseconds
+            layerNamesRefreshTime = Long.parseLong(downloadProperties.getProperty("fields.layers.refresh.time", "60")) * 60 * 1000;
         } catch(Exception e) {
         	logger.error(e.getMessage(), e);
         }
         
         if(downloadProperties.getProperty("fields") == null){
             downloadProperties.setProperty("fields", defaultFields);
+        }
+    }
+
+    synchronized private void updateLayerNames() {
+        //update layer names occasionally
+        if (layerNamesLastUpdated + layerNamesRefreshTime < System.currentTimeMillis()) {
+            Map<String, String> fields = new LayersStore(Config.layersServiceUrl()).getFieldIdsAndDisplayNames();
+            for(String fieldId: fields.keySet()) {
+                downloadProperties.put(fieldId, fields.get(fieldId));
+            }
+
+            layerNamesLastUpdated = System.currentTimeMillis();
         }
     }
 
@@ -75,6 +95,8 @@ public class DownloadFields {
      * @return
      */
     public String[] getHeader(String[] values, boolean useSuffix){
+        updateLayerNames();
+
         String[] header = new String[values.length];
         for(int i =0; i < values.length; i++){
             //attempt to get the headervalue from the properties
@@ -109,6 +131,8 @@ public class DownloadFields {
      * @return
      */
     public List<String>[] getIndexFields(String[] values){
+        updateLayerNames();
+
         java.util.List<String> mappedNames = new java.util.LinkedList<String>();
         java.util.List<String> headers = new java.util.LinkedList<String>();
         java.util.List<String> unmappedNames = new java.util.LinkedList<String>();

@@ -18,8 +18,8 @@ package au.org.ala.biocache.util;
  *
  * @author Adam
  */
-public class ParamsCacheSizeException extends Exception {
-     public ParamsCacheSizeException(long sizeInBytes) {
+public class QidSizeException extends Exception {
+     public QidSizeException(long sizeInBytes) {
          super("Too large for cache: " + sizeInBytes + " bytes");
      }
 }
