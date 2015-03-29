@@ -32,7 +32,7 @@ import java.util.Set;
 public class AbstractSecureController {
 
     private final static Logger logger = LoggerFactory.getLogger(AbstractSecureController.class);
-    @Value("${api.check.url:http://auth.ala.org.au/apikey/ws/check?apikey=}")
+    @Value("${api.check.url:https://auth.ala.org.au/apikey/ws/check?apikey=}")
     protected String apiCheckUrl;
 
     /** Local cache of keys */
