@@ -57,12 +57,6 @@ import java.util.regex.Pattern;
  *
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
- *
- * History:
- * 1 Sept 10 (MOK011): added restfulClient to retrieve citation information into citation.txt
- * [private void getCitations(Set<String> keys, OutputStream out) throws HttpException, IOException]
- *
- * 14 Dept 10 (MOK011): modified getCitations function to get csv format data from Citation Service.
  */
 @Controller
 public class OccurrenceController extends AbstractSecureController {
@@ -333,8 +327,7 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = {"/occurrences/taxon/{guid:.+}.json*","/occurrences/taxon/{guid:.+}*","/occurrences/taxa/{guid:.+}*"}, method = RequestMethod.GET)
     public @ResponseBody SearchResultDTO occurrenceSearchByTaxon(
                                                                  SpatialSearchRequestParams requestParams,
-                                                                 @PathVariable("guid") String guid,
-                                                                 Model model) throws Exception {
+                                                                 @PathVariable("guid") String guid) throws Exception {
         requestParams.setQ("lsid:" + guid);
         SearchUtils.setDefaultParams(requestParams);
         return occurrenceSearch(requestParams);
@@ -357,7 +350,7 @@ public class OccurrenceController extends AbstractSecureController {
                                                                  @PathVariable("guid") String guid) throws Exception {
         requestParams.setQ("lsid:" + guid) ;
         Map<String,Integer> sources = searchDAO.getSourcesForQuery(requestParams);
-        //now turn them to a list of OccurenceSourceDTO
+        //now turn them to a list of OccurrenceSourceDTO
         return searchUtils.getSourceInformation(sources);
     }
     
@@ -567,7 +560,6 @@ public class OccurrenceController extends AbstractSecureController {
     
     @RequestMapping(value = "/occurrences/download/batchFile", method = RequestMethod.GET)
     public String batchDownload(
-                                HttpServletResponse response,
                                 HttpServletRequest request,
                                 @Valid final DownloadRequestParams params,
                                 BindingResult result,
