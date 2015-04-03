@@ -47,9 +47,6 @@ public class DownloadController extends AbstractSecureController {
     @Inject
     protected PersistentQueueDAO persistentQueueDAO;
     
-    /** Stores whether or not additional offline downloads can be requested    */
-    private boolean isOfflineAvailable;
-    
     /**
      * Retrieves all the downloads that are on the queue
      * @return
