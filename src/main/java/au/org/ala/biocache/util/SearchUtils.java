@@ -48,8 +48,6 @@ public class SearchUtils {
     private SpeciesLookupService speciesLookupService;
     @Value("${name.index.dir:/data/lucene/namematching_v13}")
     protected String nameIndexLocation;
-    @Value("${taxon.profile.enabled:false}")
-    protected boolean taxonProfileEnabled;
 
     ALANameSearcher nameIndex = null;
 
@@ -200,52 +198,26 @@ public class SearchUtils {
     public String[] getTaxonSearch(String lsid) {
 
         String[] result = new String[0];
-        if(taxonProfileEnabled){
-            // Get the taxon profile from the biocache cache - this could be replaced with a webservice call if necessary
-            Option<TaxonProfile> opt = TaxonProfileDAO.getByGuid(lsid);
-
-            if (!opt.isEmpty()) {
-                TaxonProfile tc = opt.get();
-                StringBuffer dispSB = new StringBuffer(tc.getRankString()
-                        + ": " + tc.getScientificName());
-                if (tc.getCommonName() != null) {
-                    dispSB.append(" : ");
-                    dispSB.append(tc.getCommonName());
-                }
-                //return the lft and rgt range if they exist otherwise return the scientific name
-                if (tc.getLeft() == null || tc.getRight() == null){
-                    result = new String[]{"taxon_name:\"" + tc.getScientificName() + "\" OR taxon_concept_lsid:" + ClientUtils.escapeQueryChars(lsid), dispSB.toString()};
-                } else {
-                    StringBuilder sb = new StringBuilder("lft:[");
-                    sb.append(tc.getLeft()).append(" TO ").append(tc.getRight()).append("]");
-                    result = new String[]{sb.toString(), dispSB.toString()};
-                }
+        //use the name matching index
+        try {
+            if(nameIndex == null){
+                nameIndex = new ALANameSearcher(nameIndexLocation);
+            }
+            NameSearchResult nsr = nameIndex.searchForRecordByLsid(lsid);
+            if(nsr != null ){
+                String rank = nsr.getRank() != null ? nsr.getRank().toString() : "Unknown Rank";
+                String scientificName = nsr.getRankClassification() != null ? nsr.getRankClassification().getScientificName():null;
+                StringBuffer dispSB = new StringBuffer(rank + ": " + scientificName);
+                StringBuilder sb = new StringBuilder("lft:[");
+                String lft = nsr.getLeft() != null ? nsr.getLeft():"0";
+                String rgt = nsr.getRight() != null ? nsr.getRight():"0";
+                sb.append(lft).append(" TO ").append(rgt).append("]");
+                return new String[]{sb.toString(), dispSB.toString()};
             } else {
-                //If the lsid for the taxon concept can not be found just return the original string
-                result = new String[]{"taxon_concept_lsid:" + ClientUtils.escapeQueryChars(lsid), "taxon_concept_lsid:" + lsid};
+                return new String[]{"taxon_concept_lsid:" + ClientUtils.escapeQueryChars(lsid), "taxon_concept_lsid:" + lsid};
             }
-        } else {
-            //use the name matching index
-            try {
-                if(nameIndex == null){
-                    nameIndex = new ALANameSearcher(nameIndexLocation);
-                }
-                NameSearchResult nsr = nameIndex.searchForRecordByLsid(lsid);
-                if(nsr != null ){
-                    String rank = nsr.getRank() != null ? nsr.getRank().toString() : "Unknown Rank";
-                    String scientificName = nsr.getRankClassification() != null ? nsr.getRankClassification().getScientificName():null;
-                    StringBuffer dispSB = new StringBuffer(rank + ": " + scientificName);
-                    StringBuilder sb = new StringBuilder("lft:[");
-                    String lft = nsr.getLeft() != null ? nsr.getLeft():"0";
-                    String rgt = nsr.getRight() != null ? nsr.getRight():"0";
-                    sb.append(lft).append(" TO ").append(rgt).append("]");
-                    return new String[]{sb.toString(), dispSB.toString()};
-                } else {
-                    return new String[]{"taxon_concept_lsid:" + ClientUtils.escapeQueryChars(lsid), "taxon_concept_lsid:" + lsid};
-                }
-            } catch(Exception e){
-                logger.error(e.getMessage(), e);
-            }
+        } catch(Exception e){
+            logger.error(e.getMessage(), e);
         }
 
         return result;
