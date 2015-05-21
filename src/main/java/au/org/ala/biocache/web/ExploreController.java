@@ -15,11 +15,11 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.Store;
+import au.org.ala.biocache.dao.QidCacheDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.*;
-import au.org.ala.biocache.util.ParamsCache;
-import au.org.ala.biocache.util.ParamsCacheObject;
+import au.org.ala.biocache.model.Qid;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -51,6 +51,9 @@ public class ExploreController {
     /** Name of view for site home page */
     private final String DEFAULT_LOCATION = "Clunies Ross St, Black Mountain, ACT";
     private final String POINTS_GEOJSON = "json/pointsGeoJson";
+
+    @Inject
+    protected QidCacheDAO qidCacheDao;
 
     /** Mapping of radius in km to OpenLayers zoom level */
     public final static HashMap<Float, Integer> radiusToZoomLevelMap = new HashMap<Float, Integer>();
@@ -397,11 +400,12 @@ public class ExploreController {
 	public @ResponseBody List<FieldResultDTO> getSpeciesOnlyInWKT(SpatialSearchRequestParams requestParams,
 	          HttpServletResponse response) 
 	              throws Exception{
-	    ParamsCacheObject pco = ParamsCache.getParamCacheObjectFromQuery(requestParams.getQ());
-	    String wkt =StringUtils.isNotBlank(requestParams.getWkt())?requestParams.getWkt():pco.getWkt();
-	    if(pco != null){
-	        requestParams.setQ(pco.getQ());
-	        requestParams.setWkt(pco.getWkt());
+	    Qid qid = qidCacheDao.getQidFromQuery(requestParams.getQ());
+	    String wkt =StringUtils.isNotBlank(requestParams.getWkt())?requestParams.getWkt():qid.getWkt();
+	    if(qid != null){
+	        requestParams.setQ(qid.getQ());
+	        requestParams.setWkt(qid.getWkt());
+            requestParams.setFq(qid.getFqs());
 	    }
 	    
 	    if(StringUtils.isNotBlank(wkt) ){
@@ -431,7 +435,7 @@ public class ExploreController {
                                                                   @PathVariable(value="subQueryQid") Long subQueryQid,
                                                                   HttpServletResponse response)
             throws Exception{
-        ParamsCacheObject qid = ParamsCache.getParamCacheObjectFromQuery("qid:" + subQueryQid);
+        Qid qid = qidCacheDao.getQidFromQuery("qid:" + subQueryQid);
         SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
         subQuery.setQ(qid.getQ());
         subQuery.setFacets(qid.getFqs());
@@ -496,7 +500,7 @@ public class ExploreController {
                                                                        @PathVariable(value="subQueryQid") Long subQueryQid,
                                                                        HttpServletResponse response)
             throws Exception{
-        ParamsCacheObject qid = ParamsCache.getParamCacheObjectFromQuery("qid:" + subQueryQid);
+        Qid qid = qidCacheDao.getQidFromQuery("qid:" + subQueryQid);
         SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
         subQuery.setQ(qid.getQ());
         subQuery.setFacets(qid.getFqs());

@@ -14,9 +14,11 @@
  ***************************************************************************/
 package au.org.ala.biocache.web;
 
+import au.org.ala.biocache.dao.QidCacheDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dao.TaxonDAO;
 import au.org.ala.biocache.dto.*;
+import au.org.ala.biocache.model.Qid;
 import au.org.ala.biocache.util.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -92,6 +94,8 @@ public class WMSController {
     protected TaxonDAO taxonDAO;
     @Inject
     protected SearchUtils searchUtils;
+    @Inject
+    protected QidCacheDAO qidCacheDAO;
     /** Load a smaller 256x256 png than java.image produces */
     final static byte[] blankImageBytes;
 
@@ -133,11 +137,13 @@ public class WMSController {
     /**
      * Store query params list
      */
-    @RequestMapping(value = {"/webportal/params","/mapping/params"}, method = RequestMethod.POST)
+    @RequestMapping(value = {"/webportal/params", "/mapping/params"}, method = RequestMethod.POST)
     public void storeParams(SpatialSearchRequestParams requestParams,
-            @RequestParam(value = "bbox", required = false, defaultValue = "false") String bbox,
-            @RequestParam(value = "title", required = false) String title,
-            HttpServletResponse response) throws Exception {
+                            @RequestParam(value = "bbox", required = false, defaultValue = "false") String bbox,
+                            @RequestParam(value = "title", required = false) String title,
+                            @RequestParam(value = "maxage", required = false, defaultValue = "-1") Long maxage,
+                            @RequestParam(value = "source", required = false) String source,
+                            HttpServletResponse response) throws Exception {
 
         //get bbox (also cleans up Q)
         double[] bb = null;
@@ -150,15 +156,16 @@ public class WMSController {
         }
 
         //store the title if necessary
-        if(title == null)
+        if (title == null)
             title = requestParams.getDisplayString();
         String[] fqs = getFq(requestParams);
-        if(fqs != null && fqs.length==1 && fqs[0].length()==0){
-            fqs =null;
+        if (fqs != null && fqs.length == 1 && fqs[0].length() == 0) {
+            fqs = null;
         }
-        Long qid= ParamsCache.put(requestParams.getFormattedQuery(), title, requestParams.getWkt(), bb,fqs);
+        String qid = qidCacheDAO.put(requestParams.getFormattedQuery(), title, requestParams.getWkt(), bb, fqs, maxage, source);
+
         response.setContentType("text/plain");
-        writeBytes(response, qid.toString().getBytes());        
+        writeBytes(response, qid.getBytes());
     }
 
     /**
@@ -168,7 +175,7 @@ public class WMSController {
     public
     @ResponseBody
     Boolean storeParams(@PathVariable("id") Long id) throws Exception {
-        return ParamsCache.get(id) != null;
+        return qidCacheDAO.get(String.valueOf(id)) != null;
     }
 
     /**
@@ -178,8 +185,9 @@ public class WMSController {
      * @throws Exception
      */
     @RequestMapping(value = {"/webportal/params/details/{id}","/mapping/params/details/{id}"}, method = RequestMethod.GET)
-    public @ResponseBody ParamsCacheObject getParamCacheObject(@PathVariable("id") Long id) throws Exception{
-        return ParamsCache.get(id);
+    public @ResponseBody
+    Qid getQid(@PathVariable("id") Long id) throws Exception{
+        return qidCacheDAO.get(String.valueOf(id));
     }
 
     /**
@@ -370,7 +378,7 @@ public class WMSController {
         String q = requestParams.getQ();
         if (q.startsWith("qid:")) {
             try {
-                bbox = ParamsCache.get(Long.parseLong(q.substring(4))).getBbox();
+                bbox = qidCacheDAO.get(q.substring(4)).getBbox();
             } catch (Exception e) {
             }
         }
@@ -402,7 +410,7 @@ public class WMSController {
         String q = requestParams.getQ();
         if (q.startsWith("qid:")) {
             try {
-                bbox = ParamsCache.get(Long.parseLong(q.substring(4))).getBbox();
+                bbox = qidCacheDAO.get(q.substring(4)).getBbox();
             } catch (Exception e) {
             }
         }
@@ -1527,7 +1535,7 @@ public class WMSController {
 
         //bounding box test (q must be 'qid:' + number)
         if (q.startsWith("qid:")) {
-            double[] queryBBox = ParamsCache.get(Long.parseLong(q.substring(4))).getBbox();
+            double[] queryBBox = qidCacheDAO.get(q.substring(4)).getBbox();
             if (queryBBox != null && (queryBBox[0] > bbox[2] || queryBBox[2] < bbox[0]
                     || queryBBox[1] > bbox[3] || queryBBox[3] < bbox[1])) {
                 displayBlankImage(response);
@@ -2126,7 +2134,7 @@ public class WMSController {
         String q = requestParams.getQ();
         if (q.startsWith("qid:")) {
             try {
-                qidFq = ParamsCache.get(Long.parseLong(q.substring(4))).getFqs();
+                qidFq = qidCacheDAO.get(q.substring(4)).getFqs();
                 if (qidFq != null) {
                     qidFqLength = qidFq.length;
                 }

@@ -248,6 +248,8 @@ public class UploadController {
         final String urlToZippedData = request.getParameter("csvZippedUrl");
         final String csvDataAsString = request.getParameter("csvData");
         final String datasetName = request.getParameter("datasetName");
+        final String alaId = request.getParameter("alaId");
+
         if(StringUtils.isEmpty(urlToZippedData) && StringUtils.isEmpty(csvDataAsString)){
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Must supply 'csvZippedUrl' or 'csvData'");
             return null;
@@ -308,7 +310,7 @@ public class UploadController {
                 csvData = new CSVReader(new StringReader(csvDataAsString), separatorChar, '"');
             }
 
-            String tempUid = createTempResource(datasetName, lineCount);
+            String tempUid = createTempResource(datasetName, lineCount, alaId);
 
             //do the upload asynchronously
             UploaderThread ut = new UploaderThread();
@@ -322,6 +324,7 @@ public class UploadController {
             ut.tempUid = tempUid;
             ut.customIndexFields = customIndexFields;
             ut.threads = uploadThreads;
+            ut.alaId = alaId;
             new Thread(ut).start();
 
             logger.debug("Temporary UID being returned...." + tempUid);
@@ -386,13 +389,14 @@ public class UploadController {
         return new File(unzippedFilePath);
     }
 
-    private String createTempResource(String datasetName, int lineCount) throws IOException {
+    private String createTempResource(String datasetName, int lineCount, String alaId) throws IOException {
 
         ObjectMapper mapper = new ObjectMapper();
 
         UserUpload uu = new UserUpload();
         uu.setNumberOfRecords(lineCount);
         uu.setName(datasetName);
+        uu.setAlaId(alaId);
 
         String json = mapper.writeValueAsString(uu);
         PostMethod post = new PostMethod(registryUrl + "/tempDataResource");
@@ -458,6 +462,7 @@ class UploaderThread implements Runnable {
     protected Integer recordsToLoad = null;
     protected String[] customIndexFields = null;
     protected Integer threads = 4;
+    protected String alaId = null;
 
     @Override
     public void run(){
@@ -592,6 +597,9 @@ class UploaderThread implements Runnable {
             }
         }
         map.put("datasetName", datasetName);
+        if (alaId != null) {
+            map.put("userId", alaId);
+        }
         if(!map.isEmpty()){
             au.org.ala.biocache.Store.loadRecord(tempUid, map, false);
         }

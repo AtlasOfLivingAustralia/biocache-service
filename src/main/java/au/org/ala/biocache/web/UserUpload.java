@@ -8,6 +8,7 @@ public class UserUpload {
     String firstName = "";
     String lastName = "";
     Integer numberOfRecords = 0;
+    String alaId = "";
 
     public String getName() {
         return name;
@@ -63,5 +64,13 @@ public class UserUpload {
 
     public void setApi_key(String api_key) {
         this.api_key = api_key;
+    }
+
+    public String getAlaId() {
+        return alaId;
+    }
+
+    public void setAlaId(String alaId) {
+        this.alaId = alaId;
     }
 }

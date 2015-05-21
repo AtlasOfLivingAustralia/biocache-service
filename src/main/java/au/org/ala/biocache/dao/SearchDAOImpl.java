@@ -20,6 +20,7 @@ import au.org.ala.biocache.RecordWriter;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.index.IndexDAO;
 import au.org.ala.biocache.index.SolrIndexDAO;
+import au.org.ala.biocache.model.Qid;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.LayersService;
 import au.org.ala.biocache.service.SpeciesLookupService;
@@ -103,7 +104,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected Pattern spacesPattern = Pattern.compile("[^\\s\"\\(\\)\\[\\]{}']+|\"[^\"]*\"|'[^']*'");
     protected Pattern uidPattern = Pattern.compile("(?:[\"]*)?([a-z_]*_uid:)([a-z0-9]*)(?:[\"]*)?");
     protected Pattern spatialPattern = Pattern.compile(spatialField+":\"Intersects\\([a-zA-Z=\\-\\s0-9\\.\\,():]*\\)\\\"");
-    protected Pattern qidPattern = ParamsCache.qidPattern;//Pattern.compile("qid:[0-9]*");
+    protected Pattern qidPattern = QidCacheDAO.qidPattern;//Pattern.compile("qid:[0-9]*");
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
     protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("[a-z_0-9]{1,}:");
     protected Pattern layersPattern = Pattern.compile("(el|cl)[0-9abc]+");
@@ -128,6 +129,9 @@ public class SearchDAOImpl implements SearchDAO {
     
     @Inject
     protected LayersService layersService;
+
+    @Inject
+    protected QidCacheDAO qidCacheDao;
 
     /** Max number of threads to use in endemic queries */
     @Value("${media.store.local:true}")
@@ -1813,38 +1817,38 @@ public class SearchDAOImpl implements SearchDAO {
             //cached query parameters are already formatted
             if(query.contains("qid:")) {            
                 Matcher matcher = qidPattern.matcher(query);
-                long qid = 0;
+                long qidId = 0;
                 while(matcher.find()) {
                     String value = matcher.group();
                     try {
                         String qidValue = SearchUtils.stripEscapedQuotes(value.substring(4));
-                        qid = Long.parseLong(qidValue);
-                        ParamsCacheObject pco = ParamsCache.get(qid);
-                        if(pco != null) {
-                            searchParams.setQId(qid);
-                            searchParams.setQ(pco.getQ());
+                        qidId = Long.parseLong(qidValue);
+                        Qid qid = qidCacheDao.get(qidValue);
+                        if(qid != null) {
+                            searchParams.setQId(qidId);
+                            searchParams.setQ(qid.getQ());
                             //add the fqs from the params cache
-                            if(pco.getFqs() != null){
+                            if(qid.getFqs() != null){
                                 String [] currentFqs = searchParams.getFq();
                                 if(currentFqs == null || (currentFqs.length==1&&currentFqs[0].length()==0)){
-                                    searchParams.setFq(pco.getFqs());
+                                    searchParams.setFq(qid.getFqs());
                                 } else{
                                     //we need to add the current Fqs together
-                                    searchParams.setFq((String[])ArrayUtils.addAll(currentFqs, pco.getFqs()));
+                                    searchParams.setFq((String[])ArrayUtils.addAll(currentFqs, qid.getFqs()));
                                 }
                             }
-                            String displayString = pco.getDisplayString();
+                            String displayString = qid.getDisplayString();
 
-                            if(StringUtils.isNotEmpty(pco.getWkt())){
+                            if(StringUtils.isNotEmpty(qid.getWkt())){
                                 displayString = displayString + " within user defined polygon" ;
                             }
                             searchParams.setDisplayString(displayString);
 
                             if(searchParams instanceof SpatialSearchRequestParams) {
-                                ((SpatialSearchRequestParams) searchParams).setWkt(pco.getWkt());
-                            } else if(StringUtils.isNotEmpty(pco.getWkt())) {
+                                ((SpatialSearchRequestParams) searchParams).setWkt(qid.getWkt());
+                            } else if(StringUtils.isNotEmpty(qid.getWkt())) {
                                 String originalQ = searchParams.getQ();
-                                searchParams.setQ(spatialField +":\"Intersects(" + pco.getWkt() +")");
+                                searchParams.setQ(spatialField +":\"Intersects(" + qid.getWkt() +")");
                                 if(StringUtils.isNotEmpty(originalQ))
                                   searchParams.setQ(searchParams.getQ() + " AND " + originalQ);
                             }
@@ -1852,7 +1856,7 @@ public class SearchDAOImpl implements SearchDAO {
                             return;
                         }
                     } catch (NumberFormatException e) {
-                    } catch (ParamsCacheMissingException e) {
+                    } catch (QidMissingException e) {
                     }
                 }
             }
