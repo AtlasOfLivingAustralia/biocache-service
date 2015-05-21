@@ -87,7 +87,7 @@ public class WMSCache {
 
         try {
             wmsProperties = new Properties();
-            InputStream is = ParamsCache.class.getResourceAsStream("/wms.properties");
+            InputStream is = WMSCache.class.getResourceAsStream("/wms.properties");
             wmsProperties.load(is);
 
             MAX_CACHE_SIZE = Long.parseLong(wmsProperties.getProperty("MAX_CACHE_SIZE", String.valueOf(MAX_CACHE_SIZE)));

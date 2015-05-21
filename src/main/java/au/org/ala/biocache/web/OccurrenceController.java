@@ -17,6 +17,7 @@ package au.org.ala.biocache.web;
 import au.com.bytecode.opencsv.CSVReader;
 import au.org.ala.biocache.Config;
 import au.org.ala.biocache.Store;
+import au.org.ala.biocache.dao.QidCacheDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
@@ -87,6 +88,8 @@ public class OccurrenceController extends AbstractSecureController {
     private ImageMetadataService imageMetadataService;
     @Autowired
     private Validator validator;
+    @Inject
+    protected QidCacheDAO qidCacheDao;
     
     /** Name of view for site home page */
     private String HOME = "homePage";
@@ -667,9 +670,9 @@ public class OccurrenceController extends AbstractSecureController {
      * @param separator
      * @return
      * @throws IOException
-     * @throws ParamsCacheSizeException
+     * @throws QidSizeException
      */
-    private Long getQidForBatchSearch(String listOfNames, String field, String separator, String title) throws IOException, ParamsCacheSizeException {
+    private Long getQidForBatchSearch(String listOfNames, String field, String separator, String title) throws IOException, QidSizeException {
         String[] rawParts = listOfNames.split(separator);
         List<String> parts = new ArrayList<String>();
         
@@ -686,10 +689,10 @@ public class OccurrenceController extends AbstractSecureController {
         
         String q = StringUtils.join(parts.toArray(new String[0]), " OR ");
         title = title == null?q : title;
-        long qid = ParamsCache.put(q, title, null, null,null);
+        String qid = qidCacheDao.put(q, title, null, null,null, -1, null);
         logger.info("batchSearch: qid = " + qid);
         
-        return qid;
+        return Long.parseLong(qid);
     }
     
     /**
