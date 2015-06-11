@@ -84,7 +84,7 @@ public class DownloadController extends AbstractSecureController {
             response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
         }
         
-        ip = ip == null?request.getRemoteAddr():ip;
+        ip = ip == null ? request.getRemoteAddr() : ip;
         DownloadType downloadType = "index".equals(type.toLowerCase()) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
         //create a new task
         DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, downloadType);

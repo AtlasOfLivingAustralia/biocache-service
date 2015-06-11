@@ -91,8 +91,7 @@ public class AssertionController extends AbstractSecureController {
     }
 
     /**
-     * This version of the method can handle the situation where we use rowKeys as Uuids. Thus
-     * URL style rowKeys can be correctly supported.
+     * Add assertion.
      * 
      * @param recordUuid
      * @param request
@@ -126,11 +125,10 @@ public class AssertionController extends AbstractSecureController {
             String json = request.getParameter("assertions");            
             String userId = request.getParameter("userId");
             String userDisplayName = request.getParameter("userDisplayName");
-            String apiKey = request.getParameter("apiKey");
             //check to see that the assertions have come from a valid source before adding
-            if (shouldPerformOperation(apiKey, response)) {
+            if (shouldPerformOperation(request, response)) {
                 List<java.util.Map<String,String>> assertions = om.readValue(json, new TypeReference<List<java.util.Map<String,String>>>(){});
-                logger.debug("The assertions in a list of maps: " +assertions);
+                logger.debug("The assertions in a list of maps: " + assertions);
                 java.util.HashMap<String,QualityAssertion> qas = new java.util.HashMap<String,QualityAssertion>(assertions.size());
                 for(java.util.Map<String,String> assertion : assertions){
                     String code = assertion.get("code");
@@ -166,9 +164,8 @@ public class AssertionController extends AbstractSecureController {
         String comment = request.getParameter("comment");
         String userId = request.getParameter("userId");
         String userDisplayName = request.getParameter("userDisplayName");
-        String apiKey = request.getParameter("apiKey");
 
-        if (shouldPerformOperation(apiKey, response)) {
+        if (shouldPerformOperation(request, response)) {
             try {
                 logger.debug("Adding assertion to:" + recordUuid + ", code:" + code + ", comment:" + comment
                         + ", userId:" +userId + ", userDisplayName:" + userDisplayName);
@@ -225,9 +222,8 @@ public class AssertionController extends AbstractSecureController {
         @RequestParam(value="assertionUuid", required=true) String assertionUuid,
         HttpServletRequest request,
         HttpServletResponse response) throws Exception {
-        String apiKey = request.getParameter("apiKey");
-        
-        if(shouldPerformOperation(apiKey, response)){
+
+        if(shouldPerformOperation(request, response)){
             try{
                 Store.deleteUserAssertion(recordUuid, assertionUuid);
                 //postNotificationEvent("delete", recordUuid, assertionUuid);
@@ -249,10 +245,6 @@ public class AssertionController extends AbstractSecureController {
     private void postNotificationEvent(String type, String recordUuid, String id) {
         //get the processed record so that we can get the collection_uid
         FullRecord processed = Store.getByUuid(recordUuid, Versions.PROCESSED());
-        if (processed == null){
-            processed = Store.getByRowKey(recordUuid, Versions.PROCESSED());
-        }
-
         String uid = processed == null ? null : processed.getAttribution().getCollectionUid();
 
         if (uid != null) {

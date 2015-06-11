@@ -29,7 +29,7 @@ public class OccurrenceIndex {
 
     protected static final Logger logger = Logger.getLogger(OccurrenceIndex.class);
 
-    public static final String defaultFields = "id,row_key,occurrence_id,data_hub_uid,data_hub,"
+    public static final String defaultFields = "id,occurrence_id,data_hub_uid,data_hub,"
     		+ "institution_uid,institution_code,institution_name,collection_uid,collection_code,"
     		+ "collection_name,catalogue_number,taxon_concept_lsid,occurrence_date,occurrence_year,"
     		+ "taxon_name,common_name,rank,rank_id,country_code,country,kingdom,phylum,class,order,"
@@ -43,7 +43,6 @@ public class OccurrenceIndex {
     		+ "names_and_lsid,multimedia,aust_conservation,state_conservation,sensitive,record_number";
 
     @Field("id") String uuid;
-    @Field("row_key") String rowKey;
     @Field("occurrence_id") String occurrenceID;
     //processed values
     @Field("data_hub_uid") String[] dataHubUid;
@@ -289,14 +288,6 @@ public class OccurrenceIndex {
 
     public void setUuid(String uuid) {
         this.uuid = uuid;
-    }
-
-    public String getRowKey() {
-        return rowKey;
-    }
-
-    public void setRowKey(String rowKey) {
-        this.rowKey = rowKey;
     }
 
     public String getOccurrenceID() {

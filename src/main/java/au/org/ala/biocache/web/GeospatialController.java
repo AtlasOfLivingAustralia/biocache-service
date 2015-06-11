@@ -40,17 +40,15 @@ public class GeospatialController {
      * limit the facets to the ones required. eg &facets=species_guid
      * @param requestParams
      * @param url
-     * @param model
      * @return
      * @throws Exception
      */
     @RequestMapping(value = {"/occurrences/spatial*"}, method = RequestMethod.GET)
     public @ResponseBody SearchResultDTO listWktOccurrences(SpatialSearchRequestParams requestParams,
-                                    @RequestParam(value = "url", required = false) String url,
-                                    Model model) throws Exception {
+                                    @RequestParam(value = "url", required = false) String url) throws Exception {
         
         requestParams.setQ("*:*");       
-        //don't limit the factes
+        //don't limit the facets
         requestParams.setFlimit(-1);
         //check to see if a url has been provided
         if(url != null && url.length() > 0){

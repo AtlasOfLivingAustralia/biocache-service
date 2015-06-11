@@ -78,7 +78,7 @@ public class AssertionUtils {
     public List<QualityAssertion> getUserAssertions(OccurrenceDTO occ) {
         if(occ.getRaw() != null){
             //set the user assertions
-            List<QualityAssertion> userAssertions = Store.getUserAssertions(occ.getRaw().getRowKey());
+            List<QualityAssertion> userAssertions = Store.getUserAssertions(occ.getRaw().getUuid());
             //Legacy integration - fix up the user assertions - legacy - to add replace with CAS IDs....
             for(QualityAssertion ua : userAssertions){
                 if(ua.getUserId().contains("@")){
@@ -94,7 +94,7 @@ public class AssertionUtils {
                 enhanceQA(occ, ua);
             }
             return userAssertions;
-        } else{
+        } else {
             return null;
         }
     }
@@ -126,13 +126,5 @@ public class AssertionUtils {
     public QualityAssertion getUserAssertion(String recordUuid, String assertionUuid){
         QualityAssertion qa = Store.getUserAssertion(recordUuid,assertionUuid);
         return enhanceQA(recordUuid, qa);
-    }
-
-    public void setAuthService(AuthService authService) {
-        this.authService = authService;
-    }
-
-    public void setContactUtils(ContactUtils contactUtils) {
-        this.contactUtils = contactUtils;
     }
 }

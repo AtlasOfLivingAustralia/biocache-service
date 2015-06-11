@@ -16,10 +16,12 @@ package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.Store;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.net.URL;
 import java.util.HashSet;
@@ -32,15 +34,39 @@ import java.util.Set;
 public class AbstractSecureController {
 
     private final static Logger logger = LoggerFactory.getLogger(AbstractSecureController.class);
+
     @Value("${api.check.url:https://auth.ala.org.au/apikey/ws/check?apikey=}")
     protected String apiCheckUrl;
+
+    @Value("${api.check.enabled:true}")
+    protected Boolean apiKeyCheckedEnabled = true;
 
     /** Local cache of keys */
     private static Set<String> apiKeys = new HashSet<String>();
     
     public AbstractSecureController(){}
-    
-    public boolean shouldPerformOperation(String apiKey,HttpServletResponse response) throws Exception{
+
+    /**
+     * Check that the request has the necessary permissions to perform this request.
+     *
+     * @param request
+     * @param response
+     * @return
+     * @throws Exception
+     */
+    public boolean shouldPerformOperation(HttpServletRequest request, HttpServletResponse response) throws Exception {
+        String apiKey = request.getParameter("apiKey");
+        return shouldPerformOperation(apiKey, response, true);
+    }
+
+    /**
+     * Check the validity of the supplied key.
+     *
+     * @param response
+     * @return
+     * @throws Exception
+     */
+    public boolean shouldPerformOperation(String apiKey, HttpServletResponse response) throws Exception{
         return shouldPerformOperation(apiKey, response, true);
     }
     
@@ -51,6 +77,15 @@ public class AbstractSecureController {
      * @return
      */
     public boolean isValidKey(String keyToTest){
+
+        if(!apiKeyCheckedEnabled){
+            return true;
+        }
+
+        if(StringUtils.isBlank(keyToTest)){
+            return false;
+        }
+
     	if(!apiKeys.contains(keyToTest)){
     		//check via a web service
     		try {
@@ -75,6 +110,7 @@ public class AbstractSecureController {
 
 	/**
      * Returns true when the operation should be performed.
+     *
      * @param apiKey
      * @param response
      * @return
@@ -83,7 +119,7 @@ public class AbstractSecureController {
     public boolean shouldPerformOperation(String apiKey,HttpServletResponse response, boolean checkReadOnly)throws Exception{
         if(checkReadOnly && Store.isReadOnly()){
             response.sendError(HttpServletResponse.SC_CONFLICT, "Server is in read only mode.  Try again later.");
-        } else if(apiKey == null || !isValidKey(apiKey)){         
+        } else if(!isValidKey(apiKey)){
             response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
         }
         return !response.isCommitted();

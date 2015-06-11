@@ -64,10 +64,9 @@ public class AdminController extends AbstractSecureController {
     @RequestMapping(value="/admin/ingest", method = RequestMethod.GET)
     public void ingestResources(HttpServletRequest request, HttpServletResponse response) throws Exception{
         //performs an asynchronous ingest.
-        String apiKey = request.getParameter("apiKey");
         final String dataResources = request.getParameter("dr");
-        final String ingest = dataResources == null ? "all":dataResources;
-        if(shouldPerformOperation(apiKey, response)){
+        final String ingest = dataResources == null ? "all" : dataResources;
+        if(shouldPerformOperation(request, response)){
             logger.debug("Attempting to ingest " + ingest);
             if(ingestingDrs.contains(ingest)){
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST,  "Already ingesting " + ingest + ". Unable able to start a new ingestion.");
@@ -96,8 +95,7 @@ public class AdminController extends AbstractSecureController {
     @RequestMapping(value = "/admin/index/optimise", method = RequestMethod.POST)
 	public void optimiseIndex(HttpServletRequest request, 
 	   HttpServletResponse response) throws Exception {
-        String apiKey = request.getParameter("apiKey");
-        if(shouldPerformOperation(apiKey, response)){            
+        if(shouldPerformOperation(request, response)){
             String message = Store.optimiseIndex();
             response.setStatus(HttpServletResponse.SC_OK);
             response.getWriter().write(message);
@@ -137,11 +135,10 @@ public class AdminController extends AbstractSecureController {
     @RequestMapping(value = "/admin/index/reindex", method = RequestMethod.POST)
     public void reindex(HttpServletRequest request, 
             HttpServletResponse response)throws Exception{
-        String apiKey = request.getParameter("apiKey");
-        if(shouldPerformOperation(apiKey, response)){
+        if(shouldPerformOperation(request, response)){
             String dataResource = request.getParameter("dataResource");
             String startDate = request.getParameter("startDate");
-            logger.info("Reindexing data resource: " + dataResource + " starting at " + startDate);
+            logger.info("Re-indexing data resource: " + dataResource + " starting at " + startDate);
             Store.reindex(dataResource, startDate);
             response.setStatus(HttpServletResponse.SC_OK);
         }
@@ -164,9 +161,5 @@ public class AdminController extends AbstractSecureController {
     public @ResponseBody String refreshAuth() {
         authService.reloadCaches();
         return "Done";
-    }
-
-    public void setAuthService(AuthService authService) {
-        this.authService = authService;
     }
 }

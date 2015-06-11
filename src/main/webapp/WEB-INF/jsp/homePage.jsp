@@ -26,8 +26,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
 %>
     </head>
     <body>
-        <div class="section">
-        <h1 style="margin-bottom:20px;">Web services</h1>
+        <h1>Occurrence web services</h1>
         <p>
             For the API reference including examples, please see:
             <a href="http://api.ala.org.au/">http://api.ala.org.au</a>
@@ -40,6 +39,5 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         <p style="display:none;">
             ${versionInfoString}
         </p>
-        </div>
     </body>
 </html>

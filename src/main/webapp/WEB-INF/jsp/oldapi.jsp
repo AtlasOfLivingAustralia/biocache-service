@@ -20,8 +20,8 @@
     .exampleResponse { margin-left:60px; }
     strong { font-weight:bold; }
 </style>
-<div class="section">
-<h1> Web Services </h1>
+
+<h1> Occurrence Web Services (old reference) </h1>
 <p>
     These webservices provide spatial search capabilities for occurrence records, mapping service (WMS) and parsing services.
     <br/>
