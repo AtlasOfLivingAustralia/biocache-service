@@ -89,7 +89,7 @@ public class UploadController extends AbstractSecureController {
      *
      * @return an identifier for this temporary dataset
      */
-    @RequestMapping(value="/upload/status/{tempDataResourceUid}.json", method = RequestMethod.GET)
+    @RequestMapping(value={"/upload/status/{tempDataResourceUid}.json", "/upload/status/{tempDataResourceUid}"}, method = RequestMethod.GET)
     public @ResponseBody Map<String,String> uploadStatus(@PathVariable String tempDataResourceUid, HttpServletResponse response) throws Exception {
        response.setContentType("application/json");
        File file = new File(uploadStatusDir + File.separator + tempDataResourceUid);
@@ -245,7 +245,35 @@ public class UploadController extends AbstractSecureController {
      *
      * @return an identifier for this temporary dataset
      */
-    @RequestMapping(value="/upload/post", method = RequestMethod.POST)
+    @RequestMapping(value="/upload/{tempDataResourceUid}", method = RequestMethod.DELETE)
+    public @ResponseBody Map<String, Object> deleteResource(
+            @PathVariable String tempDataResourceUid,
+            HttpServletRequest request, HttpServletResponse response) throws Exception {
+
+        //auth check
+        boolean apiKeyValid = shouldPerformOperation(request, response);
+        if(!apiKeyValid){
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Supplied API key not recognised or missing");
+            return null;
+        }
+
+        //TODO delete the temp data resource from the collectory
+
+
+        //start an async delete of the resource from index & storage
+        Store.deleteRecords(tempDataResourceUid, null, true, true);
+
+        Map<String,Object> details = new HashMap<String,Object>();
+        details.put("success", true);
+        return details;
+    }
+
+    /**
+     * Upload a dataset using a POST, returning a UID for this data
+     *
+     * @return an identifier for this temporary dataset
+     */
+    @RequestMapping(value={"/upload/post", "/upload/"}, method = RequestMethod.POST)
     public @ResponseBody Map<String,String> uploadOccurrenceData(HttpServletRequest request, HttpServletResponse response) throws Exception {
 
         String dataResourceUid = request.getParameter("dataResourceUid");
@@ -260,8 +288,8 @@ public class UploadController extends AbstractSecureController {
             return null;
         }
 
-        if(StringUtils.isEmpty(datasetName)){
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Must supply 'datasetName'");
+        if(StringUtils.isEmpty(datasetName) && StringUtils.isEmpty(dataResourceUid)){
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Must supply 'datasetName' or a 'dataResourceUid'");
             return null;
         }
 
@@ -550,9 +578,9 @@ class UploaderThread implements Runnable {
             List<String> tmpCustIndexFields = new ArrayList<String>();
             for(String f : customIndexFields){
                 if(intList.contains(f))
-                   tmpCustIndexFields.add(f +"_i");
+                   tmpCustIndexFields.add(f + "_i");
                 else if(floatList.contains(f))
-                   tmpCustIndexFields.add(f+"_d");
+                   tmpCustIndexFields.add(f + "_d");
                 else
                     tmpCustIndexFields.add(f); //default is a string
             }
