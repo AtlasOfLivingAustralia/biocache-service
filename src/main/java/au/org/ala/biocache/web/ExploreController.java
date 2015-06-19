@@ -132,12 +132,16 @@ public class ExploreController {
 
                 String parentName = parentLookup.get(ssg.toLowerCase());
                 SpeciesGroupDTO parentGroup = parentGroupMap.get(parentName);
-                if(parentGroup.getChildGroups() == null){
-                    parentGroup.setChildGroups(new ArrayList<SpeciesGroupDTO>());
+                if(parentGroup != null){
+                    if(parentGroup.getChildGroups() == null){
+                        parentGroup.setChildGroups(new ArrayList<SpeciesGroupDTO>());
+                    }
+                    parentGroup.getChildGroups().add(new SpeciesGroupDTO(ssg, result.getCount(), occurrenceCounts.get(ssg), 2));
+                    parentGroup.setSpeciesCount(parentGroup.getSpeciesCount() + result.getCount());
+                    parentGroup.setCount(parentGroup.getCount() + occurrenceCounts.get(ssg));
+                } else {
+                    logger.warn("Parent group lookup failed for: " + parentName + ", ssg: " + ssg);
                 }
-                parentGroup.getChildGroups().add(new SpeciesGroupDTO(ssg, result.getCount(), occurrenceCounts.get(ssg), 2));
-                parentGroup.setSpeciesCount(parentGroup.getSpeciesCount() + result.getCount());
-                parentGroup.setCount(parentGroup.getCount() + occurrenceCounts.get(ssg));
             }
         }
 
