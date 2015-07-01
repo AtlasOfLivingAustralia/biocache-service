@@ -870,8 +870,8 @@ public class WMSController {
         String[] sort = {"longitude", "latitude", "longitude", "latitude"};
         String[] dir = {"asc", "asc", "desc", "desc"};
 
-        //remove instances of null longitude or latitude
-        String[] fq = (String[]) ArrayUtils.addAll(getFq(requestParams), new String[]{"longitude:[* TO *]", "latitude:[* TO *]"});
+        //Filter for -180 +180 longitude and -90 +90 latitude to match WMS request bounds.
+        String[] fq = (String[]) ArrayUtils.addAll(getFq(requestParams), new String[]{"longitude:[-180 TO 180]", "latitude:[-90 TO 90]"});
         requestParams.setFq(fq);
         requestParams.setPageSize(10);
 
