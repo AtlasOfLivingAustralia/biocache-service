@@ -375,14 +375,6 @@ public class WMSController {
 
         double[] bbox = null;
 
-        String q = requestParams.getQ();
-        if (q.startsWith("qid:")) {
-            try {
-                bbox = qidCacheDAO.get(q.substring(4)).getBbox();
-            } catch (Exception e) {
-            }
-        }
-
         if (bbox == null) {
             bbox = getBBox(requestParams);
         }
@@ -408,7 +400,10 @@ public class WMSController {
         double[] bbox = null;
 
         String q = requestParams.getQ();
-        if (q.startsWith("qid:")) {
+        //when requestParams only contain a qid, get the bbox from the qidCache
+        if (q.startsWith("qid:") && StringUtils.isEmpty(requestParams.getWkt()) &&
+                (requestParams.getFq().length == 0 || 
+                        (requestParams.getFq().length == 1 && StringUtils.isEmpty(requestParams.getFq()[0])))) {
             try {
                 bbox = qidCacheDAO.get(q.substring(4)).getBbox();
             } catch (Exception e) {
@@ -1533,8 +1528,10 @@ public class WMSController {
             q = requestParams.getQ();
         }
 
-        //bounding box test (q must be 'qid:' + number)
-        if (q.startsWith("qid:")) {
+        //bounding box test (requestParams must be 'qid:' + number only)
+        if (q.startsWith("qid:") && StringUtils.isEmpty(requestParams.getWkt()) &&
+                (requestParams.getFq().length == 0 ||
+                        (requestParams.getFq().length == 1 && StringUtils.isEmpty(requestParams.getFq()[0])))) {
             double[] queryBBox = qidCacheDAO.get(q.substring(4)).getBbox();
             if (queryBBox != null && (queryBBox[0] > bbox[2] || queryBBox[2] < bbox[0]
                     || queryBBox[1] > bbox[3] || queryBBox[3] < bbox[1])) {
