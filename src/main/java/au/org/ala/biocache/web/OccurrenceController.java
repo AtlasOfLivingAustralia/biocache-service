@@ -271,7 +271,7 @@ public class OccurrenceController extends AbstractSecureController {
         srp.setQ("lsid:" + guid);
         srp.setPageSize(0);
         srp.setFacets(new String[]{"image_url"});
-        SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(srp,null);
+        SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(srp, null);
         if(results.getFacetResults().size()>0){
             List<FieldResultDTO> fieldResults =results.getFacetResults().iterator().next().getFieldResult();
             ArrayList<String> images = new ArrayList<String>(fieldResults.size());
@@ -735,8 +735,7 @@ public class OccurrenceController extends AbstractSecureController {
                                      Model model,
                                      HttpServletResponse response,
                                      HttpServletRequest request) throws Exception {
-        //org.springframework.validation.BindException errors = new org.springframework.validation.BindException(requestParams,"requestParams");
-        //validator.validate(requestParams, errors);
+
         //check to see if the DownloadRequestParams are valid
         if(result.hasErrors()){
             logger.info("validation failed  " + result.getErrorCount() + " checks");
@@ -842,7 +841,8 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = {"/occurrences/nearest"}, method = RequestMethod.GET)
     public @ResponseBody Map<String,Object> nearestOccurrence(SpatialSearchRequestParams requestParams) throws Exception {
         
-        logger.debug(String.format("Received lat: %f, lon:%f, radius:%f", requestParams.getLat(), requestParams.getLon(), requestParams.getRadius()));
+        logger.debug(String.format("Received lat: %f, lon:%f, radius:%f", requestParams.getLat(),
+                requestParams.getLon(), requestParams.getRadius()));
         
         if(requestParams.getLat() == null || requestParams.getLon() == null){
             return new HashMap<String,Object>();
@@ -972,7 +972,6 @@ public class OccurrenceController extends AbstractSecureController {
         return deletedRecords;
     }
 
-
     /**
      * API method for submitting a single occurrence record for a data resource.
      * This method should __not__ be used for bulk data loading.
@@ -983,17 +982,17 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value={"/upload/record/{dataResourceUid}"}, method = RequestMethod.POST)
-    public @ResponseBody Map<String,String> uploadSingleRecord(
+    @RequestMapping(value={"/occurrence/{dataResourceUid}"}, method = RequestMethod.POST)
+    public @ResponseBody Object uploadSingleRecord(
             @PathVariable String dataResourceUid,
-            @RequestParam(value="index", required=true, defaultValue = "true") Boolean index,
+            @RequestParam(value = "index", required = true, defaultValue = "true") Boolean index,
+            @RequestParam(value = "returnRecord", required = false, defaultValue = "false") Boolean returnRecord,
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
 
         //auth check
         boolean apiKeyValid = shouldPerformOperation(request, response);
         if(!apiKeyValid){
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Supplied API key not recognised or missing");
             return null;
         }
 
@@ -1009,14 +1008,20 @@ public class OccurrenceController extends AbstractSecureController {
                 darwinCore.put(entry.getKey(), entry.getValue().toString());
             }
 
-            String occurrenceUuid = Store.upsertRecord(dataResourceUid, darwinCore, multimedia,  index);
-
-            Map<String, String> resp = new HashMap<String,String>();
-            resp.put("occurrenceID", occurrenceUuid);
+            String occurrenceUuid = Store.upsertRecord(dataResourceUid, darwinCore, multimedia, index);
             response.setContentType("application/json");
             response.setHeader("Location", webservicesRoot + "/occurrence/" + occurrenceUuid);
             response.setStatus(HttpServletResponse.SC_CREATED);
-            return resp;
+
+            Object resp = null;
+            if(returnRecord){
+                return getOccurrenceInformation(occurrenceUuid, null, request, false);
+            } else {
+                Map<String,String> map = new HashMap<String,String>();
+                map.put("occurrenceID", occurrenceUuid);
+                return map;
+            }
+
         } catch (Exception e){
             logger.error(e.getMessage(), e);
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
@@ -1045,7 +1050,7 @@ public class OccurrenceController extends AbstractSecureController {
         if(apiKey != null){
             return showSensitiveOccurrence(uuid, apiKey, ip, request, response);
         }
-        return getOccurrenceInformation(uuid,ip, request, false);
+        return getOccurrenceInformation(uuid, ip, request, false);
     }
     
     @RequestMapping(value = {"/sensitive/occurrence/{uuid:.+}","/sensitive/occurrences/{uuid:.+}", "/sensitive/occurrence/{uuid:.+}.json", "/senstive/occurrences/{uuid:.+}.json"}, method = RequestMethod.GET)
