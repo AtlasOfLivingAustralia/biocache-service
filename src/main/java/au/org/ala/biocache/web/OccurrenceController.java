@@ -986,7 +986,6 @@ public class OccurrenceController extends AbstractSecureController {
     public @ResponseBody Object uploadSingleRecord(
             @PathVariable String dataResourceUid,
             @RequestParam(value = "index", required = true, defaultValue = "true") Boolean index,
-            @RequestParam(value = "returnRecord", required = false, defaultValue = "false") Boolean returnRecord,
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
 
@@ -1008,19 +1007,15 @@ public class OccurrenceController extends AbstractSecureController {
                 darwinCore.put(entry.getKey(), entry.getValue().toString());
             }
 
-            String occurrenceUuid = Store.upsertRecord(dataResourceUid, darwinCore, multimedia, index);
+            FullRecord occurrence = Store.upsertRecord(dataResourceUid, darwinCore, multimedia, index);
             response.setContentType("application/json");
-            response.setHeader("Location", webservicesRoot + "/occurrence/" + occurrenceUuid);
+            response.setHeader("Location", webservicesRoot + "/occurrence/" + occurrence.getUuid());
             response.setStatus(HttpServletResponse.SC_CREATED);
 
-            Object resp = null;
-            if(returnRecord){
-                return getOccurrenceInformation(occurrenceUuid, null, request, false);
-            } else {
-                Map<String,String> map = new HashMap<String,String>();
-                map.put("occurrenceID", occurrenceUuid);
-                return map;
-            }
+            Map<String, Object> map = new HashMap<String, Object>();
+            map.put("occurrenceID", occurrence.getUuid());
+            map.put("images", occurrence.getOccurrence().getImages());
+            return map;
 
         } catch (Exception e){
             logger.error(e.getMessage(), e);
