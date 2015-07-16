@@ -35,8 +35,10 @@ import org.apache.log4j.Logger;
  */
 @Component("imageMetadataService")
 public class AlaImageMetadataService implements ImageMetadataService {
+
     /** Logger initialisation */
     private final static Logger logger = Logger.getLogger(AlaImageMetadataService.class);
+
     @Value("${media.store.url:http://images-dev.ala.org.au}")
     protected String imageServiceUrl;
 
@@ -52,7 +54,7 @@ public class AlaImageMetadataService implements ImageMetadataService {
     @Override
     public Map<String, List<Map<String, Object>>> getImageMetadataForOccurrences(List<String> occurrenceIDs) throws Exception {
 
-        if(StringUtils.isBlank(imageServiceUrl)){
+        if(StringUtils.isBlank(imageServiceUrl) || occurrenceIDs == null || occurrenceIDs.isEmpty()){
             return new HashMap<String, List<Map<String, Object>>>();
         }
 
@@ -75,6 +77,5 @@ public class AlaImageMetadataService implements ImageMetadataService {
         Map<String, List<Map<String, Object>>> imageMetadata = (Map<String, List<Map<String, Object>>>) jsonResponse.get("images");
         logger.debug("Obtained image metadata for " + imageMetadata.size() + " records");
         return imageMetadata;
-
     }
 }

@@ -404,6 +404,19 @@ public class SearchDAOImpl implements SearchDAO {
             searchResults = processSolrResponse(original, qr, solrQuery, resultClass);
             searchResults.setQueryTitle(searchParams.getDisplayString());
             searchResults.setUrlParameters(original.getUrlParams());
+            
+            //need to update fq to remove wkt that may be added. it may not be the last fq
+            String [] fqs = searchParams.getFq();
+            if (StringUtils.isNotEmpty(searchParams.getWkt())) {
+                for (int i=fqs.length - 1;i>=0;i--) {
+                    if (fqs[i].startsWith(spatialField + ":") || fqs[i].startsWith("(" + spatialField + ":")) {
+                        fqs = (String[]) ArrayUtils.remove(fqs, i);
+                        break;
+                    }
+                }
+            }
+            searchParams.setFq(fqs);
+            
             //now update the fq display map...
             searchResults.setActiveFacetMap(searchUtils.addFacetMap(searchParams.getFq(), getAuthIndexFields()));
             
@@ -1838,20 +1851,26 @@ public class SearchDAOImpl implements SearchDAO {
                                 }
                             }
                             String displayString = qid.getDisplayString();
+                            
+                            if (StringUtils.isEmpty(searchParams.getWkt()) && StringUtils.isNotEmpty(qid.getWkt())) {
+                                searchParams.setWkt(qid.getWkt());
+                            } else if (StringUtils.isNotEmpty(searchParams.getWkt()) && StringUtils.isNotEmpty(qid.getWkt())) {
+                                //Add the qid.wkt search term to searchParams.fq instead of wkt -> Geometry -> intersection -> wkt
+                                String [] fq = new String[] { SpatialUtils.getWKTQuery(spatialField, qid.getWkt(), false) };
+                                String [] currentFqs = searchParams.getFq();
+                                if(currentFqs == null || (currentFqs.length==1&&currentFqs[0].length()==0)){
+                                    searchParams.setFq(fq);
+                                } else{
+                                    //we need to add the current Fqs together
+                                    searchParams.setFq((String[])ArrayUtils.addAll(currentFqs, fq));
+                                }
+                            } 
 
-                            if(StringUtils.isNotEmpty(qid.getWkt())){
+                            if(StringUtils.isNotEmpty(searchParams.getWkt())){
                                 displayString = displayString + " within user defined polygon" ;
                             }
                             searchParams.setDisplayString(displayString);
-
-                            if(searchParams instanceof SpatialSearchRequestParams) {
-                                ((SpatialSearchRequestParams) searchParams).setWkt(qid.getWkt());
-                            } else if(StringUtils.isNotEmpty(qid.getWkt())) {
-                                String originalQ = searchParams.getQ();
-                                searchParams.setQ(spatialField +":\"Intersects(" + qid.getWkt() +")");
-                                if(StringUtils.isNotEmpty(originalQ))
-                                  searchParams.setQ(searchParams.getQ() + " AND " + originalQ);
-                            }
+                            
                             searchParams.setFormattedQuery(searchParams.getQ());
                             return;
                         }

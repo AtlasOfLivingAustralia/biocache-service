@@ -442,15 +442,13 @@ public class OccurrenceController extends AbstractSecureController {
         
         SearchResultDTO srtdto = null;
         if(apiKey == null){
-            srtdto = searchDAO.findByFulltextSpatialQuery(requestParams,map);
+            srtdto = searchDAO.findByFulltextSpatialQuery(requestParams, map);
         } else {
-            srtdto = occurrenceSearchSensitive(requestParams,apiKey,request, response);
+            srtdto = occurrenceSearchSensitive(requestParams, apiKey, request, response);
         }
-        
-        if(lookupImageMetadata){
-            //use the image service API
-            
-            //grab the list of IDs
+
+        if(srtdto.getTotalRecords() > 0 && lookupImageMetadata){
+            //use the image service API & grab the list of IDs
             List<String> occurrenceIDs = new ArrayList<String>();
             for(OccurrenceIndex oi : srtdto.getOccurrences()){
                 occurrenceIDs.add(oi.getUuid());
