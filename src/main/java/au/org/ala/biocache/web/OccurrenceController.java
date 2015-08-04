@@ -33,6 +33,7 @@ import org.ala.client.model.LogEventVO;
 import org.ala.client.util.RestfulClient;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
+import org.codehaus.jackson.map.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
@@ -97,7 +98,7 @@ public class OccurrenceController extends AbstractSecureController {
     private String VALIDATION_ERROR = "error/validationError";
     
     @Value("${webservices.root:http://localhost:8080/biocache-service}")
-    protected String hostUrl;
+    protected String webservicesRoot;
     
     /** The response to be returned for the isAustralian test */
     @Value("${taxon.id.pattern:urn:lsid:biodiversity.org.au[a-zA-Z0-9\\.:-]*}")
@@ -142,7 +143,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping("/")
     public String homePageHandler(Model model) {
-        model.addAttribute("webservicesRoot", hostUrl);
+        model.addAttribute("webservicesRoot", webservicesRoot);
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         InputStream input = classLoader.getResourceAsStream("/git.properties");
         if(input !=null){
@@ -158,7 +159,7 @@ public class OccurrenceController extends AbstractSecureController {
 
                 model.addAttribute("versionInfoString", sb.toString());
 
-            } catch (Exception e){
+            } catch (Exception e) {
                 logger.error(e.getMessage(), e);
             }
         }
@@ -176,7 +177,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping("/oldapi")
     public String oldApiHandler(Model model) {
-        model.addAttribute("webservicesRoot", hostUrl);
+        model.addAttribute("webservicesRoot", webservicesRoot);
         return "oldapi";
     }
     
@@ -270,7 +271,7 @@ public class OccurrenceController extends AbstractSecureController {
         srp.setQ("lsid:" + guid);
         srp.setPageSize(0);
         srp.setFacets(new String[]{"image_url"});
-        SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(srp,null);
+        SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(srp, null);
         if(results.getFacetResults().size()>0){
             List<FieldResultDTO> fieldResults =results.getFacetResults().iterator().next().getFieldResult();
             ArrayList<String> images = new ArrayList<String>(fieldResults.size());
@@ -287,7 +288,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value={"/australian/taxon/{guid:.+}.json*","/australian/taxon/{guid:.+}*","/native/taxon/{guid:.+}.json*","/native/taxon/{guid:.+}*" })
+    @RequestMapping(value={"/australian/taxon/{guid:.+}.json*","/australian/taxon/{guid:.+}*", "/native/taxon/{guid:.+}.json*","/native/taxon/{guid:.+}*" })
     public @ResponseBody NativeDTO isAustralian(@PathVariable("guid") String guid) throws Exception {
         //check to see if we have any occurrences on Australia  country:Australia or state != empty
         SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
@@ -305,7 +306,7 @@ public class OccurrenceController extends AbstractSecureController {
             //TODO change this to a confidence setting after it has been included in the index
             requestParams.setQ("lsid:" + guid + " AND (provenance:\"Published dataset\")");
             results = searchDAO.findByFulltextSpatialQuery(requestParams,null);
-            adto.setHasCSOnly(results.getTotalRecords()==0);
+            adto.setHasCSOnly(results.getTotalRecords() == 0);
         }
         return adto;
     }
@@ -323,7 +324,6 @@ public class OccurrenceController extends AbstractSecureController {
     /**
      * Occurrence search page uses SOLR JSON to display results
      *
-     * @param model
      * @return
      * @throws Exception
      */
@@ -351,8 +351,8 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = "/occurrences/taxon/source/{guid:.+}.json*", method = RequestMethod.GET)
     public @ResponseBody List<OccurrenceSourceDTO> sourceByTaxon(SpatialSearchRequestParams requestParams,
                                                                  @PathVariable("guid") String guid) throws Exception {
-        requestParams.setQ("lsid:" + guid) ;
-        Map<String,Integer> sources = searchDAO.getSourcesForQuery(requestParams);
+        requestParams.setQ("lsid:" + guid);
+        Map<String, Integer> sources = searchDAO.getSourcesForQuery(requestParams);
         //now turn them to a list of OccurrenceSourceDTO
         return searchUtils.getSourceInformation(sources);
     }
@@ -477,7 +477,7 @@ public class OccurrenceController extends AbstractSecureController {
                 map.remove("apiKey");
             }
             logger.debug("occurrence search params = " + requestParams);
-            SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, true,map);
+            SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, true, map);
             return searchResult;
         }
         return null;
@@ -507,7 +507,7 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = "/occurrences/facets/download*", method = RequestMethod.GET)
     public void downloadFacet(
                               DownloadRequestParams requestParams,
-                              @RequestParam(value = "count", required = false, defaultValue="false") boolean includeCount,
+                              @RequestParam(value="count", required=false, defaultValue="false") boolean includeCount,
                               @RequestParam(value="lookup" ,required=false, defaultValue="false") boolean lookupName,
                               @RequestParam(value="synonym", required=false, defaultValue="false") boolean includeSynonyms,
                               @RequestParam(value="ip", required=false) String ip,
@@ -612,7 +612,7 @@ public class OccurrenceController extends AbstractSecureController {
                                     citationOutput.close();
                                     output.flush();
                                     output.close();
-                                } catch(Exception e){
+                                } catch (Exception e){
                                     logger.error(e.getMessage(),e);
                                 }
                             } else {
@@ -652,7 +652,7 @@ public class OccurrenceController extends AbstractSecureController {
                             @RequestParam(value="title", required=false) String title) throws Exception {
         
         logger.info("/occurrences/batchSearch with action=Search");
-        Long qid =  getQidForBatchSearch(queries, field, separator,title);
+        Long qid =  getQidForBatchSearch(queries, field, separator, title);
         
         if (qid != null && StringUtils.isNotBlank(redirectBase)) {
             response.sendRedirect(redirectBase + "?q=qid:"+qid);
@@ -687,7 +687,7 @@ public class OccurrenceController extends AbstractSecureController {
         
         String q = StringUtils.join(parts.toArray(new String[0]), " OR ");
         title = title == null?q : title;
-        String qid = qidCacheDao.put(q, title, null, null,null, -1, null);
+        String qid = qidCacheDao.put(q, title, null, null, null, -1, null);
         logger.info("batchSearch: qid = " + qid);
         
         return Long.parseLong(qid);
@@ -733,8 +733,7 @@ public class OccurrenceController extends AbstractSecureController {
                                      Model model,
                                      HttpServletResponse response,
                                      HttpServletRequest request) throws Exception {
-        //org.springframework.validation.BindException errors = new org.springframework.validation.BindException(requestParams,"requestParams");
-        //validator.validate(requestParams, errors);
+
         //check to see if the DownloadRequestParams are valid
         if(result.hasErrors()){
             logger.info("validation failed  " + result.getErrorCount() + " checks");
@@ -815,7 +814,7 @@ public class OccurrenceController extends AbstractSecureController {
                 return null;
             }
             
-            downloadService.writeQueryToStream(requestParams, response, ip, out, true,fromIndex);
+            downloadService.writeQueryToStream(requestParams, response, ip, out, true, fromIndex);
         }
         return null;
     }
@@ -840,7 +839,8 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = {"/occurrences/nearest"}, method = RequestMethod.GET)
     public @ResponseBody Map<String,Object> nearestOccurrence(SpatialSearchRequestParams requestParams) throws Exception {
         
-        logger.debug(String.format("Received lat: %f, lon:%f, radius:%f", requestParams.getLat(), requestParams.getLon(), requestParams.getRadius()));
+        logger.debug(String.format("Received lat: %f, lon:%f, radius:%f", requestParams.getLat(),
+                requestParams.getLon(), requestParams.getRadius()));
         
         if(requestParams.getLat() == null || requestParams.getLon() == null){
             return new HashMap<String,Object>();
@@ -909,7 +909,7 @@ public class OccurrenceController extends AbstractSecureController {
     public @ResponseBody Object showOccurrence(@PathVariable("uuid") String uuid){
         Map values = Store.getComparisonByUuid(uuid);
         if(values.isEmpty())
-            values = Store.getComparisonByRowKey(uuid);
+            values = Store.getComparisonByUuid(uuid);
         //substitute the values for recordedBy if it is an authenticated user
         if(values.containsKey("Occurrence")){
             //String recordedBy = values.get("recordedBy").toString();
@@ -969,6 +969,58 @@ public class OccurrenceController extends AbstractSecureController {
         }
         return deletedRecords;
     }
+
+    /**
+     * API method for submitting a single occurrence record for a data resource.
+     * This method should __not__ be used for bulk data loading.
+     *
+     * @param dataResourceUid
+     * @param request
+     * @param response
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value={"/occurrence/{dataResourceUid}"}, method = RequestMethod.POST)
+    public @ResponseBody Object uploadSingleRecord(
+            @PathVariable String dataResourceUid,
+            @RequestParam(value = "index", required = true, defaultValue = "true") Boolean index,
+            HttpServletRequest request,
+            HttpServletResponse response) throws Exception {
+
+        //auth check
+        boolean apiKeyValid = shouldPerformOperation(request, response);
+        if(!apiKeyValid){
+            return null;
+        }
+
+        //create record
+        try {
+            ObjectMapper om = new ObjectMapper();
+
+            Map<String, Object> properties = om.readValue(request.getInputStream(), Map.class);
+            List<Map<String, String>> multimedia = (List<Map<String, String>>) properties.remove("multimedia");
+
+            Map<String, String> darwinCore  = new HashMap<String,String>();
+            for(Map.Entry<String, Object> entry : properties.entrySet()){
+                darwinCore.put(entry.getKey(), entry.getValue().toString());
+            }
+
+            FullRecord occurrence = Store.upsertRecord(dataResourceUid, darwinCore, multimedia, index);
+            response.setContentType("application/json");
+            response.setHeader("Location", webservicesRoot + "/occurrence/" + occurrence.getUuid());
+            response.setStatus(HttpServletResponse.SC_CREATED);
+
+            Map<String, Object> map = new HashMap<String, Object>();
+            map.put("occurrenceID", occurrence.getUuid());
+            map.put("images", occurrence.getOccurrence().getImages());
+            return map;
+
+        } catch (Exception e){
+            logger.error(e.getMessage(), e);
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+            return null;
+        }
+    }
     
     /**
      * Occurrence record page
@@ -991,15 +1043,15 @@ public class OccurrenceController extends AbstractSecureController {
         if(apiKey != null){
             return showSensitiveOccurrence(uuid, apiKey, ip, request, response);
         }
-        return getOccurrenceInformation(uuid,ip, request, false);
+        return getOccurrenceInformation(uuid, ip, request, false);
     }
     
     @RequestMapping(value = {"/sensitive/occurrence/{uuid:.+}","/sensitive/occurrences/{uuid:.+}", "/sensitive/occurrence/{uuid:.+}.json", "/senstive/occurrences/{uuid:.+}.json"}, method = RequestMethod.GET)
     public @ResponseBody Object showSensitiveOccurrence(@PathVariable("uuid") String uuid,
                                                         @RequestParam(value="apiKey", required=true) String apiKey,
                                                         @RequestParam(value="ip", required=false) String ip,
-                                                        HttpServletRequest request,HttpServletResponse response) throws Exception {
-        ip = ip == null?getIPAddress(request):ip;
+                                                        HttpServletRequest request, HttpServletResponse response) throws Exception {
+        ip = ip == null ? getIPAddress(request) : ip;
         if(shouldPerformOperation(apiKey, response)){
             return getOccurrenceInformation(uuid, ip, request, true);
         }
@@ -1018,8 +1070,9 @@ public class OccurrenceController extends AbstractSecureController {
             srp.setPageSize(1);
             srp.setFacets(new String[]{});
             SearchResultDTO results = occurrenceSearch(srp);
-            if(results.getTotalRecords()>0)
-                fullRecord = Store.getAllVersionsByRowKey(results.getOccurrences().get(0).getRowKey(), includeSensitive);
+            if(results.getTotalRecords()>0) {
+                fullRecord = Store.getAllVersionsByUuid(results.getOccurrences().get(0).getUuid(), includeSensitive);
+            }
         }
         
         if(fullRecord == null){
@@ -1058,10 +1111,8 @@ public class OccurrenceController extends AbstractSecureController {
             }
         }
         
-        String rowKey = occ.getProcessed().getRowKey();
-        
         //assertions are based on the row key not uuid
-        occ.setSystemAssertions(Store.getAllSystemAssertions(rowKey));
+        occ.setSystemAssertions(Store.getAllSystemAssertions(occ.getRaw().getUuid()));
         
         occ.setUserAssertions(assertionUtils.getUserAssertions(occ));
         
@@ -1153,31 +1204,12 @@ public class OccurrenceController extends AbstractSecureController {
                 m.getAlternativeFormats().put("thumbnailUrl", urls.get("thumb"));
                 m.getAlternativeFormats().put("smallImageUrl", urls.get("small"));
                 m.getAlternativeFormats().put("largeImageUrl", urls.get("large"));
-                m.getAlternativeFormats().put("imageUrl",urls.get("raw"));
+                m.getAlternativeFormats().put("imageUrl", urls.get("raw"));
                 m.setFilePath(fileNameOrID);
+                m.setMetadataUrl(imageMetadataService.getUrlFor(fileNameOrID));
                 ml.add(m);
             }
             dto.setImages(ml);
         }
-    }
-
-    public void setSearchDAO(SearchDAO searchDAO) {
-        this.searchDAO = searchDAO;
-    }
-    
-    public void setSearchUtils(SearchUtils searchUtils) {
-        this.searchUtils = searchUtils;
-    }
-    
-    public void setSpeciesLookupService(SpeciesLookupService speciesLookupService) {
-        this.speciesLookupService = speciesLookupService;
-    }
-    
-    public void setContactUtils(ContactUtils contactUtils) {
-        this.contactUtils = contactUtils;
-    }
-    
-    public void setAssertionUtils(AssertionUtils assertionUtils) {
-        this.assertionUtils = assertionUtils;
     }
 }

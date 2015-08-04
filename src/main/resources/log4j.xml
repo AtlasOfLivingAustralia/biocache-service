@@ -1,14 +1,14 @@
 <!DOCTYPE log4j:configuration  SYSTEM "log4j.dtd">
 <log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/" debug="false">
     <!--<appender name="CONSOLE" class="org.apache.log4j.ConsoleAppender">-->
-        <!--<param name="Threshold" value="ERROR"/>-->
-        <!--<layout class="org.apache.log4j.PatternLayout">-->
-            <!--<param name="ConversionPattern" value="%d %-5p: [%c{1}] - %m%n"/>-->
-        <!--</layout>-->
-        <!--<filter class="org.apache.log4j.varia.LevelMatchFilter">-->
-            <!--<param name="LevelToMatch" value="REMOTE#org.ala.client.appender.RestLevel" />-->
-            <!--<param name="AcceptOnMatch" value="false"/>-->
-        <!--</filter>-->
+    <!--<param name="Threshold" value="ERROR"/>-->
+    <!--<layout class="org.apache.log4j.PatternLayout">-->
+    <!--<param name="ConversionPattern" value="%d %-5p: [%c{1}] - %m%n"/>-->
+    <!--</layout>-->
+    <!--<filter class="org.apache.log4j.varia.LevelMatchFilter">-->
+    <!--<param name="LevelToMatch" value="REMOTE#org.ala.client.appender.RestLevel" />-->
+    <!--<param name="AcceptOnMatch" value="false"/>-->
+    <!--</filter>-->
     <!--</appender>-->
     <appender name="FILE" class="org.apache.log4j.RollingFileAppender">
         <param name="File" value="${catalina.base}/logs/biocache-service.log"/>

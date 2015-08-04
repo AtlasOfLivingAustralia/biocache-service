@@ -5,8 +5,14 @@ Occurrence &amp; mapping webservices.
 
 Theses services are documented here http://api.ala.org.au/apps/biocache
 
-## Release notes 1.3
 
+## Release notes 1.5
+
+
+## Release notes 1.4
+
+
+## Release notes 1.3
 
 * ability to switch between name lookup services - allowing switch
 * between REST web services provided by BIE and looks against the name

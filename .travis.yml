@@ -6,7 +6,7 @@ branches:
   only:
   - master
   - 1.6
-  - 1.5.1  
+  - 1.5.1
 before_install:
 - mkdir -p ~/.m2; wget -q -O ~/.m2/settings.xml https://raw.githubusercontent.com/AtlasOfLivingAustralia/travis-build-configuration/master/travis_maven_settings.xml
 script: mvn clean install -DskipTests=true

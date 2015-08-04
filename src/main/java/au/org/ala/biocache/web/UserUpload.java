@@ -9,6 +9,8 @@ public class UserUpload {
     String lastName = "";
     Integer numberOfRecords = 0;
     String alaId = "";
+    String webserviceUrl = "";
+    String uiUrl = "";
 
     public String getName() {
         return name;
@@ -72,5 +74,21 @@ public class UserUpload {
 
     public void setAlaId(String alaId) {
         this.alaId = alaId;
+    }
+
+    public String getWebserviceUrl() {
+        return webserviceUrl;
+    }
+
+    public void setWebserviceUrl(String webserviceUrl) {
+        this.webserviceUrl = webserviceUrl;
+    }
+
+    public String getUiUrl() {
+        return uiUrl;
+    }
+
+    public void setUiUrl(String uiUrl) {
+        this.uiUrl = uiUrl;
     }
 }

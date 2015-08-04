@@ -30,4 +30,11 @@ public interface ImageMetadataService {
      * @throws Exception
      */
     Map<String, List<Map<String, Object>>> getImageMetadataForOccurrences(List<String> occurrenceIds) throws Exception;
+
+    /**
+     * Returns a URL to the image metadata.
+     * @param imageId
+     * @return a absolute URL to the image metadata.
+     */
+    String getUrlFor(String imageId);
 }

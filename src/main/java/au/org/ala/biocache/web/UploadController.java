@@ -2,6 +2,7 @@ package au.org.ala.biocache.web;
 
 import au.com.bytecode.opencsv.CSVReader;
 import au.org.ala.biocache.ObserverCallback;
+import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dto.Facet;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.parser.AdHocParser;
@@ -18,10 +19,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.ServletRequestUtils;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -37,7 +35,7 @@ import java.util.zip.ZipInputStream;
  * Controller that supports the upload of CSV data to be indexed and processed in the biocache.
  */
 @Controller
-public class UploadController {
+public class UploadController extends AbstractSecureController {
 
     private final static Logger logger = Logger.getLogger(UploadController.class);
 
@@ -52,6 +50,9 @@ public class UploadController {
 
     @Value("${upload.threads:4}")
     protected Integer uploadThreads;
+
+    @Value("${webservices.root:http://biocache.ala.org.au/ws}")
+    protected String webservicesRoot;
 
     private Pattern dataResourceUidP = Pattern.compile("data_resource_uid:([\\\"]{0,1}[a-z]{2,3}[0-9]{1,}[\\\"]{0,1})");
     //TODO move to config
@@ -69,8 +70,6 @@ public class UploadController {
         "genus",
         "species",
         "stateProvince",
-        "imcra",
-        "ibra",
         "places",
         "decimalLatitude",
         "decimalLongitude",
@@ -90,7 +89,7 @@ public class UploadController {
      *
      * @return an identifier for this temporary dataset
      */
-    @RequestMapping(value="/upload/status/{tempDataResourceUid}.json", method = RequestMethod.GET)
+    @RequestMapping(value={"/upload/status/{tempDataResourceUid}.json", "/upload/status/{tempDataResourceUid}"}, method = RequestMethod.GET)
     public @ResponseBody Map<String,String> uploadStatus(@PathVariable String tempDataResourceUid, HttpServletResponse response) throws Exception {
        response.setContentType("application/json");
        File file = new File(uploadStatusDir + File.separator + tempDataResourceUid);
@@ -125,7 +124,7 @@ public class UploadController {
      * @param queryExpression
      * @return
      */
-    private List<String> getDrs(String queryExpression){
+    List<String> getDrs(String queryExpression){
         List<String> drs = new ArrayList<String>();
         if(queryExpression != null){
             Matcher m = dataResourceUidP.matcher(queryExpression);
@@ -139,7 +138,7 @@ public class UploadController {
     }
 
     /**
-     * Upload a dataset using a POST, returning a UID for this data
+     * Retrieve the set of dynamic facets availiable for this query.
      *
      * @return an identifier for this temporary dataset
      */
@@ -178,7 +177,7 @@ public class UploadController {
         return fs;
     }
 
-    public List<String> filterCustomIndexFields(List<String> suppliedHeaders){
+    List<String> filterCustomIndexFields(List<String> suppliedHeaders){
         List<String> customIndexFields = new ArrayList<String>();
         for(String hdr: suppliedHeaders){
             if(!alreadyIndexedFields.contains(hdr)){
@@ -188,7 +187,7 @@ public class UploadController {
         return customIndexFields;
     }
 
-    public List<String> filterByMaxColumnLengths(String[] headers, CSVReader csvReader, int maxColumnLength) throws Exception {
+    List<String> filterByMaxColumnLengths(String[] headers, CSVReader csvReader, int maxColumnLength) throws Exception {
         int[] columnLengths = new int[headers.length];
         for(int i = 0; i < columnLengths.length; i++) columnLengths[i] = 0; //initialise - needed ?
         String[] fields = csvReader.readNext();
@@ -210,7 +209,11 @@ public class UploadController {
         return filterList;
     }
 
-    private void mkWorkingDirs() throws Exception {
+    /**
+     * Setup working directories for uploads.
+     * @throws Exception
+     */
+    void mkWorkingDirs() throws Exception {
         File uploadStatusDirF = new File(uploadStatusDir);
         if(!uploadStatusDirF.exists()){
             FileUtils.forceMkdir(uploadStatusDirF);
@@ -222,7 +225,7 @@ public class UploadController {
         }
     }
 
-    public String[] getHeaders(HttpServletRequest request){
+    String[] getHeaders(HttpServletRequest request){
         String headers = request.getParameter("headers");
         String[] headerUnmatched = cleanUpHeaders(headers.split(","));
         return AdHocParser.mapOrReturnColumnHeadersArray(headerUnmatched);
@@ -242,21 +245,51 @@ public class UploadController {
      *
      * @return an identifier for this temporary dataset
      */
-    @RequestMapping(value="/upload/post", method = RequestMethod.POST)
+    @RequestMapping(value="/upload/{tempDataResourceUid}", method = RequestMethod.DELETE)
+    public @ResponseBody Map<String, Object> deleteResource(
+            @PathVariable String tempDataResourceUid,
+            HttpServletRequest request, HttpServletResponse response) throws Exception {
+
+        //auth check
+        boolean apiKeyValid = shouldPerformOperation(request, response);
+        if(!apiKeyValid){
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Supplied API key not recognised or missing");
+            return null;
+        }
+
+        //TODO delete the temp data resource from the collectory
+
+
+        //start an async delete of the resource from index & storage
+        Store.deleteRecords(tempDataResourceUid, null, true, true);
+
+        Map<String,Object> details = new HashMap<String,Object>();
+        details.put("success", true);
+        return details;
+    }
+
+    /**
+     * Upload a dataset using a POST, returning a UID for this data
+     *
+     * @return an identifier for this temporary dataset
+     */
+    @RequestMapping(value={"/upload/post", "/upload/"}, method = RequestMethod.POST)
     public @ResponseBody Map<String,String> uploadOccurrenceData(HttpServletRequest request, HttpServletResponse response) throws Exception {
 
+        String dataResourceUid = request.getParameter("dataResourceUid");
         final String urlToZippedData = request.getParameter("csvZippedUrl");
         final String csvDataAsString = request.getParameter("csvData");
         final String datasetName = request.getParameter("datasetName");
-        final String alaId = request.getParameter("alaId");
+        final String alaId = request.getParameter("alaId"); // the account user ID
+        final String uiUrl = request.getParameter("uiUrl"); // this is the URL to UI for record display
 
         if(StringUtils.isEmpty(urlToZippedData) && StringUtils.isEmpty(csvDataAsString)){
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Must supply 'csvZippedUrl' or 'csvData'");
             return null;
         }
 
-        if(StringUtils.isEmpty(datasetName)){
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Must supply 'datasetName'");
+        if(StringUtils.isEmpty(datasetName) && StringUtils.isEmpty(dataResourceUid)){
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Must supply 'datasetName' or a 'dataResourceUid'");
             return null;
         }
 
@@ -265,7 +298,7 @@ public class UploadController {
 
             //check the request
             String[] headers = getHeaders(request);
-            boolean firstLineIsData = ServletRequestUtils.getBooleanParameter(request,"firstLineIsData");
+            boolean firstLineIsData = ServletRequestUtils.getBooleanParameter(request, "firstLineIsData");
             String[] customIndexFields = null;
 
             //get a record count
@@ -310,10 +343,20 @@ public class UploadController {
                 csvData = new CSVReader(new StringReader(csvDataAsString), separatorChar, '"');
             }
 
-            String tempUid = createTempResource(datasetName, lineCount, alaId);
+            boolean reload = false;
+            if(StringUtils.isNotBlank(dataResourceUid)){
+                logger.info("Data resource UID supplied, will attempt reload...");
+                //we are reloading.....
+                reload = true;
+            } else {
+                logger.info("Data resource UID NOT supplied, will create a temp resource....");
+                dataResourceUid = createTempResource(datasetName, lineCount, alaId, uiUrl);
+                logger.info("Temp data resource created with UID: " + dataResourceUid);
+            }
 
             //do the upload asynchronously
             UploaderThread ut = new UploaderThread();
+            ut.reload = reload;
             ut.headers = headers;
             ut.datasetName = datasetName;
             ut.firstLineIsData = firstLineIsData;
@@ -321,15 +364,15 @@ public class UploadController {
             ut.lineCount = lineCount;
             ut.uploadStatusDir = uploadStatusDir;
             ut.recordsToLoad = lineCount;
-            ut.tempUid = tempUid;
+            ut.tempUid = dataResourceUid;
             ut.customIndexFields = customIndexFields;
             ut.threads = uploadThreads;
             ut.alaId = alaId;
             new Thread(ut).start();
 
-            logger.debug("Temporary UID being returned...." + tempUid);
+            logger.debug("Temporary UID being returned...." + dataResourceUid);
             Map<String,String> details = new HashMap<String,String>();
-            details.put("uid", tempUid);
+            details.put("uid", dataResourceUid);
             return details;
 
         } catch (Exception e){
@@ -389,7 +432,7 @@ public class UploadController {
         return new File(unzippedFilePath);
     }
 
-    private String createTempResource(String datasetName, int lineCount, String alaId) throws IOException {
+    private String createTempResource(String datasetName, int lineCount, String alaId, String uiUrl) throws IOException {
 
         ObjectMapper mapper = new ObjectMapper();
 
@@ -397,6 +440,8 @@ public class UploadController {
         uu.setNumberOfRecords(lineCount);
         uu.setName(datasetName);
         uu.setAlaId(alaId);
+        uu.setWebserviceUrl(webservicesRoot);
+        uu.setUiUrl(uiUrl);
 
         String json = mapper.writeValueAsString(uu);
         PostMethod post = new PostMethod(registryUrl + "/tempDataResource");
@@ -404,23 +449,10 @@ public class UploadController {
         HttpClient httpClient = new HttpClient();
         httpClient.executeMethod(post);
 
-        logger.debug("######### Retrieved: " + post.getResponseHeader("location").getValue());
-        logger.debug("######### Data uploaded....");
+        logger.info("Retrieved: " + post.getResponseHeader("location").getValue());
         String collectoryUrl = post.getResponseHeader("location").getValue();
         return collectoryUrl.substring(collectoryUrl.lastIndexOf('/') + 1);
     }
-    
-    public void setRegistryUrl(String registryUrl) {
-		this.registryUrl = registryUrl;
-	}
-
-	public void setUploadStatusDir(String uploadStatusDir) {
-		this.uploadStatusDir = uploadStatusDir;
-	}
-
-	public void setUploadTempDir(String uploadTempDir) {
-		this.uploadTempDir = uploadTempDir;
-	}
 }
 
 final class UploadStatus {
@@ -448,10 +480,14 @@ final class UploadStatus {
     }
 }
 
+/**
+ * A thread started when a user selects to upload a dataset.
+ */
 class UploaderThread implements Runnable {
 
     private final static Logger logger = Logger.getLogger(UploaderThread.class);
     public String status = "LOADING";
+    protected Boolean reload;
     protected String[] headers;
     protected String datasetName = "";
     protected CSVReader csvData;
@@ -487,8 +523,16 @@ class UploaderThread implements Runnable {
         }
 
         try {
+
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("STARTING", "Starting...", 0)));
+
+            if(reload){
+                FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("DELETING_EXISTING", "Deleting existing data...", 0)));
+                au.org.ala.biocache.Store.deleteRecords(tempUid, null, true, true);
+            }
+
             //count the lines
-            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("LOADING", "Starting...", 0)));
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("LOADING", "Loading...", 0)));
             Integer recordCount = lineCount;
             if(!firstLineIsData){
                 recordCount--;
@@ -518,7 +562,9 @@ class UploaderThread implements Runnable {
                         if(counter != 0){
                             percentageComplete = (int) ((float) (counter + 1) / (float) recordCount * 25);
                         }
-                        FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("LOADING",String.format("%d of %d records loaded.", counter, recordCount),percentageComplete)));
+                        FileUtils.writeStringToFile(
+                                statusFile,
+                                om.writeValueAsString(new UploadStatus("LOADING", String.format("%d of %d records loaded.", counter, recordCount), percentageComplete)));
                     }
                 }
             } catch(Exception e) {
@@ -532,9 +578,9 @@ class UploaderThread implements Runnable {
             List<String> tmpCustIndexFields = new ArrayList<String>();
             for(String f : customIndexFields){
                 if(intList.contains(f))
-                   tmpCustIndexFields.add(f +"_i");
+                   tmpCustIndexFields.add(f + "_i");
                 else if(floatList.contains(f))
-                   tmpCustIndexFields.add(f+"_d");
+                   tmpCustIndexFields.add(f + "_d");
                 else
                     tmpCustIndexFields.add(f); //default is a string
             }

@@ -91,10 +91,9 @@ public class ValidationRuleController extends AbstractSecureController {
 
     @RequestMapping(value={"/validation/rules/rematch"})
     public void reinitialiseRules(HttpServletRequest request, HttpServletResponse response) throws Exception {
-        String apiKey = request.getParameter("apiKey");
         ObjectMapper om = new ObjectMapper();
-        if(shouldPerformOperation(apiKey, response)){
-            int count=0,changed=0,notfound=0;
+        if(shouldPerformOperation(request, response)){
+            int count = 0, changed = 0, notfound = 0;
             for(ValidationRule vr: Store.getValidationRules()){
                 //get the ValidationRuleDTO for the raw value
                 String rawValue = vr.getRawAssertion();
