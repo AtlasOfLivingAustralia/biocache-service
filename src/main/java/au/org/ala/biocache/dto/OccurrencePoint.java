@@ -23,11 +23,12 @@ import java.util.List;
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
 public class OccurrencePoint {
+
     protected Long count = -1L;
     protected PointType type;
     protected List<Float> coordinates = new ArrayList<Float>(); // long, lat order
+    protected Integer coordinateUncertaintyInMeters = null;
     protected String occurrenceUid;
-    protected String taxonConceptGuid;
 
     public OccurrencePoint() {}
 
@@ -38,7 +39,7 @@ public class OccurrencePoint {
     @Override
     public String toString() {
         return "OccurrencePoint{" + "count=" + count + "; type=" + type + "; coordinates=" + coordinates +
-                "; occurrenceUid=" + occurrenceUid + "; taxonConceptGuid=" + taxonConceptGuid + '}';
+                "; occurrenceUid=" + occurrenceUid + "}";
     }
 
     public Long getCount() {
@@ -73,11 +74,11 @@ public class OccurrencePoint {
         this.occurrenceUid = occurrenceUid;
     }
 
-    public String getTaxonConceptGuid() {
-        return taxonConceptGuid;
+    public Integer getCoordinateUncertaintyInMeters() {
+        return coordinateUncertaintyInMeters;
     }
 
-    public void setTaxonConceptGuid(String taxonConceptGuid) {
-        this.taxonConceptGuid = taxonConceptGuid;
+    public void setCoordinateUncertaintyInMeters(Integer coordinateUncertaintyInMeters) {
+        this.coordinateUncertaintyInMeters = coordinateUncertaintyInMeters;
     }
 }

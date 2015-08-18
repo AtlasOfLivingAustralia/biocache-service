@@ -25,13 +25,14 @@ import java.util.Arrays;
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
 public class SpatialSearchRequestParams extends SearchRequestParams {
-	
+
+    public final static String[] gkFq = new String[]{"geospatial_kosher:true"};
+
     protected Float radius = null;
     protected Float lat = null;
     protected Float lon = null;
-    protected String wkt ="";
-    protected Boolean gk = false;//include only the geospatially kosher records
-    private String[] gkFq = new String[]{"geospatial_kosher:true"};
+    protected String wkt = "";
+    protected Boolean gk = false;   //include only the geospatially kosher records
 
     /**
      * Custom toString method to produce a String to be used as the request parameters
@@ -144,7 +145,7 @@ public class SpatialSearchRequestParams extends SearchRequestParams {
      */
     public String[] getFq() {
         if(gk) {
-            return (String[]) ArrayUtils.addAll(fq,gkFq);
+            return (String[]) ArrayUtils.addAll(fq, gkFq);
         } else {
             return fq;
         }

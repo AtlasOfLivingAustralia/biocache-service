@@ -37,7 +37,7 @@ public enum PointType {
     private Float value;
     private int rounding;
 
-    private PointType(String label,Float value, int rounding) {
+    PointType(String label,Float value, int rounding) {
         this.label = label;
         this.value = value;
         this.rounding = rounding;

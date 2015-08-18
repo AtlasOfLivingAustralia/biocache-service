@@ -1096,13 +1096,30 @@ public class SearchDAOImpl implements SearchDAO {
         formatSearchQuery(searchParams);
         logger.info("search query: " + searchParams.getFormattedQuery());
         SolrQuery solrQuery = new SolrQuery();
-        solrQuery.setQueryType("standard");        
         solrQuery.setQuery(buildSpatialQueryString(searchParams));
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
         solrQuery.addFacetField(pointType.getLabel());
         solrQuery.setFacetMinCount(1);
-        solrQuery.setFacetLimit(-1);//MAX_DOWNLOAD_SIZE);  // unlimited = -1
+        solrQuery.setFacetLimit(-1);    //MAX_DOWNLOAD_SIZE);  // unlimited = -1
+
+        //if there is a filter on coordinate uncertainty, add the value to the point
+        //to facilitate downstream rendering of the resolution
+        Integer coordinateUncertainty = null;
+        if(searchParams.getFq() != null){
+            //is there a facet for coordinate uncertainty ?
+            for (String fq : searchParams.getFq()){
+               if(fq.startsWith("coordinate_uncertainty")){
+                   //
+                   try {
+                       String value = fq.split(":")[1].replaceAll("\"", "");
+                       coordinateUncertainty = (int) Double.parseDouble(value);
+                   } catch (Exception e) {
+                       //just ignore, any number format exception or formatting problem
+                   }
+               }
+            }
+        }
 
         //add the context information
         updateQueryContext(searchParams);
@@ -1118,6 +1135,7 @@ public class SearchDAOImpl implements SearchDAO {
                     for (FacetField.Count fcount : facetEntries) {
                         OccurrencePoint point = new OccurrencePoint(pointType);
                         point.setCount(fcount.getCount());
+                        point.setCoordinateUncertaintyInMeters(coordinateUncertainty);
                         String[] pointsDelimited = StringUtils.split(fcount.getName(), ',');
                         List<Float> coords = new ArrayList<Float>();
 
