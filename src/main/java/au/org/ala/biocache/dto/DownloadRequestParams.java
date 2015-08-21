@@ -46,6 +46,8 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     protected Character sep=',';
     /** The CSV escape character to use*/
     protected Character esc='"';
+    /** The header is to use darwin core headers (from messages.properties) */
+    protected Boolean dwcHeaders=false;
     
     @NotNull @LogType(type="reason")//@Range(min=0, max=10)
     protected Integer reasonTypeId = null;    
@@ -80,6 +82,9 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
         }
         if(!"all".equals(qa)){
             req.append("&qa=").append(qa);
+        }
+        if (dwcHeaders) {
+            req.append("&dwcHeaders=true");
         }
         
         return req.toString();
@@ -207,5 +212,13 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
 
     public void setSep(Character sep) {
         this.sep = sep;
+    }
+    
+    public Boolean getDwcHeaders() { 
+        return dwcHeaders;
+    }
+    
+    public void setDwcHeaders(Boolean dwcHeaders) {
+        this.dwcHeaders = dwcHeaders;
     }
 }
