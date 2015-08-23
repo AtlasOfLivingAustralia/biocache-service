@@ -203,7 +203,13 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping("/search/grouped/facets")
     public @ResponseBody List groupFacets() throws IOException {
-        return new FacetThemes(facetConfig).allThemes;
+        Set<IndexFieldDTO> indexedFields = null;
+        try {
+            indexedFields = searchDAO.getIndexedFields();
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        }
+        return new FacetThemes(facetConfig, indexedFields).allThemes;
     }
     
     /**

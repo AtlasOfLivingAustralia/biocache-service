@@ -39,7 +39,7 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     /** the occurrences/search json key for this field */
     private String jsonName;
     /** the DwC name for this field */
-    private String dwc;
+    private String dwcTerm;
     /** the download name for this field (biocache-store name) valid for DownloadRequestParams.fl */
     private String downloadName;
     /** the download description for this field when downloadName is used in DownloadRequestParams.fl */
@@ -163,16 +163,16 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
         this.info = info;
     }
     /**
-     * @return the dwc
+     * @return the dwcTerm
      */
-    public String getDwc() {
-        return dwc;
+    public String getDwcTerm() {
+        return dwcTerm;
     }
     /**
-     * @param dwc the dwc to set
+     * @param dwcTerm the dwcTerm to set
      */
-    public void setDwc(String dwc) {
-        this.dwc = dwc;
+    public void setDwcTerm(String dwcTerm) {
+        this.dwcTerm = dwcTerm;
     }
     /**
      * @return the downloadName

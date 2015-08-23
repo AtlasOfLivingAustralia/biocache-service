@@ -2625,16 +2625,16 @@ public class SearchDAOImpl implements SearchDAO {
                                 f.setStored(schema.contains("S"));
 
                                 //now add the i18n and associated strings to the field.
-                                //1. description: {display name from fieldName= in i18n }
-                                //2. info: {details about this field from description.fieldName= in i18n}
-                                //3. dwc: {DwC field name for this field from dwc.fieldName= in i18n}
-                                //4. jsonName: {json key as returned by occurrences/search}
-                                //5. downloadField: {biocache-store column name that is usable in DownloadRequestParams.fl}
+                                //1. description: display name from fieldName= in i18n
+                                //2. info: details about this field from description.fieldName= in i18n
+                                //3. dwcTerm: DwC field name for this field from dwc.fieldName= in i18n
+                                //4. jsonName: json key as returned by occurrences/search
+                                //5. downloadField: biocache-store column name that is usable in DownloadRequestParams.fl
                                 //if the field has (5) downloadField, use it to find missing (1), (2) or (3)
-                                //6. downloadDescription: {the column name when downloadField is used in 
-                                //   DownloadRequestParams.fl and a translation occurs}
-                                //7. i18nValues: {true | false, indicates that the values returned by this field can be 
-                                //   translated using facetName.value= in /facets/i18n }
+                                //6. downloadDescription: the column name when downloadField is used in
+                                //   DownloadRequestParams.fl and a translation occurs
+                                //7. i18nValues: true | false, indicates that the values returned by this field can be
+                                //   translated using facetName.value= in /facets/i18n
                                 if (layersPattern.matcher(fieldName).matches()) {
                                     //System.out.println(layersService.getLayerNameMap());
                                     String description = layersService.getLayerNameMap().get(fieldName);
@@ -2676,14 +2676,14 @@ public class SearchDAOImpl implements SearchDAO {
                                         }
                                     }
 
-                                    //(3) check as a dwc
-                                    String dwc = messageSource.getMessage("dwc." + fieldName, null, "", Locale.getDefault());
-                                    if (dwc.length() > 0) {
-                                        f.setDwc(dwc);
+                                    //(3) check as a dwcTerm
+                                    String dwcTerm = messageSource.getMessage("dwc." + fieldName, null, "", Locale.getDefault());
+                                    if (dwcTerm.length() > 0) {
+                                        f.setDwcTerm(dwcTerm);
                                     } else if (downloadField != null) {
-                                        dwc = messageSource.getMessage("dwc." + downloadField, null, "", Locale.getDefault());
-                                        if (dwc.length() > 0) {
-                                            f.setDwc(dwc);
+                                        dwcTerm = messageSource.getMessage("dwc." + downloadField, null, "", Locale.getDefault());
+                                        if (dwcTerm.length() > 0) {
+                                            f.setDwcTerm(dwcTerm);
                                         }
                                     }
 

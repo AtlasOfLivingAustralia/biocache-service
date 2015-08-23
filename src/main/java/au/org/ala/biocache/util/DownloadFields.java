@@ -81,9 +81,10 @@ public class DownloadFields {
         String[] header = new String[values.length];
         for(int i =0; i < values.length; i++){
             //attempt to get the headervalue from the properties
-            String v = layerProperties.getProperty(values[i], messageSource.getMessage(values[i], null, "", Locale.getDefault()));
+            //only dwcHeader lookup is permitted when dwcHeaders == true
+            String v = dwcHeaders ? values[i] : layerProperties.getProperty(values[i], messageSource.getMessage(values[i], null, generateTitle(values[i], useSuffix), Locale.getDefault()));
             String dwc = dwcHeaders ? messageSource.getMessage("dwc." + values[i], null, "", Locale.getDefault()) : null;
-            header[i] = dwc != null && dwc.length() > 0 ? dwc : (v != null || v.length() == 0 ? v : generateTitle(values[i], useSuffix));
+            header[i] = dwc != null && dwc.length() > 0 ? dwc : v;
         }
         return header;
     }
@@ -126,7 +127,8 @@ public class DownloadFields {
             IndexFieldDTO field = indexFieldMaps.get(indexName);
             if((field != null && field.isStored()) || value.startsWith("sensitive")){
                 mappedNames.add(indexName);
-                String v = layerProperties.getProperty(value, messageSource.getMessage(value, null, generateTitle(value, true), Locale.getDefault()));
+                //only dwcHeader lookup is permitted when dwcHeaders == true
+                String v = dwcHeaders ? value : layerProperties.getProperty(value, messageSource.getMessage(value, null, generateTitle(value, true), Locale.getDefault()));
                 String dwc = dwcHeaders ? messageSource.getMessage("dwc." + value, null, "", Locale.getDefault()) : null;
                 headers.add(dwc != null && dwc.length() > 0 ? dwc : v);
             } else {
