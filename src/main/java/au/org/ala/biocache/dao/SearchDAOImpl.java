@@ -117,6 +117,9 @@ public class SearchDAOImpl implements SearchDAO {
     
     @Inject
     private CollectionsCache collectionCache;
+
+    @Inject
+    private SpeciesListCache speciesListCache;
     
     @Inject
     private AbstractMessageSource messageSource;
@@ -232,7 +235,7 @@ public class SearchDAOImpl implements SearchDAO {
         // 1)get a list of species that are in the WKT
         logger.debug("Starting to get Endemic Species...");
         List<FieldResultDTO> list1 = getValuesForFacet(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));
-        logger.debug("Retrieved species within area...("+list1.size()+")");                     
+        logger.debug("Retrieved species within area...(" + list1.size() + ")");
         // 2)get a list of species that occur in the inverse WKT
         
         String reverseQuery = SpatialUtils.getWKTQuery(spatialField, requestParams.getWkt(), true);//"-geohash:\"Intersects(" +wkt + ")\"";
@@ -295,7 +298,7 @@ public class SearchDAOImpl implements SearchDAO {
         subQuery.setFacet(true);
         subQuery.setFacets(parentQuery.getFacets());
         List<FieldResultDTO> list1 = getValuesForFacet(subQuery);
-        logger.debug("Retrieved species within area...("+list1.size()+")");
+        logger.debug("Retrieved species within area...(" + list1.size() + ")");
 
         int i = 0, localterms = 0;
 
@@ -380,11 +383,12 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Override
     public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, Map<String,String[]> extraParams) {
-        return findByFulltextSpatialQuery(searchParams,false,extraParams);
+        return findByFulltextSpatialQuery(searchParams, false, extraParams);
     }
     
     @Override
-    public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, boolean includeSensitive, Map<String,String[]> extraParams) {
+    public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, boolean includeSensitive,
+                                                      Map<String,String[]> extraParams) {
         SearchResultDTO searchResults = new SearchResultDTO();
         SpatialSearchRequestParams original = new SpatialSearchRequestParams(); 
         BeanUtils.copyProperties(searchParams, original);
@@ -395,7 +399,7 @@ public class SearchDAOImpl implements SearchDAO {
             updateQueryContext(searchParams);
             String queryString = buildSpatialQueryString(searchParams);
             //logger.debug("The spatial query " + queryString);
-            SolrQuery solrQuery = initSolrQuery(searchParams,true,extraParams); // general search settings
+            SolrQuery solrQuery = initSolrQuery(searchParams, true, extraParams); // general search settings
             solrQuery.setQuery(queryString);
 
             QueryResponse qr = runSolrQuery(solrQuery, searchParams);
@@ -1650,24 +1654,31 @@ public class SearchDAOImpl implements SearchDAO {
         searchResult.setDir(solrSort[1]); // sortDirection
         searchResult.setQuery(params.getUrlParams()); //this needs to be the original URL>>>>
         searchResult.setOccurrences(results);
+
         // populate SOLR facet results
         if (facets != null) {
             for (FacetField facet : facets) {
                 List<FacetField.Count> facetEntries = facet.getValues();                
                 if ((facetEntries != null) && (facetEntries.size() > 0)) {
                     ArrayList<FieldResultDTO> r = new ArrayList<FieldResultDTO>();
-                    Matcher m = uidPattern.matcher(facet.getName()+":value");
+                    Matcher m = uidPattern.matcher(facet.getName() + ":value");
                     boolean isUid = m.matches();
                     for (FacetField.Count fcount : facetEntries) {
                         //check to see if the facet field is an uid value that needs substitution
-                        if(isUid){
+                        if("month".equals(facet.getName())) {
+                            String displayName = searchUtils.substituteMonthNamesForNums(fcount.getName());
+                            r.add(new FieldResultDTO(displayName, fcount.getCount(), facet.getName() + ":\"" + fcount.getName() + "\""));
+                        } else if("species_list_uid".equals(facet.getName())) {
+                            String displayName = speciesListCache.getDisplayNameForList(fcount.getName());
+                            r.add(new FieldResultDTO(displayName, fcount.getCount(), facet.getName() + ":\"" + fcount.getName() + "\""));
+                        } else if(isUid){
                             String displayName = searchUtils.getUidDisplayString(facet.getName(), fcount.getName(), false);
-                            r.add(new FieldResultDTO(displayName, fcount.getCount(),facet.getName()+":\"" + fcount.getName()+"\""));
+                            r.add(new FieldResultDTO(displayName, fcount.getCount(),facet.getName()+":\"" + fcount.getName() + "\""));
                         } else if(getAuthIndexFields().contains(facet.getName())){
                             //if the facet field is collector or assertion_user_id we need to perform the substitution
                             String displayName = authService.getDisplayNameFor(fcount.getName());                            
                             //now add the facet with the correct fq being supplied
-                            r.add(new FieldResultDTO(displayName, fcount.getCount(),facet.getName()+":\"" + fcount.getName()+"\""));
+                            r.add(new FieldResultDTO(displayName, fcount.getCount(),facet.getName()+":\"" + fcount.getName() + "\""));
                         } else {
                             r.add(new FieldResultDTO(fcount.getName(), fcount.getCount()));
                         }

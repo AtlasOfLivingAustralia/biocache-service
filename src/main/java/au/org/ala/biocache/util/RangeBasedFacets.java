@@ -35,7 +35,7 @@ public class RangeBasedFacets {
         return null;
     }
     
-    static{
+    static {
         //construct the bi directional map for the uncertainty ranges
         ImmutableBiMap<String, String> map = new ImmutableBiMap.Builder<String,String>()
                 .put("coordinate_uncertainty:[0 TO 100]", "less than 100")

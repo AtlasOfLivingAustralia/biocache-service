@@ -96,24 +96,6 @@ public class ContactUtils {
         return contactDTOs;
     }
 
-    public boolean isCollectionsAdmin(String collectionUid, String userId){
-        final String jsonUri = collectionContactsUrl + "/" + collectionUid + "/contacts.json";
-        logger.debug("Requesting: " + jsonUri);
-        List<Map<String, Object>> contacts = restTemplate.getForObject(jsonUri, List.class);
-        logger.debug("number of contacts = " + contacts.size());
-
-        for (Map<String, Object> contact : contacts) {
-            Map<String, String> details = (Map<String, String>) contact.get("contact");
-            String email = details.get("email");
-            logger.debug("email = " + email);
-            if (userId.equalsIgnoreCase(email)) {
-                logger.info("Logged in user has collection admin rights: " + email);
-                return true;
-            }
-        }
-        return false;
-    }
-
     /**
      * Return contact details for this user if they are a collection manager etc
      *

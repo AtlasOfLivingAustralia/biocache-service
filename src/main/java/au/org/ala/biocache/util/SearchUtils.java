@@ -40,13 +40,15 @@ public class SearchUtils {
     @Inject
     private CollectionsCache collectionCache;
     @Inject
+    private SpeciesListCache speciesListCache;
+    @Inject
     private AuthService authService;
     //for i18n of display values for facets
     @Inject
     private AbstractMessageSource messageSource;
     @Inject
     private SpeciesLookupService speciesLookupService;
-    @Value("${name.index.dir:/data/lucene/namematching_v13}")
+    @Value("${name.index.dir:/data/lucene/namematching}")
     protected String nameIndexLocation;
 
     ALANameSearcher nameIndex = null;
@@ -54,7 +56,7 @@ public class SearchUtils {
     protected static List<String> defaultParams = new ArrayList<String>();
 
     static {
-        java.lang.reflect.Field[] fields = (java.lang.reflect.Field[])ArrayUtils.addAll(SpatialSearchRequestParams.class.getDeclaredFields(),SearchRequestParams.class.getDeclaredFields());
+        java.lang.reflect.Field[] fields = (java.lang.reflect.Field[]) ArrayUtils.addAll(SpatialSearchRequestParams.class.getDeclaredFields(),SearchRequestParams.class.getDeclaredFields());
         for(java.lang.reflect.Field field:fields){
             defaultParams.add(field.getName());
         }
@@ -221,28 +223,6 @@ public class SearchUtils {
         }
 
         return result;
-    }
-
-    /**
-     * Formats the query string before
-     *
-     * @param query
-     * @return
-     */
-    public static String formatSearchQuery(String query) {
-        // set the query
-        StringBuilder queryString = new StringBuilder();
-        if (query.equals("*:*") || query.contains(" AND ") || query.contains(" OR ") || query.startsWith("(")
-                || query.endsWith("*") || query.startsWith("{")) {
-            queryString.append(query);
-        } else if (query.contains(":") && !query.startsWith("urn")) {
-            // search with a field name specified (other than an LSID guid)
-            queryString.append(formatGuid(query));
-        } else {
-            // regular search
-            queryString.append(ClientUtils.escapeQueryChars(query));
-        }
-        return queryString.toString();
     }
 
     public static String formatGuid(String guid) {
@@ -454,6 +434,8 @@ public class SearchUtils {
                                     fv = substituteYearsForDates(fv);
                                 } else if (StringUtils.equals(fn, "month")) {
                                     fv = substituteMonthNamesForNums(fv);
+                                } else if (StringUtils.equals(fn, "species_list_uid")) {
+                                    fv = speciesListCache.getDisplayNameForList(fv);
                                 } else if (authIndexFields.contains(fn)) {
                                     if (authService.getMapOfAllUserNamesById().containsKey(StringUtils.remove(fv, "\""))) 
                                         fv = authService.getMapOfAllUserNamesById().get(StringUtils.remove(fv, "\""));
@@ -517,10 +499,11 @@ public class SearchUtils {
      * @param fv
      * @return monthStr
      */
-    private String substituteMonthNamesForNums(String fv) {
+    public String substituteMonthNamesForNums(String fv) {
         String monthStr = new String(fv);
         try {
-            int m = Integer.parseInt(monthStr);
+            //strip quotes and match
+            int m = Integer.parseInt(monthStr.replaceAll("\"",""));
             Month month = Month.get(m - 1); // 1 index months
             monthStr = month.name();
         } catch (Exception e) {
