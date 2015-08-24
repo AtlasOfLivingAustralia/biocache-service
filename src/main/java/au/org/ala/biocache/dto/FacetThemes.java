@@ -59,11 +59,13 @@ public class FacetThemes {
                                 description = field.getDescription();
                                 dwcTerm = field.getDwcTerm();
                                 i18nValues = field.isI18nValues();
+                                
+                                //only add this facet if there is an associated SOLR field
+                                facets.add(new Facet(name, facetsMap.get("sort"), description, dwcTerm, i18nValues));
                                 break;
                             }
                         }
                     }
-                    facets.add(new Facet(name, facetsMap.get("sort"), description, dwcTerm, i18nValues));
                 }
                 allThemes.add(new FacetTheme(title, facets));
             }
