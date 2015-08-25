@@ -67,8 +67,7 @@ public class AlaImageMetadataService implements ImageMetadataService {
         HttpPost post = new HttpPost(imageServiceUrl + "/ws/findImagesByMetadata");
 
         ObjectMapper om = new ObjectMapper();
-
-        post.setEntity(new StringEntity(om.writeValueAsString(payload), "UTF-8"));
+        post.setEntity(new StringEntity(om.writeValueAsString(payload), "application/json", "UTF-8"));
         HttpResponse httpResponse = httpClient.execute(post);
 
         String jsonResponseString = EntityUtils.toString(httpResponse.getEntity());
