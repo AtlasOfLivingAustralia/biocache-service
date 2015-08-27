@@ -17,6 +17,7 @@ package au.org.ala.biocache.dao;
 import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.Config;
 import au.org.ala.biocache.RecordWriter;
+import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.index.IndexDAO;
 import au.org.ala.biocache.index.SolrIndexDAO;
@@ -189,7 +190,7 @@ public class SearchDAOImpl implements SearchDAO {
                 queryMethod = server instanceof EmbeddedSolrServer? SolrRequest.METHOD.GET:SolrRequest.METHOD.POST;
                 logger.debug("The server " + server.getClass());
                 //CAUSING THE HANG....
-                downloadFields = new DownloadFields(getIndexedFields());
+                downloadFields = new DownloadFields(getIndexedFields(), messageSource);
             } catch (Exception ex) {
                 logger.error("Error initialising embedded SOLR server: " + ex.getMessage(), ex);
             }
@@ -214,7 +215,7 @@ public class SearchDAOImpl implements SearchDAO {
         rangeFieldCache = null;
         try {
             indexFields = getIndexedFields();
-            downloadFields = new DownloadFields(getIndexedFields());
+            downloadFields = new DownloadFields(getIndexedFields(), messageSource);
         } catch(Exception e) {
             logger.error("Unable to refresh cache.", e);
         }
@@ -649,7 +650,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
 
             String[] requestedFields = sb.toString().split(",");
-            List<String>[] indexedFields = downloadFields.getIndexFields(requestedFields);
+            List<String>[] indexedFields = downloadFields.getIndexFields(requestedFields, downloadParams.getDwcHeaders());
             logger.debug("Fields included in download: " +indexedFields[0]);
             logger.debug("Fields excluded from download: "+indexedFields[1]);
             logger.debug("The headers in downloads: "+indexedFields[2]);
@@ -710,7 +711,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             String qas = qasb.toString();
             final String[] qaFields = qas.equals("") ? new String[]{} : qas.split(",");
-            String[] qaTitles = downloadFields.getHeader(qaFields, false);
+            String[] qaTitles = downloadFields.getHeader(qaFields, false, false);
 
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[2].toArray(new String[]{}),qaTitles);
             
@@ -932,8 +933,8 @@ public class SearchDAOImpl implements SearchDAO {
             
             String[] fields = sb.toString().split(",");            
             String[]qaFields = qas.equals("")?new String[]{}:qas.split(",");
-            String[] qaTitles = downloadFields.getHeader(qaFields,false);
-            String[] titles = downloadFields.getHeader(fields,true);
+            String[] qaTitles = downloadFields.getHeader(qaFields,false,false);
+            String[] titles = downloadFields.getHeader(fields,true,downloadParams.getDwcHeaders());
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(titles,qaTitles);
             //Create the Writer that will be used to format the records
             //construct correct RecordWriter based on the supplied fileType
@@ -2588,6 +2589,8 @@ public class SearchDAOImpl implements SearchDAO {
         Pattern distinctPattern = Pattern.compile("(?:distinct=)([0-9]{1,})");
 
         String[] fieldsStr = str.split("fields=\\{");
+        
+        Map indexToJsonMap = new OccurrenceIndex().indexToJsonMap();
 
         for (String fieldStr : fieldsStr) {
             if (fieldStr != null && !"".equals(fieldStr)) {
@@ -2620,17 +2623,80 @@ public class SearchDAOImpl implements SearchDAO {
                                 //interpret the schema information
                                 f.setIndexed(schema.contains("I"));
                                 f.setStored(schema.contains("S"));
-                                
-                                //now add the i18n string associated with the field
-                                if(layersPattern.matcher(fieldName).matches()){
+
+                                //now add the i18n and associated strings to the field.
+                                //1. description: display name from fieldName= in i18n
+                                //2. info: details about this field from description.fieldName= in i18n
+                                //3. dwcTerm: DwC field name for this field from dwc.fieldName= in i18n
+                                //4. jsonName: json key as returned by occurrences/search
+                                //5. downloadField: biocache-store column name that is usable in DownloadRequestParams.fl
+                                //if the field has (5) downloadField, use it to find missing (1), (2) or (3)
+                                //6. downloadDescription: the column name when downloadField is used in
+                                //   DownloadRequestParams.fl and a translation occurs
+                                //7. i18nValues: true | false, indicates that the values returned by this field can be
+                                //   translated using facetName.value= in /facets/i18n
+                                if (layersPattern.matcher(fieldName).matches()) {
                                     //System.out.println(layersService.getLayerNameMap());
-                                    String description = layersService.getLayerNameMap().get(fieldName);                                    
+                                    String description = layersService.getLayerNameMap().get(fieldName);
                                     f.setDescription(description);
                                 } else {
-                                    //check as a field name
-                                    String description =messageSource.getMessage("facet."+fieldName, null, "", Locale.getDefault());
-                                    if(!description.startsWith("facet.")){
+                                    //(5) check as a downloadField
+                                    String downloadField = Store.getIndexFieldMap().get(fieldName);
+                                    //exclude compound fields
+                                    if (downloadField != null && downloadField.contains(",")) downloadField = null;
+                                    if (downloadField != null) {
+                                        f.setDownloadName(downloadField);
+                                        
+                                        //(6) downloadField description
+                                        String downloadFieldDescription = messageSource.getMessage("facet." + fieldName, null, "", Locale.getDefault());
+                                        if (downloadFieldDescription.length() > 0) {
+                                            f.setDownloadDescription(downloadFieldDescription);
+                                        }
+                                    }
+
+                                    //(1) check as a field name
+                                    String description = messageSource.getMessage("facet." + fieldName, null, "", Locale.getDefault());
+                                    if (description.length() > 0) {
                                         f.setDescription(description);
+                                    } else if (downloadField != null) {
+                                        description = messageSource.getMessage(downloadField, null, "", Locale.getDefault());
+                                        if (description.length() > 0) {
+                                            f.setDescription(description);
+                                        }
+                                    }
+
+                                    //(2) check as a description
+                                    String info = messageSource.getMessage("description." + fieldName, null, "", Locale.getDefault());
+                                    if (info.length() > 0) {
+                                        f.setInfo(info);
+                                    } else if (downloadField != null) {
+                                        info = messageSource.getMessage("description." + downloadField, null, "", Locale.getDefault());
+                                        if (info.length() > 0) {
+                                            f.setInfo(info);
+                                        }
+                                    }
+
+                                    //(3) check as a dwcTerm
+                                    String dwcTerm = messageSource.getMessage("dwc." + fieldName, null, "", Locale.getDefault());
+                                    if (dwcTerm.length() > 0) {
+                                        f.setDwcTerm(dwcTerm);
+                                    } else if (downloadField != null) {
+                                        dwcTerm = messageSource.getMessage("dwc." + downloadField, null, "", Locale.getDefault());
+                                        if (dwcTerm.length() > 0) {
+                                            f.setDwcTerm(dwcTerm);
+                                        }
+                                    }
+
+                                    //(4) check as json name
+                                    String json = (String) indexToJsonMap.get(fieldName);
+                                    if (json != null) {
+                                        f.setJsonName(json);
+                                    }
+
+                                    //(7) has lookupValues in i18n
+                                    String i18nValues = messageSource.getMessage("i18nvalues." + fieldName, null, "", Locale.getDefault());
+                                    if (i18nValues.length() > 0) {
+                                        f.setI18nValues("true".equalsIgnoreCase(i18nValues));
                                     }
                                 }
                                 fieldList.add(f);

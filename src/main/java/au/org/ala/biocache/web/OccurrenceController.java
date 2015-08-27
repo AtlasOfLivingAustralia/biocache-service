@@ -34,6 +34,7 @@ import org.ala.client.util.RestfulClient;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.gbif.utils.file.FileUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
@@ -202,7 +203,13 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping("/search/grouped/facets")
     public @ResponseBody List groupFacets() throws IOException {
-        return new FacetThemes(facetConfig).allThemes;
+        Set<IndexFieldDTO> indexedFields = null;
+        try {
+            indexedFields = searchDAO.getIndexedFields();
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        }
+        return new FacetThemes(facetConfig, indexedFields).allThemes;
     }
     
     /**
@@ -219,7 +226,15 @@ public class OccurrenceController extends AbstractSecureController {
                                         HttpServletResponse response) throws Exception{
         qualifier = (StringUtils.isNotEmpty(qualifier)) ? qualifier : ".properties";
         logger.debug("qualifier = " + qualifier);
-        InputStream is = request.getSession().getServletContext().getResourceAsStream("/WEB-INF/messages" + qualifier);
+        
+        //default to external messages.properties
+        File f = new File("/data/biocache/config/messages" + qualifier);
+        InputStream is;
+        if (f.exists() && f.isFile() && f.canRead()) {
+            is = FileUtils.getInputStream(f);
+        } else {
+            is = request.getSession().getServletContext().getResourceAsStream("/WEB-INF/messages" + qualifier);
+        }
         OutputStream os = response.getOutputStream();
         
         if (is != null) {
@@ -229,6 +244,17 @@ public class OccurrenceController extends AbstractSecureController {
                 os.write(buffer, 0, bytesRead);
             }
         }
+        
+        //append cl* and el* names as field.{fieldId}={display name}
+        try {
+            Map<String, String> fields = new LayersStore(Config.layersServiceUrl()).getFieldIdsAndDisplayNames();
+            for (String fieldId : fields.keySet()) {
+                os.write(("\nfield." + fieldId + "=" + fields.get(fieldId)).getBytes("UTF-8"));
+            }
+        } catch (Exception e) {
+            logger.error("failed to add layer names from url: " + Config.layersServiceUrl(), e);
+        }
+        
         os.flush();
         os.close();
     }

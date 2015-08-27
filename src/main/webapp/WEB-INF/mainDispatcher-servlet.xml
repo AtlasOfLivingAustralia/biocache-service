@@ -47,7 +47,8 @@
     </bean>
 
     <bean id="messageSource" class="org.springframework.context.support.ReloadableResourceBundleMessageSource">
-        <property name="basename" value="/WEB-INF/messages"/>
+        <!-- override default /WEB-INF/messages with optional /data/biocache/config/messages -->
+        <property name="basenames" value="file:///data/biocache/config/messages,/WEB-INF/messages"/>
         <property name="cacheSeconds" value="10"/><!-- loads changes without restarting container -->
         <property name="useCodeAsDefaultMessage" value="true"/>
     </bean>

@@ -34,6 +34,18 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     private Integer numberDistinctValues;
     /** the i18n string to used for the field. */
     private String description;
+    /** the i18n information used for this field */
+    private String info;
+    /** the occurrences/search json key for this field */
+    private String jsonName;
+    /** the DwC name for this field */
+    private String dwcTerm;
+    /** the download name for this field (biocache-store name) valid for DownloadRequestParams.fl */
+    private String downloadName;
+    /** the download description for this field when downloadName is used in DownloadRequestParams.fl */
+    private String downloadDescription;
+    /** the values in this field can be looked up within i18n using name.{value} */
+    private Boolean i18nValues;
     
     @Override
     public boolean equals(Object obj){
@@ -116,6 +128,75 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
      */
     public void setDescription(String description) {
         this.description = description;
+    }
+    /**
+     * @return the i18nValues
+     */
+    public Boolean isI18nValues() {
+        return i18nValues;
+    }
+    /**
+     * @param i18nValues the jsonName to set
+     */
+    public void setI18nValues(Boolean i18nValues) {
+        this.i18nValues = i18nValues;
+    }
+    public String getJsonName() {
+        return jsonName;
+    }
+    /**
+     * @param jsonName the jsonName to set
+     */
+    public void setJsonName(String jsonName) {
+        this.jsonName = jsonName;
+    }
+    /**
+     * @return the info
+     */
+    public String getInfo() {
+        return info;
+    }
+    /**
+     * @param info the info to set
+     */
+    public void setInfo(String info) {
+        this.info = info;
+    }
+    /**
+     * @return the dwcTerm
+     */
+    public String getDwcTerm() {
+        return dwcTerm;
+    }
+    /**
+     * @param dwcTerm the dwcTerm to set
+     */
+    public void setDwcTerm(String dwcTerm) {
+        this.dwcTerm = dwcTerm;
+    }
+    /**
+     * @return the downloadName
+     */
+    public String getDownloadName() {
+        return downloadName;
+    }
+    /**
+     * @param downloadName the downloadName to set
+     */
+    public void setDownloadName(String downloadName) {
+        this.downloadName = downloadName;
+    }
+    /**
+     * @return the downloadDescription
+     */
+    public String getDownloadDescription() {
+        return downloadDescription;
+    }
+    /**
+     * @param downloadDescription the downloadName to set
+     */
+    public void setDownloadDescription(String downloadDescription) {
+        this.downloadDescription = downloadDescription;
     }
 
     @Override

@@ -282,6 +282,84 @@ public class OccurrenceIndex {
         return map;
     }
 
+    @JsonIgnore
+    public Map<String,String> indexToJsonMap() {
+        Map<String,String> map = new HashMap<String,String>();
+        map.put("id", "uuid");
+        map.put("occurrence_id", "occurrenceID");
+        map.put("data_hub_uid","dataHubUid");
+        map.put("data_hub" ,"dataHub");
+        map.put("institution_uid", "institutionUid");
+        map.put("institution_code", "raw_institutionCode");
+        map.put("institution_name", "institutionName");
+        map.put("collection_uid", "collectionUid");
+        map.put("collection_code", "raw_collectionCode");
+        map.put("collection_name","collectionName");
+        map.put("catalogue_number","raw_catalogNumber");
+        map.put("taxon_concept_lsid","taxonConceptID");
+        map.put("occurrence_date", "eventDate");
+        map.put("taxon_name","scientificName");
+        map.put("common_name","vernacularName");
+        map.put("rank","taxonRank");
+        map.put("rank_id","taxonRankID");
+        map.put("country_code", "raw_countryCode");
+        map.put("country", "country");
+        map.put("kingdom","kingdom");
+        map.put("phylum", "phylum");
+        map.put("class", "classs");
+        map.put("order","order");
+        map.put("family","family");
+        map.put("genus","genus");
+        map.put("genus_guid","genusGuid");
+        map.put("species", "species");
+        map.put("species_guid", "speciesGuid");
+        map.put("subspecies", "subspecies");
+        map.put("subspecies_guid", "subspeciesGuid");
+        map.put("state", "stateProvince");
+        map.put("latitude", "decimalLatitude");
+        map.put("longitude", "decimalLongitude");
+        map.put("year", "year");
+        map.put("month","month");
+        map.put("basis_of_record", "basisOfRecord");
+        map.put("type_status", "typeStatus");
+        map.put("location_remarks", "raw_locationRemarks");
+        map.put("occurrence_remarks", "raw_occurrenceRemarks");
+        map.put("lft","left");
+        map.put("rgt", "right");
+        map.put("ibra", "ibra");
+        map.put("imcra", "imcra");
+        map.put("places", "lga");
+        map.put("data_provider_uid", "dataProviderUid");
+        map.put("data_provider", "dataProviderName");
+        map.put("data_resource_uid", "dataResourceUid");
+        map.put("data_resource", "dataResourceName");
+        map.put("assertions", "assertions");
+        map.put("user_assertions", "hasUserAssertions");
+        map.put("species_group", "speciesGroups");
+        map.put("image_url", "image");
+        map.put("geospatial_kosher", "geospatialKosher");
+        map.put("taxonomic_kosher", "taxonomicKosher");
+        map.put("raw_taxon_name", "raw_scientificName");
+        map.put("raw_basis_of_record", "raw_basisOfRecord");
+        map.put("raw_type_status", "raw_typeStatus");
+        map.put("raw_common_name", "raw_vernacularName");
+        map.put("lat_long", "latLong");
+        map.put("point-1", "point1");
+        map.put("point-0.1", "point01");
+        map.put("point-0.01", "point001");
+        map.put("point-0.001", "point0001");
+        map.put("point-0.0001", "point00001");
+        map.put("names_and_lsid", "namesLsid");
+        map.put("multimedia", "multimedia");
+        map.put("collector","collector");
+        map.put("collectors","collectors");
+        map.put("record_number", "recordNumber");
+        map.put("occurrence_details", "occurrenceDetails");
+        map.put("rights", "rights");
+        map.put("photographer_s", "photographer");
+        return map;
+    }
+
     public String getUuid() {
         return uuid;
     }
