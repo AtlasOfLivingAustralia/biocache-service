@@ -117,6 +117,12 @@ public class OccurrenceController extends AbstractSecureController {
     @Value("${facet.config:/data/biocache/config/facets.json}")
     protected String facetConfig;
 
+    @Value("${facets.max:4}")
+    protected Integer facetsMax = 4;
+
+    @Value("${facet.default:false}")
+    protected Boolean facetDefault = false;
+
     public Pattern getTaxonIDPattern(){
         if(taxonIDPattern == null){
             taxonIDPattern = Pattern.compile(taxonIDPatternString);
@@ -209,7 +215,7 @@ public class OccurrenceController extends AbstractSecureController {
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         }
-        return new FacetThemes(facetConfig, indexedFields).allThemes;
+        return new FacetThemes(facetConfig, indexedFields, facetsMax, facetDefault).allThemes;
     }
     
     /**
