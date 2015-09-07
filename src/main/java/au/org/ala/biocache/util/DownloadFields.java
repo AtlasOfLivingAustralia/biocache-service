@@ -36,7 +36,7 @@ public class DownloadFields {
 
     private AbstractMessageSource messageSource;
     
-    private Properties layerProperties;
+    private Properties layerProperties = new Properties();
     private Map<String,IndexFieldDTO> indexFieldMaps;
 
     public DownloadFields(Set<IndexFieldDTO> indexFields, AbstractMessageSource messageSource){
@@ -64,7 +64,10 @@ public class DownloadFields {
                 newDownloadProperties.put(fieldId, fields.get(fieldId));
             }
 
-            layerProperties = newDownloadProperties;
+            //something might have gone wrong if empty
+            if (newDownloadProperties.size() > 0) {
+                layerProperties = newDownloadProperties;
+            }
         } catch (Exception e) {
             logger.error("failed to update layer names from url: " + Config.layersServiceUrl(), e);
         }

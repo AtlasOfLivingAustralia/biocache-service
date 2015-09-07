@@ -47,6 +47,7 @@ import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.params.ModifiableSolrParams;
+import org.apache.solr.common.params.SolrParams;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
@@ -109,6 +110,13 @@ public class SearchDAOImpl implements SearchDAO {
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
     protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("[a-z_0-9]{1,}:");
     protected Pattern layersPattern = Pattern.compile("(el|cl)[0-9abc]+");
+    
+    //solr connection retry limit
+    @Value("${solr.server.retry.max:6}")
+    int maxRetries = 6;
+    //solr connection wait time between retries in ms
+    @Value("${solr.server.retry.wait:50}")
+    long retryWait = 50;
 
     /** Download properties */
     protected DownloadFields downloadFields;
@@ -173,7 +181,10 @@ public class SearchDAOImpl implements SearchDAO {
     public SearchDAOImpl() {}
     
     private SolrServer getServer(){
-        if(server == null){
+        int retry = 0;
+        while(server == null && retry < maxRetries){
+            retry ++;
+            if (retryWait > 0) try {Thread.sleep(retryWait);} catch (Exception e) {}
             initServer();
         }
         return server;
@@ -630,9 +641,7 @@ public class SearchDAOImpl implements SearchDAO {
                                                                          boolean includeSensitive, final DownloadDetailsDTO dd, boolean checkLimit) throws Exception {
         long start = System.currentTimeMillis();
         final Map<String, Integer> uidStats = new HashMap<String, Integer>();
-        if(server == null){
-            initServer();
-        }
+        getServer();
         try {
             SolrQuery solrQuery = new SolrQuery();
             formatSearchQuery(downloadParams);
@@ -1595,7 +1604,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setStart(requestParams.getStart());
         solrQuery.setSortField(requestParams.getSort(), ORDER.valueOf(requestParams.getDir()));
         logger.debug("runSolrQuery: " + solrQuery.toString());
-        QueryResponse qr =  getServer().query(solrQuery, queryMethod); // can throw exception
+        QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
         if(logger.isDebugEnabled()){
             logger.debug("matched records: " + qr.getResults().getNumFound());
         }
@@ -2515,7 +2524,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
         else
             params.set("numTerms", "0");        
-        QueryResponse response = getServer().query(params, queryMethod);
+        QueryResponse response = query(params, queryMethod);
         return parseLukeResponse(response.toString(), fields != null);
     }
     /**
@@ -2543,7 +2552,7 @@ public class SearchDAOImpl implements SearchDAO {
             //query.add("sort", facet + " asc");
             query.add("group.field",facet);
         }
-        QueryResponse response = getServer().query(query, queryMethod);
+        QueryResponse response = query(query, queryMethod);
         GroupResponse groupResponse = response.getGroupResponse();
         //System.out.println(groupResponse);
         List<FacetResultDTO> facetResults = new ArrayList<FacetResultDTO>();
@@ -2975,6 +2984,33 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public void setThrottle(Integer throttle) {
         this.throttle = throttle;        
+    }
+
+    private QueryResponse query(SolrParams query, SolrRequest.METHOD queryMethod) throws SolrServerException {
+        int retry = 0;
+        QueryResponse qr = null;
+        while (retry < maxRetries && qr == null) {
+            retry++;
+            try {
+                qr = getServer().query(query, queryMethod); // can throw exception
+            } catch (SolrServerException e) {
+                //want to retry IOException and Proxy Error
+                if (retry < maxRetries && (e.getMessage().contains("IOException") || e.getMessage().contains("Proxy Error"))) {
+                    server = null;
+
+                    if (retryWait > 0) try {
+                        Thread.sleep(retryWait);
+                    } catch (Exception ex) {
+                        //do nothing
+                    }
+                } else {
+                    //throw all other errors
+                    throw e;
+                }
+            }
+        }
+
+        return qr;
     }
     
 }
