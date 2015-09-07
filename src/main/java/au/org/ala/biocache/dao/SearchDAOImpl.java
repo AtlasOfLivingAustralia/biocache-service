@@ -27,6 +27,7 @@ import au.org.ala.biocache.service.LayersService;
 import au.org.ala.biocache.service.SpeciesLookupService;
 import au.org.ala.biocache.util.*;
 import au.org.ala.biocache.util.thread.EndemicCallable;
+import au.org.ala.biocache.vocab.ErrorCode;
 import au.org.ala.biocache.writer.CSVRecordWriter;
 import au.org.ala.biocache.writer.ShapeFileRecordWriter;
 import com.googlecode.ehcache.annotations.Cacheable;
@@ -681,7 +682,7 @@ public class SearchDAOImpl implements SearchDAO {
             StringBuilder qasb = new StringBuilder();
             if(!"none".equals(downloadParams.getQa())){
                 solrQuery.addField("assertions"); 
-                if(!"all".equals(downloadParams.getQa())){
+                if(!"all".equals(downloadParams.getQa()) && !"includeall".equals(downloadParams.getQa())) {
                     //add all the qa fields
                     qasb.append(downloadParams.getQa());
                 }
@@ -698,7 +699,7 @@ public class SearchDAOImpl implements SearchDAO {
             solrQuery.setFacetLimit(-1);
 
             //get the assertion facets to add them to the download fields
-            boolean getAssertionsFromFacets = "all".equals(downloadParams.getQa());
+            boolean getAssertionsFromFacets = "all".equals(downloadParams.getQa()) || "includeall".equals(downloadParams.getQa());
             SolrQuery monthAssertionsQuery = getAssertionsFromFacets?solrQuery.getCopy().addFacetField("month", "assertions"):solrQuery.getCopy().addFacetField("month");
             if(getAssertionsFromFacets){
                 //set the order for the facet to be based on the index - this will force the assertions to be returned in the same order each time
@@ -726,6 +727,16 @@ public class SearchDAOImpl implements SearchDAO {
                 }
                 if(facet.getName().equals("month") && facet.getValueCount() > 0){
                    splitByFacet = facet.getValues();
+                }
+            }
+
+            if ("includeall".equals(downloadParams.getQa())) {
+                //inclue all assertions
+                qasb = new StringBuilder();
+                for (ErrorCode assertionCode : Store.retrieveAssertionCodes()) {
+                    if (qasb.length() > 0)
+                        qasb.append(",");
+                    qasb.append(assertionCode.getName());
                 }
             }
 
@@ -903,7 +914,7 @@ public class SearchDAOImpl implements SearchDAO {
         try {
             SolrQuery solrQuery = initSolrQuery(downloadParams,false,null);
             //ensure that the qa facet is being ordered alphabetically so that the order is consistent.
-            boolean getAssertionsFromFacets = "all".equals(downloadParams.getQa());            
+            boolean getAssertionsFromFacets = "all".equals(downloadParams.getQa()) || "includeall".equals(downloadParams.getQa());
             if(getAssertionsFromFacets){
                 //set the order for the facet to be based on the index - this will force the assertions to be returned in the same order each time
                 //based on alphabetical sort.  The number of QA's may change between searches so we can't guarantee that the order won't change
@@ -946,6 +957,16 @@ public class SearchDAOImpl implements SearchDAO {
                     //populate the download limit
                     initDownloadLimits(downloadLimit, facet);
               }
+            }
+
+            if ("includeall".equals(downloadParams.getQa())) {
+                //inclue all assertions
+                qasb = new StringBuilder();
+                for (ErrorCode assertionCode : Store.retrieveAssertionCodes()) {
+                    if (qasb.length() > 0)
+                        qasb.append(",");
+                    qasb.append(assertionCode.getName());
+                }
             }
             
             //Write the header line
