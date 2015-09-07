@@ -56,20 +56,33 @@ public class DownloadFields {
     }
 
     private void updateLayerNames() {
-        Properties newDownloadProperties = new Properties();
+        //avoid a delay here
+        Thread t = new Thread() {
+            public void run() {
+                Properties newDownloadProperties = new Properties();
 
-        try {
-            Map<String, String> fields = new LayersStore(Config.layersServiceUrl()).getFieldIdsAndDisplayNames();
-            for (String fieldId : fields.keySet()) {
-                newDownloadProperties.put(fieldId, fields.get(fieldId));
-            }
+                try {
+                    Map<String, String> fields = new LayersStore(Config.layersServiceUrl()).getFieldIdsAndDisplayNames();
+                    for (String fieldId : fields.keySet()) {
+                        newDownloadProperties.put(fieldId, fields.get(fieldId));
+                    }
 
-            //something might have gone wrong if empty
-            if (newDownloadProperties.size() > 0) {
-                layerProperties = newDownloadProperties;
+                    //something might have gone wrong if empty
+                    if (newDownloadProperties.size() > 0) {
+                        layerProperties = newDownloadProperties;
+                    }
+                } catch (Exception e) {
+                    logger.error("failed to update layer names from url: " + Config.layersServiceUrl(), e);
+                }
             }
-        } catch (Exception e) {
-            logger.error("failed to update layer names from url: " + Config.layersServiceUrl(), e);
+        };
+
+        if (layerProperties == null || layerProperties.size() == 0) {
+            //wait
+            t.run();
+        } else {
+            //do not wait 
+            t.start();
         }
     }
     

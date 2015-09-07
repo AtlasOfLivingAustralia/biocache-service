@@ -141,6 +141,8 @@ public class SearchDAOImpl implements SearchDAO {
 
     @Inject
     protected QidCacheDAO qidCacheDao;
+    
+    @Inject RangeBasedFacets rangeBasedFacets;
 
     /** Max number of threads to use in endemic queries */
     @Value("${media.store.local:true}")
@@ -659,7 +661,16 @@ public class SearchDAOImpl implements SearchDAO {
             }
 
             String[] requestedFields = sb.toString().split(",");
-            List<String>[] indexedFields = downloadFields.getIndexFields(requestedFields, downloadParams.getDwcHeaders());
+            List<String>[] indexedFields;
+            if (downloadFields == null) {
+                //default to include everything
+                java.util.List<String> mappedNames = new java.util.LinkedList<String>();
+                for (int i = 0; i < requestedFields.length; i++) mappedNames.add(requestedFields[i]);
+
+                indexedFields = new List[]{mappedNames, new java.util.LinkedList<String>(), mappedNames};
+            } else {
+                indexedFields = downloadFields.getIndexFields(requestedFields, downloadParams.getDwcHeaders());
+            }
             logger.debug("Fields included in download: " +indexedFields[0]);
             logger.debug("Fields excluded from download: "+indexedFields[1]);
             logger.debug("The headers in downloads: "+indexedFields[2]);
@@ -1675,7 +1686,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         //all belong to uncertainty range for now
         if(facetQueries != null && !facetQueries.isEmpty()) {
-            Map<String, String> rangeMap = RangeBasedFacets.getRangeMap("uncertainty");
+            Map<String, String> rangeMap = rangeBasedFacets.getRangeMap("uncertainty");
             List<FieldResultDTO> fqr = new ArrayList<FieldResultDTO>();
             for(String value: facetQueries.keySet()){
                 if(facetQueries.get(value)>0)
@@ -2122,7 +2133,7 @@ public class SearchDAOImpl implements SearchDAO {
                 String fq = searchParams.getFq()[i];
                 String[] parts = fq.split(":", 2);
                 //check to see if the first part is a range based query and update if necessary
-                Map<String, String> titleMap = RangeBasedFacets.getTitleMap(parts[0]);
+                Map<String, String> titleMap = rangeBasedFacets.getTitleMap(parts[0]);
                 if(titleMap != null){
                     searchParams.getFq()[i]= titleMap.get(parts[1]);
                 }
@@ -2266,7 +2277,7 @@ public class SearchDAOImpl implements SearchDAO {
                     String fname = facet.equals("decade") ? "occurrence_year" : "occurrence_"+facet;
                     initDecadeBasedFacet(solrQuery, fname);
                 } else if(facet.equals("uncertainty")){
-                    Map<String, String> rangeMap = RangeBasedFacets.getRangeMap("uncertainty");
+                    Map<String, String> rangeMap = rangeBasedFacets.getRangeMap("uncertainty");
                     for(String range: rangeMap.keySet()){
                         solrQuery.add("facet.query", range);
                     }
