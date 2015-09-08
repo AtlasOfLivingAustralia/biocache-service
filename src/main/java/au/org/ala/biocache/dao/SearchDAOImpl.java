@@ -668,7 +668,7 @@ public class SearchDAOImpl implements SearchDAO {
                 java.util.List<String> mappedNames = new java.util.LinkedList<String>();
                 for (int i = 0; i < requestedFields.length; i++) mappedNames.add(requestedFields[i]);
 
-                indexedFields = new List[]{mappedNames, new java.util.LinkedList<String>(), mappedNames};
+                indexedFields = new List[]{mappedNames, new java.util.LinkedList<String>(), mappedNames, mappedNames};
             } else {
                 indexedFields = downloadFields.getIndexFields(requestedFields, downloadParams.getDwcHeaders());
             }
@@ -745,6 +745,17 @@ public class SearchDAOImpl implements SearchDAO {
             String[] qaTitles = downloadFields.getHeader(qaFields, false, false);
 
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[2].toArray(new String[]{}),qaTitles);
+
+            //retain output header fields and field names for inclusion of header info in the download
+            StringBuilder infoFields = new StringBuilder("infoFields");
+            for (String h : indexedFields[3]) infoFields.append(",").append(h);
+            for (String h : qaFields) infoFields.append(",").append(h);
+            
+            StringBuilder infoHeader = new StringBuilder("infoHeaders");
+            for (String h : header) infoHeader.append(",").append(h);
+
+            uidStats.put(infoFields.toString(), -1);
+            uidStats.put(infoHeader.toString(), -2);
             
             //construct correct RecordWriter based on the supplied fileType
             final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ? new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) : new ShapeFileRecordWriter(downloadParams.getFile(), out, (String[])ArrayUtils.addAll(fields, qaFields));
@@ -984,6 +995,17 @@ public class SearchDAOImpl implements SearchDAO {
             if(rw instanceof ShapeFileRecordWriter){
                 dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
             }
+
+            //retain output header fields and field names for inclusion of header info in the download
+            StringBuilder infoFields = new StringBuilder("infoFields,");
+            for (String h : fields) infoFields.append(",").append(h);
+            for (String h : qaFields) infoFields.append(",").append(h);
+
+            StringBuilder infoHeader = new StringBuilder("infoHeaders,");
+            for (String h : header) infoHeader.append(",").append(h);
+
+            uidStats.put(infoFields.toString(), -1);
+            uidStats.put(infoHeader.toString(), -2);
             
 
             //download the records that have limits first...
@@ -2689,7 +2711,7 @@ public class SearchDAOImpl implements SearchDAO {
                                         f.setDownloadName(downloadField);
                                         
                                         //(6) downloadField description
-                                        String downloadFieldDescription = messageSource.getMessage("facet." + fieldName, null, "", Locale.getDefault());
+                                        String downloadFieldDescription = messageSource.getMessage(downloadField, null, "", Locale.getDefault());
                                         if (downloadFieldDescription.length() > 0) {
                                             f.setDownloadDescription(downloadFieldDescription);
                                         }
