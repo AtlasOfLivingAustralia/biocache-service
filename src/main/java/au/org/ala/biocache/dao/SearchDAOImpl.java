@@ -733,7 +733,14 @@ public class SearchDAOImpl implements SearchDAO {
             if ("includeall".equals(downloadParams.getQa())) {
                 //inclue all assertions
                 qasb = new StringBuilder();
-                for (ErrorCode assertionCode : Store.retrieveAssertionCodes()) {
+                ErrorCode[] errorCodes = Store.retrieveAssertionCodes();
+                Arrays.sort(errorCodes, new Comparator<ErrorCode>() {
+                    @Override
+                    public int compare(ErrorCode o1, ErrorCode o2) {
+                        return o1.getName().compareToIgnoreCase(o2.getName());
+                    }
+                });
+                for (ErrorCode assertionCode : errorCodes) {
                     if (qasb.length() > 0)
                         qasb.append(",");
                     qasb.append(assertionCode.getName());
@@ -973,7 +980,14 @@ public class SearchDAOImpl implements SearchDAO {
             if ("includeall".equals(downloadParams.getQa())) {
                 //inclue all assertions
                 qasb = new StringBuilder();
-                for (ErrorCode assertionCode : Store.retrieveAssertionCodes()) {
+                ErrorCode[] errorCodes = Store.retrieveAssertionCodes();
+                Arrays.sort(errorCodes, new Comparator<ErrorCode>() {
+                    @Override
+                    public int compare(ErrorCode o1, ErrorCode o2) {
+                        return o1.getName().compareToIgnoreCase(o2.getName());
+                    }
+                });
+                for (ErrorCode assertionCode : errorCodes) {
                     if (qasb.length() > 0)
                         qasb.append(",");
                     qasb.append(assertionCode.getName());
