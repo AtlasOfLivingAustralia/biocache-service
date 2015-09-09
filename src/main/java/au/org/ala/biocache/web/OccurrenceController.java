@@ -118,10 +118,13 @@ public class OccurrenceController extends AbstractSecureController {
     protected String facetConfig;
 
     @Value("${facets.max:4}")
-    protected Integer facetsMax = 4;
+    protected Integer facetsMax;
 
-    @Value("${facet.default:false}")
-    protected Boolean facetDefault = false;
+    @Value("${facets.defaultmax:0}")
+    protected Integer facetsDefaultMax;
+
+    @Value("${facet.default:true}")
+    protected Boolean facetDefault;
 
     public Pattern getTaxonIDPattern(){
         if(taxonIDPattern == null){
@@ -215,7 +218,7 @@ public class OccurrenceController extends AbstractSecureController {
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         }
-        return new FacetThemes(facetConfig, indexedFields, facetsMax, facetDefault).allThemes;
+        return new FacetThemes(facetConfig, indexedFields, facetsMax, facetsDefaultMax, facetDefault).allThemes;
     }
     
     /**

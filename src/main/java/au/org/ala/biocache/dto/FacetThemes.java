@@ -33,7 +33,8 @@ public class FacetThemes {
     public static LinkedHashMap<String, Facet> facetsMap = new LinkedHashMap<String, Facet>();
     
     public static Integer facetsMax = 4;
-    public static Boolean facetDefault = false;
+    public static Integer facetsDefaultMax = 0;
+    public static Boolean facetDefault = true;
     
     /**
      * Takes a file path to a configuration file in JSON and parses the file
@@ -42,8 +43,9 @@ public class FacetThemes {
      * @param configFilePath
      * @throws IOException
      */
-    public FacetThemes(String configFilePath, Set<IndexFieldDTO> indexedFields, int facetsMax, boolean facetDefault) throws IOException {
+    public FacetThemes(String configFilePath, Set<IndexFieldDTO> indexedFields, int facetsMax, int facetsDefaultMax, boolean facetDefault) throws IOException {
         this.facetsMax = facetsMax;
+        this.facetsDefaultMax = facetsDefaultMax;
         this.facetDefault = facetDefault;
         
         if(configFilePath != null && new File(configFilePath).exists()){
@@ -88,7 +90,7 @@ public class FacetThemes {
                 facetsMap.put(f.field, f);
             }
             allFacets = facetsMap.keySet().toArray(new String[]{});
-            allFacetsLimited = allFacets != null && allFacets.length > facetsMax ? Arrays.copyOfRange(allFacets, 0, facetsMax) : allFacets;
+            allFacetsLimited = allFacets != null && allFacets.length > facetsDefaultMax ? Arrays.copyOfRange(allFacets, 0, facetsDefaultMax) : allFacets;
         }
     }
 
