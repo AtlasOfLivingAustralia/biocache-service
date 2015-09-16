@@ -233,7 +233,7 @@ public class SearchDAOImpl implements SearchDAO {
         // 1)get a list of species that are in the WKT
         logger.debug("Starting to get Endemic Species...");
         List<FieldResultDTO> list1 = getValuesForFacet(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));
-        logger.debug("Retrieved species within area...("+list1.size()+")");                     
+        logger.debug("Retrieved species within area...(" + list1.size() + ")");
         // 2)get a list of species that occur in the inverse WKT
         
         String reverseQuery = SpatialUtils.getWKTQuery(spatialField, requestParams.getWkt(), true);//"-geohash:\"Intersects(" +wkt + ")\"";
@@ -296,7 +296,7 @@ public class SearchDAOImpl implements SearchDAO {
         subQuery.setFacet(true);
         subQuery.setFacets(parentQuery.getFacets());
         List<FieldResultDTO> list1 = getValuesForFacet(subQuery);
-        logger.debug("Retrieved species within area...("+list1.size()+")");
+        logger.debug("Retrieved species within area...(" + list1.size() + ")");
 
         int i = 0, localterms = 0;
 
@@ -401,7 +401,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             QueryResponse qr = runSolrQuery(solrQuery, searchParams);
             //need to set the original q to the processed value so that we remove the wkt etc that is added from paramcache object
-            Class resultClass = includeSensitive? au.org.ala.biocache.dto.SensitiveOccurrenceIndex.class:OccurrenceIndex.class;
+            Class resultClass = includeSensitive? au.org.ala.biocache.dto.SensitiveOccurrenceIndex.class : OccurrenceIndex.class;
             searchResults = processSolrResponse(original, qr, solrQuery, resultClass);
             searchResults.setQueryTitle(searchParams.getDisplayString());
             searchResults.setUrlParameters(original.getUrlParams());
@@ -1621,7 +1621,26 @@ public class SearchDAOImpl implements SearchDAO {
             logger.debug("Facet dates size: " + facetDates.size());
             facets.addAll(facetDates);
         }
+
+//        //misc properties
         List<OccurrenceIndex> results = qr.getBeans(resultClass);
+//        Iterator<SolrDocument> iter = qr.getResults().iterator();
+//        int i=0;
+//        while (iter.hasNext()){
+//            SolrDocument doc = iter.next();
+//            Map<String, Collection<Object>> fieldValuesMap = doc.getFieldValuesMap();
+//            Set<String> keys = fieldValuesMap.keySet();
+//            Map<String, Object> miscProperties = new HashMap<String,Object>();
+//            for(String key : keys){
+//                if(key.endsWith("_s") || key.endsWith("_i") || key.endsWith("_d")){
+//                    miscProperties.put(key, fieldValuesMap.get(key));
+//                }
+//            }
+//            results.get(i).setMiscProperties(miscProperties);
+//            i++;
+//        }
+
+        //facet results
         List<FacetResultDTO> facetResults = new ArrayList<FacetResultDTO>();
         searchResult.setTotalRecords(sdl.getNumFound());
         searchResult.setStartIndex(sdl.getStart());
@@ -1680,11 +1699,13 @@ public class SearchDAOImpl implements SearchDAO {
             for(RangeFacet rfacet : qr.getFacetRanges()){
                 List<FieldResultDTO> fqr = new ArrayList<FieldResultDTO>();
                 if(rfacet instanceof Numeric){
-                    Numeric nrfacet = (Numeric)rfacet;
+                    Numeric nrfacet = (Numeric) rfacet;
                     List<RangeFacet.Count> counts = nrfacet.getCounts();
                     //handle the before
                     if(nrfacet.getBefore().intValue()>0){
-                      fqr.add(new FieldResultDTO("[* TO "+getUpperRange(nrfacet.getStart().toString(), nrfacet.getGap(),false)+"]",nrfacet.getBefore().intValue()));
+                      fqr.add(new FieldResultDTO("[* TO " + getUpperRange(nrfacet.getStart().toString(), nrfacet.getGap(),false) + "]",
+                              nrfacet.getBefore().intValue())
+                      );
                     }
                     for(RangeFacet.Count count:counts){                        
                         String title = getRangeValue(count.getValue(), nrfacet.getGap());
@@ -2301,8 +2322,6 @@ public class SearchDAOImpl implements SearchDAO {
 
         if (searchParams.getFl().length() > 0) {
             solrQuery.setFields(searchParams.getFl());
-        } else {
-            solrQuery.setFields(OccurrenceIndex.defaultFields);
         }
         
         //add the extra SOLR params
