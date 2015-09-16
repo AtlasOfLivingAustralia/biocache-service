@@ -3060,7 +3060,7 @@ public class SearchDAOImpl implements SearchDAO {
         while (retry < maxRetries && qr == null) {
             retry++;
             try {
-                qr = getServer().query(query, queryMethod); // can throw exception
+                qr = getServer().query(query, queryMethod == null ? this.queryMethod : queryMethod); // can throw exception
             } catch (SolrServerException e) {
                 //want to retry IOException and Proxy Error
                 if (retry < maxRetries && (e.getMessage().contains("IOException") || e.getMessage().contains("Proxy Error"))) {
