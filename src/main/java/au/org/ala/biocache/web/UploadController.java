@@ -55,7 +55,7 @@ public class UploadController extends AbstractSecureController {
     @Value("${webservices.root:http://biocache.ala.org.au/ws}")
     protected String webservicesRoot;
 
-    @Value("${biocache.apiKey:ABAABABABABABABABAABABABBABA}")
+    @Value("${registry.api.key:ABAABABABABABABABAABABABBABA}")
     protected String apiKey;
 
     private Pattern dataResourceUidP = Pattern.compile("data_resource_uid:([\\\"]{0,1}[a-z]{2,3}[0-9]{1,}[\\\"]{0,1})");
@@ -250,7 +250,7 @@ public class UploadController extends AbstractSecureController {
      * @return an identifier for this temporary dataset
      */
     @RequestMapping(value="/upload/{tempDataResourceUid}", method = RequestMethod.DELETE)
-    public @ResponseBody Map<String, Object> deleteResource(
+    public void deleteResource(
             @PathVariable String tempDataResourceUid,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
 
@@ -258,24 +258,26 @@ public class UploadController extends AbstractSecureController {
         boolean apiKeyValid = shouldPerformOperation(request, response);
         if(!apiKeyValid){
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Supplied API key not recognised or missing");
-            return null;
+            return;
         }
 
         //delete the reference from the collectory
         boolean success = deleteTempResource(tempDataResourceUid);
 
-        //start an async delete of the resource from index & storage
-        Store.deleteRecords(tempDataResourceUid, null, true, true);
+        try {
+            //start a delete of the resource from index & storage
+            Store.deleteRecords(tempDataResourceUid, null, true, true);
+        } catch(Exception e){
+            logger.error("Error thrown deleting resource: " + e.getMessage(), e);
+            response.sendError(500, "Unable to delete data from index/database.");
+            return;
+        }
 
-        Map<String,Object> details = new HashMap<String,Object>();
-        details.put("success", success);
         if(success){
             response.setStatus(200);
         } else {
-            response.setStatus(500);
+            response.sendError(500, "Unable to remove reference from the registry.");
         }
-
-        return details;
     }
 
     /**
