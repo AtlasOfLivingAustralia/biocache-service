@@ -20,7 +20,6 @@ import au.org.ala.biocache.util.QidSizeException;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
-import javax.inject.Inject;
 import java.io.InputStream;
 import java.util.*;
 import java.util.Map.Entry;
@@ -144,20 +143,20 @@ public class QidCacheDAOImpl implements QidCacheDAO {
             if (cacheSize + qid.size() > MAX_CACHE_SIZE) {
                 //run outside of counterLock
                 runCleaner = true;
-                logger.error("not putting qid");
+                logger.debug("not putting qid");
             } else {
                 if (cacheSize + qid.size() > triggerCleanSize) {
                     counter.countDown();
                 }
 
                 cacheSize += qid.size();
-                logger.error("putting qid");
+                logger.debug("putting qid");
                 cache.put(qid.getRowKey(), qid);
             }
         }
 
         if (runCleaner) {
-            logger.error("cleaning qid cache");
+            logger.debug("cleaning qid cache");
             cleanCache();
             return false;
         }

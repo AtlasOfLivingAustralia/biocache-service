@@ -482,7 +482,9 @@ public class MapController implements ServletConfigAware {
 
     private String getQueryHash(HttpServletRequest request) throws NoSuchAlgorithmException, UnsupportedEncodingException {
         MessageDigest md = MessageDigest.getInstance("MD5");
-        md.update(request.getQueryString().getBytes("UTF-8"));
+        //replace forceRefresh if it is first or not
+        String qs = request.getQueryString().replaceAll("&(?i)forceRefresh=true", "").replaceAll("(?i)forceRefresh=true&", "");
+        md.update(qs.getBytes("UTF-8"));
         byte[] digest = md.digest();
         StringBuffer sb = new StringBuffer();
         for (byte b : digest) {
