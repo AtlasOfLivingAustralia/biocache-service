@@ -22,9 +22,7 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.index.IndexDAO;
 import au.org.ala.biocache.index.SolrIndexDAO;
 import au.org.ala.biocache.model.Qid;
-import au.org.ala.biocache.service.AuthService;
-import au.org.ala.biocache.service.LayersService;
-import au.org.ala.biocache.service.SpeciesLookupService;
+import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.util.*;
 import au.org.ala.biocache.util.thread.EndemicCallable;
 import au.org.ala.biocache.vocab.ErrorCode;
@@ -40,6 +38,7 @@ import org.apache.solr.client.solrj.SolrQuery.ORDER;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.beans.DocumentObjectBinder;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
 import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.client.solrj.response.FacetField.Count;
@@ -57,8 +56,7 @@ import org.springframework.util.CollectionUtils;
 
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
@@ -111,6 +109,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
     protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("[a-z_0-9]{1,}:");
     protected Pattern layersPattern = Pattern.compile("(el|cl)[0-9abc]+");
+    protected Pattern taxaPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')taxa:\"?([a-zA-Z0-9\\s\\(\\)\\.:\\-_]*)\"?");
 
     //solr connection retry limit
     @Value("${solr.server.retry.max:6}")
@@ -118,6 +117,9 @@ public class SearchDAOImpl implements SearchDAO {
     //solr connection wait time between retries in ms
     @Value("${solr.server.retry.wait:50}")
     long retryWait = 50;
+    //solr index version refresh time in ms, 5*60*1000
+    @Value("${solr.server.indexVersion.refresh:300000}")
+    int solrIndexVersionRefreshTime = 300000;
 
     /** Download properties */
     protected DownloadFields downloadFields;
@@ -144,6 +146,16 @@ public class SearchDAOImpl implements SearchDAO {
     protected QidCacheDAO qidCacheDao;
 
     @Inject RangeBasedFacets rangeBasedFacets;
+
+    @Inject
+    protected SpeciesCountsService speciesCountsService;
+
+    @Inject
+    protected CommonNameService commonNameService;
+
+    @Inject
+    protected SpeciesImageService speciesImageService;
+
 
     /** Max number of threads to use in endemic queries */
     @Value("${media.store.local:true}")
@@ -177,6 +189,12 @@ public class SearchDAOImpl implements SearchDAO {
     private Map<String, IndexFieldDTO> indexFieldMap = null;
     private Map<String, StatsIndexFieldDTO> rangeFieldCache = null;
     private Set<String> authIndexFields = null;
+    
+    /** SOLR index version for client app caching use. */
+    private long solrIndexVersion = 0;
+    /** last time SOLR index version was refreshed */
+    private long solrIndexVersionTime = 0;
+    private Object solrIndexVersionLock = new Object();
 
     /**
      * Initialise the SOLR server instance
@@ -233,6 +251,9 @@ public class SearchDAOImpl implements SearchDAO {
         } catch(Exception e) {
             logger.error("Unable to refresh cache.", e);
         }
+        commonNameService.resetCache();
+        speciesImageService.resetCache();
+        speciesCountsService.resetCache();
     }
 
     /**
@@ -1673,6 +1694,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setSortField(requestParams.getSort(), ORDER.valueOf(requestParams.getDir()));
         logger.debug("runSolrQuery: " + solrQuery.toString());
         QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
+        logger.debug("runSolrQuery: " + solrQuery.toString() + " qtime:" + qr.getQTime());
         if(logger.isDebugEnabled()){
             logger.debug("matched records: " + qr.getResults().getNumFound());
         }
@@ -1716,21 +1738,9 @@ public class SearchDAOImpl implements SearchDAO {
                 List<FacetField.Count> facetEntries = facet.getValues();
                 if ((facetEntries != null) && (facetEntries.size() > 0)) {
                     ArrayList<FieldResultDTO> r = new ArrayList<FieldResultDTO>();
-                    Matcher m = uidPattern.matcher(facet.getName()+":value");
-                    boolean isUid = m.matches();
                     for (FacetField.Count fcount : facetEntries) {
                         //check to see if the facet field is an uid value that needs substitution
-                        if(isUid){
-                            String displayName = searchUtils.getUidDisplayString(facet.getName(), fcount.getName(), false);
-                            r.add(new FieldResultDTO(displayName, fcount.getCount(),facet.getName()+":\"" + fcount.getName()+"\""));
-                        } else if(getAuthIndexFields().contains(facet.getName())){
-                            //if the facet field is collector or assertion_user_id we need to perform the substitution
-                            String displayName = authService.getDisplayNameFor(fcount.getName());
-                            //now add the facet with the correct fq being supplied
-                            r.add(new FieldResultDTO(displayName, fcount.getCount(),facet.getName()+":\"" + fcount.getName()+"\""));
-                        } else {
-                            r.add(new FieldResultDTO(fcount.getName(), fcount.getCount()));
-                        }
+                        r.add(new FieldResultDTO(getFacetValueDisplayName(facet.getName(), fcount.getName()), fcount.getCount(), facet.getName()+":\"" + fcount.getName()+"\""));
                     }
                     // only add facets if there are more than one facet result
                     if (r.size() > 0) {
@@ -2034,6 +2044,30 @@ public class SearchDAOImpl implements SearchDAO {
                 }
                 matcher.appendTail(queryString);
                 query = queryString.toString();
+            }
+
+            // replace taxa queries with lsid: and text:
+            if (query.contains("taxa:")) {
+                Matcher matcher = taxaPattern.matcher(query);
+                queryString.setLength(0);
+                while (matcher.find()) {
+                    String value = matcher.group();
+                    String taxa = matcher.group(2);
+
+                    logger.debug("found taxa " + taxa);
+
+                    List taxaQueries = new ArrayList();
+                    taxaQueries.add(taxa);
+                    List guidsForTaxa = speciesLookupService.getGuidsForTaxa(taxaQueries);
+                    String q = createQueryWithTaxaParam(taxaQueries, guidsForTaxa);
+
+                    matcher.appendReplacement(queryString, q);
+                }
+
+                matcher.appendTail(queryString);
+
+                query = queryString.toString();
+                displayString = query;
             }
 
             //if the query string contains lsid: we will need to replace it with the corresponding lft range
@@ -2595,44 +2629,66 @@ public class SearchDAOImpl implements SearchDAO {
         QueryResponse response = query(params, queryMethod);
         return parseLukeResponse(response.toString(), fields != null);
     }
+
     /**
-     * Returns the count of distinct values for the facets.  Uses groups.  Needs some more
-     * work to determine best use...
-     *
+     * Returns the count of distinct values for the facets.  Uses groups for group counts.
+     * Supports foffset and flimit for paging. Supports fsort 'count' or 'index'.
+     * <p/>
      * TODO work out whether or not we should allow facet ranges to be downloaded....
-     *
      */
-    public List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception{
+    public List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception {
         formatSearchQuery(searchParams);
         //add context information
         updateQueryContext(searchParams);
         String queryString = buildSpatialQueryString(searchParams);
         searchParams.setFacet(false);
         searchParams.setPageSize(0);
+
+        //get facet group counts
         SolrQuery query = initSolrQuery(searchParams, false, null);
         query.setQuery(queryString);
         query.setFields(null);
         //now use the supplied facets to add groups to the query
         query.add("group", "true");
-        query.add("group.ngroups","true");
-        query.add("group.limit","0");
-        for(String facet: searchParams.getFacets()){
-            //query.add("sort", facet + " asc");
-            query.add("group.field",facet);
+        query.add("group.ngroups", "true");
+        query.add("group.limit", "0");
+        query.setRows(0);
+        for (String facet : searchParams.getFacets()) {
+            query.add("group.field", facet);
         }
         QueryResponse response = query(query, queryMethod);
         GroupResponse groupResponse = response.getGroupResponse();
-        //System.out.println(groupResponse);
-        List<FacetResultDTO> facetResults = new ArrayList<FacetResultDTO>();
-        for(GroupCommand gc :groupResponse.getValues()){
-            List<FieldResultDTO> r = new ArrayList<FieldResultDTO>();
-            for(org.apache.solr.client.solrj.response.Group g: gc.getValues()){
-                r.add(new FieldResultDTO(g.getGroupValue(), g.getResult().getNumFound()));
-            }
-            facetResults.add(new FacetResultDTO(gc.getName(), r, gc.getNGroups()));
+
+        Map<String, Integer> ngroups = new HashMap<String, Integer>();
+        for (GroupCommand gc : groupResponse.getValues()) {
+            ngroups.put(gc.getName(), gc.getNGroups());
         }
 
-        return facetResults;
+        //include paged facets when flimit > 0
+        Collection<FacetResultDTO> facetResults = new ArrayList<FacetResultDTO>();
+        if (searchParams.getFlimit() > 0) {
+            searchParams.setFacet(true);
+            SolrQuery facetQuery = initSolrQuery(searchParams, false, null);
+            facetQuery.setQuery(queryString);
+            facetQuery.setFields(null);
+            facetQuery.setSortField(searchParams.getSort(), ORDER.valueOf(searchParams.getDir()));
+            QueryResponse qr = query(facetQuery, queryMethod);
+            SearchResultDTO searchResults = processSolrResponse(searchParams, qr, facetQuery, OccurrenceIndex.class);
+            facetResults = searchResults.getFacetResults();
+            if (facetResults != null) {
+                for (FacetResultDTO fr : facetResults) {
+                    Integer count = ngroups.get(fr.getFieldName());
+                    if (count != null) fr.setCount(count);
+                }
+            }
+        } else {
+            //only return group counts
+            for (GroupCommand gc : groupResponse.getValues()) {
+                facetResults.add(new FacetResultDTO(gc.getName(), null, gc.getNGroups()));
+            }
+        }
+
+        return new ArrayList<FacetResultDTO>(facetResults);
     }
 
     /**
@@ -2656,6 +2712,16 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      */
     private  Set<IndexFieldDTO> parseLukeResponse(String str, boolean includeCounts) {
+        
+        //update index version
+        Pattern indexVersion = Pattern.compile("(?:version=)([0-9]{1,})");
+        try {
+            Matcher indexVersionMatcher = indexVersion.matcher(str);
+            if (indexVersionMatcher.find(0)) {
+                solrIndexVersion = Long.parseLong(indexVersionMatcher.group(1));
+                solrIndexVersionTime = System.currentTimeMillis();
+            }
+        } catch (Exception e) {}
 
         Set<IndexFieldDTO> fieldList = includeCounts?new java.util.LinkedHashSet<IndexFieldDTO>():new java.util.TreeSet<IndexFieldDTO>();
 
@@ -3060,7 +3126,7 @@ public class SearchDAOImpl implements SearchDAO {
         while (retry < maxRetries && qr == null) {
             retry++;
             try {
-                qr = getServer().query(query, queryMethod); // can throw exception
+                qr = getServer().query(query, queryMethod == null ? this.queryMethod : queryMethod); // can throw exception
             } catch (SolrServerException e) {
                 //want to retry IOException and Proxy Error
                 if (retry < maxRetries && (e.getMessage().contains("IOException") || e.getMessage().contains("Proxy Error"))) {
@@ -3079,4 +3145,156 @@ public class SearchDAOImpl implements SearchDAO {
         return qr;
     }
 
+    /**
+     * Generate SOLR query from a taxa[] query
+     *
+     * @param taxaQueries
+     * @param guidsForTaxa
+     * @return
+     */
+    String createQueryWithTaxaParam(List taxaQueries, List guidsForTaxa) {
+        StringBuilder query = new StringBuilder();
+        List expandedQueries = new ArrayList();
+
+        if (taxaQueries.size() != guidsForTaxa.size()) {
+            // Both Lists must the same size
+            throw new IllegalArgumentException("Arguments (List) are not the same size: taxaQueries.size() (${taxaQueries.size()}) != guidsForTaxa.size() (${guidsForTaxa.size()})");
+        }
+
+        if (taxaQueries.size() > 1) {
+            // multiple taxa params (array)
+            query.append("(");
+            for (int i = 0; i < guidsForTaxa.size(); i++) {
+                String guid = (String) guidsForTaxa.get(i);
+                if (i > 0) query.append(" OR ");
+                if (guid != null && !guid.isEmpty()) {
+                    query.append("lsid:").append(guid);
+                } else {
+                    query.append("text:").append(taxaQueries.get(i));
+                }
+            }
+            query.append(")");
+        } else if (guidsForTaxa.size() > 0) {
+            // single taxa param
+            String taxa = (String) taxaQueries.get(0);
+            String guid = (String) guidsForTaxa.get(0);
+            if (guid != null && !guid.isEmpty()) {
+                query.append("lsid:").append(guid);
+            } else if (taxa != null && !taxa.isEmpty()) {
+                query.append("text:").append(taxa);
+            }
+        }
+
+        return query.toString();
+    }
+
+    /**
+     * Get the SOLR index version. Trigger a background refresh on a timeout.  
+     * 
+     * Forcing an updated value will perform a new SOLR query for each request to be run in the foreground.
+     * 
+     * @return
+     * @param force
+     */
+    public Long getIndexVersion(Boolean force) {
+        Thread t = null;
+        synchronized (solrIndexVersionLock) {
+            boolean immediately = solrIndexVersionTime == 0;
+
+            if (solrIndexVersionTime < System.currentTimeMillis() - solrIndexVersionRefreshTime || force) {
+                solrIndexVersionTime = System.currentTimeMillis();
+
+                t = new Thread() {
+                    @Override
+                    public void run() {
+                        try {
+                            getIndexFieldDetails(null);
+                        } catch (Exception e) {
+                            logger.error("Failed to update solrIndexVersion", e);
+                        }
+                    }
+                };
+
+                if (immediately) {
+                    //wait with lock
+                    t.run();
+                } else if (!force) {
+                    //run in background
+                    t.start();
+                }
+            }
+        }
+        
+        if (force && t != null) {
+            //wait without lock
+            t.run();
+        }
+        
+        return solrIndexVersion;
+    }
+
+    /**
+     * Perform grouped facet query.
+     *
+     * facets is the list of grouped facets required
+     * flimit restricts the number of groups returned
+     * pageSize restricts the number of docs in each group returned
+     * fl is the list of fields in the returned docs
+     *
+     */
+    public List<GroupFacetResultDTO> searchGroupedFacets(SpatialSearchRequestParams searchParams) throws Exception {
+        formatSearchQuery(searchParams);
+        //add context information
+        updateQueryContext(searchParams);
+        String queryString = buildSpatialQueryString(searchParams);
+        searchParams.setFacet(false);
+
+        //get facet group counts
+        SolrQuery query = initSolrQuery(searchParams, false, null);
+        query.setQuery(queryString);
+        query.setFields(null);
+        //now use the supplied facets to add groups to the query
+        query.add("group", "true");
+        query.add("group.ngroups", "true");
+        query.add("group.limit", String.valueOf(searchParams.getPageSize()));
+        query.setRows(searchParams.getFlimit());
+        query.setFields(searchParams.getFl());
+        for (String facet : searchParams.getFacets()) {
+            query.add("group.field", facet);
+        }
+        logger.debug("runSolrQuery: " + query.toString());
+        QueryResponse response = query(query, queryMethod);
+        logger.debug("runSolrQuery: " + query.toString() + " qtime:" + response.getQTime());
+        GroupResponse groupResponse = response.getGroupResponse();
+        
+        List<GroupFacetResultDTO> output = new ArrayList();
+        for (GroupCommand gc : groupResponse.getValues()) {
+            List<GroupFieldResultDTO> list = new ArrayList<GroupFieldResultDTO>();
+
+            String facet = gc.getName();
+            for (Group v : gc.getValues()) {
+                List<OccurrenceIndex> docs = (new DocumentObjectBinder()).getBeans(OccurrenceIndex.class, v.getResult());
+
+                //build facet displayName and fq
+                String value = v.getGroupValue();
+                Long count = v.getResult() != null ? v.getResult().getNumFound() : 0L;
+                list.add(new GroupFieldResultDTO(getFacetValueDisplayName(facet, value), count, facet + ":\"" + value + "\"", docs));
+            }
+            
+            output.add(new GroupFacetResultDTO(gc.getName(), list, gc.getNGroups()));
+        }
+        
+        return output;
+    }
+    
+    String getFacetValueDisplayName(String facet, String value) {
+        if(facet.endsWith("_uid")){
+            return searchUtils.getUidDisplayString(facet, value, false);
+        } else if(getAuthIndexFields().contains(facet)){
+            //if the facet field is collector or assertion_user_id we need to perform the substitution
+            return authService.getDisplayNameFor(value);
+        } else {
+            return messageSource.getMessage(facet + "." + value, null, value, null);
+        }
+    }
 }

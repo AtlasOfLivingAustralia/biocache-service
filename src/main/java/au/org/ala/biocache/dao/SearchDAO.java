@@ -299,4 +299,25 @@ public interface SearchDAO {
      * @throws Exception
      */
     List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception;
+
+    /**
+     * Get the SOLR index version. Trigger a background refresh on a timeout.
+     *
+     * Forcing an updated value will perform a new SOLR query for each request to be run in the foreground.
+     *
+     * @return
+     * @param force
+     */
+    public Long getIndexVersion(Boolean force);
+
+    /**
+     * Perform grouped facet query.
+     * 
+     * facets is the list of grouped facets required
+     * flimit restricts the number of groups returned
+     * pageSize restricts the number of docs in each group returned
+     * fl is the list of fields in the returned docs
+     *  
+     */
+    public List<GroupFacetResultDTO> searchGroupedFacets(SpatialSearchRequestParams searchRequestParams) throws Exception ;
 }

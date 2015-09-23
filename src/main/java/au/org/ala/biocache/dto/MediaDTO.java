@@ -27,6 +27,7 @@ public class MediaDTO {
     protected String contentType;
     protected String filePath;
     protected String metadataUrl;
+    protected Map metadata;
 
     protected Map<String,String> alternativeFormats = new HashMap<String,String>();
 
@@ -60,5 +61,13 @@ public class MediaDTO {
 
     public void setMetadataUrl(String metadataUrl) {
         this.metadataUrl = metadataUrl;
+    }
+
+    public Map getMetadata() {
+        return metadata;
+    }
+
+    public void setMetadata(Map metadata) {
+        this.metadata = metadata;
     }
 }
