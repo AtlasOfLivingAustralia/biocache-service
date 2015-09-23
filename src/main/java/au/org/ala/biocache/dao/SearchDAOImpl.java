@@ -268,7 +268,7 @@ public class SearchDAOImpl implements SearchDAO {
         // 1)get a list of species that are in the WKT
         logger.debug("Starting to get Endemic Species...");
         List<FieldResultDTO> list1 = getValuesForFacet(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));
-        logger.debug("Retrieved species within area...("+list1.size()+")");
+        logger.debug("Retrieved species within area...(" + list1.size() + ")");
         // 2)get a list of species that occur in the inverse WKT
 
         String reverseQuery = SpatialUtils.getWKTQuery(spatialField, requestParams.getWkt(), true);//"-geohash:\"Intersects(" +wkt + ")\"";
@@ -331,7 +331,7 @@ public class SearchDAOImpl implements SearchDAO {
         subQuery.setFacet(true);
         subQuery.setFacets(parentQuery.getFacets());
         List<FieldResultDTO> list1 = getValuesForFacet(subQuery);
-        logger.debug("Retrieved species within area...("+list1.size()+")");
+        logger.debug("Retrieved species within area...(" + list1.size() + ")");
 
         int i = 0, localterms = 0;
 
@@ -436,7 +436,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             QueryResponse qr = runSolrQuery(solrQuery, searchParams);
             //need to set the original q to the processed value so that we remove the wkt etc that is added from paramcache object
-            Class resultClass = includeSensitive? au.org.ala.biocache.dto.SensitiveOccurrenceIndex.class:OccurrenceIndex.class;
+            Class resultClass = includeSensitive? au.org.ala.biocache.dto.SensitiveOccurrenceIndex.class : OccurrenceIndex.class;
             searchResults = processSolrResponse(original, qr, solrQuery, resultClass);
             searchResults.setQueryTitle(searchParams.getDisplayString());
             searchResults.setUrlParameters(original.getUrlParams());
@@ -707,7 +707,7 @@ public class SearchDAOImpl implements SearchDAO {
                     //add all the qa fields
                     qasb.append(downloadParams.getQa());
                 }
-            }
+            } 
             solrQuery.addField("institution_uid")
                 .addField("collection_uid")
                 .addField("data_resource_uid")
@@ -728,7 +728,7 @@ public class SearchDAOImpl implements SearchDAO {
                 monthAssertionsQuery.add("f.assertions.facet.sort","index");
             }
             QueryResponse facetQuery = runSolrQuery(monthAssertionsQuery, downloadParams.getFq(), 0, 0, "score", "asc");
-
+            
             //set the totalrecords for the download details
             dd.setTotalRecords(facetQuery.getResults().getNumFound());
             if(checkLimit && dd.getTotalRecords() < MAX_DOWNLOAD_SIZE){
@@ -737,7 +737,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             //get the month facets to add them to the download fields get the assertion facets.
             List<Count> splitByFacet = null;
-
+           
             for(FacetField facet : facetQuery.getFacetFields()){
                 if(facet.getName().equals("assertions") && facet.getValueCount() > 0){
                    for(FacetField.Count facetEntry : facet.getValues()){
@@ -787,11 +787,11 @@ public class SearchDAOImpl implements SearchDAO {
 
             //construct correct RecordWriter based on the supplied fileType
             final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ? new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) : new ShapeFileRecordWriter(downloadParams.getFile(), out, (String[])ArrayUtils.addAll(fields, qaFields));
-
+            
             if(rw instanceof ShapeFileRecordWriter){
                 dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
             }
-
+            
             //order the query by _docid_ for faster paging
             solrQuery.addSortField("_docid_", ORDER.asc);
 
@@ -944,12 +944,12 @@ public class SearchDAOImpl implements SearchDAO {
      * Note - this method extracts from CASSANDRA rather than the Index.
      */
     public Map<String, Integer> writeResultsToStream(DownloadRequestParams downloadParams, OutputStream out, int i, boolean includeSensitive, DownloadDetailsDTO dd) throws Exception {
-
+        
         int resultsCount = 0;
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
         //stores the remaining limit for data resources that have a download limit
         Map<String, Integer> downloadLimit = new HashMap<String,Integer>();
-
+        
         try {
             SolrQuery solrQuery = initSolrQuery(downloadParams,false,null);
             //ensure that the qa facet is being ordered alphabetically so that the order is consistent.
@@ -968,24 +968,24 @@ public class SearchDAOImpl implements SearchDAO {
             solrQuery.setFields("row_key", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid");
 
             String dFields = downloadParams.getFields();
-
+            
             if(includeSensitive){
                 //include raw latitude and longitudes
                 dFields = dFields.replaceFirst("decimalLatitude.p", "decimalLatitude,decimalLongitude,decimalLatitude.p").replaceFirst(",locality,", ",locality,sensitive_locality,");
             }
-
+            
             StringBuilder  sb = new StringBuilder(dFields);
             if(downloadParams.getExtra().length()>0)
                 sb.append(",").append(downloadParams.getExtra());
             StringBuilder qasb = new StringBuilder();
-
+                        
             QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), 0, 0, "_docid_", "asc");
             dd.setTotalRecords(qr.getResults().getNumFound());
             //get the assertion facets to add them to the download fields
             List<FacetField> facets = qr.getFacetFields();
             for(FacetField facet : facets){
                 if(facet.getName().equals("assertions") && facet.getValueCount()>0){
-
+                
                  for(FacetField.Count facetEntry : facet.getValues()){
                      //System.out.println("facet: " + facetEntry.getName());
                      if(qasb.length()>0)
@@ -1026,7 +1026,7 @@ public class SearchDAOImpl implements SearchDAO {
             //Create the Writer that will be used to format the records
             //construct correct RecordWriter based on the supplied fileType
             final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv")? new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) : new ShapeFileRecordWriter(downloadParams.getFile(), out, (String[])ArrayUtils.addAll(fields, qaFields));
-
+            
             if(rw instanceof ShapeFileRecordWriter){
                 dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
             }
@@ -1069,7 +1069,7 @@ public class SearchDAOImpl implements SearchDAO {
         } catch (SolrServerException ex) {
             logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
         }
-
+        
         return uidStats;
     }
     /**
@@ -1096,7 +1096,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setQuery(buildSpatialQueryString(downloadParams));
         //Only the fields specified below will be included in the results from the SOLR Query
         solrQuery.setFields("row_key", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid");
-
+        
         int startIndex = 0;
         int pageSize = downloadBatchSize;
         StringBuilder  sb = new StringBuilder(downloadParams.getFields());
@@ -1105,7 +1105,7 @@ public class SearchDAOImpl implements SearchDAO {
         StringBuilder qasb = new StringBuilder();
         QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), pageSize, startIndex, "_docid_", "asc");
         List<String> uuids = new ArrayList<String>();
-
+        
         while (qr.getResults().size() > 0 && resultsCount < MAX_DOWNLOAD_SIZE && shouldDownload(dataResource, downloadLimit, false)) {
             logger.debug("Start index: " + startIndex);
             //cycle through the results adding them to the list that will be sent to cassandra
@@ -1135,9 +1135,9 @@ public class SearchDAOImpl implements SearchDAO {
         }
         return resultsCount;
     }
-
+    
     /**
-     * Indicates whether or not a records from the supplied data resource should be included
+     * Indicates whether or not a records from the supplied data resource should be included 
      * in the download. (based on download limits)
      * @param druid
      * @param limits
@@ -1321,7 +1321,7 @@ public class SearchDAOImpl implements SearchDAO {
 
     /**
      * http://ala-biocache1.vm.csiro.au:8080/solr/select?q=*:*&rows=0&facet=true&facet.field=data_provider_id&facet.field=data_provider&facet.sort=data_provider_id
-     *
+     * 
      * @see au.org.ala.biocache.dao.SearchDAO#getDataProviderCounts()
      */
     //IS THIS BEING USED BY ANYTHING??
@@ -1382,7 +1382,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setQueryType("standard");
         solrQuery.setQuery(queryString);
 
-
+       
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
         solrQuery.addFacetField(pointType.getLabel());
@@ -1527,7 +1527,7 @@ public class SearchDAOImpl implements SearchDAO {
                         break;
                     }
                 }
-
+                
             }
         } else if(queryParams.getRank() != null || queryParams.getLevel() != null){
             //just want to process normally the rank to facet on will start with the highest rank and then go down until one exists for
@@ -1549,7 +1549,7 @@ public class SearchDAOImpl implements SearchDAO {
                     }
                 }
             }
-
+            
         }
         return trDTO;
     }
@@ -1720,7 +1720,26 @@ public class SearchDAOImpl implements SearchDAO {
             logger.debug("Facet dates size: " + facetDates.size());
             facets.addAll(facetDates);
         }
+
+//        //misc properties
         List<OccurrenceIndex> results = qr.getBeans(resultClass);
+//        Iterator<SolrDocument> iter = qr.getResults().iterator();
+//        int i=0;
+//        while (iter.hasNext()){
+//            SolrDocument doc = iter.next();
+//            Map<String, Collection<Object>> fieldValuesMap = doc.getFieldValuesMap();
+//            Set<String> keys = fieldValuesMap.keySet();
+//            Map<String, Object> miscProperties = new HashMap<String,Object>();
+//            for(String key : keys){
+//                if(key.endsWith("_s") || key.endsWith("_i") || key.endsWith("_d")){
+//                    miscProperties.put(key, fieldValuesMap.get(key));
+//                }
+//            }
+//            results.get(i).setMiscProperties(miscProperties);
+//            i++;
+//        }
+
+        //facet results
         List<FacetResultDTO> facetResults = new ArrayList<FacetResultDTO>();
         searchResult.setTotalRecords(sdl.getNumFound());
         searchResult.setStartIndex(sdl.getStart());
@@ -1761,17 +1780,19 @@ public class SearchDAOImpl implements SearchDAO {
             }
             facetResults.add(new FacetResultDTO("uncertainty", fqr));
         }
-
+        
         //handle all the range based facets
         if(qr.getFacetRanges() != null){
             for(RangeFacet rfacet : qr.getFacetRanges()){
                 List<FieldResultDTO> fqr = new ArrayList<FieldResultDTO>();
                 if(rfacet instanceof Numeric){
-                    Numeric nrfacet = (Numeric)rfacet;
+                    Numeric nrfacet = (Numeric) rfacet;
                     List<RangeFacet.Count> counts = nrfacet.getCounts();
                     //handle the before
                     if(nrfacet.getBefore().intValue()>0){
-                      fqr.add(new FieldResultDTO("[* TO "+getUpperRange(nrfacet.getStart().toString(), nrfacet.getGap(),false)+"]",nrfacet.getBefore().intValue()));
+                      fqr.add(new FieldResultDTO("[* TO " + getUpperRange(nrfacet.getStart().toString(), nrfacet.getGap(),false) + "]",
+                              nrfacet.getBefore().intValue())
+                      );
                     }
                     for(RangeFacet.Count count:counts){
                         String title = getRangeValue(count.getValue(), nrfacet.getGap());
@@ -2340,7 +2361,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
         return new String[]{};
     }
-
+    
    protected void initDecadeBasedFacet(SolrQuery solrQuery,String field){
        solrQuery.add("facet.date", field);
        solrQuery.add("facet.date.start", "1850-01-01T00:00:00Z"); // facet date range starts from 1850
@@ -2415,7 +2436,7 @@ public class SearchDAOImpl implements SearchDAO {
         } else {
             solrQuery.setFields(OccurrenceIndex.defaultFields);
         }
-
+        
         //add the extra SOLR params
         if(extraSolrParams != null){
             //automatically include the before and after params...
@@ -2463,7 +2484,7 @@ public class SearchDAOImpl implements SearchDAO {
                 details = null;
             }
         }
-
+        
         return details;
     }
 
@@ -2633,7 +2654,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * Returns the count of distinct values for the facets.  Uses groups for group counts.
      * Supports foffset and flimit for paging. Supports fsort 'count' or 'index'.
-     * <p/>
+     * 
      * TODO work out whether or not we should allow facet ranges to be downloaded....
      */
     public List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception {
@@ -2690,7 +2711,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         return new ArrayList<FacetResultDTO>(facetResults);
     }
-
+    
     /**
      * Returns details about the fields in the index.
      */
@@ -2704,7 +2725,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
         return indexFields;
     }
-
+    
 
     /**
      * parses the response string from the service that returns details about the indexed fields
@@ -2724,15 +2745,15 @@ public class SearchDAOImpl implements SearchDAO {
         } catch (Exception e) {}
 
         Set<IndexFieldDTO> fieldList = includeCounts?new java.util.LinkedHashSet<IndexFieldDTO>():new java.util.TreeSet<IndexFieldDTO>();
-
+        
         Pattern typePattern = Pattern.compile("(?:type=)([a-z]{1,})");
 
         Pattern schemaPattern = Pattern.compile("(?:schema=)([a-zA-Z\\-]{1,})");
-
+        
         Pattern distinctPattern = Pattern.compile("(?:distinct=)([0-9]{1,})");
 
         String[] fieldsStr = str.split("fields=\\{");
-
+        
         Map indexToJsonMap = new OccurrenceIndex().indexToJsonMap();
 
         for (String fieldStr : fieldsStr) {
@@ -2742,7 +2763,7 @@ public class SearchDAOImpl implements SearchDAO {
                 for (String field : fields) {
                     if (field != null && !"".equals(field)) {
                         IndexFieldDTO f = new IndexFieldDTO();
-
+                        
                         String fieldName = field.split("=")[0];
                         String type = null;
                         String schema = null;
@@ -2750,7 +2771,7 @@ public class SearchDAOImpl implements SearchDAO {
                         if (typeMatcher.find(0)) {
                             type = typeMatcher.group(1);
                         }
-
+                        
                         Matcher schemaMatcher = schemaPattern.matcher(field);
                         if (schemaMatcher.find(0)) {
                             schema = schemaMatcher.group(1);
@@ -2760,7 +2781,7 @@ public class SearchDAOImpl implements SearchDAO {
 //                            logger.debug("schema:" + schema);
                             //don't allow the sensitive coordinates to be exposed via ws
                             if(fieldName != null && !fieldName.startsWith("sensitive")){
-
+                                
                                 f.setName(fieldName);
                                 f.setDataType(type);
                                 //interpret the schema information
@@ -2789,7 +2810,7 @@ public class SearchDAOImpl implements SearchDAO {
                                     if (downloadField != null && downloadField.contains(",")) downloadField = null;
                                     if (downloadField != null) {
                                         f.setDownloadName(downloadField);
-
+                                        
                                         //(6) downloadField description
                                         String downloadFieldDescription = messageSource.getMessage(downloadField, null, "", Locale.getDefault());
                                         if (downloadFieldDescription.length() > 0) {
