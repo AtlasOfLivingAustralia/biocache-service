@@ -14,37 +14,52 @@
  ***************************************************************************/
 package au.org.ala.biocache.util;
 
+import com.google.common.collect.ImmutableBiMap;
+import org.springframework.context.support.AbstractMessageSource;
+import org.springframework.stereotype.Component;
+
+import javax.inject.Inject;
+import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.google.common.collect.ImmutableBiMap;
-
+@Component("rangeBasedFacets")
 public class RangeBasedFacets {
-	
-    public static Map<String, ImmutableBiMap<String,String>> rangeFacets = new HashMap<String, ImmutableBiMap<String,String>>();
     
-    public static Map<String,String> getRangeMap(String name){
+    @Inject
+    private AbstractMessageSource messageSource;
+	
+    private Map<String, ImmutableBiMap<String,String>> rangeFacets = new HashMap<String, ImmutableBiMap<String,String>>();
+    
+    public Map<String,String> getRangeMap(String name){
+        init();
         if(rangeFacets.containsKey(name))
             return rangeFacets.get(name);
         return null;
     }
     
-    public static Map<String,String> getTitleMap(String name){
+    public Map<String,String> getTitleMap(String name){
+        init();
         if(rangeFacets.containsKey(name))
             return rangeFacets.get(name).inverse();
         return null;
     }
     
-    static{
+    private void init() {
+        String less_than = messageSource.getMessage("rangefacet.less_than", null, "less than {0}", null);
+        String between = messageSource.getMessage("rangefacet.between", null, "between {0} and {1}", null);
+        String greater_than = messageSource.getMessage("rangefacet.greater_than", null, "greater than {0}", null);
+        String unknown = messageSource.getMessage("rangefacet.unknown", null, "Unknown", null);
+        
         //construct the bi directional map for the uncertainty ranges
         ImmutableBiMap<String, String> map = new ImmutableBiMap.Builder<String,String>()
-                .put("coordinate_uncertainty:[0 TO 100]", "less than 100")
-                .put("coordinate_uncertainty:[101 TO 500]","between 100 and 500")
-                .put("coordinate_uncertainty:[501 TO 1000]", "between 500 and 1000")
-                .put("coordinate_uncertainty:[1001 TO 5000]", "between 1000 and 5000")
-                .put("coordinate_uncertainty:[5001 TO 10000]", "between 5000 and 10000")
-                .put("coordinate_uncertainty:[10001 TO *]", "greater than 10000")
-                .put("-coordinate_uncertainty:[* TO *]", "Unknown").build();
+                .put("coordinate_uncertainty:[0 TO 100]", MessageFormat.format(less_than, "100"))
+                .put("coordinate_uncertainty:[101 TO 500]", MessageFormat.format(between, "100", "500"))
+                .put("coordinate_uncertainty:[501 TO 1000]", MessageFormat.format(between, "500", "1000"))
+                .put("coordinate_uncertainty:[1001 TO 5000]", MessageFormat.format(between,"1000","5000"))
+                .put("coordinate_uncertainty:[5001 TO 10000]", MessageFormat.format(between,"5000","10000"))
+                .put("coordinate_uncertainty:[10001 TO *]", MessageFormat.format(greater_than,"10000"))
+                .put("-coordinate_uncertainty:[* TO *]", unknown).build();
 
         rangeFacets.put("uncertainty", map);
     }

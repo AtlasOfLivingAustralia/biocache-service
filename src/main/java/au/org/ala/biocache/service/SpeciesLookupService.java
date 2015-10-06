@@ -15,6 +15,7 @@
 package au.org.ala.biocache.service;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Service layer interface for accessing species lookups.
@@ -63,4 +64,24 @@ public interface SpeciesLookupService {
      * @return The header row to be used in a CSV species list
      */
     String[] getHeaderDetails(String field,boolean includeCounts, boolean includeSynonyms);
+
+    /**
+     * Returns list of GUIDs for a list of taxa queries
+     * @param taxaQueries a list of taxa queries
+     * @return list of guids matched with acceptedIdentifier
+     */
+    public List<String> getGuidsForTaxa(List<String> taxaQueries);
+
+    /**
+     * Return autocomplete results.
+     *
+     * @param query search term
+     * @param filterQuery fq applied to occurrence counts returned. e.g. geospatial_kosher:true
+     * @param max limit returned matches
+     * @param includeSynonyms can include matched synonyms (or resolve to their parents)
+     * @param includeAll do not limit remove matches with 0 matches
+     * @param counts include occurrence counts in the output
+     * @return
+     */
+    public Map search(String query, String [] filterQuery, int max, boolean includeSynonyms, boolean includeAll, boolean counts);
 }

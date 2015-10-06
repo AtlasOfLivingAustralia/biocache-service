@@ -43,6 +43,7 @@ public class OccurrenceIndex {
     @Field("catalogue_number") String raw_catalogNumber;
     @Field("taxon_concept_lsid") String taxonConceptID;
     @Field("occurrence_date") java.util.Date eventDate;
+    @Field("occurrence_date_end_dt") java.util.Date eventDateEnd;
     @Field("occurrence_year") java.util.Date occurrenceYear;
     @Field("taxon_name") String scientificName;
     @Field("common_name") String vernacularName;
@@ -196,6 +197,10 @@ public class OccurrenceIndex {
         if(eventDate != null) {
             sdate = DateFormatUtils.format(eventDate, "yyyy-MM-dd");
         }
+        String sdateEnd = null;
+        if(eventDateEnd != null) {
+            sdate = DateFormatUtils.format(eventDateEnd, "yyyy-MM-dd");
+        }
         Map<String,String> map = new HashMap<String,String>();
         addToMapIfNotNull(map, "id", uuid);
         addToMapIfNotNull(map, "occurrence_id",occurrenceID);
@@ -210,6 +215,7 @@ public class OccurrenceIndex {
         addToMapIfNotNull(map, "catalogue_number",raw_catalogNumber);
         addToMapIfNotNull(map, "taxon_concept_lsid",taxonConceptID);
         addToMapIfNotNull(map, "occurrence_date", sdate);
+        addToMapIfNotNull(map, "occurrence_date_end_dt", sdateEnd);
         addToMapIfNotNull(map, "taxon_name",scientificName);
         addToMapIfNotNull(map, "common_name",vernacularName);
         addToMapIfNotNull(map, "rank",taxonRank);
@@ -288,6 +294,7 @@ public class OccurrenceIndex {
         map.put("catalogue_number","raw_catalogNumber");
         map.put("taxon_concept_lsid","taxonConceptID");
         map.put("occurrence_date", "eventDate");
+        map.put("occurrence_date_end_dt", "eventDateEnd");
         map.put("taxon_name","scientificName");
         map.put("common_name","vernacularName");
         map.put("rank","taxonRank");
@@ -452,6 +459,14 @@ public class OccurrenceIndex {
 
     public void setEventDate(Date eventDate) {
         this.eventDate = eventDate;
+    }
+
+    public Date getEventDateEnd() {
+        return eventDateEnd;
+    }
+
+    public void setEventDateEnd(Date eventDateEnd) {
+        this.eventDateEnd = eventDateEnd;
     }
 
     public Date getOccurrenceYear() {

@@ -117,6 +117,15 @@ public class OccurrenceController extends AbstractSecureController {
     @Value("${facet.config:/data/biocache/config/facets.json}")
     protected String facetConfig;
 
+    @Value("${facets.max:4}")
+    protected Integer facetsMax;
+
+    @Value("${facets.defaultmax:0}")
+    protected Integer facetsDefaultMax;
+
+    @Value("${facet.default:true}")
+    protected Boolean facetDefault;
+
     public Pattern getTaxonIDPattern(){
         if(taxonIDPattern == null){
             taxonIDPattern = Pattern.compile(taxonIDPatternString);
@@ -209,7 +218,7 @@ public class OccurrenceController extends AbstractSecureController {
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         }
-        return new FacetThemes(facetConfig, indexedFields).allThemes;
+        return new FacetThemes(facetConfig, indexedFields, facetsMax, facetsDefaultMax, facetDefault).allThemes;
     }
     
     /**
@@ -271,6 +280,32 @@ public class OccurrenceController extends AbstractSecureController {
         else
             return searchDAO.getIndexFieldDetails(fields.split(","));
     }
+
+    /**
+     * Returns current index version number.
+     * 
+     * Can force the refresh if an apiKey is also provided. e.g. after a known edit.
+     *
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping("index/version")
+    public @ResponseBody Map getIndexedFields(@RequestParam(value="apiKey", required=false) String apiKey,
+                                              @RequestParam(value="force", required=false, defaultValue="false") Boolean force,
+                                              HttpServletResponse response) throws Exception{
+        
+        Long version;
+        if (force && shouldPerformOperation(apiKey, response)) {
+            version = searchDAO.getIndexVersion(force);
+        } else {
+            version = searchDAO.getIndexVersion(false);
+        }
+
+        Map m = new HashMap<String, Long>();
+        m.put("version", version);
+        
+        return m;
+    }
     
     /**
      * Returns a facet list including the number of distinct values for a field
@@ -281,6 +316,20 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping("occurrence/facets")
     public @ResponseBody List<FacetResultDTO> getOccurrenceFacetDetails(SpatialSearchRequestParams requestParams) throws Exception{
         return searchDAO.getFacetCounts(requestParams);
+    }
+
+    /**
+     * Returns a group list including the number of distinct values for a field, and occurrences.
+     *
+     * @param requestParams
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping("occurrence/groups")
+    public
+    @ResponseBody
+    List<GroupFacetResultDTO> getOccurrenceGroupDetails(SpatialSearchRequestParams requestParams) throws Exception {
+        return searchDAO.searchGroupedFacets(requestParams);
     }
     
     /**
@@ -1149,7 +1198,9 @@ public class OccurrenceController extends AbstractSecureController {
         }
         
         //ADD THE DIFFERENT IMAGE FORMATS...thumb,small,large,raw
-        setupImageUrls(occ);
+        //default lookupImageMetadata to "true"
+        String im = request.getParameter("im");
+        setupImageUrls(occ, im == null || !im.equalsIgnoreCase("false"));
         
         //fix media store URLs
         Config.mediaStore().convertPathsToUrls(occ.getRaw(), biocacheMediaUrl);
@@ -1220,10 +1271,25 @@ public class OccurrenceController extends AbstractSecureController {
         return soundDtos;
     }
     
-    private void setupImageUrls(OccurrenceDTO dto){
+    private void setupImageUrls(OccurrenceDTO dto, boolean lookupImageMetadata) {
         String[] images = dto.getProcessed().getOccurrence().getImages();
         if(images != null && images.length > 0){
             List<MediaDTO> ml = new ArrayList<MediaDTO>();
+
+            Map<String, Map> metadata = new HashMap();
+            if (lookupImageMetadata) {
+                try {
+                    String uuid = dto.getProcessed().getUuid();
+                    List<Map<String, Object>> list = imageMetadataService.getImageMetadataForOccurrences(Arrays.asList(new String[]{uuid})).get(uuid);
+                    if (list != null) {
+                        for (Map m : list) {
+                            metadata.put(String.valueOf(m.get("imageId")), m);
+                        }
+                    }
+                } catch (Exception e) {
+                }
+            }
+
             for(String fileNameOrID: images){
                 MediaDTO m = new MediaDTO();
                 Map<String, String> urls = Config.mediaStore().getImageFormats(fileNameOrID);
@@ -1233,6 +1299,10 @@ public class OccurrenceController extends AbstractSecureController {
                 m.getAlternativeFormats().put("imageUrl", urls.get("raw"));
                 m.setFilePath(fileNameOrID);
                 m.setMetadataUrl(imageMetadataService.getUrlFor(fileNameOrID));
+                
+                if (metadata != null && metadata.get(fileNameOrID) != null) {
+                    m.setMetadata(metadata.get(fileNameOrID));
+                }
                 ml.add(m);
             }
             dto.setImages(ml);

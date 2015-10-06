@@ -20,6 +20,7 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
+import au.org.ala.biocache.dto.IndexFieldDTO;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.httpclient.HttpException;
@@ -71,6 +72,10 @@ public class DownloadService {
     //NC 20131018: Allow citations to be disabled via config (enabled by default)
     @Value("${citations.enabled:true}")
     protected Boolean citationsEnabled;
+
+    //Allow headings information to be disabled via config (enabled by default)
+    @Value("${headings.enabled:true}")
+    protected Boolean headingsEnabled;
 
     /** Stores the current list of downloads that are being performed. */
     private List<DownloadDetailsDTO> currentDownloads = Collections.synchronizedList(new ArrayList<DownloadDetailsDTO>());
@@ -201,6 +206,21 @@ public class DownloadService {
         } else {
             logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " +uidStats);
         }
+
+        //Add headings file, listing information about the headings
+        if (headingsEnabled) {
+            //add the citations for the supplied uids
+            zop.putNextEntry(new java.util.zip.ZipEntry("headings.csv"));
+            try {
+                getHeadings(uidStats, zop, requestParams);
+            } catch (Exception e) {
+                logger.error(e.getMessage(),e);
+            }
+            zop.closeEntry();
+        } else {
+            logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " +uidStats);
+        }
+        
         zop.flush();
         zop.close();
         
@@ -273,6 +293,100 @@ public class DownloadService {
                 }
             }
             writer.flush();
+        }
+    }
+
+    /**
+     * get headings info from index/fields web service and write it into headings.csv file.
+     * 
+     * output columns:
+     *  column name
+     *  field requested
+     *  dwc 
+     *  description
+     *  info
+     *  field
+     *
+     * @param out
+     * @throws HttpException
+     * @throws IOException
+     */
+    public void getHeadings(Map<String, Integer> uidStats, OutputStream out, DownloadRequestParams params) throws Exception {
+        if (headingsEnabled) {
+            if (out == null) {
+                //throw new NullPointerException("keys and/or out is null!!");
+                logger.error("Unable to generate headings info: out is null!!");
+                return;
+            }
+
+            CSVWriter writer = new CSVWriter(new OutputStreamWriter(out), params.getSep(), '"', params.getEsc());
+            //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
+            Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
+
+            //header
+            writer.writeNext(new String[]{"Column name", "Requested field", "DwC Name", "Field name", "Field description", "Download field name", "Download field description", "More information"});
+
+            String[] fieldsRequested = null;
+            String[] headerOutput = null;
+            for (Map.Entry<String, Integer> e : uidStats.entrySet()) {
+                if (e.getValue() == -1) {
+                    //String fields requested
+                    fieldsRequested = e.getKey().split(",");
+
+                } else if (e.getValue() == -2) {
+                    headerOutput = e.getKey().split(",");
+                }
+            }
+
+            if (fieldsRequested != null && headerOutput != null) {
+                //ignore first fieldsRequested and headerOutput record
+                for (int i = 1; i < fieldsRequested.length; i++) {
+
+                    //find indexedField by download name
+                    IndexFieldDTO ifdto = null;
+                    for (IndexFieldDTO f : indexedFields) {
+                        //find a matching field
+                        if (fieldsRequested[i].equalsIgnoreCase(f.getDownloadName())) {
+                            ifdto = f;
+                            break;
+                        }
+                    }
+                    //find indexedField by field name
+                    if (ifdto == null) {
+                        for (IndexFieldDTO f : indexedFields) {
+                            //find a matching field
+                            if (fieldsRequested[i].equalsIgnoreCase(f.getName())) {
+                                ifdto = f;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (ifdto != null) {
+                        writer.writeNext(new String[]{headerOutput[i], fieldsRequested[i],
+                                ifdto.getDwcTerm() != null ? ifdto.getDwcTerm() : "",
+                                ifdto.getName() != null ? ifdto.getName() : "",
+                                ifdto.getDescription() != null ? ifdto.getDescription() : "",
+                                ifdto.getDownloadName() != null ? ifdto.getDownloadName() : "",
+                                ifdto.getDownloadDescription() != null ? ifdto.getDownloadDescription() : "",
+                                ifdto.getInfo() != null ? ifdto.getInfo() : ""
+                        });
+                    } else {
+                        //others, e.g. assertions
+                        String info = messageSource.getMessage("description." + fieldsRequested[i], null, "", null);
+                        writer.writeNext(new String[]{headerOutput[i], fieldsRequested[i],
+                                "",
+                                "",
+                                "",
+                                "",
+                                "",
+                                info != null ? info : ""
+                        });
+                    }
+                }
+
+                writer.flush();
+            }
         }
     }
 

@@ -211,5 +211,5 @@ public class SearchResultDTO {
     public void setActiveFacetMap(Map<String, Facet> activeFacetMap) {
         this.activeFacetMap = activeFacetMap;
     }
-    
+
 }

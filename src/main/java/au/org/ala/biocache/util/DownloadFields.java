@@ -36,7 +36,7 @@ public class DownloadFields {
 
     private AbstractMessageSource messageSource;
     
-    private Properties layerProperties;
+    private Properties layerProperties = new Properties();
     private Map<String,IndexFieldDTO> indexFieldMaps;
 
     public DownloadFields(Set<IndexFieldDTO> indexFields, AbstractMessageSource messageSource){
@@ -56,17 +56,33 @@ public class DownloadFields {
     }
 
     private void updateLayerNames() {
-        Properties newDownloadProperties = new Properties();
+        //avoid a delay here
+        Thread t = new Thread() {
+            public void run() {
+                Properties newDownloadProperties = new Properties();
 
-        try {
-            Map<String, String> fields = new LayersStore(Config.layersServiceUrl()).getFieldIdsAndDisplayNames();
-            for (String fieldId : fields.keySet()) {
-                newDownloadProperties.put(fieldId, fields.get(fieldId));
+                try {
+                    Map<String, String> fields = new LayersStore(Config.layersServiceUrl()).getFieldIdsAndDisplayNames();
+                    for (String fieldId : fields.keySet()) {
+                        newDownloadProperties.put(fieldId, fields.get(fieldId));
+                    }
+
+                    //something might have gone wrong if empty
+                    if (newDownloadProperties.size() > 0) {
+                        layerProperties = newDownloadProperties;
+                    }
+                } catch (Exception e) {
+                    logger.error("failed to update layer names from url: " + Config.layersServiceUrl(), e);
+                }
             }
+        };
 
-            layerProperties = newDownloadProperties;
-        } catch (Exception e) {
-            logger.error("failed to update layer names from url: " + Config.layersServiceUrl(), e);
+        if (layerProperties == null || layerProperties.size() == 0) {
+            //wait
+            t.run();
+        } else {
+            //do not wait 
+            t.start();
         }
     }
     
@@ -119,6 +135,7 @@ public class DownloadFields {
         java.util.List<String> mappedNames = new java.util.LinkedList<String>();
         java.util.List<String> headers = new java.util.LinkedList<String>();
         java.util.List<String> unmappedNames = new java.util.LinkedList<String>();
+        java.util.List<String> originalName = new java.util.LinkedList<String>();
         java.util.Map<String, String> storageFieldMap = Store.getStorageFieldMap();
         for(String value : values){
             //check to see if it is the the
@@ -131,10 +148,11 @@ public class DownloadFields {
                 String v = dwcHeaders ? value : layerProperties.getProperty(value, messageSource.getMessage(value, null, generateTitle(value, true), Locale.getDefault()));
                 String dwc = dwcHeaders ? messageSource.getMessage("dwc." + value, null, "", Locale.getDefault()) : null;
                 headers.add(dwc != null && dwc.length() > 0 ? dwc : v);
+                originalName.add(value);
             } else {
                 unmappedNames.add(indexName);
             }
         }
-        return new List[]{mappedNames,unmappedNames,headers};
+        return new List[]{mappedNames,unmappedNames,headers,originalName};
     }
 }

@@ -28,6 +28,7 @@ import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -53,6 +54,8 @@ public class AssertionController extends AbstractSecureController {
     protected String registryUrl = "http://collections.ala.org.au";
     @Inject
     protected AuthService authService;
+    @Inject
+    private AbstractMessageSource messageSource;
    
     /**
      * Retrieve an array of the assertion codes in use by the processing system
@@ -62,32 +65,32 @@ public class AssertionController extends AbstractSecureController {
      */
     @RequestMapping(value = {"/assertions/codes", "/assertions/codes/"}, method = RequestMethod.GET)
     public @ResponseBody ErrorCode[] showCodes() throws Exception {
-        return Store.retrieveAssertionCodes();
+        return applyi18n(Store.retrieveAssertionCodes());
     }
 
     @RequestMapping(value = {"/assertions/geospatial/codes", "/assertions/geospatial/codes/"}, method = RequestMethod.GET)
     public @ResponseBody ErrorCode[] showGeospatialCodes() throws Exception {
-        return Store.retrieveGeospatialCodes();
+        return applyi18n(Store.retrieveGeospatialCodes());
     }
 
     @RequestMapping(value = {"/assertions/taxonomic/codes", "/assertions/taxonomic/codes/"}, method = RequestMethod.GET)
     public @ResponseBody ErrorCode[] showTaxonomicCodes() throws Exception {
-        return Store.retrieveTaxonomicCodes();
+        return applyi18n(Store.retrieveTaxonomicCodes());
     }
 
     @RequestMapping(value = {"/assertions/temporal/codes", "/assertions/temporal/codes/"}, method = RequestMethod.GET)
     public @ResponseBody ErrorCode[] showTemporalCodes() throws Exception {
-        return Store.retrieveTemporalCodes();
+        return applyi18n(Store.retrieveTemporalCodes());
     }
 
     @RequestMapping(value = {"/assertions/miscellaneous/codes", "/assertions/miscellaneous/codes/"}, method = RequestMethod.GET)
     public @ResponseBody ErrorCode[] showMiscellaneousCodes() throws Exception {
-        return Store.retrieveMiscellaneousCodes();
+        return applyi18n(Store.retrieveMiscellaneousCodes());
     }
 
     @RequestMapping(value = {"/assertions/user/codes", "/assertions/user/codes/"}, method = RequestMethod.GET)
     public @ResponseBody ErrorCode[] showUserCodes() throws Exception {
-        return Store.retrieveUserAssertionCodes();
+        return applyi18n(Store.retrieveUserAssertionCodes());
     }
 
     /**
@@ -310,5 +313,17 @@ public class AssertionController extends AbstractSecureController {
 
     public void setAssertionUtils(AssertionUtils assertionUtils) {
         this.assertionUtils = assertionUtils;
+    }
+    
+    private ErrorCode[] applyi18n(ErrorCode[] errorCodes) {
+        //use i18n descriptions
+        ErrorCode[] formattedErrorCodes = new ErrorCode[errorCodes.length];
+        for (int i = 0; i < errorCodes.length; i++) {
+            formattedErrorCodes[i] = new ErrorCode(errorCodes[i].getName(), errorCodes[i].getCode(),
+                    errorCodes[i].getIsFatal(),
+                    messageSource.getMessage(errorCodes[i].getName(), null, errorCodes[i].getDescription(), null),
+                    errorCodes[i].getCategory());
+        }
+        return formattedErrorCodes;
     }
 }

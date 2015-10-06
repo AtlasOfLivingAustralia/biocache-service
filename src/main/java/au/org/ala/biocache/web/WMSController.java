@@ -1209,6 +1209,7 @@ public class WMSController {
             @RequestParam(value = "terrestrialSpecies", required = false, defaultValue = "false") boolean terrestrialOnly,
             @RequestParam(value = "limitToFocus", required = false, defaultValue = "true") boolean limitToFocus,
             @RequestParam(value = "useSpeciesGroups", required = false, defaultValue = "false") boolean useSpeciesGroups,
+            @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") int gridDivisionCount,
             HttpServletRequest request,
             HttpServletResponse response,
             Model model)
@@ -1230,6 +1231,7 @@ public class WMSController {
                     outlineColour,
                     layers,
                     null,
+                    gridDivisionCount,
                     request,
                     response);
             return;
@@ -1460,6 +1462,7 @@ public class WMSController {
             @RequestParam(value = "OUTLINECOLOUR", required = true, defaultValue = "0x000000") String outlineColour,
             @RequestParam(value = "LAYERS", required = false, defaultValue = "")               String layers,
             @RequestParam(value = "HQ", required = false)                                      String[] hqs,
+            @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16")         Integer gridDivisionCount,
             HttpServletRequest request,
             HttpServletResponse response)
             throws Exception {
@@ -1550,15 +1553,27 @@ public class WMSController {
             WMSCache.remove(requestParams.getUrlParams(), vars.colourMode, pointType);
         }
 
+        //correction for gridDivisionCount
+        boolean isGrid = vars.colourMode.equals("grid");
+        if (isGrid) {
+            if (gridDivisionCount > Math.min(width, height)) gridDivisionCount = Math.min(width, height);
+            if (gridDivisionCount < 0) gridDivisionCount = 1;
+
+            //gridDivisionCount correction
+            while (width % gridDivisionCount > 0 || height % gridDivisionCount > 0) {
+                gridDivisionCount--;
+            }
+        }
+
         ImgObj imgObj = null;
         if (wco == null) {
             imgObj = wmsUncached(requestParams, vars, pointType, pbbox, mbbox,
                     width, height, width_mult, height_mult, pointWidth,
-                    originalFqs, hq, boundingBoxFqs, outlinePoints, outlineColour, response, is4326, tilebbox);
+                    originalFqs, hq, boundingBoxFqs, outlinePoints, outlineColour, response, is4326, tilebbox, gridDivisionCount);
         } else {
             imgObj = wmsCached(wco, requestParams, vars, pointType, pbbox, bbox, mbbox,
                     width, height, width_mult, height_mult, pointWidth,
-                    originalFqs, hq, boundingBoxFqs, outlinePoints, outlineColour, response, is4326, tilebbox);
+                    originalFqs, hq, boundingBoxFqs, outlinePoints, outlineColour, response, is4326, tilebbox, gridDivisionCount);
         }
 
         if (imgObj != null && imgObj.g != null) {
@@ -1733,15 +1748,16 @@ public class WMSController {
                              String[] boundingBoxFqs, boolean outlinePoints,
                              String outlineColour,
                              HttpServletResponse response,
-                             boolean is4326, double [] tilebbox) throws Exception {
+                             boolean is4326, double [] tilebbox, int gridDivisionCount) throws Exception {
 
         ImgObj imgObj = null;
 
         //grid setup
-        int divs = 16; //number of x & y divisions in the WIDTH/HEIGHT
-        int[][] gridCounts = new int[divs][divs];
-        int xstep = 256 / divs;
-        int ystep = 256 / divs;
+        boolean isGrid = vars.colourMode.equals("grid");
+        int divs = gridDivisionCount; //number of x & y divisions in the WIDTH/H    EIGHT
+        int[][] gridCounts = isGrid ? new int[divs][divs] : null;
+        int xstep = width / divs;
+        int ystep = height / divs;
         double grid_width_mult = (width / (pbbox[2] - pbbox[0])) / (width / divs);
         double grid_height_mult = (height / (pbbox[1] - pbbox[3])) / (height / divs);
 
@@ -1778,7 +1794,7 @@ public class WMSController {
                 double left = tilebbox[0];
                 double right = tilebbox[2];
 
-                if (vars.colourMode.equals("grid")) {
+                if (isGrid) {
                     //render grids
                     int[] count = counts.get(j);
 
@@ -1840,7 +1856,7 @@ public class WMSController {
                 displayBlankImage(response);
                 return null;
             }
-        } else if (vars.colourMode.equals("grid")) {
+        } else if (isGrid) {
             //draw grid
             for (x = 0; x < divs; x++) {
                 for (y = 0; y < divs; y++) {
@@ -2167,10 +2183,11 @@ public class WMSController {
             double[] mbbox, int width, int height, double width_mult,
             double height_mult, int pointWidth, String[] originalFqs, Set<Integer> hq,
             String[] boundingBoxFqs, boolean outlinePoints, String outlineColour, HttpServletResponse response,
-            boolean is4326, double[] tilebbox) throws Exception {
+            boolean is4326, double[] tilebbox, int gridDivisionCount) throws Exception {
 
         //colour mapping
-        List<LegendItem> colours = (vars.colourMode.equals("-1") || vars.colourMode.equals("grid")) ? null : getColours(requestParams, vars.colourMode);
+        boolean isGrid = vars.colourMode.equals("grid");
+        List<LegendItem> colours = (vars.colourMode.equals("-1") || isGrid) ? null : getColours(requestParams, vars.colourMode);
         int sz = colours == null ? 1 : colours.size() + 1;
 
         List<List<OccurrencePoint>> points = new ArrayList<List<OccurrencePoint>>(sz);
@@ -2246,10 +2263,10 @@ public class WMSController {
         ImgObj imgObj = null;
 
         //grid setup
-        int divs = 16; //number of x & y divisions in the WIDTH/HEIGHT
-        int[][] gridCounts = new int[divs][divs];
-        int xstep = 256 / divs;
-        int ystep = 256 / divs;
+        int divs = gridDivisionCount; //number of x & y divisions in the WIDTH/HEIGHT
+        int[][] gridCounts = isGrid ? new int[divs][divs] : null;
+        int xstep = width / divs;
+        int ystep = height / divs;
         double grid_width_mult = (width / (pbbox[2] - pbbox[0])) / (width / divs);
         double grid_height_mult = (height / (pbbox[1] - pbbox[3])) / (height / divs);
         int x, y;
@@ -2277,7 +2294,7 @@ public class WMSController {
                 imgObj = ImgObj.create(width,height);
             }
 
-            if (vars.colourMode.equals("grid")) {
+            if (isGrid) {
                 //populate grid
                 for (int i = 0; i < ps.size(); i++) {
                     OccurrencePoint pt = ps.get(i);
@@ -2307,7 +2324,7 @@ public class WMSController {
                 displayBlankImage(response);
                 return null;
             }
-        } else if (vars.colourMode.equals("grid")) {
+        } else if (isGrid) {
             //draw grid
             for (x = 0; x < divs; x++) {
                 for (y = 0; y < divs; y++) {

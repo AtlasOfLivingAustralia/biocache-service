@@ -28,9 +28,14 @@ import java.util.*;
 public class FacetThemes {
 	
     public static String[] allFacets = new String[]{};
+    public static String[] allFacetsLimited = new String[]{};
     public static java.util.List<FacetTheme> allThemes = new java.util.ArrayList<FacetTheme>();
     public static LinkedHashMap<String, Facet> facetsMap = new LinkedHashMap<String, Facet>();
-
+    
+    public static Integer facetsMax = 4;
+    public static Integer facetsDefaultMax = 0;
+    public static Boolean facetDefault = true;
+    
     /**
      * Takes a file path to a configuration file in JSON and parses the file
      * into facets and facet themes.
@@ -38,8 +43,11 @@ public class FacetThemes {
      * @param configFilePath
      * @throws IOException
      */
-    public FacetThemes(String configFilePath, Set<IndexFieldDTO> indexedFields) throws IOException {
-
+    public FacetThemes(String configFilePath, Set<IndexFieldDTO> indexedFields, int facetsMax, int facetsDefaultMax, boolean facetDefault) throws IOException {
+        this.facetsMax = facetsMax;
+        this.facetsDefaultMax = facetsDefaultMax;
+        this.facetDefault = facetDefault;
+        
         if(configFilePath != null && new File(configFilePath).exists()){
             allThemes.clear();
             ObjectMapper om = new ObjectMapper();
@@ -82,6 +90,7 @@ public class FacetThemes {
                 facetsMap.put(f.field, f);
             }
             allFacets = facetsMap.keySet().toArray(new String[]{});
+            allFacetsLimited = allFacets != null && allFacets.length > facetsDefaultMax ? Arrays.copyOfRange(allFacets, 0, facetsDefaultMax) : allFacets;
         }
     }
 

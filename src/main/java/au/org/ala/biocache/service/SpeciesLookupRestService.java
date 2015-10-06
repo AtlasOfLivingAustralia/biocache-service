@@ -1,12 +1,12 @@
 /**************************************************************************
  *  Copyright (C) 2013 Atlas of Living Australia
  *  All Rights Reserved.
- * 
+ *
  *  The contents of this file are subject to the Mozilla Public
  *  License Version 1.1 (the "License"); you may not use this file
  *  except in compliance with the License. You may obtain a copy of
  *  the License at http://www.mozilla.org/MPL/
- * 
+ *
  *  Software distributed under the License is distributed on an "AS
  *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  *  implied. See the License for the specific language governing
@@ -22,6 +22,8 @@ import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.web.client.RestOperations;
 
 import javax.inject.Inject;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,13 +32,13 @@ import java.util.Map;
 /**
  * Implementation of SpeciesLookupService.java that calls the bie-service application
  * via JSON REST web services.
- * 
+ *
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
 public class SpeciesLookupRestService implements SpeciesLookupService {
-    
+
     private final static Logger logger = Logger.getLogger(SpeciesLookupRestService.class);
-	
+
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
 
     protected String bieUriPrefix;
@@ -53,7 +55,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
 
     /**
      * @see SpeciesLookupService#getGuidForName(String)
-     * 
+     *
      * @param name
      * @return guid
      */
@@ -61,12 +63,12 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
     public String getGuidForName(String name) {
         String guid = null;
         if(enabled){
-            
+
             try {
                 final String jsonUri = bieUriPrefix + "/guid/" + name;
                 logger.info("Requesting: " + jsonUri);
                 List<Object> jsonList = restTemplate.getForObject(jsonUri, List.class);
-                
+
                 if (!jsonList.isEmpty()) {
                     Map<String, String> jsonMap = (Map<String, String>) jsonList.get(0);
                     if (jsonMap.containsKey("acceptedIdentifier")) {
@@ -77,7 +79,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                 logger.error("RestTemplate error: " + ex.getMessage(), ex);
             }
         }
-        
+
         return guid;
     }
 
@@ -94,11 +96,11 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                 final String jsonUri = bieUriPrefix + "/species/shortProfile/" + guid + ".json";
                 logger.info("Requesting: " + jsonUri);
                 Map<String, String> jsonMap = restTemplate.getForObject(jsonUri, Map.class);
-    
+
                 if (jsonMap.containsKey("scientificName")) {
                     acceptedName = jsonMap.get("scientificName");
                 }
-    
+
             } catch (Exception ex) {
                 logger.error("RestTemplate error: " + ex.getMessage(), ex);
             }
@@ -106,8 +108,8 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
 
         return acceptedName;
     }
-    
-    
+
+
     /**
      *
      * @param guids
@@ -127,7 +129,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                 logger.error("RestTemplate error: " + ex.getMessage(), ex);
             }
         }
-        
+
         return names;
     }
 
@@ -305,5 +307,47 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
 
     public void setMessageSource(AbstractMessageSource messageSource) {
         this.messageSource = messageSource;
+    }
+
+    public List<String> getGuidsForTaxa(List<String> taxaQueries) {
+        List guids = new ArrayList<String>();
+
+        StringBuilder encodedQueries = new StringBuilder();
+
+        if (taxaQueries.size() == 1) {
+            String taxaQ = !taxaQueries.get(0).isEmpty() ? taxaQueries.get(0) : "*:*"; // empty taxa search returns all records
+            for (String tq : taxaQ.split(" OR ")) {
+                try {
+                    if (encodedQueries.length() > 0) encodedQueries.append("&q=");
+                    URLEncoder.encode(tq, "UTF-8");
+                    taxaQueries.add(tq);
+                } catch (UnsupportedEncodingException e) {
+                    logger.error("failed encoding " + tq, e);
+                }
+            }
+            taxaQueries.remove(0); // remove first entry
+        }
+
+        String url = bieUriPrefix + "/guid/batch?q=" + encodedQueries.toString();
+        logger.info("Requesting: " + url);
+        Map<String, Object> jsonMap = restTemplate.getForObject(url, Map.class);
+
+        for (Object o : jsonMap.values()) {
+            if (((Map) o).containsKey("acceptedIdentifier")) {
+                guids.add(((Map) o).get("acceptedIdentifier"));
+            } else {
+                guids.add(null);
+            }
+        }
+
+        return guids;
+    }
+
+    public Map search(String query, String [] filterQuery, int max, boolean includeSynonyms, boolean includeAll, boolean counts) {
+        String url = bieUriPrefix + "/ws/search.json?q=" + query + "&pageSize=" + max;
+        logger.info("Requesting: " + url);
+        Map<String, Object> jsonMap = restTemplate.getForObject(url, Map.class);
+
+        return jsonMap;
     }
 }
