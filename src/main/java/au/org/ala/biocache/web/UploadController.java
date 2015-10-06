@@ -117,7 +117,32 @@ public class UploadController extends AbstractSecureController {
      *
      * @return an identifier for this temporary dataset
      */
-    @RequestMapping(value="/upload/customIndexes/{tempDataResourceUid}.json", method = RequestMethod.GET)
+    @RequestMapping(value={"/upload/charts/{tempDataResourceUid}"}, method = RequestMethod.POST)
+    public void saveChartOptions(@PathVariable String tempDataResourceUid, HttpServletRequest request, HttpServletResponse response) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        List<Map<String, Object>> chartOptions = mapper.readValue(request.getReader(), List.class);
+        String checkedString = mapper.writeValueAsString(chartOptions);
+        au.org.ala.biocache.Store.storeCustomChartOptions(tempDataResourceUid, checkedString);
+        response.setStatus(201);
+    }
+
+    /**
+     * @return an identifier for this temporary dataset
+     */
+    @RequestMapping(value={"/upload/charts/{tempDataResourceUid}", "/upload/charts/{tempDataResourceUid}.json"}, method = RequestMethod.GET)
+    public @ResponseBody Object getChartOptions(@PathVariable String tempDataResourceUid, HttpServletResponse response) throws Exception {
+        String json = au.org.ala.biocache.Store.retrieveCustomChartOptions(tempDataResourceUid);
+        response.setContentType("application/json");
+        ObjectMapper om = new ObjectMapper();
+        return om.readValue(json, List.class);
+    }
+
+    /**
+     * Upload a dataset using a POST, returning a UID for this data
+     *
+     * @return an identifier for this temporary dataset
+     */
+    @RequestMapping(value={"/upload/customIndexes/{tempDataResourceUid}.json", "/upload/customIndexes/{tempDataResourceUid}"}, method = RequestMethod.GET)
     public @ResponseBody String[] customIndexes(@PathVariable String tempDataResourceUid, HttpServletResponse response) throws Exception {
         response.setContentType("application/json");
         return au.org.ala.biocache.Store.retrieveCustomIndexFields(tempDataResourceUid);
@@ -142,7 +167,7 @@ public class UploadController extends AbstractSecureController {
     }
 
     /**
-     * Retrieve the set of dynamic facets availiable for this query.
+     * Retrieve the set of dynamic facets available for this query.
      *
      * @return an identifier for this temporary dataset
      */
