@@ -134,7 +134,44 @@ public class UploadController extends AbstractSecureController {
         String json = au.org.ala.biocache.Store.retrieveCustomChartOptions(tempDataResourceUid);
         response.setContentType("application/json");
         ObjectMapper om = new ObjectMapper();
-        return om.readValue(json, List.class);
+        List<Map<String, Object>> list = om.readValue(json, List.class);
+        if(list.isEmpty()){
+            String[] fields = au.org.ala.biocache.Store.retrieveCustomIndexFields(tempDataResourceUid);
+            for(String field: fields){
+                Map<String, Object> chartConfig = new HashMap<String, Object>();
+                chartConfig.put("field", field);
+                chartConfig.put("format", "pie");
+                chartConfig.put("visible", true);
+                list.add(chartConfig);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Save the layer options for this dataset
+     *
+     * @return an identifier for this temporary dataset
+     */
+    @RequestMapping(value={"/upload/layers/{tempDataResourceUid}"}, method = RequestMethod.POST)
+    public void saveLayerOptions(@PathVariable String tempDataResourceUid, HttpServletRequest request, HttpServletResponse response) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        List<Map<String, Object>> layerOptions = mapper.readValue(request.getReader(), List.class);
+        String checkedString = mapper.writeValueAsString(layerOptions);
+        au.org.ala.biocache.Store.storeLayerOptions(tempDataResourceUid, checkedString);
+        response.setStatus(201);
+    }
+
+    /**
+     * @return an identifier for this temporary dataset
+     */
+    @RequestMapping(value={"/upload/layers/{tempDataResourceUid}", "/upload/layers/{tempDataResourceUid}.json"}, method = RequestMethod.GET)
+    public @ResponseBody Object getLayerOptions(@PathVariable String tempDataResourceUid, HttpServletResponse response) throws Exception {
+        String json = au.org.ala.biocache.Store.retrieveLayerOptions(tempDataResourceUid);
+        response.setContentType("application/json");
+        ObjectMapper om = new ObjectMapper();
+        List<Map<String, Object>> list = om.readValue(json, List.class);
+        return list;
     }
 
     /**

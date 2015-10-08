@@ -259,6 +259,7 @@ public class OccurrenceController extends AbstractSecureController {
             Map<String, String> fields = new LayersStore(Config.layersServiceUrl()).getFieldIdsAndDisplayNames();
             for (String fieldId : fields.keySet()) {
                 os.write(("\nfield." + fieldId + "=" + fields.get(fieldId)).getBytes("UTF-8"));
+                os.write(("\nfacet." + fieldId + "=" + fields.get(fieldId)).getBytes("UTF-8"));
             }
         } catch (Exception e) {
             logger.error("failed to add layer names from url: " + Config.layersServiceUrl(), e);
