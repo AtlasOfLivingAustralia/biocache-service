@@ -56,7 +56,9 @@ public class CommonNameService {
     private Map<String, String> commonNamesLookup;
     private boolean updatingLookup = false;
 
-    Thread updateTranslationThread = new Thread() {
+    Thread updateTranslationThread = new TranslationThread();
+
+    class TranslationThread extends Thread {
         @Override
         public void run() {
             SpatialSearchRequestParams params = new SpatialSearchRequestParams();
@@ -86,7 +88,9 @@ public class CommonNameService {
         }
     };
 
-    Thread updateLookupThread = new Thread() {
+    Thread updateLookupThread = new LookupThread();
+
+    class LookupThread extends Thread {
         @Override
         public void run() {
             try {
@@ -184,13 +188,15 @@ public class CommonNameService {
         synchronized (translationLock) {
             if (!updatingTranslation) {
                 updatingTranslation = true;
-                updateTranslationThread.start();
+                updateTranslationThread = new TranslationThread();
+                updateLookupThread.start();
             }
         }
 
         synchronized (lookupLock) {
             if (!updatingLookup) {
                 updatingLookup = true;
+                updateLookupThread = new LookupThread();
                 updateLookupThread.start();
             }
         }

@@ -21,13 +21,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * cache of lft with the first found image info; data_resource_uid, image_url and number found.
- * 
+ *
  * This does not wait for the cache to be built.
- *  
+ *
  * Created by Adam Collins on 21/09/15.
  */
 @Component("SpeciesImageService")
@@ -46,7 +49,9 @@ public class SpeciesImageService {
     private SpeciesImagesDTO cache;
     private boolean updatingCache = false;
 
-    Thread updateCacheThread = new Thread() {
+    Thread updateCacheThread = new CacheThread();
+
+    class CacheThread extends Thread {
         @Override
         public void run() {
             try {
@@ -170,6 +175,7 @@ public class SpeciesImageService {
         synchronized (cacheLock) {
             if (!updatingCache) {
                 updatingCache = true;
+                updateCacheThread = new CacheThread();
                 updateCacheThread.start();
             }
         }
