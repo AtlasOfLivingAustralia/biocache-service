@@ -319,7 +319,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
             for (String tq : taxaQ.split(" OR ")) {
                 try {
                     if (encodedQueries.length() > 0) encodedQueries.append("&q=");
-                    URLEncoder.encode(tq, "UTF-8");
+                    encodedQueries.append(URLEncoder.encode(tq, "UTF-8"));
                     taxaQueries.add(tq);
                 } catch (UnsupportedEncodingException e) {
                     logger.error("failed encoding " + tq, e);
@@ -333,8 +333,13 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
         Map<String, Object> jsonMap = restTemplate.getForObject(url, Map.class);
 
         for (Object o : jsonMap.values()) {
-            if (((Map) o).containsKey("acceptedIdentifier")) {
-                guids.add(((Map) o).get("acceptedIdentifier"));
+            if (((List) o).size() > 0) {
+                Map m = (Map) ((List) o).get(0);
+                if (m.containsKey("acceptedIdentifier")) {
+                    guids.add(m.get("acceptedIdentifier"));
+                } else {
+                    guids.add(null);
+                }
             } else {
                 guids.add(null);
             }
