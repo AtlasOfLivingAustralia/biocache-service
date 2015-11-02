@@ -1,12 +1,12 @@
 /**************************************************************************
  *  Copyright (C) 2013 Atlas of Living Australia
  *  All Rights Reserved.
- * 
+ *
  *  The contents of this file are subject to the Mozilla Public
  *  License Version 1.1 (the "License"); you may not use this file
  *  except in compliance with the License. You may obtain a copy of
  *  the License at http://www.mozilla.org/MPL/
- * 
+ *
  *  Software distributed under the License is distributed on an "AS
  *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  *  implied. See the License for the specific language governing
@@ -16,9 +16,13 @@ package au.org.ala.biocache.util;
 
 import au.org.ala.biocache.dto.PointType;
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
-import java.io.InputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -26,40 +30,40 @@ import java.util.concurrent.CountDownLatch;
 /**
  * A cache of points and colours for WMS.
  *
- * Cache size defaults can overridden in wms.properties or directly at runtime.
- * TODO refactor to use the common configuration file biocache-config.properties
+ * Cache size defaults can overridden in biocache-config.properties or directly at runtime.
  *
  * Management of the cache size not exact.
  *
  * @author Adam
  */
+@Component("WMSCache")
 public class WMSCache {
 
-    private final static Logger logger = Logger.getLogger(WMSCache.class);
+    private final Logger logger = Logger.getLogger(WMSCache.class);
     //max size of cached params in bytes
-    static long MAX_CACHE_SIZE = 104857600;
-    //min size of cached params in bytes
-    static long MIN_CACHE_SIZE = 52428800;
-    //max size of any one object in the cache in bytes
-    static long LARGEST_CACHEABLE_SIZE = 52428800;
-    //max age of any one object in the cache in ms
-    static long MAX_AGE = 3600000;
-    //in memory store of params
-    static ConcurrentHashMap<String, WMSTile> cache = new ConcurrentHashMap<String, WMSTile>();
-    //cache size management
-    final static Object counterLock = new Object();
-    static long cacheSize;
-    static CountDownLatch counter;
-    //thread for cache size limitation
-    final static Thread cacheCleaner;
-    //settable properties file
-    static Properties wmsProperties;
-    //lock on get operation
-    final static Object getLock = new Object();
-    //cache size before cleaner is triggered
-    static long triggerCleanSize = MIN_CACHE_SIZE + (MAX_CACHE_SIZE - MIN_CACHE_SIZE) / 2;
 
-    static {
+    @Value("${wms.cache.size.max:104857600}")
+    long maxCacheSize;
+    //min size of cached params in bytes
+    @Value("${wms.cache.size.min:52428800}")
+    long minCacheSize;
+    //max age of any one object in the cache in ms
+    @Value("${wms.cache.age.max:3600000}")
+    long maxAge;
+    //in memory store of params
+    ConcurrentHashMap<String, WMSTile> cache = new ConcurrentHashMap<String, WMSTile>();
+    //cache size management
+    final Object counterLock = new Object();
+    long cacheSize;
+    CountDownLatch counter;
+    //thread for cache size limitation
+    final Thread cacheCleaner;
+    //lock on get operation
+    final Object getLock = new Object();
+    //cache size before cleaner is triggered
+    long triggerCleanSize = minCacheSize + (maxCacheSize - minCacheSize) / 2;
+
+    {
         counter = new CountDownLatch(1);
 
         cacheCleaner = new Thread() {
@@ -71,7 +75,7 @@ public class WMSCache {
                         counter.await();
 
                         synchronized (counterLock) {
-                            cacheSize = MIN_CACHE_SIZE;
+                            cacheSize = minCacheSize;
                             counter = new CountDownLatch(1);
                         }
 
@@ -85,23 +89,9 @@ public class WMSCache {
         };
         cacheCleaner.start();
 
-        try {
-            wmsProperties = new Properties();
-            InputStream is = WMSCache.class.getResourceAsStream("/wms.properties");
-            wmsProperties.load(is);
-
-            MAX_CACHE_SIZE = Long.parseLong(wmsProperties.getProperty("MAX_CACHE_SIZE", String.valueOf(MAX_CACHE_SIZE)));
-            MIN_CACHE_SIZE = Long.parseLong(wmsProperties.getProperty("MIN_CACHE_SIZE", String.valueOf(MIN_CACHE_SIZE)));
-            LARGEST_CACHEABLE_SIZE = Long.parseLong(wmsProperties.getProperty("LARGEST_CACHEABLE_SIZE", String.valueOf(LARGEST_CACHEABLE_SIZE)));
-            MAX_AGE = Long.parseLong(wmsProperties.getProperty("MAX_AGE", String.valueOf(MAX_AGE)));
-
-            logger.info("MAX_CACHE_SIZE > " + MAX_CACHE_SIZE);
-            logger.info("MIN_CACHE_SIZE > " + MIN_CACHE_SIZE);
-            logger.info("LARGEST_CACHEABLE_SIZE > " + LARGEST_CACHEABLE_SIZE);
-            logger.info("MAX_AGE > " + MAX_AGE);
-        } catch (Exception e) {
-            logger.error("cannot load wms.properties", e);
-        }
+        logger.info("maxCacheSize > " + maxCacheSize);
+        logger.info("minCacheSize > " + minCacheSize);
+        logger.info("maxAge > " + maxAge);
     }
 
     /**
@@ -115,32 +105,29 @@ public class WMSCache {
      * enabled, not full.  wco must be not too large and not cause the cache
      * to exceed max size when added.
      */
-    public static boolean put(String q, String colourMode, PointType pointType, WMSTile wco) {
+    public boolean put(String q, String colourMode, PointType pointType, WMSTile wco) {
         if (isFull() || !isEnabled()) {
             return false;
         }
 
         wco.updateSize();
 
-        if (wco.getSize() < LARGEST_CACHEABLE_SIZE) {
-            synchronized (counterLock) {
-                if (cacheSize + wco.getSize() > MAX_CACHE_SIZE) {
-                    return false;
-                }
-                cache.put(getKey(q, colourMode, pointType), wco);
-                cacheSize += wco.getSize();
-                logger.debug("new cache size: " + cacheSize);
-                if (cacheSize > triggerCleanSize) {
-                    counter.countDown();
-                }
+        synchronized (counterLock) {
+            if (cacheSize + wco.getSize() > maxCacheSize) {
+                return false;
             }
-
-            wco.setCached(true);
-
-            return true;
-        } else {
-            return false;
+            cache.put(getKey(q, colourMode, pointType), wco);
+            cacheSize += wco.getSize();
+            logger.debug("new cache size: " + cacheSize);
+            updateTriggerCleanSize();
+            if (cacheSize > triggerCleanSize) {
+                counter.countDown();
+            }
         }
+
+        wco.setCached(true);
+
+        return true;
     }
 
     /**
@@ -151,14 +138,12 @@ public class WMSCache {
      * @param pointType
      * @return cache key as String
      */
-    public static String getKey(String query, String colourmode, PointType pointType) {
+    public String getKey(String query, String colourmode, PointType pointType) {
         return query + "|" + colourmode + "|" + pointType.getLabel();
     }
 
     /**
-     * Retrieve search parameter object
-     * @return search parameter q as String, or null if not in memory
-     * or in file storage.
+     * Get a WMSTile or an empty lockable WMSTile. Used to avoid index queries for the same information.
      *
      * @param query Search url params to store as String.
      * @param colourmode colourmode as String
@@ -168,13 +153,13 @@ public class WMSCache {
      * - will not be filled when !isCacheable()
      * - ready to use when getCached()
      */
-    public static WMSTile get(String query, String colourmode, PointType pointType) {
+    public WMSTile get(String query, String colourmode, PointType pointType) {
         String key = getKey(query, colourmode, pointType);
         WMSTile obj = null;
         synchronized (getLock) {
             obj = cache.get(key);
 
-            if (obj != null && obj.getCreated() + MAX_AGE < System.currentTimeMillis()) {
+            if (obj != null && obj.getCreated() + maxAge < System.currentTimeMillis()) {
                 cache.remove(key);
                 obj = null;
             }
@@ -193,9 +178,25 @@ public class WMSCache {
     }
 
     /**
-     * empty the cache to <= MIN_CACHE_SIZE
+     * Get a WMSTile without returning an empty, lockable WMSTile. 
+     *
+     * @param query
+     * @param colourmode
+     * @param pointType
+     * @return null if no tile found
      */
-    static void cleanCache() {
+    public WMSTile getTest(String query, String colourmode, PointType pointType) {
+        synchronized (getLock) {
+            return cache.get(getKey(query, colourmode, pointType));
+        }
+    }
+
+    /**
+     * empty the cache to <= minCacheSize
+     */
+    void cleanCache() {
+        updateTriggerCleanSize();
+                
         List<Entry<String, WMSTile>> entries = new ArrayList(cache.entrySet());
 
         //sort ascending by last use time
@@ -211,7 +212,7 @@ public class WMSCache {
         long size = 0;
         int numberRemoved = 0;
         for (int i = 0; i < entries.size(); i++) {
-            if (size + entries.get(i).getValue().getSize() > MIN_CACHE_SIZE) {
+            if (size + entries.get(i).getValue().getSize() > minCacheSize) {
                 String key = entries.get(i).getKey();
                 cache.remove(key);
                 numberRemoved++;
@@ -221,7 +222,7 @@ public class WMSCache {
         }
 
         synchronized (counterLock) {
-            cacheSize -= (MIN_CACHE_SIZE - size);
+            cacheSize -= (minCacheSize - size);
             size = cacheSize;
         }
         logger.debug("removed " + numberRemoved + " cached wms points, new cache size " + size);
@@ -232,14 +233,14 @@ public class WMSCache {
      *
      * @return true when WMSCache is enabled
      */
-    public static boolean isEnabled() {
-        return MAX_CACHE_SIZE > 0;
+    public boolean isEnabled() {
+        return maxCacheSize > 0;
     }
 
     /**
      * empty the WMSCache
      */
-    public static void empty() {
+    public void empty() {
         synchronized (counterLock) {
             cacheSize = 0;
             counter = new CountDownLatch(1);
@@ -254,29 +255,8 @@ public class WMSCache {
      * @param colourMode to store as String
      * @param pointType resolution of data to store as PointType
      */
-    public static void remove(String q, String colourMode, PointType pointType) {
+    public void remove(String q, String colourMode, PointType pointType) {
         cache.remove(getKey(q, colourMode, pointType));
-    }
-
-    /**
-     * determine if a WMSTile created with the given characteristics
-     * will be too large for the cache.
-     *
-     * @param wco
-     * @param occurrenceCount
-     * @param hasCounts
-     * @return
-     */
-    public static boolean isCachable(WMSTile wco, int occurrenceCount, boolean hasCounts) {
-        long size = WMSTile.sizeOf(occurrenceCount, hasCounts);
-        if (size > LARGEST_CACHEABLE_SIZE) {
-            if (wco != null) {
-                wco.setSize(size);
-            }
-            return false;
-        }
-
-        return true;
     }
 
     /**
@@ -286,46 +266,47 @@ public class WMSCache {
      *
      * @return
      */
-    static public boolean isFull() {
-        return cacheSize >= MAX_CACHE_SIZE;
+    public boolean isFull() {
+        return cacheSize >= maxCacheSize;
     }
 
-    static public void setMaxCacheSize(long sizeInBytes) {
-        MAX_CACHE_SIZE = sizeInBytes;
+    public void setMaxCacheSize(long sizeInBytes) {
+        maxCacheSize = sizeInBytes;
         updateTriggerCleanSize();
     }
 
-    static public long getMaxCacheSize() {
-        return MAX_CACHE_SIZE;
+    public long getMaxCacheSize() {
+        return maxCacheSize;
     }
 
-    static public void setMinCacheSize(long sizeInBytes) {
-        MIN_CACHE_SIZE = sizeInBytes;
+    public void setMinCacheSize(long sizeInBytes) {
+        minCacheSize = sizeInBytes;
         updateTriggerCleanSize();
     }
 
-    static public long getMinCacheSize() {
-        return MIN_CACHE_SIZE;
+    public long getMinCacheSize() {
+        return minCacheSize;
     }
 
-    static public void setLargestCacheableSize(long sizeInBytes) {
-        LARGEST_CACHEABLE_SIZE = sizeInBytes;
-    }
-
-    static public long getLargestCacheableSize() {
-        return LARGEST_CACHEABLE_SIZE;
-    }
-
-    static long getSize() {
+    long getSize() {
         return cacheSize;
     }
+
+    public long getMaxCacheAge() {
+        return maxAge;
+    }
+
+    public void setMaxCacheAge(long maxCacheAge) {
+        maxAge = maxCacheAge;
+    }
+
 
     /**
      * cache cleaner is triggered when the size of the cache is
      * half way between the min and max size.
      */
-    static void updateTriggerCleanSize() {
-        triggerCleanSize = MIN_CACHE_SIZE + (MAX_CACHE_SIZE - MIN_CACHE_SIZE) / 2;
-        logger.debug("triggerCleanSize=" + triggerCleanSize + " MIN_CACHE_SIZE=" + MIN_CACHE_SIZE + " MAX_CACHE_SIZE=" + MAX_CACHE_SIZE);
+    void updateTriggerCleanSize() {
+        triggerCleanSize = minCacheSize + (maxCacheSize - minCacheSize) / 2;
+        logger.debug("triggerCleanSize=" + triggerCleanSize + " minCacheSize=" + minCacheSize + " maxCacheSize=" + maxCacheSize);
     }
 }

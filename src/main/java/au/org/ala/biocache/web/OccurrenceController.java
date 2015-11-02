@@ -27,6 +27,7 @@ import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.service.ImageMetadataService;
 import au.org.ala.biocache.service.SpeciesLookupService;
 import au.org.ala.biocache.util.*;
+import net.sf.ehcache.CacheManager;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
@@ -92,6 +93,8 @@ public class OccurrenceController extends AbstractSecureController {
     private Validator validator;
     @Inject
     protected QidCacheDAO qidCacheDao;
+    @Inject
+    private CacheManager cacheManager;
     
     /** Name of view for site home page */
     private String HOME = "homePage";
@@ -322,6 +325,8 @@ public class OccurrenceController extends AbstractSecureController {
     /**
      * Returns a group list including the number of distinct values for a field, and occurrences.
      *
+     * Requires valid apiKey.
+     *
      * @param requestParams
      * @return
      * @throws Exception
@@ -329,8 +334,16 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping("occurrence/groups")
     public
     @ResponseBody
-    List<GroupFacetResultDTO> getOccurrenceGroupDetails(SpatialSearchRequestParams requestParams) throws Exception {
-        return searchDAO.searchGroupedFacets(requestParams);
+    List<GroupFacetResultDTO> getOccurrenceGroupDetails(SpatialSearchRequestParams requestParams,
+                                                        @RequestParam(value = "apiKey", required = true) String apiKey,
+                                                        HttpServletResponse response) throws Exception {
+        if (isValidKey(apiKey)) {
+            return searchDAO.searchGroupedFacets(requestParams);
+        }
+
+        response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
+        return null;
+        
     }
     
     /**
@@ -568,6 +581,8 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = {"/cache/refresh"}, method = RequestMethod.GET)
     public @ResponseBody String refreshCache() throws Exception {
         searchDAO.refreshCaches();
+
+        cacheManager.clearAll();
         return null;
     }
     
@@ -1308,5 +1323,26 @@ public class OccurrenceController extends AbstractSecureController {
             }
             dto.setImages(ml);
         }
+    }
+
+    /**
+     * Perform one pivot facet query.
+     * <p/>
+     * Requires valid apiKey.
+     * <p/>
+     * facets is the pivot facet list
+     */
+    @RequestMapping("occurrence/pivot")
+    public
+    @ResponseBody
+    List<FacetPivotResultDTO> searchPivot(SpatialSearchRequestParams searchParams,
+                                          @RequestParam(value = "apiKey", required = true) String apiKey,
+                                          HttpServletResponse response) throws Exception {
+        if (isValidKey(apiKey)) {
+            return searchDAO.searchPivot(searchParams);
+        }
+
+        response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
+        return null;
     }
 }

@@ -48,6 +48,7 @@ import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
+import org.apache.solr.common.util.NamedList;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
@@ -56,7 +57,8 @@ import org.springframework.util.CollectionUtils;
 
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
-import java.io.*;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
@@ -1242,6 +1244,35 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
+     * @see au.org.ala.biocache.dao.SearchDAO#getFacetPointsShort(au.org.ala.biocache.dto.SpatialSearchRequestParams, au.org.ala.biocache.dto.PointType)
+     */
+    @Override
+    public FacetField getFacetPointsShort(SpatialSearchRequestParams searchParams, String pointType) throws Exception {
+        formatSearchQuery(searchParams);
+        logger.info("search query: " + searchParams.getFormattedQuery());
+        SolrQuery solrQuery = new SolrQuery();
+        solrQuery.setRequestHandler("standard");
+        solrQuery.setQuery(buildSpatialQueryString(searchParams));
+        solrQuery.setRows(0);
+        solrQuery.setFacet(true);
+        solrQuery.addFacetField(pointType);
+        solrQuery.setFacetMinCount(1);
+        solrQuery.setFacetLimit(searchParams.getFlimit());//MAX_DOWNLOAD_SIZE);  // unlimited = -1
+
+        //add the context information
+        updateQueryContext(searchParams);
+
+        QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFq(), 0, 0, "_docid_", "asc");
+        List<FacetField> facets = qr.getFacetFields();
+
+        //return first facet, there should only be 1
+        if (facets != null && facets.size() > 0) {
+            return facets.get(0);
+        }
+        return null;
+    }
+
+    /**
      * @see au.org.ala.biocache.dao.SearchDAO#getOccurrences(au.org.ala.biocache.dto.SpatialSearchRequestParams, au.org.ala.biocache.dto.PointType, String, int)
      */
     @Override
@@ -2112,7 +2143,7 @@ public class SearchDAOImpl implements SearchDAO {
                     }
                     logger.debug("lsid = " + lsid);
                     String[] values = searchUtils.getTaxonSearch(lsid);
-                    String lsidHeader = matcher.group(1).length()>0? matcher.group(1):"";
+                        String lsidHeader = matcher.groupCount() > 1 && matcher.group(1).length() > 0 ? matcher.group(1) : "";
                     matcher.appendReplacement(queryString, lsidHeader +values[0]);
                     displaySb.append(query.substring(last, matcher.start()));
                     if(!values[1].startsWith("taxon_concept_lsid:"))
@@ -2927,6 +2958,7 @@ public class SearchDAOImpl implements SearchDAO {
         return null;
     }
 
+    @Cacheable(cacheName = "legendCache")
     public List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facetField, String [] cutpoints) throws Exception {
         List<LegendItem> legend = new ArrayList<LegendItem>();
 
@@ -2970,11 +3002,13 @@ public class SearchDAOImpl implements SearchDAO {
                     int i = 0;
                     for (i=0;i<facetEntries.size();i++) {
                         FacetField.Count fcount = facetEntries.get(i);
-                        String fq = facetField + ":\"" + fcount.getName() + "\"";
-                        if(fcount.getName() == null) {
-                            fq = "-" + facetField + ":[* TO *]";
+                        if (fcount.getCount() > 0) {
+                            String fq = facetField + ":\"" + fcount.getName() + "\"";
+                            if (fcount.getName() == null) {
+                                fq = "-" + facetField + ":[* TO *]";
+                            }
+                            legend.add(new LegendItem(fcount.getName(), fcount.getCount(), fq));
                         }
-                        legend.add(new LegendItem(fcount.getName(), fcount.getCount(), fq));
                     }
                     break;
                 }
@@ -3279,6 +3313,11 @@ public class SearchDAOImpl implements SearchDAO {
         for (String facet : searchParams.getFacets()) {
             query.add("group.field", facet);
         }
+        if (searchParams.getFq() != null) {
+            for (String f : searchParams.getFq()) {
+                if (f.length() > 0) query.addFilterQuery(f);
+            }
+        }
         logger.debug("runSolrQuery: " + query.toString());
         QueryResponse response = query(query, queryMethod);
         logger.debug("runSolrQuery: " + query.toString() + " qtime:" + response.getQTime());
@@ -3313,5 +3352,76 @@ public class SearchDAOImpl implements SearchDAO {
         } else {
             return messageSource.getMessage(facet + "." + value, null, value, null);
         }
+    }
+
+
+    /**
+     * @see au.org.ala.biocache.dao.SearchDAO#searchPivot(au.org.ala.biocache.dto.SpatialSearchRequestParams)
+     */
+    public List<FacetPivotResultDTO> searchPivot(SpatialSearchRequestParams searchParams) throws Exception {
+        String pivot = StringUtils.join(searchParams.getFacets(), ",");
+        searchParams.setFacets(new String[]{});
+
+        formatSearchQuery(searchParams);
+        //add context information
+        updateQueryContext(searchParams);
+        String queryString = buildSpatialQueryString(searchParams);
+        searchParams.setFacet(true);
+
+        //get facet group counts
+        SolrQuery query = initSolrQuery(searchParams, false, null);
+        if (searchParams.getFq() != null) {
+            for (String fq : searchParams.getFq()) {
+                if (fq.length() > 0) {
+                    query.addFilterQuery(fq);
+                }
+            }
+        }
+        query.setQuery(queryString);
+        query.setFields(null);
+        //now use the supplied facets to add groups to the query
+        query.add("facet.pivot", pivot);
+        query.add("facet.pivot.mincount", "1");
+        query.add("facet.missing", "true");
+        query.setRows(0);
+        QueryResponse response = query(query, queryMethod);
+        NamedList<List<PivotField>> result = response.getFacetPivot();
+
+        List<FacetPivotResultDTO> output = new ArrayList();
+        for (Entry<String, List<PivotField>> pfl : result) {
+            List<PivotField> list = pfl.getValue();
+            if (list != null && list.size() > 0) {
+                output.add(new FacetPivotResultDTO(list.get(0).getField(), getFacetPivotResults(list), null, (int) response.getResults().getNumFound()));
+            }
+
+            //should only be one result
+            break;
+        }
+
+        return output;
+    }
+
+    /**
+     * Read nested pivot results.
+     *
+     * @param pfl
+     * @return
+     */
+    private List<FacetPivotResultDTO> getFacetPivotResults(List<PivotField> pfl) {
+        if (pfl == null || pfl.size() == 0) {
+            return null;
+        }
+
+        List<FacetPivotResultDTO> list = new ArrayList<FacetPivotResultDTO>();
+        for (PivotField pf : pfl) {
+            String value = pf.getValue() != null ? pf.getValue().toString() : null;
+            if (pf.getPivot() == null || pf.getPivot().size() == 0) {
+                list.add(new FacetPivotResultDTO(null, null, value, pf.getCount()));
+            } else {
+                list.add(new FacetPivotResultDTO(pf.getPivot().get(0).getField(), getFacetPivotResults(pf.getPivot()), value, pf.getCount()));
+            }
+        }
+
+        return list;
     }
 }

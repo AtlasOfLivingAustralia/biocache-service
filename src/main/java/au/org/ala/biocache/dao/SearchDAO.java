@@ -16,6 +16,7 @@ package au.org.ala.biocache.dao;
 
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.LegendItem;
+import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.common.SolrDocumentList;
 
@@ -161,6 +162,17 @@ public interface SearchDAO {
      * @throws Exception
      */
     List<OccurrencePoint> getFacetPoints(SpatialSearchRequestParams searchParams, PointType pointType) throws Exception;
+
+    /**
+     * Retrieve an OccurrencePoint (distinct list of points - lat-long to 4 decimal places) for a given search 
+     * without convertion to List of OccurrencePoint
+     *
+     * @param searchParams
+     * @param pointType
+     * @return
+     * @throws Exception
+     */
+    FacetField getFacetPointsShort(SpatialSearchRequestParams searchParams, String pointType) throws Exception;
 
     /**
      * Retrieve a list of occurrence uid's for a given search
@@ -317,7 +329,21 @@ public interface SearchDAO {
      * flimit restricts the number of groups returned
      * pageSize restricts the number of docs in each group returned
      * fl is the list of fields in the returned docs
-     *  
+     *
+     * @param searchRequestParams
+     * @return
+     * @throws Exception
      */
     public List<GroupFacetResultDTO> searchGroupedFacets(SpatialSearchRequestParams searchRequestParams) throws Exception ;
+
+    /**
+     * Perform one pivot facet query.
+     * <p/>
+     * facets is the pivot facet list
+     *
+     * @param searchParams
+     * @return
+     * @throws Exception
+     */
+    List<FacetPivotResultDTO> searchPivot(SpatialSearchRequestParams searchParams) throws Exception;
 }
