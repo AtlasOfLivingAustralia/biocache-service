@@ -19,10 +19,7 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dao.TaxonDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.model.Qid;
-import au.org.ala.biocache.util.LegendItem;
-import au.org.ala.biocache.util.SearchUtils;
-import au.org.ala.biocache.util.WMSCache;
-import au.org.ala.biocache.util.WMSTile;
+import au.org.ala.biocache.util.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.googlecode.ehcache.annotations.Cacheable;
@@ -212,6 +209,22 @@ public class WMSController {
                             @RequestParam(value = "source", required = false) String source,
                             HttpServletResponse response) throws Exception {
 
+        //simplify wkt
+        String wkt = requestParams.getWkt();
+        if (wkt != null && wkt.length() > 0) {
+            //TODO: Is this too slow? Do not want to send large WKT to SOLR. 
+            wkt = fixWkt(wkt);
+
+            if (wkt == null) {
+                //wkt too large and simplification failed, do not produce qid
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "WKT provided has more than " + maxWktPoints + " points and failed to be simplified.");
+                return;
+            }
+
+            //set wkt
+            requestParams.setWkt(wkt);
+        }
+
         //get bbox (also cleans up Q)
         double[] bb = null;
         if (bbox != null && bbox.equals("true")) {
@@ -219,6 +232,7 @@ public class WMSController {
         } else {
             //get a formatted Q by running a query
             requestParams.setPageSize(0);
+            requestParams.setFacet(false);
             searchDAO.findByFulltext(requestParams);
         }
 
@@ -233,6 +247,11 @@ public class WMSController {
 
         response.setContentType("text/plain");
         writeBytes(response, qid.getBytes());
+    }
+
+    @Cacheable(cacheName = "fixWkt")
+    private String fixWkt(String wkt) {
+        return SpatialUtils.simplifyWkt(wkt, maxWktPoints);
     }
 
     /**
