@@ -525,13 +525,14 @@ public class SearchDAOImpl implements SearchDAO {
 
         //don't want any results returned
         solrQuery.setRows(0);
+        searchParams.setPageSize(0);
         solrQuery.setFacetLimit(FACET_PAGE_SIZE);
         int offset = 0;
         boolean shouldLookup = lookupName && (searchParams.getFacets()[0].contains("_guid")||searchParams.getFacets()[0].contains("_lsid"));
 
         QueryResponse qr = runSolrQuery(solrQuery, searchParams);
         logger.debug("Retrieved facet results from server...");
-        if (!qr.getResults().isEmpty()) {
+        if (qr.getResults().getNumFound() > 0) {
             FacetField ff = qr.getFacetField(searchParams.getFacets()[0]);
 
             //write the header line
@@ -546,52 +547,64 @@ public class SearchDAOImpl implements SearchDAO {
                     header = (String[])ArrayUtils.add(header, "count");
                 }
                 CSVRecordWriter writer = new CSVRecordWriter(out, header);
+
+                boolean addedNullFacet = false;
+                
                 //out.write("\n".getBytes());
                 //PAGE through the facets until we reach the end.
-                while(ff.getValueCount() > 0){
-                    if(ff.getValueCount() > 0){
-                        //process the "species_guid_ facet by looking up the list of guids
-                        if(shouldLookup){
+                //do not continue when null facet is already added and the next facet is only null
+                while (ff.getValueCount() > 1 || !addedNullFacet || (ff.getValueCount() == 1 && ff.getValues().get(0).getName() != null)) {
+                    //process the "species_guid_ facet by looking up the list of guids
+                    if (shouldLookup) {
+                        List<String> guids = new ArrayList<String>();
+                        List<Long> counts = new ArrayList<Long>();
+                        logger.debug("Downloading " + ff.getValueCount() + " species guids");
+                        for (FacetField.Count value : ff.getValues()) {
+                            //only add null facet once
+                            if (value.getName() == null) addedNullFacet = true;
+                            if (value.getCount() == 0 || (value.getName() == null && addedNullFacet)) continue;
 
-                            List<String> guids = new ArrayList<String>();
-                            List<Long> counts = new ArrayList<Long> ();
-                            logger.debug("Downloading " +  ff.getValueCount() + " species guids");
-                            for(FacetField.Count value : ff.getValues()){
-                                guids.add(value.getName());
-                                if(includeCount) {
-                                    counts.add(value.getCount());
-                                }
 
-                                //Only want to send a sub set of the list so that the URI is not too long for BIE
-                                if(guids.size()==30){
-                                    //now get the list of species from the web service TODO may need to move this code
-                                    //handle null values being returned from the service...
-                                    writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, writer);
-                                    guids.clear();
-                                    counts.clear();
-                                }
+                            guids.add(value.getName());
+                            if (includeCount) {
+                                counts.add(value.getCount());
                             }
-                            //now write any guids that remain at the end of the looping
-                            writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, writer);
-                        } else {
-                            //default processing of facets
-                            for(FacetField.Count value : ff.getValues()){
-                                String[] row = includeCount?new String[]{value.getName(), Long.toString(value.getCount())}:new String[]{value.getName()};
-                                writer.write(row);
+
+                            //Only want to send a sub set of the list so that the URI is not too long for BIE
+                            if (guids.size() == 30) {
+                                //now get the list of species from the web service TODO may need to move this code
+                                //handle null values being returned from the service...
+                                writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, writer);
+                                guids.clear();
+                                counts.clear();
                             }
                         }
-                        offset += FACET_PAGE_SIZE;
-                        if(dd != null) {
-                            dd.updateCounts(FACET_PAGE_SIZE);
+                        //now write any guids that remain at the end of the looping
+                        writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, writer);
+                    } else {
+                        //default processing of facets
+                        for (FacetField.Count value : ff.getValues()) {
+                            //only add null facet once
+                            if (value.getName() == null) addedNullFacet = true;
+                            if (value.getCount() == 0 || (value.getName() == null && addedNullFacet)) continue;
+
+                            String[] row = includeCount ? new String[]{value.getName(), Long.toString(value.getCount())} : new String[]{value.getName()};
+                            writer.write(row);
                         }
-                        //get the next values
-                        solrQuery.remove("facet.offset");
-                        solrQuery.add("facet.offset", Integer.toString(offset));
-                        qr = runSolrQuery(solrQuery, searchParams);
-                        ff = qr.getFacetField(searchParams.getFacets()[0]);
                     }
-                    writer.finalise();
+                    offset += FACET_PAGE_SIZE;
+                    if (dd != null) {
+                        dd.updateCounts(FACET_PAGE_SIZE);
+                    }
+
+                    //get the next values
+                    solrQuery.remove("facet.offset");
+                    solrQuery.add("facet.offset", Integer.toString(offset));
+                    qr = runSolrQuery(solrQuery, searchParams);
+                    ff = qr.getFacetField(searchParams.getFacets()[0]);
                 }
+
+                writer.finalise();
             }
         }
     }
@@ -1792,6 +1805,7 @@ public class SearchDAOImpl implements SearchDAO {
                     ArrayList<FieldResultDTO> r = new ArrayList<FieldResultDTO>();
                     for (FacetField.Count fcount : facetEntries) {
                         //check to see if the facet field is an uid value that needs substitution
+                        if (fcount.getCount() == 0) continue;
                         if (fcount.getName() == null) {
                             r.add(new FieldResultDTO("", fcount.getCount(), "-" + facet.getName() + ":*"));
                         } else {

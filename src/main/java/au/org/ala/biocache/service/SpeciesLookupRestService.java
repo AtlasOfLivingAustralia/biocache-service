@@ -200,8 +200,8 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
             String guid = guids.get(i);
             row[0]=guid;
             if(values!= null && synonyms != null){
-                Map<String,String> map = values.get(i);
-                if(map!=null){
+                Map<String, String> map;
+                if (i < values.size() && (map = values.get(i)) != null) {
                     //scientific name
                     row[1]=map.get("nameComplete");
                     row[2]=map.get("author");
@@ -228,6 +228,19 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                     row[8] = split[4];
                     row[9] = "";
                     row[10] = split[2];
+                } else {
+                    //null facet match
+                    row[0] = "unmatched";
+                    row[1] = "";
+                    row[2] = "";
+                    row[3] = "";
+                    row[4] = "";
+                    row[5] = "";
+                    row[6] = "";
+                    row[7] = "";
+                    row[8] = "";
+                    row[9] = "";
+                    row[10] = "";
                 }
 
                 if(includeSynonyms){

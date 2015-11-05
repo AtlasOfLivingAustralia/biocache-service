@@ -129,7 +129,7 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
                 };
             } else {
                 result = new String[]{
-                        "",
+                        "unmatched",
                         "",
                         "",
                         "",
