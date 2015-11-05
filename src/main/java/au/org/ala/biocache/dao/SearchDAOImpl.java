@@ -1720,6 +1720,8 @@ public class SearchDAOImpl implements SearchDAO {
             }
         }
 
+        //include null facets
+        solrQuery.setFacetMissing(true);
         solrQuery.setRows(requestParams.getPageSize());
         solrQuery.setStart(requestParams.getStart());
         solrQuery.setSortField(requestParams.getSort(), ORDER.valueOf(requestParams.getDir()));
@@ -1790,7 +1792,11 @@ public class SearchDAOImpl implements SearchDAO {
                     ArrayList<FieldResultDTO> r = new ArrayList<FieldResultDTO>();
                     for (FacetField.Count fcount : facetEntries) {
                         //check to see if the facet field is an uid value that needs substitution
-                        r.add(new FieldResultDTO(getFacetValueDisplayName(facet.getName(), fcount.getName()), fcount.getCount(), facet.getName()+":\"" + fcount.getName()+"\""));
+                        if (fcount.getName() == null) {
+                            r.add(new FieldResultDTO("", fcount.getCount(), "-" + facet.getName() + ":*"));
+                        } else {
+                            r.add(new FieldResultDTO(getFacetValueDisplayName(facet.getName(), fcount.getName()), fcount.getCount(), facet.getName() + ":\"" + fcount.getName() + "\""));
+                        }
                     }
                     // only add facets if there are more than one facet result
                     if (r.size() > 0) {
@@ -2702,10 +2708,11 @@ public class SearchDAOImpl implements SearchDAO {
         query.add("group.ngroups", "true");
         query.add("group.limit", "0");
         query.setRows(0);
+        searchParams.setPageSize(0);
         for (String facet : searchParams.getFacets()) {
             query.add("group.field", facet);
         }
-        QueryResponse response = query(query, queryMethod);
+        QueryResponse response = runSolrQuery(query, searchParams);
         GroupResponse groupResponse = response.getGroupResponse();
 
         Map<String, Integer> ngroups = new HashMap<String, Integer>();
@@ -2721,7 +2728,7 @@ public class SearchDAOImpl implements SearchDAO {
             facetQuery.setQuery(queryString);
             facetQuery.setFields(null);
             facetQuery.setSortField(searchParams.getSort(), ORDER.valueOf(searchParams.getDir()));
-            QueryResponse qr = query(facetQuery, queryMethod);
+            QueryResponse qr = runSolrQuery(facetQuery, searchParams);
             SearchResultDTO searchResults = processSolrResponse(searchParams, qr, facetQuery, OccurrenceIndex.class);
             facetResults = searchResults.getFacetResults();
             if (facetResults != null) {
@@ -3313,14 +3320,7 @@ public class SearchDAOImpl implements SearchDAO {
         for (String facet : searchParams.getFacets()) {
             query.add("group.field", facet);
         }
-        if (searchParams.getFq() != null) {
-            for (String f : searchParams.getFq()) {
-                if (f.length() > 0) query.addFilterQuery(f);
-            }
-        }
-        logger.debug("runSolrQuery: " + query.toString());
-        QueryResponse response = query(query, queryMethod);
-        logger.debug("runSolrQuery: " + query.toString() + " qtime:" + response.getQTime());
+        QueryResponse response = runSolrQuery(query, searchParams);
         GroupResponse groupResponse = response.getGroupResponse();
         
         List<GroupFacetResultDTO> output = new ArrayList();
@@ -3334,7 +3334,11 @@ public class SearchDAOImpl implements SearchDAO {
                 //build facet displayName and fq
                 String value = v.getGroupValue();
                 Long count = v.getResult() != null ? v.getResult().getNumFound() : 0L;
-                list.add(new GroupFieldResultDTO(getFacetValueDisplayName(facet, value), count, facet + ":\"" + value + "\"", docs));
+                if (value == null) {
+                    list.add(new GroupFieldResultDTO("", count, "-" + facet + ":*", docs));
+                } else {
+                    list.add(new GroupFieldResultDTO(getFacetValueDisplayName(facet, value), count, facet + ":\"" + value + "\"", docs));
+                }
             }
             
             output.add(new GroupFacetResultDTO(gc.getName(), list, gc.getNGroups()));
@@ -3370,13 +3374,6 @@ public class SearchDAOImpl implements SearchDAO {
 
         //get facet group counts
         SolrQuery query = initSolrQuery(searchParams, false, null);
-        if (searchParams.getFq() != null) {
-            for (String fq : searchParams.getFq()) {
-                if (fq.length() > 0) {
-                    query.addFilterQuery(fq);
-                }
-            }
-        }
         query.setQuery(queryString);
         query.setFields(null);
         //now use the supplied facets to add groups to the query
@@ -3384,7 +3381,8 @@ public class SearchDAOImpl implements SearchDAO {
         query.add("facet.pivot.mincount", "1");
         query.add("facet.missing", "true");
         query.setRows(0);
-        QueryResponse response = query(query, queryMethod);
+        searchParams.setPageSize(0);
+        QueryResponse response = runSolrQuery(query, searchParams);
         NamedList<List<PivotField>> result = response.getFacetPivot();
 
         List<FacetPivotResultDTO> output = new ArrayList();

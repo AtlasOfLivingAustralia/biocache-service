@@ -2163,6 +2163,9 @@ public class WMSController {
             wco = new WMSTile();
         }
 
+        //still need colours when cannot cache
+        if (colours == null && !cm.equals("-1")) colours = getColours(requestParams, vars.colourMode);
+
         //build only once
         synchronized (wco) {
             if (wco.getCached()) {
@@ -2264,7 +2267,7 @@ public class WMSController {
             boolean numericalFacetCategories = vars.colourMode.contains(",");
 
             //in some instances querying each colour's facet, one by one, is more suitable than pivoting
-            if (numericalFacetCategories || docCount > wmsFacetPivotCutoff) {
+            if (numericalFacetCategories || docCount > wmsFacetPivotCutoff || !canCache) {
                 //iterate
                 String[] fqs = new String[requestParams.getFq() == null ? 1 : requestParams.getFq().length + 1];
                 if (requestParams.getFq() != null && requestParams.getFq().length > 0) {
