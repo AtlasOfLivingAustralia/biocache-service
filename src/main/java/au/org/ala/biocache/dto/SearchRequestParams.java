@@ -325,6 +325,8 @@ public class SearchRequestParams {
     }
 
     public void setFacets(String[] facets) {
+        if (facets != null && facets.length == 1 && facets[0].contains(",")) facets = facets[0].split(",");
+
         //limit facets terms
         this.facets = facets != null && facets.length > facetsMax ? Arrays.copyOfRange(facets, 0, facetsMax) : facets;
     }

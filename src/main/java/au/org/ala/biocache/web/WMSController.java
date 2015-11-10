@@ -2034,19 +2034,21 @@ public class WMSController {
 
             for (int i = 0; i < ps.getValueCount(); i++) {
                 //extract lat lng
-                String[] lat_lng = ps.getValues().get(i).getName().split(",");
-                float lng = Float.parseFloat(lat_lng[1]);
-                float lat = Float.parseFloat(lat_lng[0]);
+                if (ps.getValues().get(i).getName() != null) {
+                    String[] lat_lng = ps.getValues().get(i).getName().split(",");
+                    float lng = Float.parseFloat(lat_lng[1]);
+                    float lat = Float.parseFloat(lat_lng[0]);
 
-                if (is4326) {
-                    x = convertLngToPixel4326(lng, left, right, width);
-                    y = convertLatToPixel4326(lat, top, bottom, height);
-                } else {
-                    x = (int) ((convertLngToPixel(lng) - pbbox[0]) * width_mult);
-                    y = (int) ((convertLatToPixel(lat) - pbbox[3]) * height_mult);
+                    if (is4326) {
+                        x = convertLngToPixel4326(lng, left, right, width);
+                        y = convertLatToPixel4326(lat, top, bottom, height);
+                    } else {
+                        x = (int) ((convertLngToPixel(lng) - pbbox[0]) * width_mult);
+                        y = (int) ((convertLatToPixel(lat) - pbbox[3]) * height_mult);
+                    }
+
+                    imgObj.g.drawOval(x - highightRadius, y - highightRadius, highlightWidth, highlightWidth);
                 }
-
-                imgObj.g.drawOval(x - highightRadius, y - highightRadius, highlightWidth, highlightWidth);
             }
         }
 
