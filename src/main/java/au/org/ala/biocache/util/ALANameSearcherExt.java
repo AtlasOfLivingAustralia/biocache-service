@@ -17,7 +17,7 @@ package au.org.ala.biocache.util;
 import au.org.ala.names.model.LinnaeanRankClassification;
 import au.org.ala.names.model.NameSearchResult;
 import au.org.ala.names.model.RankType;
-import au.org.ala.names.search.ALANameSearcher;
+import au.org.ala.names.search.*;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.*;
@@ -240,16 +240,36 @@ public class ALANameSearcherExt extends ALANameSearcher {
             cl.setScientificName(name);
             try {
                 lsid = searchForLSID(cl.getScientificName(), cl, null);
-            } catch (Exception e) {
-                // do nothing
+            } catch (ExcludedNameException e) {
+                if (e.getNonExcludedName() != null)
+                    lsid = e.getNonExcludedName().getLsid();
+                else
+                    lsid = e.getExcludedName().getLsid();
+            } catch (ParentSynonymChildException e) {
+                //the child is the one we want
+                lsid = e.getChildResult().getLsid();
+            } catch (MisappliedException e) {
+                if (e.getMisappliedResult() != null)
+                    lsid = e.getMatchedResult().getLsid();
+            } catch (SearchResultException e) {
             }
         }
         //check for a scientific name first - this will lookup in the name matching index.  This will produce the correct result in a majority of scientific name cases.
         if (lsid == null || lsid.length() < 1) {
             try {
                 lsid = searchForLSID(name, true, true);
-            } catch (Exception e) {
-                // do nothing
+            } catch (ExcludedNameException e) {
+                if (e.getNonExcludedName() != null)
+                    lsid = e.getNonExcludedName().getLsid();
+                else
+                    lsid = e.getExcludedName().getLsid();
+            } catch (ParentSynonymChildException e) {
+                //the child is the one we want
+                lsid = e.getChildResult().getLsid();
+            } catch (MisappliedException e) {
+                if (e.getMisappliedResult() != null)
+                    lsid = e.getMatchedResult().getLsid();
+            } catch (SearchResultException e) {
             }
         }
 
@@ -314,11 +334,12 @@ public class ALANameSearcherExt extends ALANameSearcher {
             String scientificName = taxaQueries.get(i);
             String lsid = getLsidByNameAndKingdom(scientificName);
             if (lsid != null && lsid.length() > 0) {
+                String guid = null;
                 try {
-                    String guid = getExtendedTaxonConceptByGuid(lsid, true, true);
-                    guids.add(guid);
+                    guid = getExtendedTaxonConceptByGuid(lsid, true, true);
                 } catch (Exception e) {
                 }
+                guids.add(guid);
             }
 
             if (guids.size() < i + 1) guids.add(null);

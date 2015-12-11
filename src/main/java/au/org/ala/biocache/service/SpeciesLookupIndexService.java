@@ -7,6 +7,10 @@ import au.org.ala.biocache.dto.SpeciesImageDTO;
 import au.org.ala.biocache.util.ALANameSearcherExt;
 import au.org.ala.names.model.LinnaeanRankClassification;
 import au.org.ala.names.model.NameSearchResult;
+import au.org.ala.names.search.ExcludedNameException;
+import au.org.ala.names.search.MisappliedException;
+import au.org.ala.names.search.ParentSynonymChildException;
+import au.org.ala.names.search.SearchResultException;
 import com.mockrunner.util.common.StringUtil;
 import org.apache.commons.lang.ArrayUtils;
 import org.springframework.context.support.AbstractMessageSource;
@@ -50,11 +54,24 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
 
     @Override
     public String getGuidForName(String name) {
+        String lsid = null;
         try {
-            return getNameIndex().searchForLSID(name);
-        } catch(Exception e){
-            return null;
+            lsid = getNameIndex().searchForLSID(name);
+        } catch (ExcludedNameException e) {
+            if (e.getNonExcludedName() != null)
+                lsid = e.getNonExcludedName().getLsid();
+            else
+                lsid = e.getExcludedName().getLsid();
+        } catch (ParentSynonymChildException e) {
+            //the child is the one we want
+            lsid = e.getChildResult().getLsid();
+        } catch (MisappliedException e) {
+            if (e.getMisappliedResult() != null)
+                lsid = e.getMatchedResult().getLsid();
+        } catch (SearchResultException e) {
         }
+
+        return lsid;
     }
 
     @Override
