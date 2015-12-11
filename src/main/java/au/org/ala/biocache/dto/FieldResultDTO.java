@@ -45,7 +45,7 @@ public class FieldResultDTO implements Comparable<FieldResultDTO>{
      * @param count 
      */
     public FieldResultDTO(String fieldValue, long count) {
-        this.label = fieldValue;
+        this.label = fieldValue != null ? fieldValue : "";
         this.count = count;
     }
     

@@ -592,7 +592,8 @@ public class SearchDAOImpl implements SearchDAO {
                             if (value.getName() == null) addedNullFacet = true;
                             if (value.getCount() == 0 || (value.getName() == null && addedNullFacet)) continue;
 
-                            String[] row = includeCount ? new String[]{value.getName(), Long.toString(value.getCount())} : new String[]{value.getName()};
+                            String name = value.getName() != null ? value.getName() : "";
+                            String[] row = includeCount ? new String[]{name, Long.toString(value.getCount())} : new String[]{name};
                             writer.write(row);
                         }
                     }
@@ -658,9 +659,10 @@ public class SearchDAOImpl implements SearchDAO {
                 //write the facets to file
                 for(FacetField.Count value : ff.getValues()){
                     //String[] slatlon = value.getName().split(",");
-                    out.write(value.getName().getBytes());
-                    out.write("\n".getBytes());
-
+                    if (value.getName() != null) {
+                        out.write(value.getName().getBytes());
+                        out.write("\n".getBytes());
+                    }
                 }
             }
         }
@@ -762,7 +764,7 @@ public class SearchDAOImpl implements SearchDAO {
                    for(FacetField.Count facetEntry : facet.getValues()){
                        if(qasb.length() > 0)
                            qasb.append(",");
-                       qasb.append(facetEntry.getName());
+                       if (facetEntry.getName() != null) qasb.append(facetEntry.getName());
                    }
                 }
                 if(facet.getName().equals("month") && facet.getValueCount() > 0){
@@ -819,13 +821,20 @@ public class SearchDAOImpl implements SearchDAO {
             if(splitByFacet != null){
                 for(Count facet: splitByFacet){
                     if(facet.getCount() > 0){
-                        SolrQuery splitByFacetQuery = solrQuery.getCopy().addFilterQuery(facet.getFacetField().getName() + ":" + facet.getName());
-                        splitByFacetQuery.setFacet(false);
-                        queries.add(splitByFacetQuery);
+                        SolrQuery splitByFacetQuery;
+                        //do not add remainderQuery here
+                        if (facet.getName() != null) {
+                            splitByFacetQuery = solrQuery.getCopy().addFilterQuery(facet.getFacetField().getName() + ":" + facet.getName());
+                            splitByFacetQuery.setFacet(false);
+                            queries.add(splitByFacetQuery);
+                        }
+
                     }
                 }
-                SolrQuery remainderQuery = solrQuery.getCopy().addFilterQuery("-"+splitByFacet.get(0).getFacetField().getName() + ":[* TO *]");
-                queries.add(0, remainderQuery);
+                if (splitByFacet.size() > 0) {
+                    SolrQuery remainderQuery = solrQuery.getCopy().addFilterQuery("-" + splitByFacet.get(0).getFacetField().getName() + ":[* TO *]");
+                    queries.add(0, remainderQuery);
+                }
             } else {
                 queries.add(0, solrQuery);
             }
@@ -1006,10 +1015,9 @@ public class SearchDAOImpl implements SearchDAO {
                 if(facet.getName().equals("assertions") && facet.getValueCount()>0){
 
                  for(FacetField.Count facetEntry : facet.getValues()){
-                     //System.out.println("facet: " + facetEntry.getName());
                      if(qasb.length()>0)
                          qasb.append(",");
-                     qasb.append(facetEntry.getName());
+                     if (facetEntry.getName() != null) qasb.append(facetEntry.getName());
                  }
                 }else if(facet.getName().equals("data_resource_uid") && checkDownloadLimits){
                     //populate the download limit
@@ -1186,11 +1194,12 @@ public class SearchDAOImpl implements SearchDAO {
         //get the download limits from the cache
         Map<String, Integer>limits = collectionCache.getDownloadLimits();
         for(FacetField.Count facetEntry :facet.getValues()){
-            Integer limit = limits.get(facetEntry.getName());
+            String name = facetEntry.getName() != null ? facetEntry.getName() : "";
+            Integer limit = limits.get(name);
             if(limit != null && limit >0){
                 //check to see if the number of records returned from the query execeeds the limit
                 if(limit < facetEntry.getCount())
-                    map.put(facetEntry.getName(), limit);
+                    map.put(name, limit);
             }
         }
         if(map.size()>0)
@@ -1234,24 +1243,26 @@ public class SearchDAOImpl implements SearchDAO {
                 if (facet.getName().contains(pointType.getLabel()) && (facetEntries != null) && (facetEntries.size() > 0)) {
 
                     for (FacetField.Count fcount : facetEntries) {
-                        OccurrencePoint point = new OccurrencePoint(pointType);
-                        point.setCount(fcount.getCount());
-                        String[] pointsDelimited = StringUtils.split(fcount.getName(), ',');
-                        List<Float> coords = new ArrayList<Float>();
+                        if (StringUtils.isNotEmpty(fcount.getName())) {
+                            OccurrencePoint point = new OccurrencePoint(pointType);
+                            point.setCount(fcount.getCount());
+                            String[] pointsDelimited = StringUtils.split(fcount.getName(), ',');
+                            List<Float> coords = new ArrayList<Float>();
 
-                        for (String coord : pointsDelimited) {
-                            try {
-                                Float decimalCoord = Float.parseFloat(coord);
-                                coords.add(decimalCoord);
-                            } catch (NumberFormatException numberFormatException) {
-                                logger.warn("Error parsing Float for Lat/Long: " + numberFormatException.getMessage(), numberFormatException);
+                            for (String coord : pointsDelimited) {
+                                try {
+                                    Float decimalCoord = Float.parseFloat(coord);
+                                    coords.add(decimalCoord);
+                                } catch (NumberFormatException numberFormatException) {
+                                    logger.warn("Error parsing Float for Lat/Long: " + numberFormatException.getMessage(), numberFormatException);
+                                }
                             }
-                        }
 
-                        if (!coords.isEmpty()) {
-                            Collections.reverse(coords); // must be long, lat order
-                            point.setCoordinates(coords);
-                            points.add(point);
+                            if (!coords.isEmpty()) {
+                                Collections.reverse(coords); // must be long, lat order
+                                point.setCoordinates(coords);
+                                points.add(point);
+                            }
                         }
                     }
                 }
@@ -1447,24 +1458,26 @@ public class SearchDAOImpl implements SearchDAO {
                 if (facet.getName().contains(pointType.getLabel()) && (facetEntries != null) && (facetEntries.size() > 0)) {
 
                     for (FacetField.Count fcount : facetEntries) {
-                        OccurrencePoint point = new OccurrencePoint(pointType);
-                        point.setCount(fcount.getCount());
-                        String[] pointsDelimited = StringUtils.split(fcount.getName(), ',');
-                        List<Float> coords = new ArrayList<Float>();
+                        if (StringUtils.isNotEmpty(fcount.getName())) {
+                            OccurrencePoint point = new OccurrencePoint(pointType);
+                            point.setCount(fcount.getCount());
+                            String[] pointsDelimited = StringUtils.split(fcount.getName(), ',');
+                            List<Float> coords = new ArrayList<Float>();
 
-                        for (String coord : pointsDelimited) {
-                            try {
-                                Float decimalCoord = Float.parseFloat(coord);
-                                coords.add(decimalCoord);
-                            } catch (NumberFormatException numberFormatException) {
-                                logger.warn("Error parsing Float for Lat/Long: " + numberFormatException.getMessage(), numberFormatException);
+                            for (String coord : pointsDelimited) {
+                                try {
+                                    Float decimalCoord = Float.parseFloat(coord);
+                                    coords.add(decimalCoord);
+                                } catch (NumberFormatException numberFormatException) {
+                                    logger.warn("Error parsing Float for Lat/Long: " + numberFormatException.getMessage(), numberFormatException);
+                                }
                             }
-                        }
 
-                        if (!coords.isEmpty()) {
-                            Collections.reverse(coords); // must be long, lat order
-                            point.setCoordinates(coords);
-                            points.add(point);
+                            if (!coords.isEmpty()) {
+                                Collections.reverse(coords); // must be long, lat order
+                                point.setCoordinates(coords);
+                                points.add(point);
+                            }
                         }
                     }
                 }
@@ -2596,11 +2609,12 @@ public class SearchDAOImpl implements SearchDAO {
                         //FacetField.Count fcount = facetEntries.get(i);
                         //speciesCounts.add(i, new TaxaCountDTO(fcount.getName(), fcount.getCount()));
                         TaxaCountDTO tcDTO = null;
+                        String name = fcount.getName() != null ? fcount.getName() : "";
                         if (fcount.getFacetField().getName().equals(NAMES_AND_LSID)) {
-                            String[] values = p.split(fcount.getName(),5);
+                            String[] values = p.split(name, 5);
 
                             if (values.length >= 5) {
-                                if(!"||||".equals(fcount.getName())){
+                                if (!"||||".equals(name)) {
                                     tcDTO = new TaxaCountDTO(values[0], fcount.getCount());
                                     tcDTO.setGuid(StringUtils.trimToNull(values[1]));
                                     tcDTO.setCommonName(values[2]);
@@ -2611,18 +2625,18 @@ public class SearchDAOImpl implements SearchDAO {
                                 }
                             }
                             else{
-                                logger.debug("The values length: " + values.length + " :" + fcount.getName());
-                                tcDTO = new TaxaCountDTO(fcount.getName(), fcount.getCount());
+                                logger.debug("The values length: " + values.length + " :" + name);
+                                tcDTO = new TaxaCountDTO(name, fcount.getCount());
                             }
                             //speciesCounts.add(i, tcDTO);
                             if(tcDTO != null)
                                 speciesCounts.add(tcDTO);
                         }
                         else if(fcount.getFacetField().getName().equals(COMMON_NAME_AND_LSID)){
-                            String[] values = p.split(fcount.getName(),6);
+                            String[] values = p.split(name, 6);
 
                             if(values.length >= 5){
-                                if(!"|||||".equals(fcount.getName())){
+                                if (!"|||||".equals(name)) {
                                     tcDTO = new TaxaCountDTO(values[1], fcount.getCount());
                                     tcDTO.setGuid(StringUtils.trimToNull(values[2]));
                                     tcDTO.setCommonName(values[0]);
@@ -2633,8 +2647,8 @@ public class SearchDAOImpl implements SearchDAO {
                                         tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
                                 }
                             } else {
-                                logger.debug("The values length: " + values.length + " :" + fcount.getName());
-                                tcDTO = new TaxaCountDTO(fcount.getName(), fcount.getCount());
+                                logger.debug("The values length: " + values.length + " :" + name);
+                                tcDTO = new TaxaCountDTO(name, fcount.getCount());
                             }
                             //speciesCounts.add(i, tcDTO);
                             if(tcDTO != null){
@@ -2677,7 +2691,7 @@ public class SearchDAOImpl implements SearchDAO {
         for (FacetField facet : facets) {
             if (facet.getValues() != null) {
                 for (FacetField.Count ffc : facet.getValues()) {
-                    uidStats.put(ffc.getName(), new Integer((int) ffc.getCount()));
+                    uidStats.put(ffc.getName() != null ? ffc.getName() : "", new Integer((int) ffc.getCount()));
                 }
             }
         }
@@ -3054,17 +3068,21 @@ public class SearchDAOImpl implements SearchDAO {
             String firstDate =null;
             for(FacetField.Count facetEntry: ff.getValues()){
                 String startDate = facetEntry.getName();
-                if(firstDate == null)
-                    firstDate=startDate;
-                String finishDate="*";
-                if("before".equals(startDate)){
-                    startDate = "*";
-                    finishDate = firstDate;
+                if (startDate == null) {
+                    legend.add(new LegendItem(facetEntry.getName(), facetEntry.getCount(), "-occurrence_year:*"));
                 } else {
-                    int startYear = Integer.parseInt(startDate.substring(0,4));
-                    finishDate = (startYear-1) +"-12-31T23:59:59Z";
+                    if (firstDate == null)
+                        firstDate = startDate;
+                    String finishDate = "*";
+                    if ("before".equals(startDate)) {
+                        startDate = "*";
+                        finishDate = firstDate;
+                    } else {
+                        int startYear = Integer.parseInt(startDate.substring(0, 4));
+                        finishDate = (startYear - 1) + "-12-31T23:59:59Z";
+                    }
+                    legend.add(new LegendItem(facetEntry.getName(), facetEntry.getCount(), "occurrence_year:[" + startDate + " TO " + finishDate + "]"));
                 }
-                legend.add(new LegendItem(facetEntry.getName(), facetEntry.getCount(),"occurrence_year:["+ startDate+" TO "+finishDate+"]"));
             }
         }
         return legend;

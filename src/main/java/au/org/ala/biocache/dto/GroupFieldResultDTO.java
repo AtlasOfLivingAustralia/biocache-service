@@ -52,7 +52,7 @@ public class GroupFieldResultDTO {
      * @param count
      */
     public GroupFieldResultDTO(String fieldValue, long count) {
-        this.label = fieldValue;
+        this.label = fieldValue != null ? fieldValue : "";
         this.count = count;
     }
 
