@@ -971,7 +971,9 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * Note - this method extracts from CASSANDRA rather than the Index.
      */
-    public Map<String, Integer> writeResultsToStream(DownloadRequestParams downloadParams, OutputStream out, int i, boolean includeSensitive, DownloadDetailsDTO dd) throws Exception {
+    public Map<String, Integer> writeResultsToStream(
+            DownloadRequestParams downloadParams, OutputStream out, int i,
+            boolean includeSensitive, DownloadDetailsDTO dd, boolean limit) throws Exception {
 
         int resultsCount = 0;
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
@@ -1077,7 +1079,8 @@ public class SearchDAOImpl implements SearchDAO {
                 for(String dr : downloadLimit.keySet()){
                     //add another fq to the search for data_resource_uid
                      downloadParams.setFq((String[])ArrayUtils.add(originalFq, "data_resource_uid:" + dr));
-                     resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, dr, includeSensitive,dd);
+                     resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields,
+                             resultsCount, dr, includeSensitive,dd,limit);
                      if(fqBuilder.length()>2)
                          fqBuilder.append(" OR ");
                      fqBuilder.append("data_resource_uid:").append(dr);
@@ -1086,10 +1089,12 @@ public class SearchDAOImpl implements SearchDAO {
                 //now include the rest of the data resources
                 //add extra fq for the remaining records
                 downloadParams.setFq((String[])ArrayUtils.add(originalFq, fqBuilder.toString()));
-                resultsCount =downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive,dd);
+                resultsCount =downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields,
+                        resultsCount, null, includeSensitive,dd,limit);
             } else {
                 //download all at once
-                downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive,dd);
+                downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount,
+                        null, includeSensitive,dd,limit);
             }
             rw.finalise();
 
@@ -1115,10 +1120,11 @@ public class SearchDAOImpl implements SearchDAO {
      */
     private int downloadRecords(DownloadRequestParams downloadParams, au.org.ala.biocache.RecordWriter writer,
                 Map<String, Integer> downloadLimit,  Map<String, Integer> uidStats,
-                String[] fields, String[] qaFields,int resultsCount, String dataResource, boolean includeSensitive, DownloadDetailsDTO dd) throws Exception {
+                String[] fields, String[] qaFields,int resultsCount, String dataResource, boolean includeSensitive,
+                DownloadDetailsDTO dd, boolean limit) throws Exception {
         logger.info("download query: " + downloadParams.getQ());
         SolrQuery solrQuery = initSolrQuery(downloadParams,false,null);
-        solrQuery.setRows(MAX_DOWNLOAD_SIZE);
+        solrQuery.setRows(limit ? MAX_DOWNLOAD_SIZE : -1);
         formatSearchQuery(downloadParams);
         solrQuery.setQuery(buildSpatialQueryString(downloadParams));
         //Only the fields specified below will be included in the results from the SOLR Query
@@ -1133,13 +1139,14 @@ public class SearchDAOImpl implements SearchDAO {
         QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), pageSize, startIndex, "_docid_", "asc");
         List<String> uuids = new ArrayList<String>();
 
-        while (qr.getResults().size() > 0 && resultsCount < MAX_DOWNLOAD_SIZE && shouldDownload(dataResource, downloadLimit, false)) {
+        while (qr.getResults().size() > 0 && (!limit || resultsCount < MAX_DOWNLOAD_SIZE) &&
+                shouldDownload(dataResource, downloadLimit, false)) {
             logger.debug("Start index: " + startIndex);
             //cycle through the results adding them to the list that will be sent to cassandra
             for (SolrDocument sd : qr.getResults()) {
                 if(sd.getFieldValue("data_resource_uid") != null){
                 String druid = sd.getFieldValue("data_resource_uid").toString();
-                if(shouldDownload(druid,downloadLimit, true) && resultsCount < MAX_DOWNLOAD_SIZE){
+                if(shouldDownload(druid,downloadLimit, true) && (!limit || resultsCount < MAX_DOWNLOAD_SIZE)){
                     resultsCount++;
                     uuids.add(sd.getFieldValue("row_key").toString());
 
@@ -1155,7 +1162,7 @@ public class SearchDAOImpl implements SearchDAO {
             startIndex += pageSize;
             uuids.clear();
             dd.updateCounts(qr.getResults().size());
-            if (resultsCount < MAX_DOWNLOAD_SIZE) {
+            if (!limit || resultsCount < MAX_DOWNLOAD_SIZE) {
                 //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
                 qr = runSolrQuery(solrQuery, null, pageSize, startIndex, "_docid_", "asc");
             }
@@ -1272,7 +1279,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see au.org.ala.biocache.dao.SearchDAO#getFacetPointsShort(au.org.ala.biocache.dto.SpatialSearchRequestParams, au.org.ala.biocache.dto.PointType)
+     * @see au.org.ala.biocache.dao.SearchDAO#getFacetPointsShort(au.org.ala.biocache.dto.SpatialSearchRequestParams, String)
      */
     @Override
     public FacetField getFacetPointsShort(SpatialSearchRequestParams searchParams, String pointType) throws Exception {

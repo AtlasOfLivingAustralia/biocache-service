@@ -89,11 +89,11 @@ public class DownloadService {
     @Value("${citations.url:http://collections.ala.org.au/ws/citations}")
     protected String citationServiceUrl;
 
-    @Value("${media.url:http://biocache.ala.org.au/biocache-media/}")
-    public static String biocacheMediaUrl;
+    @Value("${download.url:http://biocache.ala.org.au/biocache-download}")
+    protected String biocacheDownloadUrl;
 
-    @Value("${media.dir:/data/biocache-media/}")
-    public static String biocacheMediaDir;
+    @Value("${download.dir:/data/biocache-download}")
+    protected String biocacheDownloadDir;
 
     @PostConstruct    
     public void init(){
@@ -169,7 +169,7 @@ public class DownloadService {
             if(fromIndex)
                 uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, zop, includeSensitive, dd, limit);
             else
-                uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100, includeSensitive ,dd);
+                uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100, includeSensitive ,dd, limit);
         } catch (Exception e) {
             logger.error(e.getMessage(),e);
         } finally {
@@ -433,10 +433,8 @@ public class DownloadService {
                         String subject = messageSource.getMessage("offlineEmailSubject",null,"Occurrence Download Complete - "+currentDownload.getRequestParams().getFile(),null);
 
                         if(currentDownload!=null && currentDownload.getFileLocation() != null){
-//                            String fileLocation = currentDownload.getFileLocation().replace(biocacheMediaDir, biocacheMediaUrl);
-                            String fileLocation = currentDownload.getFileLocation(); //.replace(biocacheMediaDir, biocacheMediaUrl);
+                            String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
                             String body = messageSource.getMessage("offlineEmailBody", new Object[]{fileLocation}, "The file has been generated. Please download you file from " + fileLocation , null);
-                            emailService.sendEmail(currentDownload.getEmail(), subject, body);
 
                             //now take the job off the list
                             persistentQueueDAO.removeDownloadFromQueue(currentDownload);
@@ -447,6 +445,8 @@ public class DownloadService {
                             statsStream.write(json.getBytes() );
                             statsStream.flush();
                             statsStream.close();
+
+                            emailService.sendEmail(currentDownload.getEmail(), subject, body);
                         }
 
                     } catch(Exception e){

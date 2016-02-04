@@ -29,6 +29,7 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -43,7 +44,9 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
     private static final Logger logger = Logger.getLogger(JsonPersistentQueueDAOImpl.class);
     private String cacheDirectory="/data/cache/downloads";
     private String FILE_PREFIX = "offline";
-    private String downloadDirectory="/data/biocache-download";
+
+    @Value("${download.dir:/data/biocache-download}")
+    protected String biocacheDownloadDir;
 
     private final ObjectMapper jsonMapper = new ObjectMapper();
     
@@ -89,12 +92,12 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
      * @see au.org.ala.biocache.dao.PersistentQueueDAO#getNextDownload()
      */
     @Override
-    public DownloadDetailsDTO getNextDownload() {
+    synchronized public DownloadDetailsDTO getNextDownload() {
         if(offlineDownloadList.size()>0){
             for(DownloadDetailsDTO dd: offlineDownloadList){
                 if(dd.getFileLocation() == null){
                     //give a place for the downlaod
-                    dd.setFileLocation(downloadDirectory+File.separator+UUID.nameUUIDFromBytes(dd.getEmail().getBytes())+File.separator +dd.getStartTime()+File.separator+dd.getRequestParams().getFile()+".zip");
+                    dd.setFileLocation(biocacheDownloadDir+File.separator+UUID.nameUUIDFromBytes(dd.getEmail().getBytes())+File.separator +dd.getStartTime()+File.separator+dd.getRequestParams().getFile()+".zip");
                     return dd;
                 }
             }

@@ -36,7 +36,7 @@ import javax.mail.internet.MimeMessage;
 public class EmailService {
 	
     /** The default sender for emails from the biocache */
-    @Value("${email.sender:\"data@ala.org.au\"}")
+    @Value("${email.sender:support@ala.org.au}")
     private String sender;
     private static final Logger logger = Logger.getLogger(EmailService.class);
     private Properties properties = new Properties();

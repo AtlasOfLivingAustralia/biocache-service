@@ -103,7 +103,7 @@ public interface SearchDAO {
      * @return A map of uids and counts that needs to be logged to the ala-logger
      * @throws Exception
      */
-	Map<String,Integer> writeResultsToStream(DownloadRequestParams searchParams, OutputStream out, int maxNoOfRecords, boolean includeSensitive, DownloadDetailsDTO dd) throws Exception;
+	Map<String,Integer> writeResultsToStream(DownloadRequestParams searchParams, OutputStream out, int maxNoOfRecords, boolean includeSensitive, DownloadDetailsDTO dd, boolean limit) throws Exception;
 	
 	/**
 	 * Writes the results of this query to the output stream using the index as a source of the data.

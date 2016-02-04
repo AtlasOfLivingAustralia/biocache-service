@@ -16,8 +16,10 @@ package au.org.ala.biocache.dto;
 
 import org.codehaus.jackson.annotate.JsonIgnore;
 
+import java.io.File;
 import java.util.Date;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Stores the details of a download.  Will allow for monitoring of downloads
@@ -190,7 +192,15 @@ public class DownloadDetailsDTO {
     public Map<String, String> getHeaderMap() {
         return headerMap;
     }
-    
+
+    /**
+     * @return unique id constructed from email and start time
+     */
+    @JsonIgnore
+    public String getUniqueId() {
+        return UUID.nameUUIDFromBytes(getEmail().getBytes()) + "-" + getStartTime();
+    }
+
     /**
      * @param headerMap the headerMap to set
      */
