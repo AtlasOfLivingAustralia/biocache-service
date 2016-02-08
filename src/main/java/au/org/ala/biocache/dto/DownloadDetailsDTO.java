@@ -40,7 +40,8 @@ public class DownloadDetailsDTO {
     private String fileLocation;
     private boolean includeSensitive = false;
     private Map<String,String> headerMap = null;
-    
+    private String [] miscFields = null;
+
     /**
      * Default constructor necessary for Jackson to create an object from the JSON. 
      */
@@ -176,6 +177,20 @@ public class DownloadDetailsDTO {
      */
     public void setIncludeSensitive(boolean includeSensitive) {
         this.includeSensitive = includeSensitive;
+    }
+
+    /**
+     * @param miscFields the miscFields to set
+     */
+    public void setMiscFields(String[] miscFields) {
+        this.miscFields = miscFields;
+    }
+
+    /**
+     * @return the miscFields
+     */
+    public String [] getMiscFields() {
+        return miscFields;
     }
 
     /**

@@ -18,7 +18,9 @@ import java.io.*;
 import java.util.*;
 
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
+import org.apache.commons.compress.archivers.zip.ZipUtil;
 import org.apache.commons.io.IOUtils;
 
 
@@ -49,15 +51,71 @@ public class AlaFileUtils {
             fOut = new FileOutputStream(new File(zipPath));
             bOut = new BufferedOutputStream(fOut);
             tOut = new ZipArchiveOutputStream(bOut);
-            addFileToZip(tOut, directoryPath, "");
+
+            File[] children = new File(directoryPath).listFiles();
+
+            if (children != null) {
+                for (File child : children) {
+                    addFileToZip(tOut, child.getPath(), "");
+                }
+            }
+
         } finally {
             tOut.finish();
             tOut.close();
             bOut.close();
             fOut.close();
         }
-    } 
-    
+    }
+
+    /**
+     * unpack a zip file at the specified path.
+     * NB:
+     *
+     * @param outputDirectoryPath The path of the directory where the archive will be unpacked. eg. c:/temp
+     * @param srcZipPath The full path of the zip to unpack. eg. c:/temp/archive.zip
+     * @throws IOException If anything goes wrong
+     */
+    public static void unzip(String outputDirectoryPath, String srcZipPath) throws IOException {
+        FileInputStream fis = null;
+        BufferedInputStream bis = null;
+        ZipArchiveInputStream zis = null;
+
+        try {
+            fis = new FileInputStream(srcZipPath);
+            bis = new BufferedInputStream(fis);
+            zis = new ZipArchiveInputStream(bis);
+
+            ZipArchiveEntry ze;
+            while((ze = zis.getNextZipEntry()) != null) {
+                FileOutputStream fos = null;
+                BufferedOutputStream bos = null;
+                try {
+                    fos = new FileOutputStream(outputDirectoryPath + File.separator + ze.getName());
+                    bos = new BufferedOutputStream(fos);
+                    IOUtils.copy(zis, bos);
+                } finally {
+                    if (bos != null) {
+                        bos.close();
+                    }
+                    if (fos != null) {
+                        fos.close();
+                    }
+                }
+            }
+        } finally {
+            if (zis != null) {
+                zis.close();
+            }
+            if (bis != null) {
+                bis.close();
+            }
+            if (fis != null) {
+                fis.close();
+            }
+        }
+    }
+
     /**
      * Creates a zip entry for the path specified with a name built from the base passed in and the file/directory
      * name. If the path is a directory, a recursive call is made such that the full directory is added to the zip.
@@ -72,7 +130,7 @@ public class AlaFileUtils {
         File f = new File(path);
         String entryName = base + f.getName();
         ZipArchiveEntry zipEntry = new ZipArchiveEntry(f, entryName);
- 
+
         zOut.putArchiveEntry(zipEntry);
  
         if (f.isFile()) {

@@ -48,6 +48,8 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     protected Character esc='"';
     /** The header is to use darwin core headers (from messages.properties) */
     protected Boolean dwcHeaders=false;
+    /** Include all available misc fields. For Cassandra downloads only. */
+    protected Boolean includeMisc = false;
     
     @NotNull @LogType(type="reason")//@Range(min=0, max=10)
     protected Integer reasonTypeId = null;    
@@ -85,6 +87,9 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
         }
         if (dwcHeaders) {
             req.append("&dwcHeaders=true");
+        }
+        if (includeMisc) {
+            req.append("&includeMisc=true");
         }
         
         return req.toString();
@@ -220,5 +225,13 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     
     public void setDwcHeaders(Boolean dwcHeaders) {
         this.dwcHeaders = dwcHeaders;
+    }
+
+    public Boolean getIncludeMisc() {
+        return includeMisc;
+    }
+
+    public void setIncludeMisc(Boolean includeMisc) {
+        this.includeMisc = includeMisc;
     }
 }

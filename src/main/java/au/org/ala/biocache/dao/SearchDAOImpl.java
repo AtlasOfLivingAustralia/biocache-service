@@ -1158,7 +1158,8 @@ public class SearchDAOImpl implements SearchDAO {
                 }}
             }
             //logger.debug("Downloading " + uuids.size() + " records");
-            au.org.ala.biocache.Store.writeToWriter(writer, uuids.toArray(new String[]{}), fields, qaFields, includeSensitive);
+            String [] newMiscFields = au.org.ala.biocache.Store.writeToWriter(writer, uuids.toArray(new String[]{}), fields, qaFields, includeSensitive, (dd.getRequestParams() != null ? dd.getRequestParams().getIncludeMisc() : false), dd.getMiscFields());
+            dd.setMiscFields(newMiscFields);
             startIndex += pageSize;
             uuids.clear();
             dd.updateCounts(qr.getResults().size());
