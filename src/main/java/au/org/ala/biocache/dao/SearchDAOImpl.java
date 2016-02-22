@@ -2845,121 +2845,163 @@ public class SearchDAOImpl implements SearchDAO {
                 String[] fields = includeCounts?fieldStr.split("\\}\\},"):fieldStr.split("\\},");
 
                 for (String field : fields) {
-                    if (field != null && !"".equals(field)) {
-                        IndexFieldDTO f = new IndexFieldDTO();
+                    formatIndexField(field, null, fieldList, typePattern, schemaPattern, indexToJsonMap, distinctPattern);
+                }
+            }
+        }
 
-                        String fieldName = field.split("=")[0];
-                        String type = null;
-                        String schema = null;
-                        Matcher typeMatcher = typePattern.matcher(field);
-                        if (typeMatcher.find(0)) {
-                            type = typeMatcher.group(1);
-                        }
+        //add CASSANDRA fields that are not indexed
+        for (String cassandraField : Store.getStorageFieldMap().keySet()) {
+            boolean found = false;
+            //ignore fields with multiple items
+            if (cassandraField != null && !cassandraField.contains(",")) {
+                for (IndexFieldDTO field : fieldList) {
+                    if (field.isIndexed() || field.isStored()) {
+                        if (field.getDownloadName() != null && field.getDownloadName().equals(cassandraField)) {
 
-                        Matcher schemaMatcher = schemaPattern.matcher(field);
-                        if (schemaMatcher.find(0)) {
-                            schema = schemaMatcher.group(1);
-                        }
-                        if(schema != null){
-                            //logger.debug("fieldName:" + fieldName +", type:" + type);
-//                            logger.debug("schema:" + schema);
-                            //don't allow the sensitive coordinates to be exposed via ws
-                            if(fieldName != null && !fieldName.startsWith("sensitive")){
-
-                                f.setName(fieldName);
-                                f.setDataType(type);
-                                //interpret the schema information
-                                f.setIndexed(schema.contains("I"));
-                                f.setStored(schema.contains("S"));
-
-                                //now add the i18n and associated strings to the field.
-                                //1. description: display name from fieldName= in i18n
-                                //2. info: details about this field from description.fieldName= in i18n
-                                //3. dwcTerm: DwC field name for this field from dwc.fieldName= in i18n
-                                //4. jsonName: json key as returned by occurrences/search
-                                //5. downloadField: biocache-store column name that is usable in DownloadRequestParams.fl
-                                //if the field has (5) downloadField, use it to find missing (1), (2) or (3)
-                                //6. downloadDescription: the column name when downloadField is used in
-                                //   DownloadRequestParams.fl and a translation occurs
-                                //7. i18nValues: true | false, indicates that the values returned by this field can be
-                                //   translated using facetName.value= in /facets/i18n
-                                if (layersPattern.matcher(fieldName).matches()) {
-                                    //System.out.println(layersService.getLayerNameMap());
-                                    String description = layersService.getLayerNameMap().get(fieldName);
-                                    f.setDescription(description);
-                                } else {
-                                    //(5) check as a downloadField
-                                    String downloadField = Store.getIndexFieldMap().get(fieldName);
-                                    //exclude compound fields
-                                    if (downloadField != null && downloadField.contains(",")) downloadField = null;
-                                    if (downloadField != null) {
-                                        f.setDownloadName(downloadField);
-
-                                        //(6) downloadField description
-                                        String downloadFieldDescription = messageSource.getMessage(downloadField, null, "", Locale.getDefault());
-                                        if (downloadFieldDescription.length() > 0) {
-                                            f.setDownloadDescription(downloadFieldDescription);
-                                        }
-                                    }
-
-                                    //(1) check as a field name
-                                    String description = messageSource.getMessage("facet." + fieldName, null, "", Locale.getDefault());
-                                    if (description.length() > 0) {
-                                        f.setDescription(description);
-                                    } else if (downloadField != null) {
-                                        description = messageSource.getMessage(downloadField, null, "", Locale.getDefault());
-                                        if (description.length() > 0) {
-                                            f.setDescription(description);
-                                        }
-                                    }
-
-                                    //(2) check as a description
-                                    String info = messageSource.getMessage("description." + fieldName, null, "", Locale.getDefault());
-                                    if (info.length() > 0) {
-                                        f.setInfo(info);
-                                    } else if (downloadField != null) {
-                                        info = messageSource.getMessage("description." + downloadField, null, "", Locale.getDefault());
-                                        if (info.length() > 0) {
-                                            f.setInfo(info);
-                                        }
-                                    }
-
-                                    //(3) check as a dwcTerm
-                                    String dwcTerm = messageSource.getMessage("dwc." + fieldName, null, "", Locale.getDefault());
-                                    if (dwcTerm.length() > 0) {
-                                        f.setDwcTerm(dwcTerm);
-                                    } else if (downloadField != null) {
-                                        dwcTerm = messageSource.getMessage("dwc." + downloadField, null, "", Locale.getDefault());
-                                        if (dwcTerm.length() > 0) {
-                                            f.setDwcTerm(dwcTerm);
-                                        }
-                                    }
-
-                                    //(4) check as json name
-                                    String json = (String) indexToJsonMap.get(fieldName);
-                                    if (json != null) {
-                                        f.setJsonName(json);
-                                    }
-
-                                    //(7) has lookupValues in i18n
-                                    String i18nValues = messageSource.getMessage("i18nvalues." + fieldName, null, "", Locale.getDefault());
-                                    if (i18nValues.length() > 0) {
-                                        f.setI18nValues("true".equalsIgnoreCase(i18nValues));
-                                    }
-                                }
-                                fieldList.add(f);
-                            }
-                        }
-                        Matcher distinctMatcher = distinctPattern.matcher(field);
-                        if(distinctMatcher.find(0)){
-                            Integer distinct = Integer.parseInt(distinctMatcher.group(1));
-                            f.setNumberDistinctValues(distinct);
+                            found = true;
+                            break;
                         }
                     }
+                }
+                if (!found) {
+                    formatIndexField(cassandraField, cassandraField, fieldList, typePattern, schemaPattern, indexToJsonMap, distinctPattern);
                 }
             }
         }
         return fieldList;
+    }
+
+    private void formatIndexField(String indexField, String cassandraField, Set<IndexFieldDTO> fieldList, Pattern typePattern,
+                                  Pattern schemaPattern, Map indexToJsonMap, Pattern distinctPattern) {
+
+        if (indexField != null && !"".equals(indexField)) {
+            if (indexField.equals("{responseHeader") || indexField.equals("NOTE") || (cassandraField != null && cassandraField.equals("NOTE"))){
+                int i = 4;
+            }
+            IndexFieldDTO f = new IndexFieldDTO();
+
+            String fieldName = indexField.split("=")[0];
+            String type = null;
+            String schema = null;
+            Matcher typeMatcher = typePattern.matcher(indexField);
+            if (typeMatcher.find(0)) {
+                type = typeMatcher.group(1);
+            }
+
+            Matcher schemaMatcher = schemaPattern.matcher(indexField);
+            if (schemaMatcher.find(0)) {
+                schema = schemaMatcher.group(1);
+            }
+
+            //don't allow the sensitive coordinates to be exposed via ws and don't allow index fields without schema
+            if (fieldName != null && !fieldName.startsWith("sensitive") && (cassandraField != null || schema != null)) {
+
+                f.setName(fieldName);
+                f.setDataType(type);
+                //interpret the schema information
+                if (schema != null) {
+                    f.setIndexed(schema.contains("I"));
+                    f.setStored(schema.contains("S"));
+                    f.setMultivalue(schema.contains("M"));
+                }
+
+                //now add the i18n and associated strings to the field.
+                //1. description: display name from fieldName= in i18n
+                //2. info: details about this field from description.fieldName= in i18n
+                //3. dwcTerm: DwC field name for this field from dwc.fieldName= in i18n
+                //4. jsonName: json key as returned by occurrences/search
+                //5. downloadField: biocache-store column name that is usable in DownloadRequestParams.fl
+                //if the field has (5) downloadField, use it to find missing (1), (2) or (3)
+                //6. downloadDescription: the column name when downloadField is used in
+                //   DownloadRequestParams.fl and a translation occurs
+                //7. i18nValues: true | false, indicates that the values returned by this field can be
+                //   translated using facetName.value= in /facets/i18n
+                //8. class value for this field
+                if (layersPattern.matcher(fieldName).matches()) {
+                    //System.out.println(layersService.getLayerNameMap());
+                    String description = layersService.getLayerNameMap().get(fieldName);
+                    f.setDescription(description);
+                } else {
+                    //(5) check as a downloadField
+                    String downloadField = cassandraField != null ? cassandraField : Store.getIndexFieldMap().get(fieldName);
+                    //exclude compound fields
+                    if (downloadField != null && downloadField.contains(",")) downloadField = null;
+                    if (downloadField != null) {
+                        f.setDownloadName(downloadField);
+
+                        //(6) downloadField description
+                        String downloadFieldDescription = messageSource.getMessage(downloadField, null, "", Locale.getDefault());
+                        if (downloadFieldDescription.length() > 0) {
+                            f.setDownloadDescription(downloadFieldDescription);
+                        }
+                    }
+
+                    //(1) check as a field name
+                    String description = messageSource.getMessage("facet." + fieldName, null, "", Locale.getDefault());
+                    if (description.length() > 0 && downloadField == null) {
+                        f.setDescription(description);
+                    } else if (downloadField != null) {
+                        description = messageSource.getMessage(downloadField, null, "", Locale.getDefault());
+                        if (description.length() > 0) {
+                            f.setDescription(description);
+                        }
+                    }
+
+                    //(2) check as a description
+                    String info = messageSource.getMessage("description." + fieldName, null, "", Locale.getDefault());
+                    if (info.length() > 0 && downloadField == null) {
+                        f.setInfo(info);
+                    } else if (downloadField != null) {
+                        info = messageSource.getMessage("description." + downloadField, null, "", Locale.getDefault());
+                        if (info.length() > 0) {
+                            f.setInfo(info);
+                        }
+                    }
+
+                    //(3) check as a dwcTerm
+                    String dwcTerm = messageSource.getMessage("dwc." + fieldName, null, "", Locale.getDefault());
+                    if (dwcTerm.length() > 0 && downloadField == null) {
+                        f.setDwcTerm(dwcTerm);
+                    } else if (downloadField != null) {
+                        dwcTerm = messageSource.getMessage("dwc." + downloadField, null, "", Locale.getDefault());
+                        if (dwcTerm.length() > 0) {
+                            f.setDwcTerm(dwcTerm);
+                        }
+                    }
+
+                    //(4) check as json name
+                    String json = (String) indexToJsonMap.get(fieldName);
+                    if (json != null && downloadField == null) {
+                        f.setJsonName(json);
+                    }
+
+                    //(7) has lookupValues in i18n
+                    String i18nValues = messageSource.getMessage("i18nvalues." + fieldName, null, "", Locale.getDefault());
+                    if (i18nValues.length() > 0) {
+                        f.setI18nValues("true".equalsIgnoreCase(i18nValues));
+                    }
+
+                    //(8) get class
+                    String classs = messageSource.getMessage("class." + fieldName, null, "", Locale.getDefault());
+                    if (classs.length() > 0 && downloadField == null) {
+                        f.setClasss(classs);
+                    } else if (downloadField != null) {
+                        classs = messageSource.getMessage("class." + downloadField, null, "", Locale.getDefault());
+                        if (classs.length() > 0) {
+                            f.setClasss(classs);
+                        }
+                    }
+                }
+                fieldList.add(f);
+            }
+
+            Matcher distinctMatcher = distinctPattern.matcher(indexField);
+            if (distinctMatcher.find(0)) {
+                Integer distinct = Integer.parseInt(distinctMatcher.group(1));
+                f.setNumberDistinctValues(distinct);
+            }
+        }
     }
 
     /**

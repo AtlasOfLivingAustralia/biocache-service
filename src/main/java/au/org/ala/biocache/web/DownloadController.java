@@ -19,6 +19,7 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
+import au.org.ala.biocache.dto.IndexFieldDTO;
 import org.apache.commons.lang.StringUtils;
 import org.apache.solr.common.SolrDocumentList;
 import org.springframework.beans.factory.annotation.Value;
@@ -155,9 +156,21 @@ public class DownloadController extends AbstractSecureController {
 
         ip = ip == null ? request.getRemoteAddr() : ip;
 
-        //TODO: determine downloadType from requested columns. Refer to searchDao.getIndexedFields()
-        //DownloadType downloadType = "index".equals(type.toLowerCase()) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
-        DownloadType downloadType = DownloadType.RECORDS_DB;
+        //download from index when there are no CASSANDRA fields requested
+        boolean hasDBColumn = requestParams.getIncludeMisc();
+        String fields = requestParams.getFields() + "," + requestParams.getExtra();
+        if (fields.length() > 1) {
+            for (String column : fields.split(",")) {
+                for (IndexFieldDTO field : searchDAO.getIndexedFields()) {
+                    if (!field.isStored() && field.getDownloadName() != null && field.getDownloadName().equals(column)) {
+                        hasDBColumn = true;
+                        break;
+                    }
+                }
+                if (hasDBColumn) break;
+            }
+        }
+        DownloadType downloadType = hasDBColumn ? DownloadType.RECORDS_DB : DownloadType.RECORDS_INDEX;
 
         //create a new task
         DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, downloadType);
