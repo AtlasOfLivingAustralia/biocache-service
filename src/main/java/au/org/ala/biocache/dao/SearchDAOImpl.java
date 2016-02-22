@@ -28,6 +28,7 @@ import au.org.ala.biocache.util.thread.EndemicCallable;
 import au.org.ala.biocache.vocab.ErrorCode;
 import au.org.ala.biocache.writer.CSVRecordWriter;
 import au.org.ala.biocache.writer.ShapeFileRecordWriter;
+import au.org.ala.biocache.writer.TSVRecordWriter;
 import com.googlecode.ehcache.annotations.Cacheable;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang.ArrayUtils;
@@ -87,10 +88,12 @@ public class SearchDAOImpl implements SearchDAO {
     protected SolrServer server;
     protected SolrRequest.METHOD queryMethod;
     /** Limit search results - for performance reasons */
-    protected Integer MAX_DOWNLOAD_SIZE = 500000;
+    @Value("${download.max:500000}")
+    protected Integer MAX_DOWNLOAD_SIZE;
     private Integer throttle = 100;
     /** Batch size for a download */
-    protected Integer downloadBatchSize = 500;
+    @Value("${download.batch.size:500}")
+    protected Integer downloadBatchSize;
     public static final String NAMES_AND_LSID = "names_and_lsid";
     public static final String COMMON_NAME_AND_LSID = "common_name_and_lsid";
     protected static final String DECADE_FACET_NAME = "decade";
@@ -807,7 +810,10 @@ public class SearchDAOImpl implements SearchDAO {
             uidStats.put(infoHeader.toString(), -2);
 
             //construct correct RecordWriter based on the supplied fileType
-            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ? new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) : new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields));
+            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ?
+                    new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) :
+                    (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, header) :
+                            new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
 
             if(rw instanceof ShapeFileRecordWriter){
                 dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
@@ -1054,7 +1060,10 @@ public class SearchDAOImpl implements SearchDAO {
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(titles,qaTitles);
             //Create the Writer that will be used to format the records
             //construct correct RecordWriter based on the supplied fileType
-            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ? new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) : new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields));
+            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ?
+                    new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) :
+                    (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, header) :
+                            new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
 
             if(rw instanceof ShapeFileRecordWriter){
                 dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());

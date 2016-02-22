@@ -56,7 +56,7 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     @LogType(type="source")
     protected Integer sourceTypeId = null;
     //The file type for the download file."shp" or "csv"
-    @Pattern(regexp="(csv|shp)")
+    @Pattern(regexp="(csv|shp|tsv)")
     protected String fileType="csv";
 
     /**

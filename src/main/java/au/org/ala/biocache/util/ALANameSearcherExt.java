@@ -149,31 +149,26 @@ public class ALANameSearcherExt extends ALANameSearcher {
         }
     }
     
-    private Query buildAutocompleteQuery(String field, String q) {
+    private Query buildAutocompleteQuery(String field, String q, boolean allSearches) {
         //best match
         Query fq1 = new TermQuery(new Term(field,q));  //exact match
         fq1.setBoost(12f);
-
-        //word matches
-        Query fq2 = new WildcardQuery(new Term(field,"* " + q)); //ends with word
-        fq2.setBoost(3f);
-        Query fq3 = new WildcardQuery(new Term(field,"* " + q + " *")); //contains with word
-        fq3.setBoost(3f);
-        Query fq4 = new WildcardQuery(new Term(field,q + " *")); //begins with word
-        fq4.setBoost(3f);
 
         //partial matches
         Query fq5 = new WildcardQuery(new Term(field,q + "*")); //begins with that begins with
         Query fq6 = new WildcardQuery(new Term(field,"* " + q + "*")); //contains word that begins with
 
+        //any match
+        Query fq7 = new WildcardQuery(new Term(field,"*" + q + "*")); //any match
+
         //join
         BooleanQuery o = new BooleanQuery();
         o.add(fq1, BooleanClause.Occur.SHOULD);
-        o.add(fq2, BooleanClause.Occur.SHOULD);
-        o.add(fq3, BooleanClause.Occur.SHOULD);
-        o.add(fq4, BooleanClause.Occur.SHOULD);
+
         o.add(fq5, BooleanClause.Occur.SHOULD);
         o.add(fq6, BooleanClause.Occur.SHOULD);
+
+        o.add(fq7, BooleanClause.Occur.SHOULD);
 
         return o;
     }
@@ -385,15 +380,18 @@ public class ALANameSearcherExt extends ALANameSearcher {
                 String uq = q.toUpperCase();
 
                 //name search
-                Query fq = buildAutocompleteQuery("name", lq);
+                Query fq = buildAutocompleteQuery("name", lq, false);
                 BooleanQuery b = new BooleanQuery();
                 b.add(fq, BooleanClause.Occur.MUST);
                 b.add(new WildcardQuery(new Term("left", "*")), includeSynonyms ? BooleanClause.Occur.SHOULD : BooleanClause.Occur.MUST);
                 TopDocs results = getIdentifierIdxSearcher().search(b, max);
                 appendAutocompleteResults(output, results, includeSynonyms, false);
 
+                //format search term for the current common name index
+                uq = concatName(uq).toUpperCase();
+
                 //common name search
-                fq = buildAutocompleteQuery("common", uq);
+                fq = buildAutocompleteQuery("common", uq, true);
                 results = getVernIdxSearcher().search(fq, max);
                 appendAutocompleteResults(output, results, includeSynonyms, true);
 

@@ -20,6 +20,7 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import org.apache.commons.lang.StringUtils;
+import org.apache.solr.common.SolrDocumentList;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -87,7 +88,7 @@ public class DownloadController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "occurrences/offline/{type}/download*", method = RequestMethod.GET)
+    @RequestMapping(value = "occurrences/offline/{type}/download*", method = {RequestMethod.GET, RequestMethod.POST})
     public @ResponseBody Object occurrenceDownload(
             DownloadRequestParams requestParams,
             @RequestParam(value = "ip", required = false) String ip,
@@ -111,14 +112,78 @@ public class DownloadController extends AbstractSecureController {
         DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, downloadType);
         dd.setIncludeSensitive(sensitive);
 
+        //get query (max) count for queue priority
+        requestParams.setPageSize(0);
+        SolrDocumentList result = searchDAO.findByFulltext(requestParams);
+        dd.setTotalRecords((int) result.getNumFound());
+
         persistentQueueDAO.addDownloadToQueue(dd);
 
         Map status = new HashMap();
         status.put("status", "inQueue");
         status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
+        status.put("queueSize", persistentQueueDAO.getTotalDownloads());
         return status;
     }
 
+    /**
+     * Add a download to the offline queue
+     * @param requestParams
+     * @param ip
+     * @param apiKey
+     * @param response
+     * @param request
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "occurrences/offline/download*", method = {RequestMethod.GET, RequestMethod.POST})
+    public @ResponseBody Object occurrenceDownload(
+            DownloadRequestParams requestParams,
+            @RequestParam(value = "ip", required = false) String ip,
+            @RequestParam(value = "apiKey", required = false) String apiKey,
+            HttpServletResponse response,
+            HttpServletRequest request) throws Exception {
+
+        boolean sensitive = false;
+        if (apiKey != null) {
+            if (shouldPerformOperation(apiKey, response, false)) {
+                sensitive = true;
+            }
+        } else if (StringUtils.isEmpty(requestParams.getEmail())) {
+            response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
+        }
+
+        ip = ip == null ? request.getRemoteAddr() : ip;
+
+        //TODO: determine downloadType from requested columns. Refer to searchDao.getIndexedFields()
+        //DownloadType downloadType = "index".equals(type.toLowerCase()) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
+        DownloadType downloadType = DownloadType.RECORDS_DB;
+
+        //create a new task
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, downloadType);
+        dd.setIncludeSensitive(sensitive);
+
+        //get query (max) count for queue priority
+        requestParams.setPageSize(0);
+        SolrDocumentList result = searchDAO.findByFulltext(requestParams);
+        dd.setTotalRecords((int) result.getNumFound());
+
+        DownloadDetailsDTO d = persistentQueueDAO.isInQueue(dd);
+        if (d != null) {
+            dd = d;
+        } else {
+            persistentQueueDAO.addDownloadToQueue(dd);
+        }
+
+        Map status = new HashMap();
+        if (d != null) {
+            status.put("message", "Already in queue.");
+        }
+        status.put("status", "inQueue");
+        status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
+        status.put("queueSize", persistentQueueDAO.getTotalDownloads());
+        return status;
+    }
     @RequestMapping(value = "occurrences/offline/status/{id}", method = RequestMethod.GET)
     public @ResponseBody Object occurrenceDownloadStatus(@PathVariable("id") String id) throws Exception {
 
