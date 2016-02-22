@@ -2876,9 +2876,6 @@ public class SearchDAOImpl implements SearchDAO {
                                   Pattern schemaPattern, Map indexToJsonMap, Pattern distinctPattern) {
 
         if (indexField != null && !"".equals(indexField)) {
-            if (indexField.equals("{responseHeader") || indexField.equals("NOTE") || (cassandraField != null && cassandraField.equals("NOTE"))){
-                int i = 4;
-            }
             IndexFieldDTO f = new IndexFieldDTO();
 
             String fieldName = indexField.split("=")[0];
@@ -2898,7 +2895,9 @@ public class SearchDAOImpl implements SearchDAO {
             if (fieldName != null && !fieldName.startsWith("sensitive") && (cassandraField != null || schema != null)) {
 
                 f.setName(fieldName);
-                f.setDataType(type);
+                if (type != null) f.setDataType(type);
+                else f.setDataType("string");
+
                 //interpret the schema information
                 if (schema != null) {
                     f.setIndexed(schema.contains("I"));

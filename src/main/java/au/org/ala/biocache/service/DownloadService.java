@@ -108,13 +108,13 @@ public class DownloadService {
     @Value("${download.dir:/data/biocache-download}")
     protected String biocacheDownloadDir;
 
-    @Value("${download.email.subject:Occurrence Download Complete - [filename]")
+    @Value("${download.email.subject:Occurrence Download Complete - [filename]}")
     protected String biocacheDownloadEmailSubject;
 
     @Value("${download.email.body:The file has been generated. Please download you file from [url]}")
     protected String biocacheDownloadEmailBody;
 
-    @Value("${download.email.subject:Occurrence Download Failed - [filename]")
+    @Value("${download.email.subject:Occurrence Download Failed - [filename]}")
     protected String biocacheDownloadEmailSubjectError;
 
     @Value("${download.email.body:The download has failed.}")
