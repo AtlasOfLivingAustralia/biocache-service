@@ -111,7 +111,7 @@ public class DownloadService {
     @Value("${download.email.subject:Occurrence Download Complete - [filename]}")
     protected String biocacheDownloadEmailSubject;
 
-    @Value("${download.email.body:The file has been generated. Please download you file from [url]}")
+    @Value("${download.email.body:The file has been generated. Please download your file from [url]}")
     protected String biocacheDownloadEmailBody;
 
     @Value("${download.email.subject:Occurrence Download Failed - [filename]}")
