@@ -2892,7 +2892,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
 
             //don't allow the sensitive coordinates to be exposed via ws and don't allow index fields without schema
-            if (fieldName != null && !fieldName.startsWith("sensitive") && (cassandraField != null || schema != null)) {
+            if (fieldName != null && !fieldName.startsWith("sensitive_") && (cassandraField != null || schema != null)) {
 
                 f.setName(fieldName);
                 if (type != null) f.setDataType(type);
