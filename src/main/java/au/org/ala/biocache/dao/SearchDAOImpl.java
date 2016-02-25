@@ -32,6 +32,7 @@ import com.googlecode.ehcache.annotations.Cacheable;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrQuery.ORDER;
@@ -61,6 +62,8 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
@@ -425,18 +428,24 @@ public class SearchDAOImpl implements SearchDAO {
         return findByFulltextSpatialQuery(searchParams,false,extraParams);
     }
 
+    /**
+     * Main search query method.
+     *
+     * @param searchParams
+     * @param includeSensitive
+     * @param extraParams
+     * @return
+     */
     @Override
     public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, boolean includeSensitive, Map<String,String[]> extraParams) {
         SearchResultDTO searchResults = new SearchResultDTO();
         SpatialSearchRequestParams original = new SpatialSearchRequestParams();
         BeanUtils.copyProperties(searchParams, original);
         try {
-            //String queryString = formatSearchQuery(query);
             formatSearchQuery(searchParams);
             //add context information
             updateQueryContext(searchParams);
             String queryString = buildSpatialQueryString(searchParams);
-            //logger.debug("The spatial query " + queryString);
             SolrQuery solrQuery = initSolrQuery(searchParams,true,extraParams); // general search settings
             solrQuery.setQuery(queryString);
 
@@ -460,7 +469,7 @@ public class SearchDAOImpl implements SearchDAO {
             searchParams.setFq(fqs);
 
             //now update the fq display map...
-            searchResults.setActiveFacetMap(searchUtils.addFacetMap(searchParams.getFq(), getAuthIndexFields()));
+            searchResults.setActiveFacetMap(searchUtils.addFacetMap(searchParams.getFq(), searchParams.getQc(), getAuthIndexFields()));
 
             logger.info("spatial search query: " + queryString);
         } catch (Exception ex) {
@@ -1070,15 +1079,16 @@ public class SearchDAOImpl implements SearchDAO {
                     //add another fq to the search for data_resource_uid
                      downloadParams.setFq((String[])ArrayUtils.add(originalFq, "data_resource_uid:" + dr));
                      resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, dr, includeSensitive,dd);
-                     if(fqBuilder.length()>2)
+                     if(fqBuilder.length() > 2) {
                          fqBuilder.append(" OR ");
+                     }
                      fqBuilder.append("data_resource_uid:").append(dr);
                 }
                 fqBuilder.append(")");
                 //now include the rest of the data resources
                 //add extra fq for the remaining records
                 downloadParams.setFq((String[])ArrayUtils.add(originalFq, fqBuilder.toString()));
-                resultsCount =downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive,dd);
+                resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive,dd);
             } else {
                 //download all at once
                 downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive,dd);
@@ -1121,7 +1131,6 @@ public class SearchDAOImpl implements SearchDAO {
         StringBuilder  sb = new StringBuilder(downloadParams.getFields());
         if(downloadParams.getExtra().length()>0)
             sb.append(",").append(downloadParams.getExtra());
-        StringBuilder qasb = new StringBuilder();
         QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), pageSize, startIndex, "_docid_", "asc");
         List<String> uuids = new ArrayList<String>();
 
@@ -1760,6 +1769,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      */
     private SearchResultDTO processSolrResponse(SearchRequestParams params, QueryResponse qr, SolrQuery solrQuery, Class resultClass) {
+
         SearchResultDTO searchResult = new SearchResultDTO();
         SolrDocumentList sdl = qr.getResults();
         // Iterator it = qr.getResults().iterator() // Use for download
@@ -1801,6 +1811,7 @@ public class SearchDAOImpl implements SearchDAO {
         searchResult.setDir(solrSort[1]); // sortDirection
         searchResult.setQuery(params.getUrlParams()); //this needs to be the original URL>>>>
         searchResult.setOccurrences(results);
+
         // populate SOLR facet results
         if (facets != null) {
             for (FacetField facet : facets) {
@@ -1813,7 +1824,13 @@ public class SearchDAOImpl implements SearchDAO {
                         if (fcount.getName() == null) {
                             r.add(new FieldResultDTO("", fcount.getCount(), "-" + facet.getName() + ":*"));
                         } else {
-                            r.add(new FieldResultDTO(getFacetValueDisplayName(facet.getName(), fcount.getName()), fcount.getCount(), facet.getName() + ":\"" + fcount.getName() + "\""));
+                            r.add(new FieldResultDTO(
+                                    getFacetValueDisplayName(
+                                            facet.getName(),
+                                            fcount.getName()),
+                                            fcount.getCount(),
+                                            getFormattedFqQuery(facet.getName(), fcount.getName())
+                            ));
                         }
                     }
                     // only add facets if there are more than one facet result
@@ -2406,9 +2423,9 @@ public class SearchDAOImpl implements SearchDAO {
     protected String[] getQueryContextAsArray(String queryContext){
         if(StringUtils.isNotEmpty(queryContext)){
             String[] values = queryContext.split(",");
-            for(int i =0; i<values.length;i++){
+            for(int i = 0; i<values.length;i++){
                 String field = values[i];
-                values[i]= field.replace("hub:", "data_hub_uid:");
+                values[i] = field.replace("hub:", "data_hub_uid:");
             }
             //add the query context to the filter query
             return values;
@@ -2440,7 +2457,7 @@ public class SearchDAOImpl implements SearchDAO {
         if(searchParams.getFacet()) {
             for (String facet : searchParams.getFacets()) {
                 if (facet.equals("date") || facet.equals("decade")) {
-                    String fname = facet.equals("decade") ? "occurrence_year" : "occurrence_"+facet;
+                    String fname = facet.equals("decade") ? "occurrence_year" : "occurrence_" + facet;
                     initDecadeBasedFacet(solrQuery, fname);
                 } else if(facet.equals("uncertainty")){
                     Map<String, String> rangeMap = rangeBasedFacets.getRangeMap("uncertainty");
@@ -2521,7 +2538,7 @@ public class SearchDAOImpl implements SearchDAO {
             try {
                 Map<String, FieldStatsInfo> stats = getStatistics(searchParams);
                 if(stats != null){
-                    IndexFieldDTO ifdto =indexFieldMap.get(field);
+                    IndexFieldDTO ifdto = indexFieldMap.get(field);
                     if(ifdto !=null){
                         String type = ifdto.getDataType();
                         details = new StatsIndexFieldDTO(stats.get(field), type);
@@ -3049,22 +3066,23 @@ public class SearchDAOImpl implements SearchDAO {
 
         //check to see if we have a date range facet
         List<FacetField> facetDates = qr.getFacetDates();
-        if (facetDates != null && facetDates.size()>0) {
+        if (facetDates != null && !facetDates.isEmpty()) {
             FacetField ff = facetDates.get(0);
-            String firstDate =null;
+            String firstDate = null;
             for(FacetField.Count facetEntry: ff.getValues()){
                 String startDate = facetEntry.getName();
-                if(firstDate == null)
-                    firstDate=startDate;
-                String finishDate="*";
+                if(firstDate == null) {
+                    firstDate = startDate;
+                }
+                String finishDate;
                 if("before".equals(startDate)){
                     startDate = "*";
                     finishDate = firstDate;
                 } else {
                     int startYear = Integer.parseInt(startDate.substring(0,4));
-                    finishDate = (startYear-1) +"-12-31T23:59:59Z";
+                    finishDate = (startYear-1) + "-12-31T23:59:59Z";
                 }
-                legend.add(new LegendItem(facetEntry.getName(), facetEntry.getCount(),"occurrence_year:["+ startDate+" TO "+finishDate+"]"));
+                legend.add(new LegendItem(facetEntry.getName(), facetEntry.getCount(), "occurrence_year:["+ startDate + " TO "+finishDate+"]"));
             }
         }
         return legend;
@@ -3364,10 +3382,44 @@ public class SearchDAOImpl implements SearchDAO {
         
         return output;
     }
-    
+
+    /**
+     * Generates a FQ value for use in the returning query response.
+     *
+     * @param facet
+     * @param value
+     * @return
+     */
+    String getFormattedFqQuery(String facet, String value){
+        if(facet.equals("occurrence_year")){
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss'Z'");
+            try {
+                Date date = sdf.parse(value);
+                Date endDate = DateUtils.addYears(date, 10);
+                endDate = DateUtils.addMilliseconds(endDate, -1);
+                return facet + ":"  + "[" + value + " TO " + sdf.format(endDate) + "]";
+            } catch (ParseException e){
+                //do nothing
+            }
+        }
+
+        return facet + ":\"" + value + "\"";
+    }
+
     String getFacetValueDisplayName(String facet, String value) {
-        if(facet.endsWith("_uid")){
+        if(facet.endsWith("_uid")) {
             return searchUtils.getUidDisplayString(facet, value, false);
+        } else if(facet.equals("occurrence_year")){
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss'Z'");
+                Date date = sdf.parse(value);
+                SimpleDateFormat df = new SimpleDateFormat("yyyy");
+                String year = df.format(date);
+                return year + "-" + (Integer.parseInt(year) + 9);
+            } catch (ParseException pe){
+                return facet;
+            }
+            //1850-01-01T00:00:00Z
         } else if(getAuthIndexFields().contains(facet)){
             //if the facet field is collector or assertion_user_id we need to perform the substitution
             return authService.getDisplayNameFor(value);
@@ -3375,7 +3427,6 @@ public class SearchDAOImpl implements SearchDAO {
             return messageSource.getMessage(facet + "." + value, null, value, null);
         }
     }
-
 
     /**
      * @see au.org.ala.biocache.dao.SearchDAO#searchPivot(au.org.ala.biocache.dto.SpatialSearchRequestParams)
