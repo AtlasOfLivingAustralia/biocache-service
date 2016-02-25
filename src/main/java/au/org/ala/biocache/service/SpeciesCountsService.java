@@ -17,12 +17,14 @@ package au.org.ala.biocache.service;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import org.apache.commons.collections.map.LRUMap;
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Caches species counts using left/right values and an optional fq term.
@@ -44,7 +46,7 @@ public class SpeciesCountsService {
     protected SearchDAO searchDAO;
 
     @Value("${species.counts.cache.minage:1800000}")
-    private Long cacheMinAge;
+    protected Long cacheMinAge;
 
     /**
      * Permit disabling of cached species counts
@@ -53,9 +55,13 @@ public class SpeciesCountsService {
     private Boolean enabled;
 
     //left and left counts by q, fq, qc
-    Object cacheLock = new Object();
+    final Object cacheLock = new Object();
     LRUMap cache = new LRUMap();
-    Object updatelock = new Object();
+    final Object updatelock = new Object();
+
+    //record of updates in queue
+    final Object updatingLock = new Object();
+    Map<Integer, Boolean> updatingList = new ConcurrentHashMap<Integer, Boolean>();
 
     /**
      * retrieve left + count + index version
@@ -98,52 +104,14 @@ public class SpeciesCountsService {
         //refresh if cache missing and not refreshed recently (cacheMinAge)
         long indexVersion = searchDAO.getIndexVersion(false);
         if (counts == null || (cacheMinAge + counts.getAge() < System.currentTimeMillis() && indexVersion != counts.getIndexVersion())) {
-            synchronized (updatelock) {
-                //check if another has already updated this query
-                synchronized (cacheLock) {
-                    counts = (SpeciesCountDTO) cache.get(hashCode);
-                }
-                //still not found, update now
-                if (counts == null || (cacheMinAge + counts.getAge() < System.currentTimeMillis() && indexVersion != counts.getIndexVersion())) {
-                    try {
-                        long startTime = System.currentTimeMillis();
-                        logger.debug("start refresh");
+            //old counts that need one update scheduled
+            synchronized (updatingLock) {
+                Boolean updating = updatingList.get(hashCode);
 
-                        SearchResultDTO qr = searchDAO.findByFulltextSpatialQuery(params, null);
-
-                        //get lft and count
-                        Map<Long, Long> map = new HashMap<Long, Long>();
-                        for (FacetResultDTO fr : qr.getFacetResults()) {
-                            for (FieldResultDTO r : fr.getFieldResult()) {
-                                map.put(Long.parseLong(r.getLabel()), r.getCount());
-                            }
-                        }
-
-                        //sort keys
-                        long[] left = new long[map.size()];
-                        List<Long> keys = new ArrayList<Long>(map.keySet());
-                        for (int i = 0; i < left.length; i++) {
-                            left[i] = keys.get(i);
-                        }
-                        java.util.Arrays.sort(left);
-
-                        //get sorted values
-                        long[] leftCount = new long[map.size()];
-                        for (int i = 0; i < leftCount.length; i++) {
-                            leftCount[i] = map.get(left[i]);
-                        }
-
-                        counts = new SpeciesCountDTO(left, leftCount, indexVersion);
-
-                        //store in map
-                        synchronized (cacheLock) {
-                            cache.put(hashCode, counts);
-                        }
-
-                        logger.debug("time to refresh SpeciesCountsService fq: " + fq.toString() + ", " + (System.currentTimeMillis() - startTime) + "ms");
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                if (updating == null) {
+                    updatingList.put(hashCode, true);
+                    Thread updateThread = new UpdateThread(this, hashCode, params);
+                    updateThread.start();
                 }
             }
         }
@@ -180,4 +148,79 @@ public class SpeciesCountsService {
         }
     }
 
+}
+
+class UpdateThread extends Thread {
+
+    private static final Logger logger = Logger.getLogger(UpdateThread.class);
+
+    SpeciesCountsService speciesCountsService;
+    int hashCode;
+    SpatialSearchRequestParams params;
+
+    public UpdateThread(SpeciesCountsService speciesCountsService, int hashCode, SpatialSearchRequestParams params) {
+        this.speciesCountsService = speciesCountsService;
+        this.hashCode = hashCode;
+        this.params = params;
+    }
+
+    @Override
+    public void run() {
+        synchronized (speciesCountsService.updatelock) {
+            //check if another has already updated this query
+            synchronized (speciesCountsService.cacheLock) {
+                if (speciesCountsService.cache.get(hashCode) != null) {
+                    //remove this from the update list
+                    synchronized (speciesCountsService.updatingLock) {
+                        speciesCountsService.updatingList.remove(hashCode);
+                    }
+                    return;
+                }
+            }
+
+            //not found, update now
+            try {
+                logger.debug("updating species counts for query: " + params.toString());
+                SearchResultDTO qr = speciesCountsService.searchDAO.findByFulltextSpatialQuery(params, null);
+
+                //get lft and count
+                Map<Long, Long> map = new HashMap<Long, Long>();
+                for (FacetResultDTO fr : qr.getFacetResults()) {
+                    for (FieldResultDTO r : fr.getFieldResult()) {
+                        if (StringUtils.isNotEmpty(r.getLabel())) {
+                            map.put(Long.parseLong(r.getLabel()), r.getCount());
+                        }
+                    }
+                }
+
+                //sort keys
+                long[] left = new long[map.size()];
+                List<Long> keys = new ArrayList<Long>(map.keySet());
+                for (int i = 0; i < left.length; i++) {
+                    left[i] = keys.get(i);
+                }
+                java.util.Arrays.sort(left);
+
+                //get sorted values
+                long[] leftCount = new long[map.size()];
+                for (int i = 0; i < leftCount.length; i++) {
+                    leftCount[i] = map.get(left[i]);
+                }
+
+                SpeciesCountDTO counts = new SpeciesCountDTO(left, leftCount, speciesCountsService.searchDAO.getIndexVersion(false));
+
+                //store in map
+                synchronized (speciesCountsService.cacheLock) {
+                    speciesCountsService.cache.put(hashCode, counts);
+                }
+
+            } catch (Exception e) {
+                logger.error("failed to update species counts for : " + params.toString());
+            }
+        }
+        //remove this from the update list
+        synchronized (speciesCountsService.updatingLock) {
+            speciesCountsService.updatingList.remove(hashCode);
+        }
+    }
 }

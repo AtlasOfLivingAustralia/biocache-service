@@ -28,6 +28,7 @@ import au.org.ala.biocache.util.thread.EndemicCallable;
 import au.org.ala.biocache.vocab.ErrorCode;
 import au.org.ala.biocache.writer.CSVRecordWriter;
 import au.org.ala.biocache.writer.ShapeFileRecordWriter;
+import au.org.ala.biocache.writer.TSVRecordWriter;
 import com.googlecode.ehcache.annotations.Cacheable;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang.ArrayUtils;
@@ -90,10 +91,12 @@ public class SearchDAOImpl implements SearchDAO {
     protected SolrServer server;
     protected SolrRequest.METHOD queryMethod;
     /** Limit search results - for performance reasons */
-    protected Integer MAX_DOWNLOAD_SIZE = 500000;
+    @Value("${download.max:500000}")
+    protected Integer MAX_DOWNLOAD_SIZE;
     private Integer throttle = 100;
     /** Batch size for a download */
-    protected Integer downloadBatchSize = 500;
+    @Value("${download.batch.size:500}")
+    protected Integer downloadBatchSize;
     public static final String NAMES_AND_LSID = "names_and_lsid";
     public static final String COMMON_NAME_AND_LSID = "common_name_and_lsid";
     protected static final String DECADE_FACET_NAME = "decade";
@@ -601,7 +604,8 @@ public class SearchDAOImpl implements SearchDAO {
                             if (value.getName() == null) addedNullFacet = true;
                             if (value.getCount() == 0 || (value.getName() == null && addedNullFacet)) continue;
 
-                            String[] row = includeCount ? new String[]{value.getName(), Long.toString(value.getCount())} : new String[]{value.getName()};
+                            String name = value.getName() != null ? value.getName() : "";
+                            String[] row = includeCount ? new String[]{name, Long.toString(value.getCount())} : new String[]{name};
                             writer.write(row);
                         }
                     }
@@ -667,9 +671,10 @@ public class SearchDAOImpl implements SearchDAO {
                 //write the facets to file
                 for(FacetField.Count value : ff.getValues()){
                     //String[] slatlon = value.getName().split(",");
-                    out.write(value.getName().getBytes());
-                    out.write("\n".getBytes());
-
+                    if (value.getName() != null) {
+                        out.write(value.getName().getBytes());
+                        out.write("\n".getBytes());
+                    }
                 }
             }
         }
@@ -771,7 +776,7 @@ public class SearchDAOImpl implements SearchDAO {
                    for(FacetField.Count facetEntry : facet.getValues()){
                        if(qasb.length() > 0)
                            qasb.append(",");
-                       qasb.append(facetEntry.getName());
+                       if (facetEntry.getName() != null) qasb.append(facetEntry.getName());
                    }
                 }
                 if(facet.getName().equals("month") && facet.getValueCount() > 0){
@@ -814,7 +819,10 @@ public class SearchDAOImpl implements SearchDAO {
             uidStats.put(infoHeader.toString(), -2);
 
             //construct correct RecordWriter based on the supplied fileType
-            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ? new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) : new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields));
+            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ?
+                    new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) :
+                    (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, header) :
+                            new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
 
             if(rw instanceof ShapeFileRecordWriter){
                 dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
@@ -828,13 +836,20 @@ public class SearchDAOImpl implements SearchDAO {
             if(splitByFacet != null){
                 for(Count facet: splitByFacet){
                     if(facet.getCount() > 0){
-                        SolrQuery splitByFacetQuery = solrQuery.getCopy().addFilterQuery(facet.getFacetField().getName() + ":" + facet.getName());
-                        splitByFacetQuery.setFacet(false);
-                        queries.add(splitByFacetQuery);
+                        SolrQuery splitByFacetQuery;
+                        //do not add remainderQuery here
+                        if (facet.getName() != null) {
+                            splitByFacetQuery = solrQuery.getCopy().addFilterQuery(facet.getFacetField().getName() + ":" + facet.getName());
+                            splitByFacetQuery.setFacet(false);
+                            queries.add(splitByFacetQuery);
+                        }
+
                     }
                 }
-                SolrQuery remainderQuery = solrQuery.getCopy().addFilterQuery("-"+splitByFacet.get(0).getFacetField().getName() + ":[* TO *]");
-                queries.add(0, remainderQuery);
+                if (splitByFacet.size() > 0) {
+                    SolrQuery remainderQuery = solrQuery.getCopy().addFilterQuery("-" + splitByFacet.get(0).getFacetField().getName() + ":[* TO *]");
+                    queries.add(0, remainderQuery);
+                }
             } else {
                 queries.add(0, solrQuery);
             }
@@ -971,7 +986,9 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * Note - this method extracts from CASSANDRA rather than the Index.
      */
-    public Map<String, Integer> writeResultsToStream(DownloadRequestParams downloadParams, OutputStream out, int i, boolean includeSensitive, DownloadDetailsDTO dd) throws Exception {
+    public Map<String, Integer> writeResultsToStream(
+            DownloadRequestParams downloadParams, OutputStream out, int i,
+            boolean includeSensitive, DownloadDetailsDTO dd, boolean limit) throws Exception {
 
         int resultsCount = 0;
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
@@ -1015,10 +1032,9 @@ public class SearchDAOImpl implements SearchDAO {
                 if(facet.getName().equals("assertions") && facet.getValueCount()>0){
 
                  for(FacetField.Count facetEntry : facet.getValues()){
-                     //System.out.println("facet: " + facetEntry.getName());
                      if(qasb.length()>0)
                          qasb.append(",");
-                     qasb.append(facetEntry.getName());
+                     if (facetEntry.getName() != null) qasb.append(facetEntry.getName());
                  }
                 }else if(facet.getName().equals("data_resource_uid") && checkDownloadLimits){
                     //populate the download limit
@@ -1053,7 +1069,10 @@ public class SearchDAOImpl implements SearchDAO {
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(titles,qaTitles);
             //Create the Writer that will be used to format the records
             //construct correct RecordWriter based on the supplied fileType
-            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ? new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) : new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields));
+            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ?
+                    new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) :
+                    (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, header) :
+                            new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
 
             if(rw instanceof ShapeFileRecordWriter){
                 dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
@@ -1078,20 +1097,22 @@ public class SearchDAOImpl implements SearchDAO {
                 for(String dr : downloadLimit.keySet()){
                     //add another fq to the search for data_resource_uid
                      downloadParams.setFq((String[])ArrayUtils.add(originalFq, "data_resource_uid:" + dr));
-                     resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, dr, includeSensitive,dd);
-                     if(fqBuilder.length() > 2) {
+                     resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields,
+                             resultsCount, dr, includeSensitive,dd,limit);
+                     if(fqBuilder.length()>2)
                          fqBuilder.append(" OR ");
-                     }
                      fqBuilder.append("data_resource_uid:").append(dr);
                 }
                 fqBuilder.append(")");
                 //now include the rest of the data resources
                 //add extra fq for the remaining records
                 downloadParams.setFq((String[])ArrayUtils.add(originalFq, fqBuilder.toString()));
-                resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive,dd);
+                resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields,
+                        resultsCount, null, includeSensitive,dd,limit);
             } else {
                 //download all at once
-                downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount, null, includeSensitive,dd);
+                downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount,
+                        null, includeSensitive,dd,limit);
             }
             rw.finalise();
 
@@ -1117,10 +1138,11 @@ public class SearchDAOImpl implements SearchDAO {
      */
     private int downloadRecords(DownloadRequestParams downloadParams, au.org.ala.biocache.RecordWriter writer,
                 Map<String, Integer> downloadLimit,  Map<String, Integer> uidStats,
-                String[] fields, String[] qaFields,int resultsCount, String dataResource, boolean includeSensitive, DownloadDetailsDTO dd) throws Exception {
+                String[] fields, String[] qaFields,int resultsCount, String dataResource, boolean includeSensitive,
+                DownloadDetailsDTO dd, boolean limit) throws Exception {
         logger.info("download query: " + downloadParams.getQ());
         SolrQuery solrQuery = initSolrQuery(downloadParams,false,null);
-        solrQuery.setRows(MAX_DOWNLOAD_SIZE);
+        solrQuery.setRows(limit ? MAX_DOWNLOAD_SIZE : -1);
         formatSearchQuery(downloadParams);
         solrQuery.setQuery(buildSpatialQueryString(downloadParams));
         //Only the fields specified below will be included in the results from the SOLR Query
@@ -1131,16 +1153,18 @@ public class SearchDAOImpl implements SearchDAO {
         StringBuilder  sb = new StringBuilder(downloadParams.getFields());
         if(downloadParams.getExtra().length()>0)
             sb.append(",").append(downloadParams.getExtra());
+        StringBuilder qasb = new StringBuilder();
         QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), pageSize, startIndex, "_docid_", "asc");
         List<String> uuids = new ArrayList<String>();
 
-        while (qr.getResults().size() > 0 && resultsCount < MAX_DOWNLOAD_SIZE && shouldDownload(dataResource, downloadLimit, false)) {
+        while (qr.getResults().size() > 0 && (!limit || resultsCount < MAX_DOWNLOAD_SIZE) &&
+                shouldDownload(dataResource, downloadLimit, false)) {
             logger.debug("Start index: " + startIndex);
             //cycle through the results adding them to the list that will be sent to cassandra
             for (SolrDocument sd : qr.getResults()) {
                 if(sd.getFieldValue("data_resource_uid") != null){
                 String druid = sd.getFieldValue("data_resource_uid").toString();
-                if(shouldDownload(druid,downloadLimit, true) && resultsCount < MAX_DOWNLOAD_SIZE){
+                if(shouldDownload(druid,downloadLimit, true) && (!limit || resultsCount < MAX_DOWNLOAD_SIZE)){
                     resultsCount++;
                     uuids.add(sd.getFieldValue("row_key").toString());
 
@@ -1152,11 +1176,12 @@ public class SearchDAOImpl implements SearchDAO {
                 }}
             }
             //logger.debug("Downloading " + uuids.size() + " records");
-            au.org.ala.biocache.Store.writeToWriter(writer, uuids.toArray(new String[]{}), fields, qaFields, includeSensitive);
+            String[] newMiscFields = au.org.ala.biocache.Store.writeToWriter(writer, uuids.toArray(new String[]{}), fields, qaFields, includeSensitive, (dd.getRequestParams() != null ? dd.getRequestParams().getIncludeMisc() : false), dd.getMiscFields());
+            dd.setMiscFields(newMiscFields);
             startIndex += pageSize;
             uuids.clear();
             dd.updateCounts(qr.getResults().size());
-            if (resultsCount < MAX_DOWNLOAD_SIZE) {
+            if (!limit || resultsCount < MAX_DOWNLOAD_SIZE) {
                 //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
                 qr = runSolrQuery(solrQuery, null, pageSize, startIndex, "_docid_", "asc");
             }
@@ -1195,11 +1220,12 @@ public class SearchDAOImpl implements SearchDAO {
         //get the download limits from the cache
         Map<String, Integer>limits = collectionCache.getDownloadLimits();
         for(FacetField.Count facetEntry :facet.getValues()){
-            Integer limit = limits.get(facetEntry.getName());
+            String name = facetEntry.getName() != null ? facetEntry.getName() : "";
+            Integer limit = limits.get(name);
             if(limit != null && limit >0){
                 //check to see if the number of records returned from the query execeeds the limit
                 if(limit < facetEntry.getCount())
-                    map.put(facetEntry.getName(), limit);
+                    map.put(name, limit);
             }
         }
         if(map.size()>0)
@@ -1243,24 +1269,26 @@ public class SearchDAOImpl implements SearchDAO {
                 if (facet.getName().contains(pointType.getLabel()) && (facetEntries != null) && (facetEntries.size() > 0)) {
 
                     for (FacetField.Count fcount : facetEntries) {
-                        OccurrencePoint point = new OccurrencePoint(pointType);
-                        point.setCount(fcount.getCount());
-                        String[] pointsDelimited = StringUtils.split(fcount.getName(), ',');
-                        List<Float> coords = new ArrayList<Float>();
+                        if (StringUtils.isNotEmpty(fcount.getName())) {
+                            OccurrencePoint point = new OccurrencePoint(pointType);
+                            point.setCount(fcount.getCount());
+                            String[] pointsDelimited = StringUtils.split(fcount.getName(), ',');
+                            List<Float> coords = new ArrayList<Float>();
 
-                        for (String coord : pointsDelimited) {
-                            try {
-                                Float decimalCoord = Float.parseFloat(coord);
-                                coords.add(decimalCoord);
-                            } catch (NumberFormatException numberFormatException) {
-                                logger.warn("Error parsing Float for Lat/Long: " + numberFormatException.getMessage(), numberFormatException);
+                            for (String coord : pointsDelimited) {
+                                try {
+                                    Float decimalCoord = Float.parseFloat(coord);
+                                    coords.add(decimalCoord);
+                                } catch (NumberFormatException numberFormatException) {
+                                    logger.warn("Error parsing Float for Lat/Long: " + numberFormatException.getMessage(), numberFormatException);
+                                }
                             }
-                        }
 
-                        if (!coords.isEmpty()) {
-                            Collections.reverse(coords); // must be long, lat order
-                            point.setCoordinates(coords);
-                            points.add(point);
+                            if (!coords.isEmpty()) {
+                                Collections.reverse(coords); // must be long, lat order
+                                point.setCoordinates(coords);
+                                points.add(point);
+                            }
                         }
                     }
                 }
@@ -1270,7 +1298,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see au.org.ala.biocache.dao.SearchDAO#getFacetPointsShort(au.org.ala.biocache.dto.SpatialSearchRequestParams, au.org.ala.biocache.dto.PointType)
+     * @see au.org.ala.biocache.dao.SearchDAO#getFacetPointsShort(au.org.ala.biocache.dto.SpatialSearchRequestParams, String)
      */
     @Override
     public FacetField getFacetPointsShort(SpatialSearchRequestParams searchParams, String pointType) throws Exception {
@@ -1456,24 +1484,26 @@ public class SearchDAOImpl implements SearchDAO {
                 if (facet.getName().contains(pointType.getLabel()) && (facetEntries != null) && (facetEntries.size() > 0)) {
 
                     for (FacetField.Count fcount : facetEntries) {
-                        OccurrencePoint point = new OccurrencePoint(pointType);
-                        point.setCount(fcount.getCount());
-                        String[] pointsDelimited = StringUtils.split(fcount.getName(), ',');
-                        List<Float> coords = new ArrayList<Float>();
+                        if (StringUtils.isNotEmpty(fcount.getName())) {
+                            OccurrencePoint point = new OccurrencePoint(pointType);
+                            point.setCount(fcount.getCount());
+                            String[] pointsDelimited = StringUtils.split(fcount.getName(), ',');
+                            List<Float> coords = new ArrayList<Float>();
 
-                        for (String coord : pointsDelimited) {
-                            try {
-                                Float decimalCoord = Float.parseFloat(coord);
-                                coords.add(decimalCoord);
-                            } catch (NumberFormatException numberFormatException) {
-                                logger.warn("Error parsing Float for Lat/Long: " + numberFormatException.getMessage(), numberFormatException);
+                            for (String coord : pointsDelimited) {
+                                try {
+                                    Float decimalCoord = Float.parseFloat(coord);
+                                    coords.add(decimalCoord);
+                                } catch (NumberFormatException numberFormatException) {
+                                    logger.warn("Error parsing Float for Lat/Long: " + numberFormatException.getMessage(), numberFormatException);
+                                }
                             }
-                        }
 
-                        if (!coords.isEmpty()) {
-                            Collections.reverse(coords); // must be long, lat order
-                            point.setCoordinates(coords);
-                            points.add(point);
+                            if (!coords.isEmpty()) {
+                                Collections.reverse(coords); // must be long, lat order
+                                point.setCoordinates(coords);
+                                points.add(point);
+                            }
                         }
                     }
                 }
@@ -1769,7 +1799,6 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      */
     private SearchResultDTO processSolrResponse(SearchRequestParams params, QueryResponse qr, SolrQuery solrQuery, Class resultClass) {
-
         SearchResultDTO searchResult = new SearchResultDTO();
         SolrDocumentList sdl = qr.getResults();
         // Iterator it = qr.getResults().iterator() // Use for download
@@ -1811,7 +1840,6 @@ public class SearchDAOImpl implements SearchDAO {
         searchResult.setDir(solrSort[1]); // sortDirection
         searchResult.setQuery(params.getUrlParams()); //this needs to be the original URL>>>>
         searchResult.setOccurrences(results);
-
         // populate SOLR facet results
         if (facets != null) {
             for (FacetField facet : facets) {
@@ -1824,13 +1852,7 @@ public class SearchDAOImpl implements SearchDAO {
                         if (fcount.getName() == null) {
                             r.add(new FieldResultDTO("", fcount.getCount(), "-" + facet.getName() + ":*"));
                         } else {
-                            r.add(new FieldResultDTO(
-                                    getFacetValueDisplayName(
-                                            facet.getName(),
-                                            fcount.getName()),
-                                            fcount.getCount(),
-                                            getFormattedFqQuery(facet.getName(), fcount.getName())
-                            ));
+                            r.add(new FieldResultDTO(getFacetValueDisplayName(facet.getName(), fcount.getName()), fcount.getCount(), facet.getName() + ":\"" + fcount.getName() + "\""));
                         }
                     }
                     // only add facets if there are more than one facet result
@@ -2423,9 +2445,9 @@ public class SearchDAOImpl implements SearchDAO {
     protected String[] getQueryContextAsArray(String queryContext){
         if(StringUtils.isNotEmpty(queryContext)){
             String[] values = queryContext.split(",");
-            for(int i = 0; i<values.length;i++){
+            for(int i =0; i<values.length;i++){
                 String field = values[i];
-                values[i] = field.replace("hub:", "data_hub_uid:");
+                values[i]= field.replace("hub:", "data_hub_uid:");
             }
             //add the query context to the filter query
             return values;
@@ -2457,7 +2479,7 @@ public class SearchDAOImpl implements SearchDAO {
         if(searchParams.getFacet()) {
             for (String facet : searchParams.getFacets()) {
                 if (facet.equals("date") || facet.equals("decade")) {
-                    String fname = facet.equals("decade") ? "occurrence_year" : "occurrence_" + facet;
+                    String fname = facet.equals("decade") ? "occurrence_year" : "occurrence_"+facet;
                     initDecadeBasedFacet(solrQuery, fname);
                 } else if(facet.equals("uncertainty")){
                     Map<String, String> rangeMap = rangeBasedFacets.getRangeMap("uncertainty");
@@ -2538,7 +2560,7 @@ public class SearchDAOImpl implements SearchDAO {
             try {
                 Map<String, FieldStatsInfo> stats = getStatistics(searchParams);
                 if(stats != null){
-                    IndexFieldDTO ifdto = indexFieldMap.get(field);
+                    IndexFieldDTO ifdto =indexFieldMap.get(field);
                     if(ifdto !=null){
                         String type = ifdto.getDataType();
                         details = new StatsIndexFieldDTO(stats.get(field), type);
@@ -2613,11 +2635,12 @@ public class SearchDAOImpl implements SearchDAO {
                         //FacetField.Count fcount = facetEntries.get(i);
                         //speciesCounts.add(i, new TaxaCountDTO(fcount.getName(), fcount.getCount()));
                         TaxaCountDTO tcDTO = null;
+                        String name = fcount.getName() != null ? fcount.getName() : "";
                         if (fcount.getFacetField().getName().equals(NAMES_AND_LSID)) {
-                            String[] values = p.split(fcount.getName(),5);
+                            String[] values = p.split(name, 5);
 
                             if (values.length >= 5) {
-                                if(!"||||".equals(fcount.getName())){
+                                if (!"||||".equals(name)) {
                                     tcDTO = new TaxaCountDTO(values[0], fcount.getCount());
                                     tcDTO.setGuid(StringUtils.trimToNull(values[1]));
                                     tcDTO.setCommonName(values[2]);
@@ -2626,20 +2649,19 @@ public class SearchDAOImpl implements SearchDAO {
                                     if(StringUtils.isNotEmpty(tcDTO.getGuid()))
                                         tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
                                 }
-                            }
-                            else{
-                                logger.debug("The values length: " + values.length + " :" + fcount.getName());
-                                tcDTO = new TaxaCountDTO(fcount.getName(), fcount.getCount());
+                            } else {
+                                logger.debug("The values length: " + values.length + " :" + name);
+                                tcDTO = new TaxaCountDTO(name, fcount.getCount());
                             }
                             //speciesCounts.add(i, tcDTO);
                             if(tcDTO != null)
                                 speciesCounts.add(tcDTO);
                         }
                         else if(fcount.getFacetField().getName().equals(COMMON_NAME_AND_LSID)){
-                            String[] values = p.split(fcount.getName(),6);
+                            String[] values = p.split(name, 6);
 
                             if(values.length >= 5){
-                                if(!"|||||".equals(fcount.getName())){
+                                if (!"|||||".equals(name)) {
                                     tcDTO = new TaxaCountDTO(values[1], fcount.getCount());
                                     tcDTO.setGuid(StringUtils.trimToNull(values[2]));
                                     tcDTO.setCommonName(values[0]);
@@ -2650,8 +2672,8 @@ public class SearchDAOImpl implements SearchDAO {
                                         tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
                                 }
                             } else {
-                                logger.debug("The values length: " + values.length + " :" + fcount.getName());
-                                tcDTO = new TaxaCountDTO(fcount.getName(), fcount.getCount());
+                                logger.debug("The values length: " + values.length + " :" + name);
+                                tcDTO = new TaxaCountDTO(name, fcount.getCount());
                             }
                             //speciesCounts.add(i, tcDTO);
                             if(tcDTO != null){
@@ -2694,7 +2716,7 @@ public class SearchDAOImpl implements SearchDAO {
         for (FacetField facet : facets) {
             if (facet.getValues() != null) {
                 for (FacetField.Count ffc : facet.getValues()) {
-                    uidStats.put(ffc.getName(), new Integer((int) ffc.getCount()));
+                    uidStats.put(ffc.getName() != null ? ffc.getName() : "", new Integer((int) ffc.getCount()));
                 }
             }
         }
@@ -2831,121 +2853,162 @@ public class SearchDAOImpl implements SearchDAO {
                 String[] fields = includeCounts?fieldStr.split("\\}\\},"):fieldStr.split("\\},");
 
                 for (String field : fields) {
-                    if (field != null && !"".equals(field)) {
-                        IndexFieldDTO f = new IndexFieldDTO();
+                    formatIndexField(field, null, fieldList, typePattern, schemaPattern, indexToJsonMap, distinctPattern);
+                }
+            }
+        }
 
-                        String fieldName = field.split("=")[0];
-                        String type = null;
-                        String schema = null;
-                        Matcher typeMatcher = typePattern.matcher(field);
-                        if (typeMatcher.find(0)) {
-                            type = typeMatcher.group(1);
-                        }
+        //add CASSANDRA fields that are not indexed
+        for (String cassandraField : Store.getStorageFieldMap().keySet()) {
+            boolean found = false;
+            //ignore fields with multiple items
+            if (cassandraField != null && !cassandraField.contains(",")) {
+                for (IndexFieldDTO field : fieldList) {
+                    if (field.isIndexed() || field.isStored()) {
+                        if (field.getDownloadName() != null && field.getDownloadName().equals(cassandraField)) {
 
-                        Matcher schemaMatcher = schemaPattern.matcher(field);
-                        if (schemaMatcher.find(0)) {
-                            schema = schemaMatcher.group(1);
-                        }
-                        if(schema != null){
-                            //logger.debug("fieldName:" + fieldName +", type:" + type);
-//                            logger.debug("schema:" + schema);
-                            //don't allow the sensitive coordinates to be exposed via ws
-                            if(fieldName != null && !fieldName.startsWith("sensitive")){
-
-                                f.setName(fieldName);
-                                f.setDataType(type);
-                                //interpret the schema information
-                                f.setIndexed(schema.contains("I"));
-                                f.setStored(schema.contains("S"));
-
-                                //now add the i18n and associated strings to the field.
-                                //1. description: display name from fieldName= in i18n
-                                //2. info: details about this field from description.fieldName= in i18n
-                                //3. dwcTerm: DwC field name for this field from dwc.fieldName= in i18n
-                                //4. jsonName: json key as returned by occurrences/search
-                                //5. downloadField: biocache-store column name that is usable in DownloadRequestParams.fl
-                                //if the field has (5) downloadField, use it to find missing (1), (2) or (3)
-                                //6. downloadDescription: the column name when downloadField is used in
-                                //   DownloadRequestParams.fl and a translation occurs
-                                //7. i18nValues: true | false, indicates that the values returned by this field can be
-                                //   translated using facetName.value= in /facets/i18n
-                                if (layersPattern.matcher(fieldName).matches()) {
-                                    //System.out.println(layersService.getLayerNameMap());
-                                    String description = layersService.getLayerNameMap().get(fieldName);
-                                    f.setDescription(description);
-                                } else {
-                                    //(5) check as a downloadField
-                                    String downloadField = Store.getIndexFieldMap().get(fieldName);
-                                    //exclude compound fields
-                                    if (downloadField != null && downloadField.contains(",")) downloadField = null;
-                                    if (downloadField != null) {
-                                        f.setDownloadName(downloadField);
-
-                                        //(6) downloadField description
-                                        String downloadFieldDescription = messageSource.getMessage(downloadField, null, "", Locale.getDefault());
-                                        if (downloadFieldDescription.length() > 0) {
-                                            f.setDownloadDescription(downloadFieldDescription);
-                                        }
-                                    }
-
-                                    //(1) check as a field name
-                                    String description = messageSource.getMessage("facet." + fieldName, null, "", Locale.getDefault());
-                                    if (description.length() > 0) {
-                                        f.setDescription(description);
-                                    } else if (downloadField != null) {
-                                        description = messageSource.getMessage(downloadField, null, "", Locale.getDefault());
-                                        if (description.length() > 0) {
-                                            f.setDescription(description);
-                                        }
-                                    }
-
-                                    //(2) check as a description
-                                    String info = messageSource.getMessage("description." + fieldName, null, "", Locale.getDefault());
-                                    if (info.length() > 0) {
-                                        f.setInfo(info);
-                                    } else if (downloadField != null) {
-                                        info = messageSource.getMessage("description." + downloadField, null, "", Locale.getDefault());
-                                        if (info.length() > 0) {
-                                            f.setInfo(info);
-                                        }
-                                    }
-
-                                    //(3) check as a dwcTerm
-                                    String dwcTerm = messageSource.getMessage("dwc." + fieldName, null, "", Locale.getDefault());
-                                    if (dwcTerm.length() > 0) {
-                                        f.setDwcTerm(dwcTerm);
-                                    } else if (downloadField != null) {
-                                        dwcTerm = messageSource.getMessage("dwc." + downloadField, null, "", Locale.getDefault());
-                                        if (dwcTerm.length() > 0) {
-                                            f.setDwcTerm(dwcTerm);
-                                        }
-                                    }
-
-                                    //(4) check as json name
-                                    String json = (String) indexToJsonMap.get(fieldName);
-                                    if (json != null) {
-                                        f.setJsonName(json);
-                                    }
-
-                                    //(7) has lookupValues in i18n
-                                    String i18nValues = messageSource.getMessage("i18nvalues." + fieldName, null, "", Locale.getDefault());
-                                    if (i18nValues.length() > 0) {
-                                        f.setI18nValues("true".equalsIgnoreCase(i18nValues));
-                                    }
-                                }
-                                fieldList.add(f);
-                            }
-                        }
-                        Matcher distinctMatcher = distinctPattern.matcher(field);
-                        if(distinctMatcher.find(0)){
-                            Integer distinct = Integer.parseInt(distinctMatcher.group(1));
-                            f.setNumberDistinctValues(distinct);
+                            found = true;
+                            break;
                         }
                     }
+                }
+                if (!found) {
+                    formatIndexField(cassandraField, cassandraField, fieldList, typePattern, schemaPattern, indexToJsonMap, distinctPattern);
                 }
             }
         }
         return fieldList;
+    }
+
+    private void formatIndexField(String indexField, String cassandraField, Set<IndexFieldDTO> fieldList, Pattern typePattern,
+                                  Pattern schemaPattern, Map indexToJsonMap, Pattern distinctPattern) {
+
+        if (indexField != null && !"".equals(indexField)) {
+            IndexFieldDTO f = new IndexFieldDTO();
+
+            String fieldName = indexField.split("=")[0];
+            String type = null;
+            String schema = null;
+            Matcher typeMatcher = typePattern.matcher(indexField);
+            if (typeMatcher.find(0)) {
+                type = typeMatcher.group(1);
+            }
+
+            Matcher schemaMatcher = schemaPattern.matcher(indexField);
+            if (schemaMatcher.find(0)) {
+                schema = schemaMatcher.group(1);
+            }
+
+            //don't allow the sensitive coordinates to be exposed via ws and don't allow index fields without schema
+            if (fieldName != null && !fieldName.startsWith("sensitive_") && (cassandraField != null || schema != null)) {
+
+                f.setName(fieldName);
+                if (type != null) f.setDataType(type);
+                else f.setDataType("string");
+
+                //interpret the schema information
+                if (schema != null) {
+                    f.setIndexed(schema.contains("I"));
+                    f.setStored(schema.contains("S"));
+                    f.setMultivalue(schema.contains("M"));
+                }
+
+                //now add the i18n and associated strings to the field.
+                //1. description: display name from fieldName= in i18n
+                //2. info: details about this field from description.fieldName= in i18n
+                //3. dwcTerm: DwC field name for this field from dwc.fieldName= in i18n
+                //4. jsonName: json key as returned by occurrences/search
+                //5. downloadField: biocache-store column name that is usable in DownloadRequestParams.fl
+                //if the field has (5) downloadField, use it to find missing (1), (2) or (3)
+                //6. downloadDescription: the column name when downloadField is used in
+                //   DownloadRequestParams.fl and a translation occurs
+                //7. i18nValues: true | false, indicates that the values returned by this field can be
+                //   translated using facetName.value= in /facets/i18n
+                //8. class value for this field
+                if (layersPattern.matcher(fieldName).matches()) {
+                    //System.out.println(layersService.getLayerNameMap());
+                    String description = layersService.getLayerNameMap().get(fieldName);
+                    f.setDescription(description);
+                } else {
+                    //(5) check as a downloadField
+                    String downloadField = cassandraField != null ? cassandraField : Store.getIndexFieldMap().get(fieldName);
+                    //exclude compound fields
+                    if (downloadField != null && downloadField.contains(",")) downloadField = null;
+                    if (downloadField != null) {
+                        f.setDownloadName(downloadField);
+
+                        //(6) downloadField description
+                        String downloadFieldDescription = messageSource.getMessage(downloadField, null, "", Locale.getDefault());
+                        if (downloadFieldDescription.length() > 0) {
+                            f.setDownloadDescription(downloadFieldDescription);
+                        }
+                    }
+
+                    //(1) check as a field name
+                    String description = messageSource.getMessage("facet." + fieldName, null, "", Locale.getDefault());
+                    if (description.length() > 0 && downloadField == null) {
+                        f.setDescription(description);
+                    } else if (downloadField != null) {
+                        description = messageSource.getMessage(downloadField, null, "", Locale.getDefault());
+                        if (description.length() > 0) {
+                            f.setDescription(description);
+                        }
+                    }
+
+                    //(2) check as a description
+                    String info = messageSource.getMessage("description." + fieldName, null, "", Locale.getDefault());
+                    if (info.length() > 0 && downloadField == null) {
+                        f.setInfo(info);
+                    } else if (downloadField != null) {
+                        info = messageSource.getMessage("description." + downloadField, null, "", Locale.getDefault());
+                        if (info.length() > 0) {
+                            f.setInfo(info);
+                        }
+                    }
+
+                    //(3) check as a dwcTerm
+                    String dwcTerm = messageSource.getMessage("dwc." + fieldName, null, "", Locale.getDefault());
+                    if (dwcTerm.length() > 0 && downloadField == null) {
+                        f.setDwcTerm(dwcTerm);
+                    } else if (downloadField != null) {
+                        dwcTerm = messageSource.getMessage("dwc." + downloadField, null, "", Locale.getDefault());
+                        if (dwcTerm.length() > 0) {
+                            f.setDwcTerm(dwcTerm);
+                        }
+                    }
+
+                    //(4) check as json name
+                    String json = (String) indexToJsonMap.get(fieldName);
+                    if (json != null && downloadField == null) {
+                        f.setJsonName(json);
+                    }
+
+                    //(7) has lookupValues in i18n
+                    String i18nValues = messageSource.getMessage("i18nvalues." + fieldName, null, "", Locale.getDefault());
+                    if (i18nValues.length() > 0) {
+                        f.setI18nValues("true".equalsIgnoreCase(i18nValues));
+                    }
+
+                    //(8) get class
+                    String classs = messageSource.getMessage("class." + fieldName, null, "", Locale.getDefault());
+                    if (classs.length() > 0 && downloadField == null) {
+                        f.setClasss(classs);
+                    } else if (downloadField != null) {
+                        classs = messageSource.getMessage("class." + downloadField, null, "", Locale.getDefault());
+                        if (classs.length() > 0) {
+                            f.setClasss(classs);
+                        }
+                    }
+                }
+                fieldList.add(f);
+            }
+
+            Matcher distinctMatcher = distinctPattern.matcher(indexField);
+            if (distinctMatcher.find(0)) {
+                Integer distinct = Integer.parseInt(distinctMatcher.group(1));
+                f.setNumberDistinctValues(distinct);
+            }
+        }
     }
 
     /**
@@ -3071,18 +3134,17 @@ public class SearchDAOImpl implements SearchDAO {
             String firstDate = null;
             for(FacetField.Count facetEntry: ff.getValues()){
                 String startDate = facetEntry.getName();
-                if(firstDate == null) {
-                    firstDate = startDate;
-                }
-                String finishDate;
+                if(firstDate == null)
+                    firstDate=startDate;
+                String finishDate="*";
                 if("before".equals(startDate)){
                     startDate = "*";
                     finishDate = firstDate;
                 } else {
                     int startYear = Integer.parseInt(startDate.substring(0,4));
-                    finishDate = (startYear-1) + "-12-31T23:59:59Z";
+                    finishDate = (startYear-1) +"-12-31T23:59:59Z";
                 }
-                legend.add(new LegendItem(facetEntry.getName(), facetEntry.getCount(), "occurrence_year:["+ startDate + " TO "+finishDate+"]"));
+                legend.add(new LegendItem(facetEntry.getName(), facetEntry.getCount(),"occurrence_year:["+ startDate+" TO "+finishDate+"]"));
             }
         }
         return legend;
@@ -3110,12 +3172,12 @@ public class SearchDAOImpl implements SearchDAO {
     public List<DataProviderCountDTO> getDataProviderList(SpatialSearchRequestParams requestParams) throws Exception {
         List<DataProviderCountDTO> dataProviderList = new ArrayList<DataProviderCountDTO>();
         FacetField facet = getFacet(requestParams, "data_provider_uid");
-        String [] oldFq = requestParams.getFacets();
+        String[] oldFq = requestParams.getFacets();
         if(facet != null) {
-            String [] dp = new String [1];
+            String[] dp = new String[1];
             List<FacetField.Count> facetEntries = facet.getValues();
             if (facetEntries != null && facetEntries.size() > 0) {
-                for (int i=0;i<facetEntries.size();i++) {
+                for (int i = 0; i < facetEntries.size(); i++) {
                     FacetField.Count fcount = facetEntries.get(i);
 
                     //get data_provider value

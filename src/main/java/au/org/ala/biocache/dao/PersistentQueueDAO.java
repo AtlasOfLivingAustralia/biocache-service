@@ -22,6 +22,17 @@ public interface PersistentQueueDAO {
      * @return
      */
     DownloadDetailsDTO getNextDownload();
+
+    /**
+     * Limited by the optional maxRecords and type, return the next offline download from the queue. Leaving it on the
+     * queue until a remove is called.
+     *
+     * @param maxRecords null to ignore
+     * @param type null to ignore
+     * @return
+     */
+    DownloadDetailsDTO getNextDownload(Integer maxRecords, DownloadDetailsDTO.DownloadType type);
+
     /**
      * Returns the total number of download that are on the queue
      * @return
@@ -41,4 +52,6 @@ public interface PersistentQueueDAO {
      * Refreshes the list from the persistent data store
      */
     void refreshFromPersistent();
+
+    DownloadDetailsDTO isInQueue(DownloadDetailsDTO dd);
 }

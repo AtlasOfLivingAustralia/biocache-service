@@ -31,6 +31,11 @@ public class PersistentQueueDAOTest {
     private void addQueue(String title){
         DownloadDetailsDTO dd = new DownloadDetailsDTO(getParams(title), "127.0.0.1", DownloadType.FACET);        
         queueDAO.addDownloadToQueue(dd);
+        try {
+            Thread.sleep(5);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
     
     @Test

@@ -16,8 +16,10 @@ package au.org.ala.biocache.dto;
 
 import org.codehaus.jackson.annotate.JsonIgnore;
 
+import java.io.File;
 import java.util.Date;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Stores the details of a download.  Will allow for monitoring of downloads
@@ -38,7 +40,8 @@ public class DownloadDetailsDTO {
     private String fileLocation;
     private boolean includeSensitive = false;
     private Map<String,String> headerMap = null;
-    
+    private String [] miscFields = null;
+
     /**
      * Default constructor necessary for Jackson to create an object from the JSON. 
      */
@@ -177,6 +180,20 @@ public class DownloadDetailsDTO {
     }
 
     /**
+     * @param miscFields the miscFields to set
+     */
+    public void setMiscFields(String[] miscFields) {
+        this.miscFields = miscFields;
+    }
+
+    /**
+     * @return the miscFields
+     */
+    public String [] getMiscFields() {
+        return miscFields;
+    }
+
+    /**
      * @param ipAddress the ipAddress to set
      */
     public void setIpAddress(String ipAddress) {
@@ -190,7 +207,15 @@ public class DownloadDetailsDTO {
     public Map<String, String> getHeaderMap() {
         return headerMap;
     }
-    
+
+    /**
+     * @return unique id constructed from email and start time
+     */
+    @JsonIgnore
+    public String getUniqueId() {
+        return UUID.nameUUIDFromBytes(getEmail().getBytes()) + "-" + getStartTime();
+    }
+
     /**
      * @param headerMap the headerMap to set
      */

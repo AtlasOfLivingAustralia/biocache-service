@@ -30,6 +30,8 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     private boolean indexed;
     /** True when the field is available for extraction in search results */
     private boolean stored;
+    /** True when the field is a multivalue field */
+    private boolean multivalue;
     /** Stores the number of distinct values that are in the field */
     private Integer numberDistinctValues;
     /** the i18n string to used for the field. */
@@ -46,7 +48,9 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     private String downloadDescription;
     /** the values in this field can be looked up within i18n using name.{value} */
     private Boolean i18nValues;
-    
+    /** class of this field */
+    private String classs;
+
     @Override
     public boolean equals(Object obj){
         if(obj instanceof IndexFieldDTO && name != null){
@@ -213,7 +217,20 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
           + ", indexed=" + indexed + ", stored=" + stored
           + ", numberDistinctValues=" + numberDistinctValues + "]";
     }
-    
-    
-    
+
+    public void setClasss(String classs) {
+        this.classs = classs;
+    }
+
+    public String getClasss() {
+        return classs;
+    }
+
+    public void setMultivalue(boolean multivalue) {
+        this.multivalue = multivalue;
+    }
+
+    public boolean isMultivalue() {
+        return multivalue;
+    }
 }

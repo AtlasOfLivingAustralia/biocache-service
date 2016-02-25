@@ -403,7 +403,7 @@ public class WMSController {
         for (i = 0; i < legend.size(); i++) {
             LegendItem li = legend.get(i);
             String name = li.getName();
-            if (name == null) {
+            if (StringUtils.isEmpty(name)) {
                 name = NULL_NAME;
             }
             int colour = DEFAULT_COLOUR;
@@ -868,7 +868,7 @@ public class WMSController {
                     if (cutpoints == null) {
                         colour = colourList[i];
                     } else if (cutpoints != null && i - offset < cutpoints.length) {
-                        if (legend.get(i).getName() == null || legend.get(i).getName().equals(NULL_NAME) || legend.get(i).getName().startsWith("-")) {
+                        if (StringUtils.isEmpty(legend.get(i).getName()) || legend.get(i).getName().equals(NULL_NAME) || legend.get(i).getName().startsWith("-")) {
                             offset++;
                         } else {
                             colour = getRangedColour(i - offset, cutpoints.length / 2);
@@ -2288,7 +2288,7 @@ public class WMSController {
                     fqs[0] = li.getFq();
 
                     //invert fq
-                    if (li.getName() == null) {
+                    if (StringUtils.isEmpty(li.getName())) {
                         //li.getFq() is of the form "-(...)"
                         fqsDone.add(fqs[0].substring(1));
                     } else {
@@ -2362,7 +2362,8 @@ public class WMSController {
                         boolean added = false;
                         for (int i = 0; i < colours.size(); i++) {
                             LegendItem li = colours.get(i);
-                            if ((li.getName() == null && p.getValue() == null) || (li.getName() != null && li.getName().equals(p.getValue()))) {
+                            if ((StringUtils.isEmpty(li.getName()) && StringUtils.isEmpty(p.getValue()))
+                                    || (StringUtils.isNotEmpty(li.getName()) && li.getName().equals(p.getValue()))) {
                                 makePointsFromPivot(p.getPivotResult(), pointsArrays, countsArrays);
                                 pColour.add(li.getColour() | (vars.alpha << 24));
                                 added = true;
@@ -2418,7 +2419,7 @@ public class WMSController {
         int j = 0;
         for (FacetPivotResultDTO fpr : pivotResult) {
             String v = fpr.getValue();
-            if (v != null) {
+            if (StringUtils.isNotEmpty(v)) {
                 int p = v.indexOf(',');
                 points[i++] = Float.parseFloat(v.substring(p + 1));
                 points[i++] = Float.parseFloat(v.substring(0, p));

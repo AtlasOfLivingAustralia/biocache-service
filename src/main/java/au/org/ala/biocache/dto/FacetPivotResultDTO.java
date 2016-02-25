@@ -52,7 +52,7 @@ public class FacetPivotResultDTO {
 
     public FacetPivotResultDTO(String pivotField, List<FacetPivotResultDTO> pivotResult, String value, Integer count) {
         this(pivotField, pivotResult);
-        this.value = value;
+        this.value = value != null ? value : "";
         this.count = count;
     }
 
