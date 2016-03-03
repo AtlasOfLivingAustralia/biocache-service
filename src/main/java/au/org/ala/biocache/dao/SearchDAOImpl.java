@@ -201,7 +201,7 @@ public class SearchDAOImpl implements SearchDAO {
     private Map<String, IndexFieldDTO> indexFieldMap = null;
     private Map<String, StatsIndexFieldDTO> rangeFieldCache = null;
     private Set<String> authIndexFields = null;
-    
+
     /** SOLR index version for client app caching use. */
     private long solrIndexVersion = 0;
     /** last time SOLR index version was refreshed */
@@ -565,7 +565,7 @@ public class SearchDAOImpl implements SearchDAO {
                 CSVRecordWriter writer = new CSVRecordWriter(out, header);
 
                 boolean addedNullFacet = false;
-                
+
                 //out.write("\n".getBytes());
                 //PAGE through the facets until we reach the end.
                 //do not continue when null facet is already added and the next facet is only null
@@ -671,7 +671,7 @@ public class SearchDAOImpl implements SearchDAO {
                 //write the facets to file
                 for(FacetField.Count value : ff.getValues()){
                     //String[] slatlon = value.getName().split(",");
-                    if (value.getName() != null) {
+                    if (value.getName() != null && value.getCount() > 0) {
                         out.write(value.getName().getBytes());
                         out.write("\n".getBytes());
                     }
@@ -774,9 +774,11 @@ public class SearchDAOImpl implements SearchDAO {
             for(FacetField facet : facetQuery.getFacetFields()){
                 if(facet.getName().equals("assertions") && facet.getValueCount() > 0){
                    for(FacetField.Count facetEntry : facet.getValues()){
-                       if(qasb.length() > 0)
-                           qasb.append(",");
-                       if (facetEntry.getName() != null) qasb.append(facetEntry.getName());
+                       if (facetEntry.getCount() > 0) {
+                           if (qasb.length() > 0)
+                               qasb.append(",");
+                           if (facetEntry.getName() != null) qasb.append(facetEntry.getName());
+                       }
                    }
                 }
                 if(facet.getName().equals("month") && facet.getValueCount() > 0){
@@ -1032,9 +1034,11 @@ public class SearchDAOImpl implements SearchDAO {
                 if(facet.getName().equals("assertions") && facet.getValueCount()>0){
 
                  for(FacetField.Count facetEntry : facet.getValues()){
-                     if(qasb.length()>0)
-                         qasb.append(",");
-                     if (facetEntry.getName() != null) qasb.append(facetEntry.getName());
+                     if (facetEntry.getCount() > 0) {
+                         if (qasb.length() > 0)
+                             qasb.append(",");
+                         if (facetEntry.getName() != null) qasb.append(facetEntry.getName());
+                     }
                  }
                 }else if(facet.getName().equals("data_resource_uid") && checkDownloadLimits){
                     //populate the download limit
@@ -1269,7 +1273,7 @@ public class SearchDAOImpl implements SearchDAO {
                 if (facet.getName().contains(pointType.getLabel()) && (facetEntries != null) && (facetEntries.size() > 0)) {
 
                     for (FacetField.Count fcount : facetEntries) {
-                        if (StringUtils.isNotEmpty(fcount.getName())) {
+                        if (StringUtils.isNotEmpty(fcount.getName()) && fcount.getCount() > 0) {
                             OccurrencePoint point = new OccurrencePoint(pointType);
                             point.setCount(fcount.getCount());
                             String[] pointsDelimited = StringUtils.split(fcount.getName(), ',');
@@ -1443,8 +1447,10 @@ public class SearchDAOImpl implements SearchDAO {
                     String dataProviderName = dpNameEntry.getName();
                     long count = dpIdEntry.getCount();
 
-                    DataProviderCountDTO dto = new DataProviderCountDTO(dataProviderId, dataProviderName, count);
-                    dpDTOs.add(dto);
+                    if (count > 0) {
+                        DataProviderCountDTO dto = new DataProviderCountDTO(dataProviderId, dataProviderName, count);
+                        dpDTOs.add(dto);
+                    }
                 }
             }
         }
@@ -1484,7 +1490,7 @@ public class SearchDAOImpl implements SearchDAO {
                 if (facet.getName().contains(pointType.getLabel()) && (facetEntries != null) && (facetEntries.size() > 0)) {
 
                     for (FacetField.Count fcount : facetEntries) {
-                        if (StringUtils.isNotEmpty(fcount.getName())) {
+                        if (StringUtils.isNotEmpty(fcount.getName()) && fcount.getCount() > 0) {
                             OccurrencePoint point = new OccurrencePoint(pointType);
                             point.setCount(fcount.getCount());
                             String[] pointsDelimited = StringUtils.split(fcount.getName(), ',');
@@ -1556,8 +1562,10 @@ public class SearchDAOImpl implements SearchDAO {
         if (ff != null) {
             for (Count count : ff.getValues()) {
                 //only start adding counts when we hit a decade with some results.
-                FieldResultDTO f = new FieldResultDTO(count.getName(), count.getCount());
-                fDTOs.add(f);
+                if (count.getCount() > 0) {
+                    FieldResultDTO f = new FieldResultDTO(count.getName(), count.getCount());
+                    fDTOs.add(f);
+                }
             }
         }
         return fDTOs;
@@ -1607,8 +1615,10 @@ public class SearchDAOImpl implements SearchDAO {
                     if (ff.getValues() != null && ff.getValues().size() <= queryParams.getMax()){
                         List<FieldResultDTO> fDTOs = new ArrayList<FieldResultDTO>();
                         for (Count count : ff.getValues()) {
-                            FieldResultDTO f = new FieldResultDTO(count.getName(), count.getCount());
-                            fDTOs.add(f);
+                            if (count.getCount() > 0) {
+                                FieldResultDTO f = new FieldResultDTO(count.getName(), count.getCount());
+                                fDTOs.add(f);
+                            }
                         }
                         trDTO.setTaxa(fDTOs);
                         break;
@@ -1627,8 +1637,10 @@ public class SearchDAOImpl implements SearchDAO {
                         if (counts.size() > 0) {
                             List<FieldResultDTO> fDTOs = new ArrayList<FieldResultDTO>();
                             for (Count count : counts) {
-                                FieldResultDTO f = new FieldResultDTO(count.getName(), count.getCount());
-                                fDTOs.add(f);
+                                if (count.getCount() > 0) {
+                                    FieldResultDTO f = new FieldResultDTO(count.getName(), count.getCount());
+                                    fDTOs.add(f);
+                                }
                             }
                             trDTO.setTaxa(fDTOs);
                             break;
@@ -2654,7 +2666,7 @@ public class SearchDAOImpl implements SearchDAO {
                                 tcDTO = new TaxaCountDTO(name, fcount.getCount());
                             }
                             //speciesCounts.add(i, tcDTO);
-                            if(tcDTO != null)
+                            if(tcDTO != null && tcDTO.getCount() > 0)
                                 speciesCounts.add(tcDTO);
                         }
                         else if(fcount.getFacetField().getName().equals(COMMON_NAME_AND_LSID)){
@@ -2676,7 +2688,7 @@ public class SearchDAOImpl implements SearchDAO {
                                 tcDTO = new TaxaCountDTO(name, fcount.getCount());
                             }
                             //speciesCounts.add(i, tcDTO);
-                            if(tcDTO != null){
+                            if(tcDTO != null && tcDTO.getCount() > 0){
                                 speciesCounts.add(tcDTO);
                             }
                         }
@@ -2716,7 +2728,9 @@ public class SearchDAOImpl implements SearchDAO {
         for (FacetField facet : facets) {
             if (facet.getValues() != null) {
                 for (FacetField.Count ffc : facet.getValues()) {
-                    uidStats.put(ffc.getName() != null ? ffc.getName() : "", new Integer((int) ffc.getCount()));
+                    if (ffc.getCount() > 0) {
+                        uidStats.put(ffc.getName() != null ? ffc.getName() : "", new Integer((int) ffc.getCount()));
+                    }
                 }
             }
         }
@@ -2825,7 +2839,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      */
     private  Set<IndexFieldDTO> parseLukeResponse(String str, boolean includeCounts) {
-        
+
         //update index version
         Pattern indexVersion = Pattern.compile("(?:version=)([0-9]{1,})");
         try {
@@ -3345,10 +3359,10 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * Get the SOLR index version. Trigger a background refresh on a timeout.  
-     * 
+     * Get the SOLR index version. Trigger a background refresh on a timeout.
+     *
      * Forcing an updated value will perform a new SOLR query for each request to be run in the foreground.
-     * 
+     *
      * @return
      * @param force
      */
@@ -3380,12 +3394,12 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             }
         }
-        
+
         if (force && t != null) {
             //wait without lock
             t.run();
         }
-        
+
         return solrIndexVersion;
     }
 
@@ -3420,7 +3434,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
         QueryResponse response = runSolrQuery(query, searchParams);
         GroupResponse groupResponse = response.getGroupResponse();
-        
+
         List<GroupFacetResultDTO> output = new ArrayList();
         for (GroupCommand gc : groupResponse.getValues()) {
             List<GroupFieldResultDTO> list = new ArrayList<GroupFieldResultDTO>();
@@ -3438,10 +3452,10 @@ public class SearchDAOImpl implements SearchDAO {
                     list.add(new GroupFieldResultDTO(getFacetValueDisplayName(facet, value), count, facet + ":\"" + value + "\"", docs));
                 }
             }
-            
+
             output.add(new GroupFacetResultDTO(gc.getName(), list, gc.getNGroups()));
         }
-        
+
         return output;
     }
 
