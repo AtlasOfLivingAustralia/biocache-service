@@ -46,7 +46,7 @@ public class SearchUtils {
     private AbstractMessageSource messageSource;
     @Inject
     private SpeciesLookupService speciesLookupService;
-    @Value("${name.index.dir:/data/lucene/namematching_v13}")
+    @Value("${name.index.dir:/data/lucene/namematching}")
     protected String nameIndexLocation;
 
     ALANameSearcher nameIndex = null;
@@ -224,37 +224,6 @@ public class SearchUtils {
     }
 
     /**
-     * Formats the query string before
-     *
-     * @param query
-     * @return
-     */
-    public static String formatSearchQuery(String query) {
-        // set the query
-        StringBuilder queryString = new StringBuilder();
-        if (query.equals("*:*") || query.contains(" AND ") || query.contains(" OR ") || query.startsWith("(")
-                || query.endsWith("*") || query.startsWith("{")) {
-            queryString.append(query);
-        } else if (query.contains(":") && !query.startsWith("urn")) {
-            // search with a field name specified (other than an LSID guid)
-            queryString.append(formatGuid(query));
-        } else {
-            // regular search
-            queryString.append(ClientUtils.escapeQueryChars(query));
-        }
-        return queryString.toString();
-    }
-
-    public static String formatGuid(String guid) {
-        String[] bits = StringUtils.split(guid, ":", 2);
-        StringBuffer queryString = new StringBuffer();
-        queryString.append(ClientUtils.escapeQueryChars(bits[0]));
-        queryString.append(":");
-        queryString.append(ClientUtils.escapeQueryChars(bits[1]));
-        return queryString.toString();
-    }
-
-    /**
      * returns the solr field that should be used to search for a particular uid
      *
      * @param uid
@@ -397,27 +366,27 @@ public class SearchUtils {
             // iterate over the fq params
             for (String fq : filterQuery) {
 
-                if (queryContext !=null && queryContext.equals(fq)) {
+                if (queryContext != null && queryContext.equals(fq)) {
                     // exclude these from the active map, they should be hidden from user...
                     continue;
                 }
 
                 if (fq != null && !fq.isEmpty()) {
                     Boolean isExcludeFilter = false;
-                    String prefix="",suffix="";
+                    String prefix = "", suffix = "";
                     // remove Boolean braces if present
                     if (fq.startsWith("(") && fq.endsWith(")")){
                         fq = StringUtils.remove(fq, "(");
                         fq = StringUtils.removeEnd(fq, ")");
-                        prefix="(";
-                        suffix=")";
+                        prefix = "(";
+                        suffix = ")";
                     } else if (fq.startsWith("-(") && fq.endsWith(")")) {
                         fq = StringUtils.remove(fq, "-(");
                         fq = StringUtils.removeEnd(fq, ")");
                         //fq = "-" + fq;
                         isExcludeFilter = true;
-                        prefix="(";
-                        suffix=")";
+                        prefix = "(";
+                        suffix = ")";
                     }
 
                     String[] fqBits = StringUtils.split(fq, ":", 2);
