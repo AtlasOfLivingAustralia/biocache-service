@@ -54,7 +54,11 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     @Override
     public boolean equals(Object obj){
         if(obj instanceof IndexFieldDTO && name != null){
-            return name.equals(((IndexFieldDTO)obj).getName());
+            if (name.equals(((IndexFieldDTO)obj).getName())) {
+                //test the Cassandra field name
+                return (downloadName != null && downloadName.equals(((IndexFieldDTO)obj).getDownloadName())) ||
+                        (downloadName == null && ((IndexFieldDTO)obj).getDownloadName() == null);
+            }
         }
         return false;
     }
@@ -204,8 +208,9 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     }
 
     @Override
-    public int compareTo(IndexFieldDTO other) {        
-        return this.getName().compareTo(other.getName());
+    public int compareTo(IndexFieldDTO other) {
+        //Include the Cassandra field name
+        return (this.getName() + " " + this.getDownloadName()).compareTo(other.getName() + " " + other.getDownloadName());
     }
 
     /* (non-Javadoc)
