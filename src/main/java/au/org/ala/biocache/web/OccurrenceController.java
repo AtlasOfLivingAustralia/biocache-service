@@ -380,6 +380,44 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value={"/australian/taxon/{guid:.+}.json*","/australian/taxon/{guid:.+}*", "/native/taxon/{guid:.+}.json*","/native/taxon/{guid:.+}*" })
     public @ResponseBody NativeDTO isAustralian(@PathVariable("guid") String guid) throws Exception {
         //check to see if we have any occurrences on Australia  country:Australia or state != empty
+        NativeDTO adto = new NativeDTO();
+
+        if (guid != null) {
+            adto = getIsAustraliaForGuid(guid);
+        }
+
+        return adto;
+    }
+
+    /**
+     * Checks to see if the supplied GUID list has items that represents an Australian species.
+     * @param guids - comma separated list of guids
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value={"/australian/taxa.json*","/australian/taxa*", "/native/taxa.json*","/native/taxa*" })
+    public @ResponseBody List<NativeDTO> isAustralianForList(@RequestParam(value = "guids", required = true) String guids) throws Exception {
+        List<NativeDTO> nativeDTOs = new ArrayList<NativeDTO>();
+        String[] guidArray = StringUtils.split(guids, ',');
+
+        if (guidArray !=null) {
+            for (String guid : guidArray) {
+                nativeDTOs.add(getIsAustraliaForGuid(guid));
+                logger.debug("guid = " + guid);
+            }
+        }
+
+        return nativeDTOs;
+    }
+
+    /**
+     * Service to determine if a GUID has native or isAustralian status
+     * TODO should be in a service
+     *
+     * @param guid
+     * @return
+     */
+    private NativeDTO getIsAustraliaForGuid(String guid) {
         SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
         requestParams.setPageSize(0);
         requestParams.setFacets(new String[]{});
@@ -397,9 +435,10 @@ public class OccurrenceController extends AbstractSecureController {
             results = searchDAO.findByFulltextSpatialQuery(requestParams,null);
             adto.setHasCSOnly(results.getTotalRecords() == 0);
         }
+
         return adto;
     }
-    
+
     /**
      * Returns the complete list of Occurrences
      */
