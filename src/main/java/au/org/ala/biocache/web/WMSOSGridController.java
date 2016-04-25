@@ -71,23 +71,33 @@ public class WMSOSGridController {
         double[] SE = convertMetersToEastingNorthing(maxx, miny);
         double[] NE = convertMetersToEastingNorthing(maxx, maxy);
 
-
-        Integer minEasting  = (int)(SW[0] / 10000) * 10000; //may need to use the minimum of each
-        Integer maxEasting  = (int)(SE[0] / 10000) * 10000;
-
-        Integer minNorthing  = (int)(SE[1] / 10000) * 10000;
-        Integer maxNorthing  = (int)(NE[1] / 10000) * 10000;
-
-
+//
+//        Integer minEasting  = (int)(SW[0] / 10000) * 10000; //may need to use the minimum of each
+//        Integer maxEasting  = (int)(SE[0] / 10000) * 10000;
+//
+//        Integer minNorthing  = (int)(SE[1] / 10000) * 10000;
+//        Integer maxNorthing  = (int)(NE[1] / 10000) * 10000;
 
 
-        Integer nofOf10kmGrids = ((maxEasting - minEasting)  / 10000) * ((maxNorthing - minNorthing)  / 10000);
+//        Integer minEasting  = (int)(SW[0] / 10000) * 10000; //may need to use the minimum of each
+//        Integer minNorthing  = (int)(SE[1] / 10000) * 10000;
+
+
+
+        //1. take the grid cell coordinates
+        //2. reproject from OSGB grids -> mercator
+        //3. draw reprojected using metres offsets instead of
+
+
+
+
+//        Integer nofOf10kmGrids = ((maxEasting - minEasting)  / 10000) * ((maxNorthing - minNorthing)  / 10000);
 
 //        logger.info("easting: " + SW[0] + "->" + SE[0] + ",  northing: "+ SE[1] + "->" + NE[1] + ", nofOf10kmGrids: " + nofOf10kmGrids);
 //        logger.info("easting: " + minEasting + "->" + maxEasting+",  northing: "+ minNorthing + "->" + maxNorthing + ", nofOf10kmGrids: " + nofOf10kmGrids);
 
 
-        logger.info("northing (west): " + SW[1] + "->" + NW[1] +",  northing (west): "+ SE[1] + "->" + NE[1] + ", nofOf10kmGrids: " + nofOf10kmGrids);
+        logger.info("northing (west): " + SW[1] + "->" + NW[1] +",  northing (west): "+ SE[1] + "->" + NE[1]);
 
 
 
@@ -100,24 +110,59 @@ public class WMSOSGridController {
 
         //what is 10km in pixels
         //256 pixels =  maxEasting - minEasting
-        double oneMetreXInPixels = 256f / (float)(SE[0] - SW[0]);
+        double oneMetreXInPixels = 256f / (float)(SE[0] - SW[0]);  //easting & northing
         double oneMetreYInPixels =  256f / (float)(NE[1] - SE[1]);
 
 
+
+        double oneMetreMercatorXInPixels = 256f / (float)(maxx - minx);  //easting & northing
+        double oneMetreMercatorYInPixels =  256f / (float)(maxy - miny);
+
+
+        //coordinates in easting / northing of the nearest 10km grid to the bottom,left of this tile
+        int cellSize = 10000;
+        Integer minEastingOfGridCell  = (int)(Math.ceil(SW[0] / 10000)) * 10000; //may need to use the minimum of each
+        Integer minNorthingOfGridCell  = (int)(Math.ceil(SE[1] / 10000)) * 10000;
+        Integer maxEastingOfGridCell   = minEastingOfGridCell + cellSize;
+        Integer maxNorthingOfGridCell   = minNorthingOfGridCell + cellSize;
+
+        //coordinates in mercator for this cell.
+
+
+
         //coordinates for the first point - who do we work out the others ????
-        int offsetX = (int) ((float) (10000 - (SW[0] % 10000)) * oneMetreXInPixels); // minx
-        int offsetY = (int) ((float) (10000 - (SW[1] % 10000)) * oneMetreYInPixels);
+//        int offsetX = (int) ((float) (10000 - (SW[0] % 10000)) * oneMetreXInPixels); // minx
+//        int offsetY = (int) ((float) (10000 - (SW[1] % 10000)) * oneMetreYInPixels);
 
 
 
         //256 pixels =  maxNorthing - minNorthing (use precise easting northings
 
-        //System.out.println("Drawing an oval.....");
-        wmsImg.g.fillRect(offsetX, 256 - offsetY - (int) (oneMetreYInPixels * 10000f), (int) (oneMetreXInPixels * 10000f), (int) (oneMetreYInPixels * 10000f));
-//        wmsImg.g.fillRect(0, 256 - (int) (oneMetreYInPixels * 10000f), (int) (oneMetreXInPixels * 10000f), (int) (oneMetreYInPixels * 10000f));
+
+        //Works but doesnt align fully
+//        wmsImg.g.fillRect(offsetX, 256 - offsetY - (int) (oneMetreYInPixels * 10000f), (int) (oneMetreXInPixels * 10000f), (int) (oneMetreYInPixels * 10000f));
 
 
 
+        double[][] polygonInMercator = convertEastingNorthingToMercators(new double[][]{
+                new double[]{minEastingOfGridCell, minNorthingOfGridCell},
+                new double[]{maxEastingOfGridCell, minNorthingOfGridCell},
+                new double[]{maxEastingOfGridCell, maxNorthingOfGridCell},
+                new double[]{minEastingOfGridCell, maxNorthingOfGridCell}
+//                ,
+//                new double[]{minEastingOfGridCell, minNorthingOfGridCell}
+        });
+
+
+        int[][] coordinatesForImages = convertMercatorMetersToPixelOffset(polygonInMercator, minx, miny, oneMetreMercatorXInPixels, oneMetreMercatorYInPixels, 256);
+
+        Paint polygonFill = new Color(0x55FF0000, true);
+        wmsImg.g.setPaint(polygonFill);
+
+        wmsImg.g.fillPolygon(
+            new int[]{coordinatesForImages[0][0], coordinatesForImages[1][0], coordinatesForImages[2][0], coordinatesForImages[3][0]},
+            new int[]{coordinatesForImages[0][1], coordinatesForImages[1][1], coordinatesForImages[2][1], coordinatesForImages[3][1]},
+            4);
 
 
         Paint debugBorder = new Color(0x5500FF00, true);
@@ -126,7 +171,7 @@ public class WMSOSGridController {
 
         wmsImg.g.drawRect(0,0,256,256); //debugging border
 
-//        wmsImg.g.fillPolygon();
+
 
         if (wmsImg != null && wmsImg.g != null) {
             wmsImg.g.dispose();
@@ -261,6 +306,9 @@ Zoom levels
     }
 
 
+
+
+
     double[] convertMetersToEastingNorthing(Double coordinate1 , Double coordinate2){
 
         try {
@@ -290,6 +338,80 @@ Zoom levels
     }
 
 
+    /**
+     *
+     * @param polygon coordinates for the polygon
+     * @param minXOfTileInMercatorMetres
+     * @param minYOfTileInMercatorMetres
+     * @param onePixelInMetresX
+     * @param onePixelInMetresY
+     * @param tileSizeInPixels
+     * @return
+     */
+    int[][] convertMercatorMetersToPixelOffset(double[][] polygon, double minXOfTileInMercatorMetres, double minYOfTileInMercatorMetres,
+                                             double onePixelInMetresX,
+                                             double onePixelInMetresY, int tileSizeInPixels){
+
+        int[][] offsetXYWidthHeights = new int[polygon.length][2];
+        for(int i = 0; i < polygon.length; i++){
+
+            logger.debug("Easting = " + polygon[i][0] + ", Northing = " + polygon[i][1]);
+
+//            double[] coordsInMercator = convertEastingNorthingToMercator(polygon[i][0], polygon[i][1]);
+
+            logger.debug("Coordinates (Mercator)  x = " + polygon[i][0] + ", y = " + polygon[i][1] + ", tile min x = " + minXOfTileInMercatorMetres + ", tile min y = " + minYOfTileInMercatorMetres);
+
+            int x = (int)((polygon[i][0] - minXOfTileInMercatorMetres) * onePixelInMetresX);
+            int y = (int)((polygon[i][1] - minYOfTileInMercatorMetres) * onePixelInMetresY);
+
+            logger.debug("X & Y = " + x + ", " + y);
+
+            offsetXYWidthHeights[i] = new int[]{
+                    x,
+                    tileSizeInPixels - y ,              //y
+
+            };
+        }
+        return offsetXYWidthHeights;
+    }
+
+
+
+    double[][] convertEastingNorthingToMercators(double[][] polygon){
+        double[][] converted = new double[polygon.length][2];
+        for(int i=0; i< polygon.length; i++){
+            converted[i] = convertEastingNorthingToMercator(polygon[i][0], polygon[i][1]);
+        }
+        return converted;
+    }
+
+
+    double[] convertEastingNorthingToMercator(Double x , Double y){
+
+        try {
+            CoordinateReferenceSystem sourceCRS = CRS.decode("EPSG:27700");
+            CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:3857");
+            CoordinateOperation transformOp = new DefaultCoordinateOperationFactory().createOperation(sourceCRS, targetCRS);
+            GeneralDirectPosition directPosition = new GeneralDirectPosition(x, y);
+            DirectPosition wgs84LatLong = transformOp.getMathTransform().transform(directPosition, null);
+
+            //NOTE - returned coordinates are longitude, latitude, despite the fact that if
+            //converting latitude and longitude values, they must be supplied as latitude, longitude.
+            //No idea why this is the case.
+            Double longitude = wgs84LatLong.getOrdinate(0);
+            Double latitude = wgs84LatLong.getOrdinate(1);
+
+            double[] coords = new double[2];
+
+            coords[0] = Precision.round(longitude, 10);
+            coords[1] = Precision.round(latitude, 10);
+            return coords;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
 
 
