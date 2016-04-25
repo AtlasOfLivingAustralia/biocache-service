@@ -45,9 +45,27 @@ public class WMSOSGridController {
             @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
             @RequestParam(value = "HQ", required = false) String[] hqs,
             @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") Integer gridDivisionCount,
-            HttpServletRequest request,
             HttpServletResponse response)
             throws Exception {
+
+
+        //1. for each record, store a minX, minY, maxX, maxY (latitude/longitude ?)
+
+        //2. query with minX <= easting >=maxX and minY <= easting >=maxY
+
+        //3. facet on grid reference
+
+        //4. render each grid
+
+
+
+
+        //do range query based on easting northings
+
+
+
+
+
 
 
         //-939258.2035682457,7827151.69640205,-626172.1357121639,8140237.764258131
@@ -58,12 +76,6 @@ public class WMSOSGridController {
         double maxx = Double.parseDouble(bbox[2]);
         double maxy = Double.parseDouble(bbox[3]);
 
-        Double tileWidth = (maxx - minx)/1000;
-        Double tileHeight = (maxy - miny)/1000;
-
-
-        //1. convert bounding box to easting northing
-//        logger.info("BBOX size = " + Math.floor(tileHeight) + "km by " + Math.floor(tileWidth) + "km");
 
         //boundary in eastings / northing
         double[] SW = convertMetersToEastingNorthing(minx, miny);
@@ -71,30 +83,6 @@ public class WMSOSGridController {
         double[] SE = convertMetersToEastingNorthing(maxx, miny);
         double[] NE = convertMetersToEastingNorthing(maxx, maxy);
 
-//
-//        Integer minEasting  = (int)(SW[0] / 10000) * 10000; //may need to use the minimum of each
-//        Integer maxEasting  = (int)(SE[0] / 10000) * 10000;
-//
-//        Integer minNorthing  = (int)(SE[1] / 10000) * 10000;
-//        Integer maxNorthing  = (int)(NE[1] / 10000) * 10000;
-
-
-//        Integer minEasting  = (int)(SW[0] / 10000) * 10000; //may need to use the minimum of each
-//        Integer minNorthing  = (int)(SE[1] / 10000) * 10000;
-
-
-
-        //1. take the grid cell coordinates
-        //2. reproject from OSGB grids -> mercator
-        //3. draw reprojected using metres offsets instead of
-
-
-
-
-//        Integer nofOf10kmGrids = ((maxEasting - minEasting)  / 10000) * ((maxNorthing - minNorthing)  / 10000);
-
-//        logger.info("easting: " + SW[0] + "->" + SE[0] + ",  northing: "+ SE[1] + "->" + NE[1] + ", nofOf10kmGrids: " + nofOf10kmGrids);
-//        logger.info("easting: " + minEasting + "->" + maxEasting+",  northing: "+ minNorthing + "->" + maxNorthing + ", nofOf10kmGrids: " + nofOf10kmGrids);
 
 
         logger.info("northing (west): " + SW[1] + "->" + NW[1] +",  northing (west): "+ SE[1] + "->" + NE[1]);
@@ -105,13 +93,6 @@ public class WMSOSGridController {
 
         Paint currentFill = new Color(0x55FF0000, true);
         wmsImg.g.setPaint(currentFill);
-
-        //for 4326
-
-        //what is 10km in pixels
-        //256 pixels =  maxEasting - minEasting
-        double oneMetreXInPixels = 256f / (float)(SE[0] - SW[0]);  //easting & northing
-        double oneMetreYInPixels =  256f / (float)(NE[1] - SE[1]);
 
 
 
@@ -126,31 +107,12 @@ public class WMSOSGridController {
         Integer maxEastingOfGridCell   = minEastingOfGridCell + cellSize;
         Integer maxNorthingOfGridCell   = minNorthingOfGridCell + cellSize;
 
-        //coordinates in mercator for this cell.
-
-
-
-        //coordinates for the first point - who do we work out the others ????
-//        int offsetX = (int) ((float) (10000 - (SW[0] % 10000)) * oneMetreXInPixels); // minx
-//        int offsetY = (int) ((float) (10000 - (SW[1] % 10000)) * oneMetreYInPixels);
-
-
-
-        //256 pixels =  maxNorthing - minNorthing (use precise easting northings
-
-
-        //Works but doesnt align fully
-//        wmsImg.g.fillRect(offsetX, 256 - offsetY - (int) (oneMetreYInPixels * 10000f), (int) (oneMetreXInPixels * 10000f), (int) (oneMetreYInPixels * 10000f));
-
-
 
         double[][] polygonInMercator = convertEastingNorthingToMercators(new double[][]{
                 new double[]{minEastingOfGridCell, minNorthingOfGridCell},
                 new double[]{maxEastingOfGridCell, minNorthingOfGridCell},
                 new double[]{maxEastingOfGridCell, maxNorthingOfGridCell},
                 new double[]{minEastingOfGridCell, maxNorthingOfGridCell}
-//                ,
-//                new double[]{minEastingOfGridCell, minNorthingOfGridCell}
         });
 
 
@@ -246,33 +208,6 @@ Zoom levels
 
     String convertEastingNorthingToOSGrid(double e, double n){
 
-//        int eastingKm = (int)(easting / 1000);
-//        int northingKm = (int)(northing / 1000);
-//
-//        char firstChar = (char) -1;
-//
-//
-//        if(northingKm > 0 && northingKm <500){
-//            firstChar = 'S';
-//        } else if(northingKm >= 500 && northingKm < 1000){
-//            firstChar = 'N';
-//        } else if(northingKm >= 1000 && northingKm < 1300){
-//            firstChar = 'H';
-//        } else {
-//            firstChar = 'X';
-//        }
-//
-//
-//        if(eastingKm > 0 && eastingKm <500){
-//            firstChar = 'S';
-//        } else if(eastingKm >= 500 && eastingKm < 1000){
-//            firstChar = 'N';
-//        } else if(eastingKm >= 1000 && eastingKm < 1300){
-//            firstChar = 'H';
-//        } else {
-//            firstChar = 'X';
-//        }
-
         Integer digits = 10;
 
 
@@ -304,9 +239,6 @@ Zoom levels
 
         return gridRef;
     }
-
-
-
 
 
     double[] convertMetersToEastingNorthing(Double coordinate1 , Double coordinate2){
@@ -356,8 +288,6 @@ Zoom levels
         for(int i = 0; i < polygon.length; i++){
 
             logger.debug("Easting = " + polygon[i][0] + ", Northing = " + polygon[i][1]);
-
-//            double[] coordsInMercator = convertEastingNorthingToMercator(polygon[i][0], polygon[i][1]);
 
             logger.debug("Coordinates (Mercator)  x = " + polygon[i][0] + ", y = " + polygon[i][1] + ", tile min x = " + minXOfTileInMercatorMetres + ", tile min y = " + minYOfTileInMercatorMetres);
 
