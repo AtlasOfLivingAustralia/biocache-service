@@ -29,19 +29,6 @@ public class OccurrenceIndex {
 
     protected static final Logger logger = Logger.getLogger(OccurrenceIndex.class);
 
-    public static final String defaultFields = "id,occurrence_id,data_hub_uid,data_hub,"
-    		+ "institution_uid,institution_code,institution_name,collection_uid,collection_code,"
-    		+ "collection_name,catalogue_number,taxon_concept_lsid,occurrence_date,occurrence_year,"
-    		+ "taxon_name,common_name,rank,rank_id,country_code,country,kingdom,phylum,class,order,"
-    		+ "family,genus,genus_guid,species,species_guid,subspecies,subspecies_guid,state,latitude,"
-    		+ "longitude,coordinate_uncertainty,year,month,basis_of_record,type_status,location_remarks,"
-    		+ "occurrence_remarks,lft,rgt,ibra,imcra,places,data_provider_uid,data_provider,"
-    		+ "data_resource_uid,data_resource,assertions,user_assertions,species_group,image_url,"
-    		+ "all_image_url,geospatial_kosher,taxonomic_kosher,collector,collectors,raw_taxon_name,"
-    		+ "raw_basis_of_record,raw_type_status,raw_common_name,lat_long,"
-    		+ "point-1,point-0.1,point-0.01,point-0.001,point-0.0001,"
-    		+ "names_and_lsid,multimedia,aust_conservation,state_conservation,sensitive,record_number";
-
     @Field("id") String uuid;
     @Field("occurrence_id") String occurrenceID;
     //processed values
@@ -56,6 +43,7 @@ public class OccurrenceIndex {
     @Field("catalogue_number") String raw_catalogNumber;
     @Field("taxon_concept_lsid") String taxonConceptID;
     @Field("occurrence_date") java.util.Date eventDate;
+    @Field("occurrence_date_end_dt") java.util.Date eventDateEnd;
     @Field("occurrence_year") java.util.Date occurrenceYear;
     @Field("taxon_name") String scientificName;
     @Field("common_name") String vernacularName;
@@ -126,8 +114,11 @@ public class OccurrenceIndex {
     @Field("occurrence_details") String occurrenceDetails;
     @Field("rights") String rights; 
     @Field("photographer_s") String photographer;
+    @Field("*_s") Map<String, Object> miscStringProperties;
+    @Field("*_i") Map<String, Object> miscIntProperties;
+    @Field("*_d") Map<String, Object> miscDoubleProperties;
     List<Map<String, Object>> imageMetadata;
-    
+
     String imageUrl;
     String largeImageUrl;
     String smallImageUrl;
@@ -206,6 +197,10 @@ public class OccurrenceIndex {
         if(eventDate != null) {
             sdate = DateFormatUtils.format(eventDate, "yyyy-MM-dd");
         }
+        String sdateEnd = null;
+        if(eventDateEnd != null) {
+            sdate = DateFormatUtils.format(eventDateEnd, "yyyy-MM-dd");
+        }
         Map<String,String> map = new HashMap<String,String>();
         addToMapIfNotNull(map, "id", uuid);
         addToMapIfNotNull(map, "occurrence_id",occurrenceID);
@@ -220,6 +215,7 @@ public class OccurrenceIndex {
         addToMapIfNotNull(map, "catalogue_number",raw_catalogNumber);
         addToMapIfNotNull(map, "taxon_concept_lsid",taxonConceptID);
         addToMapIfNotNull(map, "occurrence_date", sdate);
+        addToMapIfNotNull(map, "occurrence_date_end_dt", sdateEnd);
         addToMapIfNotNull(map, "taxon_name",scientificName);
         addToMapIfNotNull(map, "common_name",vernacularName);
         addToMapIfNotNull(map, "rank",taxonRank);
@@ -279,6 +275,85 @@ public class OccurrenceIndex {
         addToMapIfNotNull(map, "occurrence_details", occurrenceDetails);
         addToMapIfNotNull(map, "rights", rights);
         addToMapIfNotNull(map, "photographer_s", photographer);
+        return map;
+    }
+
+    @JsonIgnore
+    public Map<String,String> indexToJsonMap() {
+        Map<String,String> map = new HashMap<String,String>();
+        map.put("id", "uuid");
+        map.put("occurrence_id", "occurrenceID");
+        map.put("data_hub_uid","dataHubUid");
+        map.put("data_hub" ,"dataHub");
+        map.put("institution_uid", "institutionUid");
+        map.put("institution_code", "raw_institutionCode");
+        map.put("institution_name", "institutionName");
+        map.put("collection_uid", "collectionUid");
+        map.put("collection_code", "raw_collectionCode");
+        map.put("collection_name","collectionName");
+        map.put("catalogue_number","raw_catalogNumber");
+        map.put("taxon_concept_lsid","taxonConceptID");
+        map.put("occurrence_date", "eventDate");
+        map.put("occurrence_date_end_dt", "eventDateEnd");
+        map.put("taxon_name","scientificName");
+        map.put("common_name","vernacularName");
+        map.put("rank","taxonRank");
+        map.put("rank_id","taxonRankID");
+        map.put("country_code", "raw_countryCode");
+        map.put("country", "country");
+        map.put("kingdom","kingdom");
+        map.put("phylum", "phylum");
+        map.put("class", "classs");
+        map.put("order","order");
+        map.put("family","family");
+        map.put("genus","genus");
+        map.put("genus_guid","genusGuid");
+        map.put("species", "species");
+        map.put("species_guid", "speciesGuid");
+        map.put("subspecies", "subspecies");
+        map.put("subspecies_guid", "subspeciesGuid");
+        map.put("state", "stateProvince");
+        map.put("latitude", "decimalLatitude");
+        map.put("longitude", "decimalLongitude");
+        map.put("year", "year");
+        map.put("month","month");
+        map.put("basis_of_record", "basisOfRecord");
+        map.put("type_status", "typeStatus");
+        map.put("location_remarks", "raw_locationRemarks");
+        map.put("occurrence_remarks", "raw_occurrenceRemarks");
+        map.put("lft","left");
+        map.put("rgt", "right");
+        map.put("ibra", "ibra");
+        map.put("imcra", "imcra");
+        map.put("places", "lga");
+        map.put("data_provider_uid", "dataProviderUid");
+        map.put("data_provider", "dataProviderName");
+        map.put("data_resource_uid", "dataResourceUid");
+        map.put("data_resource", "dataResourceName");
+        map.put("assertions", "assertions");
+        map.put("user_assertions", "hasUserAssertions");
+        map.put("species_group", "speciesGroups");
+        map.put("image_url", "image");
+        map.put("geospatial_kosher", "geospatialKosher");
+        map.put("taxonomic_kosher", "taxonomicKosher");
+        map.put("raw_taxon_name", "raw_scientificName");
+        map.put("raw_basis_of_record", "raw_basisOfRecord");
+        map.put("raw_type_status", "raw_typeStatus");
+        map.put("raw_common_name", "raw_vernacularName");
+        map.put("lat_long", "latLong");
+        map.put("point-1", "point1");
+        map.put("point-0.1", "point01");
+        map.put("point-0.01", "point001");
+        map.put("point-0.001", "point0001");
+        map.put("point-0.0001", "point00001");
+        map.put("names_and_lsid", "namesLsid");
+        map.put("multimedia", "multimedia");
+        map.put("collector","collector");
+        map.put("collectors","collectors");
+        map.put("record_number", "recordNumber");
+        map.put("occurrence_details", "occurrenceDetails");
+        map.put("rights", "rights");
+        map.put("photographer_s", "photographer");
         return map;
     }
 
@@ -384,6 +459,14 @@ public class OccurrenceIndex {
 
     public void setEventDate(Date eventDate) {
         this.eventDate = eventDate;
+    }
+
+    public Date getEventDateEnd() {
+        return eventDateEnd;
+    }
+
+    public void setEventDateEnd(Date eventDateEnd) {
+        this.eventDateEnd = eventDateEnd;
     }
 
     public Date getOccurrenceYear() {
@@ -948,5 +1031,29 @@ public class OccurrenceIndex {
 
     public void setImageMetadata(List<Map<String, Object>> imageMetadata) {
         this.imageMetadata = imageMetadata;
+    }
+
+    public Map<String, Object> getMiscStringProperties() {
+        return miscStringProperties;
+    }
+
+    public void setMiscStringProperties(Map<String, Object> miscStringProperties) {
+        this.miscStringProperties = miscStringProperties;
+    }
+
+    public Map<String, Object> getMiscIntProperties() {
+        return miscIntProperties;
+    }
+
+    public void setMiscIntProperties(Map<String, Object> miscIntProperties) {
+        this.miscIntProperties = miscIntProperties;
+    }
+
+    public Map<String, Object> getMiscDoubleProperties() {
+        return miscDoubleProperties;
+    }
+
+    public void setMiscDoubleProperties(Map<String, Object> miscDoubleProperties) {
+        this.miscDoubleProperties = miscDoubleProperties;
     }
 }

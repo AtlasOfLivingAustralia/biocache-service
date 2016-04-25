@@ -2,4 +2,7 @@
 <ehcache xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://ehcache.org/ehcache.xsd">
     <defaultCache eternal="true" maxElementsInMemory="100" overflowToDisk="false" />    
     <cache name="endemicCache" maxElementsInMemory="100" eternal="false" overflowToDisk="false" />
+    <cache name="legendCache" maxElementsInMemory="2000" eternal="false" overflowToDisk="false"/>
+    <cache name="getColours" maxElementsInMemory="2000" eternal="false" overflowToDisk="false"/>
+    <cache name="fixWkt" maxElementsInMemory="100" eternal="false" overflowToDisk="false"/>
 </ehcache>

@@ -10,6 +10,7 @@ import org.ala.layers.dao.IntersectCallback;
 import org.ala.layers.dto.IntersectionFile;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.methods.DeleteMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -53,6 +54,9 @@ public class UploadController extends AbstractSecureController {
 
     @Value("${webservices.root:http://biocache.ala.org.au/ws}")
     protected String webservicesRoot;
+
+    @Value("${registry.api.key:ABAABABABABABABABAABABABBABA}")
+    protected String apiKey;
 
     private Pattern dataResourceUidP = Pattern.compile("data_resource_uid:([\\\"]{0,1}[a-z]{2,3}[0-9]{1,}[\\\"]{0,1})");
     //TODO move to config
@@ -113,7 +117,69 @@ public class UploadController extends AbstractSecureController {
      *
      * @return an identifier for this temporary dataset
      */
-    @RequestMapping(value="/upload/customIndexes/{tempDataResourceUid}.json", method = RequestMethod.GET)
+    @RequestMapping(value={"/upload/charts/{tempDataResourceUid}"}, method = RequestMethod.POST)
+    public void saveChartOptions(@PathVariable String tempDataResourceUid, HttpServletRequest request, HttpServletResponse response) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        List<Map<String, Object>> chartOptions = mapper.readValue(request.getReader(), List.class);
+        String checkedString = mapper.writeValueAsString(chartOptions);
+        au.org.ala.biocache.Store.storeCustomChartOptions(tempDataResourceUid, checkedString);
+        response.setStatus(201);
+    }
+
+    /**
+     * @return an identifier for this temporary dataset
+     */
+    @RequestMapping(value={"/upload/charts/{tempDataResourceUid}", "/upload/charts/{tempDataResourceUid}.json"}, method = RequestMethod.GET)
+    public @ResponseBody Object getChartOptions(@PathVariable String tempDataResourceUid, HttpServletResponse response) throws Exception {
+        String json = au.org.ala.biocache.Store.retrieveCustomChartOptions(tempDataResourceUid);
+        response.setContentType("application/json");
+        ObjectMapper om = new ObjectMapper();
+        List<Map<String, Object>> list = om.readValue(json, List.class);
+        if(list.isEmpty()){
+            String[] fields = au.org.ala.biocache.Store.retrieveCustomIndexFields(tempDataResourceUid);
+            for(String field: fields){
+                Map<String, Object> chartConfig = new HashMap<String, Object>();
+                chartConfig.put("field", field);
+                chartConfig.put("format", "pie");
+                chartConfig.put("visible", true);
+                list.add(chartConfig);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Save the layer options for this dataset
+     *
+     * @return an identifier for this temporary dataset
+     */
+    @RequestMapping(value={"/upload/layers/{tempDataResourceUid}"}, method = RequestMethod.POST)
+    public void saveLayerOptions(@PathVariable String tempDataResourceUid, HttpServletRequest request, HttpServletResponse response) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        List<Map<String, Object>> layerOptions = mapper.readValue(request.getReader(), List.class);
+        String checkedString = mapper.writeValueAsString(layerOptions);
+        au.org.ala.biocache.Store.storeLayerOptions(tempDataResourceUid, checkedString);
+        response.setStatus(201);
+    }
+
+    /**
+     * @return an identifier for this temporary dataset
+     */
+    @RequestMapping(value={"/upload/layers/{tempDataResourceUid}", "/upload/layers/{tempDataResourceUid}.json"}, method = RequestMethod.GET)
+    public @ResponseBody Object getLayerOptions(@PathVariable String tempDataResourceUid, HttpServletResponse response) throws Exception {
+        String json = au.org.ala.biocache.Store.retrieveLayerOptions(tempDataResourceUid);
+        response.setContentType("application/json");
+        ObjectMapper om = new ObjectMapper();
+        List<Map<String, Object>> list = om.readValue(json, List.class);
+        return list;
+    }
+
+    /**
+     * Upload a dataset using a POST, returning a UID for this data
+     *
+     * @return an identifier for this temporary dataset
+     */
+    @RequestMapping(value={"/upload/customIndexes/{tempDataResourceUid}.json", "/upload/customIndexes/{tempDataResourceUid}"}, method = RequestMethod.GET)
     public @ResponseBody String[] customIndexes(@PathVariable String tempDataResourceUid, HttpServletResponse response) throws Exception {
         response.setContentType("application/json");
         return au.org.ala.biocache.Store.retrieveCustomIndexFields(tempDataResourceUid);
@@ -138,7 +204,7 @@ public class UploadController extends AbstractSecureController {
     }
 
     /**
-     * Retrieve the set of dynamic facets availiable for this query.
+     * Retrieve the set of dynamic facets available for this query.
      *
      * @return an identifier for this temporary dataset
      */
@@ -246,7 +312,7 @@ public class UploadController extends AbstractSecureController {
      * @return an identifier for this temporary dataset
      */
     @RequestMapping(value="/upload/{tempDataResourceUid}", method = RequestMethod.DELETE)
-    public @ResponseBody Map<String, Object> deleteResource(
+    public void deleteResource(
             @PathVariable String tempDataResourceUid,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
 
@@ -254,18 +320,26 @@ public class UploadController extends AbstractSecureController {
         boolean apiKeyValid = shouldPerformOperation(request, response);
         if(!apiKeyValid){
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Supplied API key not recognised or missing");
-            return null;
+            return;
         }
 
-        //TODO delete the temp data resource from the collectory
+        //delete the reference from the collectory
+        boolean success = deleteTempResource(tempDataResourceUid);
 
+        try {
+            //start a delete of the resource from index & storage
+            Store.deleteRecords(tempDataResourceUid, null, true, true);
+        } catch(Exception e){
+            logger.error("Error thrown deleting resource: " + e.getMessage(), e);
+            response.sendError(500, "Unable to delete data from index/database.");
+            return;
+        }
 
-        //start an async delete of the resource from index & storage
-        Store.deleteRecords(tempDataResourceUid, null, true, true);
-
-        Map<String,Object> details = new HashMap<String,Object>();
-        details.put("success", true);
-        return details;
+        if(success){
+            response.setStatus(200);
+        } else {
+            response.sendError(500, "Unable to remove reference from the registry.");
+        }
     }
 
     /**
@@ -274,7 +348,8 @@ public class UploadController extends AbstractSecureController {
      * @return an identifier for this temporary dataset
      */
     @RequestMapping(value={"/upload/post", "/upload/"}, method = RequestMethod.POST)
-    public @ResponseBody Map<String,String> uploadOccurrenceData(HttpServletRequest request, HttpServletResponse response) throws Exception {
+    public @ResponseBody Map<String,String> uploadOccurrenceData(HttpServletRequest request,
+                                                                 HttpServletResponse response) throws Exception {
 
         String dataResourceUid = request.getParameter("dataResourceUid");
         final String urlToZippedData = request.getParameter("csvZippedUrl");
@@ -347,6 +422,7 @@ public class UploadController extends AbstractSecureController {
             if(StringUtils.isNotBlank(dataResourceUid)){
                 logger.info("Data resource UID supplied, will attempt reload...");
                 //we are reloading.....
+                updateTempResource(dataResourceUid, datasetName, lineCount, alaId, uiUrl);
                 reload = true;
             } else {
                 logger.info("Data resource UID NOT supplied, will create a temp resource....");
@@ -432,6 +508,15 @@ public class UploadController extends AbstractSecureController {
         return new File(unzippedFilePath);
     }
 
+    private Boolean deleteTempResource(String datasetUid) throws IOException {
+        DeleteMethod delete = new DeleteMethod(registryUrl + "/tempDataResource/" + datasetUid);
+        delete.setRequestHeader("Authorization", apiKey);
+        HttpClient httpClient = new HttpClient();
+        int statusCode = httpClient.executeMethod(delete);
+        return statusCode == 200 || statusCode == 204;
+    }
+
+
     private String createTempResource(String datasetName, int lineCount, String alaId, String uiUrl) throws IOException {
 
         ObjectMapper mapper = new ObjectMapper();
@@ -445,6 +530,7 @@ public class UploadController extends AbstractSecureController {
 
         String json = mapper.writeValueAsString(uu);
         PostMethod post = new PostMethod(registryUrl + "/tempDataResource");
+        post.setRequestHeader("Authorization", apiKey);
         post.setRequestBody(json);
         HttpClient httpClient = new HttpClient();
         httpClient.executeMethod(post);
@@ -453,6 +539,29 @@ public class UploadController extends AbstractSecureController {
         String collectoryUrl = post.getResponseHeader("location").getValue();
         return collectoryUrl.substring(collectoryUrl.lastIndexOf('/') + 1);
     }
+
+
+    private Boolean updateTempResource(String uid, String datasetName, int lineCount, String alaId, String uiUrl) throws IOException {
+
+        ObjectMapper mapper = new ObjectMapper();
+
+        UserUpload uu = new UserUpload();
+        uu.setNumberOfRecords(lineCount);
+        uu.setName(datasetName);
+        uu.setAlaId(alaId);
+        uu.setWebserviceUrl(webservicesRoot);
+        uu.setUiUrl(uiUrl);
+
+        String json = mapper.writeValueAsString(uu);
+        PostMethod post = new PostMethod(registryUrl + "/tempDataResource/" + uid);
+        post.setRequestHeader("Authorization", apiKey);
+        post.setRequestBody(json);
+        HttpClient httpClient = new HttpClient();
+        int statusCode = httpClient.executeMethod(post);
+
+        return statusCode == 200 || statusCode == 201;
+    }
+
 }
 
 final class UploadStatus {

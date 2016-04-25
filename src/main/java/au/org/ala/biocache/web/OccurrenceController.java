@@ -27,6 +27,7 @@ import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.service.ImageMetadataService;
 import au.org.ala.biocache.service.SpeciesLookupService;
 import au.org.ala.biocache.util.*;
+import net.sf.ehcache.CacheManager;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
@@ -34,6 +35,7 @@ import org.ala.client.util.RestfulClient;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.gbif.utils.file.FileUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
@@ -91,6 +93,8 @@ public class OccurrenceController extends AbstractSecureController {
     private Validator validator;
     @Inject
     protected QidCacheDAO qidCacheDao;
+    @Inject
+    private CacheManager cacheManager;
     
     /** Name of view for site home page */
     private String HOME = "homePage";
@@ -115,6 +119,15 @@ public class OccurrenceController extends AbstractSecureController {
 
     @Value("${facet.config:/data/biocache/config/facets.json}")
     protected String facetConfig;
+
+    @Value("${facets.max:4}")
+    protected Integer facetsMax;
+
+    @Value("${facets.defaultmax:0}")
+    protected Integer facetsDefaultMax;
+
+    @Value("${facet.default:true}")
+    protected Boolean facetDefault;
 
     public Pattern getTaxonIDPattern(){
         if(taxonIDPattern == null){
@@ -202,7 +215,13 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping("/search/grouped/facets")
     public @ResponseBody List groupFacets() throws IOException {
-        return new FacetThemes(facetConfig).allThemes;
+        Set<IndexFieldDTO> indexedFields = null;
+        try {
+            indexedFields = searchDAO.getIndexedFields();
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        }
+        return new FacetThemes(facetConfig, indexedFields, facetsMax, facetsDefaultMax, facetDefault).allThemes;
     }
     
     /**
@@ -219,7 +238,15 @@ public class OccurrenceController extends AbstractSecureController {
                                         HttpServletResponse response) throws Exception{
         qualifier = (StringUtils.isNotEmpty(qualifier)) ? qualifier : ".properties";
         logger.debug("qualifier = " + qualifier);
-        InputStream is = request.getSession().getServletContext().getResourceAsStream("/WEB-INF/messages" + qualifier);
+        
+        //default to external messages.properties
+        File f = new File("/data/biocache/config/messages" + qualifier);
+        InputStream is;
+        if (f.exists() && f.isFile() && f.canRead()) {
+            is = FileUtils.getInputStream(f);
+        } else {
+            is = request.getSession().getServletContext().getResourceAsStream("/WEB-INF/messages" + qualifier);
+        }
         OutputStream os = response.getOutputStream();
         
         if (is != null) {
@@ -229,6 +256,18 @@ public class OccurrenceController extends AbstractSecureController {
                 os.write(buffer, 0, bytesRead);
             }
         }
+        
+        //append cl* and el* names as field.{fieldId}={display name}
+        try {
+            Map<String, String> fields = new LayersStore(Config.layersServiceUrl()).getFieldIdsAndDisplayNames();
+            for (String fieldId : fields.keySet()) {
+                os.write(("\nfield." + fieldId + "=" + fields.get(fieldId)).getBytes("UTF-8"));
+                os.write(("\nfacet." + fieldId + "=" + fields.get(fieldId)).getBytes("UTF-8"));
+            }
+        } catch (Exception e) {
+            logger.error("failed to add layer names from url: " + Config.layersServiceUrl(), e);
+        }
+        
         os.flush();
         os.close();
     }
@@ -245,6 +284,32 @@ public class OccurrenceController extends AbstractSecureController {
         else
             return searchDAO.getIndexFieldDetails(fields.split(","));
     }
+
+    /**
+     * Returns current index version number.
+     * 
+     * Can force the refresh if an apiKey is also provided. e.g. after a known edit.
+     *
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping("index/version")
+    public @ResponseBody Map getIndexedFields(@RequestParam(value="apiKey", required=false) String apiKey,
+                                              @RequestParam(value="force", required=false, defaultValue="false") Boolean force,
+                                              HttpServletResponse response) throws Exception{
+        
+        Long version;
+        if (force && shouldPerformOperation(apiKey, response)) {
+            version = searchDAO.getIndexVersion(force);
+        } else {
+            version = searchDAO.getIndexVersion(false);
+        }
+
+        Map m = new HashMap<String, Long>();
+        m.put("version", version);
+        
+        return m;
+    }
     
     /**
      * Returns a facet list including the number of distinct values for a field
@@ -255,6 +320,30 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping("occurrence/facets")
     public @ResponseBody List<FacetResultDTO> getOccurrenceFacetDetails(SpatialSearchRequestParams requestParams) throws Exception{
         return searchDAO.getFacetCounts(requestParams);
+    }
+
+    /**
+     * Returns a group list including the number of distinct values for a field, and occurrences.
+     *
+     * Requires valid apiKey.
+     *
+     * @param requestParams
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping("occurrence/groups")
+    public
+    @ResponseBody
+    List<GroupFacetResultDTO> getOccurrenceGroupDetails(SpatialSearchRequestParams requestParams,
+                                                        @RequestParam(value = "apiKey", required = true) String apiKey,
+                                                        HttpServletResponse response) throws Exception {
+        if (isValidKey(apiKey)) {
+            return searchDAO.searchGroupedFacets(requestParams);
+        }
+
+        response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
+        return null;
+        
     }
     
     /**
@@ -291,6 +380,44 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value={"/australian/taxon/{guid:.+}.json*","/australian/taxon/{guid:.+}*", "/native/taxon/{guid:.+}.json*","/native/taxon/{guid:.+}*" })
     public @ResponseBody NativeDTO isAustralian(@PathVariable("guid") String guid) throws Exception {
         //check to see if we have any occurrences on Australia  country:Australia or state != empty
+        NativeDTO adto = new NativeDTO();
+
+        if (guid != null) {
+            adto = getIsAustraliaForGuid(guid);
+        }
+
+        return adto;
+    }
+
+    /**
+     * Checks to see if the supplied GUID list has items that represents an Australian species.
+     * @param guids - comma separated list of guids
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value={"/australian/taxa.json*","/australian/taxa*", "/native/taxa.json*","/native/taxa*" })
+    public @ResponseBody List<NativeDTO> isAustralianForList(@RequestParam(value = "guids", required = true) String guids) throws Exception {
+        List<NativeDTO> nativeDTOs = new ArrayList<NativeDTO>();
+        String[] guidArray = StringUtils.split(guids, ',');
+
+        if (guidArray !=null) {
+            for (String guid : guidArray) {
+                nativeDTOs.add(getIsAustraliaForGuid(guid));
+                logger.debug("guid = " + guid);
+            }
+        }
+
+        return nativeDTOs;
+    }
+
+    /**
+     * Service to determine if a GUID has native or isAustralian status
+     * TODO should be in a service
+     *
+     * @param guid
+     * @return
+     */
+    private NativeDTO getIsAustraliaForGuid(String guid) {
         SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
         requestParams.setPageSize(0);
         requestParams.setFacets(new String[]{});
@@ -308,9 +435,10 @@ public class OccurrenceController extends AbstractSecureController {
             results = searchDAO.findByFulltextSpatialQuery(requestParams,null);
             adto.setHasCSOnly(results.getTotalRecords() == 0);
         }
+
         return adto;
     }
-    
+
     /**
      * Returns the complete list of Occurrences
      */
@@ -492,6 +620,8 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = {"/cache/refresh"}, method = RequestMethod.GET)
     public @ResponseBody String refreshCache() throws Exception {
         searchDAO.refreshCaches();
+
+        cacheManager.clearAll();
         return null;
     }
     
@@ -1123,7 +1253,9 @@ public class OccurrenceController extends AbstractSecureController {
         }
         
         //ADD THE DIFFERENT IMAGE FORMATS...thumb,small,large,raw
-        setupImageUrls(occ);
+        //default lookupImageMetadata to "true"
+        String im = request.getParameter("im");
+        setupImageUrls(occ, im == null || !im.equalsIgnoreCase("false"));
         
         //fix media store URLs
         Config.mediaStore().convertPathsToUrls(occ.getRaw(), biocacheMediaUrl);
@@ -1194,10 +1326,25 @@ public class OccurrenceController extends AbstractSecureController {
         return soundDtos;
     }
     
-    private void setupImageUrls(OccurrenceDTO dto){
+    private void setupImageUrls(OccurrenceDTO dto, boolean lookupImageMetadata) {
         String[] images = dto.getProcessed().getOccurrence().getImages();
         if(images != null && images.length > 0){
             List<MediaDTO> ml = new ArrayList<MediaDTO>();
+
+            Map<String, Map> metadata = new HashMap();
+            if (lookupImageMetadata) {
+                try {
+                    String uuid = dto.getProcessed().getUuid();
+                    List<Map<String, Object>> list = imageMetadataService.getImageMetadataForOccurrences(Arrays.asList(new String[]{uuid})).get(uuid);
+                    if (list != null) {
+                        for (Map m : list) {
+                            metadata.put(String.valueOf(m.get("imageId")), m);
+                        }
+                    }
+                } catch (Exception e) {
+                }
+            }
+
             for(String fileNameOrID: images){
                 MediaDTO m = new MediaDTO();
                 Map<String, String> urls = Config.mediaStore().getImageFormats(fileNameOrID);
@@ -1207,9 +1354,34 @@ public class OccurrenceController extends AbstractSecureController {
                 m.getAlternativeFormats().put("imageUrl", urls.get("raw"));
                 m.setFilePath(fileNameOrID);
                 m.setMetadataUrl(imageMetadataService.getUrlFor(fileNameOrID));
+                
+                if (metadata != null && metadata.get(fileNameOrID) != null) {
+                    m.setMetadata(metadata.get(fileNameOrID));
+                }
                 ml.add(m);
             }
             dto.setImages(ml);
         }
+    }
+
+    /**
+     * Perform one pivot facet query.
+     * <p/>
+     * Requires valid apiKey.
+     * <p/>
+     * facets is the pivot facet list
+     */
+    @RequestMapping("occurrence/pivot")
+    public
+    @ResponseBody
+    List<FacetPivotResultDTO> searchPivot(SpatialSearchRequestParams searchParams,
+                                          @RequestParam(value = "apiKey", required = true) String apiKey,
+                                          HttpServletResponse response) throws Exception {
+        if (isValidKey(apiKey)) {
+            return searchDAO.searchPivot(searchParams);
+        }
+
+        response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
+        return null;
     }
 }

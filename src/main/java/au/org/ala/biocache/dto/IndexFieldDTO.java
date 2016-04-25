@@ -30,15 +30,35 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     private boolean indexed;
     /** True when the field is available for extraction in search results */
     private boolean stored;
+    /** True when the field is a multivalue field */
+    private boolean multivalue;
     /** Stores the number of distinct values that are in the field */
     private Integer numberDistinctValues;
     /** the i18n string to used for the field. */
     private String description;
-    
+    /** the i18n information used for this field */
+    private String info;
+    /** the occurrences/search json key for this field */
+    private String jsonName;
+    /** the DwC name for this field */
+    private String dwcTerm;
+    /** the download name for this field (biocache-store name) valid for DownloadRequestParams.fl */
+    private String downloadName;
+    /** the download description for this field when downloadName is used in DownloadRequestParams.fl */
+    private String downloadDescription;
+    /** the values in this field can be looked up within i18n using name.{value} */
+    private Boolean i18nValues;
+    /** class of this field */
+    private String classs;
+
     @Override
     public boolean equals(Object obj){
         if(obj instanceof IndexFieldDTO && name != null){
-            return name.equals(((IndexFieldDTO)obj).getName());
+            if (name.equals(((IndexFieldDTO)obj).getName())) {
+                //test the Cassandra field name
+                return (downloadName != null && downloadName.equals(((IndexFieldDTO)obj).getDownloadName())) ||
+                        (downloadName == null && ((IndexFieldDTO)obj).getDownloadName() == null);
+            }
         }
         return false;
     }
@@ -117,10 +137,80 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     public void setDescription(String description) {
         this.description = description;
     }
+    /**
+     * @return the i18nValues
+     */
+    public Boolean isI18nValues() {
+        return i18nValues;
+    }
+    /**
+     * @param i18nValues the jsonName to set
+     */
+    public void setI18nValues(Boolean i18nValues) {
+        this.i18nValues = i18nValues;
+    }
+    public String getJsonName() {
+        return jsonName;
+    }
+    /**
+     * @param jsonName the jsonName to set
+     */
+    public void setJsonName(String jsonName) {
+        this.jsonName = jsonName;
+    }
+    /**
+     * @return the info
+     */
+    public String getInfo() {
+        return info;
+    }
+    /**
+     * @param info the info to set
+     */
+    public void setInfo(String info) {
+        this.info = info;
+    }
+    /**
+     * @return the dwcTerm
+     */
+    public String getDwcTerm() {
+        return dwcTerm;
+    }
+    /**
+     * @param dwcTerm the dwcTerm to set
+     */
+    public void setDwcTerm(String dwcTerm) {
+        this.dwcTerm = dwcTerm;
+    }
+    /**
+     * @return the downloadName
+     */
+    public String getDownloadName() {
+        return downloadName;
+    }
+    /**
+     * @param downloadName the downloadName to set
+     */
+    public void setDownloadName(String downloadName) {
+        this.downloadName = downloadName;
+    }
+    /**
+     * @return the downloadDescription
+     */
+    public String getDownloadDescription() {
+        return downloadDescription;
+    }
+    /**
+     * @param downloadDescription the downloadName to set
+     */
+    public void setDownloadDescription(String downloadDescription) {
+        this.downloadDescription = downloadDescription;
+    }
 
     @Override
-    public int compareTo(IndexFieldDTO other) {        
-        return this.getName().compareTo(other.getName());
+    public int compareTo(IndexFieldDTO other) {
+        //Include the Cassandra field name
+        return (this.getName() + " " + this.getDownloadName()).compareTo(other.getName() + " " + other.getDownloadName());
     }
 
     /* (non-Javadoc)
@@ -132,7 +222,20 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
           + ", indexed=" + indexed + ", stored=" + stored
           + ", numberDistinctValues=" + numberDistinctValues + "]";
     }
-    
-    
-    
+
+    public void setClasss(String classs) {
+        this.classs = classs;
+    }
+
+    public String getClasss() {
+        return classs;
+    }
+
+    public void setMultivalue(boolean multivalue) {
+        this.multivalue = multivalue;
+    }
+
+    public boolean isMultivalue() {
+        return multivalue;
+    }
 }

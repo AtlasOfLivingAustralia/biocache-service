@@ -1,11 +1,12 @@
 package au.org.ala.biocache.util;
 
-import org.geotools.geometry.jts.JTS;
-
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryCollection;
 import com.vividsolutions.jts.io.WKTReader;
+import com.vividsolutions.jts.simplify.TopologyPreservingSimplifier;
+import org.apache.log4j.Logger;
+import org.geotools.geometry.jts.JTS;
 
 /**
  * Supplies spatial utilities that can be used for the geospatial seaches
@@ -13,6 +14,8 @@ import com.vividsolutions.jts.io.WKTReader;
  * @author Natasha Carter
  */
 public class SpatialUtils {
+
+    private final static Logger logger = Logger.getLogger(SpatialUtils.class);
   
     private static final Geometry THE_WORLD=JTS.toGeometry(new Envelope(-180.0,180.0, -90.0, 90.0));
     private static final double TO_DEG = Math.toDegrees(1.0);
@@ -233,6 +236,39 @@ public class SpatialUtils {
             
         }
         return sb.toString();
+    }
+
+    /**
+     * Attempts to simplify WKT until the number of points is < maxPoints.
+     * <p/>
+     * TODO: do something with invalid WKT
+     *
+     * @param wkt
+     * @param maxPoints
+     * @return WKT that has fewer than maxPoints or null
+     */
+    public static String simplifyWkt(String wkt, int maxPoints) {
+        WKTReader r = new WKTReader();
+        Geometry smallerGeometry = null;
+
+        try {
+            Geometry g = r.read(wkt);
+
+            if (g.getNumPoints() < maxPoints) {
+                return wkt;
+            }
+
+            double distance = 0.0001;
+            while (maxPoints > 0 && g.getNumPoints() > maxPoints && distance < 10) {
+                Geometry gsimplified = TopologyPreservingSimplifier.simplify(g, distance);
+                distance *= 2;
+
+                smallerGeometry = gsimplified;
+            }
+        } catch (Exception e) {
+            logger.error("WKT reduction failed: " + e.getMessage());
+        }
+        return smallerGeometry == null ? null : smallerGeometry.toText();
     }
 
 }

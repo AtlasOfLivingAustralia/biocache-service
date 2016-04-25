@@ -14,17 +14,17 @@
  ***************************************************************************/
 package au.org.ala.biocache.writer;
 
-import java.io.File;
-import java.io.OutputStream;
-import java.io.Serializable;
-import java.util.*;
-
+import au.org.ala.biocache.RecordWriter;
 import au.org.ala.biocache.util.AlaFileUtils;
+import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.GeometryFactory;
+import com.vividsolutions.jts.geom.Point;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ArrayUtils;
-import org.geotools.data.shapefile.*;
+import org.geotools.data.shapefile.ShapefileDataStore;
+import org.geotools.data.shapefile.ShapefileDataStoreFactory;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.data.simple.SimpleFeatureStore;
@@ -35,15 +35,15 @@ import org.geotools.geometry.jts.JTSFactoryFinder;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.vividsolutions.jts.geom.Coordinate;
-import com.vividsolutions.jts.geom.GeometryFactory;
-import com.vividsolutions.jts.geom.Point;
-
-import au.org.ala.biocache.RecordWriter;
+import java.io.File;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * A record writer that produces a shapefile.
@@ -53,8 +53,8 @@ import au.org.ala.biocache.RecordWriter;
 public class ShapeFileRecordWriter implements RecordWriter {
 	
     private final static Logger logger = LoggerFactory.getLogger(ShapeFileRecordWriter.class);
-    
-    private static final String tmpDownloadDirectory = "/data/biocache-download/tmp";
+
+    private String tmpDownloadDirectory;
     private ShapefileDataStoreFactory dataStoreFactory = new ShapefileDataStoreFactory();
     private SimpleFeatureBuilder featureBuilder;
     private SimpleFeatureType simpleFeature;
@@ -69,8 +69,9 @@ public class ShapeFileRecordWriter implements RecordWriter {
      * object for the location)
      */
     GeometryFactory geometryFactory = JTSFactoryFinder.getGeometryFactory(null);
-    
-    public ShapeFileRecordWriter(String filename,OutputStream out, String[] header){
+
+    public ShapeFileRecordWriter(String tmpdir, String filename, OutputStream out, String[] header) {
+        tmpDownloadDirectory = tmpdir;
         //perform the header mappings so that features are only 10 characters long.
         headerMappings = AlaFileUtils.generateShapeHeader(header); 
         //set the outputStream

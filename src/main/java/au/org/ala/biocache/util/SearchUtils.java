@@ -225,15 +225,6 @@ public class SearchUtils {
         return result;
     }
 
-    public static String formatGuid(String guid) {
-        String[] bits = StringUtils.split(guid, ":", 2);
-        StringBuffer queryString = new StringBuffer();
-        queryString.append(ClientUtils.escapeQueryChars(bits[0]));
-        queryString.append(":");
-        queryString.append(ClientUtils.escapeQueryChars(bits[1]));
-        return queryString.toString();
-    }
-
     /**
      * returns the solr field that should be used to search for a particular uid
      *
@@ -370,45 +361,44 @@ public class SearchUtils {
      * @param filterQuery
      * @return
      */
-    public Map<String, Facet> addFacetMap(String[] filterQuery,Set<String> authIndexFields) {
+    public Map<String, Facet> addFacetMap(String[] filterQuery, String queryContext, Set<String> authIndexFields) {
         Map<String, Facet> afs = new HashMap<String, Facet>();
 
         if (filterQuery != null && filterQuery.length > 0) {
             // iterate over the fq params
             for (String fq : filterQuery) {
+
+                if (queryContext != null && queryContext.equals(fq)) {
+                    // exclude these from the active map, they should be hidden from user...
+                    continue;
+                }
+
                 if (fq != null && !fq.isEmpty()) {
                     Boolean isExcludeFilter = false;
-                    String prefix="",suffix="";
+                    String prefix = "", suffix = "";
                     // remove Boolean braces if present
                     if (fq.startsWith("(") && fq.endsWith(")")){
                         fq = StringUtils.remove(fq, "(");
                         fq = StringUtils.removeEnd(fq, ")");
-                        prefix="(";
-                        suffix=")";
+                        prefix = "(";
+                        suffix = ")";
                     } else if (fq.startsWith("-(") && fq.endsWith(")")) {
                         fq = StringUtils.remove(fq, "-(");
                         fq = StringUtils.removeEnd(fq, ")");
                         //fq = "-" + fq;
                         isExcludeFilter = true;
-                        prefix="(";
-                        suffix=")";
+                        prefix = "(";
+                        suffix = ")";
                     }
 
                     String[] fqBits = StringUtils.split(fq, ":", 2);
                     // extract key for map
                     if (fqBits.length  == 2) {
-                        String key = fqBits[0];
-                        String value = fqBits[1];
-                        
-                        if ("data_hub_uid".equals(key)) {
-                            // exclude these...
-                            continue;
-                        }
-                        
+
                         Facet f = new Facet();
-                        f.setName(key);
-                        f.setValue(value);
-                        logger.debug("1. fq = " + key + " => " + value);
+                        f.setName(fqBits[0]);
+                        f.setValue(fqBits[1]);
+                        logger.debug("1. fq = " + fqBits[0] + " => " + fqBits[1]);
                         // if there are internal Boolean operators, iterate over sub queries
                         String patternStr = "[ ]+(OR)[ ]+";
                         String[] tokens = fq.split(patternStr, -1);
@@ -420,7 +410,7 @@ public class SearchUtils {
                             if (tokenBits.length == 2) {
                                 String fn = tokenBits[0];
                                 String fv = tokenBits[1];
-                                String i18n = null;
+                                String i18n;
                                 if(isDynamicField(fn)){
                                     //hack for dynamic facets
                                     i18n = formatDynamicFieldName(fn);
@@ -465,7 +455,7 @@ public class SearchUtils {
                         logger.debug("label = " + label);
                         f.setDisplayName(label);
 
-                        afs.put(StringUtils.removeStart(key, "-"), f); // add to map
+                        afs.put(StringUtils.removeStart(f.getName(), "-"), f); // add to map
                     }
                 }
             }

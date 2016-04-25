@@ -1,15 +1,22 @@
 package au.org.ala.biocache.service;
 
 
+import au.org.ala.biocache.Config;
+import au.org.ala.biocache.dto.SpeciesCountDTO;
+import au.org.ala.biocache.dto.SpeciesImageDTO;
+import au.org.ala.biocache.util.ALANameSearcherExt;
 import au.org.ala.names.model.LinnaeanRankClassification;
 import au.org.ala.names.model.NameSearchResult;
-import au.org.ala.names.search.ALANameSearcher;
+import au.org.ala.names.search.ExcludedNameException;
+import au.org.ala.names.search.MisappliedException;
+import au.org.ala.names.search.ParentSynonymChildException;
+import au.org.ala.names.search.SearchResultException;
 import com.mockrunner.util.common.StringUtil;
 import org.apache.commons.lang.ArrayUtils;
 import org.springframework.context.support.AbstractMessageSource;
 
-import java.util.ArrayList;
-import java.util.List;
+import javax.inject.Inject;
+import java.util.*;
 
 /**
  * Index based lookup index serice
@@ -18,14 +25,26 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
 
     private AbstractMessageSource messageSource; // use for i18n of the headers
 
+    @Inject
+    protected SpeciesCountsService speciesCountsService;
+
+    @Inject
+    protected CommonNameService commonNameService;
+
+    @Inject
+    protected SpeciesImageService speciesImageService;
+
+    @Inject
+    protected ImageMetadataService imageMetadataService;
+
     protected String nameIndexLocation;
 
-    private ALANameSearcher nameIndex = null;
+    private ALANameSearcherExt nameIndex = null;
 
-    private ALANameSearcher getNameIndex() throws RuntimeException {
+    private ALANameSearcherExt getNameIndex() throws RuntimeException {
         if(nameIndex == null){
             try {
-                nameIndex = new ALANameSearcher(nameIndexLocation);
+                nameIndex = new ALANameSearcherExt(nameIndexLocation);
             } catch (Exception e){
                 throw new RuntimeException(e.getMessage(), e);
             }
@@ -35,11 +54,24 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
 
     @Override
     public String getGuidForName(String name) {
+        String lsid = null;
         try {
-            return getNameIndex().searchForLSID(name);
-        } catch(Exception e){
-            return null;
+            lsid = getNameIndex().searchForLSID(name);
+        } catch (ExcludedNameException e) {
+            if (e.getNonExcludedName() != null)
+                lsid = e.getNonExcludedName().getLsid();
+            else
+                lsid = e.getExcludedName().getLsid();
+        } catch (ParentSynonymChildException e) {
+            //the child is the one we want
+            lsid = e.getChildResult().getLsid();
+        } catch (MisappliedException e) {
+            if (e.getMisappliedResult() != null)
+                lsid = e.getMatchedResult().getLsid();
+        } catch (SearchResultException e) {
         }
+
+        return lsid;
     }
 
     @Override
@@ -114,7 +146,7 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
                 };
             } else {
                 result = new String[]{
-                        "",
+                        "unmatched",
                         "",
                         "",
                         "",
@@ -156,11 +188,190 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         }
     }
 
+    @Override
+    public List<String> getGuidsForTaxa(List<String> taxaQueries) {
+        return getNameIndex().getGuidsForTaxa(taxaQueries);
+    }
+
     public void setMessageSource(AbstractMessageSource messageSource) {
         this.messageSource = messageSource;
     }
 
     public void setNameIndexLocation(String nameIndexLocation) {
         this.nameIndexLocation = nameIndexLocation;
+    }
+    
+    public Map search(String query, String [] filterQuery, int max, boolean includeSynonyms, boolean includeAll, boolean counts) {
+        // TODO: better method of dealing with records with 0 occurrences being removed. 
+        int maxFind = includeAll ? max : max + 1000;
+        
+        List<Map> results = getNameIndex().autocomplete(query, maxFind, includeSynonyms);
+
+        List<Map> output = new ArrayList();
+
+        SpeciesCountDTO countlist = counts ? speciesCountsService.getCounts(filterQuery) : null;
+
+        //sort by rank, then score, then name
+        Collections.sort(results, new Comparator<Map>() {
+            @Override
+            public int compare(Map o1, Map o2) {
+                //exact match is above everything, hopefully
+
+                int sort = new Float(((Float) o2.get("score") * (10000 - (Integer) o2.get("rankId")))).compareTo((Float) o1.get("score") * (10000 - (Integer) o1.get("rankId")));
+                if (sort == 0) return ((String) o1.get("name")).compareTo((String) o2.get("name"));
+                else return sort;
+            }
+        });
+
+        //add counter and filter output
+        for (int i = 0; i < results.size() && output.size() < max; i++) {
+            Map nsr = results.get(i);
+            try {
+                long count = counts ? speciesCountsService.getCount(countlist, Long.parseLong(nsr.get("left").toString()), Long.parseLong(nsr.get("right").toString())) : 0;
+
+                if (!speciesCountsService.isEnabled() || count > 0 || includeAll) {
+                    if (counts) nsr.put("count", count);
+
+                    nsr.put("images", speciesImageService.get(Long.parseLong((String) nsr.get("left")), Long.parseLong((String) nsr.get("right"))));
+
+                    output.add(nsr);
+                }
+            } catch (Exception e) {
+
+            }
+        }
+
+        //format output like BIE ws/search.json
+        List<Map> formatted = new ArrayList();
+        for (Map m : output) {
+            formatted.add(format(m, query));
+        }
+        Map wrapper = new HashMap();
+        wrapper.put("pageSize", max);
+        wrapper.put("startIndex", 0);
+        wrapper.put("totalRecords", results.size());
+        wrapper.put("sort", "score");
+        wrapper.put("dir", "desc");
+        wrapper.put("status", "OK");
+        wrapper.put("query", query);
+        wrapper.put("results", formatted);
+        Map searchResults = new HashMap();
+        searchResults.put("searchResults", wrapper);
+        return searchResults;
+    }
+
+    /**
+     * some formatting to better match autocomplete to bie
+     *
+     * @param m
+     * @param searchTerm
+     * @return
+     */
+    private Map format(Map m, String searchTerm) {
+        Map formatted = new HashMap();
+
+        String guid = (String) m.get("lsid");
+        formatted.put("guid", guid);
+        
+        //all results resolve to accepted lsids
+        formatted.put("linkIdentifier", guid);
+        
+        formatted.put("name", m.get("name"));
+        formatted.put("idxType", "TAXON");
+        formatted.put("score", m.get("score"));
+        formatted.put("left", m.get("left"));
+        formatted.put("right", m.get("right"));
+
+        LinnaeanRankClassification cl = (LinnaeanRankClassification) m.get("cl");
+        String parentUid = null;
+        if (cl != null) {
+            //TODO: get parent from names index
+            if (guid.equals(cl.getSid())) parentUid = cl.getGid();
+            if (guid.equals(cl.getGid())) parentUid = cl.getFid();
+            if (guid.equals(cl.getFid())) parentUid = cl.getOid();
+            if (guid.equals(cl.getOid())) parentUid = cl.getCid();
+            if (guid.equals(cl.getCid())) parentUid = cl.getPid();
+            if (guid.equals(cl.getPid())) parentUid = cl.getKid();
+            formatted.put("parentGuid", parentUid);
+
+            formatted.put("kingdom", cl.getKingdom());
+            formatted.put("phylum", cl.getPhylum());
+            formatted.put("classs", cl.getKlass());
+            formatted.put("order", cl.getOrder());
+            formatted.put("family", cl.getFamily());
+            formatted.put("genus", cl.getGenus());
+            formatted.put("author", cl.getAuthorship());
+        }
+
+        //TODO: ?
+        formatted.put("hasChildren", false);
+
+        formatted.put("rank", m.get("rank").toString().toLowerCase());
+        formatted.put("rankId", m.get("rankId"));
+        formatted.put("rawRank", m.get("rank"));
+
+        //TODO: get from names index
+        formatted.put("isAustralian", "recorded");
+
+        //from match type
+        boolean scientificNameMatch = "scientificName".equals(m.get("match"));
+        String highlight = scientificNameMatch ? (String) m.get("name") : (String) m.get("commonname");
+        if (highlight == null) {
+            for (Map syn : ((List<Map>) m.get("synonymMatch"))) {
+                scientificNameMatch = "scientificName".equals(syn.get("match"));
+                highlight = scientificNameMatch ? (String) syn.get("name") : (String) syn.get("commonname");
+                if (highlight != null) {
+                    break;
+                }
+            }
+        }
+        if (highlight != null) {
+            int pos = highlight.toLowerCase().indexOf(searchTerm.toLowerCase());
+            if (pos >= 0) {
+                highlight = highlight.substring(0, pos) +
+                        "<strong>" + highlight.substring(pos, pos + searchTerm.length()) + "</strong>" +
+                        highlight.substring(pos + searchTerm.length(), highlight.length());
+            }
+        }
+        formatted.put("highlight", highlight);
+
+        //hack to fix common name. Only common name matches have a common name so do not return nothing when not found
+        m.put("commonname", commonNameService.translateCommonName((String) m.get("commonname"), false));
+        if (m.get("commonname") == null) {
+            m.put("commonname", commonNameService.lookupCommonName((String) m.get("lsid")));
+        }
+        if (m.get("commonname") != null) {
+            formatted.put("commonName", m.get("commonname"));
+            formatted.put("commonNameSingle", m.get("commonname"));
+        }
+
+        formatted.put("nameComplete", m.get("name"));
+
+        formatted.put("occCount", m.get("count"));
+
+        SpeciesImageDTO speciesImage = (SpeciesImageDTO) m.get("images");
+
+        if (speciesImage != null && speciesImage.getImage() != null) {
+            formatted.put("imageSource", speciesImage.getDataResourceUid());
+            //number of occurrences with images
+            formatted.put("imageCount", speciesImage.getCount());
+
+            Map im = Config.mediaStore().getImageFormats(speciesImage.getImage());
+
+            formatted.put("image", im.get("raw"));
+            formatted.put("thumbnail", im.get("thumbnail"));
+            formatted.put("imageUrl", im.get("raw"));
+            formatted.put("smallImageUrl", im.get("small"));
+            formatted.put("largeImageUrl", im.get("large"));
+            formatted.put("thumbnailUrl", im.get("thumbnail"));
+
+            formatted.put("imageMetadataUrl", imageMetadataService.getUrlFor(speciesImage.getImage()));
+        } else {
+            formatted.put("imageCount", 0);
+        }
+
+        //TODO: ?
+        formatted.put("isExcluded", false);
+        return formatted;
     }
 }

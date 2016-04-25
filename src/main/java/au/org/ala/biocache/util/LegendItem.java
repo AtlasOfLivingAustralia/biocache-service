@@ -30,7 +30,7 @@ public class LegendItem implements Comparable<LegendItem> {
     int green;
 
     public LegendItem(String name, long count, String fq) {
-        this.name = name;
+        this.name = name != null ? name : "";
         this.count = count;
         this.fq = fq;
     }

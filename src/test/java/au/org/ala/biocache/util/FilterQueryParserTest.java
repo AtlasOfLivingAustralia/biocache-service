@@ -37,7 +37,7 @@ public class FilterQueryParserTest {
                 "month:09 OR month:10 OR month:11"};
         //update the collections cache - necessary because this is on a timer
 //        collectionsCache.updateCache();
-        facetMap = searchUtils.addFacetMap(fqs, ((SearchDAOImpl) searchDao).getAuthIndexFields());
+        facetMap = searchUtils.addFacetMap(fqs, "", ((SearchDAOImpl) searchDao).getAuthIndexFields());
     }
 
     @Test

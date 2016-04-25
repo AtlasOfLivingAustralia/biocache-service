@@ -16,6 +16,7 @@ package au.org.ala.biocache.dao;
 
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.LegendItem;
+import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.common.SolrDocumentList;
 
@@ -102,7 +103,7 @@ public interface SearchDAO {
      * @return A map of uids and counts that needs to be logged to the ala-logger
      * @throws Exception
      */
-	Map<String,Integer> writeResultsToStream(DownloadRequestParams searchParams, OutputStream out, int maxNoOfRecords, boolean includeSensitive, DownloadDetailsDTO dd) throws Exception;
+	Map<String,Integer> writeResultsToStream(DownloadRequestParams searchParams, OutputStream out, int maxNoOfRecords, boolean includeSensitive, DownloadDetailsDTO dd, boolean limit) throws Exception;
 	
 	/**
 	 * Writes the results of this query to the output stream using the index as a source of the data.
@@ -161,6 +162,17 @@ public interface SearchDAO {
      * @throws Exception
      */
     List<OccurrencePoint> getFacetPoints(SpatialSearchRequestParams searchParams, PointType pointType) throws Exception;
+
+    /**
+     * Retrieve an OccurrencePoint (distinct list of points - lat-long to 4 decimal places) for a given search 
+     * without convertion to List of OccurrencePoint
+     *
+     * @param searchParams
+     * @param pointType
+     * @return
+     * @throws Exception
+     */
+    FacetField getFacetPointsShort(SpatialSearchRequestParams searchParams, String pointType) throws Exception;
 
     /**
      * Retrieve a list of occurrence uid's for a given search
@@ -299,4 +311,39 @@ public interface SearchDAO {
      * @throws Exception
      */
     List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception;
+
+    /**
+     * Get the SOLR index version. Trigger a background refresh on a timeout.
+     *
+     * Forcing an updated value will perform a new SOLR query for each request to be run in the foreground.
+     *
+     * @return
+     * @param force
+     */
+    public Long getIndexVersion(Boolean force);
+
+    /**
+     * Perform grouped facet query.
+     * 
+     * facets is the list of grouped facets required
+     * flimit restricts the number of groups returned
+     * pageSize restricts the number of docs in each group returned
+     * fl is the list of fields in the returned docs
+     *
+     * @param searchRequestParams
+     * @return
+     * @throws Exception
+     */
+    public List<GroupFacetResultDTO> searchGroupedFacets(SpatialSearchRequestParams searchRequestParams) throws Exception ;
+
+    /**
+     * Perform one pivot facet query.
+     * <p/>
+     * facets is the pivot facet list
+     *
+     * @param searchParams
+     * @return
+     * @throws Exception
+     */
+    List<FacetPivotResultDTO> searchPivot(SpatialSearchRequestParams searchParams) throws Exception;
 }

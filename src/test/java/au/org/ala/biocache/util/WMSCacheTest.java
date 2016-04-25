@@ -18,29 +18,35 @@ import java.util.concurrent.LinkedBlockingQueue;
 @Ignore
 public class WMSCacheTest extends TestCase {
 
+    private WMSCache wmsCache = new WMSCache();
+
     /**
      * test put and get
      */
     public void testPutGetWMS() {
+        initCache();
+        
         //test a cache put and get
         WMSTile wco1 = getDefaultWMSCacheObject("q1", 100, true);
-        WMSCache.put(wco1.getQuery(), wco1.getColourmode(), PointType.POINT_001, wco1);
+        wmsCache.put(wco1.getQuery(), wco1.getColourmode(), PointType.POINT_001, wco1);
 
         WMSTile wco2 = getDefaultWMSCacheObject("q2", 100, true);
-        WMSCache.put(wco2.getQuery(), wco2.getColourmode(), PointType.POINT_001, wco2);
+        wmsCache.put(wco2.getQuery(), wco2.getColourmode(), PointType.POINT_001, wco2);
 
         //test get returns the correct object
-        assertTrue(compareWMSObjects(WMSCache.get(wco1.getQuery(), wco1.getColourmode(), PointType.POINT_001), wco1));
-        assertTrue(compareWMSObjects(WMSCache.get(wco2.getQuery(), wco2.getColourmode(), PointType.POINT_001), wco2));
+        assertTrue(compareWMSObjects(wmsCache.get(wco1.getQuery(), wco1.getColourmode(), PointType.POINT_001), wco1));
+        assertTrue(compareWMSObjects(wmsCache.get(wco2.getQuery(), wco2.getColourmode(), PointType.POINT_001), wco2));
 
         //get from cache an object that does not exist returns a placeholder
-        WMSTile wcop = WMSCache.get("", "", PointType.POINT_00001);
+        WMSTile wcop = wmsCache.get("", "", PointType.POINT_00001);
         assertNotNull(wcop);
         assertTrue(!wcop.getCached());
+    }
 
-        //put very large object into cache returns null
-        WMSCache.setLargestCacheableSize(10000);
-        assertTrue(!WMSCache.put("q1", "c", PointType.POINT_00001, getDefaultWMSCacheObject("q1", 10000, true)));
+    private void initCache() {
+        wmsCache.setMaxCacheSize(500000);
+        wmsCache.setMinCacheSize(50000);
+        wmsCache.setMaxCacheAge(Integer.MAX_VALUE);
     }
 
     /**
@@ -49,9 +55,8 @@ public class WMSCacheTest extends TestCase {
      * cachecleaner has done its job.
      */
     public void testSizeManagementWMS() {
-        //setup
-        WMSCache.setMaxCacheSize(50000);
-        WMSCache.setMinCacheSize(5000);
+        initCache();
+        
         ArrayList<WMSTile> wcos = new ArrayList<WMSTile>();
         long putSize = 0;
         long maxSize = 0;
@@ -61,7 +66,7 @@ public class WMSCacheTest extends TestCase {
             putSize += wco.getSize();
 
             wcos.add(wco);
-            long size = WMSCache.getSize();
+            long size = wmsCache.getSize();
 
             if (size < maxSize) {
                 maxSize = size;
@@ -70,16 +75,16 @@ public class WMSCacheTest extends TestCase {
                 maxSize = size;
             }
 
-            boolean result = WMSCache.put(wco.getQuery(), wco.getColourmode(), PointType.POINT_1, wco);
+            boolean result = wmsCache.put(wco.getQuery(), wco.getColourmode(), PointType.POINT_1, wco);
 
             //test if cache is full the put was unsuccessful
             //allow for cachecleaner to have reduced the size between put and test
-            boolean test = (WMSCache.getSize() + wco.getSize() > WMSCache.getMaxCacheSize()) == !result;
+            boolean test = (wmsCache.getSize() + wco.getSize() > wmsCache.getMaxCacheSize()) == !result;
             if (test == false) {
-                assertTrue((size + wco.getSize() > WMSCache.getMaxCacheSize()) == !result);
+                assertTrue((size + wco.getSize() > wmsCache.getMaxCacheSize()) == !result);
             }
 
-            assertTrue(WMSCache.getSize() <= WMSCache.getMaxCacheSize());
+            assertTrue(wmsCache.getSize() <= wmsCache.getMaxCacheSize());
         }
 
         //test size calcuations are operating
@@ -89,12 +94,12 @@ public class WMSCacheTest extends TestCase {
         assertTrue(cacheSizeDropCount > 1);
 
         //test cache size is under max
-        assertTrue(WMSCache.getSize() <= WMSCache.getMaxCacheSize());
+        assertTrue(wmsCache.getSize() <= wmsCache.getMaxCacheSize());
 
         //test gets.  Anything that is a placeholder will be null.
         int cachedCount = 0;
         for (int i = 0; i < wcos.size(); i++) {
-            WMSTile getwco = WMSCache.get(wcos.get(i).getQuery(), wcos.get(i).getColourmode(), PointType.POINT_1);
+            WMSTile getwco = wmsCache.get(wcos.get(i).getQuery(), wcos.get(i).getColourmode(), PointType.POINT_1);
             if (getwco.getCached()) {
                 assertTrue(compareWMSObjects(wcos.get(i), getwco));
                 cachedCount++;
@@ -110,9 +115,7 @@ public class WMSCacheTest extends TestCase {
      * 1. perform many puts and gets on multiple threads
      */
     public void testConcurrency() throws InterruptedException {
-        //setup
-        WMSCache.setMaxCacheSize(50000);
-        WMSCache.setMinCacheSize(5000);
+        initCache();
 
         final ArrayList<WMSTile> wcos = new ArrayList<WMSTile>();
         final ArrayList<Integer> test = new ArrayList<Integer>();
@@ -131,11 +134,11 @@ public class WMSCacheTest extends TestCase {
                 public Integer call() throws Exception {
                     //put
                     int i = idxs.take();
-                    boolean ok = WMSCache.put(wcos.get(i).getQuery(), wcos.get(i).getColourmode(), PointType.POINT_1, wcos.get(i));
+                    boolean ok = wmsCache.put(wcos.get(i).getQuery(), wcos.get(i).getColourmode(), PointType.POINT_1, wcos.get(i));
 
                     //get
                     if (ok) {
-                        WMSTile wco = WMSCache.get(wcos.get(i).getQuery(), wcos.get(i).getColourmode(), PointType.POINT_1);
+                        WMSTile wco = wmsCache.get(wcos.get(i).getQuery(), wcos.get(i).getColourmode(), PointType.POINT_1);
                         if (wco.getCached()) {
                             if (compareWMSObjects(wco, wcos.get(i))) {
                                 test.set(i, 1);
@@ -152,7 +155,7 @@ public class WMSCacheTest extends TestCase {
         executorService.invokeAll(tasks);
 
         //test cache cleaner operated correctly
-        assertTrue(WMSCache.getSize() <= WMSCache.getMaxCacheSize());
+        assertTrue(wmsCache.getSize() <= wmsCache.getMaxCacheSize());
 
         //test for presence of invalid test comparisons
         int invalid = 0;

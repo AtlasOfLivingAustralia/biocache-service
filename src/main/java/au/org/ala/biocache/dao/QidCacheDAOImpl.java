@@ -18,11 +18,13 @@ import au.org.ala.biocache.model.Qid;
 import au.org.ala.biocache.util.QidMissingException;
 import au.org.ala.biocache.util.QidSizeException;
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.inject.Inject;
-import java.io.InputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -38,25 +40,27 @@ public class QidCacheDAOImpl implements QidCacheDAO {
 
     private final Logger logger = Logger.getLogger(QidCacheDAOImpl.class);
     //max size of cached params in bytes
-    private long MAX_CACHE_SIZE = 104857600;
+    @Value("${qid.cache.size.max:104857600}")
+    long maxCacheSize;
     //min size of cached params in bytes
-    private long MIN_CACHE_SIZE = 52428800;
+    @Value("${qid.cache.size.min:52428800}")
+    long minCacheSize;
     //max single cacheable object size
-    private long LARGEST_CACHEABLE_SIZE = 5242880;
+    @Value("${qid.cache.largestCacheableSize:5242880}")
+    long largestCacheableSize;
     //in memory store of params
     private ConcurrentHashMap<String, Qid> cache = new ConcurrentHashMap<String, Qid>();
     //counter and lock
     final private Object counterLock = new Object();
     private long cacheSize;
     private CountDownLatch counter;
-    private long triggerCleanSize = MIN_CACHE_SIZE + (MAX_CACHE_SIZE - MIN_CACHE_SIZE) / 2;
+    private long triggerCleanSize = minCacheSize + (maxCacheSize - minCacheSize) / 2;
     //thread for cache size limitation
     private Thread cacheCleaner;
-    //settable properties file
-    private Properties qidProperties;
 
-    protected QidDAO qidDao = (QidDAO) au.org.ala.biocache.Config.getInstance(QidDAO.class);
+//    protected QidDAO qidDao = (QidDAO) au.org.ala.biocache.Config.getInstance(QidDAO.class);
 
+    protected QidDAO qidDao = null;
     /**
      * init
      */
@@ -72,7 +76,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
                         if (counter != null) counter.await();
 
                         synchronized (counterLock) {
-                            cacheSize = MIN_CACHE_SIZE;
+                            cacheSize = minCacheSize;
                             counter = new CountDownLatch(1);
                         }
 
@@ -87,17 +91,10 @@ public class QidCacheDAOImpl implements QidCacheDAO {
         cacheCleaner.start();
 
         try {
-            qidProperties = new Properties();
-            InputStream is = QidCacheDAOImpl.class.getResourceAsStream("/qid.properties");
-            qidProperties.load(is);
-
-            MAX_CACHE_SIZE = Long.parseLong(qidProperties.getProperty("MAX_CACHE_SIZE", String.valueOf(MAX_CACHE_SIZE)));
-            MIN_CACHE_SIZE = Long.parseLong(qidProperties.getProperty("MIN_CACHE_SIZE", String.valueOf(MIN_CACHE_SIZE)));
-            LARGEST_CACHEABLE_SIZE = Long.parseLong(qidProperties.getProperty("LARGEST_CACHEABLE_SIZE", String.valueOf(LARGEST_CACHEABLE_SIZE)));
             updateTriggerCleanSize();
 
-            logger.info("MAX_CACHE_SIZE > " + MAX_CACHE_SIZE);
-            logger.info("MIN_CACHE_SIZE > " + MIN_CACHE_SIZE);
+            logger.info("maxCacheSize > " + maxCacheSize);
+            logger.info("minCacheSize > " + minCacheSize);
         } catch (Exception e) {
             logger.error("cannot load qid.properties", e);
         }
@@ -118,7 +115,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
     public String put(String q, String displayQ, String wkt, double[] bbox, String[] fqs, long maxAge, String source) throws QidSizeException {
         Qid qid = new Qid(null, q, displayQ, wkt, bbox, 0, fqs, maxAge, source);
 
-        if (qid.size() > LARGEST_CACHEABLE_SIZE) {
+        if (qid.size() > largestCacheableSize) {
             throw new QidSizeException(qid.size());
         }
 
@@ -141,23 +138,23 @@ public class QidCacheDAOImpl implements QidCacheDAO {
         boolean runCleaner = false;
         synchronized (counterLock) {
             logger.debug("new cache size: " + cacheSize);
-            if (cacheSize + qid.size() > MAX_CACHE_SIZE) {
+            if (cacheSize + qid.size() > maxCacheSize) {
                 //run outside of counterLock
                 runCleaner = true;
-                logger.error("not putting qid");
+                logger.debug("not putting qid");
             } else {
                 if (cacheSize + qid.size() > triggerCleanSize) {
                     counter.countDown();
                 }
 
                 cacheSize += qid.size();
-                logger.error("putting qid");
+                logger.debug("putting qid");
                 cache.put(qid.getRowKey(), qid);
             }
         }
 
         if (runCleaner) {
-            logger.error("cleaning qid cache");
+            logger.debug("cleaning qid cache");
             cleanCache();
             return false;
         }
@@ -211,9 +208,11 @@ public class QidCacheDAOImpl implements QidCacheDAO {
     }
 
     /**
-     * delete records from the cache to get cache size <= MIN_CACHE_SIZE
+     * delete records from the cache to get cache size <= minCacheSize
      */
     synchronized void cleanCache() {
+        updateTriggerCleanSize();
+                
         if (cacheSize < triggerCleanSize) {
             return;
         }
@@ -233,7 +232,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
         long size = 0;
         int numberRemoved = 0;
         for (int i = 0; i < entries.size(); i++) {
-            if (size + entries.get(i).getValue().size() > MIN_CACHE_SIZE) {
+            if (size + entries.get(i).getValue().size() > minCacheSize) {
                 String key = entries.get(i).getKey();
                 cache.remove(key);
                 numberRemoved++;
@@ -244,7 +243,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
 
         //adjust output size correctly
         synchronized (counterLock) {
-            cacheSize = cacheSize - (MIN_CACHE_SIZE - size);
+            cacheSize = cacheSize - (minCacheSize - size);
             size = cacheSize;
         }
         logger.debug("removed " + numberRemoved + " cached qids, new cache size " + size);
@@ -283,29 +282,29 @@ public class QidCacheDAOImpl implements QidCacheDAO {
     }
 
     public void setMaxCacheSize(long sizeInBytes) {
-        MAX_CACHE_SIZE = sizeInBytes;
+        maxCacheSize = sizeInBytes;
         updateTriggerCleanSize();
     }
 
     public long getMaxCacheSize() {
-        return MAX_CACHE_SIZE;
+        return maxCacheSize;
     }
 
     public void setMinCacheSize(long sizeInBytes) {
-        MIN_CACHE_SIZE = sizeInBytes;
+        minCacheSize = sizeInBytes;
         updateTriggerCleanSize();
     }
 
     public long getMinCacheSize() {
-        return MIN_CACHE_SIZE;
+        return minCacheSize;
     }
 
     public void setLargestCacheableSize(long sizeInBytes) {
-        LARGEST_CACHEABLE_SIZE = sizeInBytes;
+        largestCacheableSize = sizeInBytes;
     }
 
     public long getLargestCacheableSize() {
-        return LARGEST_CACHEABLE_SIZE;
+        return largestCacheableSize;
     }
 
     public long getSize() {
@@ -317,7 +316,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
      * half way between the min and max size.
      */
     void updateTriggerCleanSize() {
-        triggerCleanSize = MIN_CACHE_SIZE + (MAX_CACHE_SIZE - MIN_CACHE_SIZE) / 2;
-        logger.debug("triggerCleanSize=" + triggerCleanSize + " MIN_CACHE_SIZE=" + MIN_CACHE_SIZE + " MAX_CACHE_SIZE=" + MAX_CACHE_SIZE);
+        triggerCleanSize = minCacheSize + (maxCacheSize - minCacheSize) / 2;
+        logger.debug("triggerCleanSize=" + triggerCleanSize + " minCacheSize=" + minCacheSize + " maxCacheSize=" + maxCacheSize);
     }
 }

@@ -14,17 +14,23 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import au.com.bytecode.opencsv.CSVReader;
 import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
+import au.org.ala.biocache.dto.IndexFieldDTO;
+import au.org.ala.biocache.util.AlaFileUtils;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
@@ -51,6 +57,14 @@ public class DownloadService {
     /** Number of threads to perform to offline downloads on can be configured. */
     @Value("${concurrent.downloads:1}")
     protected int concurrentDownloads = 1;
+    /** Additional download threads for matching subsets of offline downloads.
+     * default:
+     * 4 threads for SOLR downloads for <50000 occurrences
+     * 1 thread for SOLR downloads with any number of occurrences
+     * 2 threads for CASSANDA downloads for <50000 occurrences
+     */
+    @Value("${concurrent.downloads.extra:[{\"threads\": 4, \"maxRecords\": 50000, \"type\": \"index\"}, {\"threads\": 1, \"maxRecords\": 100000000, \"type\": \"index\"}, {\"threads\": 1, \"maxRecords\": 50000, \"type\": \"db\"}]}")
+    protected String concurrentDownloadsExtra;
     @Inject
     protected PersistentQueueDAO persistentQueueDAO;
     @Inject 
@@ -72,6 +86,10 @@ public class DownloadService {
     @Value("${citations.enabled:true}")
     protected Boolean citationsEnabled;
 
+    //Allow headings information to be disabled via config (enabled by default)
+    @Value("${headings.enabled:true}")
+    protected Boolean headingsEnabled;
+
     /** Stores the current list of downloads that are being performed. */
     private List<DownloadDetailsDTO> currentDownloads = Collections.synchronizedList(new ArrayList<DownloadDetailsDTO>());
 
@@ -84,19 +102,53 @@ public class DownloadService {
     @Value("${citations.url:http://collections.ala.org.au/ws/citations}")
     protected String citationServiceUrl;
 
-    @Value("${media.url:http://biocache.ala.org.au/biocache-media/}")
-    public static String biocacheMediaUrl;
+    @Value("${download.url:http://biocache.ala.org.au/biocache-download}")
+    protected String biocacheDownloadUrl;
 
-    @Value("${media.dir:/data/biocache-media/}")
-    public static String biocacheMediaDir;
+    @Value("${download.dir:/data/biocache-download}")
+    protected String biocacheDownloadDir;
+
+    @Value("${download.email.subject:Occurrence Download Complete - [filename]}")
+    protected String biocacheDownloadEmailSubject;
+
+    @Value("${download.email.body:The file has been generated. Please download your file from [url]}")
+    protected String biocacheDownloadEmailBody;
+
+    @Value("${download.email.subject:Occurrence Download Failed - [filename]}")
+    protected String biocacheDownloadEmailSubjectError;
+
+    @Value("${download.email.body:The download has failed.}")
+    protected String biocacheDownloadEmailBodyError;
 
     @PostConstruct    
     public void init(){
         //create the threads that will be used to perform the downloads
         int i = 0;
         while(i < concurrentDownloads){
-            new Thread(new DownloadThread()).start();
+            new Thread(new DownloadThread(null, null)).start();
             i++;
+        }
+
+        //create additional threads to operate on subsets of downloads
+        try {
+            JSONParser jp = new JSONParser();
+            JSONArray concurrentDownloadsExtraJson = (JSONArray) jp.parse(concurrentDownloadsExtra);
+            for (Object o : concurrentDownloadsExtraJson) {
+                JSONObject jo = (JSONObject) o;
+                int threads = ((Long) jo.get("threads")).intValue();
+                while (threads > 0) {
+                    Integer maxRecords = jo.containsKey("maxRecords") ? ((Long) jo.get("maxRecords")).intValue() : null;
+                    String type = jo.containsKey("type") ? jo.get("type").toString() : null;
+                    DownloadType dt = null;
+                    if (type != null) {
+                        dt = "index".equals(type) ? DownloadType.RECORDS_INDEX:DownloadType.RECORDS_DB;
+                    }
+                    new Thread(new DownloadThread(maxRecords, dt)).start();
+                    threads--;
+                }
+            }
+        } catch (Exception e) {
+            logger.error("failed to create all extra offline download threads for concurrent.downloads.extra=" + concurrentDownloadsExtra, e);
         }
     }
 
@@ -164,7 +216,7 @@ public class DownloadService {
             if(fromIndex)
                 uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, zop, includeSensitive, dd, limit);
             else
-                uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100, includeSensitive ,dd);
+                uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100, includeSensitive ,dd, limit);
         } catch (Exception e) {
             logger.error(e.getMessage(),e);
         } finally {
@@ -201,6 +253,21 @@ public class DownloadService {
         } else {
             logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " +uidStats);
         }
+
+        //Add headings file, listing information about the headings
+        if (headingsEnabled) {
+            //add the citations for the supplied uids
+            zop.putNextEntry(new java.util.zip.ZipEntry("headings.csv"));
+            try {
+                getHeadings(uidStats, zop, requestParams, dd.getMiscFields());
+            } catch (Exception e) {
+                logger.error(e.getMessage(),e);
+            }
+            zop.closeEntry();
+        } else {
+            logger.debug("Not adding header. Enabled: " + headingsEnabled + " uids: " +uidStats);
+        }
+        
         zop.flush();
         zop.close();
         
@@ -276,6 +343,114 @@ public class DownloadService {
         }
     }
 
+    /**
+     * get headings info from index/fields web service and write it into headings.csv file.
+     * 
+     * output columns:
+     *  column name
+     *  field requested
+     *  dwc 
+     *  description
+     *  info
+     *  field
+     *
+     * @param out
+     * @throws HttpException
+     * @throws IOException
+     */
+    public void getHeadings(Map<String, Integer> uidStats, OutputStream out, DownloadRequestParams params, String [] miscHeaders) throws Exception {
+        if (headingsEnabled) {
+            if (out == null) {
+                //throw new NullPointerException("keys and/or out is null!!");
+                logger.error("Unable to generate headings info: out is null!!");
+                return;
+            }
+
+            CSVWriter writer = new CSVWriter(new OutputStreamWriter(out), params.getSep(), '"', params.getEsc());
+            //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
+            Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
+
+            //header
+            writer.writeNext(new String[]{"Column name", "Requested field", "DwC Name", "Field name", "Field description", "Download field name", "Download field description", "More information"});
+
+            String[] fieldsRequested = null;
+            String[] headerOutput = null;
+            for (Map.Entry<String, Integer> e : uidStats.entrySet()) {
+                if (e.getValue() == -1) {
+                    //String fields requested
+                    fieldsRequested = e.getKey().split(",");
+
+                } else if (e.getValue() == -2) {
+                    headerOutput = e.getKey().split(",");
+                }
+            }
+
+            if (fieldsRequested != null && headerOutput != null) {
+                //ignore first fieldsRequested and headerOutput record
+                for (int i = 1; i < fieldsRequested.length; i++) {
+
+                    //find indexedField by download name
+                    IndexFieldDTO ifdto = null;
+                    for (IndexFieldDTO f : indexedFields) {
+                        //find a matching field
+                        if (fieldsRequested[i].equalsIgnoreCase(f.getDownloadName())) {
+                            ifdto = f;
+                            break;
+                        }
+                    }
+                    //find indexedField by field name
+                    if (ifdto == null) {
+                        for (IndexFieldDTO f : indexedFields) {
+                            //find a matching field
+                            if (fieldsRequested[i].equalsIgnoreCase(f.getName())) {
+                                ifdto = f;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (ifdto != null) {
+                        writer.writeNext(new String[]{headerOutput[i], fieldsRequested[i],
+                                ifdto.getDwcTerm() != null ? ifdto.getDwcTerm() : "",
+                                ifdto.getName() != null ? ifdto.getName() : "",
+                                ifdto.getDescription() != null ? ifdto.getDescription() : "",
+                                ifdto.getDownloadName() != null ? ifdto.getDownloadName() : "",
+                                ifdto.getDownloadDescription() != null ? ifdto.getDownloadDescription() : "",
+                                ifdto.getInfo() != null ? ifdto.getInfo() : ""
+                        });
+                    } else {
+                        //others, e.g. assertions
+                        String info = messageSource.getMessage("description." + fieldsRequested[i], null, "", null);
+                        writer.writeNext(new String[]{headerOutput[i], fieldsRequested[i],
+                                "",
+                                "",
+                                "",
+                                "",
+                                "",
+                                info != null ? info : ""
+                        });
+                    }
+                }
+            }
+
+            //misc headers
+            if (miscHeaders != null) {
+                for (int i = 0; i < miscHeaders.length; i++) {
+                    writer.writeNext(new String[]{miscHeaders[i],
+                            "",
+                            "",
+                            "",
+                            "",
+                            "",
+                            "Raw header from data provider."
+                    });
+                }
+            }
+
+            writer.flush();
+        }
+    }
+
     private String getOrElse(Map map, String key, String value){
         if(map.containsKey(key)){
             return map.get(key).toString();
@@ -293,6 +468,14 @@ public class DownloadService {
         
         private DownloadDetailsDTO currentDownload = null;
 
+        private Integer maxRecords = null;
+        private DownloadType downloadType = null;
+
+        public DownloadThread(Integer maxRecords, DownloadType downloadType) {
+            this.maxRecords = maxRecords;
+            this.downloadType = downloadType;
+        }
+
         @Override
         public void run() {
             while(true){
@@ -303,29 +486,33 @@ public class DownloadService {
                         //I don't care that I have been interrupted.
                     }
                 }
-                currentDownload = persistentQueueDAO.getNextDownload();
+                currentDownload = persistentQueueDAO.getNextDownload(maxRecords, downloadType);
                 if(currentDownload != null){
                     logger.info("Starting to download the offline request: " + currentDownload);
                     //we are now ready to start the download
                     //we need to create an output stream to the file system
+
                     try{
                         FileOutputStream fos = FileUtils.openOutputStream(new File(currentDownload.getFileLocation()));
                         //register the download
                         currentDownloads.add(currentDownload);
+                        //cannot include misc columns if shp
+                        if (!currentDownload.getRequestParams().getFileType().equals("csv") && currentDownload.getRequestParams().getIncludeMisc()) {
+                            currentDownload.getRequestParams().setIncludeMisc(false);
+                        }
                         writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
                                 currentDownload.getIpAddress(), fos, currentDownload.getIncludeSensitive(), 
                                 currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false);
                         //now that the download is complete email a link to the recipient.
-                        String subject = messageSource.getMessage("offlineEmailSubject",null,"Occurrence Download Complete - "+currentDownload.getRequestParams().getFile(),null);
+                        String subject = messageSource.getMessage("offlineEmailSubject",null,
+                                biocacheDownloadEmailSubject.replace("[filename]", currentDownload.getRequestParams().getFile()),null);
 
                         if(currentDownload!=null && currentDownload.getFileLocation() != null){
-//                            String fileLocation = currentDownload.getFileLocation().replace(biocacheMediaDir, biocacheMediaUrl);
-                            String fileLocation = currentDownload.getFileLocation(); //.replace(biocacheMediaDir, biocacheMediaUrl);
-                            String body = messageSource.getMessage("offlineEmailBody", new Object[]{fileLocation}, "The file has been generated. Please download you file from " + fileLocation , null);
-                            emailService.sendEmail(currentDownload.getEmail(), subject, body);
+                            insertMiscHeader(currentDownload);
 
-                            //now take the job off the list
-                            persistentQueueDAO.removeDownloadFromQueue(currentDownload);
+                            String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
+                            String body = messageSource.getMessage("offlineEmailBody", new Object[]{fileLocation},
+                                    biocacheDownloadEmailBody.replace("[url]", fileLocation) , null);
 
                             //save the statistics to the download directory
                             FileOutputStream statsStream = FileUtils.openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()+File.separator+"downloadStats.json"));
@@ -333,13 +520,99 @@ public class DownloadService {
                             statsStream.write(json.getBytes() );
                             statsStream.flush();
                             statsStream.close();
+
+                            emailService.sendEmail(currentDownload.getEmail(), subject, body);
                         }
 
                     } catch(Exception e){
-                        logger.error("Error in offline download", e);
-                        //TODO maybe send an email to support saying that the offline email failed??
+                        logger.error("Error in offline download, sending email. download path: " + currentDownload.getFileLocation(), e);
+
+                        try {
+                            String subject = messageSource.getMessage("offlineEmailSubjectError", null,
+                                    biocacheDownloadEmailSubjectError.replace("[filename]", currentDownload.getRequestParams().getFile()), null);
+
+                            String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
+                            String body = messageSource.getMessage("offlineEmailBodyError", new Object[]{fileLocation},
+                                    biocacheDownloadEmailBodyError.replace("[url]", fileLocation), null);
+
+                            //user email
+                            emailService.sendEmail(currentDownload.getEmail(), subject,
+                                    body + "\r\n\r\nuniqueId:" + currentDownload.getUniqueId() + " path:" + currentDownload.getFileLocation().replace(biocacheDownloadDir, ""));
+                        } catch (Exception ex) {
+                            logger.error("Error sending error message to download email. " + currentDownload.getFileLocation(), ex);
+                        }
+                    } finally {
+                        //incase of server up/down, only remove from queue after emails are sent
+                        persistentQueueDAO.removeDownloadFromQueue(currentDownload);
                     }
                 }
+            }
+        }
+    }
+
+    private void insertMiscHeader(DownloadDetailsDTO download) {
+        if (download.getMiscFields() != null && download.getMiscFields().length > 0 &&
+                download.getRequestParams() != null ) {
+            try {
+                //unpack zip
+                File unzipDir = new File(download.getFileLocation() + ".dir" + File.separator);
+                unzipDir.mkdirs();
+                AlaFileUtils.unzip(unzipDir.getPath(), download.getFileLocation());
+
+                //insert header
+                for (File f : unzipDir.listFiles()) {
+                    if ((f.getName().endsWith(".csv") || f.getName().endsWith(".tsv")) && !"headings.csv".equals(f.getName())) {
+                        //make new file
+                        BufferedReader bufferedReader = new BufferedReader(new FileReader(f));
+                        File fnew = new File(f.getPath() + ".new");
+                        FileWriter fw = new FileWriter(fnew);
+                        String line;
+                        int row = 0;
+                        while ((line = bufferedReader.readLine()) != null) {
+                            if (row == 0) {
+                                String miscHeader[] = download.getMiscFields();
+
+                                if ("csv".equals(download.getRequestParams().getFileType())) {
+                                    //retain csv settings
+                                    CSVReader reader = new CSVReader(new StringReader(line));
+                                    String header[] = reader.readNext();
+                                    reader.close();
+
+                                    String newHeader[] = new String[header.length + miscHeader.length];
+                                    if (header.length > 0) System.arraycopy(header, 0, newHeader, 0, header.length);
+                                    if (miscHeader.length > 0)
+                                        System.arraycopy(miscHeader, 0, newHeader, header.length, miscHeader.length);
+
+                                    StringWriter sw = new StringWriter();
+                                    CSVWriter writer = new CSVWriter(sw, download.getRequestParams().getSep(), '"', download.getRequestParams().getEsc());
+                                    writer.writeNext(newHeader);
+
+                                    line = sw.toString();
+                                } else {
+                                    for (int i = 0; i < miscHeader.length; i++) {
+                                        line += '\t';
+                                        line += miscHeader[i].replace("\r", "").replace("\n", "").replace("\t", "");
+                                    }
+                                    line += '\n';
+                                }
+                            } else {
+                                fw.write("\n");
+                            }
+                            fw.write(line);
+                            row++;
+                        }
+                        //replace original file
+                        FileUtils.copyFile(fnew, f);
+                        fnew.delete();
+                    }
+                }
+
+                //rezip and cleanup
+                FileUtils.deleteQuietly(new File(download.getFileLocation()));
+                AlaFileUtils.createZip(unzipDir.getPath(), download.getFileLocation());
+                FileUtils.deleteDirectory(unzipDir);
+            } catch (Exception e) {
+                logger.error("failed to append misc header", e);
             }
         }
     }
