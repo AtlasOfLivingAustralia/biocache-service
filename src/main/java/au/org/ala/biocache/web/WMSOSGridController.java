@@ -142,6 +142,23 @@ public class WMSOSGridController {
         double maxx = Double.parseDouble(bbox[2]);
         double maxy = Double.parseDouble(bbox[3]);
 
+
+        int boundingBoxSizeInKm = (int) (maxx - minx) /1000;
+        logger.info("boundingBoxSizeInKm : " + boundingBoxSizeInKm);
+
+        int gridSize = 1000;
+
+        String facet = "grid_ref_1000";
+
+        if(boundingBoxSizeInKm >= 39){
+            facet = "grid_ref_10000";
+            gridSize = 10000;
+        }
+
+        if(boundingBoxSizeInKm < 19){
+            facet = "grid_ref";
+        }
+
         double oneMetreMercatorXInPixels = 256f / (float)(maxx - minx);  //easting & northing
         double oneMetreMercatorYInPixels =  256f / (float)(maxy - miny);
 
@@ -184,8 +201,6 @@ public class WMSOSGridController {
                         " OR " +
                         "(min_latitude:[{3} TO *]))";
 
-        double buff = 0.1;
-
 
         String fq = MessageFormat.format(bboxFilterQuery, minLatLng[1], maxLatLng[1], minLatLng[0], maxLatLng[0]);
 
@@ -197,7 +212,7 @@ public class WMSOSGridController {
         requestParams.setPageSize(0);
         requestParams.setFacet(true);
         requestParams.setFlimit(-1);
-        requestParams.setFacets(new String[]{"grid_ref_1000"});
+        requestParams.setFacets(new String[]{facet});
 
         java.util.List<FacetPivotResultDTO> facetPivots = searchDAO.searchPivot(requestParams);
 
@@ -228,13 +243,14 @@ public class WMSOSGridController {
                 " AND " +
                 "northing:[{2} TO {3}]";
 
-        newFqs[newFqs.length - 1] = MessageFormat.format(eastingNorthingFilterQuery, minEN[0]-2000, maxEN[0]+2000, minEN[1]-2000, maxEN[1]+2000);
+        int buff = gridSize * 2;
+        newFqs[newFqs.length - 1] = MessageFormat.format(eastingNorthingFilterQuery, minEN[0]-buff, maxEN[0]+buff, minEN[1]-buff, maxEN[1]+buff);
 
         requestParams.setFq(newFqs);
         requestParams.setPageSize(0);
         requestParams.setFacet(true);
         requestParams.setFlimit(-1);
-        requestParams.setFacets(new String[]{"grid_ref_1000"});
+        requestParams.setFacets(new String[]{facet});
 
         java.util.List<FacetPivotResultDTO> facetPivots2 = searchDAO.searchPivot(requestParams);
 
@@ -260,9 +276,9 @@ public class WMSOSGridController {
             renderGrid(wmsImg, gridRef, minx, miny, oneMetreMercatorXInPixels, oneMetreMercatorYInPixels);
         }
 
-//        Paint debugBorder = new Color(0x5500FF00, true);
-//        wmsImg.g.setPaint(debugBorder);
-//        wmsImg.g.drawRect(0,0,256,256); //debugging border
+        Paint debugBorder = new Color(0x5500FF00, true);
+        wmsImg.g.setPaint(debugBorder);
+        wmsImg.g.drawRect(0,0,256,256); //debugging border
 
         if (wmsImg != null && wmsImg.g != null) {
             wmsImg.g.dispose();
@@ -312,26 +328,20 @@ public class WMSOSGridController {
 
         wmsImg.g.fillPolygon(
                 new int[]{
-                        santised( coordinatesForImages[0][0] ),
-                        santised( coordinatesForImages[1][0] ),
-                        santised( coordinatesForImages[2][0] ),
-                        santised( coordinatesForImages[3][0] )
+                        coordinatesForImages[0][0],
+                        coordinatesForImages[1][0],
+                        coordinatesForImages[2][0],
+                        coordinatesForImages[3][0]
                 },
                 new int[]{
-                        santised( coordinatesForImages[0][1] ),
-                        santised( coordinatesForImages[1][1] ),
-                        santised( coordinatesForImages[2][1] ),
-                        santised( coordinatesForImages[3][1] )
+                        coordinatesForImages[0][1],
+                        coordinatesForImages[1][1],
+                        coordinatesForImages[2][1],
+                        coordinatesForImages[3][1]
                 },
-                4);
+                4
+        );
     }
-
-    int santised(int coordinate){
-//        if(coordinate < 0) return 0;
-//        if(coordinate > 256) return 256;
-        return coordinate;
-    }
-
 
     String convertEastingNorthingToOSGrid(double e, double n){
 
@@ -362,7 +372,7 @@ public class WMSOSGridController {
 
 //        String gridRef = letPair + ' ' + (int) e  + ' ' + (int) n ;
 
-        String gridRef = letPair  + (int) (e / 1000) + " "  + (int) (n  / 1000) ;
+        String gridRef = letPair + " "  + (int) (e / 1000) + " " + (int) (n  / 1000) ;
 
         return gridRef;
     }
