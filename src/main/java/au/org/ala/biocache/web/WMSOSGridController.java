@@ -3,32 +3,22 @@ package au.org.ala.biocache.web;
 import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.FacetPivotResultDTO;
-import au.org.ala.biocache.dto.PointType;
+import au.org.ala.biocache.dto.SearchResultDTO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
-import au.org.ala.biocache.processor.LocationProcessor;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.math3.util.MultidimensionalCounter;
 import org.apache.commons.math3.util.Precision;
 import org.apache.log4j.Logger;
-import org.apache.poi.hssf.util.HSSFColor;
-import org.apache.solr.common.SolrDocument;
-import org.apache.solr.common.SolrDocumentList;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.geotools.geometry.GeneralDirectPosition;
 import org.geotools.referencing.CRS;
-import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.referencing.operation.DefaultCoordinateOperationFactory;
 import org.opengis.geometry.DirectPosition;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.CoordinateOperation;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-import scala.Option;
-import scala.Tuple7;
 
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
@@ -37,7 +27,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.net.URLEncoder;
 import java.text.MessageFormat;
 import java.util.*;
 
@@ -48,56 +37,116 @@ public class WMSOSGridController {
 
     @Inject
     protected SearchDAO searchDAO;
-//
-//    @RequestMapping(value = {"/osgrid/getFeatureInfo"}, method = RequestMethod.GET)
-//    public String getFeatureInfo(
-//            @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
-//            @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
-//            @RequestParam(value = "BBOX", required = true, defaultValue = "0,-90,180,0") String bboxString,
-//            @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
-//            @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
-//            @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
-//            @RequestParam(value = "SRS", required = false, defaultValue = "") String srs,
-//            @RequestParam(value = "QUERY_LAYERS", required = false, defaultValue = "") String queryLayers,
-//            @RequestParam(value = "X", required = true, defaultValue = "0") Double x,
-//            @RequestParam(value = "Y", required = true, defaultValue = "0") Double y,
-//            HttpServletRequest request,
-//            HttpServletResponse response,
-//            Model model) throws Exception {
-//
-//        logger.debug("WMS - GetFeatureInfo requested for: " + queryLayers);
-//
-//        double[] eastingNorthing = convertMetersToEastingNorthing(x, y);
-//
-//        String osGrid = convertEastingNorthingToOSGrid(eastingNorthing[0], eastingNorthing[1]);
-//
-//        System.out.println(osGrid);
-//
-//        return "metadata/getFeatureGrid";
-//    }
 
+    /**
+     * Query for a record count at:
+     * - 100m grid, stopping if > 0
+     * - 1000m grid, stopping if > 0
+     * - 2000m grid, stopping if > 0
+     * - 10000m grid, stopping if > 0
+     *
+     * @param requestParams
+     * @param request
+     * @return
+     * @throws Exception
+     */
     @RequestMapping(value = {"/osgrid/feature.json"}, method = RequestMethod.GET)
-    public @ResponseBody Map<String,String> getFeatureInfo(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            Model model) throws Exception {
+    public @ResponseBody Map<String, Object> getFeatureInfo(
+            SpatialSearchRequestParams requestParams,
+            HttpServletRequest request) throws Exception {
 
-        logger.debug("WMS - coordinates " + request.getParameter("lng").toString()
-            + ", " +  request.getParameter("lat").toString());
-
+        //determine the zoom level
         double[] eastingNorthing = convertWGS84ToEastingNorthing(
                 Double.parseDouble(request.getParameter("lat").toString()),
                 Double.parseDouble(request.getParameter("lng").toString())
         );
 
-        String osGrid = convertEastingNorthingToOSGrid(eastingNorthing[0], eastingNorthing[1]);
+        GridRef osGrid = convertEastingNorthingToOSGrid(eastingNorthing[0], eastingNorthing[1]);
 
-        System.out.println(osGrid);
-        Map<String, String> map = new HashMap<String, String>();
-        map.put("gridref", osGrid);
+        Map<String, Object> map = new HashMap<String, Object>();
 
+        long count = getRecordCountForGridRef(requestParams, osGrid.getGridRef100(), 100, false);
+        if(count > 0){
+            map.put("gridRef", osGrid.getGridRef100());
+            map.put("gridSize", 100);
+            map.put("recordCount", count);
+        }
+        logger.info(osGrid.getGridRef100() + " = " + count);
+
+        if(count == 0){
+            count = getRecordCountForGridRef(requestParams, osGrid.getGridRef1000(), 1000, true);
+            if(count > 0){
+                map.put("gridRef", osGrid.getGridRef1000());
+                map.put("gridSize", 1000);
+                map.put("recordCount", count);
+            }
+        }
+        logger.info(osGrid.getGridRef1000() + " = " + count);
+
+        if(count == 0){
+            count = getRecordCountForGridRef(requestParams, osGrid.getGridRef2000(), 2000, true);
+            if(count > 0){
+                map.put("gridRef", osGrid.getGridRef2000());
+                map.put("gridSize", 2000);
+                map.put("recordCount", count);
+            }
+        }
+        logger.info(osGrid.getGridRef2000() + " = " + count);
+
+        if(count == 0){
+            count = getRecordCountForGridRef(requestParams, osGrid.getGridRef10000(), 10000, true);
+            if(count > 0){
+                map.put("gridRef", osGrid.getGridRef10000());
+                map.put("gridSize", 10000);
+                map.put("recordCount", count);
+            }
+        }
+        logger.info(osGrid.getGridRef10000() + " = " + count);
+
+        if(count > 0) {
+            int gridSize = (Integer) map.get("gridSize");
+            String gridRef = (String) map.get("gridRef");
+            int[] enForGrid = Store.convertGridReference(gridRef);
+            double[] minLatLng = convertEastingNorthingToWGS84((double) enForGrid[0], (double) enForGrid[0]);
+            double[] maxLatLng = convertEastingNorthingToWGS84((double) enForGrid[0] + gridSize, (double) enForGrid[0] + gridSize);
+            map.put("minLat", minLatLng[0]);
+            map.put("minLng", minLatLng[1]);
+            map.put("maxLat", maxLatLng[0]);
+            map.put("maxLng", maxLatLng[1]);
+        }
         return map;
     }
+
+    private long getRecordCountForGridRef(SpatialSearchRequestParams requestParams, String gridRef, int gridSize, boolean replaceLast){
+
+        try {
+            String field = "grid_ref" + (gridSize > 0 ? "_" + gridSize : "");
+            String fq = field + ":" + gridRef;
+
+            if (replaceLast) {
+                String[] fqs = requestParams.getFq();
+                fqs[fqs.length - 1] = fq;
+            } else {
+                String[] newFqs = new String[requestParams.getFq().length + 1];
+                System.arraycopy(requestParams.getFq(), 0, newFqs, 0, requestParams.getFq().length);
+                newFqs[newFqs.length - 1] = fq;
+                requestParams.setFq(newFqs);
+            }
+
+            requestParams.setLat(null);
+            requestParams.setLon(null);
+
+            requestParams.setPageSize(0);
+            requestParams.setFacet(false);
+
+            SearchResultDTO resultDTO = searchDAO.findByFulltextSpatialQuery(requestParams, new HashMap<String, String[]>());
+            return resultDTO.getTotalRecords();
+        } catch (Exception e){
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
 
     /**
      * Zoom levels
@@ -127,10 +176,8 @@ public class WMSOSGridController {
             @RequestParam(value = "CACHE", required = true, defaultValue = "default") String cache,
             @RequestParam(value = "REQUEST", required = true, defaultValue = "") String requestString,
             @RequestParam(value = "OUTLINE", required = true, defaultValue = "false") boolean outlinePoints,
+            @RequestParam(value = "TILEOUTLINE", required = true, defaultValue = "false") boolean tileOutline,
             @RequestParam(value = "OUTLINECOLOUR", required = true, defaultValue = "0x000000") String outlineColour,
-            @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
-            @RequestParam(value = "HQ", required = false) String[] hqs,
-            @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") Integer gridDivisionCount,
             HttpServletResponse response)
             throws Exception {
 
@@ -141,7 +188,6 @@ public class WMSOSGridController {
         double miny = Double.parseDouble(bbox[1]);
         double maxx = Double.parseDouble(bbox[2]);
         double maxy = Double.parseDouble(bbox[3]);
-
 
         int boundingBoxSizeInKm = (int) (maxx - minx) /1000;
         logger.info("boundingBoxSizeInKm : " + boundingBoxSizeInKm);
@@ -170,21 +216,21 @@ public class WMSOSGridController {
         Map<String, Integer> gridsRefs = new HashMap<String, Integer>();
 
 
-        //construct the filter query
-        String bboxFilterQuery2 =
-        "(" +
-            "(min_latitude:[{0} TO {1}] AND min_longitude:[{2} TO {3}])" +
-            " OR " +
-            "(max_latitude:[{0} TO {1}] AND min_longitude:[{2} TO {3}])" +
-            " OR " +
-            "(min_latitude:[{0} TO {1}] AND max_longitude:[{2} TO {3}])" +
-            " OR " +
-            "(max_latitude:[{0} TO {1}] AND max_longitude:[{2} TO {3}])" +
-        ")" +
-        " OR " +
-        "(" +
-            "latitude:[{0} TO {1}] AND longitude:[{2} TO {3}]" +
-        ")";
+//        //construct the filter query
+//        String bboxFilterQuery2 =
+//        "(" +
+//            "(min_latitude:[{0} TO {1}] AND min_longitude:[{2} TO {3}])" +
+//            " OR " +
+//            "(max_latitude:[{0} TO {1}] AND min_longitude:[{2} TO {3}])" +
+//            " OR " +
+//            "(min_latitude:[{0} TO {1}] AND max_longitude:[{2} TO {3}])" +
+//            " OR " +
+//            "(max_latitude:[{0} TO {1}] AND max_longitude:[{2} TO {3}])" +
+//        ")" +
+//        " OR " +
+//        "(" +
+//            "latitude:[{0} TO {1}] AND longitude:[{2} TO {3}]" +
+//        ")";
 
 //        if (a.max.x < b.min.x) return false; // a is left of b
 //        if (a.min.x > b.max.x) return false; // a is right of b
@@ -227,7 +273,6 @@ public class WMSOSGridController {
                     Integer recordCount = pivotResult.getCount();
                     gridsRefs.put(gridReference, recordCount);
                 }
-
             }
         }
 
@@ -273,12 +318,21 @@ public class WMSOSGridController {
         while(iter.hasNext()){
             String gridRef = iter.next();
             //TODO alter colour with counts
-            renderGrid(wmsImg, gridRef, minx, miny, oneMetreMercatorXInPixels, oneMetreMercatorYInPixels);
+            renderGrid(wmsImg,
+                    gridRef,
+                    minx,
+                    miny,
+                    oneMetreMercatorXInPixels,
+                    oneMetreMercatorYInPixels
+            );
         }
 
-        Paint debugBorder = new Color(0x5500FF00, true);
-        wmsImg.g.setPaint(debugBorder);
-        wmsImg.g.drawRect(0,0,256,256); //debugging border
+        if(tileOutline){
+            //for debugging
+            Paint debugBorder = new Color(0x5500FF00, true);
+            wmsImg.g.setPaint(debugBorder);
+            wmsImg.g.drawRect(0,0,256,256); //debugging border
+        }
 
         if (wmsImg != null && wmsImg.g != null) {
             wmsImg.g.dispose();
@@ -311,7 +365,6 @@ public class WMSOSGridController {
         Integer maxEastingOfGridCell  = minEastingOfGridCell + gridSize;
         Integer maxNorthingOfGridCell = minNorthingOfGridCell + gridSize;
 
-
         double[][] polygonInMercator = convertEastingNorthingToMercators(new double[][]{
                 new double[]{minEastingOfGridCell, minNorthingOfGridCell},
                 new double[]{maxEastingOfGridCell, minNorthingOfGridCell},
@@ -341,15 +394,30 @@ public class WMSOSGridController {
                 },
                 4
         );
+
+        Paint polygonBorder = new Color(0x55000000, true);
+        wmsImg.g.setPaint(polygonBorder);
+        wmsImg.g.drawPolygon(
+                new int[]{
+                        coordinatesForImages[0][0],
+                        coordinatesForImages[1][0],
+                        coordinatesForImages[2][0],
+                        coordinatesForImages[3][0]
+                },
+                new int[]{
+                        coordinatesForImages[0][1],
+                        coordinatesForImages[1][1],
+                        coordinatesForImages[2][1],
+                        coordinatesForImages[3][1]
+                },
+                4
+        );
+
     }
 
-    String convertEastingNorthingToOSGrid(double e, double n){
+    GridRef convertEastingNorthingToOSGrid(double e, double n){
 
         Integer digits = 10;
-
-
-        // use digits = 0 to return numeric format (in metres)
-//        if (digits == 0) return e.pad(6) + ',' + n.pad(6);
 
         // get the 100km-grid indices
         Double e100k = Math.floor(e/100000);
@@ -370,21 +438,17 @@ public class WMSOSGridController {
         e = Math.floor((e%100000)/Math.pow(10, 5-digits/2));
         n = Math.floor((n%100000)/Math.pow(10, 5-digits/2));
 
-//        String gridRef = letPair + ' ' + (int) e  + ' ' + (int) n ;
-
-        String gridRef = letPair + " "  + (int) (e / 1000) + " " + (int) (n  / 1000) ;
-
-        return gridRef;
+        return new GridRef(letPair, (int) e, (int) n);
     }
 
-    double[] reproject(Double coordinate1 , Double coordinate2, String sourceCRSString, String targetCRSString){
+    double[] reproject(Double x, Double y, String sourceCRSString, String targetCRSString){
 
         try {
 
             CoordinateReferenceSystem sourceCRS = CRS.decode(sourceCRSString);
             CoordinateReferenceSystem targetCRS = CRS.decode(targetCRSString);
             CoordinateOperation transformOp = new DefaultCoordinateOperationFactory().createOperation(sourceCRS, targetCRS);
-            GeneralDirectPosition directPosition = new GeneralDirectPosition(coordinate1, coordinate2);
+            GeneralDirectPosition directPosition = new GeneralDirectPosition(x, y);
             DirectPosition wgs84LatLong = transformOp.getMathTransform().transform(directPosition, null);
 
             //NOTE - returned coordinates are longitude, latitude, despite the fact that if
@@ -457,6 +521,8 @@ public class WMSOSGridController {
 
 
 
+
+
     double[][] convertEastingNorthingToMercators(double[][] polygon){
         double[][] converted = new double[polygon.length][2];
         for(int i=0; i< polygon.length; i++){
@@ -465,32 +531,37 @@ public class WMSOSGridController {
         return converted;
     }
 
+    double[] convertEastingNorthingToWGS84(Double x , Double y) {
+        return reproject(x, y, "EPSG:27700", "EPSG:4326");
+    }
+
 
     double[] convertEastingNorthingToMercator(Double x , Double y){
-
-        try {
-            CoordinateReferenceSystem sourceCRS = CRS.decode("EPSG:27700");
-            CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:3857");
-            CoordinateOperation transformOp = new DefaultCoordinateOperationFactory().createOperation(sourceCRS, targetCRS);
-            GeneralDirectPosition directPosition = new GeneralDirectPosition(x, y);
-            DirectPosition wgs84LatLong = transformOp.getMathTransform().transform(directPosition, null);
-
-            //NOTE - returned coordinates are longitude, latitude, despite the fact that if
-            //converting latitude and longitude values, they must be supplied as latitude, longitude.
-            //No idea why this is the case.
-            Double longitude = wgs84LatLong.getOrdinate(0);
-            Double latitude = wgs84LatLong.getOrdinate(1);
-
-            double[] coords = new double[2];
-
-            coords[0] = Precision.round(longitude, 10);
-            coords[1] = Precision.round(latitude, 10);
-            return coords;
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
+        return reproject(x, y, "EPSG:27700", "EPSG:3857");
+//
+//        try {
+//            CoordinateReferenceSystem sourceCRS = CRS.decode("EPSG:27700");
+//            CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:3857");
+//            CoordinateOperation transformOp = new DefaultCoordinateOperationFactory().createOperation(sourceCRS, targetCRS);
+//            GeneralDirectPosition directPosition = new GeneralDirectPosition(x, y);
+//            DirectPosition wgs84LatLong = transformOp.getMathTransform().transform(directPosition, null);
+//
+//            //NOTE - returned coordinates are longitude, latitude, despite the fact that if
+//            //converting latitude and longitude values, they must be supplied as latitude, longitude.
+//            //No idea why this is the case.
+//            Double longitude = wgs84LatLong.getOrdinate(0);
+//            Double latitude = wgs84LatLong.getOrdinate(1);
+//
+//            double[] coords = new double[2];
+//
+//            coords[0] = Precision.round(longitude, 10);
+//            coords[1] = Precision.round(latitude, 10);
+//            return coords;
+//
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//        return null;
     }
 
 
@@ -571,5 +642,52 @@ class WMSImg {
     public WMSImg(Graphics2D g, BufferedImage img) {
         this.g = g;
         this.img = img;
+    }
+}
+
+final class GridRef {
+    public final String chars;
+    public final int northing;
+    public final int easting;
+    public GridRef(String chars, int easting,  int northing){
+        this.chars = chars;
+        this.easting = easting;
+        this.northing = northing;
+    }
+    public String getGridRef(){ return chars + " " +  (easting) + " " +  (northing);}
+    public String getGridRef100(){ return chars + pad100(easting/100) + pad100(northing/100);}
+    public String getGridRef1000(){ return chars + pad10(easting/1000) + pad10(northing/1000);}
+    public String getGridRef2000(){
+        int tetradE = (easting  % 10000)/1000;
+        int tetradN = (northing % 10000)/1000;
+
+        int code = (tetradE % 2) * tetradN;
+
+        int tetrad = (int) 'A';
+
+        if(code <=14){
+            tetrad = (char) (tetrad + code);
+        } else {
+            tetrad = (char) (tetrad + (code + 1));
+        }
+        return chars + (easting/10000) + (northing/10000) + ((char) tetrad);
+    }
+    public String getGridRef10000(){ return chars + (easting/10000) + (northing/10000);}
+
+    public String pad10(int eastingOrNorthing){
+        if(eastingOrNorthing <10){
+            return  "0" + eastingOrNorthing;
+        }
+        return "" +  eastingOrNorthing;
+    }
+
+    public String pad100(int eastingOrNorthing){
+        if(eastingOrNorthing > 0 && eastingOrNorthing <100){
+            return  "0" + eastingOrNorthing;
+        }
+        if(eastingOrNorthing <10){
+            return  "00" + eastingOrNorthing;
+        }
+        return "" +  eastingOrNorthing;
     }
 }

@@ -2073,7 +2073,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected String buildSpatialQueryString(SpatialSearchRequestParams searchParams){
         if(searchParams != null){
             StringBuilder sb = new StringBuilder();
-            if(searchParams.getLat() != null){
+            if(searchParams.getLat() != null && searchParams.getLon() != null){
                 sb.append(spatialField).append(":\"Intersects(Circle(");
                 sb.append(searchParams.getLon().toString()).append(" ").append(searchParams.getLat().toString());
                 sb.append(" d=").append(SpatialUtils.convertToDegrees(searchParams.getRadius()).toString());
