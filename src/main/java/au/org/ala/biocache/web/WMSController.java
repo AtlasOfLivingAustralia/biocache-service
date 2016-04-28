@@ -2136,6 +2136,8 @@ public class WMSController {
                     useBbox[0] = true;
                 }
             }
+        } else {
+            searchDAO.formatSearchQuery(requestParams, false);
         }
 
         List<LegendItem> colours = null;
@@ -2249,6 +2251,8 @@ public class WMSController {
                     }
                 }
             }
+        } else {
+            searchDAO.formatSearchQuery(requestParams, false);
         }
 
         return count;

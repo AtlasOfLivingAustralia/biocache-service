@@ -2038,16 +2038,13 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * Format the search input query for a full-text search.
-     *
-     * This includes constructing a user friendly version of the query to
-     * be used for display purposes.
+     * @see au.org.ala.biocache.dao.SearchDAO#formatSearchQuery(SpatialSearchRequestParams, boolean)
      *
      * TODO Fix this to use a state.  REVISE!!
      *
      * @param searchParams
      */
-    protected void formatSearchQuery(SpatialSearchRequestParams searchParams, boolean forceQueryFormat) {
+    public void formatSearchQuery(SpatialSearchRequestParams searchParams, boolean forceQueryFormat) {
         //Only format the query if it doesn't already supply a formattedQuery.
         if(forceQueryFormat || StringUtils.isEmpty(searchParams.getFormattedQuery())){
             // set the query

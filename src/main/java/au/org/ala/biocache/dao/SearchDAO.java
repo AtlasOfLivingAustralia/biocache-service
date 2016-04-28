@@ -346,4 +346,14 @@ public interface SearchDAO {
      * @throws Exception
      */
     List<FacetPivotResultDTO> searchPivot(SpatialSearchRequestParams searchParams) throws Exception;
+
+    /**
+     * Format the search input query for a full-text search.
+     *
+     * This includes constructing a user friendly version of the query to
+     * be used for display purposes.
+     *
+     * @param searchParams
+     */
+    void formatSearchQuery(SpatialSearchRequestParams searchParams, boolean forceQueryFormat);
 }
