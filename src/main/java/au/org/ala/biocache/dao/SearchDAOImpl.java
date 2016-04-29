@@ -489,7 +489,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             logger.info("spatial search query: " + queryString);
         } catch (Exception ex) {
-            logger.error("Error executing query with requestParams: " + searchParams.toString()+ " EXCEPTION: " + ex.getMessage());
+            logger.error("Error executing query with requestParams: " + searchParams.toString()+ " EXCEPTION: " + ex.getMessage(), ex);
             searchResults.setStatus("ERROR"); // TODO also set a message field on this bean with the error message(?)
             searchResults.setErrorMessage(ex.getMessage());
         }
@@ -1972,7 +1972,7 @@ public class SearchDAOImpl implements SearchDAO {
                             //now add the facet with the correct fq being supplied
                             r.add(new FieldResultDTO(displayName, fcount.getCount(),facet.getName() + ":\"" + fcount.getName() + "\""));
                         } else {
-                            if(fcount.getName().equals(DECADE_PRE_1850_LABEL)){
+                            if(fcount.getName() != null && fcount.getName().equals(DECADE_PRE_1850_LABEL)){
                                 r.add(0, new FieldResultDTO(
                                         getFacetValueDisplayName(facet.getName(), fcount.getName()),
                                         fcount.getCount(),

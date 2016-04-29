@@ -658,14 +658,15 @@ final class GridRef {
     public String getGridRef100(){ return chars + pad100(easting/100) + pad100(northing/100);}
     public String getGridRef1000(){ return chars + pad10(easting/1000) + pad10(northing/1000);}
     public String getGridRef2000(){
+
         int tetradE = (easting  % 10000)/1000;
         int tetradN = (northing % 10000)/1000;
 
-        int code = (tetradE % 2) * tetradN;
+        int code = ((tetradN / 2) + 1) + ((tetradE / 2) * 5);
 
-        int tetrad = (int) 'A';
+        int tetrad = 64;
 
-        if(code <=14){
+        if(code <= 14){
             tetrad = (char) (tetrad + code);
         } else {
             tetrad = (char) (tetrad + (code + 1));

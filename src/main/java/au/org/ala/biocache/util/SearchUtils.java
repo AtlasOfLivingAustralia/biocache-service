@@ -119,6 +119,8 @@ public class SearchUtils {
      */
     public String getUidDisplayString(String fieldName, String uid, boolean includeField) {
 
+        if(uid == null) return null;
+
         uid = stripEscapedQuotes(uid);
 
         //get the information from the collections cache
@@ -490,16 +492,16 @@ public class SearchUtils {
      * @return monthStr
      */
     public String substituteMonthNamesForNums(String fv) {
-        String monthStr = new String(fv);
         try {
+            String monthStr = new String(fv);
             //strip quotes and match
             int m = Integer.parseInt(monthStr.replaceAll("\"",""));
             Month month = Month.get(m - 1); // 1 index months
-            monthStr = month.name();
+            return month.name();
         } catch (Exception e) {
             // ignore
         }
-        return monthStr;
+        return fv;
     }
 
     /**
