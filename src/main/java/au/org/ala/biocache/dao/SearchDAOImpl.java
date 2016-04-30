@@ -1819,12 +1819,12 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setRows(requestParams.getPageSize());
         solrQuery.setStart(requestParams.getStart());
         solrQuery.setSortField(requestParams.getSort(), ORDER.valueOf(requestParams.getDir()));
-        logger.debug("runSolrQuery: " + solrQuery.toString());
+//        logger.debug("runSolrQuery: " + solrQuery.toString());
         QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
         logger.debug("runSolrQuery: " + solrQuery.toString() + " qtime:" + qr.getQTime());
-        if(logger.isDebugEnabled()){
-            logger.debug("matched records: " + qr.getResults().getNumFound());
-        }
+//        if(logger.isDebugEnabled()){
+//            logger.debug("matched records: " + qr.getgetResults().getNumFound());
+//        }
         return qr;
     }
 
@@ -1957,7 +1957,9 @@ public class SearchDAOImpl implements SearchDAO {
 
                     for (FacetField.Count fcount : facetEntries) {
                         //check to see if the facet field is an uid value that needs substitution
-                        if("month".equals(facet.getName())) {
+                        if (fcount.getName() == null) {
+                            r.add(new FieldResultDTO("Unknown", fcount.getCount(), "-" + facet.getName() + ":*"));
+                        } else if("month".equals(facet.getName())) {
                             String displayName = searchUtils.substituteMonthNamesForNums(fcount.getName());
                             r.add(new FieldResultDTO(displayName, fcount.getCount(), facet.getName() + ":\"" + fcount.getName() + "\""));
                         } else if("species_list_uid".equals(facet.getName())) {
@@ -1985,7 +1987,6 @@ public class SearchDAOImpl implements SearchDAO {
                                         getFormattedFqQuery(facet.getName(), fcount.getName())
                                 ));
                             }
-//                            r.add(new FieldResultDTO(fcount.getName(), fcount.getCount()));
                         }
                     }
                     // only add facets if there are more than one facet result
@@ -2084,7 +2085,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
             String query = StringUtils.isEmpty(searchParams.getFormattedQuery())? searchParams.getQ() : searchParams.getFormattedQuery();
             if(StringUtils.isNotEmpty(query)){
-                if(sb.length()>0){
+                if(sb.length() > 0){
                     sb.append(" AND (");
                     sb.append(query).append(")");
                 } else {
@@ -2105,8 +2106,6 @@ public class SearchDAOImpl implements SearchDAO {
      *
      * This includes constructing a user friendly version of the query to
      * be used for display purposes.
-     *
-     * TODO Fix this to use a state.  REVISE!!
      *
      * @param searchParams
      */
@@ -3126,12 +3125,11 @@ public class SearchDAOImpl implements SearchDAO {
      * @see au.org.ala.biocache.dao.SearchDAO#getStatistics(SpatialSearchRequestParams)
      */
     public Map<String, FieldStatsInfo> getStatistics(SpatialSearchRequestParams searchParams) throws Exception{
-        String[] values = new String[2];
         try{
             formatSearchQuery(searchParams);
             //add context information
             updateQueryContext(searchParams);
-            String queryString = buildSpatialQueryString((SpatialSearchRequestParams)searchParams);
+            String queryString = buildSpatialQueryString(searchParams);
             SolrQuery solrQuery = new SolrQuery();
             solrQuery.setQuery(queryString);
             for(String field: searchParams.getFacets()){

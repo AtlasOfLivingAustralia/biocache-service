@@ -116,12 +116,16 @@ public class WMSOSGridController {
                 int gridSize = (Integer) map.get("gridSize");
                 String gridRef = (String) map.get("gridRef");
                 int[] enForGrid = Store.convertGridReference(gridRef);
-                double[] minLatLng = convertEastingNorthingToWGS84((double) enForGrid[0], (double) enForGrid[0]);
-                double[] maxLatLng = convertEastingNorthingToWGS84((double) enForGrid[0] + gridSize, (double) enForGrid[0] + gridSize);
-                map.put("minLat", minLatLng[0]);
-                map.put("minLng", minLatLng[1]);
-                map.put("maxLat", maxLatLng[0]);
-                map.put("maxLng", maxLatLng[1]);
+
+                double[] sw = convertEastingNorthingToWGS84((double) enForGrid[0], (double) enForGrid[1]);
+                double[] se = convertEastingNorthingToWGS84((double) enForGrid[0] + gridSize, (double) enForGrid[1] );
+                double[] nw = convertEastingNorthingToWGS84((double) enForGrid[0], (double) enForGrid[1] + gridSize);
+                double[] ne = convertEastingNorthingToWGS84((double) enForGrid[0] + gridSize, (double) enForGrid[1] + gridSize);
+
+                map.put("sw", sw);
+                map.put("se", se);
+                map.put("nw", nw);
+                map.put("ne", ne);
             }
             return map;
         } catch (Exception e){
@@ -130,6 +134,15 @@ public class WMSOSGridController {
         }
     }
 
+    /**
+     * Performs a quick count query for this query and grid reference.
+     *
+     * @param requestParams
+     * @param gridRef
+     * @param gridSize
+     * @param replaceLast
+     * @return
+     */
     private long getRecordCountForGridRef(SpatialSearchRequestParams requestParams, String gridRef, int gridSize, boolean replaceLast){
 
         try {
@@ -278,7 +291,7 @@ public class WMSOSGridController {
             }
         }
 
-/********** FUDGE *************/
+        /********** FUDGE *************/
 
         //  easting/northing range with buffer
         double[] minEN = convertMetersToEastingNorthing(minx, miny);
@@ -313,7 +326,7 @@ public class WMSOSGridController {
 
             }
         }
-/********** END FUDGE *************/
+        /********** END FUDGE *************/
 
 
         Iterator<String> iter = gridsRefs.keySet().iterator();
@@ -356,6 +369,9 @@ public class WMSOSGridController {
         if(StringUtils.isEmpty(gridRef)) return;
 
         int[] eastingNorthingGridSize = Store.convertGridReference(gridRef);
+
+        if(eastingNorthingGridSize == null || eastingNorthingGridSize.length != 3) return;
+
 
         int easting = eastingNorthingGridSize[0];
         int northing = eastingNorthingGridSize[1];
