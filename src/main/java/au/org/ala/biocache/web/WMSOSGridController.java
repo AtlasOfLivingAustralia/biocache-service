@@ -2,9 +2,9 @@ package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dao.SearchDAO;
-import au.org.ala.biocache.dto.FacetPivotResultDTO;
-import au.org.ala.biocache.dto.SearchResultDTO;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.*;
+import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.util.Precision;
 import org.apache.log4j.Logger;
@@ -29,6 +29,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.text.MessageFormat;
 import java.util.*;
+import java.util.List;
 
 @Controller
 public class WMSOSGridController {
@@ -179,13 +180,20 @@ public class WMSOSGridController {
 
 
     /**
-     * Zoom levels
+     * TODO
+     * - render grid cell sized with different colours (with legend support)
+     * - opacity support
+     * - allow show all grid cells option (i.e. always include 10km grids)
+     * - enable,disable outline
+     * - only show 1km grids or smaller
+     *
+     * Default behaviour for zoom levels
      *
      * 313km - just show 10km grids
      * 156km  - just show 10km grids
      * 78km  - just show 10km grids
-     * 39km - 1km grids
-     * 19km - 1km grids
+     * 39km - 1km grids (TODO  - show 2km grids as well)
+     * 19km - 1km grids (TODO  - show 2km grids as well)
      * 9km - every resolution (excluding 10km grids)
      * 4km - every resolution (excluding 10km grids)
      * 2km - every resolution (excluding 10km grids)
@@ -222,9 +230,9 @@ public class WMSOSGridController {
         int boundingBoxSizeInKm = (int) (maxx - minx) /1000;
         logger.info("boundingBoxSizeInKm : " + boundingBoxSizeInKm);
 
-        int gridSize = 2000;
+        int gridSize = 10000;
 
-        String[] facets = {"grid_ref_1000", "grid_ref_2000"};
+        String[] facets = { "grid_ref_10000", "grid_ref_2000", "grid_ref_1000"};
 
         if(boundingBoxSizeInKm >= 39){
             facets = new String[]{"grid_ref_10000"};
@@ -275,21 +283,29 @@ public class WMSOSGridController {
         requestParams.setFlimit(-1);
         requestParams.setFacets(facets);
 
-        java.util.List<FacetPivotResultDTO> facetPivots = searchDAO.searchPivot(requestParams);
+
 
         WMSImg wmsImg = WMSImg.create(width, height);
 
-        if(!facetPivots.isEmpty()){
-            for(FacetPivotResultDTO pivot: facetPivots){
-                logger.info(pivot.getPivotField() + " : " + pivot.getPivotResult().size());
-                for(FacetPivotResultDTO pivotResult : pivot.getPivotResult()){
-                    logger.info("pivot: " + pivotResult.getValue() + ", count: " + pivotResult.getCount());
-                    String gridReference = pivotResult.getValue();
-                    Integer recordCount = pivotResult.getCount();
-                    gridsRefs.put(gridReference, recordCount);
-                }
+        SearchResultDTO resultsDTO = searchDAO.findByFulltextSpatialQuery(requestParams, new HashMap<String,String[]>());
+        Collection<FacetResultDTO> results = resultsDTO.getFacetResults();
+        for (FacetResultDTO result : results){
+            for (FieldResultDTO fieldResult : result.getFieldResult()) {
+                gridsRefs.put(fieldResult.getLabel(), (int) fieldResult.getCount());
             }
         }
+//
+//        if(!facetPivots.isEmpty()){
+//            for(FacetPivotResultDTO pivot: facetPivots){
+//                logger.info(pivot.getPivotField() + " : " + pivot.getPivotResult().size());
+//                for(FacetPivotResultDTO pivotResult : pivot.getPivotResult()){
+//                    logger.info("pivot: " + pivotResult.getValue() + ", count: " + pivotResult.getCount());
+//                    String gridReference = pivotResult.getValue();
+//                    Integer recordCount = pivotResult.getCount();
+//                    gridsRefs.put(gridReference, recordCount);
+//                }
+//            }
+//        }
 
         /********** FUDGE *************/
 
@@ -297,14 +313,14 @@ public class WMSOSGridController {
         double[] minEN = convertMetersToEastingNorthing(minx, miny);
         double[] maxEN = convertMetersToEastingNorthing(maxx, maxy);
 
-
         String eastingNorthingFilterQuery =
                 "easting:[{0} TO {1}]" +
                 " AND " +
                 "northing:[{2} TO {3}]";
 
-        int buff = gridSize * 2;
-        newFqs[newFqs.length - 1] = MessageFormat.format(eastingNorthingFilterQuery, minEN[0]-buff, maxEN[0]+buff, minEN[1]-buff, maxEN[1]+buff);
+        int buff = gridSize * 1;
+        int[] enbbox = new int[]{ (int) (minEN[0]-buff), (int) (maxEN[0]+buff), (int)( minEN[1]-buff), (int) (maxEN[1]+buff) };
+        newFqs[newFqs.length - 1] = MessageFormat.format(eastingNorthingFilterQuery, Integer.toString(enbbox[0]), Integer.toString(enbbox[1]), Integer.toString(enbbox[2]), Integer.toString(enbbox[3]));
 
         requestParams.setFq(newFqs);
         requestParams.setPageSize(0);
@@ -312,27 +328,43 @@ public class WMSOSGridController {
         requestParams.setFlimit(-1);
         requestParams.setFacets(facets);
 
-        java.util.List<FacetPivotResultDTO> facetPivots2 = searchDAO.searchPivot(requestParams);
-
-        if(!facetPivots2.isEmpty()){
-            for(FacetPivotResultDTO pivot: facetPivots2){
-                logger.info(pivot.getPivotField() + " : " + pivot.getPivotResult().size());
-                for(FacetPivotResultDTO pivotResult : pivot.getPivotResult()){
-                    logger.info("pivot: " + pivotResult.getValue() + ", count: " + pivotResult.getCount());
-                    String gridReference = pivotResult.getValue();
-                    Integer recordCount = pivotResult.getCount();
-                    gridsRefs.put(gridReference, recordCount);
-                }
-
+        SearchResultDTO resultsDTO2 = searchDAO.findByFulltextSpatialQuery(requestParams, new HashMap<String,String[]>());
+        Collection<FacetResultDTO> results2 = resultsDTO2.getFacetResults();
+        for (FacetResultDTO result : results2){
+            for (FieldResultDTO fieldResult : result.getFieldResult()) {
+                gridsRefs.put(fieldResult.getLabel(), (int) fieldResult.getCount());
             }
         }
+
+
+//        java.util.List<FacetPivotResultDTO> facetPivots2 = searchDAO.searchPivot(requestParams);
+//
+//        if(!facetPivots2.isEmpty()){
+//            for(FacetPivotResultDTO pivot: facetPivots2){
+//                logger.info(pivot.getPivotField() + " : " + pivot.getPivotResult().size());
+//                for(FacetPivotResultDTO pivotResult : pivot.getPivotResult()){
+//                    logger.info("pivot: " + pivotResult.getValue() + ", count: " + pivotResult.getCount());
+//                    String gridReference = pivotResult.getValue();
+//                    Integer recordCount = pivotResult.getCount();
+//                    gridsRefs.put(gridReference, recordCount);
+//                }
+//
+//            }
+//        }
         /********** END FUDGE *************/
 
 
-        Iterator<String> iter = gridsRefs.keySet().iterator();
-        while(iter.hasNext()){
-            String gridRef = iter.next();
-            //TODO alter colour with counts
+        List<String> gridRefsToRender =  Arrays.asList(gridsRefs.keySet().toArray(new String[0]));
+        java.util.Collections.sort(gridRefsToRender, new Comparator<String>() {
+            @Override
+            public int compare(String o1, String o2) {
+                if(o1 == null || o2 == null)
+                    return -1;
+                return o1.length()-o2.length();
+            }
+        });
+
+        for(String gridRef : gridRefsToRender){
             renderGrid(wmsImg,
                     gridRef,
                     minx,
@@ -363,7 +395,6 @@ public class WMSOSGridController {
         }
     }
 
-
     public void renderGrid(WMSImg wmsImg, String gridRef, double minx, double miny, double oneMetreMercatorXInPixels, double oneMetreMercatorYInPixels){
 
         if(StringUtils.isEmpty(gridRef)) return;
@@ -371,7 +402,6 @@ public class WMSOSGridController {
         int[] eastingNorthingGridSize = Store.convertGridReference(gridRef);
 
         if(eastingNorthingGridSize == null || eastingNorthingGridSize.length != 3) return;
-
 
         int easting = eastingNorthingGridSize[0];
         int northing = eastingNorthingGridSize[1];
@@ -394,7 +424,19 @@ public class WMSOSGridController {
         int[][] coordinatesForImages = convertMercatorMetersToPixelOffset(polygonInMercator, minx, miny,
                 oneMetreMercatorXInPixels, oneMetreMercatorYInPixels, 256);
 
-        Paint polygonFill = new Color(0x55FF0000, true);
+        int color = 0xFFFF0000; //red
+
+        if(gridRef.length() == 4){
+            color = 0xFFFFFF00; //1km grids yellow
+        }
+        if(gridRef.length() == 5){
+            color = 0xFF0000FF; //blue
+        }
+        if(gridRef.length() == 6){
+            color = 0xFF00FF00; //green
+        }
+
+        Paint polygonFill = new Color(color, true);
         wmsImg.g.setPaint(polygonFill);
 
         wmsImg.g.fillPolygon(

@@ -2112,21 +2112,21 @@ public class WMSController {
         Integer pointsCount = 0;
         if (canCache) {
             //count docs
-            count = getCachedCount(true, requestParams, q, pointType, useBbox);
+            count = getCachedCount(true, requestParams, q, pointType);
             if (count == 0) {
                 return new WMSTile();
             }
 
             //count unique points, if necessary
             if (count > wmsCacheMaxLayerPoints && pointType.getValue() > 0) {
-                pointsCount = getCachedCount(false, requestParams, q, pointType, useBbox);
+                pointsCount = getCachedCount(false, requestParams, q, pointType);
 
                 //use bbox when too many points
                 if (pointsCount > wmsCacheMaxLayerPoints) {
                     q += StringUtils.join(origAndBBoxFqs, ",");
 
                     requestParams.setFq(origAndBBoxFqs);
-                    count = getCachedCount(true, requestParams, q, pointType, useBbox);
+                    count = getCachedCount(true, requestParams, q, pointType);
                     requestParams.setFq(originalFqs);
 
                     if (count == 0) {
@@ -2218,7 +2218,7 @@ public class WMSController {
         }
     }
 
-    private Integer getCachedCount(boolean docCount, SpatialSearchRequestParams requestParams, String q, PointType pointType, boolean[] useBbox) throws Exception {
+    private Integer getCachedCount(boolean docCount, SpatialSearchRequestParams requestParams, String q, PointType pointType) throws Exception {
 
         Integer count = null;
 
