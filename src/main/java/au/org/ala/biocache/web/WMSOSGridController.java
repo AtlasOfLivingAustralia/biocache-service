@@ -3,8 +3,6 @@ package au.org.ala.biocache.web;
 import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
-import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.util.Precision;
 import org.apache.log4j.Logger;
@@ -57,6 +55,15 @@ public class WMSOSGridController {
             HttpServletRequest request) throws Exception {
 
         try {
+
+            String qc = requestParams.getQc();
+            if(StringUtils.isNotEmpty(qc)){
+                String[] newFqs = new String[requestParams.getFq().length + 1];
+                System.arraycopy(requestParams.getFq(), 0, newFqs, 0, requestParams.getFq().length);
+                newFqs[newFqs.length - 1] = qc;
+                requestParams.setFq(newFqs);
+                requestParams.setQc(null);
+            }
 
             String lat = request.getParameter("lat");
             String lng = request.getParameter("lng") != null ? request.getParameter("lng") : request.getParameter("lon");
@@ -178,7 +185,6 @@ public class WMSOSGridController {
         return field + ":" + gridRef;
     }
 
-
     /**
      * TODO
      * - render grid cell sized with different colours (with legend support)
@@ -234,7 +240,7 @@ public class WMSOSGridController {
 
         String[] facets = { "grid_ref_10000", "grid_ref_2000", "grid_ref_1000"};
 
-        if(boundingBoxSizeInKm >= 39){
+        if(boundingBoxSizeInKm > 78){
             facets = new String[]{"grid_ref_10000"};
             gridSize = 10000;
         }
