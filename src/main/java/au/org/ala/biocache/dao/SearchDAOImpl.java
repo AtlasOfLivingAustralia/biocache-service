@@ -482,7 +482,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             logger.info("spatial search query: " + queryString);
         } catch (Exception ex) {
-            logger.error("Error executing query with requestParams: " + searchParams.toString()+ " EXCEPTION: " + ex.getMessage());
+            logger.error("Error executing query with requestParams: " + searchParams.toString()+ " EXCEPTION: " + ex.getMessage(), ex);
             searchResults.setStatus("ERROR"); // TODO also set a message field on this bean with the error message(?)
             searchResults.setErrorMessage(ex.getMessage());
         }
@@ -1941,19 +1941,27 @@ public class SearchDAOImpl implements SearchDAO {
         if(!StringUtils.isNotBlank(oi.getImage()))
             return;
 
-        Map<String, String> formats = Config.mediaStore().getImageFormats(oi.getImage());
-        oi.setImageUrl(formats.get("raw"));
-        oi.setThumbnailUrl(formats.get("thumb"));
-        oi.setSmallImageUrl(formats.get("small"));
-        oi.setLargeImageUrl(formats.get("large"));
-        String[] images = oi.getImages();
-        if (images != null && images.length > 0) {
-            String[] imageUrls = new String[images.length];
-            for (int i = 0; i < images.length; i++) {
-                Map<String, String> availableFormats = Config.mediaStore().getImageFormats(images[i]);
-                imageUrls[i] = availableFormats.get("large");
+        try {
+            Map<String, String> formats = Config.mediaStore().getImageFormats(oi.getImage());
+            oi.setImageUrl(formats.get("raw"));
+            oi.setThumbnailUrl(formats.get("thumb"));
+            oi.setSmallImageUrl(formats.get("small"));
+            oi.setLargeImageUrl(formats.get("large"));
+            String[] images = oi.getImages();
+            if (images != null && images.length > 0) {
+                String[] imageUrls = new String[images.length];
+                for (int i = 0; i < images.length; i++) {
+                    try {
+                        Map<String, String> availableFormats = Config.mediaStore().getImageFormats(images[i]);
+                        imageUrls[i] = availableFormats.get("large");
+                    } catch (Exception ex) {
+                        logger.warn("Unable to update image URL for " + images[i] + ": " + ex.getMessage());
+                    }
+                }
+                oi.setImageUrls(imageUrls);
             }
-            oi.setImageUrls(imageUrls);
+        } catch (Exception ex) {
+            logger.warn("Unable to update image URL for " + oi.getImage() + ": " + ex.getMessage());
         }
     }
 
