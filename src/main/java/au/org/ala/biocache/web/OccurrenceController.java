@@ -1346,19 +1346,23 @@ public class OccurrenceController extends AbstractSecureController {
             }
 
             for(String fileNameOrID: images){
-                MediaDTO m = new MediaDTO();
-                Map<String, String> urls = Config.mediaStore().getImageFormats(fileNameOrID);
-                m.getAlternativeFormats().put("thumbnailUrl", urls.get("thumb"));
-                m.getAlternativeFormats().put("smallImageUrl", urls.get("small"));
-                m.getAlternativeFormats().put("largeImageUrl", urls.get("large"));
-                m.getAlternativeFormats().put("imageUrl", urls.get("raw"));
-                m.setFilePath(fileNameOrID);
-                m.setMetadataUrl(imageMetadataService.getUrlFor(fileNameOrID));
-                
-                if (metadata != null && metadata.get(fileNameOrID) != null) {
-                    m.setMetadata(metadata.get(fileNameOrID));
+                try {
+                    MediaDTO m = new MediaDTO();
+                    Map<String, String> urls = Config.mediaStore().getImageFormats(fileNameOrID);
+                    m.getAlternativeFormats().put("thumbnailUrl", urls.get("thumb"));
+                    m.getAlternativeFormats().put("smallImageUrl", urls.get("small"));
+                    m.getAlternativeFormats().put("largeImageUrl", urls.get("large"));
+                    m.getAlternativeFormats().put("imageUrl", urls.get("raw"));
+                    m.setFilePath(fileNameOrID);
+                    m.setMetadataUrl(imageMetadataService.getUrlFor(fileNameOrID));
+
+                    if (metadata != null && metadata.get(fileNameOrID) != null) {
+                        m.setMetadata(metadata.get(fileNameOrID));
+                    }
+                    ml.add(m);
+                } catch (Exception ex) {
+                    logger.warn("Unable to get image data for " + fileNameOrID + ": " + ex.getMessage());
                 }
-                ml.add(m);
             }
             dto.setImages(ml);
         }
