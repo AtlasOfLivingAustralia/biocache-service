@@ -108,16 +108,16 @@ public class DownloadService {
     @Value("${download.dir:/data/biocache-download}")
     protected String biocacheDownloadDir;
 
-    @Value("${download.email.subject:Occurrence Download Complete - [filename]}")
+    @Value("${download.email.subject:ALA Occurrence Download Complete - [filename]}")
     protected String biocacheDownloadEmailSubject;
 
-    @Value("${download.email.body:The file has been generated. Please download your file from [url]}")
+    @Value("${download.email.body:The download file has been generated. Please download your file from [url]}")
     protected String biocacheDownloadEmailBody;
 
     @Value("${download.email.subject:Occurrence Download Failed - [filename]}")
     protected String biocacheDownloadEmailSubjectError;
 
-    @Value("${download.email.body:The download has failed.}")
+    @Value("${download.email.body.error:The download has failed.}")
     protected String biocacheDownloadEmailBodyError;
 
     @PostConstruct    
@@ -511,8 +511,10 @@ public class DownloadService {
                             insertMiscHeader(currentDownload);
 
                             String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
-                            String body = messageSource.getMessage("offlineEmailBody", new Object[]{fileLocation},
-                                    biocacheDownloadEmailBody.replace("[url]", fileLocation) , null);
+                            String downloadUrl = webservicesRoot + "/occurrences/offline/download" + currentDownload.getDownloadParams();
+                            String emailBodyHtml = biocacheDownloadEmailBody.replace("[url]", fileLocation).replace("[date]",
+                                    currentDownload.getStartDateString()).replace("[downloadUrl]",downloadUrl);
+                            String body = messageSource.getMessage("offlineEmailBody", new Object[]{fileLocation, downloadUrl, currentDownload.getStartDateString()}, emailBodyHtml, null);
 
                             //save the statistics to the download directory
                             FileOutputStream statsStream = FileUtils.openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()+File.separator+"downloadStats.json"));
