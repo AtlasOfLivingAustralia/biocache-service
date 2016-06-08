@@ -39,11 +39,11 @@ public class SearchRequestParams {
     protected String fl = "";
     /**
      * The facets to be included by the search
-     * Initialised with the default facets to use
+     * Set by the controller if needed
      */
-    protected String[] facets = FacetThemes.allFacetsLimited;
+    protected String[] facets = null;
     protected Integer start = 0;
-    protected Integer facetsMax = FacetThemes.facetsMax;
+    protected Integer facetsMax = null;
     /*
      * The limit for the number of facets to return 
      */
@@ -61,7 +61,7 @@ public class SearchRequestParams {
     /**  The query context to be used for the search.  This will be used to generate extra query filters based on the search technology */
     protected String qc = "";
     /** To disable facets */
-    protected Boolean facet = FacetThemes.facetDefault;
+    protected Boolean facet = null;
     /** log4 j logger */
     private static final Logger logger = Logger.getLogger(SearchRequestParams.class);
     
@@ -104,7 +104,7 @@ public class SearchRequestParams {
         req.append("&sort=").append(sort);
         req.append("&dir=").append(dir);
         req.append("&qc=").append(qc);
-        if (facets.length > 0 && facet) {
+        if (facets != null && facets.length > 0 && facet != null && facet) {
             for (String f : facets) {
                 req.append("&facets=").append(conditionalEncode(f, encodeParams));
             }
@@ -115,8 +115,8 @@ public class SearchRequestParams {
             req.append("&fl=").append(conditionalEncode(fl, encodeParams));
         if(StringUtils.isNotEmpty(formattedQuery))
             req.append("&formattedQuery=").append(conditionalEncode(formattedQuery, encodeParams));
-        if(!facet)
-            req.append("&facet=false");
+        if(facet != null)
+            req.append("&facet=" + facet);
         if(!"".equals(fsort))
             req.append("&fsort=").append(fsort);
         if(foffset > 0)
@@ -328,7 +328,15 @@ public class SearchRequestParams {
         if (facets != null && facets.length == 1 && facets[0].contains(",")) facets = facets[0].split(",");
 
         //limit facets terms
-        this.facets = facets != null && facets.length > facetsMax ? Arrays.copyOfRange(facets, 0, facetsMax) : facets;
+        this.facets = facets != null && facetsMax != null && facets.length > facetsMax ? Arrays.copyOfRange(facets, 0, facetsMax) : facets;
+    }
+
+    public Integer getFacetsMax() {
+        return facetsMax;
+    }
+
+    public void setFacetsMax(Integer facetsMax) {
+        this.facetsMax = facetsMax;
     }
 
     public Integer getFlimit() {

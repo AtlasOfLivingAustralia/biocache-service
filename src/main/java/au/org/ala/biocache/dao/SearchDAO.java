@@ -356,4 +356,18 @@ public interface SearchDAO {
      * @param searchParams
      */
     void formatSearchQuery(SpatialSearchRequestParams searchParams, boolean forceQueryFormat);
+
+    /**
+     * Create a new set of search request parameters, initialised to default values.
+     *
+     * @return A new set of search parameters
+     */
+    public SearchRequestParams createSearchRequestParams();
+
+    /**
+     * Create a new set of spatial search request parameters, initialised to default values.
+     *
+     * @return A new set of spatial search parameters
+     */
+    public SpatialSearchRequestParams createSpatialSearchRequestParams();
 }

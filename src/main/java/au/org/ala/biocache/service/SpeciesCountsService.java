@@ -72,7 +72,7 @@ public class SpeciesCountsService {
         if (!enabled) return null;
 
         //lft counts for the query
-        SpatialSearchRequestParams params = new SpatialSearchRequestParams();
+        SpatialSearchRequestParams params = searchDAO.createSpatialSearchRequestParams();
         StringBuilder fq = new StringBuilder();
         if (filterQuery == null || filterQuery.length == 0) {
             params.setQ("*:*");

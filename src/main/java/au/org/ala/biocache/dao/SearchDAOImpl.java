@@ -173,6 +173,9 @@ public class SearchDAOImpl implements SearchDAO {
     @Inject
     protected SpeciesImageService speciesImageService;
 
+    @Inject
+    protected FacetService facetService;
+
     /** Max number of threads to use in endemic queries */
     @Value("${media.store.local:true}")
     protected Boolean usingLocalMediaRepo = true;
@@ -315,7 +318,7 @@ public class SearchDAOImpl implements SearchDAO {
                 newfq = newfq+ " OR " + newfq; //cater for the situation where there is only one term.  We don't want the term to be escaped again
             localterms=0;
             //System.out.println("FQ = " + newfq);
-            SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
+            SpatialSearchRequestParams srp = this.createSpatialSearchRequestParams();
             BeanUtils.copyProperties(requestParams, srp);
             srp.setFq((String[])ArrayUtils.add(originalFqs, newfq));
             int batch = i / termQueryLimit;
@@ -379,7 +382,7 @@ public class SearchDAOImpl implements SearchDAO {
             if(localterms ==1)
                 newfq = newfq+ " OR " + newfq; //cater for the situation where there is only one term.  We don't want the term to be escaped again
             localterms=0;
-            SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
+            SpatialSearchRequestParams srp = this.createSpatialSearchRequestParams();
             BeanUtils.copyProperties(parentQuery, srp);
             srp.setFq((String[])ArrayUtils.add(originalFqs, newfq));
             int batch = i / termQueryLimit;
@@ -448,7 +451,7 @@ public class SearchDAOImpl implements SearchDAO {
     @Override
     public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, boolean includeSensitive, Map<String,String[]> extraParams) {
         SearchResultDTO searchResults = new SearchResultDTO();
-        SpatialSearchRequestParams original = new SpatialSearchRequestParams();
+        SpatialSearchRequestParams original = this.createSpatialSearchRequestParams();
         BeanUtils.copyProperties(searchParams, original);
         try {
             formatSearchQuery(searchParams);
@@ -656,8 +659,8 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public void writeCoordinatesToStream(SearchRequestParams searchParams,OutputStream out) throws Exception{
         //generate the query to obtain the lat,long as a facet
-        SearchRequestParams srp = new SearchRequestParams();
-        searchUtils.setDefaultParams(srp);
+        SearchRequestParams srp = this.createSearchRequestParams();
+        searchUtils.setDefaultParams(srp, facetService.getAllFacetsLimited(), facetService.getFacetsMax(), facetService.getFacetDefault());
         srp.setFacets(searchParams.getFacets());
 
         SolrQuery solrQuery = initSolrQuery(srp,false,null);
@@ -1716,7 +1719,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     private QueryResponse runSolrQuery(SolrQuery solrQuery, String filterQuery[], Integer pageSize,
             Integer startIndex, String sortField, String sortDirection) throws SolrServerException {
-        SearchRequestParams requestParams = new SearchRequestParams();
+        SearchRequestParams requestParams = this.createSearchRequestParams();
         requestParams.setFq(filterQuery);
         requestParams.setPageSize(pageSize);
         requestParams.setStart(startIndex);
@@ -2272,7 +2275,7 @@ public class SearchDAOImpl implements SearchDAO {
                 Matcher matcher = spatialPattern.matcher(query);
                 if(matcher.find()){
                     String spatial = matcher.group();
-                    SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
+                    SpatialSearchRequestParams subQuery = this.createSpatialSearchRequestParams();
                     logger.debug("region Start : " + matcher.regionStart() + " start :  "+ matcher.start() + " spatial length " + spatial.length() + " query length " + query.length());
                     //format the search query of the remaining text only
                     subQuery.setQ(query.substring(matcher.start() + spatial.length(), query.length()));
@@ -2531,9 +2534,9 @@ public class SearchDAOImpl implements SearchDAO {
                 } else {
                     solrQuery.addFacetField(facet);
 
-                    if("".equals(searchParams.getFsort()) && substituteDefaultFacetOrder && FacetThemes.facetsMap.containsKey(facet)){
+                    if("".equals(searchParams.getFsort()) && substituteDefaultFacetOrder && facetService.getFacetsMap().containsKey(facet)){
                       //now check if the sort order is different to supplied
-                      String thisSort = FacetThemes.facetsMap.get(facet).getSort();
+                      String thisSort = facetService.getFacetsMap().get(facet).getSort();
                       if(!searchParams.getFsort().equalsIgnoreCase(thisSort))
                           solrQuery.add("f." + facet + ".facet.sort", thisSort);
                     }
@@ -2585,7 +2588,7 @@ public class SearchDAOImpl implements SearchDAO {
         StatsIndexFieldDTO details=rangeFieldCache.get(field);
         if(details == null && indexFieldMap!=null){
             //get the details
-            SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
+            SpatialSearchRequestParams searchParams = this.createSpatialSearchRequestParams();
             searchParams.setQ("*:*");
             searchParams.setFacets(new String[]{field});
             try {
@@ -3614,4 +3617,34 @@ public class SearchDAOImpl implements SearchDAO {
 
         return list;
     }
+
+    /**
+     * Create a new set of search request parameters, initialised to default values.
+     *
+     * @return A new set of search parameters
+     */
+    public SearchRequestParams createSearchRequestParams() {
+        SearchRequestParams params = new SearchRequestParams();
+
+        params.setFacet(this.facetService.getFacetDefault());
+        params.setFacetsMax(this.facetService.getFacetsMax());
+        params.setFacets(this.facetService.getAllFacetsLimited());
+        return params;
+     }
+
+    /**
+     * Create a new set of spatial search request parameters, initialised to default values.
+     *
+     * @return A new set of spatial search parameters
+     */
+    public SpatialSearchRequestParams createSpatialSearchRequestParams() {
+        SpatialSearchRequestParams params = new SpatialSearchRequestParams();
+
+        params.setFacet(this.facetService.getFacetDefault());
+        params.setFacetsMax(this.facetService.getFacetsMax());
+        params.setFacets(this.facetService.getAllFacetsLimited());
+        return params;
+
+    }
+
 }

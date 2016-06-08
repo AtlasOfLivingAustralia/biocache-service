@@ -57,7 +57,7 @@ public class DuplicationController {
 
     @RequestMapping(value = {"/stats/{guid:.+}.json*", "/stats/{guid:.+}*"})
     public @ResponseBody Map<String, FieldStatsInfo> printStats(@PathVariable("guid") String guid) throws Exception {
-        SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
+        SpatialSearchRequestParams searchParams = searchDAO.createSpatialSearchRequestParams();
         searchParams.setQ("*:*");
         searchParams.setFacets(new String[]{guid});
         return searchDAO.getStatistics(searchParams);

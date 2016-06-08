@@ -306,7 +306,7 @@ public class SearchUtils {
      *
      * @param requestParams
      */
-    public static void setDefaultParams(SearchRequestParams requestParams) {
+    public static void setDefaultParams(SearchRequestParams requestParams, String[] defaultFacets, Integer defaultFacetsMax, Boolean defaultFacet) {
         SearchRequestParams blankRequestParams = new SearchRequestParams(); // use for default values
         logger.debug("requestParams = " + requestParams);
 
@@ -325,6 +325,12 @@ public class SearchUtils {
         if (requestParams.getDir() == null || requestParams.getDir().isEmpty()) {
             requestParams.setDir(blankRequestParams.getDir());
         }
+        if (requestParams.getFacet() == null)
+            requestParams.setFacet(defaultFacet);
+        if (requestParams.getFacetsMax() == null)
+            requestParams.setFacetsMax(defaultFacetsMax);
+        if (requestParams.getFacets() == null)
+            requestParams.setFacets(defaultFacets);
     }
     
     public static Map<String, String[]> getExtraParams(Map map){

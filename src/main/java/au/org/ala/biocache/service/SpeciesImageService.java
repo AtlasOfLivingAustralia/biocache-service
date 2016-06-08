@@ -59,7 +59,7 @@ public class SpeciesImageService {
                 logger.debug("start refresh");
 
                 //lft counts for the query
-                SpatialSearchRequestParams params = new SpatialSearchRequestParams();
+                SpatialSearchRequestParams params = searchDAO.createSpatialSearchRequestParams();
                 params.setPageSize(1);
                 params.setFacet(true);
                 params.setFacets(new String[]{"lft"});

@@ -166,7 +166,7 @@ public class ValidationRuleController extends AbstractSecureController {
                         String guid = speciesLookupService.getGuidForName(validationRuleDTO.getSpecies());
                         if ((guid != null || validationRuleDTO.getQuery() != null) && validationRuleDTO.getId() != null){
                             //check to see if the area is well formed.
-                            SpatialSearchRequestParams ssr = new SpatialSearchRequestParams();
+                            SpatialSearchRequestParams ssr = searchDAO.createSpatialSearchRequestParams();
                             String query = guid != null ? "lsid:" + guid:validationRuleDTO.getQuery();
                             ssr.setQ(query);
                             ssr.setWkt(validationRuleDTO.getArea());

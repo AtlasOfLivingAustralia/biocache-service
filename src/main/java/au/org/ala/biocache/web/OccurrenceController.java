@@ -22,10 +22,7 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.model.FullRecord;
-import au.org.ala.biocache.service.AuthService;
-import au.org.ala.biocache.service.DownloadService;
-import au.org.ala.biocache.service.ImageMetadataService;
-import au.org.ala.biocache.service.SpeciesLookupService;
+import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.util.*;
 import net.sf.ehcache.CacheManager;
 import org.ala.client.appender.RestLevel;
@@ -86,6 +83,8 @@ public class OccurrenceController extends AbstractSecureController {
     @Inject
     protected DownloadService downloadService;
     @Inject
+    protected FacetService facetService;
+    @Inject
     private AbstractMessageSource messageSource;
     @Inject
     private ImageMetadataService imageMetadataService;
@@ -116,18 +115,6 @@ public class OccurrenceController extends AbstractSecureController {
 
     @Value("${media.url:http://biocache.ala.org.au/biocache-media/}")
     protected String biocacheMediaUrl;
-
-    @Value("${facet.config:/data/biocache/config/facets.json}")
-    protected String facetConfig;
-
-    @Value("${facets.max:4}")
-    protected Integer facetsMax;
-
-    @Value("${facets.defaultmax:0}")
-    protected Integer facetsDefaultMax;
-
-    @Value("${facet.default:true}")
-    protected Boolean facetDefault;
 
     public Pattern getTaxonIDPattern(){
         if(taxonIDPattern == null){
@@ -206,7 +193,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping("/search/facets")
     public @ResponseBody String[] listAllFacets() {
-        return new SearchRequestParams().getFacets();
+        return facetService.getAllFacets();
     }
     
     /**
@@ -215,13 +202,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping("/search/grouped/facets")
     public @ResponseBody List groupFacets() throws IOException {
-        Set<IndexFieldDTO> indexedFields = null;
-        try {
-            indexedFields = searchDAO.getIndexedFields();
-        } catch (Exception e) {
-            logger.error(e.getMessage(), e);
-        }
-        return new FacetThemes(facetConfig, indexedFields, facetsMax, facetsDefaultMax, facetDefault).allThemes;
+        return facetService.getAllThemes();
     }
     
     /**
@@ -356,7 +337,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping(value={"/images/taxon/{guid:.+}.json*","/images/taxon/{guid:.+}*"})
     public @ResponseBody List<String> getImages(@PathVariable("guid") String guid) throws Exception {
-        SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
+        SpatialSearchRequestParams srp = searchDAO.createSpatialSearchRequestParams();
         srp.setQ("lsid:" + guid);
         srp.setPageSize(0);
         srp.setFacets(new String[]{"image_url"});
@@ -418,7 +399,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      */
     private NativeDTO getIsAustraliaForGuid(String guid) {
-        SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
+        SpatialSearchRequestParams requestParams = searchDAO.createSpatialSearchRequestParams();
         requestParams.setPageSize(0);
         requestParams.setFacets(new String[]{});
         String query = "lsid:" +guid + " AND " + "(country:\""+nativeCountry+"\" OR state:[* TO *]) AND geospatial_kosher:true";
@@ -444,7 +425,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping(value = {"/occurrences", "/occurrences/collections", "/occurrences/institutions", "/occurrences/dataResources", "/occurrences/dataProviders", "/occurrences/taxa", "/occurrences/dataHubs"}, method = RequestMethod.GET)
     public @ResponseBody SearchResultDTO listOccurrences(Model model) throws Exception {
-        SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
+        SpatialSearchRequestParams srp = searchDAO.createSpatialSearchRequestParams();
         srp.setQ("*:*");
         return occurrenceSearch(srp);
     }
@@ -460,7 +441,7 @@ public class OccurrenceController extends AbstractSecureController {
                                                                  SpatialSearchRequestParams requestParams,
                                                                  @PathVariable("guid") String guid) throws Exception {
         requestParams.setQ("lsid:" + guid);
-        SearchUtils.setDefaultParams(requestParams);
+        SearchUtils.setDefaultParams(requestParams, facetService.getAllFacetsLimited(), facetService.getFacetsMax(), facetService.getFacetDefault());
         return occurrenceSearch(requestParams);
     }
     
@@ -508,7 +489,7 @@ public class OccurrenceController extends AbstractSecureController {
             return searchResult;
         }
         
-        SearchUtils.setDefaultParams(requestParams);
+        SearchUtils.setDefaultParams(requestParams, facetService.getAllFacetsLimited(), facetService.getFacetsMax(), facetService.getFacetDefault());
         //update the request params so the search caters for the supplied uid
         searchUtils.updateCollectionSearchString(requestParams, uid);
         logger.debug("solr query: " + requestParams);
@@ -561,12 +542,12 @@ public class OccurrenceController extends AbstractSecureController {
                                                           HttpServletRequest request,
                                                           HttpServletResponse response) throws Exception {
         // handle empty param values, e.g. &sort=&dir=
-        SearchUtils.setDefaultParams(requestParams);
+        SearchUtils.setDefaultParams(requestParams, facetService.getAllFacetsLimited(), facetService.getFacetsMax(), facetService.getFacetDefault());
         Map<String,String[]> map = request != null ? SearchUtils.getExtraParams(request.getParameterMap()) : null;
         if(map != null){
             map.remove("apiKey");
         }
-        logger.debug("occurrence search params = " + requestParams);
+        logger.debug("occurrence search params = " + requestParams + " extra params = " + map);
         
         SearchResultDTO srtdto = null;
         if(apiKey == null){
@@ -599,7 +580,7 @@ public class OccurrenceController extends AbstractSecureController {
                                                                    HttpServletResponse response) throws Exception {
         // handle empty param values, e.g. &sort=&dir=
         if(shouldPerformOperation(apiKey, response, false)){
-            SearchUtils.setDefaultParams(requestParams);
+            SearchUtils.setDefaultParams(requestParams, facetService.getAllFacetsLimited(), facetService.getFacetsMax(), facetService.getFacetDefault());
             Map<String,String[]> map = SearchUtils.getExtraParams(request.getParameterMap());
             if(map != null){
                 map.remove("apiKey");
@@ -1195,7 +1176,7 @@ public class OccurrenceController extends AbstractSecureController {
         if(fullRecord == null){
             //get the rowKey for the supplied uuid in the index
             //This is a workaround.  There seems to be an issue on Cassandra with retrieving uuids that start with e or f
-            SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
+            SpatialSearchRequestParams srp = searchDAO.createSpatialSearchRequestParams();
             srp.setQ("id:" + uuid);
             srp.setPageSize(1);
             srp.setFacets(new String[]{});
