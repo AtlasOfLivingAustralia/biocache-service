@@ -3,6 +3,7 @@ package au.org.ala.biocache.service;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang3.BooleanUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -80,10 +81,6 @@ public class FacetService {
     private List<FacetTheme> allThemes = null;
     private Map<String, Facet> facetsMap = null;
 
-    // Services
-    @Inject
-    protected SearchDAO searchDAO;
-
     // Configuration
     @Value("${facet.config:/data/biocache/config/facets.json}")
     protected String facetConfig;
@@ -142,33 +139,20 @@ public class FacetService {
     }
 
     private void loadConfig(File configFile) throws Exception {
-        Set<IndexFieldDTO> indexedFields = this.searchDAO.getIndexedFields();
         ObjectMapper om = new ObjectMapper();
         List<Map<String, Object>> config = om.readValue(configFile, List.class);
 
         this.allThemes = new ArrayList<FacetTheme>();
         for (Map<String, Object> facetGroup : config) {
             String title = (String) facetGroup.get("title");
-            List<Map<String, String>> facetsConfig = (List<Map<String, String>>) facetGroup.get("facets");
+            List<Map<String, Object>> facetsConfig = (List<Map<String, Object>>) facetGroup.get("facets");
             List<Facet> facets = new ArrayList<Facet>();
-            for (Map<String, String> facetsMap : facetsConfig) {
-                String name = facetsMap.get("field");
-                String description = null;
-                String dwcTerm = null;
-                Boolean i18nValues = null;
-                if (indexedFields != null) {
-                    for (IndexFieldDTO field : indexedFields) {
-                        if (field.getName().equalsIgnoreCase(name)) {
-                            description = field.getDescription();
-                            dwcTerm = field.getDwcTerm();
-                            i18nValues = field.isI18nValues();
-
-                            //only add this facet if there is an associated SOLR field
-                            facets.add(new Facet(name, facetsMap.get("sort"), description, dwcTerm, i18nValues));
-                            break;
-                        }
-                    }
-                }
+            for (Map<String, Object> facetsMap : facetsConfig) {
+                String name = (String) facetsMap.get("field");
+                String description = (String) facetsMap.get("description");
+                String dwcTerm = (String) facetsMap.get("dwcTerm");
+                Boolean i18nValues = (Boolean) facetsMap.get("i18nValues");
+                facets.add(new Facet(name, (String) facetsMap.get("sort"), description, dwcTerm, i18nValues));
             }
             this.allThemes.add(new FacetTheme(title, facets));
         }
