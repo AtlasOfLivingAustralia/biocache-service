@@ -51,7 +51,7 @@
         <dependency>
             <groupId>au.org.ala</groupId>
             <artifactId>biocache-store</artifactId>
-            <version>1.7.1-SNAPSHOT</version>
+            <version>1.7.2-SNAPSHOT</version>
             <exclusions>
                 <exclusion>
                     <artifactId>google-collect</artifactId>
