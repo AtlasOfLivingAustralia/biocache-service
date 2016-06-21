@@ -15,6 +15,7 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.Store;
+import au.org.ala.biocache.vocab.AssertionCodes;
 import au.org.ala.biocache.model.FullRecord;
 import au.org.ala.biocache.model.QualityAssertion;
 import au.org.ala.biocache.model.Versions;
@@ -167,17 +168,26 @@ public class AssertionController extends AbstractSecureController {
         String comment = request.getParameter("comment");
         String userId = request.getParameter("userId");
         String userDisplayName = request.getParameter("userDisplayName");
+        String userAssertionStatus = request.getParameter("userAssertionStatus");
+        String assertionUuid = request.getParameter("assertionUuid");
 
         if (shouldPerformOperation(request, response)) {
             try {
                 logger.debug("Adding assertion to:" + recordUuid + ", code:" + code + ", comment:" + comment
+                        + ",userAssertionStatus: " + userAssertionStatus + ", assertionUuid: " + assertionUuid
                         + ", userId:" +userId + ", userDisplayName:" + userDisplayName);
     
                 QualityAssertion qa = au.org.ala.biocache.model.QualityAssertion.apply(Integer.parseInt(code));
                 qa.setComment(comment);
                 qa.setUserId(userId);
                 qa.setUserDisplayName(userDisplayName);
-    
+                if (code.equals(Integer.toString(AssertionCodes.VERIFIED().getCode()))) {
+                    qa.setRelatedUuid(assertionUuid);
+                    qa.setQaStatus(Integer.parseInt(userAssertionStatus));
+                } else {
+                    qa.setQaStatus(AssertionCodes.QA_OPEN_ISSUE().getCode());
+                }
+
                 Store.addUserAssertion(recordUuid, qa);
                   //NC 2013-07-25 No need to post a notification to the collectory the biocache service is queried for the annotations required by the notification service
 //                if(qa.getUuid() != null) {
