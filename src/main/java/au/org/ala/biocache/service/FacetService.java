@@ -19,8 +19,11 @@ import java.util.*;
  * @author Doug Palmer &lt;Doug.Palmer@csiro.au&gt;
  * @copyright Copyright (c) 2016 CSIRO
  */
-@Component("facetService")
+// Component declararation comes from AppConfig
 public class FacetService {
+    private static FacetService EMPTY = new FacetService();
+    private static FacetService singleton = EMPTY;
+
     // If we're going to limit the number of facets, then choose important ones first
     private final static List<String> FACET_ORDER = Arrays.asList(
             "taxon_name",
@@ -76,22 +79,49 @@ public class FacetService {
     );
     private final static Logger logger = Logger.getLogger(FacetService.class);
 
+    private Integer facetsMax;
+    private Boolean facetDefault;
     private String[] allFacets = null;
     private String[] allFacetsLimited = null;
     private List<FacetTheme> allThemes = null;
     private Map<String, Facet> facetsMap = null;
 
-    // Configuration
-    @Value("${facet.config:/data/biocache/config/facets.json}")
-    protected String facetConfig;
+    /**
+     * Get the singleton instance for initialising things that need to know about facets.
+     *
+     * @return The singleton
+     */
+    public static FacetService singleton() {
+        return singleton;
+    }
 
-    @Value("${facets.max:4}")
-    protected Integer facetsMax;
-
-    @Value("${facet.default:true}")
-    protected Boolean facetDefault;
+    public static void createSingleton(String facetConfig, Integer facetsMax, Boolean facetDefault) {
+        if (singleton != EMPTY)
+            logger.warn("Re-initialising singleton");
+        singleton = new FacetService(facetConfig, facetsMax, facetDefault);
+    }
 
     public FacetService() {
+        this.facetDefault = false;
+        this.facetsMax = 4;
+        this.allFacets = new String[0];
+        this.allFacetsLimited = new String[0];
+    }
+
+    public FacetService(String facetConfig, Integer facetsMax, Boolean facetDefault) {
+        this.facetsMax = facetsMax;
+        this.facetDefault = facetDefault;
+        try {
+            File configFile = new File(facetConfig);
+            if (configFile.exists())
+                this.loadConfig(configFile);
+            else
+                this.loadDefaults();
+        } catch (Exception ex) {
+            this.logger.error("Unable to load facet config from " + facetConfig + " ... using defaults", ex);
+            this.loadDefaults();
+        }
+        this.initAllFacets();
     }
 
     public String[] getAllFacets() {
@@ -118,27 +148,8 @@ public class FacetService {
         return facetDefault;
     }
 
-    @PostConstruct
-    public void init() {
-        this.logger.info("Loading facet config file " + this.facetConfig);
-        try {
-            File configFile = new File(this.facetConfig);
-            if (configFile.exists())
-                this.loadConfig(configFile);
-            else
-                this.loadDefaults();
-        } catch (Exception ex) {
-            this.logger.error("Unable to load facet config from " + this.facetConfig + " ... using defaults", ex);
-            this.loadDefaults();
-        }
-        this.initAllFacets();
-        this.logger.info("All facets = " + Arrays.toString(this.allFacets));
-        this.logger.info("All facets limited = " + Arrays.toString(this.allFacetsLimited));
-        this.logger.info("Facets max = " + this.facetsMax);
-        this.logger.info("Facet default = " + this.facetDefault);
-    }
-
     private void loadConfig(File configFile) throws Exception {
+        this.logger.info("Loading facet config file " + configFile);
         ObjectMapper om = new ObjectMapper();
         List<Map<String, Object>> config = om.readValue(configFile, List.class);
 
@@ -159,6 +170,7 @@ public class FacetService {
     }
 
     private void loadDefaults() {
+        this.logger.info("Loading default facets");
         this.allThemes = new ArrayList<FacetTheme>();
         this.allThemes.add(new FacetTheme("Taxonomic",
                 new Facet("taxon_name", "index", null, null, null),
@@ -253,6 +265,10 @@ public class FacetService {
         });
         this.allFacets = keys.toArray(new String[0]);
         this.allFacetsLimited = allFacets != null && allFacets.length > facetsMax ? Arrays.copyOfRange(allFacets, 0, facetsMax) : allFacets;
+        this.logger.info("All facets = " + Arrays.toString(this.allFacets));
+        this.logger.info("All facets limited = " + Arrays.toString(this.allFacetsLimited));
+        this.logger.info("Facets max = " + this.facetsMax);
+        this.logger.info("Facet default = " + this.facetDefault);
     }
 
 

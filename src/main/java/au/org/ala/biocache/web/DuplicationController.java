@@ -23,8 +23,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.HandlerMapping;
 
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
 import java.util.Map;
 
 @Controller
@@ -41,12 +43,14 @@ public class DuplicationController {
      * <p/>
      * Returns empty details when the record is not the "representative" occurrence.
      *
-     * @param guid
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/duplicates/{guid:.+}.json*", "/duplicates/{guid:.+}*"})
-    public @ResponseBody DuplicateRecordDetails getDuplicateStats(@PathVariable("guid") String guid) throws Exception {
+    @RequestMapping(value = {"/duplicates/**"})
+    public @ResponseBody DuplicateRecordDetails getDuplicateStats(HttpServletRequest request) throws Exception {
+        String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        if (guid.endsWith(".json"))
+            guid = guid.substring(0, guid.length() - 5);
         try {
             return Store.getDuplicateDetails(guid);
         } catch (Exception e) {
@@ -55,8 +59,11 @@ public class DuplicationController {
         }
     }
 
-    @RequestMapping(value = {"/stats/{guid:.+}.json*", "/stats/{guid:.+}*"})
-    public @ResponseBody Map<String, FieldStatsInfo> printStats(@PathVariable("guid") String guid) throws Exception {
+    @RequestMapping(value = {"/stats/**"})
+    public @ResponseBody Map<String, FieldStatsInfo> printStats(HttpServletRequest request) throws Exception {
+        String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        if (guid.endsWith(".json"))
+            guid = guid.substring(0, guid.length() - 5);
         SpatialSearchRequestParams searchParams = searchDAO.createSpatialSearchRequestParams();
         searchParams.setQ("*:*");
         searchParams.setFacets(new String[]{guid});

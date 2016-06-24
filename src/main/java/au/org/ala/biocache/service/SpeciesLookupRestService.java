@@ -369,7 +369,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
     }
 
     public Map search(String query, String [] filterQuery, int max, boolean includeSynonyms, boolean includeAll, boolean counts) {
-        String url = bieUriPrefix + "/ws/search.json?q=" + query + "&pageSize=" + max;
+        String url = bieUriPrefix + "/search.json?q=" + query + "&pageSize=" + max;
         logger.info("Requesting: " + url);
         Map<String, Object> jsonMap = restTemplate.getForObject(url, Map.class);
 

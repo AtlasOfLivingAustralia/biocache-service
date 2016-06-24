@@ -43,6 +43,7 @@ import org.springframework.validation.ObjectError;
 import org.springframework.validation.Validator;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.HandlerMapping;
 
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
@@ -331,12 +332,14 @@ public class OccurrenceController extends AbstractSecureController {
      * Returns a list of image urls for the supplied taxon guid.
      * An empty list is returned when no images are available.
      *
-     * @param guid
      * @return
      * @throws Exception
      */
-    @RequestMapping(value={"/images/taxon/{guid:.+}.json*","/images/taxon/{guid:.+}*"})
-    public @ResponseBody List<String> getImages(@PathVariable("guid") String guid) throws Exception {
+    @RequestMapping("/images/taxon/**")
+    public @ResponseBody List<String> getImages(HttpServletRequest request) throws Exception {
+        String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        if (guid.endsWith(".json"))
+            guid = guid.substring(0, guid.length() - 5);
         SpatialSearchRequestParams srp = searchDAO.createSpatialSearchRequestParams();
         srp.setQ("lsid:" + guid);
         srp.setPageSize(0);
@@ -354,13 +357,15 @@ public class OccurrenceController extends AbstractSecureController {
     
     /**
      * Checks to see if the supplied GUID represents an Australian species.
-     * @param guid
      * @return
      * @throws Exception
      */
-    @RequestMapping(value={"/australian/taxon/{guid:.+}.json*","/australian/taxon/{guid:.+}*", "/native/taxon/{guid:.+}.json*","/native/taxon/{guid:.+}*" })
-    public @ResponseBody NativeDTO isAustralian(@PathVariable("guid") String guid) throws Exception {
+    @RequestMapping(value={"/australian/taxon/**", "/native/taxon/**"})
+    public @ResponseBody NativeDTO isAustralian(HttpServletRequest request) throws Exception {
         //check to see if we have any occurrences on Australia  country:Australia or state != empty
+        String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        if (guid.endsWith(".json"))
+            guid = guid.substring(0, guid.length() - 5);
         NativeDTO adto = new NativeDTO();
 
         if (guid != null) {
@@ -436,12 +441,15 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/occurrences/taxon/{guid:.+}.json*","/occurrences/taxon/{guid:.+}*","/occurrences/taxa/{guid:.+}*"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrences/taxon/**","/occurrences/taxon/**","/occurrences/taxa/**"}, method = RequestMethod.GET)
     public @ResponseBody SearchResultDTO occurrenceSearchByTaxon(
                                                                  SpatialSearchRequestParams requestParams,
-                                                                 @PathVariable("guid") String guid) throws Exception {
+                                                                 HttpServletRequest request) throws Exception {
+        String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        if (guid.endsWith(".json"))
+            guid = guid.substring(0, guid.length() - 5);
         requestParams.setQ("lsid:" + guid);
-        SearchUtils.setDefaultParams(requestParams, facetService.getAllFacetsLimited(), facetService.getFacetsMax(), facetService.getFacetDefault());
+        SearchUtils.setDefaultParams(requestParams);
         return occurrenceSearch(requestParams);
     }
     
@@ -454,12 +462,14 @@ public class OccurrenceController extends AbstractSecureController {
      *
      * It also handle's the logging for the BIE.
      * //TODO Work out what to do with this
-     * @param guid
      * @throws Exception
      */
-    @RequestMapping(value = "/occurrences/taxon/source/{guid:.+}.json*", method = RequestMethod.GET)
+    @RequestMapping(value = "/occurrences/taxon/source/**", method = RequestMethod.GET)
     public @ResponseBody List<OccurrenceSourceDTO> sourceByTaxon(SpatialSearchRequestParams requestParams,
-                                                                 @PathVariable("guid") String guid) throws Exception {
+                                                                 HttpServletRequest request) throws Exception {
+        String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        if (guid.endsWith(".json"))
+            guid = guid.substring(0, guid.length() - 5);
         requestParams.setQ("lsid:" + guid);
         Map<String, Integer> sources = searchDAO.getSourcesForQuery(requestParams);
         //now turn them to a list of OccurrenceSourceDTO
@@ -489,7 +499,7 @@ public class OccurrenceController extends AbstractSecureController {
             return searchResult;
         }
         
-        SearchUtils.setDefaultParams(requestParams, facetService.getAllFacetsLimited(), facetService.getFacetsMax(), facetService.getFacetDefault());
+        SearchUtils.setDefaultParams(requestParams);
         //update the request params so the search caters for the supplied uid
         searchUtils.updateCollectionSearchString(requestParams, uid);
         logger.debug("solr query: " + requestParams);
@@ -542,7 +552,7 @@ public class OccurrenceController extends AbstractSecureController {
                                                           HttpServletRequest request,
                                                           HttpServletResponse response) throws Exception {
         // handle empty param values, e.g. &sort=&dir=
-        SearchUtils.setDefaultParams(requestParams, facetService.getAllFacetsLimited(), facetService.getFacetsMax(), facetService.getFacetDefault());
+        SearchUtils.setDefaultParams(requestParams);
         Map<String,String[]> map = request != null ? SearchUtils.getExtraParams(request.getParameterMap()) : null;
         if(map != null){
             map.remove("apiKey");
@@ -580,7 +590,7 @@ public class OccurrenceController extends AbstractSecureController {
                                                                    HttpServletResponse response) throws Exception {
         // handle empty param values, e.g. &sort=&dir=
         if(shouldPerformOperation(apiKey, response, false)){
-            SearchUtils.setDefaultParams(requestParams, facetService.getAllFacetsLimited(), facetService.getFacetsMax(), facetService.getFacetDefault());
+            SearchUtils.setDefaultParams(requestParams);
             Map<String,String[]> map = SearchUtils.getExtraParams(request.getParameterMap());
             if(map != null){
                 map.remove("apiKey");

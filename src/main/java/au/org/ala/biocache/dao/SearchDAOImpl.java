@@ -660,7 +660,7 @@ public class SearchDAOImpl implements SearchDAO {
     public void writeCoordinatesToStream(SearchRequestParams searchParams,OutputStream out) throws Exception{
         //generate the query to obtain the lat,long as a facet
         SearchRequestParams srp = this.createSearchRequestParams();
-        searchUtils.setDefaultParams(srp, facetService.getAllFacetsLimited(), facetService.getFacetsMax(), facetService.getFacetDefault());
+        searchUtils.setDefaultParams(srp);
         srp.setFacets(searchParams.getFacets());
 
         SolrQuery solrQuery = initSolrQuery(srp,false,null);
@@ -1037,20 +1037,22 @@ public class SearchDAOImpl implements SearchDAO {
             dd.setTotalRecords(qr.getResults().getNumFound());
             //get the assertion facets to add them to the download fields
             List<FacetField> facets = qr.getFacetFields();
-            for(FacetField facet : facets){
-                if(facet.getName().equals("assertions") && facet.getValueCount()>0){
+            if (facets != null) {
+                for (FacetField facet : facets) {
+                    if (facet.getName().equals("assertions") && facet.getValueCount() > 0) {
 
-                 for(FacetField.Count facetEntry : facet.getValues()){
-                     if (facetEntry.getCount() > 0) {
-                         if (qasb.length() > 0)
-                             qasb.append(",");
-                         if (facetEntry.getName() != null) qasb.append(facetEntry.getName());
-                     }
-                 }
-                }else if(facet.getName().equals("data_resource_uid") && checkDownloadLimits){
-                    //populate the download limit
-                    initDownloadLimits(downloadLimit, facet);
-              }
+                        for (FacetField.Count facetEntry : facet.getValues()) {
+                            if (facetEntry.getCount() > 0) {
+                                if (qasb.length() > 0)
+                                    qasb.append(",");
+                                if (facetEntry.getName() != null) qasb.append(facetEntry.getName());
+                            }
+                        }
+                    } else if (facet.getName().equals("data_resource_uid") && checkDownloadLimits) {
+                        //populate the download limit
+                        initDownloadLimits(downloadLimit, facet);
+                    }
+                }
             }
 
             if ("includeall".equals(downloadParams.getQa())) {
@@ -2508,9 +2510,10 @@ public class SearchDAOImpl implements SearchDAO {
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setQueryType("standard");
         boolean rangeAdded = false;
+        boolean isFacet = searchParams.getFacet() == null ? false : searchParams.getFacet();
         // Facets
-        solrQuery.setFacet(searchParams.getFacet());
-        if(searchParams.getFacet()) {
+        solrQuery.setFacet(isFacet);
+        if(isFacet) {
             for (String facet : searchParams.getFacets()) {
                 if (facet.equals("date") || facet.equals("decade")) {
                     String fname = facet.equals("decade") ? OCCURRENCE_YEAR_INDEX_FIELD : "occurrence_" + facet;
@@ -3625,10 +3628,6 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public SearchRequestParams createSearchRequestParams() {
         SearchRequestParams params = new SearchRequestParams();
-
-        params.setFacet(this.facetService.getFacetDefault());
-        params.setFacetsMax(this.facetService.getFacetsMax());
-        params.setFacets(this.facetService.getAllFacetsLimited());
         return params;
      }
 
@@ -3639,12 +3638,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public SpatialSearchRequestParams createSpatialSearchRequestParams() {
         SpatialSearchRequestParams params = new SpatialSearchRequestParams();
-
-        params.setFacet(this.facetService.getFacetDefault());
-        params.setFacetsMax(this.facetService.getFacetsMax());
-        params.setFacets(this.facetService.getAllFacetsLimited());
         return params;
-
     }
 
 }
