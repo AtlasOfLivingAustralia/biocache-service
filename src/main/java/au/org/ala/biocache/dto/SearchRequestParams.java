@@ -99,6 +99,7 @@ public class SearchRequestParams {
      */
     protected String toString(Boolean encodeParams) {
         StringBuilder req = new StringBuilder();
+        boolean isFacet = this.getFacet() == null ? true : this.getFacet();
         req.append("q=").append(conditionalEncode(q, encodeParams));
         if (fq.length > 0) {
             for (String it : fq) {
@@ -110,7 +111,7 @@ public class SearchRequestParams {
         req.append("&sort=").append(sort);
         req.append("&dir=").append(dir);
         req.append("&qc=").append(qc);
-        if (facets != null && facets.length > 0 && facet != null && facet) {
+        if (facets != null && facets.length > 0 && isFacet) {
             for (String f : facets) {
                 req.append("&facets=").append(conditionalEncode(f, encodeParams));
             }
@@ -121,8 +122,7 @@ public class SearchRequestParams {
             req.append("&fl=").append(conditionalEncode(fl, encodeParams));
         if(StringUtils.isNotEmpty(formattedQuery))
             req.append("&formattedQuery=").append(conditionalEncode(formattedQuery, encodeParams));
-        if(facet != null)
-            req.append("&facet=" + facet);
+        req.append("&facet=" + isFacet);
         if(!"".equals(fsort))
             req.append("&fsort=").append(fsort);
         if(foffset > 0)

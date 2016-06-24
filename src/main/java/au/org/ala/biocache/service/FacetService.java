@@ -15,6 +15,18 @@ import java.util.*;
 
 /**
  * A service that supplies facet information.
+ * <p>
+ * Some explanation is in order here.
+ * The FacetService needs to be initialised from a configuration.
+ * The {@link au.org.ala.biocache.dto.SearchRequestParams} class needs a source of
+ * facet information to initialise with.
+ * Since SearchRequestParams is constructed during parameter construction during
+ * web requests, initialisation needs to be part of the constructor, since spring will
+ * not do any dependency injection for the object.
+ * Spring also creates instances of SearchRequestParams during initialisation.
+ * The use of a singleton gets around things, intialised via {@link au.org.ala.biocache.config.AppConfig}
+ * so that we can get the configuration in.
+ * </p>
  *
  * @author Doug Palmer &lt;Doug.Palmer@csiro.au&gt;
  * @copyright Copyright (c) 2016 CSIRO

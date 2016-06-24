@@ -2510,7 +2510,7 @@ public class SearchDAOImpl implements SearchDAO {
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setQueryType("standard");
         boolean rangeAdded = false;
-        boolean isFacet = searchParams.getFacet() == null ? false : searchParams.getFacet();
+        boolean isFacet = searchParams.getFacet() == null ? true : searchParams.getFacet();
         // Facets
         solrQuery.setFacet(isFacet);
         if(isFacet) {
