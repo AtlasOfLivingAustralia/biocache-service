@@ -839,7 +839,7 @@ public class WMSController {
                 colours.add(li);
             }
         } else {
-            SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
+            SpatialSearchRequestParams requestParams = searchDAO.createSpatialSearchRequestParams();
             requestParams.setQ(request.getQ());
             requestParams.setQc(request.getQc());
             requestParams.setFq(getFq(request));
@@ -1067,7 +1067,7 @@ public class WMSController {
             }
         }
 
-        SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
+        SpatialSearchRequestParams searchParams = searchDAO.createSpatialSearchRequestParams();
         searchParams.setQ(newQuery);
         searchParams.setFacets(new String[]{"data_resource"});
         searchParams.setPageSize(0);
@@ -1125,7 +1125,7 @@ public class WMSController {
         double maxLat = pointType.roundUpToPointType(roundedLatitude + (pointType.getValue() * 2 * (size + 3)));
 
         //do the SOLR query
-        SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
+        SpatialSearchRequestParams requestParams = searchDAO.createSpatialSearchRequestParams();
         String q = convertLayersParamToQ(queryLayers);
         requestParams.setQ(convertLayersParamToQ(queryLayers));  //need to derive this from the layer name
         logger.debug("WMS GetFeatureInfo for " + queryLayers + ", longitude:[" + minLng + " TO " + maxLng + "],  latitude:[" + minLat + " TO " + maxLat + "]");

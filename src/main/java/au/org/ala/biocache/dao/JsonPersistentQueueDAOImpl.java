@@ -24,8 +24,10 @@ import java.util.List;
 import java.util.UUID;
 
 import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
+import au.org.ala.biocache.service.FacetService;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -44,6 +46,10 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
     private static final Logger logger = Logger.getLogger(JsonPersistentQueueDAOImpl.class);
     private String cacheDirectory="/data/cache/downloads";
     private String FILE_PREFIX = "offline";
+
+    // Ensure initialisation
+    @Inject
+    protected FacetService facetService;
 
     @Value("${download.dir:/data/biocache-download}")
     protected String biocacheDownloadDir;

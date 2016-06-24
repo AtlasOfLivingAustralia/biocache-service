@@ -22,10 +22,7 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.model.FullRecord;
-import au.org.ala.biocache.service.AuthService;
-import au.org.ala.biocache.service.DownloadService;
-import au.org.ala.biocache.service.ImageMetadataService;
-import au.org.ala.biocache.service.SpeciesLookupService;
+import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.util.*;
 import net.sf.ehcache.CacheManager;
 import org.ala.client.appender.RestLevel;
@@ -46,6 +43,7 @@ import org.springframework.validation.ObjectError;
 import org.springframework.validation.Validator;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.HandlerMapping;
 
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
@@ -86,6 +84,8 @@ public class OccurrenceController extends AbstractSecureController {
     @Inject
     protected DownloadService downloadService;
     @Inject
+    protected FacetService facetService;
+    @Inject
     private AbstractMessageSource messageSource;
     @Inject
     private ImageMetadataService imageMetadataService;
@@ -116,18 +116,6 @@ public class OccurrenceController extends AbstractSecureController {
 
     @Value("${media.url:http://biocache.ala.org.au/biocache-media/}")
     protected String biocacheMediaUrl;
-
-    @Value("${facet.config:/data/biocache/config/facets.json}")
-    protected String facetConfig;
-
-    @Value("${facets.max:4}")
-    protected Integer facetsMax;
-
-    @Value("${facets.defaultmax:0}")
-    protected Integer facetsDefaultMax;
-
-    @Value("${facet.default:true}")
-    protected Boolean facetDefault;
 
     public Pattern getTaxonIDPattern(){
         if(taxonIDPattern == null){
@@ -206,7 +194,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping("/search/facets")
     public @ResponseBody String[] listAllFacets() {
-        return new SearchRequestParams().getFacets();
+        return facetService.getAllFacets();
     }
     
     /**
@@ -215,13 +203,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping("/search/grouped/facets")
     public @ResponseBody List groupFacets() throws IOException {
-        Set<IndexFieldDTO> indexedFields = null;
-        try {
-            indexedFields = searchDAO.getIndexedFields();
-        } catch (Exception e) {
-            logger.error(e.getMessage(), e);
-        }
-        return new FacetThemes(facetConfig, indexedFields, facetsMax, facetsDefaultMax, facetDefault).allThemes;
+        return facetService.getAllThemes();
     }
     
     /**
@@ -350,13 +332,15 @@ public class OccurrenceController extends AbstractSecureController {
      * Returns a list of image urls for the supplied taxon guid.
      * An empty list is returned when no images are available.
      *
-     * @param guid
      * @return
      * @throws Exception
      */
-    @RequestMapping(value={"/images/taxon/{guid:.+}.json*","/images/taxon/{guid:.+}*"})
-    public @ResponseBody List<String> getImages(@PathVariable("guid") String guid) throws Exception {
-        SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
+    @RequestMapping("/images/taxon/**")
+    public @ResponseBody List<String> getImages(HttpServletRequest request) throws Exception {
+        String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        if (guid.endsWith(".json"))
+            guid = guid.substring(0, guid.length() - 5);
+        SpatialSearchRequestParams srp = searchDAO.createSpatialSearchRequestParams();
         srp.setQ("lsid:" + guid);
         srp.setPageSize(0);
         srp.setFacets(new String[]{"image_url"});
@@ -373,13 +357,15 @@ public class OccurrenceController extends AbstractSecureController {
     
     /**
      * Checks to see if the supplied GUID represents an Australian species.
-     * @param guid
      * @return
      * @throws Exception
      */
-    @RequestMapping(value={"/australian/taxon/{guid:.+}.json*","/australian/taxon/{guid:.+}*", "/native/taxon/{guid:.+}.json*","/native/taxon/{guid:.+}*" })
-    public @ResponseBody NativeDTO isAustralian(@PathVariable("guid") String guid) throws Exception {
+    @RequestMapping(value={"/australian/taxon/**", "/native/taxon/**"})
+    public @ResponseBody NativeDTO isAustralian(HttpServletRequest request) throws Exception {
         //check to see if we have any occurrences on Australia  country:Australia or state != empty
+        String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        if (guid.endsWith(".json"))
+            guid = guid.substring(0, guid.length() - 5);
         NativeDTO adto = new NativeDTO();
 
         if (guid != null) {
@@ -418,7 +404,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      */
     private NativeDTO getIsAustraliaForGuid(String guid) {
-        SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
+        SpatialSearchRequestParams requestParams = searchDAO.createSpatialSearchRequestParams();
         requestParams.setPageSize(0);
         requestParams.setFacets(new String[]{});
         String query = "lsid:" +guid + " AND " + "(country:\""+nativeCountry+"\" OR state:[* TO *]) AND geospatial_kosher:true";
@@ -444,7 +430,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping(value = {"/occurrences", "/occurrences/collections", "/occurrences/institutions", "/occurrences/dataResources", "/occurrences/dataProviders", "/occurrences/taxa", "/occurrences/dataHubs"}, method = RequestMethod.GET)
     public @ResponseBody SearchResultDTO listOccurrences(Model model) throws Exception {
-        SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
+        SpatialSearchRequestParams srp = searchDAO.createSpatialSearchRequestParams();
         srp.setQ("*:*");
         return occurrenceSearch(srp);
     }
@@ -455,10 +441,13 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/occurrences/taxon/{guid:.+}.json*","/occurrences/taxon/{guid:.+}*","/occurrences/taxa/{guid:.+}*"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrences/taxon/**","/occurrences/taxon/**","/occurrences/taxa/**"}, method = RequestMethod.GET)
     public @ResponseBody SearchResultDTO occurrenceSearchByTaxon(
                                                                  SpatialSearchRequestParams requestParams,
-                                                                 @PathVariable("guid") String guid) throws Exception {
+                                                                 HttpServletRequest request) throws Exception {
+        String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        if (guid.endsWith(".json"))
+            guid = guid.substring(0, guid.length() - 5);
         requestParams.setQ("lsid:" + guid);
         SearchUtils.setDefaultParams(requestParams);
         return occurrenceSearch(requestParams);
@@ -473,12 +462,14 @@ public class OccurrenceController extends AbstractSecureController {
      *
      * It also handle's the logging for the BIE.
      * //TODO Work out what to do with this
-     * @param guid
      * @throws Exception
      */
-    @RequestMapping(value = "/occurrences/taxon/source/{guid:.+}.json*", method = RequestMethod.GET)
+    @RequestMapping(value = "/occurrences/taxon/source/**", method = RequestMethod.GET)
     public @ResponseBody List<OccurrenceSourceDTO> sourceByTaxon(SpatialSearchRequestParams requestParams,
-                                                                 @PathVariable("guid") String guid) throws Exception {
+                                                                 HttpServletRequest request) throws Exception {
+        String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        if (guid.endsWith(".json"))
+            guid = guid.substring(0, guid.length() - 5);
         requestParams.setQ("lsid:" + guid);
         Map<String, Integer> sources = searchDAO.getSourcesForQuery(requestParams);
         //now turn them to a list of OccurrenceSourceDTO
@@ -566,7 +557,7 @@ public class OccurrenceController extends AbstractSecureController {
         if(map != null){
             map.remove("apiKey");
         }
-        logger.debug("occurrence search params = " + requestParams);
+        logger.debug("occurrence search params = " + requestParams + " extra params = " + map);
         
         SearchResultDTO srtdto = null;
         if(apiKey == null){
@@ -737,7 +728,7 @@ public class OccurrenceController extends AbstractSecureController {
                                     params.setQ("lsid:\""+lsid+"\"");
                                     Map<String,Integer> uidStats = searchDAO.writeResultsFromIndexToStream(params, output, false, dd,false);
                                     FileOutputStream citationOutput = new FileOutputStream(citationFilePath);
-                                    downloadService.getCitations(uidStats, citationOutput, params.getSep(), params.getEsc());
+                                    downloadService.getCitations(uidStats, citationOutput, params.getSep(), params.getEsc(), null);
                                     citationOutput.flush();
                                     citationOutput.close();
                                     output.flush();
@@ -1195,7 +1186,7 @@ public class OccurrenceController extends AbstractSecureController {
         if(fullRecord == null){
             //get the rowKey for the supplied uuid in the index
             //This is a workaround.  There seems to be an issue on Cassandra with retrieving uuids that start with e or f
-            SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
+            SpatialSearchRequestParams srp = searchDAO.createSpatialSearchRequestParams();
             srp.setQ("id:" + uuid);
             srp.setPageSize(1);
             srp.setFacets(new String[]{});
@@ -1346,19 +1337,23 @@ public class OccurrenceController extends AbstractSecureController {
             }
 
             for(String fileNameOrID: images){
-                MediaDTO m = new MediaDTO();
-                Map<String, String> urls = Config.mediaStore().getImageFormats(fileNameOrID);
-                m.getAlternativeFormats().put("thumbnailUrl", urls.get("thumb"));
-                m.getAlternativeFormats().put("smallImageUrl", urls.get("small"));
-                m.getAlternativeFormats().put("largeImageUrl", urls.get("large"));
-                m.getAlternativeFormats().put("imageUrl", urls.get("raw"));
-                m.setFilePath(fileNameOrID);
-                m.setMetadataUrl(imageMetadataService.getUrlFor(fileNameOrID));
-                
-                if (metadata != null && metadata.get(fileNameOrID) != null) {
-                    m.setMetadata(metadata.get(fileNameOrID));
+                try {
+                    MediaDTO m = new MediaDTO();
+                    Map<String, String> urls = Config.mediaStore().getImageFormats(fileNameOrID);
+                    m.getAlternativeFormats().put("thumbnailUrl", urls.get("thumb"));
+                    m.getAlternativeFormats().put("smallImageUrl", urls.get("small"));
+                    m.getAlternativeFormats().put("largeImageUrl", urls.get("large"));
+                    m.getAlternativeFormats().put("imageUrl", urls.get("raw"));
+                    m.setFilePath(fileNameOrID);
+                    m.setMetadataUrl(imageMetadataService.getUrlFor(fileNameOrID));
+
+                    if (metadata != null && metadata.get(fileNameOrID) != null) {
+                        m.setMetadata(metadata.get(fileNameOrID));
+                    }
+                    ml.add(m);
+                } catch (Exception ex) {
+                    logger.warn("Unable to get image data for " + fileNameOrID + ": " + ex.getMessage());
                 }
-                ml.add(m);
             }
             dto.setImages(ml);
         }

@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import org.apache.commons.collections.MapUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -48,7 +49,7 @@ public class AuthService {
     protected String userNamesForIdPath = null;
     @Value("${auth.usernames.for.numeric.id.path:getUserListWithIds}")
     protected String userNamesForNumericIdPath = null;
-    @Value("${auth.usernames.full.path:getUserListWithIds}")
+    @Value("${auth.usernames.full.path:getUserList}")
     protected String userNamesFullPath = null;
     @Value("${auth.startup.initialise:false}")
     protected boolean startupInitialise = false;
@@ -106,33 +107,30 @@ public class AuthService {
     }
 
     private void loadMapOfAllUserNamesById() {
+        final String jsonUri = userDetailsUrl + userNamesForIdPath;
         try {
-            final String jsonUri = userDetailsUrl + userNamesForIdPath;
             logger.info("authCache requesting: " + jsonUri);
             userNamesById = restTemplate.postForObject(jsonUri, null, Map.class);
         } catch (Exception ex) {
-            logger.error("RestTemplate error: " + ex.getMessage(), ex);
+            logger.error("RestTemplate error for " + jsonUri + ": " + ex.getMessage(), ex);
         }
     }
 
     private void loadMapOfAllUserNamesByNumericId() {
+        final String jsonUri = userDetailsUrl + userNamesForNumericIdPath;
         try {
-            final String jsonUri = userDetailsUrl + userNamesForNumericIdPath;
             logger.info("authCache requesting: " + jsonUri);
             userNamesByNumericIds = restTemplate.postForObject(jsonUri, null, Map.class);
         } catch (Exception ex) {
-            logger.error("RestTemplate error: " + ex.getMessage(), ex);
+            logger.error("RestTemplate error for " + jsonUri + ": " + ex.getMessage(), ex);
         }
     }
 
     private void loadMapOfEmailToUserId() {
+        final String jsonUri = userDetailsUrl + userNamesFullPath;
         try {
-            final String jsonUri = userDetailsUrl + userNamesFullPath;
             logger.info("authCache requesting: " + jsonUri);
-            List<Map<String,Object>> users = restTemplate.postForObject(jsonUri, null, List.class);
-            for(Map<String,Object> user: users){
-                userEmailToId.put(user.get("email").toString(), user.get("id").toString());
-            }
+            userEmailToId = restTemplate.postForObject(jsonUri, null, Map.class);
             logger.info("authCache userEmail cache: " + userEmailToId.size());
             if(userEmailToId.size()>0){
                 String email = userEmailToId.keySet().iterator().next();
@@ -140,7 +138,7 @@ public class AuthService {
                 logger.info("authCache userEmail example: " + email +" -> " + id);
             }
         } catch (Exception ex) {
-            logger.error("RestTemplate error: " + ex.getMessage(), ex);
+            logger.error("RestTemplate error for " + jsonUri + ": " + ex.getMessage(), ex);
         }
     }
 

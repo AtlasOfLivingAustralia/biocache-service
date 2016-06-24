@@ -173,6 +173,9 @@ public class SearchDAOImpl implements SearchDAO {
     @Inject
     protected SpeciesImageService speciesImageService;
 
+    @Inject
+    protected FacetService facetService;
+
     /** Max number of threads to use in endemic queries */
     @Value("${media.store.local:true}")
     protected Boolean usingLocalMediaRepo = true;
@@ -315,7 +318,7 @@ public class SearchDAOImpl implements SearchDAO {
                 newfq = newfq+ " OR " + newfq; //cater for the situation where there is only one term.  We don't want the term to be escaped again
             localterms=0;
             //System.out.println("FQ = " + newfq);
-            SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
+            SpatialSearchRequestParams srp = this.createSpatialSearchRequestParams();
             BeanUtils.copyProperties(requestParams, srp);
             srp.setFq((String[])ArrayUtils.add(originalFqs, newfq));
             int batch = i / termQueryLimit;
@@ -379,7 +382,7 @@ public class SearchDAOImpl implements SearchDAO {
             if(localterms ==1)
                 newfq = newfq+ " OR " + newfq; //cater for the situation where there is only one term.  We don't want the term to be escaped again
             localterms=0;
-            SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
+            SpatialSearchRequestParams srp = this.createSpatialSearchRequestParams();
             BeanUtils.copyProperties(parentQuery, srp);
             srp.setFq((String[])ArrayUtils.add(originalFqs, newfq));
             int batch = i / termQueryLimit;
@@ -448,7 +451,7 @@ public class SearchDAOImpl implements SearchDAO {
     @Override
     public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, boolean includeSensitive, Map<String,String[]> extraParams) {
         SearchResultDTO searchResults = new SearchResultDTO();
-        SpatialSearchRequestParams original = new SpatialSearchRequestParams();
+        SpatialSearchRequestParams original = this.createSpatialSearchRequestParams();
         BeanUtils.copyProperties(searchParams, original);
         try {
             formatSearchQuery(searchParams);
@@ -482,7 +485,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             logger.info("spatial search query: " + queryString);
         } catch (Exception ex) {
-            logger.error("Error executing query with requestParams: " + searchParams.toString()+ " EXCEPTION: " + ex.getMessage());
+            logger.error("Error executing query with requestParams: " + searchParams.toString()+ " EXCEPTION: " + ex.getMessage(), ex);
             searchResults.setStatus("ERROR"); // TODO also set a message field on this bean with the error message(?)
             searchResults.setErrorMessage(ex.getMessage());
         }
@@ -656,7 +659,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public void writeCoordinatesToStream(SearchRequestParams searchParams,OutputStream out) throws Exception{
         //generate the query to obtain the lat,long as a facet
-        SearchRequestParams srp = new SearchRequestParams();
+        SearchRequestParams srp = this.createSearchRequestParams();
         searchUtils.setDefaultParams(srp);
         srp.setFacets(searchParams.getFacets());
 
@@ -1034,20 +1037,22 @@ public class SearchDAOImpl implements SearchDAO {
             dd.setTotalRecords(qr.getResults().getNumFound());
             //get the assertion facets to add them to the download fields
             List<FacetField> facets = qr.getFacetFields();
-            for(FacetField facet : facets){
-                if(facet.getName().equals("assertions") && facet.getValueCount()>0){
+            if (facets != null) {
+                for (FacetField facet : facets) {
+                    if (facet.getName().equals("assertions") && facet.getValueCount() > 0) {
 
-                 for(FacetField.Count facetEntry : facet.getValues()){
-                     if (facetEntry.getCount() > 0) {
-                         if (qasb.length() > 0)
-                             qasb.append(",");
-                         if (facetEntry.getName() != null) qasb.append(facetEntry.getName());
-                     }
-                 }
-                }else if(facet.getName().equals("data_resource_uid") && checkDownloadLimits){
-                    //populate the download limit
-                    initDownloadLimits(downloadLimit, facet);
-              }
+                        for (FacetField.Count facetEntry : facet.getValues()) {
+                            if (facetEntry.getCount() > 0) {
+                                if (qasb.length() > 0)
+                                    qasb.append(",");
+                                if (facetEntry.getName() != null) qasb.append(facetEntry.getName());
+                            }
+                        }
+                    } else if (facet.getName().equals("data_resource_uid") && checkDownloadLimits) {
+                        //populate the download limit
+                        initDownloadLimits(downloadLimit, facet);
+                    }
+                }
             }
 
             if ("includeall".equals(downloadParams.getQa())) {
@@ -1716,7 +1721,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     private QueryResponse runSolrQuery(SolrQuery solrQuery, String filterQuery[], Integer pageSize,
             Integer startIndex, String sortField, String sortDirection) throws SolrServerException {
-        SearchRequestParams requestParams = new SearchRequestParams();
+        SearchRequestParams requestParams = this.createSearchRequestParams();
         requestParams.setFq(filterQuery);
         requestParams.setPageSize(pageSize);
         requestParams.setStart(startIndex);
@@ -1941,19 +1946,27 @@ public class SearchDAOImpl implements SearchDAO {
         if(!StringUtils.isNotBlank(oi.getImage()))
             return;
 
-        Map<String, String> formats = Config.mediaStore().getImageFormats(oi.getImage());
-        oi.setImageUrl(formats.get("raw"));
-        oi.setThumbnailUrl(formats.get("thumb"));
-        oi.setSmallImageUrl(formats.get("small"));
-        oi.setLargeImageUrl(formats.get("large"));
-        String[] images = oi.getImages();
-        if (images != null && images.length > 0) {
-            String[] imageUrls = new String[images.length];
-            for (int i = 0; i < images.length; i++) {
-                Map<String, String> availableFormats = Config.mediaStore().getImageFormats(images[i]);
-                imageUrls[i] = availableFormats.get("large");
+        try {
+            Map<String, String> formats = Config.mediaStore().getImageFormats(oi.getImage());
+            oi.setImageUrl(formats.get("raw"));
+            oi.setThumbnailUrl(formats.get("thumb"));
+            oi.setSmallImageUrl(formats.get("small"));
+            oi.setLargeImageUrl(formats.get("large"));
+            String[] images = oi.getImages();
+            if (images != null && images.length > 0) {
+                String[] imageUrls = new String[images.length];
+                for (int i = 0; i < images.length; i++) {
+                    try {
+                        Map<String, String> availableFormats = Config.mediaStore().getImageFormats(images[i]);
+                        imageUrls[i] = availableFormats.get("large");
+                    } catch (Exception ex) {
+                        logger.warn("Unable to update image URL for " + images[i] + ": " + ex.getMessage());
+                    }
+                }
+                oi.setImageUrls(imageUrls);
             }
-            oi.setImageUrls(imageUrls);
+        } catch (Exception ex) {
+            logger.warn("Unable to update image URL for " + oi.getImage() + ": " + ex.getMessage());
         }
     }
 
@@ -2264,7 +2277,7 @@ public class SearchDAOImpl implements SearchDAO {
                 Matcher matcher = spatialPattern.matcher(query);
                 if(matcher.find()){
                     String spatial = matcher.group();
-                    SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
+                    SpatialSearchRequestParams subQuery = this.createSpatialSearchRequestParams();
                     logger.debug("region Start : " + matcher.regionStart() + " start :  "+ matcher.start() + " spatial length " + spatial.length() + " query length " + query.length());
                     //format the search query of the remaining text only
                     subQuery.setQ(query.substring(matcher.start() + spatial.length(), query.length()));
@@ -2497,9 +2510,10 @@ public class SearchDAOImpl implements SearchDAO {
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setQueryType("standard");
         boolean rangeAdded = false;
+        boolean isFacet = searchParams.getFacet() == null ? true : searchParams.getFacet();
         // Facets
-        solrQuery.setFacet(searchParams.getFacet());
-        if(searchParams.getFacet()) {
+        solrQuery.setFacet(isFacet);
+        if(isFacet) {
             for (String facet : searchParams.getFacets()) {
                 if (facet.equals("date") || facet.equals("decade")) {
                     String fname = facet.equals("decade") ? OCCURRENCE_YEAR_INDEX_FIELD : "occurrence_" + facet;
@@ -2523,9 +2537,9 @@ public class SearchDAOImpl implements SearchDAO {
                 } else {
                     solrQuery.addFacetField(facet);
 
-                    if("".equals(searchParams.getFsort()) && substituteDefaultFacetOrder && FacetThemes.facetsMap.containsKey(facet)){
+                    if("".equals(searchParams.getFsort()) && substituteDefaultFacetOrder && facetService.getFacetsMap().containsKey(facet)){
                       //now check if the sort order is different to supplied
-                      String thisSort = FacetThemes.facetsMap.get(facet).getSort();
+                      String thisSort = facetService.getFacetsMap().get(facet).getSort();
                       if(!searchParams.getFsort().equalsIgnoreCase(thisSort))
                           solrQuery.add("f." + facet + ".facet.sort", thisSort);
                     }
@@ -2577,7 +2591,7 @@ public class SearchDAOImpl implements SearchDAO {
         StatsIndexFieldDTO details=rangeFieldCache.get(field);
         if(details == null && indexFieldMap!=null){
             //get the details
-            SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
+            SpatialSearchRequestParams searchParams = this.createSpatialSearchRequestParams();
             searchParams.setQ("*:*");
             searchParams.setFacets(new String[]{field});
             try {
@@ -3606,4 +3620,25 @@ public class SearchDAOImpl implements SearchDAO {
 
         return list;
     }
+
+    /**
+     * Create a new set of search request parameters, initialised to default values.
+     *
+     * @return A new set of search parameters
+     */
+    public SearchRequestParams createSearchRequestParams() {
+        SearchRequestParams params = new SearchRequestParams();
+        return params;
+     }
+
+    /**
+     * Create a new set of spatial search request parameters, initialised to default values.
+     *
+     * @return A new set of spatial search parameters
+     */
+    public SpatialSearchRequestParams createSpatialSearchRequestParams() {
+        SpatialSearchRequestParams params = new SpatialSearchRequestParams();
+        return params;
+    }
+
 }

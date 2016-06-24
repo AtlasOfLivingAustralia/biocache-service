@@ -222,6 +222,10 @@
                     <groupId>org.apache.geronimo.specs</groupId>
                     <artifactId>com.springsource.javax.management.j2ee</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>au.org.ala</groupId>
+                    <artifactId>biocache-store</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -399,8 +403,8 @@
                         <artifactId>maven-compiler-plugin</artifactId>
                         <version>3.2</version>
                         <configuration>
-                            <source>1.6</source>
-                            <target>1.6</target>
+                            <source>1.7</source>
+                            <target>1.7</target>
                         </configuration>
                     </plugin>
                     <plugin>

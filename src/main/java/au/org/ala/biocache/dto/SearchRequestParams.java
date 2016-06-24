@@ -14,11 +14,17 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import au.org.ala.biocache.service.FacetService;
 import org.apache.commons.httpclient.URIException;
 import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
+import org.springframework.beans.BeansException;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.Arrays;
@@ -39,11 +45,11 @@ public class SearchRequestParams {
     protected String fl = "";
     /**
      * The facets to be included by the search
-     * Initialised with the default facets to use
+     * Set by the controller if needed
      */
-    protected String[] facets = FacetThemes.allFacetsLimited;
+    protected String[] facets = FacetService.singleton().getAllFacetsLimited();
     protected Integer start = 0;
-    protected Integer facetsMax = FacetThemes.facetsMax;
+    protected Integer facetsMax = FacetService.singleton().getFacetsMax();
     /*
      * The limit for the number of facets to return 
      */
@@ -61,10 +67,10 @@ public class SearchRequestParams {
     /**  The query context to be used for the search.  This will be used to generate extra query filters based on the search technology */
     protected String qc = "";
     /** To disable facets */
-    protected Boolean facet = FacetThemes.facetDefault;
+    protected Boolean facet = FacetService.singleton().getFacetDefault();
     /** log4 j logger */
     private static final Logger logger = Logger.getLogger(SearchRequestParams.class);
-    
+
     /**
      * Custom toString method to produce a String to be used as the request parameters
      * for the Biocache Service webservices
@@ -93,6 +99,7 @@ public class SearchRequestParams {
      */
     protected String toString(Boolean encodeParams) {
         StringBuilder req = new StringBuilder();
+        boolean isFacet = this.getFacet() == null ? true : this.getFacet();
         req.append("q=").append(conditionalEncode(q, encodeParams));
         if (fq.length > 0) {
             for (String it : fq) {
@@ -104,7 +111,7 @@ public class SearchRequestParams {
         req.append("&sort=").append(sort);
         req.append("&dir=").append(dir);
         req.append("&qc=").append(qc);
-        if (facets.length > 0 && facet) {
+        if (facets != null && facets.length > 0 && isFacet) {
             for (String f : facets) {
                 req.append("&facets=").append(conditionalEncode(f, encodeParams));
             }
@@ -115,8 +122,7 @@ public class SearchRequestParams {
             req.append("&fl=").append(conditionalEncode(fl, encodeParams));
         if(StringUtils.isNotEmpty(formattedQuery))
             req.append("&formattedQuery=").append(conditionalEncode(formattedQuery, encodeParams));
-        if(!facet)
-            req.append("&facet=false");
+        req.append("&facet=" + isFacet);
         if(!"".equals(fsort))
             req.append("&fsort=").append(fsort);
         if(foffset > 0)
@@ -328,7 +334,15 @@ public class SearchRequestParams {
         if (facets != null && facets.length == 1 && facets[0].contains(",")) facets = facets[0].split(",");
 
         //limit facets terms
-        this.facets = facets != null && facets.length > facetsMax ? Arrays.copyOfRange(facets, 0, facetsMax) : facets;
+        this.facets = facets != null && facetsMax != null && facets.length > facetsMax ? FacetService.singleton().selectFacets(facets, facetsMax) : facets;
+    }
+
+    public Integer getFacetsMax() {
+        return facetsMax;
+    }
+
+    public void setFacetsMax(Integer facetsMax) {
+        this.facetsMax = facetsMax;
     }
 
     public Integer getFlimit() {

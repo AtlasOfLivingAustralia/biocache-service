@@ -27,6 +27,7 @@ import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -108,17 +109,23 @@ public class DownloadService {
     @Value("${download.dir:/data/biocache-download}")
     protected String biocacheDownloadDir;
 
-    @Value("${download.email.subject:Occurrence Download Complete - [filename]}")
+    @Value("${download.email.subject:ALA Occurrence Download Complete - [filename]}")
     protected String biocacheDownloadEmailSubject;
 
-    @Value("${download.email.body:The file has been generated. Please download your file from [url]}")
+    @Value("${download.email.body:The download file has been generated on [date] via the search: [searchUrl]. Please download your file from [url]}")
     protected String biocacheDownloadEmailBody;
 
     @Value("${download.email.subject:Occurrence Download Failed - [filename]}")
     protected String biocacheDownloadEmailSubjectError;
 
-    @Value("${download.email.body:The download has failed.}")
+    @Value("${download.email.body.error:The download has failed.}")
     protected String biocacheDownloadEmailBodyError;
+
+    @Value("${download.readme.content:When using this download please use the following citation:<br><br><cite>Atlas of Living Australia occurrence download at [downloadUrl] accessed on [date].</cite><br><br>Data contributed by the following providers:<br><br>[dataProviders]<br><br>More information can be found at <a href='http://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.}")
+    protected String biocacheDownloadReadme;
+
+    @Value("${biocache.ui.url:http://biocache.ala.org.au}")
+    protected String biocacheUiUrl;
 
     @PostConstruct    
     public void init(){
@@ -223,11 +230,7 @@ public class DownloadService {
             unregisterDownload(dd);
         }
         zop.closeEntry();
-        
-        //add the Readme for the data field descriptions
-        zop.putNextEntry(new java.util.zip.ZipEntry("README.html"));
-        zop.write(("For more information about the fields that are being downloaded please consult <a href='" + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes());
-        
+
         //add the readme for the Shape file header mappings if necessary
         if(dd.getHeaderMap() != null){
             zop.putNextEntry(new java.util.zip.ZipEntry("Shape-README.html"));
@@ -241,11 +244,12 @@ public class DownloadService {
         }
         
         //Add the data citation to the download
+        List<String> citationsForReadme = new ArrayList<String>();
         if (uidStats != null &&!uidStats.isEmpty() && citationsEnabled) {
             //add the citations for the supplied uids
             zop.putNextEntry(new java.util.zip.ZipEntry("citation.csv"));
             try {
-                getCitations(uidStats, zop, requestParams.getSep(), requestParams.getEsc());
+                getCitations(uidStats, zop, requestParams.getSep(), requestParams.getEsc(), citationsForReadme);
             } catch (Exception e) {
                 logger.error(e.getMessage(),e);
             }
@@ -253,6 +257,17 @@ public class DownloadService {
         } else {
             logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " +uidStats);
         }
+
+        //add the Readme for the data field descriptions
+        zop.putNextEntry(new java.util.zip.ZipEntry("README.html"));
+        String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
+        String fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
+        String readmeContent = biocacheDownloadReadme.replace("[url]", fileLocation).replace("[date]",
+                dd.getStartDateString()).replace("[searchUrl]",generateSearchUrl(dd)).replace("[dataProviders]", dataProviders);
+        logger.debug(readmeContent);
+        zop.write((readmeContent).getBytes());
+        zop.write(("For more information about the fields that are being downloaded please consult <a href='" + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes());
+        zop.closeEntry();
 
         //Add headings file, listing information about the headings
         if (headingsEnabled) {
@@ -301,7 +316,7 @@ public class DownloadService {
      * @throws HttpException
      * @throws IOException
      */
-    public void getCitations(Map<String, Integer> uidStats, OutputStream out, char sep, char esc) throws IOException{
+    public void getCitations(Map<String, Integer> uidStats, OutputStream out, char sep, char esc, List readmeCitations) throws IOException{
         if(citationsEnabled){
             if(uidStats == null || uidStats.isEmpty() || out == null){
                 //throw new NullPointerException("keys and/or out is null!!");
@@ -333,6 +348,10 @@ public class DownloadService {
                                 getOrElse(record,"rights", ""), getOrElse(record, "link",""),getOrElse(record,"dataGeneralizations",""),
                                 getOrElse(record, "informationWithheld",""), getOrElse(record, "downloadLimit", ""), count};
                         writer.writeNext(row);
+
+                        if (readmeCitations != null) {
+                            readmeCitations.add(row[2] + " (" + row[3] + "). " + row[4]); // used in README.txt
+                        }
 
                     } else {
                         logger.warn("A null record was returned from the collectory citation service: " + entities);
@@ -511,8 +530,10 @@ public class DownloadService {
                             insertMiscHeader(currentDownload);
 
                             String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
-                            String body = messageSource.getMessage("offlineEmailBody", new Object[]{fileLocation},
-                                    biocacheDownloadEmailBody.replace("[url]", fileLocation) , null);
+                            String searchUrl = generateSearchUrl(currentDownload);
+                            String emailBodyHtml = biocacheDownloadEmailBody.replace("[url]", fileLocation).replace("[date]",
+                                    currentDownload.getStartDateString()).replace("[searchUrl]",searchUrl);
+                            String body = messageSource.getMessage("offlineEmailBody", new Object[]{fileLocation, searchUrl, currentDownload.getStartDateString()}, emailBodyHtml, null);
 
                             //save the statistics to the download directory
                             FileOutputStream statsStream = FileUtils.openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()+File.separator+"downloadStats.json"));
@@ -548,6 +569,40 @@ public class DownloadService {
                 }
             }
         }
+    }
+
+    /**
+     * Generate a search URL the user can use to regenerate the same download (assumes they came via biocache UI)
+     *
+     * @param downloadDetails
+     * @return url
+     */
+    private String generateSearchUrl(DownloadDetailsDTO downloadDetails) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(biocacheUiUrl + "/occurrences/search?");
+        DownloadRequestParams params = downloadDetails.getRequestParams();
+
+        if (params.getQId() != null) {
+            sb.append("qid=").append(params.getQId());
+        } else {
+            sb.append("q=").append(params.getQ());
+
+            if (params.getFq().length > 0 ) {
+                for (String fq : params.getFq()) {
+                    if (StringUtils.isNotEmpty(fq)) {
+                        sb.append("&fq=").append(fq);
+                    }
+                }
+            }
+
+            if (params.getLat() != null && params.getLon() != null && params.getRadius() != null) {
+                sb.append("&lat=").append(params.getLat());
+                sb.append("&lon=").append(params.getLon());
+                sb.append("&radius=").append(params.getRadius());
+            }
+        }
+
+        return sb.toString();
     }
 
     private void insertMiscHeader(DownloadDetailsDTO download) {
