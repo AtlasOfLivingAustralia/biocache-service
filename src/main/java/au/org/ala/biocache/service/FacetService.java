@@ -69,6 +69,7 @@ public class FacetService {
             "cl620",
             "geospatial_kosher",
             "type_status",
+            "type_status",
             "occurrence_status_s",
             "alau_user_id",
             "provenance",
@@ -77,6 +78,24 @@ public class FacetService {
             "outlier_layer",
             "outlier_layer_count"
     );
+
+    // Sort by facet order
+    private final static Comparator<String> FACET_COMPARATOR = new Comparator<String>() {
+        public int compare(String o1, String o2) {
+            int i1 = FACET_ORDER.indexOf(o1);
+            int i2 = FACET_ORDER.indexOf(o2);
+
+            if (i1 < 0)
+                i1 = FACET_ORDER.size() + 1;
+            if (i2 < 0)
+                i2 = FACET_ORDER.size() + 1;
+            if (i1 == i2)
+                return o1.compareTo(o2);
+            else
+                return i1 - i2;
+        }
+    };
+
     private final static Logger logger = Logger.getLogger(FacetService.class);
 
     private Integer facetsMax;
@@ -146,6 +165,24 @@ public class FacetService {
 
     public Boolean getFacetDefault() {
         return facetDefault;
+    }
+
+    /**
+     * Select the facets that we are going to display.
+     * <p>
+     * "Important" facets, as defined by {@link #FACET_ORDER} come first, so if we overrun the limit we get the good stuff first.
+     * </p>
+     *
+     * @param facets The facet array
+     * @param max The maximum number allowed
+     * @return
+     */
+    public String[] selectFacets(String[] facets, int max) {
+        if (facets == null || facets.length <= max)
+            return facets;
+        facets = Arrays.copyOf(facets, facets.length);
+        Arrays.sort(facets, FACET_COMPARATOR);
+        return Arrays.copyOf(facets, max);
     }
 
     private void loadConfig(File configFile) throws Exception {
@@ -248,23 +285,9 @@ public class FacetService {
             }
         }
         List<String> keys = new ArrayList<String>(facetsMap.keySet());
-        Collections.sort(keys, new Comparator<String>() {
-            public int compare(String o1, String o2) {
-                int i1 = FACET_ORDER.indexOf(o1);
-                int i2 = FACET_ORDER.indexOf(o2);
-
-                if (i1 < 0)
-                    i1 = FACET_ORDER.size() + 1;
-                if (i2 < 0)
-                    i2 = FACET_ORDER.size() + 1;
-                if (i1 == i2)
-                    return o1.compareTo(o2);
-                else
-                    return i1 - i2;
-            }
-        });
+        Collections.sort(keys, FACET_COMPARATOR);
         this.allFacets = keys.toArray(new String[0]);
-        this.allFacetsLimited = allFacets != null && allFacets.length > facetsMax ? Arrays.copyOfRange(allFacets, 0, facetsMax) : allFacets;
+        this.allFacetsLimited = allFacets != null && facetsMax != null && allFacets.length > facetsMax ? Arrays.copyOf(allFacets, facetsMax) : allFacets;
         this.logger.info("All facets = " + Arrays.toString(this.allFacets));
         this.logger.info("All facets limited = " + Arrays.toString(this.allFacetsLimited));
         this.logger.info("Facets max = " + this.facetsMax);

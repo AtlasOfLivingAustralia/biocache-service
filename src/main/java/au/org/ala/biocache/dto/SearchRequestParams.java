@@ -334,7 +334,7 @@ public class SearchRequestParams {
         if (facets != null && facets.length == 1 && facets[0].contains(",")) facets = facets[0].split(",");
 
         //limit facets terms
-        this.facets = facets != null && facetsMax != null && facets.length > facetsMax ? Arrays.copyOfRange(facets, 0, facetsMax) : facets;
+        this.facets = facets != null && facetsMax != null && facets.length > facetsMax ? FacetService.singleton().selectFacets(facets, facetsMax) : facets;
     }
 
     public Integer getFacetsMax() {
