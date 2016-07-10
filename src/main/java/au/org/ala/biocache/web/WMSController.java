@@ -840,6 +840,7 @@ public class WMSController {
             }
         } else {
             SpatialSearchRequestParams requestParams = searchDAO.createSpatialSearchRequestParams();
+            requestParams.setFormattedQuery(request.getFormattedQuery());
             requestParams.setQ(request.getQ());
             requestParams.setQc(request.getQc());
             requestParams.setFq(getFq(request));
