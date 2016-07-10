@@ -840,6 +840,10 @@ public class WMSController {
             }
         } else {
             SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
+            requestParams.setWkt(request.getWkt());
+            requestParams.setRadius(request.getRadius());
+            requestParams.setLat(request.getLat());
+            requestParams.setLon(request.getLon());
             requestParams.setQ(request.getQ());
             requestParams.setQc(request.getQc());
             requestParams.setFq(getFq(request));
