@@ -1688,6 +1688,7 @@ public class WMSController {
             @RequestParam(value = "outline", required = true, defaultValue = "false") boolean outlinePoints,
             @RequestParam(value = "outlineColour", required = true, defaultValue = "#000000") String outlineColour,
             @RequestParam(value = "fileName", required = false) String fileName,
+            @RequestParam(value = "baseMap", required = false, defaultValue = "ALA") String baseMap,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
 
         String[] bb = extents.split(",");
@@ -1757,7 +1758,14 @@ public class WMSController {
                 + "&WIDTH=" + width + "&HEIGHT=" + height + "&OUTLINE=" + outlinePoints
                 + "&format_options=dpi:" + dpi + ";" + layout;
 
-        BufferedImage basemapImage = ImageIO.read(new URL(basemapAddress));
+        BufferedImage basemapImage;
+
+        if ("roadmap".equalsIgnoreCase(baseMap) || "satellite".equalsIgnoreCase(baseMap) ||
+                "hybrid".equalsIgnoreCase(baseMap) || "terrain".equalsIgnoreCase(baseMap)){
+            basemapImage = basemapGoogle(width, height, boundingBox, baseMap);
+        } else {
+            basemapImage = ImageIO.read(new URL(basemapAddress));
+        }
 
         BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D combined = (Graphics2D) img.getGraphics();
@@ -1794,6 +1802,60 @@ public class WMSController {
             ImageIO.write(img2, format, os);
             os.close();
         }
+    }
+
+    private BufferedImage basemapGoogle(int width, int height, double [] extents, String maptype) throws Exception {
+
+        double[] resolutions = {
+                156543.03390625,
+                78271.516953125,
+                39135.7584765625,
+                19567.87923828125,
+                9783.939619140625,
+                4891.9698095703125,
+                2445.9849047851562,
+                1222.9924523925781,
+                611.4962261962891,
+                305.74811309814453,
+                152.87405654907226,
+                76.43702827453613,
+                38.218514137268066,
+                19.109257068634033,
+                9.554628534317017,
+                4.777314267158508,
+                2.388657133579254,
+                1.194328566789627,
+                0.5971642833948135};
+
+        //nearest resolution
+        int imgSize = 640;
+        int gScale = 2;
+        double actualWidth = extents[2] - extents[0];
+        double actualHeight = extents[3] - extents[1];
+        int res = 0;
+        while (res < resolutions.length - 1 && resolutions[res + 1] * imgSize > actualWidth
+                && resolutions[res + 1] * imgSize > actualHeight) {
+            res++;
+        }
+
+        int centerX = (int) ((extents[2] - extents[0]) / 2 + extents[0]);
+        int centerY = (int) ((extents[3] - extents[1]) / 2 + extents[1]);
+        double latitude = convertMetersToLat(centerY);
+        double longitude = convertMetersToLng(centerX);
+
+        //need to change the size requested so the extents match the output extents.
+        int imgWidth = (int) ((extents[2] - extents[0]) / resolutions[res]);
+        int imgHeight = (int) ((extents[3] - extents[1]) / resolutions[res]);
+
+        String uri = "http://maps.googleapis.com/maps/api/staticmap?";
+        String parameters = "center=" + latitude + "," + longitude + "&zoom=" + res + "&scale=" + gScale + "&size=" + imgWidth + "x" + imgHeight + "&maptype=" + maptype;
+
+        BufferedImage img = ImageIO.read(new URL(uri + parameters));
+
+        BufferedImage tmp = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        tmp.getGraphics().drawImage(img, 0, 0, width, height, 0, 0, imgWidth * gScale, imgHeight * gScale, null);
+
+        return tmp;
     }
 
     /**

@@ -609,7 +609,7 @@ public class OccurrenceController extends AbstractSecureController {
     @PostConstruct
     public void init() {
         //init on a thread because SOLR may not yet be up and waiting can prevent SOLR from starting
-        Thread initThread = new Thread() {
+        new Thread() {
             @Override
             public void run() {
                 while (true) {
@@ -636,8 +636,7 @@ public class OccurrenceController extends AbstractSecureController {
                     }
                 }
             }
-        };
-        initThread.start();
+        }.start();
     }
     
     /**
