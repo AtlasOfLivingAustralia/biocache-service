@@ -129,34 +129,40 @@ public class DownloadService {
 
     @PostConstruct    
     public void init(){
-        //create the threads that will be used to perform the downloads
-        int i = 0;
-        while(i < concurrentDownloads){
-            new Thread(new DownloadThread(null, null)).start();
-            i++;
-        }
+        //init on thread so as to not hold up other PostConstruct that this may depend on
+        new Thread() {
+            @Override
+            public void run() {
+                //create the threads that will be used to perform the downloads
+                int i = 0;
+                while (i < concurrentDownloads) {
+                    new Thread(new DownloadThread(null, null)).start();
+                    i++;
+                }
 
-        //create additional threads to operate on subsets of downloads
-        try {
-            JSONParser jp = new JSONParser();
-            JSONArray concurrentDownloadsExtraJson = (JSONArray) jp.parse(concurrentDownloadsExtra);
-            for (Object o : concurrentDownloadsExtraJson) {
-                JSONObject jo = (JSONObject) o;
-                int threads = ((Long) jo.get("threads")).intValue();
-                while (threads > 0) {
-                    Integer maxRecords = jo.containsKey("maxRecords") ? ((Long) jo.get("maxRecords")).intValue() : null;
-                    String type = jo.containsKey("type") ? jo.get("type").toString() : null;
-                    DownloadType dt = null;
-                    if (type != null) {
-                        dt = "index".equals(type) ? DownloadType.RECORDS_INDEX:DownloadType.RECORDS_DB;
+                //create additional threads to operate on subsets of downloads
+                try {
+                    JSONParser jp = new JSONParser();
+                    JSONArray concurrentDownloadsExtraJson = (JSONArray) jp.parse(concurrentDownloadsExtra);
+                    for (Object o : concurrentDownloadsExtraJson) {
+                        JSONObject jo = (JSONObject) o;
+                        int threads = ((Long) jo.get("threads")).intValue();
+                        while (threads > 0) {
+                            Integer maxRecords = jo.containsKey("maxRecords") ? ((Long) jo.get("maxRecords")).intValue() : null;
+                            String type = jo.containsKey("type") ? jo.get("type").toString() : null;
+                            DownloadType dt = null;
+                            if (type != null) {
+                                dt = "index".equals(type) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
+                            }
+                            new Thread(new DownloadThread(maxRecords, dt)).start();
+                            threads--;
+                        }
                     }
-                    new Thread(new DownloadThread(maxRecords, dt)).start();
-                    threads--;
+                } catch (Exception e) {
+                    logger.error("failed to create all extra offline download threads for concurrent.downloads.extra=" + concurrentDownloadsExtra, e);
                 }
             }
-        } catch (Exception e) {
-            logger.error("failed to create all extra offline download threads for concurrent.downloads.extra=" + concurrentDownloadsExtra, e);
-        }
+        }.start();
     }
 
     /**

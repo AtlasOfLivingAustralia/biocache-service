@@ -24,6 +24,7 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Implementation of @see au.org.ala.biocache.service.LoggerService that
@@ -43,6 +44,9 @@ public class LoggerRestService implements LoggerService {
     private List<Integer> reasonIds;
     private List<Integer> sourceIds;
 
+    //Used to wait for reloadCache() to complete
+    private CountDownLatch initialised = new CountDownLatch(1);
+
     @Value("${logger.service.url:http://logger.ala.org.au/service/logger/}")
     protected String loggerUriPrefix;
     //NC 20131018: Allow cache to be disabled via config (enabled by default)
@@ -53,24 +57,42 @@ public class LoggerRestService implements LoggerService {
 
     @Override    
     public List<Map<String,Object>> getReasons() {
+        init();
+
         return loggerReasons;
-        //return getEntities(LoggerType.reasons);
     }
 
     @Override    
     public List<Map<String,Object>> getSources() {
+        init();
+
         return loggerSources;
-        //return getEntities(LoggerType.sources);
     }
     
     @Override 
     public List<Integer> getReasonIds(){
+        init();
+
         return reasonIds; 
     }
     
     @Override
     public List<Integer> getSourceIds(){
+        init();
+
         return sourceIds;
+    }
+
+    /**
+     * x
+     * wait for reloadCache()
+     */
+    private void init() {
+        try {
+            initialised.await();
+        } catch (Exception e) {
+            logger.error(e);
+        }
     }
 
     /**
@@ -78,7 +100,12 @@ public class LoggerRestService implements LoggerService {
      */
     @Scheduled(fixedDelay = 43200000)// schedule to run every 12 hours
     public void reloadCache(){
-        if(enabled){
+        if(enabled) {
+            try {
+                Thread.sleep(150000);
+            } catch (Exception e) {
+                logger.error(e);
+            }
             logger.info("Refreshing the log sources and reasons");
             loggerReasons = getEntities(LoggerType.reasons);
             loggerSources = getEntities(LoggerType.sources);
@@ -100,6 +127,7 @@ public class LoggerRestService implements LoggerService {
                 
             }
         }
+        initialised.countDown();
     }
 
     /**
