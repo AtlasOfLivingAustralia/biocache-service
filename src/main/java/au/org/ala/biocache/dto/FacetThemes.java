@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * This class provides thematic grouping of facets to aid rendering in UIs.
@@ -27,15 +28,18 @@ import java.util.*;
  */
 public class FacetThemes {
 	
-    public static String[] allFacets = new String[]{};
-    public static String[] allFacetsLimited = new String[]{};
-    public static java.util.List<FacetTheme> allThemes = new java.util.ArrayList<FacetTheme>();
-    public static LinkedHashMap<String, Facet> facetsMap = new LinkedHashMap<String, Facet>();
+    private static String[] allFacets = new String[]{};
+    private static String[] allFacetsLimited = new String[]{};
+    private static java.util.List<FacetTheme> allThemes = new java.util.ArrayList<FacetTheme>();
+    private static LinkedHashMap<String, Facet> facetsMap = new LinkedHashMap<String, Facet>();
     
-    public static Integer facetsMax = 4;
-    public static Integer facetsDefaultMax = 0;
-    public static Boolean facetDefault = true;
-    
+    private static Integer facetsMax = 4;
+    private static Integer facetsDefaultMax = 0;
+    private static Boolean facetDefault = true;
+
+    //Used to wait for initialisation
+    private static CountDownLatch initialised = new CountDownLatch(1);
+
     /**
      * Takes a file path to a configuration file in JSON and parses the file
      * into facets and facet themes.
@@ -81,6 +85,44 @@ public class FacetThemes {
         } else {
             defaultInit();
         }
+        initialised.countDown();
+    }
+
+    private static void init() {
+        try {
+            initialised.await();
+        } catch (InterruptedException e) {
+        }
+    }
+
+    public static String[] getAllFacetsLimited() {
+        init();
+
+        return allFacetsLimited;
+    }
+
+    public static Integer getFacetsMax() {
+        init();
+
+        return facetsMax;
+    }
+
+    public static LinkedHashMap<String, Facet> getFacetsMap() {
+        init();
+
+        return facetsMap;
+    }
+
+    public static Boolean getFacetDefault() {
+        init();
+
+        return facetDefault;
+    }
+
+    public static List<FacetTheme> getAllThemes() {
+        init();
+
+        return allThemes;
     }
 
     private void initAllFacets() {
@@ -96,6 +138,7 @@ public class FacetThemes {
 
     public FacetThemes() {
         defaultInit();
+        initialised.countDown();
     }
 
     private void defaultInit() {

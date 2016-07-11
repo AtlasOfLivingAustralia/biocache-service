@@ -255,14 +255,13 @@ public class SearchDAOImpl implements SearchDAO {
         return authIndexFields;
     }
 
-    public void refreshCaches(){
+    public void refreshCaches() {
         collectionCache.updateCache();
-        //refreshes the list of index fields that are reported to the user
-        indexFields = null;
         //empties the range cache to allow the settings to be recalculated.
         rangeFieldCache = null;
         try {
-            indexFields = getIndexedFields();
+            //update indexed fields
+            indexFields = getIndexedFields(true);
             downloadFields = new DownloadFields(getIndexedFields(), messageSource);
         } catch(Exception e) {
             logger.error("Unable to refresh cache.", e);
@@ -2523,9 +2522,9 @@ public class SearchDAOImpl implements SearchDAO {
                 } else {
                     solrQuery.addFacetField(facet);
 
-                    if("".equals(searchParams.getFsort()) && substituteDefaultFacetOrder && FacetThemes.facetsMap.containsKey(facet)){
+                    if("".equals(searchParams.getFsort()) && substituteDefaultFacetOrder && FacetThemes.getFacetsMap().containsKey(facet)){
                       //now check if the sort order is different to supplied
-                      String thisSort = FacetThemes.facetsMap.get(facet).getSort();
+                      String thisSort = FacetThemes.getFacetsMap().get(facet).getSort();
                       if(!searchParams.getFsort().equalsIgnoreCase(thisSort))
                           solrQuery.add("f." + facet + ".facet.sort", thisSort);
                     }
@@ -2822,11 +2821,15 @@ public class SearchDAOImpl implements SearchDAO {
         return new ArrayList<FacetResultDTO>(facetResults);
     }
 
+    public Set<IndexFieldDTO> getIndexedFields() throws Exception{
+        return getIndexedFields(false);
+    }
+
     /**
      * Returns details about the fields in the index.
      */
-    public Set<IndexFieldDTO> getIndexedFields() throws Exception{
-        if(indexFields == null){
+    public Set<IndexFieldDTO> getIndexedFields(boolean update) throws Exception{
+        if(indexFields == null || update){
             indexFields = getIndexFieldDetails(null);
             indexFieldMap = new HashMap<String, IndexFieldDTO>();
             for(IndexFieldDTO field:indexFields){

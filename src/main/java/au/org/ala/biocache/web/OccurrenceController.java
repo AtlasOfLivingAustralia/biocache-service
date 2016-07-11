@@ -47,6 +47,7 @@ import org.springframework.validation.Validator;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
@@ -215,13 +216,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping("/search/grouped/facets")
     public @ResponseBody List groupFacets() throws IOException {
-        Set<IndexFieldDTO> indexedFields = null;
-        try {
-            indexedFields = searchDAO.getIndexedFields();
-        } catch (Exception e) {
-            logger.error(e.getMessage(), e);
-        }
-        return new FacetThemes(facetConfig, indexedFields, facetsMax, facetsDefaultMax, facetDefault).allThemes;
+        return FacetThemes.getAllThemes();
     }
     
     /**
@@ -610,6 +605,40 @@ public class OccurrenceController extends AbstractSecureController {
         }
         return null;
     }
+
+    @PostConstruct
+    public void init() {
+        //init on a thread because SOLR may not yet be up and waiting can prevent SOLR from starting
+        Thread initThread = new Thread() {
+            @Override
+            public void run() {
+                while (true) {
+                    try {
+                        searchDAO.refreshCaches();
+
+                        Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
+
+                        if (indexedFields != null) {
+                            //init FacetThemes static values
+                            new FacetThemes(facetConfig, indexedFields, facetsMax, facetsDefaultMax, facetDefault);
+
+                            //successful
+                            break;
+                        }
+                    } catch (Exception e) {
+                        logger.error("Failed to update indexedFields. Retrying...", e);
+                    }
+                    try {
+                        //wait before trying again
+                        Thread.sleep(10000);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+            }
+        };
+        initThread.start();
+    }
     
     /**
      * Occurrence search page uses SOLR JSON to display results
@@ -620,6 +649,9 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = {"/cache/refresh"}, method = RequestMethod.GET)
     public @ResponseBody String refreshCache() throws Exception {
         searchDAO.refreshCaches();
+
+        //update FacetThemes static values
+        new FacetThemes(facetConfig, searchDAO.getIndexedFields(), facetsMax, facetsDefaultMax, facetDefault);
 
         cacheManager.clearAll();
         return null;

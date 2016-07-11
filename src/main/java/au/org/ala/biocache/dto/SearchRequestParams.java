@@ -41,9 +41,9 @@ public class SearchRequestParams {
      * The facets to be included by the search
      * Initialised with the default facets to use
      */
-    protected String[] facets = FacetThemes.allFacetsLimited;
+    protected String[] facets = FacetThemes.getAllFacetsLimited();
     protected Integer start = 0;
-    protected Integer facetsMax = FacetThemes.facetsMax;
+    protected Integer facetsMax = FacetThemes.getFacetsMax();
     /*
      * The limit for the number of facets to return 
      */
@@ -61,7 +61,7 @@ public class SearchRequestParams {
     /**  The query context to be used for the search.  This will be used to generate extra query filters based on the search technology */
     protected String qc = "";
     /** To disable facets */
-    protected Boolean facet = FacetThemes.facetDefault;
+    protected Boolean facet = FacetThemes.getFacetDefault();
     /** log4 j logger */
     private static final Logger logger = Logger.getLogger(SearchRequestParams.class);
     
