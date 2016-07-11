@@ -19,6 +19,7 @@ import au.org.ala.biocache.vocab.AssertionCodes;
 import au.org.ala.biocache.model.FullRecord;
 import au.org.ala.biocache.model.QualityAssertion;
 import au.org.ala.biocache.model.Versions;
+import au.org.ala.biocache.vocab.AssertionStatus;
 import au.org.ala.biocache.vocab.ErrorCode;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.util.AssertionUtils;
@@ -185,7 +186,7 @@ public class AssertionController extends AbstractSecureController {
                     qa.setRelatedUuid(assertionUuid);
                     qa.setQaStatus(Integer.parseInt(userAssertionStatus));
                 } else {
-                    qa.setQaStatus(AssertionCodes.QA_OPEN_ISSUE().getCode());
+                    qa.setQaStatus(AssertionStatus.QA_UNCONFIRMED());
                 }
 
                 Store.addUserAssertion(recordUuid, qa);
