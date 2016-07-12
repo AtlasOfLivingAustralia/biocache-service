@@ -911,11 +911,11 @@ public class OccurrenceController extends AbstractSecureController {
             return null;
         }
         if(apiKey != null){
-            return occurrenceSensitiveDownload(requestParams, apiKey, ip, false, response, request);
+            return occurrenceSensitiveDownload(requestParams, apiKey, ip, false, false, response, request);
         }
 
         try {
-            downloadService.writeQueryToStream(requestParams, response, ip, out, false, false);
+            downloadService.writeQueryToStream(requestParams, response, ip, out, false, false, false);
         } catch (Exception e){
             logger.error(e.getMessage(),e);
         }
@@ -927,6 +927,7 @@ public class OccurrenceController extends AbstractSecureController {
                                           BindingResult result,
                                           @RequestParam(value="apiKey", required=false) String apiKey,
                                           @RequestParam(value="ip", required=false) String ip,
+                                          @RequestParam(value="zip", required=false, defaultValue="true") Boolean zip,
                                           Model model,
                                           HttpServletResponse response,
                                           HttpServletRequest request) throws Exception{
@@ -946,23 +947,23 @@ public class OccurrenceController extends AbstractSecureController {
             return null;
         }
         if(apiKey != null){
-            occurrenceSensitiveDownload(requestParams, apiKey, ip, true, response, request);
+            occurrenceSensitiveDownload(requestParams, apiKey, ip, true, zip, response, request);
             return null;
         }
         try {
-            downloadService.writeQueryToStream(requestParams, response, ip, out, false, true);
+            downloadService.writeQueryToStream(requestParams, response, ip, out, false, true, zip);
         } catch(Exception e){
             logger.error(e.getMessage(), e);
         }
         return null;
     }
-    
-    //@RequestMapping(value = "/sensitive/occurrences/download*", method = RequestMethod.GET)
+
     public String occurrenceSensitiveDownload(
                                               DownloadRequestParams requestParams,
                                               String apiKey,
                                               String ip,
                                               boolean fromIndex,
+                                              boolean zip,
                                               HttpServletResponse response,
                                               HttpServletRequest request) throws Exception {
         
@@ -975,7 +976,7 @@ public class OccurrenceController extends AbstractSecureController {
                 return null;
             }
             
-            downloadService.writeQueryToStream(requestParams, response, ip, out, true, fromIndex);
+            downloadService.writeQueryToStream(requestParams, response, ip, out, true, fromIndex, zip);
         }
         return null;
     }

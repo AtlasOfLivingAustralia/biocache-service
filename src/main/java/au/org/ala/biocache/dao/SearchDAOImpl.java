@@ -23,6 +23,7 @@ import au.org.ala.biocache.index.IndexDAO;
 import au.org.ala.biocache.index.SolrIndexDAO;
 import au.org.ala.biocache.model.Qid;
 import au.org.ala.biocache.service.*;
+import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import au.org.ala.biocache.util.*;
 import au.org.ala.biocache.util.thread.EndemicCallable;
 import au.org.ala.biocache.vocab.ErrorCode;
@@ -137,6 +138,9 @@ public class SearchDAOImpl implements SearchDAO {
 
     @Value("${shapefile.tmp.dir:/data/biocache-download/tmp}")
     String tmpShapefileDir;
+
+    @Value("${download.unzipped.limit:10000}")
+    protected Integer unzippedLimit;
 
     /** Download properties */
     protected DownloadFields downloadFields;
@@ -767,7 +771,17 @@ public class SearchDAOImpl implements SearchDAO {
 
             //set the totalrecords for the download details
             dd.setTotalRecords(facetQuery.getResults().getNumFound());
-            if(checkLimit && dd.getTotalRecords() < MAX_DOWNLOAD_SIZE){
+
+            //use a separately configured and smaller limit when output will be unzipped
+            final long maxDownloadSize;
+            if (MAX_DOWNLOAD_SIZE > unzippedLimit && out instanceof OptionalZipOutputStream &&
+                    ((OptionalZipOutputStream) out).getType() == OptionalZipOutputStream.Type.unzipped) {
+                maxDownloadSize = unzippedLimit;
+            } else {
+                maxDownloadSize = MAX_DOWNLOAD_SIZE;
+            }
+
+            if(checkLimit && dd.getTotalRecords() < maxDownloadSize){
                 checkLimit = false;
             }
 
@@ -882,12 +896,12 @@ public class SearchDAOImpl implements SearchDAO {
                             logger.debug("Start index: " + startIndex + ", " + splitByFacetQuery.getQuery());
                             int count=0;
                             synchronized (rw) {
-                                count = processQueryResults(uidStats, fields, qaFields, rw, qr, dd, threadCheckLimit, resultsCount);
+                                count = processQueryResults(uidStats, fields, qaFields, rw, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize);
                                 recordsForThread += count;
                             }
                             startIndex += downloadBatchSize;
                             //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
-                            if(!threadCheckLimit || resultsCount.intValue()<MAX_DOWNLOAD_SIZE){
+                            if(!threadCheckLimit || resultsCount.intValue() < maxDownloadSize){
                                 if(!threadCheckLimit){
                                     //throttle the download by sleeping
                                     try{
@@ -940,10 +954,10 @@ public class SearchDAOImpl implements SearchDAO {
         return uidStats;
     }
 
-    private int processQueryResults( Map<String, Integer> uidStats, String[] fields, String[] qaFields, RecordWriter rw, QueryResponse qr, DownloadDetailsDTO dd, boolean checkLimit,AtomicInteger resultsCount) {
+    private int processQueryResults( Map<String, Integer> uidStats, String[] fields, String[] qaFields, RecordWriter rw, QueryResponse qr, DownloadDetailsDTO dd, boolean checkLimit,AtomicInteger resultsCount, long maxDownloadSize) {
         int count = 0;
         for (SolrDocument sd : qr.getResults()) {
-            if(sd.getFieldValue("data_resource_uid") != null &&(!checkLimit || (checkLimit && resultsCount.intValue()<MAX_DOWNLOAD_SIZE))){
+            if(sd.getFieldValue("data_resource_uid") != null &&(!checkLimit || (checkLimit && resultsCount.intValue() < maxDownloadSize))){
 
                 //resultsCount++;
                 count++;
