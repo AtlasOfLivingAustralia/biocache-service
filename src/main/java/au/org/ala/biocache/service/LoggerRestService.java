@@ -99,13 +99,8 @@ public class LoggerRestService implements LoggerService {
      * Use a fixed delay so that the next time it is run depends on the last time it finished
      */
     @Scheduled(fixedDelay = 43200000)// schedule to run every 12 hours
-    public void reloadCache(){
-        if(enabled) {
-            try {
-                Thread.sleep(150000);
-            } catch (Exception e) {
-                logger.error(e);
-            }
+    public void reloadCache() {
+        if (enabled) {
             logger.info("Refreshing the log sources and reasons");
             loggerReasons = getEntities(LoggerType.reasons);
             loggerSources = getEntities(LoggerType.sources);
@@ -113,18 +108,17 @@ public class LoggerRestService implements LoggerService {
             reasonIds = getIdList(loggerReasons);
             sourceIds = getIdList(loggerSources);
         } else {
-            if(reasonIds== null){
+            if (reasonIds == null) {
                 logger.info("Providing some sensible default values for the log cache");
                 reasonIds = new ArrayList<Integer>();
                 sourceIds = new ArrayList<Integer>();
                 //provide sensible defaults for the ID lists
-                for(Integer i = 0 ; i<11;i++){
+                for (Integer i = 0; i < 11; i++) {
                     reasonIds.add(i);
-                    if(i<8){
+                    if (i < 8) {
                         sourceIds.add(i);
                     }
                 }
-                
             }
         }
         initialised.countDown();
