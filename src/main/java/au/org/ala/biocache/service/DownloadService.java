@@ -263,7 +263,7 @@ public class DownloadService {
             dd.setRequestParams(requestParams);
         }
         if (dd.getFileLocation() == null) {
-            dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
+            dd.setFileLocation(generateSearchUrl(dd));
         }
 
         //add the Readme for the data field descriptions
