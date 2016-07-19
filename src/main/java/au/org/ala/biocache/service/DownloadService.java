@@ -257,6 +257,14 @@ public class DownloadService {
         } else {
             logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " +uidStats);
         }
+        
+        //online downloads will not have a file location or request params set in dd.
+        if (dd.getRequestParams() == null) {
+            dd.setRequestParams(requestParams);
+        }
+        if (dd.getFileLocation() == null) {
+            dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
+        }
 
         //add the Readme for the data field descriptions
         zop.putNextEntry(new java.util.zip.ZipEntry("README.html"));
