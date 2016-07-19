@@ -114,8 +114,9 @@ public class SearchDAOImpl implements SearchDAO {
     private String spatialField = "geohash";
 
     //Patterns that are used to prepare a SOLR query for execution
-    protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9\\.:\\-_]*)\"?");
+    protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9/\\.:\\-_]*)\"?");
     protected Pattern urnPattern = Pattern.compile("urn:[a-zA-Z0-9\\.:-]*");
+    protected Pattern httpPattern = Pattern.compile("http:[a-zA-Z0-9/\\.:\\-_]*");
     protected Pattern spacesPattern = Pattern.compile("[^\\s\"\\(\\)\\[\\]{}']+|\"[^\"]*\"|'[^']*'");
     protected Pattern uidPattern = Pattern.compile("(?:[\"]*)?([a-z_]*_uid:)([a-z0-9]*)(?:[\"]*)?");
     protected Pattern spatialPattern = Pattern.compile(spatialField+":\"Intersects\\([a-zA-Z=\\-\\s0-9\\.\\,():]*\\)\\\"");
@@ -2267,6 +2268,19 @@ public class SearchDAOImpl implements SearchDAO {
                     String value = matcher.group();
 
                     logger.debug("escaping lsid urns  " + value );
+                    matcher.appendReplacement(queryString,prepareSolrStringForReplacement(value));
+                }
+                matcher.appendTail(queryString);
+                query = queryString.toString();
+            }
+            if (query.contains("http")) {
+                //escape the HTTP strings before escaping the rest this avoids the issue with attempting to search on a urn field
+                Matcher matcher = httpPattern.matcher(query);
+                queryString.setLength(0);
+                while (matcher.find()) {
+                    String value = matcher.group();
+
+                    logger.debug("escaping lsid http uris  " + value );
                     matcher.appendReplacement(queryString,prepareSolrStringForReplacement(value));
                 }
                 matcher.appendTail(queryString);
