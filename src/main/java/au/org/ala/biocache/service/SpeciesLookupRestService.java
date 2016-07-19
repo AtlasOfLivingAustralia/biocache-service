@@ -183,9 +183,9 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
 
         //case names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
         //rebuild values using taxonConceptIds
-        if (values != null && values.get(0) == null
+        if ((values == null || values.get(0) == null)
                 && guids.size() > 0 && StringUtil.countMatches(guids.get(0), "|") == 4) {
-            List<String> taxonConceptIds = new ArrayList(guids.size());
+            List<String> taxonConceptIds =   new ArrayList(guids.size());
             for(String s : guids) {
                 if (s != null) {
                     if (s.startsWith("\"") && s.endsWith("\"") && s.length() > 2) s = s.substring(1, s.length() - 1);
