@@ -94,6 +94,12 @@ public class SearchDAOImpl implements SearchDAO {
     public static final String SOLR_DATE_FORMAT = "yyyy-MM-dd'T'hh:mm:ss'Z'";
     public static final String OCCURRENCE_YEAR_INDEX_FIELD = "occurrence_year";
 
+    //sensitive fields and their non-sensitive replacements
+    private static final String [] sensitiveCassandraHdr = {"decimalLongitude", "decimalLatitude", "verbatimLocality"};
+    private static final String [] sensitiveSOLRHdr = {"sensitive_longitude","sensitive_latitude","sensitive_locality"};
+    private static final String [] notSensitiveCassandraHdr = {"decimalLongitude.p", "decimalLatitude.p", "locality"};
+    private static final String [] notSensitiveSOLRHdr = {"longitude","latitude","locality"};
+
     /** SOLR server instance */
     protected SolrServer server;
     protected SolrRequest.METHOD queryMethod;
@@ -738,7 +744,7 @@ public class SearchDAOImpl implements SearchDAO {
             logger.debug("The headers in downloads: "+indexedFields[2]);
 
             //set the fields to the ones that are available in the index
-            final String[] fields = indexedFields[0].toArray(new String[]{});
+            String[] fields = indexedFields[0].toArray(new String[]{});
             solrQuery.setFields(fields);
             StringBuilder qasb = new StringBuilder();
             if(!"none".equals(downloadParams.getQa())){
@@ -790,13 +796,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             for(FacetField facet : facetQuery.getFacetFields()){
                 if(facet.getName().equals("assertions") && facet.getValueCount() > 0){
-                   for(FacetField.Count facetEntry : facet.getValues()){
-                       if (facetEntry.getCount() > 0) {
-                           if (qasb.length() > 0)
-                               qasb.append(",");
-                           if (facetEntry.getName() != null) qasb.append(facetEntry.getName());
-                       }
-                   }
+                    qasb.append(getQAFromFacet(facet));
                 }
                 if(facet.getName().equals("month") && facet.getValueCount() > 0){
                    splitByFacet = facet.getValues();
@@ -804,23 +804,31 @@ public class SearchDAOImpl implements SearchDAO {
             }
 
             if ("includeall".equals(downloadParams.getQa())) {
-                //inclue all assertions
-                qasb = new StringBuilder();
-                ErrorCode[] errorCodes = Store.retrieveAssertionCodes();
-                Arrays.sort(errorCodes, new Comparator<ErrorCode>() {
-                    @Override
-                    public int compare(ErrorCode o1, ErrorCode o2) {
-                        return o1.getName().compareToIgnoreCase(o2.getName());
-                    }
-                });
-                for (ErrorCode assertionCode : errorCodes) {
-                    if (qasb.length() > 0)
-                        qasb.append(",");
-                    qasb.append(assertionCode.getName());
-                }
+                qasb = getAllQAFields();
             }
 
             String qas = qasb.toString();
+
+            //include sensitive fields in the header when the output will be partially sensitive
+            final String [] sensitiveFields;
+            final String [] notSensitiveFields;
+            if (dd.getSensitiveFq() != null) {
+                List<String>[] sensitiveHdr = downloadFields.getIndexFields(sensitiveSOLRHdr, downloadParams.getDwcHeaders());
+
+                //header for the output file
+                indexedFields[2].addAll(sensitiveHdr[2]);
+
+                //lookup for fields from sensitive queries
+                sensitiveFields = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[0].toArray(new String[]{}),
+                        sensitiveHdr[0].toArray(new String[]{}));
+
+                //use general fields when sensitive data is not permitted
+                notSensitiveFields = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[0].toArray(new String[]{}), notSensitiveSOLRHdr);
+            } else {
+                sensitiveFields = new String[0];
+                notSensitiveFields = fields;
+            }
+
             final String[] qaFields = qas.equals("") ? new String[]{} : qas.split(",");
             String[] qaTitles = downloadFields.getHeader(qaFields, false, false);
 
@@ -873,6 +881,14 @@ public class SearchDAOImpl implements SearchDAO {
                 queries.add(0, solrQuery);
             }
 
+            //split into sensitive and non-sensitive queries when
+            // - not including all sensitive values
+            // - there is a sensitive fq
+            final List<SolrQuery> sensitiveQ = new ArrayList<SolrQuery>();
+            if (!includeSensitive && dd.getSensitiveFq() != null) {
+                sensitiveQ.addAll(splitQueries(queries, dd.getSensitiveFq(), sensitiveSOLRHdr, notSensitiveSOLRHdr));
+            }
+
             //multi-thread the requests...
             ExecutorService pool = Executors.newFixedThreadPool(6);
             Set<Future<Integer>> futures = new HashSet<Future<Integer>>();
@@ -888,7 +904,13 @@ public class SearchDAOImpl implements SearchDAO {
 
                     @Override
                     public Integer call() throws Exception {
-                        QueryResponse qr = runSolrQuery(splitByFacetQuery, downloadParams.getFq(), downloadBatchSize, startIndex, "_docid_", "asc");
+                        String [] fq = downloadParams.getFq();
+                        if (splitByFacetQuery.getFilterQueries() != null && splitByFacetQuery.getFilterQueries().length > 0) {
+                            if (fq == null) fq = new String [0];
+                            fq = org.apache.commons.lang3.ArrayUtils.addAll(fq, splitByFacetQuery.getFilterQueries());
+                        }
+
+                        QueryResponse qr = runSolrQuery(splitByFacetQuery, fq, downloadBatchSize, startIndex, "_docid_", "asc");
                         int recordsForThread = 0;
                         logger.debug(splitByFacetQuery.getQuery() + " - results: " + qr.getResults().size());
 
@@ -896,7 +918,12 @@ public class SearchDAOImpl implements SearchDAO {
                             logger.debug("Start index: " + startIndex + ", " + splitByFacetQuery.getQuery());
                             int count=0;
                             synchronized (rw) {
-                                count = processQueryResults(uidStats, fields, qaFields, rw, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize);
+                                if (sensitiveQ.contains(splitByFacetQuery)) {
+                                    count = processQueryResults(uidStats, sensitiveFields, qaFields, rw, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize);
+                                } else {
+                                    //write non-sensitive values into sensitive fields when not authorised for their sensitive values
+                                    count = processQueryResults(uidStats, notSensitiveFields, qaFields, rw, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize);
+                                }
                                 recordsForThread += count;
                             }
                             startIndex += downloadBatchSize;
@@ -1047,46 +1074,33 @@ public class SearchDAOImpl implements SearchDAO {
             dd.setTotalRecords(qr.getResults().getNumFound());
             //get the assertion facets to add them to the download fields
             List<FacetField> facets = qr.getFacetFields();
-            for(FacetField facet : facets){
-                if(facet.getName().equals("assertions") && facet.getValueCount()>0){
-
-                 for(FacetField.Count facetEntry : facet.getValues()){
-                     if (facetEntry.getCount() > 0) {
-                         if (qasb.length() > 0)
-                             qasb.append(",");
-                         if (facetEntry.getName() != null) qasb.append(facetEntry.getName());
-                     }
-                 }
-                }else if(facet.getName().equals("data_resource_uid") && checkDownloadLimits){
+            for (FacetField facet : facets) {
+                if (facet.getName().equals("assertions") && facet.getValueCount() > 0) {
+                    qasb.append(getQAFromFacet(facet));
+                } else if (facet.getName().equals("data_resource_uid") && checkDownloadLimits) {
                     //populate the download limit
                     initDownloadLimits(downloadLimit, facet);
-              }
+                }
             }
 
             if ("includeall".equals(downloadParams.getQa())) {
-                //inclue all assertions
-                qasb = new StringBuilder();
-                ErrorCode[] errorCodes = Store.retrieveAssertionCodes();
-                Arrays.sort(errorCodes, new Comparator<ErrorCode>() {
-                    @Override
-                    public int compare(ErrorCode o1, ErrorCode o2) {
-                        return o1.getName().compareToIgnoreCase(o2.getName());
-                    }
-                });
-                for (ErrorCode assertionCode : errorCodes) {
-                    if (qasb.length() > 0)
-                        qasb.append(",");
-                    qasb.append(assertionCode.getName());
-                }
+                qasb = getAllQAFields();
             }
 
             //Write the header line
             String qas = qasb.toString();
 
             String[] fields = sb.toString().split(",");
-            String[]qaFields = qas.equals("")?new String[]{}:qas.split(",");
+            String[] qaFields = qas.equals("")?new String[]{}:qas.split(",");
             String[] qaTitles = downloadFields.getHeader(qaFields,false,false);
             String[] titles = downloadFields.getHeader(fields,true,downloadParams.getDwcHeaders());
+            //append sensitive fields for the header only
+            if (!includeSensitive && dd.getSensitiveFq() != null) {
+                //sensitive headers do not have a DwC name, always set getIndexFields dwcHeader=false
+                List<String>[] sensitiveHdr = downloadFields.getIndexFields(sensitiveSOLRHdr, false);
+
+                titles = org.apache.commons.lang3.ArrayUtils.addAll(titles, sensitiveHdr[2].toArray(new String[]{}));
+            }
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(titles,qaTitles);
             //Create the Writer that will be used to format the records
             //construct correct RecordWriter based on the supplied fileType
@@ -1109,7 +1123,6 @@ public class SearchDAOImpl implements SearchDAO {
 
             uidStats.put(infoFields.toString(), -1);
             uidStats.put(infoHeader.toString(), -2);
-
 
             //download the records that have limits first...
             if(downloadLimit.size() > 0){
@@ -1143,6 +1156,19 @@ public class SearchDAOImpl implements SearchDAO {
 
         return uidStats;
     }
+
+    private String getQAFromFacet(FacetField facet) {
+        StringBuilder qasb = new StringBuilder();
+        for (FacetField.Count facetEntry : facet.getValues()) {
+            if (facetEntry.getCount() > 0) {
+                if (qasb.length() > 0)
+                    qasb.append(",");
+                if (facetEntry.getName() != null) qasb.append(facetEntry.getName());
+            }
+        }
+        return qasb.toString();
+    }
+
     /**
      * Downloads the records for the supplied query. Used to break up the download into components
      * 1) 1 call for each data resource that has a download limit (supply the data resource uid as the argument dataResource)
@@ -1169,45 +1195,113 @@ public class SearchDAOImpl implements SearchDAO {
         //Only the fields specified below will be included in the results from the SOLR Query
         solrQuery.setFields("row_key", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid");
 
-        int startIndex = 0;
         int pageSize = downloadBatchSize;
         StringBuilder  sb = new StringBuilder(downloadParams.getFields());
         if(downloadParams.getExtra().length()>0)
             sb.append(",").append(downloadParams.getExtra());
-        StringBuilder qasb = new StringBuilder();
-        QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), pageSize, startIndex, "_docid_", "asc");
-        List<String> uuids = new ArrayList<String>();
 
-        while (qr.getResults().size() > 0 && (!limit || resultsCount < MAX_DOWNLOAD_SIZE) &&
-                shouldDownload(dataResource, downloadLimit, false)) {
-            logger.debug("Start index: " + startIndex);
-            //cycle through the results adding them to the list that will be sent to cassandra
-            for (SolrDocument sd : qr.getResults()) {
-                if(sd.getFieldValue("data_resource_uid") != null){
-                String druid = sd.getFieldValue("data_resource_uid").toString();
-                if(shouldDownload(druid,downloadLimit, true) && (!limit || resultsCount < MAX_DOWNLOAD_SIZE)){
-                    resultsCount++;
-                    uuids.add(sd.getFieldValue("row_key").toString());
+        List<SolrQuery> queries = new ArrayList<SolrQuery>();
+        queries.add(solrQuery);
 
-                    //increment the counters....
-                    incrementCount(uidStats, sd.getFieldValue("institution_uid"));
-                    incrementCount(uidStats, sd.getFieldValue("collection_uid"));
-                    incrementCount(uidStats, sd.getFieldValue("data_provider_uid"));
-                    incrementCount(uidStats, druid);
-                }}
+        //split into sensitive and non-sensitive queries when
+        // - not including all sensitive values
+        // - there is a sensitive fq
+        List<SolrQuery> sensitiveQ = new ArrayList<SolrQuery>();
+        if (!includeSensitive && dd.getSensitiveFq() != null) {
+            sensitiveQ = splitQueries(queries, dd.getSensitiveFq(), null, null);
+        }
+
+        final String [] sensitiveFields;
+        final String [] notSensitiveFields;
+        if (!includeSensitive && dd.getSensitiveFq() != null) {
+            //lookup for fields from sensitive queries
+            sensitiveFields = org.apache.commons.lang3.ArrayUtils.addAll(fields, sensitiveCassandraHdr);
+
+            //use general fields when sensitive data is not permitted
+            notSensitiveFields = org.apache.commons.lang3.ArrayUtils.addAll(fields, notSensitiveCassandraHdr);
+        } else {
+            sensitiveFields = new String[0];
+            notSensitiveFields = fields;
+        }
+
+        for (SolrQuery q: queries) {
+            int startIndex = 0;
+
+            String [] fq = downloadParams.getFq();
+            if (q.getFilterQueries() != null && q.getFilterQueries().length > 0) {
+                if (fq == null) fq = new String [0];
+                fq = org.apache.commons.lang3.ArrayUtils.addAll(fq, q.getFilterQueries());
             }
-            //logger.debug("Downloading " + uuids.size() + " records");
-            String[] newMiscFields = au.org.ala.biocache.Store.writeToWriter(writer, uuids.toArray(new String[]{}), fields, qaFields, includeSensitive, (dd.getRequestParams() != null ? dd.getRequestParams().getIncludeMisc() : false), dd.getMiscFields());
-            dd.setMiscFields(newMiscFields);
-            startIndex += pageSize;
-            uuids.clear();
-            dd.updateCounts(qr.getResults().size());
-            if (!limit || resultsCount < MAX_DOWNLOAD_SIZE) {
-                //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
-                qr = runSolrQuery(solrQuery, null, pageSize, startIndex, "_docid_", "asc");
+
+            QueryResponse qr = runSolrQuery(q, fq, pageSize, startIndex, "_docid_", "asc");
+            List<String> uuids = new ArrayList<String>();
+
+            while (qr.getResults().size() > 0 && (!limit || resultsCount < MAX_DOWNLOAD_SIZE) &&
+                    shouldDownload(dataResource, downloadLimit, false)) {
+                logger.debug("Start index: " + startIndex);
+                //cycle through the results adding them to the list that will be sent to cassandra
+                for (SolrDocument sd : qr.getResults()) {
+                    if (sd.getFieldValue("data_resource_uid") != null) {
+                        String druid = sd.getFieldValue("data_resource_uid").toString();
+                        if (shouldDownload(druid, downloadLimit, true) && (!limit || resultsCount < MAX_DOWNLOAD_SIZE)) {
+                            resultsCount++;
+                            uuids.add(sd.getFieldValue("row_key").toString());
+
+                            //increment the counters....
+                            incrementCount(uidStats, sd.getFieldValue("institution_uid"));
+                            incrementCount(uidStats, sd.getFieldValue("collection_uid"));
+                            incrementCount(uidStats, sd.getFieldValue("data_provider_uid"));
+                            incrementCount(uidStats, druid);
+                        }
+                    }
+                }
+
+                String[] newMiscFields;
+                if (sensitiveQ.contains(q)) {
+                    newMiscFields = au.org.ala.biocache.Store.writeToWriter(writer, uuids.toArray(new String[]{}), sensitiveFields, qaFields, true, (dd.getRequestParams() != null ? dd.getRequestParams().getIncludeMisc() : false), dd.getMiscFields());
+                } else {
+                    newMiscFields = au.org.ala.biocache.Store.writeToWriter(writer, uuids.toArray(new String[]{}), notSensitiveFields, qaFields, includeSensitive, (dd.getRequestParams() != null ? dd.getRequestParams().getIncludeMisc() : false), dd.getMiscFields());
+                }
+                dd.setMiscFields(newMiscFields);
+                startIndex += pageSize;
+                uuids.clear();
+                dd.updateCounts(qr.getResults().size());
+                if (!limit || resultsCount < MAX_DOWNLOAD_SIZE) {
+                    //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
+                    qr = runSolrQuery(q, null, pageSize, startIndex, "_docid_", "asc");
+                }
             }
         }
         return resultsCount;
+    }
+
+    /**
+     * Split a list of queries by a fq.
+     *
+     */
+    private List<SolrQuery> splitQueries(List<SolrQuery> queries, String fq, String [] fqFields, String [] notFqFields) {
+        List<SolrQuery> notFQ = new ArrayList<SolrQuery>();
+        List<SolrQuery> fQ = new ArrayList<SolrQuery>();
+
+        for (SolrQuery query : queries) {
+            SolrQuery nsq = query.getCopy().addFilterQuery("-(" + fq + ")");
+            if (notFqFields != null) {
+                for (String field : notFqFields) nsq.addField(field);
+            }
+            notFQ.add(nsq);
+
+            SolrQuery sq = query.getCopy().addFilterQuery(fq);
+            if (fqFields != null) {
+                for (String field : fqFields) sq.addField(field);
+            }
+            fQ.add(sq);
+        }
+
+        queries.clear();
+        queries.addAll(notFQ);
+        queries.addAll(fQ);
+
+        return fQ;
     }
 
     /**
@@ -1266,6 +1360,10 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Override
     public List<OccurrencePoint> getFacetPoints(SpatialSearchRequestParams searchParams, PointType pointType) throws Exception {
+        return getPoints(searchParams, pointType, -1);
+    }
+
+    private List<OccurrencePoint> getPoints(SpatialSearchRequestParams searchParams, PointType pointType, int max) throws Exception {
         List<OccurrencePoint> points = new ArrayList<OccurrencePoint>(); // new OccurrencePoint(PointType.POINT);
         formatSearchQuery(searchParams);
         logger.info("search query: " + searchParams.getFormattedQuery());
@@ -1276,7 +1374,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFacet(true);
         solrQuery.addFacetField(pointType.getLabel());
         solrQuery.setFacetMinCount(1);
-        solrQuery.setFacetLimit(-1);//MAX_DOWNLOAD_SIZE);  // unlimited = -1
+        solrQuery.setFacetLimit(max);  // unlimited = -1
 
         //add the context information
         updateQueryContext(searchParams);
@@ -1481,60 +1579,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Override
     public List<OccurrencePoint> findRecordsForLocation(SpatialSearchRequestParams requestParams, PointType pointType) throws Exception {
-        List<OccurrencePoint> points = new ArrayList<OccurrencePoint>(); // new OccurrencePoint(PointType.POINT);
-        updateQueryContext(requestParams);
-        String queryString = buildSpatialQueryString(requestParams);
-        //String queryString = formatSearchQuery(query);
-        logger.info("location search query: " + queryString + "; pointType: " + pointType.getLabel());
-        SolrQuery solrQuery = new SolrQuery();
-        solrQuery.setQueryType("standard");
-        solrQuery.setQuery(queryString);
-
-
-        solrQuery.setRows(0);
-        solrQuery.setFacet(true);
-        solrQuery.addFacetField(pointType.getLabel());
-        solrQuery.setFacetMinCount(1);
-        solrQuery.setFacetLimit(MAX_DOWNLOAD_SIZE);  // unlimited = -1
-
-        QueryResponse qr = runSolrQuery(solrQuery, requestParams.getFq(), 1, 0, "score", "asc");
-        logger.info("qr number found: " + qr.getResults().getNumFound());
-        List<FacetField> facets = qr.getFacetFields();
-
-        if (facets != null) {
-            for (FacetField facet : facets) {
-                List<FacetField.Count> facetEntries = facet.getValues();
-                if (facet.getName().contains(pointType.getLabel()) && (facetEntries != null) && (facetEntries.size() > 0)) {
-
-                    for (FacetField.Count fcount : facetEntries) {
-                        if (StringUtils.isNotEmpty(fcount.getName()) && fcount.getCount() > 0) {
-                            OccurrencePoint point = new OccurrencePoint(pointType);
-                            point.setCount(fcount.getCount());
-                            String[] pointsDelimited = StringUtils.split(fcount.getName(), ',');
-                            List<Float> coords = new ArrayList<Float>();
-
-                            for (String coord : pointsDelimited) {
-                                try {
-                                    Float decimalCoord = Float.parseFloat(coord);
-                                    coords.add(decimalCoord);
-                                } catch (NumberFormatException numberFormatException) {
-                                    logger.warn("Error parsing Float for Lat/Long: " + numberFormatException.getMessage(), numberFormatException);
-                                }
-                            }
-
-                            if (!coords.isEmpty()) {
-                                Collections.reverse(coords); // must be long, lat order
-                                point.setCoordinates(coords);
-                                points.add(point);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        logger.info("findRecordsForLocation: number of points = " + points.size());
-
-        return points;
+        return getPoints(requestParams, pointType, MAX_DOWNLOAD_SIZE);
     }
 
     /**
@@ -3622,5 +3667,24 @@ public class SearchDAOImpl implements SearchDAO {
         }
 
         return list;
+    }
+
+    public StringBuilder getAllQAFields() {
+        //include all assertions
+        StringBuilder qasb = new StringBuilder();
+        ErrorCode[] errorCodes = Store.retrieveAssertionCodes();
+        Arrays.sort(errorCodes, new Comparator<ErrorCode>() {
+            @Override
+            public int compare(ErrorCode o1, ErrorCode o2) {
+                return o1.getName().compareToIgnoreCase(o2.getName());
+            }
+        });
+        for (ErrorCode assertionCode : errorCodes) {
+            if (qasb.length() > 0)
+                qasb.append(",");
+            qasb.append(assertionCode.getName());
+        }
+
+        return qasb;
     }
 }
