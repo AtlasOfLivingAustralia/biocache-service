@@ -41,6 +41,7 @@ public class DownloadDetailsDTO {
     private boolean includeSensitive = false;
     private Map<String,String> headerMap = null;
     private String [] miscFields = null;
+    private String sensitiveFq = null;
 
     /**
      * Default constructor necessary for Jackson to create an object from the JSON. 
@@ -221,6 +222,14 @@ public class DownloadDetailsDTO {
      */
     public void setHeaderMap(Map<String, String> headerMap) {
         this.headerMap = headerMap;
+    }
+
+    public void setSensitiveFq(String sensitiveFq) {
+        this.sensitiveFq = sensitiveFq;
+    }
+
+    public String getSensitiveFq() {
+        return sensitiveFq;
     }
 
     /**

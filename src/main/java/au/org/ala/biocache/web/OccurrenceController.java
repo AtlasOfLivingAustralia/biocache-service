@@ -45,6 +45,7 @@ import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.HandlerMapping;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
@@ -84,8 +85,6 @@ public class OccurrenceController extends AbstractSecureController {
     @Inject
     protected DownloadService downloadService;
     @Inject
-    protected FacetService facetService;
-    @Inject
     private AbstractMessageSource messageSource;
     @Inject
     private ImageMetadataService imageMetadataService;
@@ -116,6 +115,18 @@ public class OccurrenceController extends AbstractSecureController {
 
     @Value("${media.url:http://biocache.ala.org.au/biocache-media/}")
     protected String biocacheMediaUrl;
+
+    @Value("${facet.config:/data/biocache/config/facets.json}")
+    protected String facetConfig;
+
+    @Value("${facets.max:4}")
+    protected Integer facetsMax;
+
+    @Value("${facets.defaultmax:0}")
+    protected Integer facetsDefaultMax;
+
+    @Value("${facet.default:true}")
+    protected Boolean facetDefault;
 
     public Pattern getTaxonIDPattern(){
         if(taxonIDPattern == null){
@@ -194,7 +205,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping("/search/facets")
     public @ResponseBody String[] listAllFacets() {
-        return facetService.getAllFacets();
+        return new SearchRequestParams().getFacets();
     }
     
     /**
@@ -203,7 +214,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping("/search/grouped/facets")
     public @ResponseBody List groupFacets() throws IOException {
-        return facetService.getAllThemes();
+        return FacetThemes.getAllThemes();
     }
     
     /**
@@ -340,7 +351,7 @@ public class OccurrenceController extends AbstractSecureController {
         String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
         if (guid.endsWith(".json"))
             guid = guid.substring(0, guid.length() - 5);
-        SpatialSearchRequestParams srp = searchDAO.createSpatialSearchRequestParams();
+        SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
         srp.setQ("lsid:" + guid);
         srp.setPageSize(0);
         srp.setFacets(new String[]{"image_url"});
@@ -404,7 +415,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      */
     private NativeDTO getIsAustraliaForGuid(String guid) {
-        SpatialSearchRequestParams requestParams = searchDAO.createSpatialSearchRequestParams();
+        SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
         requestParams.setPageSize(0);
         requestParams.setFacets(new String[]{});
         String query = "lsid:" +guid + " AND " + "(country:\""+nativeCountry+"\" OR state:[* TO *]) AND geospatial_kosher:true";
@@ -430,7 +441,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping(value = {"/occurrences", "/occurrences/collections", "/occurrences/institutions", "/occurrences/dataResources", "/occurrences/dataProviders", "/occurrences/taxa", "/occurrences/dataHubs"}, method = RequestMethod.GET)
     public @ResponseBody SearchResultDTO listOccurrences(Model model) throws Exception {
-        SpatialSearchRequestParams srp = searchDAO.createSpatialSearchRequestParams();
+        SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
         srp.setQ("*:*");
         return occurrenceSearch(srp);
     }
@@ -601,7 +612,40 @@ public class OccurrenceController extends AbstractSecureController {
         }
         return null;
     }
-    
+
+    @PostConstruct
+    public void init() {
+        //init on a thread because SOLR may not yet be up and waiting can prevent SOLR from starting
+        new Thread() {
+            @Override
+            public void run() {
+                while (true) {
+                    try {
+                        searchDAO.refreshCaches();
+
+                        Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
+
+                        if (indexedFields != null) {
+                            //init FacetThemes static values
+                            new FacetThemes(facetConfig, indexedFields, facetsMax, facetsDefaultMax, facetDefault);
+
+                            //successful
+                            break;
+                        }
+                    } catch (Exception e) {
+                        logger.error("Failed to update indexedFields. Retrying...", e);
+                    }
+                    try {
+                        //wait before trying again
+                        Thread.sleep(10000);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+            }
+        }.start();
+    }
+
     /**
      * Occurrence search page uses SOLR JSON to display results
      *
@@ -611,6 +655,9 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = {"/cache/refresh"}, method = RequestMethod.GET)
     public @ResponseBody String refreshCache() throws Exception {
         searchDAO.refreshCaches();
+
+        //update FacetThemes static values
+        new FacetThemes(facetConfig, searchDAO.getIndexedFields(), facetsMax, facetsDefaultMax, facetDefault);
 
         cacheManager.clearAll();
         return null;
@@ -871,11 +918,11 @@ public class OccurrenceController extends AbstractSecureController {
             return null;
         }
         if(apiKey != null){
-            return occurrenceSensitiveDownload(requestParams, apiKey, ip, false, response, request);
+            return occurrenceSensitiveDownload(requestParams, apiKey, ip, false, false, response, request);
         }
 
         try {
-            downloadService.writeQueryToStream(requestParams, response, ip, out, false, false);
+            downloadService.writeQueryToStream(requestParams, response, ip, out, false, false, false);
         } catch (Exception e){
             logger.error(e.getMessage(),e);
         }
@@ -887,6 +934,7 @@ public class OccurrenceController extends AbstractSecureController {
                                           BindingResult result,
                                           @RequestParam(value="apiKey", required=false) String apiKey,
                                           @RequestParam(value="ip", required=false) String ip,
+                                          @RequestParam(value="zip", required=false, defaultValue="true") Boolean zip,
                                           Model model,
                                           HttpServletResponse response,
                                           HttpServletRequest request) throws Exception{
@@ -906,23 +954,23 @@ public class OccurrenceController extends AbstractSecureController {
             return null;
         }
         if(apiKey != null){
-            occurrenceSensitiveDownload(requestParams, apiKey, ip, true, response, request);
+            occurrenceSensitiveDownload(requestParams, apiKey, ip, true, zip, response, request);
             return null;
         }
         try {
-            downloadService.writeQueryToStream(requestParams, response, ip, out, false, true);
+            downloadService.writeQueryToStream(requestParams, response, ip, out, false, true, zip);
         } catch(Exception e){
             logger.error(e.getMessage(), e);
         }
         return null;
     }
-    
-    //@RequestMapping(value = "/sensitive/occurrences/download*", method = RequestMethod.GET)
+
     public String occurrenceSensitiveDownload(
                                               DownloadRequestParams requestParams,
                                               String apiKey,
                                               String ip,
                                               boolean fromIndex,
+                                              boolean zip,
                                               HttpServletResponse response,
                                               HttpServletRequest request) throws Exception {
         
@@ -935,7 +983,7 @@ public class OccurrenceController extends AbstractSecureController {
                 return null;
             }
             
-            downloadService.writeQueryToStream(requestParams, response, ip, out, true, fromIndex);
+            downloadService.writeQueryToStream(requestParams, response, ip, out, true, fromIndex, zip);
         }
         return null;
     }
@@ -1186,7 +1234,7 @@ public class OccurrenceController extends AbstractSecureController {
         if(fullRecord == null){
             //get the rowKey for the supplied uuid in the index
             //This is a workaround.  There seems to be an issue on Cassandra with retrieving uuids that start with e or f
-            SpatialSearchRequestParams srp = searchDAO.createSpatialSearchRequestParams();
+            SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
             srp.setQ("id:" + uuid);
             srp.setPageSize(1);
             srp.setFacets(new String[]{});

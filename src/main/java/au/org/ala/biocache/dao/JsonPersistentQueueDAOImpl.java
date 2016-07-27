@@ -62,19 +62,25 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
     
     @PostConstruct
     public void init(){
-        synchronized (listLock) {
-            offlineDownloadList = Collections.synchronizedList(new ArrayList<DownloadDetailsDTO>());
-            File file = new File(cacheDirectory);
-            jsonMapper.configure(org.codehaus.jackson.map.DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        //init on a thread so as to not hold up other @PostConstructs that it may depend on
+        new Thread() {
+            @Override
+            public void run() {
+                synchronized (listLock) {
+                    offlineDownloadList = Collections.synchronizedList(new ArrayList<DownloadDetailsDTO>());
+                    File file = new File(cacheDirectory);
+                    jsonMapper.configure(org.codehaus.jackson.map.DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-            try {
-                FileUtils.forceMkdir(file);
-            } catch (IOException e) {
-                logger.error("Unable to construct cache directory.", e);
+                    try {
+                        FileUtils.forceMkdir(file);
+                    } catch (IOException e) {
+                        logger.error("Unable to construct cache directory.", e);
+                    }
+                }
+
+                refreshFromPersistent();
             }
-        }
-
-        refreshFromPersistent();
+        }.start();
     }
     /**
      * Returns a file object that represents the a persisted download on the queue
@@ -188,22 +194,25 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
             File file = new File(cacheDirectory);
             //load the list with the available downloads ordering by the least recently modified
             File[] files = file.listFiles();
-            Arrays.sort(files, new Comparator() {
+            if (files != null) {
+                Arrays.sort(files, new Comparator() {
 
-                @Override
-                public int compare(Object o1, Object o2) {
-                    return (int) (((File) o1).lastModified() - ((File) o2).lastModified());
-                }
+                    @Override
+                    public int compare(Object o1, Object o2) {
+                        return (int) (((File) o1).lastModified() - ((File) o2).lastModified());
+                    }
 
-            });
-            //value = jsonMapper.readValue(file, ParamsCacheObject.class);
-            for (File f : files) {
-                if (f.isFile()) {
-                    try {
-                        DownloadDetailsDTO dd = jsonMapper.readValue(f, DownloadDetailsDTO.class);
-                        offlineDownloadList.add(dd);
-                    } catch (Exception e) {
-                        logger.error("Unable to load cached downlaod " + f.getAbsolutePath(), e);
+                });
+
+                //value = jsonMapper.readValue(file, ParamsCacheObject.class);
+                for (File f : files) {
+                    if (f.isFile()) {
+                        try {
+                            DownloadDetailsDTO dd = jsonMapper.readValue(f, DownloadDetailsDTO.class);
+                            offlineDownloadList.add(dd);
+                        } catch (Exception e) {
+                            logger.error("Unable to load cached downlaod " + f.getAbsolutePath(), e);
+                        }
                     }
                 }
             }

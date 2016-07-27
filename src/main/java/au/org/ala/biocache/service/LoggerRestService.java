@@ -24,6 +24,7 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Implementation of @see au.org.ala.biocache.service.LoggerService that
@@ -43,6 +44,9 @@ public class LoggerRestService implements LoggerService {
     private List<Integer> reasonIds;
     private List<Integer> sourceIds;
 
+    //Used to wait for reloadCache() to complete
+    private CountDownLatch initialised = new CountDownLatch(1);
+
     @Value("${logger.service.url:http://logger.ala.org.au/service/logger/}")
     protected String loggerUriPrefix;
     //NC 20131018: Allow cache to be disabled via config (enabled by default)
@@ -53,32 +57,50 @@ public class LoggerRestService implements LoggerService {
 
     @Override    
     public List<Map<String,Object>> getReasons() {
+        init();
+
         return loggerReasons;
-        //return getEntities(LoggerType.reasons);
     }
 
     @Override    
     public List<Map<String,Object>> getSources() {
+        init();
+
         return loggerSources;
-        //return getEntities(LoggerType.sources);
     }
     
     @Override 
     public List<Integer> getReasonIds(){
+        init();
+
         return reasonIds; 
     }
     
     @Override
     public List<Integer> getSourceIds(){
+        init();
+
         return sourceIds;
+    }
+
+    /**
+     * x
+     * wait for reloadCache()
+     */
+    private void init() {
+        try {
+            initialised.await();
+        } catch (Exception e) {
+            logger.error(e);
+        }
     }
 
     /**
      * Use a fixed delay so that the next time it is run depends on the last time it finished
      */
     @Scheduled(fixedDelay = 43200000)// schedule to run every 12 hours
-    public void reloadCache(){
-        if(enabled){
+    public void reloadCache() {
+        if (enabled) {
             logger.info("Refreshing the log sources and reasons");
             loggerReasons = getEntities(LoggerType.reasons);
             loggerSources = getEntities(LoggerType.sources);
@@ -86,20 +108,20 @@ public class LoggerRestService implements LoggerService {
             reasonIds = getIdList(loggerReasons);
             sourceIds = getIdList(loggerSources);
         } else {
-            if(reasonIds== null){
+            if (reasonIds == null) {
                 logger.info("Providing some sensible default values for the log cache");
                 reasonIds = new ArrayList<Integer>();
                 sourceIds = new ArrayList<Integer>();
                 //provide sensible defaults for the ID lists
-                for(Integer i = 0 ; i<11;i++){
+                for (Integer i = 0; i < 11; i++) {
                     reasonIds.add(i);
-                    if(i<8){
+                    if (i < 8) {
                         sourceIds.add(i);
                     }
                 }
-                
             }
         }
+        initialised.countDown();
     }
 
     /**

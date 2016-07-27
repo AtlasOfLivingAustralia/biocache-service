@@ -22,6 +22,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
 import javax.inject.Inject;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +52,8 @@ public class AuthService {
     protected String userNamesForNumericIdPath = null;
     @Value("${auth.usernames.full.path:getUserList}")
     protected String userNamesFullPath = null;
+    @Value("${auth.user.details.path:getUserDetails}")
+    protected String userDetailsPath = null;
     @Value("${auth.startup.initialise:false}")
     protected boolean startupInitialise = false;
     @Value("${caches.auth.enabled:true}")
@@ -154,5 +157,18 @@ public class AuthService {
         } else{
             logger.info("Authentication Cache has been disabled");
         }
+    }
+
+    public List getUserRoles(String userId) {
+        List roles = new ArrayList();
+        try {
+            final String jsonUri = userDetailsUrl + userDetailsPath + "?userName=" + userId;
+            logger.info("authCache requesting: " + jsonUri);
+            roles = (List) restTemplate.postForObject(jsonUri, null, Map.class).get("roles");
+        } catch (Exception ex) {
+            logger.error("RestTemplate error: " + ex.getMessage(), ex);
+        }
+
+        return roles;
     }
 }

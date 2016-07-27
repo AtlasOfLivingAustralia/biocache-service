@@ -16,6 +16,7 @@ package au.org.ala.biocache.service;
 
 import au.com.bytecode.opencsv.CSVReader;
 import au.com.bytecode.opencsv.CSVWriter;
+import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
@@ -36,14 +37,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
+import sun.security.pkcs.EncodingException;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
+import java.net.URLEncoder;
 import java.util.*;
-import java.util.zip.ZipOutputStream;
 
 /**
  * Services to perform the downloads.
@@ -121,7 +123,7 @@ public class DownloadService {
     @Value("${download.email.body.error:The download has failed.}")
     protected String biocacheDownloadEmailBodyError;
 
-    @Value("${download.readme.content:When using this download please use the following citation:<br><br><cite>Atlas of Living Australia occurrence download at [downloadUrl] accessed on [date].</cite><br><br>Data contributed by the following providers:<br><br>[dataProviders]<br><br>More information can be found at <a href='http://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.}")
+    @Value("${download.readme.content:When using this download please use the following citation:<br><br><cite>Atlas of Living Australia occurrence download at <a href='[url]'>biocache</a> accessed on [date].</cite><br><br>Data contributed by the following providers:<br><br>[dataProviders]<br><br>More information can be found at <a href='http://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.}")
     protected String biocacheDownloadReadme;
 
     @Value("${biocache.ui.url:http://biocache.ala.org.au}")
@@ -129,34 +131,40 @@ public class DownloadService {
 
     @PostConstruct    
     public void init(){
-        //create the threads that will be used to perform the downloads
-        int i = 0;
-        while(i < concurrentDownloads){
-            new Thread(new DownloadThread(null, null)).start();
-            i++;
-        }
+        //init on thread so as to not hold up other PostConstruct that this may depend on
+        new Thread() {
+            @Override
+            public void run() {
+                //create the threads that will be used to perform the downloads
+                int i = 0;
+                while (i < concurrentDownloads) {
+                    new Thread(new DownloadThread(null, null)).start();
+                    i++;
+                }
 
-        //create additional threads to operate on subsets of downloads
-        try {
-            JSONParser jp = new JSONParser();
-            JSONArray concurrentDownloadsExtraJson = (JSONArray) jp.parse(concurrentDownloadsExtra);
-            for (Object o : concurrentDownloadsExtraJson) {
-                JSONObject jo = (JSONObject) o;
-                int threads = ((Long) jo.get("threads")).intValue();
-                while (threads > 0) {
-                    Integer maxRecords = jo.containsKey("maxRecords") ? ((Long) jo.get("maxRecords")).intValue() : null;
-                    String type = jo.containsKey("type") ? jo.get("type").toString() : null;
-                    DownloadType dt = null;
-                    if (type != null) {
-                        dt = "index".equals(type) ? DownloadType.RECORDS_INDEX:DownloadType.RECORDS_DB;
+                //create additional threads to operate on subsets of downloads
+                try {
+                    JSONParser jp = new JSONParser();
+                    JSONArray concurrentDownloadsExtraJson = (JSONArray) jp.parse(concurrentDownloadsExtra);
+                    for (Object o : concurrentDownloadsExtraJson) {
+                        JSONObject jo = (JSONObject) o;
+                        int threads = ((Long) jo.get("threads")).intValue();
+                        while (threads > 0) {
+                            Integer maxRecords = jo.containsKey("maxRecords") ? ((Long) jo.get("maxRecords")).intValue() : null;
+                            String type = jo.containsKey("type") ? jo.get("type").toString() : null;
+                            DownloadType dt = null;
+                            if (type != null) {
+                                dt = "index".equals(type) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
+                            }
+                            new Thread(new DownloadThread(maxRecords, dt)).start();
+                            threads--;
+                        }
                     }
-                    new Thread(new DownloadThread(maxRecords, dt)).start();
-                    threads--;
+                } catch (Exception e) {
+                    logger.error("failed to create all extra offline download threads for concurrent.downloads.extra=" + concurrentDownloadsExtra, e);
                 }
             }
-        } catch (Exception e) {
-            logger.error("failed to create all extra offline download threads for concurrent.downloads.extra=" + concurrentDownloadsExtra, e);
-        }
+        }.start();
     }
 
     /**
@@ -190,7 +198,7 @@ public class DownloadService {
     }
 
     private void writeQueryToStream(DownloadDetailsDTO dd,DownloadRequestParams requestParams, String ip, OutputStream out, boolean includeSensitive, boolean fromIndex) throws Exception {
-        writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex, true);
+        writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex, true, true);
     }
     
     /**
@@ -204,14 +212,14 @@ public class DownloadService {
      * @param fromIndex
      * @throws Exception
      */
-    private void writeQueryToStream(DownloadDetailsDTO dd,DownloadRequestParams requestParams, String ip, OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit) throws Exception {
+    public void writeQueryToStream(DownloadDetailsDTO dd,DownloadRequestParams requestParams, String ip, OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip) throws Exception {
 
         String filename = requestParams.getFile();
         String originalParams = requestParams.toString();
         //Use a zip output stream to include the data and citation together in the download
-        ZipOutputStream zop = new ZipOutputStream(out);
+        OptionalZipOutputStream sp = new OptionalZipOutputStream(zip ? OptionalZipOutputStream.Type.zipped : OptionalZipOutputStream.Type.unzipped, out);
         String suffix = requestParams.getFileType().equals("shp") ? "zip" : requestParams.getFileType();
-        zop.putNextEntry(new java.util.zip.ZipEntry(filename + "." +suffix));
+        sp.putNextEntry(filename + "." +suffix);
         //put the facets
         if("all".equals(requestParams.getQa())){
             requestParams.setFacets(new String[]{"assertions", "data_resource_uid"});
@@ -221,39 +229,38 @@ public class DownloadService {
         Map<String, Integer> uidStats = null;
         try {
             if(fromIndex)
-                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, zop, includeSensitive, dd, limit);
+                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, sp, includeSensitive, dd, limit);
             else
-                uidStats = searchDAO.writeResultsToStream(requestParams, zop, 100, includeSensitive ,dd, limit);
+                uidStats = searchDAO.writeResultsToStream(requestParams, sp, 100, includeSensitive ,dd, limit);
         } catch (Exception e) {
             logger.error(e.getMessage(),e);
         } finally {
             unregisterDownload(dd);
         }
-        zop.closeEntry();
+        sp.closeEntry();
 
         //add the readme for the Shape file header mappings if necessary
         if(dd.getHeaderMap() != null){
-            zop.putNextEntry(new java.util.zip.ZipEntry("Shape-README.html"));
-            zop.write(("The name of features is limited to 10 characters. Listed below are the mappings of feature name to download field:").getBytes());
-            zop.write(("<table><td><b>Feature</b></td><td><b>Download Field<b></td>").getBytes());
+            sp.putNextEntry("Shape-README.html");
+            sp.write(("The name of features is limited to 10 characters. Listed below are the mappings of feature name to download field:").getBytes());
+            sp.write(("<table><td><b>Feature</b></td><td><b>Download Field<b></td>").getBytes());
             for(String key:dd.getHeaderMap().keySet()){
-                zop.write(("<tr><td>"+key+"</td><td>"+dd.getHeaderMap().get(key)+"</td></tr>").getBytes());
+                sp.write(("<tr><td>"+key+"</td><td>"+dd.getHeaderMap().get(key)+"</td></tr>").getBytes());
             }
-            zop.write(("</table>").getBytes());
-            //logger.debug("JSON::: " + objectMapper.writeValueAsString(dd));
+            sp.write(("</table>").getBytes());
         }
         
         //Add the data citation to the download
         List<String> citationsForReadme = new ArrayList<String>();
         if (uidStats != null &&!uidStats.isEmpty() && citationsEnabled) {
             //add the citations for the supplied uids
-            zop.putNextEntry(new java.util.zip.ZipEntry("citation.csv"));
+            sp.putNextEntry("citation.csv");
             try {
-                getCitations(uidStats, zop, requestParams.getSep(), requestParams.getEsc(), citationsForReadme);
+                getCitations(uidStats, sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme);
             } catch (Exception e) {
                 logger.error(e.getMessage(),e);
             }
-            zop.closeEntry();
+            sp.closeEntry();
         } else {
             logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " +uidStats);
         }
@@ -267,32 +274,41 @@ public class DownloadService {
         }
 
         //add the Readme for the data field descriptions
-        zop.putNextEntry(new java.util.zip.ZipEntry("README.html"));
+        sp.putNextEntry("README.html");
         String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
+
+        //online downloads will not have a file location or request params set in dd.
+        if (dd.getRequestParams() == null) {
+            dd.setRequestParams(requestParams);
+        }
+        if (dd.getFileLocation() == null) {
+            dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
+        }
+
         String fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
         String readmeContent = biocacheDownloadReadme.replace("[url]", fileLocation).replace("[date]",
-                dd.getStartDateString()).replace("[searchUrl]",generateSearchUrl(dd)).replace("[dataProviders]", dataProviders);
+                dd.getStartDateString()).replace("[searchUrl]",generateSearchUrl(dd.getRequestParams())).replace("[dataProviders]", dataProviders);
         logger.debug(readmeContent);
-        zop.write((readmeContent).getBytes());
-        zop.write(("For more information about the fields that are being downloaded please consult <a href='" + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes());
-        zop.closeEntry();
+        sp.write((readmeContent).getBytes());
+        sp.write(("For more information about the fields that are being downloaded please consult <a href='" + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes());
+        sp.closeEntry();
 
         //Add headings file, listing information about the headings
         if (headingsEnabled) {
             //add the citations for the supplied uids
-            zop.putNextEntry(new java.util.zip.ZipEntry("headings.csv"));
+            sp.putNextEntry("headings.csv");
             try {
-                getHeadings(uidStats, zop, requestParams, dd.getMiscFields());
+                getHeadings(uidStats, sp, requestParams, dd.getMiscFields());
             } catch (Exception e) {
                 logger.error(e.getMessage(),e);
             }
-            zop.closeEntry();
+            sp.closeEntry();
         } else {
             logger.debug("Not adding header. Enabled: " + headingsEnabled + " uids: " +uidStats);
         }
         
-        zop.flush();
-        zop.close();
+        sp.flush();
+        sp.close();
         
         //now construct the sourceUrl for the log event
         String sourceUrl = originalParams.contains("qid:")? webservicesRoot + "?"+ requestParams.toString(): webservicesRoot +"?"+ originalParams;
@@ -303,17 +319,23 @@ public class DownloadService {
         logger.log(RestLevel.REMOTE, vo);
     }
     
-    public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, ServletOutputStream out, boolean includeSensitive, boolean fromIndex) throws Exception {
+    public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, ServletOutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip) throws Exception {
         String filename = requestParams.getFile();
 
         response.setHeader("Cache-Control", "must-revalidate");
         response.setHeader("Pragma", "must-revalidate");
-        response.setHeader("Content-Disposition", "attachment;filename=" + filename +".zip");
-        response.setContentType("application/zip");
+
+        if (zip) {
+            response.setHeader("Content-Disposition", "attachment;filename=" + filename + ".zip");
+            response.setContentType("application/zip");
+        } else {
+            response.setHeader("Content-Disposition", "attachment;filename=" + filename + ".txt");
+            response.setContentType("text/plain");
+        }
         
         DownloadDetailsDTO.DownloadType type= fromIndex ? DownloadType.RECORDS_INDEX:DownloadType.RECORDS_DB;
         DownloadDetailsDTO dd = registerDownload(requestParams, ip, type);
-        writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex);
+        writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex, true, zip);
     }
     
     /**
@@ -529,7 +551,7 @@ public class DownloadService {
                         }
                         writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
                                 currentDownload.getIpAddress(), fos, currentDownload.getIncludeSensitive(), 
-                                currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false);
+                                currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false, true);
                         //now that the download is complete email a link to the recipient.
                         String subject = messageSource.getMessage("offlineEmailSubject",null,
                                 biocacheDownloadEmailSubject.replace("[filename]", currentDownload.getRequestParams().getFile()),null);
@@ -538,7 +560,7 @@ public class DownloadService {
                             insertMiscHeader(currentDownload);
 
                             String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
-                            String searchUrl = generateSearchUrl(currentDownload);
+                            String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
                             String emailBodyHtml = biocacheDownloadEmailBody.replace("[url]", fileLocation).replace("[date]",
                                     currentDownload.getStartDateString()).replace("[searchUrl]",searchUrl);
                             String body = messageSource.getMessage("offlineEmailBody", new Object[]{fileLocation, searchUrl, currentDownload.getStartDateString()}, emailBodyHtml, null);
@@ -582,32 +604,60 @@ public class DownloadService {
     /**
      * Generate a search URL the user can use to regenerate the same download (assumes they came via biocache UI)
      *
-     * @param downloadDetails
+     * @param params
      * @return url
      */
-    private String generateSearchUrl(DownloadDetailsDTO downloadDetails) {
+    private String generateSearchUrl(DownloadRequestParams params) {
         StringBuilder sb = new StringBuilder();
         sb.append(biocacheUiUrl + "/occurrences/search?");
-        DownloadRequestParams params = downloadDetails.getRequestParams();
 
         if (params.getQId() != null) {
-            sb.append("qid=").append(params.getQId());
-        } else {
-            sb.append("q=").append(params.getQ());
+            try {
+                sb.append("qid=").append(URLEncoder.encode("" + params.getQId(), "UTF-8"));
+            } catch (UnsupportedEncodingException e) {
 
-            if (params.getFq().length > 0 ) {
-                for (String fq : params.getFq()) {
-                    if (StringUtils.isNotEmpty(fq)) {
-                        sb.append("&fq=").append(fq);
+            }
+        }
+        if (params.getQ() != null) {
+            try {
+                sb.append("&q=").append(URLEncoder.encode(params.getQ(), "UTF-8"));
+            } catch (UnsupportedEncodingException e) {
+
+            }
+        }
+
+        if (params.getFq().length > 0 ) {
+            for (String fq : params.getFq()) {
+                if (StringUtils.isNotEmpty(fq)) {
+                    try {
+                        sb.append("&fq=").append(URLEncoder.encode(fq, "UTF-8"));
+                    } catch (UnsupportedEncodingException e) {
+
                     }
                 }
             }
+        }
 
-            if (params.getLat() != null && params.getLon() != null && params.getRadius() != null) {
-                sb.append("&lat=").append(params.getLat());
-                sb.append("&lon=").append(params.getLon());
-                sb.append("&radius=").append(params.getRadius());
+        if (StringUtils.isNotEmpty(params.getQc())) {
+            try {
+                sb.append("&qc=").append(URLEncoder.encode(params.getQc(), "UTF-8"));
+            } catch (UnsupportedEncodingException e) {
+
             }
+        }
+
+        if (StringUtils.isNotEmpty(params.getWkt())) {
+            try {
+                sb.append("&wkt=").append(URLEncoder.encode(params.getWkt(), "UTF-8"));
+            } catch (UnsupportedEncodingException e) {
+
+            }
+        }
+
+        if (params.getLat() != null && params.getLon() != null && params.getRadius() != null) {
+            sb.append("&lat=").append(params.getLat());
+            sb.append("&lon=").append(params.getLon());
+            sb.append("&radius=").append(params.getRadius());
         }
 
         return sb.toString();

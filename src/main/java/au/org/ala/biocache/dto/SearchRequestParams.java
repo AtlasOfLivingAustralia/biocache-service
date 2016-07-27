@@ -14,17 +14,11 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
-import au.org.ala.biocache.service.FacetService;
 import org.apache.commons.httpclient.URIException;
 import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
-import org.springframework.beans.BeansException;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.Arrays;
@@ -45,11 +39,11 @@ public class SearchRequestParams {
     protected String fl = "";
     /**
      * The facets to be included by the search
-     * Set by the controller if needed
+     * Initialised with the default facets to use
      */
-    protected String[] facets = FacetService.singleton().getAllFacetsLimited();
+    protected String[] facets = FacetThemes.getAllFacetsLimited();
     protected Integer start = 0;
-    protected Integer facetsMax = FacetService.singleton().getFacetsMax();
+    protected Integer facetsMax = FacetThemes.getFacetsMax();
     /*
      * The limit for the number of facets to return 
      */
@@ -67,7 +61,7 @@ public class SearchRequestParams {
     /**  The query context to be used for the search.  This will be used to generate extra query filters based on the search technology */
     protected String qc = "";
     /** To disable facets */
-    protected Boolean facet = FacetService.singleton().getFacetDefault();
+    protected Boolean facet = FacetThemes.getFacetDefault();
     /** log4 j logger */
     private static final Logger logger = Logger.getLogger(SearchRequestParams.class);
 
@@ -334,15 +328,7 @@ public class SearchRequestParams {
         if (facets != null && facets.length == 1 && facets[0].contains(",")) facets = facets[0].split(",");
 
         //limit facets terms
-        this.facets = facets != null && facetsMax != null && facets.length > facetsMax ? FacetService.singleton().selectFacets(facets, facetsMax) : facets;
-    }
-
-    public Integer getFacetsMax() {
-        return facetsMax;
-    }
-
-    public void setFacetsMax(Integer facetsMax) {
-        this.facetsMax = facetsMax;
+        this.facets = facets != null && facets.length > facetsMax ? Arrays.copyOfRange(facets, 0, facetsMax) : facets;
     }
 
     public Integer getFlimit() {

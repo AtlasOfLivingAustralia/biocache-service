@@ -20,8 +20,14 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.IndexFieldDTO;
+import au.org.ala.biocache.service.AuthService;
+import au.org.ala.cas.util.AuthenticationUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocumentList;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -46,12 +52,17 @@ import java.util.Map;
 @Controller
 public class DownloadController extends AbstractSecureController {
 
+    private final static Logger logger = Logger.getLogger(DownloadController.class);
+
     /** Fulltext search DAO */
     @Inject
     protected SearchDAO searchDAO;
 
     @Inject
     protected PersistentQueueDAO persistentQueueDAO;
+
+    @Inject
+    protected AuthService authService;
 
     @Value("${webservices.root:http://localhost:8080/biocache-service}")
     protected String webservicesRoot;
@@ -61,6 +72,23 @@ public class DownloadController extends AbstractSecureController {
 
     @Value("${download.dir:/data/biocache-download}")
     protected String biocacheDownloadDir;
+
+    //TODO: this should be retrieved from SDS
+    @Value("${sensitiveAccessRoles:{\n" +
+            "\n" +
+            "\"ROLE_SDS_ACT\" : \"sensitive:\\\"generalised\\\" AND (cl927:\\\"Australian Captial Territory\\\" OR cl927:\\\"Jervis Bay Territory\\\") AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
+            "\"ROLE_SDS_NSW\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"New South Wales (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_NZ\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr2707 OR data_resource_uid:dr812 OR data_resource_uid:dr814 OR data_resource_uid:dr808 OR data_resource_uid:dr806 OR data_resource_uid:dr815 OR data_resource_uid:dr802 OR data_resource_uid:dr805 OR data_resource_uid:dr813) AND -cl927:* AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_NT\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Northern Territory (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_QLD\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Queensland (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_SA\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"South Australia (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_TAS\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Tasmania (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_VIC\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Victoria (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_WA\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Western Australia (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_BIRDLIFE\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
+            "\n" +
+            "}}")
+    protected String sensitiveAccessRoles;
 
     /**
      * Retrieves all the downloads that are on the queue
@@ -98,33 +126,9 @@ public class DownloadController extends AbstractSecureController {
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
 
-        boolean sensitive = false;
-        if (apiKey != null) {
-            if (shouldPerformOperation(apiKey, response, false)) {
-                sensitive = true;
-            }
-        } else if (StringUtils.isEmpty(requestParams.getEmail())) {
-            response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
-        }
-
-        ip = ip == null ? request.getRemoteAddr() : ip;
         DownloadType downloadType = "index".equals(type.toLowerCase()) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
-        //create a new task
-        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, downloadType);
-        dd.setIncludeSensitive(sensitive);
 
-        //get query (max) count for queue priority
-        requestParams.setPageSize(0);
-        SolrDocumentList result = searchDAO.findByFulltext(requestParams);
-        dd.setTotalRecords((int) result.getNumFound());
-
-        persistentQueueDAO.addDownloadToQueue(dd);
-
-        Map status = new HashMap();
-        status.put("status", "inQueue");
-        status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
-        status.put("queueSize", persistentQueueDAO.getTotalDownloads());
-        return status;
+        return download(requestParams, ip, apiKey, response, request, downloadType);
     }
 
     /**
@@ -145,17 +149,6 @@ public class DownloadController extends AbstractSecureController {
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
 
-        boolean sensitive = false;
-        if (apiKey != null) {
-            if (shouldPerformOperation(apiKey, response, false)) {
-                sensitive = true;
-            }
-        } else if (StringUtils.isEmpty(requestParams.getEmail())) {
-            response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
-        }
-
-        ip = ip == null ? request.getRemoteAddr() : ip;
-
         //download from index when there are no CASSANDRA fields requested
         boolean hasDBColumn = requestParams.getIncludeMisc();
         String fields = requestParams.getFields() + "," + requestParams.getExtra();
@@ -172,9 +165,34 @@ public class DownloadController extends AbstractSecureController {
         }
         DownloadType downloadType = hasDBColumn ? DownloadType.RECORDS_DB : DownloadType.RECORDS_INDEX;
 
+        return download(requestParams, ip, apiKey, response, request, downloadType);
+    }
+
+    private Object download(DownloadRequestParams requestParams, String ip, String apiKey,
+                            HttpServletResponse response, HttpServletRequest request,
+                            DownloadType downloadType) throws Exception {
+
+        boolean sensitive = false;
+        if (apiKey != null) {
+            if (shouldPerformOperation(apiKey, response, false)) {
+                sensitive = true;
+            }
+        } else if (StringUtils.isEmpty(requestParams.getEmail())) {
+            response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
+        }
+
+        //get the fq that includes only the sensitive data that the userId ROLES permits
+        String sensitiveFq = null;
+        if (!sensitive) {
+            sensitiveFq = getSensitiveFq(request);
+        }
+
+        ip = ip == null ? request.getRemoteAddr() : ip;
+
         //create a new task
         DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, downloadType);
         dd.setIncludeSensitive(sensitive);
+        dd.setSensitiveFq(sensitiveFq);
 
         //get query (max) count for queue priority
         requestParams.setPageSize(0);
@@ -197,6 +215,7 @@ public class DownloadController extends AbstractSecureController {
         status.put("queueSize", persistentQueueDAO.getTotalDownloads());
         return status;
     }
+
     @RequestMapping(value = "occurrences/offline/status/{id}", method = RequestMethod.GET)
     public @ResponseBody Object occurrenceDownloadStatus(@PathVariable("id") String id) throws Exception {
 
@@ -280,5 +299,34 @@ public class DownloadController extends AbstractSecureController {
         }
 
         return status;
+    }
+
+    private String getSensitiveFq(HttpServletRequest request) throws ParseException {
+
+        if (!isValidKey(request.getHeader("apiKey"))) {
+            return null;
+        }
+
+        String sensitiveFq = "";
+        JSONParser jp = new JSONParser();
+        JSONObject jo = (JSONObject) jp.parse(sensitiveAccessRoles);
+        List roles = authService.getUserRoles(request.getHeader("X-ALA-userId"));
+        for (Object role : jo.keySet()) {
+            if (roles.contains(role)) {
+                if (sensitiveFq.length() > 0) {
+                    sensitiveFq += " OR ";
+                }
+                sensitiveFq += "(" + jo.get(role) + ")";
+            }
+        }
+
+        if (sensitiveFq.length() == 0) {
+            return null;
+        }
+
+        logger.debug("sensitiveOnly download requested for user: " + AuthenticationUtils.getUserId(request) +
+                ", using fq: " + sensitiveFq);
+
+        return sensitiveFq;
     }
 }
