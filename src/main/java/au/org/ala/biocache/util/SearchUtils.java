@@ -327,8 +327,7 @@ public class SearchUtils {
         }
         if (requestParams.getFacet() == null)
             requestParams.setFacet(blankRequestParams.getFacet());
-        if (requestParams.getFacetsMax() == null)
-            requestParams.setFacetsMax(blankRequestParams.getFacetsMax());
+
         if (requestParams.getFacets() == null)
             requestParams.setFacets(blankRequestParams.getFacets());
     }

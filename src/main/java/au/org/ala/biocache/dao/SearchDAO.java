@@ -320,7 +320,7 @@ public interface SearchDAO {
      * @return
      * @param force
      */
-    public Long getIndexVersion(Boolean force);
+    Long getIndexVersion(Boolean force);
 
     /**
      * Perform grouped facet query.
@@ -334,7 +334,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    public List<GroupFacetResultDTO> searchGroupedFacets(SpatialSearchRequestParams searchRequestParams) throws Exception ;
+    List<GroupFacetResultDTO> searchGroupedFacets(SpatialSearchRequestParams searchRequestParams) throws Exception ;
 
     /**
      * Perform one pivot facet query.
@@ -356,18 +356,4 @@ public interface SearchDAO {
      * @param searchParams
      */
     void formatSearchQuery(SpatialSearchRequestParams searchParams, boolean forceQueryFormat);
-
-    /**
-     * Create a new set of search request parameters, initialised to default values.
-     *
-     * @return A new set of search parameters
-     */
-    public SearchRequestParams createSearchRequestParams();
-
-    /**
-     * Create a new set of spatial search request parameters, initialised to default values.
-     *
-     * @return A new set of spatial search parameters
-     */
-    public SpatialSearchRequestParams createSpatialSearchRequestParams();
 }

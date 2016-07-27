@@ -1,6 +1,5 @@
 package au.org.ala.biocache.config;
 
-import au.org.ala.biocache.service.FacetService;
 import au.org.ala.biocache.service.SpeciesLookupIndexService;
 import au.org.ala.biocache.service.SpeciesLookupRestService;
 import au.org.ala.biocache.service.SpeciesLookupService;
@@ -68,12 +67,5 @@ public class AppConfig {
             service.setMessageSource(messageSource);
             return service;
         }
-    }
-
-    public @Bean(name = "facetService")
-    FacetService facetServiceBean() {
-        logger.info("Setting up configured facet service");
-        FacetService.createSingleton(this.facetConfig, this.facetsMax, this.facetDefault);
-        return FacetService.singleton();
     }
 }

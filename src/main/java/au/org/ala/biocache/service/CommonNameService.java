@@ -61,7 +61,7 @@ public class CommonNameService {
     class TranslationThread extends Thread {
         @Override
         public void run() {
-            SpatialSearchRequestParams params = searchDAO.createSpatialSearchRequestParams();
+            SpatialSearchRequestParams params = new SpatialSearchRequestParams();
             params.setPageSize(0);
             params.setFacet(true);
             params.setFacets(new String[]{"common_name"});
@@ -99,7 +99,7 @@ public class CommonNameService {
 
                 //fallback to index for lsid to common name
                 Map<String, String> lookup = new HashMap<String, String>();
-                SpatialSearchRequestParams params = searchDAO.createSpatialSearchRequestParams();
+                SpatialSearchRequestParams params = new SpatialSearchRequestParams();
                 params.setPageSize(1);
                 params.setFl("common_name");
                 params.setFacets(new String[]{"taxon_concept_lsid"});

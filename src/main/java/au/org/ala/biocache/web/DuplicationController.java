@@ -64,7 +64,7 @@ public class DuplicationController {
         String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
         if (guid.endsWith(".json"))
             guid = guid.substring(0, guid.length() - 5);
-        SpatialSearchRequestParams searchParams = searchDAO.createSpatialSearchRequestParams();
+        SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
         searchParams.setQ("*:*");
         searchParams.setFacets(new String[]{guid});
         return searchDAO.getStatistics(searchParams);

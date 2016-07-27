@@ -37,7 +37,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
-import sun.security.pkcs.EncodingException;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -270,7 +269,7 @@ public class DownloadService {
             dd.setRequestParams(requestParams);
         }
         if (dd.getFileLocation() == null) {
-            dd.setFileLocation(generateSearchUrl(dd));
+            dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
         }
 
         //add the Readme for the data field descriptions

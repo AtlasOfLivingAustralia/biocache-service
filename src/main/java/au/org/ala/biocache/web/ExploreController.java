@@ -440,7 +440,7 @@ public class ExploreController {
                                                                   HttpServletResponse response)
             throws Exception{
         Qid qid = qidCacheDao.getQidFromQuery("qid:" + subQueryQid);
-        SpatialSearchRequestParams subQuery = searchDao.createSpatialSearchRequestParams();
+        SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
         subQuery.setQ(qid.getQ());
         subQuery.setFacets(qid.getFqs());
         subQuery.setWkt(qid.getWkt());
