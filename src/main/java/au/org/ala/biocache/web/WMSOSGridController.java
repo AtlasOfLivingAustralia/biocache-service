@@ -42,7 +42,7 @@ public class WMSOSGridController {
      * - 100m grid, stopping if > 0
      * - 1000m grid, stopping if > 0
      * - 2000m grid, stopping if > 0
-     * - 10000m grid, stopping if > 0
+     * - 10000m grid
      *
      * @param requestParams
      * @param request
@@ -210,21 +210,15 @@ public class WMSOSGridController {
     @RequestMapping(value = {"/osgrid/wms/reflect"}, method = RequestMethod.GET)
     public void generateWmsTile(
             SpatialSearchRequestParams requestParams,
-            @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
-            @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
             @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:900913") String srs, //default to google mercator
-            @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
             @RequestParam(value = "BBOX", required = true, defaultValue = "") String bboxString,
             @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
             @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
-            @RequestParam(value = "CACHE", required = true, defaultValue = "default") String cache,
-            @RequestParam(value = "REQUEST", required = true, defaultValue = "") String requestString,
             @RequestParam(value = "OUTLINE", required = true, defaultValue = "false") boolean outlinePoints,
             @RequestParam(value = "TILEOUTLINE", required = true, defaultValue = "false") boolean tileOutline,
             @RequestParam(value = "OUTLINECOLOUR", required = true, defaultValue = "0x000000") String outlineColour,
             HttpServletResponse response)
             throws Exception {
-
 
         //get the requested extent for this tile
         String[] bbox = bboxString.split(",");
@@ -259,7 +253,6 @@ public class WMSOSGridController {
 
         Map<String, Integer> gridsRefs = new HashMap<String, Integer>();
 
-
 //        //construct the filter query
 //        if (a.max.x < b.min.x) return false; // a is left of b
 //        if (a.min.x > b.max.x) return false; // a is right of b
@@ -288,8 +281,6 @@ public class WMSOSGridController {
         requestParams.setFacet(true);
         requestParams.setFlimit(-1);
         requestParams.setFacets(facets);
-
-
 
         WMSImg wmsImg = WMSImg.create(width, height);
 
@@ -565,20 +556,11 @@ public class WMSOSGridController {
 
         int[][] offsetXYWidthHeights = new int[polygon.length][2];
         for(int i = 0; i < polygon.length; i++){
-
-//            logger.debug("Easting = " + polygon[i][0] + ", Northing = " + polygon[i][1]);
-
-//            logger.debug("Coordinates (Mercator)  x = " + polygon[i][0] + ", y = " + polygon[i][1] +
-// ", tile min x = " + minXOfTileInMercatorMetres + ", tile min y = " + minYOfTileInMercatorMetres);
-
             int x = (int)((polygon[i][0] - minXOfTileInMercatorMetres) * onePixelInMetresX);
             int y = (int)((polygon[i][1] - minYOfTileInMercatorMetres) * onePixelInMetresY);
-
-//            logger.debug("X & Y = " + x + ", " + y);
-
             offsetXYWidthHeights[i] = new int[]{
                     x,
-                    tileSizeInPixels - y ,              //y
+                    tileSizeInPixels - y              //y
 
             };
         }
@@ -604,93 +586,7 @@ public class WMSOSGridController {
 
     double[] convertEastingNorthingToMercator(Double x , Double y){
         return reproject(x, y, "EPSG:27700", "EPSG:3857");
-//
-//        try {
-//            CoordinateReferenceSystem sourceCRS = CRS.decode("EPSG:27700");
-//            CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:3857");
-//            CoordinateOperation transformOp = new DefaultCoordinateOperationFactory().createOperation(sourceCRS, targetCRS);
-//            GeneralDirectPosition directPosition = new GeneralDirectPosition(x, y);
-//            DirectPosition wgs84LatLong = transformOp.getMathTransform().transform(directPosition, null);
-//
-//            //NOTE - returned coordinates are longitude, latitude, despite the fact that if
-//            //converting latitude and longitude values, they must be supplied as latitude, longitude.
-//            //No idea why this is the case.
-//            Double longitude = wgs84LatLong.getOrdinate(0);
-//            Double latitude = wgs84LatLong.getOrdinate(1);
-//
-//            double[] coords = new double[2];
-//
-//            coords[0] = Precision.round(longitude, 10);
-//            coords[1] = Precision.round(latitude, 10);
-//            return coords;
-//
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//        return null;
     }
-
-
-
-//
-//    private class Deg2UTM
-//    {
-//        double Easting;
-//        double Northing;
-//        int Zone;
-//        char Letter;
-//        private  Deg2UTM(double Lat,double Lon)
-//        {
-//            Zone= (int) Math.floor(Lon/6+31);
-//            if (Lat<-72)
-//                Letter='C';
-//            else if (Lat<-64)
-//                Letter='D';
-//            else if (Lat<-56)
-//                Letter='E';
-//            else if (Lat<-48)
-//                Letter='F';
-//            else if (Lat<-40)
-//                Letter='G';
-//            else if (Lat<-32)
-//                Letter='H';
-//            else if (Lat<-24)
-//                Letter='J';
-//            else if (Lat<-16)
-//                Letter='K';
-//            else if (Lat<-8)
-//                Letter='L';
-//            else if (Lat<0)
-//                Letter='M';
-//            else if (Lat<8)
-//                Letter='N';
-//            else if (Lat<16)
-//                Letter='P';
-//            else if (Lat<24)
-//                Letter='Q';
-//            else if (Lat<32)
-//                Letter='R';
-//            else if (Lat<40)
-//                Letter='S';
-//            else if (Lat<48)
-//                Letter='T';
-//            else if (Lat<56)
-//                Letter='U';
-//            else if (Lat<64)
-//                Letter='V';
-//            else if (Lat<72)
-//                Letter='W';
-//            else
-//                Letter='X';
-//            Easting=0.5*Math.log((1+Math.cos(Lat*Math.PI/180)*Math.sin(Lon*Math.PI/180-(6*Zone-183)*Math.PI/180))/(1-Math.cos(Lat*Math.PI/180)*Math.sin(Lon*Math.PI/180-(6*Zone-183)*Math.PI/180)))*0.9996*6399593.62/Math.pow((1+Math.pow(0.0820944379, 2)*Math.pow(Math.cos(Lat*Math.PI/180), 2)), 0.5)*(1+ Math.pow(0.0820944379,2)/2*Math.pow((0.5*Math.log((1+Math.cos(Lat*Math.PI/180)*Math.sin(Lon*Math.PI/180-(6*Zone-183)*Math.PI/180))/(1-Math.cos(Lat*Math.PI/180)*Math.sin(Lon*Math.PI/180-(6*Zone-183)*Math.PI/180)))),2)*Math.pow(Math.cos(Lat*Math.PI/180),2)/3)+500000;
-//            Easting=Math.round(Easting*100)*0.01;
-//            Northing = (Math.atan(Math.tan(Lat*Math.PI/180)/Math.cos((Lon*Math.PI/180-(6*Zone -183)*Math.PI/180)))-Lat*Math.PI/180)*0.9996*6399593.625/Math.sqrt(1+0.006739496742*Math.pow(Math.cos(Lat*Math.PI/180),2))*(1+0.006739496742/2*Math.pow(0.5*Math.log((1+Math.cos(Lat*Math.PI/180)*Math.sin((Lon*Math.PI/180-(6*Zone -183)*Math.PI/180)))/(1-Math.cos(Lat*Math.PI/180)*Math.sin((Lon*Math.PI/180-(6*Zone -183)*Math.PI/180)))),2)*Math.pow(Math.cos(Lat*Math.PI/180),2))+0.9996*6399593.625*(Lat*Math.PI/180-0.005054622556*(Lat*Math.PI/180+Math.sin(2*Lat*Math.PI/180)/2)+4.258201531e-05*(3*(Lat*Math.PI/180+Math.sin(2*Lat*Math.PI/180)/2)+Math.sin(2*Lat*Math.PI/180)*Math.pow(Math.cos(Lat*Math.PI/180),2))/4-1.674057895e-07*(5*(3*(Lat*Math.PI/180+Math.sin(2*Lat*Math.PI/180)/2)+Math.sin(2*Lat*Math.PI/180)*Math.pow(Math.cos(Lat*Math.PI/180),2))/4+Math.sin(2*Lat*Math.PI/180)*Math.pow(Math.cos(Lat*Math.PI/180),2)*Math.pow(Math.cos(Lat*Math.PI/180),2))/3);
-//            if (Letter<'M')
-//                Northing = Northing + 10000000;
-//            Northing=Math.round(Northing*100)*0.01;
-//        }
-//    }
-
 }
 
 class WMSImg {
