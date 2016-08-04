@@ -2278,29 +2278,28 @@ public class SearchDAOImpl implements SearchDAO {
                 while (matcher.find()) {
                     //only want to process the "lsid" if it does not represent taxon_concept_lsid etc...
                     if((matcher.start() >0 && query.charAt(matcher.start()-1) != '_') || matcher.start() == 0){
-                    String value = matcher.group();
-                    logger.debug("pre-processing " + value);
-                    String lsid = matcher.group(2);
-                    if (lsid.contains("\"")) {
-                        //remove surrounding quotes, if present
-                        lsid = lsid.replaceAll("\"","");
-                    }
-                    if (lsid.contains("\\")) {
-                        //remove internal \ chars, if present
-                        //noinspection MalformedRegex
-                        lsid = lsid.replaceAll("\\\\","");
-                    }
-                    logger.debug("lsid = " + lsid);
-                    String[] values = searchUtils.getTaxonSearch(lsid);
+                        String value = matcher.group();
+                        logger.debug("pre-processing " + value);
+                        String lsid = matcher.group(2);
+                        if (lsid.contains("\"")) {
+                            //remove surrounding quotes, if present
+                            lsid = lsid.replaceAll("\"","");
+                        }
+                        if (lsid.contains("\\")) {
+                            //remove internal \ chars, if present
+                            //noinspection MalformedRegex
+                            lsid = lsid.replaceAll("\\\\","");
+                        }
+                        logger.debug("lsid = " + lsid);
+                        String[] values = searchUtils.getTaxonSearch(lsid);
                         String lsidHeader = matcher.groupCount() > 1 && matcher.group(1).length() > 0 ? matcher.group(1) : "";
-                    matcher.appendReplacement(queryString, lsidHeader +values[0]);
-                    displaySb.append(query.substring(last, matcher.start()));
-                    if(!values[1].startsWith("taxon_concept_lsid:"))
-                        displaySb.append(lsidHeader).append("<span class='lsid' id='").append(lsid).append("'>").append(values[1]).append("</span>");
-                    else
-                        displaySb.append(lsidHeader).append(values[1]);
-                    last = matcher.end();
-                    //matcher.appendReplacement(displayString, values[1]);
+                        matcher.appendReplacement(queryString, lsidHeader +values[0]);
+                        displaySb.append(query.substring(last, matcher.start()));
+                        if(!values[1].startsWith("taxon_concept_lsid:"))
+                            displaySb.append(lsidHeader).append("<span class='lsid' id='").append(lsid).append("'>").append(values[1]).append("</span>");
+                        else
+                            displaySb.append(lsidHeader).append(values[1]);
+                        last = matcher.end();
                     }
                 }
                 matcher.appendTail(queryString);
