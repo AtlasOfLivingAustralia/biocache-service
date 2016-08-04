@@ -325,13 +325,20 @@ public class DownloadService {
                     messageSource.getMessage("citation.count", null,"Number of Records in Download", null)});
 
                 for(Map<String,Object> record : entities){
-                    StringBuilder sb = new StringBuilder();
                     //ensure that the record is not null to prevent NPE on the "get"s
                     if(record != null){
                         String count = uidStats.get(record.get("uid")).toString();
-                        String[] row = new String[]{getOrElse(record,"uid",""),getOrElse(record, "name",""), getOrElse(record, "citation",""),
-                                getOrElse(record,"rights", ""), getOrElse(record, "link",""),getOrElse(record,"dataGeneralizations",""),
-                                getOrElse(record, "informationWithheld",""), getOrElse(record, "downloadLimit", ""), count};
+                        String[] row = new String[]{
+                                getOrElse(record, "uid", ""),
+                                getOrElse(record, "name", ""),
+                                getOrElse(record, "citation", ""),
+                                getOrElse(record, "rights", ""),
+                                getOrElse(record, "link", ""),
+                                getOrElse(record, "dataGeneralizations", ""),
+                                getOrElse(record, "informationWithheld", ""),
+                                getOrElse(record, "downloadLimit", ""),
+                                count
+                        };
                         writer.writeNext(row);
 
                     } else {

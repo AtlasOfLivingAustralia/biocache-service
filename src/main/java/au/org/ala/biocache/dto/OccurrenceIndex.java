@@ -114,6 +114,7 @@ public class OccurrenceIndex {
     @Field("occurrence_details") String occurrenceDetails;
     @Field("rights") String rights; 
     @Field("photographer_s") String photographer;
+    @Field("grid_ref") String gridReference;
     @Field("*_s") Map<String, Object> miscStringProperties;
     @Field("*_i") Map<String, Object> miscIntProperties;
     @Field("*_d") Map<String, Object> miscDoubleProperties;
