@@ -2326,6 +2326,19 @@ public class SearchDAOImpl implements SearchDAO {
                 matcher.appendTail(queryString);
                 query = queryString.toString();
             }
+            if (query.contains("http")) {
+                //escape the HTTP strings before escaping the rest this avoids the issue with attempting to search on a urn field
+                Matcher matcher = httpPattern.matcher(query);
+                queryString.setLength(0);
+                while (matcher.find()) {
+                    String value = matcher.group();
+
+                    logger.debug("escaping lsid http uris  " + value );
+                    matcher.appendReplacement(queryString,prepareSolrStringForReplacement(value));
+                }
+                matcher.appendTail(queryString);
+                query = queryString.toString();
+            }
 
             if (query.contains("http")) {
                 //escape the HTTP strings before escaping the rest this avoids the issue with attempting to search on a urn field
