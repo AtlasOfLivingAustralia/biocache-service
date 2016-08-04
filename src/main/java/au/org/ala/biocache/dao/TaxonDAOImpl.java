@@ -19,7 +19,7 @@ import au.org.ala.biocache.index.SolrIndexDAO;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrQuery;
-import org.apache.solr.client.solrj.SolrServer;
+import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.springframework.stereotype.Component;
@@ -33,7 +33,7 @@ import java.util.List;
 public class TaxonDAOImpl implements TaxonDAO {
 
     private static final Logger logger = Logger.getLogger(TaxonDAOImpl.class);
-    protected SolrServer server;
+    protected SolrClient server;
 
     /**
      * Initialise the SOLR server instance
