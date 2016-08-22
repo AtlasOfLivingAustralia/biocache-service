@@ -721,7 +721,17 @@ public class SearchDAOImpl implements SearchDAO {
 
             if(includeSensitive){
                 //include raw latitude and longitudes
-                dFields = dFields.replaceFirst("decimalLatitude.p","sensitive_latitude,sensitive_longitude,decimalLatitude.p").replaceFirst(",locality,", ",locality,sensitive_locality,");
+                if (dFields.contains("decimalLatitude.p")) {
+                    dFields = dFields.replaceFirst("decimalLatitude.p", "sensitive_latitude,sensitive_longitude,decimalLatitude.p");
+                } else if (dFields.contains("decimalLatitude")){
+                    dFields = dFields.replaceFirst("decimalLatitude", "sensitive_latitude,sensitive_longitude,decimalLatitude");
+                }
+                if (dFields.contains(",locality,")) {
+                    dFields = dFields.replaceFirst(",locality,", ",locality,sensitive_locality,");
+                }
+                if (dFields.contains(",locality.p,")) {
+                    dFields = dFields.replaceFirst(",locality.p,", ",locality.p,sensitive_locality,");
+                }
             }
 
             StringBuilder sb = new StringBuilder(dFields);
