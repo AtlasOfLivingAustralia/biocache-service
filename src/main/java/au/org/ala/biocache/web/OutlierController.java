@@ -1,26 +1,33 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.Store;
+import au.org.ala.biocache.outliers.JackKnifeStats;
+import au.org.ala.biocache.outliers.RecordJackKnifeStats;
+import au.org.ala.biocache.util.SearchUtils;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
-import au.org.ala.biocache.outliers.*;
 
+import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 
 @Controller
 public class OutlierController {
+    @Inject
+    private SearchUtils searchUtils;
 
     /**
      * Checks to see if the supplied GUID represents an Australian species.
-     * @param guid
      * @return
      * @throws Exception
      */
-    @RequestMapping(value={"/outlierInfo/{guid:.+}.json*","/outlierInfo/{guid:.+}*" })
-    public @ResponseBody Map<String,JackKnifeStats> getJackKnifeStats(@PathVariable("guid") String guid) throws Exception {
+    @RequestMapping(value={"/outlierInfo/**" })
+    public @ResponseBody Map<String,JackKnifeStats> getJackKnifeStats(HttpServletRequest request) throws Exception {
+        String guid = searchUtils.getGuidFromPath(request);
+
         return Store.getJackKnifeStatsFor(guid);
     }
 

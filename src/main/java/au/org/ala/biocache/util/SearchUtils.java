@@ -1,17 +1,15 @@
 package au.org.ala.biocache.util;
 
 import au.org.ala.biocache.Config;
-import au.org.ala.biocache.caches.TaxonProfileDAO;
-import au.org.ala.biocache.model.TaxonProfile;
-import au.org.ala.names.search.ALANameSearcher;
-import au.org.ala.names.model.NameSearchResult;
-import au.org.ala.names.model.RankType;
 import au.org.ala.biocache.dto.Facet;
 import au.org.ala.biocache.dto.OccurrenceSourceDTO;
 import au.org.ala.biocache.dto.SearchRequestParams;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.SpeciesLookupService;
+import au.org.ala.names.model.NameSearchResult;
+import au.org.ala.names.model.RankType;
+import au.org.ala.names.search.ALANameSearcher;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -19,9 +17,10 @@ import org.apache.solr.client.solrj.util.ClientUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
-import scala.Option;
+import org.springframework.web.servlet.HandlerMapping;
 
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
 import java.net.URLDecoder;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -34,6 +33,7 @@ import java.util.regex.Pattern;
  */
 @Component("searchUtils")
 public class SearchUtils {
+    private static final Pattern DUD_URL_PATTERN = Pattern.compile("([a-z]+:/)([^/].*)");
 
     /** Logger initialisation */
     private final static Logger logger = Logger.getLogger(SearchUtils.class);
@@ -222,6 +222,26 @@ public class SearchUtils {
 
         return result;
     }
+
+    /**
+     * Get a GUID from a path.
+     * <p>
+     *     This is complicated by the spring framework reducing http://xxx.yyy to http:/xxx.yyy so we have to put it back.
+     * </p>
+     * @param request The request
+     *
+     * @return The guid
+     */
+    public String getGuidFromPath(HttpServletRequest request) {
+        String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        if (guid.endsWith(".json"))
+            guid = guid.substring(0, guid.length() - 5);
+        Matcher duds = DUD_URL_PATTERN.matcher(guid);
+        if (duds.matches())
+            guid = duds.group(1) + "/" + duds.group(2);
+        return guid;
+    }
+
 
     /**
      * returns the solr field that should be used to search for a particular uid
