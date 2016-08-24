@@ -1870,7 +1870,10 @@ public class SearchDAOImpl implements SearchDAO {
         QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
         logger.debug("runSolrQuery: " + solrQuery.toString() + " qtime:" + qr.getQTime());
         if(logger.isDebugEnabled()){
-            logger.debug("matched records: " + qr.getResults().getNumFound());
+            if (qr.getResults() == null)
+                logger.debug("no results");
+            else
+                logger.debug("matched records: " + qr.getResults().getNumFound());
         }
         return qr;
     }
@@ -2345,20 +2348,6 @@ public class SearchDAOImpl implements SearchDAO {
 
                     logger.debug("escaping lsid http uris  " + value );
                     matcher.appendReplacement(queryString,prepareSolrStringForReplacement(value));
-                }
-                matcher.appendTail(queryString);
-                query = queryString.toString();
-            }
-
-            if (query.contains("http")) {
-                //escape the HTTP strings before escaping the rest this avoids the issue with attempting to search on a urn field
-                Matcher matcher = httpPattern.matcher(query);
-                queryString.setLength(0);
-                while (matcher.find()) {
-                    String value = matcher.group();
-
-                    logger.debug("escaping lsid http uris  " + value);
-                    matcher.appendReplacement(queryString, prepareSolrStringForReplacement(value));
                 }
                 matcher.appendTail(queryString);
                 query = queryString.toString();

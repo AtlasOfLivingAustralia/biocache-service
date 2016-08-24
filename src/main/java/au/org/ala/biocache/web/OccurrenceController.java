@@ -22,7 +22,10 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.model.FullRecord;
-import au.org.ala.biocache.service.*;
+import au.org.ala.biocache.service.AuthService;
+import au.org.ala.biocache.service.DownloadService;
+import au.org.ala.biocache.service.ImageMetadataService;
+import au.org.ala.biocache.service.SpeciesLookupService;
 import au.org.ala.biocache.util.*;
 import net.sf.ehcache.CacheManager;
 import org.ala.client.appender.RestLevel;
@@ -53,6 +56,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.io.*;
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -63,7 +67,6 @@ import java.util.regex.Pattern;
  */
 @Controller
 public class OccurrenceController extends AbstractSecureController {
-    
     /** Logger initialisation */
     private final static Logger logger = Logger.getLogger(OccurrenceController.class);
     /** Fulltext search DAO */
@@ -104,7 +107,7 @@ public class OccurrenceController extends AbstractSecureController {
     protected String webservicesRoot;
     
     /** The response to be returned for the isAustralian test */
-    @Value("${taxon.id.pattern:urn:lsid:biodiversity.org.au[a-zA-Z0-9\\.:-]*}")
+    @Value("${taxon.id.pattern:urn:lsid:biodiversity.org.au[a-zA-Z0-9\\.:-]*|http://id.biodiversity.org.au/[a-zA-Z0-9/]*}")
     protected String taxonIDPatternString;
 
     @Value("${native.country:Australia}")
@@ -348,9 +351,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping("/images/taxon/**")
     public @ResponseBody List<String> getImages(HttpServletRequest request) throws Exception {
-        String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
-        if (guid.endsWith(".json"))
-            guid = guid.substring(0, guid.length() - 5);
+        String guid = searchUtils.getGuidFromPath(request);
         SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
         srp.setQ("lsid:" + guid);
         srp.setPageSize(0);
@@ -374,9 +375,7 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value={"/australian/taxon/**", "/native/taxon/**"})
     public @ResponseBody NativeDTO isAustralian(HttpServletRequest request) throws Exception {
         //check to see if we have any occurrences on Australia  country:Australia or state != empty
-        String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
-        if (guid.endsWith(".json"))
-            guid = guid.substring(0, guid.length() - 5);
+        String guid = searchUtils.getGuidFromPath(request);
         NativeDTO adto = new NativeDTO();
 
         if (guid != null) {
@@ -456,9 +455,7 @@ public class OccurrenceController extends AbstractSecureController {
     public @ResponseBody SearchResultDTO occurrenceSearchByTaxon(
                                                                  SpatialSearchRequestParams requestParams,
                                                                  HttpServletRequest request) throws Exception {
-        String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
-        if (guid.endsWith(".json"))
-            guid = guid.substring(0, guid.length() - 5);
+        String guid = searchUtils.getGuidFromPath(request);
         requestParams.setQ("lsid:" + guid);
         SearchUtils.setDefaultParams(requestParams);
         return occurrenceSearch(requestParams);
@@ -478,9 +475,7 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = "/occurrences/taxon/source/**", method = RequestMethod.GET)
     public @ResponseBody List<OccurrenceSourceDTO> sourceByTaxon(SpatialSearchRequestParams requestParams,
                                                                  HttpServletRequest request) throws Exception {
-        String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
-        if (guid.endsWith(".json"))
-            guid = guid.substring(0, guid.length() - 5);
+        String guid = searchUtils.getGuidFromPath(request);
         requestParams.setQ("lsid:" + guid);
         Map<String, Integer> sources = searchDAO.getSourcesForQuery(requestParams);
         //now turn them to a list of OccurrenceSourceDTO
