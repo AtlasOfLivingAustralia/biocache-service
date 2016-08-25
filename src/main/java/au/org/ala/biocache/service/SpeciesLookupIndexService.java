@@ -13,6 +13,7 @@ import au.org.ala.names.search.ParentSynonymChildException;
 import au.org.ala.names.search.SearchResultException;
 import com.mockrunner.util.common.StringUtil;
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.log4j.Logger;
 import org.springframework.context.support.AbstractMessageSource;
 
 import javax.inject.Inject;
@@ -22,6 +23,8 @@ import java.util.*;
  * Index based lookup index serice
  */
 public class SpeciesLookupIndexService implements SpeciesLookupService {
+    /** Logger initialisation */
+    private final static Logger logger = Logger.getLogger(SpeciesLookupIndexService.class);
 
     private AbstractMessageSource messageSource; // use for i18n of the headers
 
@@ -352,20 +355,23 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         SpeciesImageDTO speciesImage = (SpeciesImageDTO) m.get("images");
 
         if (speciesImage != null && speciesImage.getImage() != null) {
-            formatted.put("imageSource", speciesImage.getDataResourceUid());
-            //number of occurrences with images
-            formatted.put("imageCount", speciesImage.getCount());
+            try {
+                Map im = Config.mediaStore().getImageFormats(speciesImage.getImage());
+                formatted.put("imageSource", speciesImage.getDataResourceUid());
+                //number of occurrences with images
+                formatted.put("imageCount", speciesImage.getCount());
+                formatted.put("image", im.get("raw"));
+                formatted.put("thumbnail", im.get("thumbnail"));
+                formatted.put("imageUrl", im.get("raw"));
+                formatted.put("smallImageUrl", im.get("small"));
+                formatted.put("largeImageUrl", im.get("large"));
+                formatted.put("thumbnailUrl", im.get("thumbnail"));
 
-            Map im = Config.mediaStore().getImageFormats(speciesImage.getImage());
-
-            formatted.put("image", im.get("raw"));
-            formatted.put("thumbnail", im.get("thumbnail"));
-            formatted.put("imageUrl", im.get("raw"));
-            formatted.put("smallImageUrl", im.get("small"));
-            formatted.put("largeImageUrl", im.get("large"));
-            formatted.put("thumbnailUrl", im.get("thumbnail"));
-
-            formatted.put("imageMetadataUrl", imageMetadataService.getUrlFor(speciesImage.getImage()));
+                formatted.put("imageMetadataUrl", imageMetadataService.getUrlFor(speciesImage.getImage()));
+            } catch (Exception ex) {
+                logger.warn("Unable to get image formats for " + speciesImage.getImage() + ": " + ex.getMessage());
+                formatted.put("imageCount", 0);
+            }
         } else {
             formatted.put("imageCount", 0);
         }

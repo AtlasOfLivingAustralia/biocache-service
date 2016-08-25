@@ -121,8 +121,9 @@ public class SearchDAOImpl implements SearchDAO {
     private String spatialField = "geohash";
 
     //Patterns that are used to prepare a SOLR query for execution
-    protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9\\.:\\-_]*)\"?");
+    protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9/\\.:\\-_]*)\"?");
     protected Pattern urnPattern = Pattern.compile("urn:[a-zA-Z0-9\\.:-]*");
+    protected Pattern httpPattern = Pattern.compile("http:[a-zA-Z0-9/\\.:\\-_]*");
     protected Pattern spacesPattern = Pattern.compile("[^\\s\"\\(\\)\\[\\]{}']+|\"[^\"]*\"|'[^']*'");
     protected Pattern uidPattern = Pattern.compile("(?:[\"]*)?([a-z_]*_uid:)([a-z0-9]*)(?:[\"]*)?");
     protected Pattern spatialPattern = Pattern.compile(spatialField+":\"Intersects\\([a-zA-Z=\\-\\s0-9\\.\\,():]*\\)\\\"");
@@ -491,7 +492,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             logger.info("spatial search query: " + queryString);
         } catch (Exception ex) {
-            logger.error("Error executing query with requestParams: " + searchParams.toString()+ " EXCEPTION: " + ex.getMessage());
+            logger.error("Error executing query with requestParams: " + searchParams.toString()+ " EXCEPTION: " + ex.getMessage(), ex);
             searchResults.setStatus("ERROR"); // TODO also set a message field on this bean with the error message(?)
             searchResults.setErrorMessage(ex.getMessage());
         }
@@ -720,7 +721,17 @@ public class SearchDAOImpl implements SearchDAO {
 
             if(includeSensitive){
                 //include raw latitude and longitudes
-                dFields = dFields.replaceFirst("decimalLatitude.p","sensitive_latitude,sensitive_longitude,decimalLatitude.p").replaceFirst(",locality,", ",locality,sensitive_locality,");
+                if (dFields.contains("decimalLatitude.p")) {
+                    dFields = dFields.replaceFirst("decimalLatitude.p", "sensitive_latitude,sensitive_longitude,decimalLatitude.p");
+                } else if (dFields.contains("decimalLatitude")){
+                    dFields = dFields.replaceFirst("decimalLatitude", "sensitive_latitude,sensitive_longitude,decimalLatitude");
+                }
+                if (dFields.contains(",locality,")) {
+                    dFields = dFields.replaceFirst(",locality,", ",locality,sensitive_locality,");
+                }
+                if (dFields.contains(",locality.p,")) {
+                    dFields = dFields.replaceFirst(",locality.p,", ",locality.p,sensitive_locality,");
+                }
             }
 
             StringBuilder sb = new StringBuilder(dFields);
@@ -1859,7 +1870,10 @@ public class SearchDAOImpl implements SearchDAO {
         QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
         logger.debug("runSolrQuery: " + solrQuery.toString() + " qtime:" + qr.getQTime());
         if(logger.isDebugEnabled()){
-            logger.debug("matched records: " + qr.getResults().getNumFound());
+            if (qr.getResults() == null)
+                logger.debug("no results");
+            else
+                logger.debug("matched records: " + qr.getResults().getNumFound());
         }
         return qr;
     }
@@ -1999,19 +2013,27 @@ public class SearchDAOImpl implements SearchDAO {
         if(!StringUtils.isNotBlank(oi.getImage()))
             return;
 
-        Map<String, String> formats = Config.mediaStore().getImageFormats(oi.getImage());
-        oi.setImageUrl(formats.get("raw"));
-        oi.setThumbnailUrl(formats.get("thumb"));
-        oi.setSmallImageUrl(formats.get("small"));
-        oi.setLargeImageUrl(formats.get("large"));
-        String[] images = oi.getImages();
-        if (images != null && images.length > 0) {
-            String[] imageUrls = new String[images.length];
-            for (int i = 0; i < images.length; i++) {
-                Map<String, String> availableFormats = Config.mediaStore().getImageFormats(images[i]);
-                imageUrls[i] = availableFormats.get("large");
+        try {
+            Map<String, String> formats = Config.mediaStore().getImageFormats(oi.getImage());
+            oi.setImageUrl(formats.get("raw"));
+            oi.setThumbnailUrl(formats.get("thumb"));
+            oi.setSmallImageUrl(formats.get("small"));
+            oi.setLargeImageUrl(formats.get("large"));
+            String[] images = oi.getImages();
+            if (images != null && images.length > 0) {
+                String[] imageUrls = new String[images.length];
+                for (int i = 0; i < images.length; i++) {
+                    try {
+                        Map<String, String> availableFormats = Config.mediaStore().getImageFormats(images[i]);
+                        imageUrls[i] = availableFormats.get("large");
+                    } catch (Exception ex) {
+                        logger.warn("Unable to update image URL for " + images[i] + ": " + ex.getMessage());
+                    }
+                }
+                oi.setImageUrls(imageUrls);
             }
-            oi.setImageUrls(imageUrls);
+        } catch (Exception ex) {
+            logger.warn("Unable to update image URL for " + oi.getImage() + ": " + ex.getMessage());
         }
     }
 
@@ -2312,6 +2334,19 @@ public class SearchDAOImpl implements SearchDAO {
                     String value = matcher.group();
 
                     logger.debug("escaping lsid urns  " + value );
+                    matcher.appendReplacement(queryString,prepareSolrStringForReplacement(value));
+                }
+                matcher.appendTail(queryString);
+                query = queryString.toString();
+            }
+            if (query.contains("http")) {
+                //escape the HTTP strings before escaping the rest this avoids the issue with attempting to search on a urn field
+                Matcher matcher = httpPattern.matcher(query);
+                queryString.setLength(0);
+                while (matcher.find()) {
+                    String value = matcher.group();
+
+                    logger.debug("escaping lsid http uris  " + value );
                     matcher.appendReplacement(queryString,prepareSolrStringForReplacement(value));
                 }
                 matcher.appendTail(queryString);

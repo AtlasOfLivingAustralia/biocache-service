@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.UUID;
 
 import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import org.apache.commons.io.FileUtils;

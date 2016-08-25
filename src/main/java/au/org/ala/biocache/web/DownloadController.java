@@ -73,6 +73,9 @@ public class DownloadController extends AbstractSecureController {
     @Value("${download.dir:/data/biocache-download}")
     protected String biocacheDownloadDir;
 
+    @Value("${download.auth.sensitive:false}")
+    protected Boolean downloadAuthSensitive;
+
     //TODO: this should be retrieved from SDS
     @Value("${sensitiveAccessRoles:{\n" +
             "\n" +
@@ -303,7 +306,7 @@ public class DownloadController extends AbstractSecureController {
 
     private String getSensitiveFq(HttpServletRequest request) throws ParseException {
 
-        if (!isValidKey(request.getHeader("apiKey"))) {
+        if (!isValidKey(request.getHeader("apiKey")) || !downloadAuthSensitive) {
             return null;
         }
 

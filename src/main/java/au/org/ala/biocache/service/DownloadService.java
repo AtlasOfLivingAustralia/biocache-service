@@ -37,7 +37,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
-import sun.security.pkcs.EncodingException;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -263,6 +262,14 @@ public class DownloadService {
             sp.closeEntry();
         } else {
             logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " +uidStats);
+        }
+        
+        //online downloads will not have a file location or request params set in dd.
+        if (dd.getRequestParams() == null) {
+            dd.setRequestParams(requestParams);
+        }
+        if (dd.getFileLocation() == null) {
+            dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
         }
 
         //add the Readme for the data field descriptions

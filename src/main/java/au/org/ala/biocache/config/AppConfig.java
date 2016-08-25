@@ -25,7 +25,7 @@ public class AppConfig {
     @Inject
     private AbstractMessageSource messageSource; // use for i18n of the headers
 
-    @Value("${name.index.dir:/data/lucene/namematching_v13}")
+    @Value("${name.index.dir:/data/lucene/namematching}")
     protected String nameIndexLocation;
 
     @Inject
@@ -39,6 +39,15 @@ public class AppConfig {
     //NC 20131018: Allow service to be disabled via config (enabled by default)
     @Value("${service.bie.enabled:false}")
     protected Boolean enabled;
+
+    // Configuration for facets
+    @Value("${facet.config:/data/biocache/config/facets.json}")
+    protected String facetConfig;
+    @Value("${facets.max:4}")
+    protected Integer facetsMax;
+    @Value("${facet.default:true}")
+    protected Boolean facetDefault;
+
 
     public @Bean(name = "speciesLookupService")
     SpeciesLookupService speciesLookupServiceBean() {

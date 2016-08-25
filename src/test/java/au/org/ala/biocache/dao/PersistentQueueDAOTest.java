@@ -6,6 +6,7 @@ import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.FacetThemes;
 import org.apache.commons.io.FileUtils;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -33,18 +34,8 @@ public class PersistentQueueDAOTest {
         return d;
     }
     
-    private void addQueue(String title){
-        DownloadDetailsDTO dd = new DownloadDetailsDTO(getParams(title), "127.0.0.1", DownloadType.FACET);        
-        queueDAO.addDownloadToQueue(dd);
-        try {
-            Thread.sleep(5);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-    
     @Test
-    public void testAdd(){
+    public void testQueue(){
         System.out.println("test add");
         DownloadDetailsDTO dd = new DownloadDetailsDTO(getParams("test1"), "127.0.0.1", DownloadType.FACET);
         
@@ -57,19 +48,9 @@ public class PersistentQueueDAOTest {
         //now test that they are persisted
         queueDAO.refreshFromPersistent();
         assertEquals(2,queueDAO.getTotalDownloads());
-    }
-    
-    @Test
-    public void testRemove(){
-        //set up some test data so that the remove operation can be tested correctly
-        addQueue("test1");
-        addQueue("test2");
-        DownloadDetailsDTO dd = queueDAO.getNextDownload();
-        assertEquals("?q=test1", dd.getDownloadParams());
-        //all thedownloads should still be on the queue
-        assertEquals(2,queueDAO.getTotalDownloads());
+
         //now remove
-        queueDAO.removeDownloadFromQueue(dd);
+        queueDAO.removeDownloadFromQueue(queueDAO.getNextDownload());
         assertEquals(1,queueDAO.getTotalDownloads());
         //now test that the removal has been persisted
         queueDAO.refreshFromPersistent();
