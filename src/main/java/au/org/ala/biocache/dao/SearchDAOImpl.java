@@ -179,9 +179,6 @@ public class SearchDAOImpl implements SearchDAO {
     protected SpeciesCountsService speciesCountsService;
 
     @Inject
-    protected CommonNameService commonNameService;
-
-    @Inject
     protected SpeciesImageService speciesImageService;
 
     /** Max number of threads to use in endemic queries */
@@ -277,7 +274,6 @@ public class SearchDAOImpl implements SearchDAO {
         } catch(Exception e) {
             logger.error("Unable to refresh cache.", e);
         }
-        commonNameService.resetCache();
         speciesImageService.resetCache();
         speciesCountsService.resetCache();
     }
@@ -3041,7 +3037,6 @@ public class SearchDAOImpl implements SearchDAO {
                 //   translated using facetName.value= in /facets/i18n
                 //8. class value for this field
                 if (layersPattern.matcher(fieldName).matches()) {
-                    //System.out.println(layersService.getLayerNameMap());
                     String description = layersService.getLayerNameMap().get(fieldName);
                     f.setDescription(description);
                 } else {

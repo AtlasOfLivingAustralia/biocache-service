@@ -136,7 +136,7 @@ public class SpeciesCountsService {
         }
 
         long sum = 0;
-        while (pos < lft.length && lft[pos] < right) {
+        while (pos < lft.length && lft[pos] <= right) {
             sum += count[pos++];
         }
         return sum;

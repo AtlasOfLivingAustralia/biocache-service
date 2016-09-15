@@ -14,17 +14,17 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import javax.inject.Inject;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
+
+import javax.inject.Inject;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * The ALA Spatial portal implementation for the layer service.
@@ -47,9 +47,15 @@ public class AlaLayersService implements LayersService {
     
     @Inject
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
+
+    private CountDownLatch wait = new CountDownLatch(1);
     
     @Override
-    public Map<String, String> getLayerNameMap() {        
+    public Map<String, String> getLayerNameMap() {
+        try {
+            wait.await();
+        } catch (InterruptedException e) {
+        }
         return idToNameMap;
     }
     
@@ -65,9 +71,14 @@ public class AlaLayersService implements LayersService {
             }
             idToNameMap = tmpMap;
         }
+        wait.countDown();
     }
     @Override
-    public String getName(String code) {        
-        return idToNameMap!=null?idToNameMap.get(code):null;
+    public String getName(String code) {
+        try {
+            wait.await();
+        } catch (InterruptedException e) {
+        }
+        return idToNameMap.get(code);
     }
 }

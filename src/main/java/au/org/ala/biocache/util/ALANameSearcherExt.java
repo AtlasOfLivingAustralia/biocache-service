@@ -40,8 +40,7 @@ public class ALANameSearcherExt extends ALANameSearcher {
 
     private IndexSearcher identifierIdxSearcher = null;
     private IndexSearcher vernIdxSearcher = null;
-    private Map<String, String> commonNames = new HashMap<String, String>();
-    
+
     public ALANameSearcherExt(String path) throws IOException {
         super(path);
     }
@@ -56,14 +55,6 @@ public class ALANameSearcherExt extends ALANameSearcher {
     private IndexSearcher getVernIdxSearcher() throws IOException {
         if (vernIdxSearcher == null) {
             vernIdxSearcher = getALANameSearcherSearcher("vernSearcher");
-            
-            //hack for finding common name from lsid
-            int count = vernIdxSearcher.getIndexReader().numDocs();
-            Map m = new HashMap<String, String>();
-            for (int i=0;i<count;i++) {
-                m.put(vernIdxSearcher.doc(i).get("lsid"), vernIdxSearcher.doc(i).get("common").toLowerCase());
-            }
-            commonNames = m;
         }
         return vernIdxSearcher;
     }
@@ -105,7 +96,7 @@ public class ALANameSearcherExt extends ALANameSearcher {
 
             //use the matched common name
             if (commonNameResults) {
-                m.put("commonname", src.get("common"));
+                m.put("commonname", src.get("common_orig"));
                 m.put("match", "commonName");
             } else {
                 m.put("match", "scientificName");
@@ -414,7 +405,8 @@ public class ALANameSearcherExt extends ALANameSearcher {
         m.put("cl", nsr.getRankClassification());
         m.put("name", nsr.getRankClassification() != null ? nsr.getRankClassification().getScientificName() : null);
         m.put("acceptedLsid", nsr.getAcceptedLsid());
-        m.put("commonname", commonNames.get(nsr.getLsid())); //nameIndex.getCommonNameForLSID(nsr.getLsid()));
+        m.put("commonname", getCommonNameForLSID(nsr.getLsid()));
+        m.put("commonnames", getCommonNamesForLSID(nsr.getLsid(),1000));
 
         return m;
     }

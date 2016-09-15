@@ -40,6 +40,10 @@ public class AppConfig {
     @Value("${service.bie.enabled:false}")
     protected Boolean enabled;
 
+    //Disable the default that autocomplete uses the local names index. For use when there are no local names index files.
+    @Value("${service.autocomplete.local.enabled:true}")
+    protected Boolean autocompleteLocalEnabled;
+
     // Configuration for facets
     @Value("${facet.config:/data/biocache/config/facets.json}")
     protected String facetConfig;
@@ -49,23 +53,48 @@ public class AppConfig {
     protected Boolean facetDefault;
 
 
+    protected SpeciesLookupService getSpeciesLookupRestService() {
+        logger.info("Initialising rest-based species lookup services.");
+        SpeciesLookupRestService service = new SpeciesLookupRestService();
+        service.setBieUriPrefix(bieUriPrefix);
+        service.setEnabled(enabled);
+        service.setRestTemplate(restTemplate);
+        service.setMessageSource(messageSource);
+        return service;
+    }
+
+    protected SpeciesLookupService getSpeciesLookupIndexService() {
+        logger.info("Initialising local index-based species lookup services.");
+        SpeciesLookupIndexService service = new SpeciesLookupIndexService();
+        service.setNameIndexLocation(nameIndexLocation);
+        service.setMessageSource(messageSource);
+        return service;
+    }
+
     public @Bean(name = "speciesLookupService")
     SpeciesLookupService speciesLookupServiceBean() {
         logger.info("Initialising species lookup services.");
         if(enabled){
-            logger.info("Initialising rest-based species lookup services.");
-            SpeciesLookupRestService service = new SpeciesLookupRestService();
-            service.setBieUriPrefix(bieUriPrefix);
-            service.setEnabled(enabled);
-            service.setRestTemplate(restTemplate);
-            service.setMessageSource(messageSource);
-            return service;
+            return getSpeciesLookupRestService();
         } else {
-            logger.info("Initialising local index-based species lookup services.");
-            SpeciesLookupIndexService service = new SpeciesLookupIndexService();
-            service.setNameIndexLocation(nameIndexLocation);
-            service.setMessageSource(messageSource);
-            return service;
+            return getSpeciesLookupIndexService();
+        }
+    }
+
+    public @Bean(name = "speciesLookupIndexService")
+    SpeciesLookupService speciesLookupIndexService() {
+        logger.info("Initialising species lookup services.");
+        try {
+            if (autocompleteLocalEnabled) {
+                return getSpeciesLookupIndexService();
+            }
+        } catch (Exception e) {
+            logger.error("Failed to initialise local species lookup service for use with the species autocomplete ws. Attempting to use BIE instead.");
+        }
+        if (enabled) {
+            return getSpeciesLookupRestService();
+        } else {
+            return null;
         }
     }
 }

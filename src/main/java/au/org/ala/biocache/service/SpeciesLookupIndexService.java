@@ -32,9 +32,6 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
     protected SpeciesCountsService speciesCountsService;
 
     @Inject
-    protected CommonNameService commonNameService;
-
-    @Inject
     protected SpeciesImageService speciesImageService;
 
     @Inject
@@ -338,13 +335,12 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         }
         formatted.put("highlight", highlight);
 
-        //hack to fix common name. Only common name matches have a common name so do not return nothing when not found
-        m.put("commonname", commonNameService.translateCommonName((String) m.get("commonname"), false));
         if (m.get("commonname") == null) {
-            m.put("commonname", commonNameService.lookupCommonName((String) m.get("lsid")));
+            m.put("commonname", nameIndex.getCommonNameForLSID((String) m.get("lsid")));
+            m.put("commonnames", nameIndex.getCommonNamesForLSID((String) m.get("lsid"),1000));
         }
         if (m.get("commonname") != null) {
-            formatted.put("commonName", m.get("commonname"));
+            formatted.put("commonName", m.get("commonnames"));
             formatted.put("commonNameSingle", m.get("commonname"));
         }
 
