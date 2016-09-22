@@ -834,15 +834,16 @@ public class OccurrenceController extends AbstractSecureController {
                                                                       @RequestParam (defaultValue = "\n") String separator
                                                                       ) throws Exception {
         String listOfGuids = (String) request.getParameter("guids");
+        String[] filterQueries = request.getParameterValues("fq");
         String[] rawGuids = listOfGuids.split(separator);
         
-        List<String>guids= new ArrayList<String>();
+        List<String> guids= new ArrayList<String>();
         for(String guid: rawGuids){
             String normalised = StringUtils.trimToNull(guid);
             if(normalised != null)
                 guids.add(normalised);
         }
-        return searchDAO.getOccurrenceCountsForTaxa(guids);
+        return searchDAO.getOccurrenceCountsForTaxa(guids, filterQueries);
     }
     
     /**

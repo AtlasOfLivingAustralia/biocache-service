@@ -3371,12 +3371,23 @@ public class SearchDAOImpl implements SearchDAO {
         return speciesWithCounts;
     }
 
-    public Map<String, Integer> getOccurrenceCountsForTaxa(List<String> taxa) throws Exception {
+    /**
+     * Retrieves a set of counts for the supplied list of taxa.
+     *
+     * @param taxa
+     * @param filterQueries
+     * @return
+     * @throws Exception
+     */
+    public Map<String, Integer> getOccurrenceCountsForTaxa(List<String> taxa, String[] filterQueries) throws Exception {
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
         solrQuery.setFacetLimit(taxa.size());
+        if(filterQueries != null && filterQueries.length > 0) {
+            solrQuery.setFilterQueries(filterQueries);
+        }
         StringBuilder sb = new StringBuilder();
         Map<String,Integer> counts = new HashMap<String,Integer>();
         Map<String, String> lftToGuid = new HashMap<String,String>();

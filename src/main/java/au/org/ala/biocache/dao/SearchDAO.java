@@ -244,7 +244,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    Map<String, Integer> getOccurrenceCountsForTaxa(List<String> taxa) throws Exception;
+    Map<String, Integer> getOccurrenceCountsForTaxa(List<String> taxa, String[] filterQueries) throws Exception;
 
     /**
      * Returns the scientific name and counts for the taxon rank that proceed or include the supplied rank.

@@ -160,7 +160,6 @@ public class WMSController {
     @Value("${service.bie.ui.url:http://bie.ala.org.au}")
     protected String bieUiUrl;
 
-
     /**
      * Limit WKT complexity to reduce index query time for qids.
      */
@@ -183,6 +182,10 @@ public class WMSController {
     //Stores query hashes + occurrence counts, and, query hashes + pointType + point counts
     private LRUMap countsCache = new LRUMap(10000);
     private Object countLock = new Object();
+
+
+    @Inject
+    protected WMSOSGridController wmsosGridController;
 
 
     static {
@@ -802,22 +805,6 @@ public class WMSController {
         return degreesPerPixel;
     }
 
-    private String getQ(String cql_filter) {
-        String q = cql_filter;
-        int p1 = cql_filter.indexOf("qid:");
-        if (p1 >= 0) {
-            int p2 = cql_filter.indexOf('&', p1 + 1);
-            if (p2 < 0) {
-                p2 = cql_filter.indexOf(';', p1 + 1);
-            }
-            if (p2 < 0) {
-                p2 = cql_filter.length();
-            }
-            q = cql_filter.substring(p1, p2);
-        }
-        return q;
-    }
-
     /**
      * Get legend items for the first colourList.length-1 items only.
      *
@@ -1126,8 +1113,8 @@ public class WMSController {
 
         //do the SOLR query
         SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
-        String q = convertLayersParamToQ(queryLayers);
-        requestParams.setQ(convertLayersParamToQ(queryLayers));  //need to derive this from the layer name
+        String q = WMSUtils.convertLayersParamToQ(queryLayers);
+        requestParams.setQ(WMSUtils.convertLayersParamToQ(queryLayers));  //need to derive this from the layer name
         logger.debug("WMS GetFeatureInfo for " + queryLayers + ", longitude:[" + minLng + " TO " + maxLng + "],  latitude:[" + minLat + " TO " + maxLat + "]");
 
         String[] fqs = new String[]{"longitude:[" + minLng + " TO " + maxLng + "]", "latitude:[" + minLat + " TO " + maxLat + "]"};
@@ -1163,26 +1150,7 @@ public class WMSController {
         return "metadata/getFeatureInfo";
     }
 
-    String convertLayersParamToQ(String layers) {
-        if (StringUtils.trimToNull(layers) != null) {
-            String[] parts = layers.split(",");
-            String[] formattedParts = new String[parts.length];
-            int i = 0;
-            for (String part : parts) {
-                if (part.contains(":")) {
-                    formattedParts[i] = part.replace('_', ' ').replace(":", ":\"") + "\"";
-                } else if (part.startsWith("\"")) {
-                    formattedParts[i] = "\"" + part + "\"";
-                } else {
-                    formattedParts[i] = part;
-                }
-                i++;
-            }
-            return StringUtils.join(formattedParts, " OR ");
-        } else {
-            return null;
-        }
-    }
+
 
     @RequestMapping(value = {"/ogc/legendGraphic"}, method = RequestMethod.GET)
     public void getLegendGraphic(
@@ -1529,6 +1497,12 @@ public class WMSController {
             HttpServletResponse response)
             throws Exception {
 
+        if(env != null && env.contains("osgrid")){
+            //TODO delegate in a tidier way
+            wmsosGridController.generateWmsTile(requestParams, cql_filter, srs, bboxString, layers, width, height, outlinePoints, outlineColour, response);
+            return;
+        }
+
         //correct cache value
         if ("default".equals(cache)) cache = wmsCacheEnabled ? "on" : "off";
 
@@ -1578,9 +1552,9 @@ public class WMSController {
 
         //CQL Filter takes precedence of the layer
         if (StringUtils.trimToNull(cql_filter) != null) {
-            q = getQ(cql_filter);
+            q = WMSUtils.getQ(cql_filter);
         } else if (StringUtils.trimToNull(layers) != null && !"ALA:Occurrences".equalsIgnoreCase(layers)) {
-            q = convertLayersParamToQ(layers);
+            q = WMSUtils.convertLayersParamToQ(layers);
         }
 
         String[] boundingBoxFqs = new String[2];
