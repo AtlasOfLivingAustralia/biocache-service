@@ -58,9 +58,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
     //thread for cache size limitation
     private Thread cacheCleaner;
 
-//    protected QidDAO qidDao = (QidDAO) au.org.ala.biocache.Config.getInstance(QidDAO.class);
-
-    protected QidDAO qidDao = null;
+    protected QidDAO qidDao = (QidDAO) au.org.ala.biocache.Config.getInstance(QidDAO.class);
     /**
      * init
      */
@@ -270,15 +268,12 @@ public class QidCacheDAOImpl implements QidCacheDAO {
      * @throws au.org.ala.biocache.util.QidMissingException
      */
     Qid load(String key) throws QidMissingException {
-        Qid value = null;
         try {
-            value = qidDao.get(key);
+            return qidDao.get(key);
         } catch (Exception e) {
             logger.error("failed to find qid:" + key, e);
             throw new QidMissingException(key);
         }
-
-        return value;
     }
 
     public void setMaxCacheSize(long sizeInBytes) {

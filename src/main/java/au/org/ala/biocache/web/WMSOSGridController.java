@@ -32,6 +32,9 @@ import java.text.MessageFormat;
 import java.util.*;
 import java.util.List;
 
+/**
+ * WMS controller that supports OS grid rendering.
+ */
 @Controller
 public class WMSOSGridController {
 
@@ -194,7 +197,6 @@ public class WMSOSGridController {
     }
 
     /**
-     * TODO
      * - render grid cell sized with different colours (with legend support)
      * - opacity support
      * - allow show all grid cells option (i.e. always include 10km grids)
@@ -221,22 +223,18 @@ public class WMSOSGridController {
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
             @RequestParam(value = "ENV", required = true, defaultValue = "") String env,
             @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:900913") String srs, //default to google mercator
+            @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
             @RequestParam(value = "BBOX", required = true, defaultValue = "") String bboxString,
             @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
             @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
             @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
             @RequestParam(value = "OUTLINE", required = true, defaultValue = "false") boolean tileOutline,
             @RequestParam(value = "OUTLINECOLOUR", required = true, defaultValue = "0x000000") String outlineColour,
+            HttpServletRequest request,
             HttpServletResponse response)
             throws Exception {
 
-
-        //allow fixed resolution
-
-        //colour by cell density
-
-
-        logger.info("[WMSTILE] srs:" + srs +", bboxString: " + bboxString);
+        WmsEnv wmsEnv = new WmsEnv(env, styles);
 
         if(StringUtils.isEmpty(bboxString)){
             return;
@@ -257,19 +255,31 @@ public class WMSOSGridController {
         double maxy = Double.parseDouble(bbox[3]);
 
         int boundingBoxSizeInKm = (int) (maxx - minx) /1000;
-        logger.info("boundingBoxSizeInKm : " + boundingBoxSizeInKm);
-
         int gridSize = 10000;
 
-        String[] facets = { "grid_ref_10000", "grid_ref_2000", "grid_ref_1000" };
+        String[] facets = new String[0];
 
-        if(boundingBoxSizeInKm > 78){
+        if("variablegrid".equals(wmsEnv.gridres)){
+            facets = new String[]{ "grid_ref_10000", "grid_ref_2000", "grid_ref_1000" };
+
+            if(boundingBoxSizeInKm > 78){
+                facets = new String[]{"grid_ref_10000"};
+                gridSize = 10000;
+            }
+
+            if(boundingBoxSizeInKm < 19){
+                facets = new String[]{"grid_ref_2000", "grid_ref_1000", "grid_ref"};
+            }
+        } else if("10kgrid".equals(wmsEnv.gridres)){
             facets = new String[]{"grid_ref_10000"};
-            gridSize = 10000;
-        }
-
-        if(boundingBoxSizeInKm < 19){
-            facets = new String[]{"grid_ref"};
+        } else {
+            if(boundingBoxSizeInKm > 78){
+                facets = new String[]{"grid_ref_10000"};
+                gridSize = 10000;
+            } else {
+                facets = new String[]{"grid_ref_1000"};
+                gridSize = 1000;
+            }
         }
 
         double oneMetreInRequestedProjXInPixels = (float) width / (float)(maxx - minx);
@@ -309,7 +319,6 @@ public class WMSOSGridController {
         Collection<FacetResultDTO> results = resultsDTO.getFacetResults();
         for (FacetResultDTO result : results){
             for (FieldResultDTO fieldResult : result.getFieldResult()) {
-
                 //temporary fix for irish grid reference indexing problem
                 if( facets.length == 1 && "grid_ref_10000".equals(facets[0])){
                     if(fieldResult.getLabel().matches("[A-Z]{2}[0-9]{2}") || fieldResult.getLabel().matches("[A-Z]{1}[0-9]{2}")){
@@ -378,7 +387,8 @@ public class WMSOSGridController {
                     oneMetreInRequestedProjYInPixels,
                     srs,
                     width,
-                    height
+                    height,
+                    wmsEnv
             );
         }
 
@@ -413,7 +423,7 @@ public class WMSOSGridController {
      * @param oneMetreMercatorYInPixels
      */
     private void renderGrid(WMSImg wmsImg, String gridRef, double minx, double miny, double oneMetreMercatorXInPixels,
-                            double oneMetreMercatorYInPixels, String targetSrs, int imageWidth, int imageHeight){
+                            double oneMetreMercatorYInPixels, String targetSrs, int imageWidth, int imageHeight, WmsEnv wmsEnv){
 
         if(StringUtils.isEmpty(gridRef)) return;
 
@@ -448,17 +458,22 @@ public class WMSOSGridController {
                 oneMetreMercatorXInPixels, oneMetreMercatorYInPixels, imageWidth);
 
         int color = 0xFFFF0000; //red
-        if(gridSize == 100000){
-            color = 0xFFFFFF00; //1km grids yellow
-        }
-        if(gridSize == 10000){
-            color = 0xFFFFFF00; //1km grids yellow
-        }
-        if(gridSize == 2000){
-            color = 0xFF0000FF; //blue
-        }
-        if(gridSize == 1000){
-            color = 0xFF00FF00; //green
+        if(!"variablegrid".equals(wmsEnv.gridres)){
+            //retrieve the supplied colour
+            color = wmsEnv.colour;
+        } else {
+            if(gridSize == 100000){
+                color = 0xFFFFFF00; //1km grids yellow
+            }
+            if(gridSize == 10000){
+                color = 0xFFFFFF00; //1km grids yellow
+            }
+            if(gridSize == 2000){
+                color = 0xFF0000FF; //blue
+            }
+            if(gridSize == 1000){
+                color = 0xFF00FF00; //green
+            }
         }
 
         Paint polygonFill = new Color(color, true);
@@ -466,16 +481,16 @@ public class WMSOSGridController {
 
         wmsImg.g.fillPolygon(
             new int[]{
-                    coordinatesForImages[0][0],
-                    coordinatesForImages[1][0],
-                    coordinatesForImages[2][0],
-                    coordinatesForImages[3][0]
+                coordinatesForImages[0][0],
+                coordinatesForImages[1][0],
+                coordinatesForImages[2][0],
+                coordinatesForImages[3][0]
             },
             new int[]{
-                    coordinatesForImages[0][1],
-                    coordinatesForImages[1][1],
-                    coordinatesForImages[2][1],
-                    coordinatesForImages[3][1]
+                coordinatesForImages[0][1],
+                coordinatesForImages[1][1],
+                coordinatesForImages[2][1],
+                coordinatesForImages[3][1]
             },
             4
         );
@@ -497,6 +512,20 @@ public class WMSOSGridController {
             },
             4
         );
+
+        Paint textColor = new Color(0xFF000000, true);
+        wmsImg.g.setPaint(textColor);
+        wmsImg.g.setFont(new Font("Monaco", Font.PLAIN, 12));
+
+        FontMetrics fm = wmsImg.g.getFontMetrics();
+        int relativeStringWidth = fm.stringWidth(gridRef);
+
+        if(relativeStringWidth < (coordinatesForImages[1][0] - coordinatesForImages[0][0])){
+            wmsImg.g.drawString(gridRef,
+                    coordinatesForImages[0][0] + (coordinatesForImages[1][0] - coordinatesForImages[0][0])/2 - (fm.stringWidth(gridRef)/2),
+                    coordinatesForImages[0][1] + (coordinatesForImages[2][1] - coordinatesForImages[0][1])/2
+            );
+        }
     }
 
     ParsedGridRef convertEastingNorthingToOSGrid(double e, double n){
