@@ -15,7 +15,6 @@
 package au.org.ala.biocache.service;
 
 import com.mockrunner.util.common.StringUtil;
-import org.apache.commons.collections.ListUtils;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -25,10 +24,7 @@ import org.springframework.web.client.RestOperations;
 import javax.inject.Inject;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Implementation of SpeciesLookupService.java that calls the bie-service application
@@ -48,6 +44,9 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
 
     @Inject
     private AbstractMessageSource messageSource; // use for i18n of the headers
+
+    @Inject
+    private ListsService listsService;
 
     private String[] baseHeader;
     private String[] countBaseHeader;
@@ -175,11 +174,15 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
     }
 
     @Override
-    public List<String[]> getSpeciesDetails(List<String> guids,List<Long> counts, boolean includeCounts, boolean includeSynonyms){
+    public List<String[]> getSpeciesDetails(List<String> guids, List<Long> counts, boolean includeCounts, boolean includeSynonyms, boolean includeLists) {
         List<String[]> details= new  java.util.ArrayList<String[]>(guids.size());
         List<Map<String,String>> values = getNameDetailsForGuids(guids);
         Map<String,List<Map<String, String>>> synonyms = includeSynonyms? getSynonymDetailsForGuids(guids):new HashMap<String,List<Map<String,String>>>();
         int size = includeSynonyms && includeCounts ? 13 : ((includeCounts && !includeSynonyms) || (includeSynonyms && !includeCounts)) ? 12: 11;
+
+        if (includeLists) {
+            size += listsService.getTypes().size();
+        }
 
         //case names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
         //rebuild values using taxonConceptIds
@@ -206,11 +209,18 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
             //guid
             String guid = guids.get(i);
             row[0]=guid;
+            Set<String> lsids = new HashSet<String>();
+            lsids.add(guid);
             if(values!= null && synonyms != null){
                 Map<String, String> map;
                 if (i < values.size() && (map = values.get(i)) != null) {
+                    if (map.containsKey("guid")) lsids.add(map.get("guid"));
+                    if (map.containsKey("speciesId")) lsids.add(map.get("speciesId"));
+                    if (map.containsKey("genusId")) lsids.add(map.get("genusId"));
+                    if (map.containsKey("familyId")) lsids.add(map.get("familyId"));
+
                     //scientific name
-                    row[1]=map.get("nameComplete");
+                    row[1] = map.get("scientificName");
                     row[2]=map.get("author");
                     row[3]=map.get("rank");
                     row[4]=map.get("kingdom");
@@ -224,6 +234,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                     //not matched and is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
                     if (guid.startsWith("\"") && guid.endsWith("\"") && guid.length() > 2) guid = guid.substring(1, guid.length() - 1);
                     String [] split = guid.split("\\|", 6);
+                    lsids.add(split[1]);
                     row[0] = guid;
                     row[1] = split[0];
                     row[2] = "";
@@ -264,6 +275,27 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                     }
                     row[11] = sb.toString();
                     countIdx = 12;
+                }
+
+                if (includeLists) {
+                    List types = listsService.getTypes();
+                    System.arraycopy(row, 0, row, 0, row.length);
+                    Set<String> matches = new HashSet<String>();
+                    for (int j = 0; j < types.size(); j++) {
+                        int idx = row.length - types.size() + j;
+                        matches.clear();
+                        for (String lsid : lsids) {
+                            Set<String> found = listsService.get(types.get(j).toString(), lsid);
+                            if (found != null) matches.addAll(found);
+                        }
+                        row[row.length - types.size() + j] = "";
+                        for (String match : matches) {
+                            if (row[idx].length() > 0) {
+                                row[idx] += "|";
+                            }
+                            row[idx] += match;
+                        }
+                    }
                 }
             }
             if(includeCounts){

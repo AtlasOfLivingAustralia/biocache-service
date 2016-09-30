@@ -135,7 +135,7 @@ public interface SearchDAO {
      * @param dd
      * @throws Exception
      */
-    void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, OutputStream out, DownloadDetailsDTO dd) throws Exception;
+    void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out, DownloadDetailsDTO dd) throws Exception;
 
     /**
      * Retrieve a list of the indexed fields.

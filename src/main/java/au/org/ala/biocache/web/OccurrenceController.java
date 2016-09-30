@@ -46,7 +46,6 @@ import org.springframework.validation.ObjectError;
 import org.springframework.validation.Validator;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.HandlerMapping;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -56,7 +55,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.io.*;
 import java.util.*;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -669,13 +667,14 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping(value = "/occurrences/facets/download*", method = RequestMethod.GET)
     public void downloadFacet(
-                              DownloadRequestParams requestParams,
-                              @RequestParam(value="count", required=false, defaultValue="false") boolean includeCount,
-                              @RequestParam(value="lookup" ,required=false, defaultValue="false") boolean lookupName,
-                              @RequestParam(value="synonym", required=false, defaultValue="false") boolean includeSynonyms,
-                              @RequestParam(value="ip", required=false) String ip,
-                              HttpServletRequest request,
-                              HttpServletResponse response) throws Exception {
+            DownloadRequestParams requestParams,
+            @RequestParam(value="count", required=false, defaultValue="false") boolean includeCount,
+            @RequestParam(value="lookup" ,required=false, defaultValue="false") boolean lookupName,
+            @RequestParam(value="synonym", required=false, defaultValue="false") boolean includeSynonyms,
+            @RequestParam(value = "lists", required = false, defaultValue = "false") boolean includeLists,
+            @RequestParam(value="ip", required=false) String ip,
+            HttpServletRequest request,
+            HttpServletResponse response) throws Exception {
         if(requestParams.getFacets().length > 0){
             ip = ip == null ? getIPAddress(request) : ip;
             DownloadDetailsDTO dd = downloadService.registerDownload(requestParams, ip, DownloadDetailsDTO.DownloadType.FACET);
@@ -685,7 +684,7 @@ public class OccurrenceController extends AbstractSecureController {
                 response.setHeader("Pragma", "must-revalidate");
                 response.setHeader("Content-Disposition", "attachment;filename=" + filename +".csv");
                 response.setContentType("text/csv");
-                searchDAO.writeFacetToStream(requestParams,includeCount, lookupName,includeSynonyms, response.getOutputStream(), dd);
+                searchDAO.writeFacetToStream(requestParams, includeCount, lookupName, includeSynonyms, includeLists, response.getOutputStream(), dd);
             } finally {
                 downloadService.unregisterDownload(dd);
             }

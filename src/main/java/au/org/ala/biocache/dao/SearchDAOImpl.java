@@ -181,6 +181,9 @@ public class SearchDAOImpl implements SearchDAO {
     @Inject
     protected SpeciesImageService speciesImageService;
 
+    @Inject
+    protected ListsService listsService;
+
     /** Max number of threads to use in endemic queries */
     @Value("${media.store.local:true}")
     protected Boolean usingLocalMediaRepo = true;
@@ -415,7 +418,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public List<FieldResultDTO> getValuesForFacet(SpatialSearchRequestParams requestParams) throws Exception{
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        writeFacetToStream(requestParams, true, false, false, outputStream,null);
+        writeFacetToStream(requestParams, true, false, false, false, outputStream, null);
         outputStream.flush();
         outputStream.close();
         String includedValues = outputStream.toString();
@@ -540,7 +543,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @param lookupName true when a name lsid should be looked up in the bie
      *
      */
-    public void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, OutputStream out, DownloadDetailsDTO dd) throws Exception{
+    public void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out, DownloadDetailsDTO dd) throws Exception {
         //set to unlimited facets
         searchParams.setFlimit(-1);
         formatSearchQuery(searchParams);
@@ -573,6 +576,9 @@ public class SearchDAOImpl implements SearchDAO {
                     //out.write(",Count".getBytes());
                     header = (String[])ArrayUtils.add(header, "count");
                 }
+                if (includeLists) {
+                    header = (String[]) ArrayUtils.addAll(header, listsService.getTypes().toArray(new String[]{}));
+                }
                 CSVRecordWriter writer = new CSVRecordWriter(out, header);
 
                 boolean addedNullFacet = false;
@@ -585,6 +591,7 @@ public class SearchDAOImpl implements SearchDAO {
                     if (shouldLookup) {
                         List<String> guids = new ArrayList<String>();
                         List<Long> counts = new ArrayList<Long>();
+                        List<String[]> speciesLists = new ArrayList<String[]>();
                         logger.debug("Downloading " + ff.getValueCount() + " species guids");
                         for (FacetField.Count value : ff.getValues()) {
                             //only add null facet once
@@ -600,13 +607,13 @@ public class SearchDAOImpl implements SearchDAO {
                             if (guids.size() == 30) {
                                 //now get the list of species from the web service TODO may need to move this code
                                 //handle null values being returned from the service...
-                                writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, writer);
+                                writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, includeLists, writer);
                                 guids.clear();
                                 counts.clear();
                             }
                         }
                         //now write any guids that remain at the end of the looping
-                        writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, writer);
+                        writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, includeLists, writer);
                     } else {
                         //default processing of facets
                         for (FacetField.Count value : ff.getValues()) {
@@ -646,8 +653,8 @@ public class SearchDAOImpl implements SearchDAO {
      * @param writer The CSV writer to write to.
      * @throws Exception
      */
-    private void writeTaxonDetailsToStream(List<String> guids,List<Long> counts, boolean includeCounts, boolean includeSynonyms, CSVRecordWriter writer) throws Exception{
-        List<String[]> values = speciesLookupService.getSpeciesDetails(guids, counts, includeCounts, includeSynonyms);
+    private void writeTaxonDetailsToStream(List<String> guids, List<Long> counts, boolean includeCounts, boolean includeSynonyms, boolean includeLists, CSVRecordWriter writer) throws Exception {
+        List<String[]> values = speciesLookupService.getSpeciesDetails(guids, counts, includeCounts, includeSynonyms, includeLists);
         for(String[] value : values){
             writer.write(value);
         }
@@ -2873,9 +2880,17 @@ public class SearchDAOImpl implements SearchDAO {
         query.add("group.limit", "0");
         query.setRows(0);
         searchParams.setPageSize(0);
+
+        //exclude multivalue fields
+        Set<IndexFieldDTO> fields = getIndexedFields();
         for (String facet : searchParams.getFacets()) {
-            query.add("group.field", facet);
+            for (IndexFieldDTO f : fields) {
+                if (f.getName().equals(facet) && !f.isMultivalue()) {
+                    query.add("group.field", facet);
+                }
+            }
         }
+
         QueryResponse response = runSolrQuery(query, searchParams);
         GroupResponse groupResponse = response.getGroupResponse();
 
