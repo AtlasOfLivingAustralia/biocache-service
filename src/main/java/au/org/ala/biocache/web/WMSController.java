@@ -44,7 +44,6 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.URL;
-import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.*;
 import java.util.List;
@@ -179,10 +178,12 @@ public class WMSController {
     @Value("${wms.facetPivotCutoff:2000}")
     private int wmsFacetPivotCutoff;
 
+    @Inject
+    protected WMSUtils wmsUtils;
+
     //Stores query hashes + occurrence counts, and, query hashes + pointType + point counts
     private LRUMap countsCache = new LRUMap(10000);
     private Object countLock = new Object();
-
 
     @Inject
     protected WMSOSGridController wmsosGridController;
@@ -242,7 +243,7 @@ public class WMSController {
         //store the title if necessary
         if (title == null)
             title = requestParams.getDisplayString();
-        String[] fqs = getFq(requestParams);
+        String[] fqs = wmsUtils.getFq(requestParams);
         if (fqs != null && fqs.length == 1 && fqs[0].length() == 0) {
             fqs = null;
         }
@@ -829,7 +830,7 @@ public class WMSController {
             SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
             requestParams.setQ(request.getQ());
             requestParams.setQc(request.getQc());
-            requestParams.setFq(getFq(request));
+            requestParams.setFq(wmsUtils.getFq(request));
             requestParams.setFoffset(-1);
 
             //test for cutpoints on the back of colourMode
@@ -918,7 +919,7 @@ public class WMSController {
         String[] dir = {"asc", "asc", "desc", "desc"};
 
         //Filter for -180 +180 longitude and -90 +90 latitude to match WMS request bounds.
-        String[] fq = (String[]) ArrayUtils.addAll(getFq(requestParams), new String[]{"longitude:[-180 TO 180]", "latitude:[-90 TO 90]"});
+        String[] fq = (String[]) ArrayUtils.addAll(wmsUtils.getFq(requestParams), new String[]{"longitude:[-180 TO 180]", "latitude:[-90 TO 90]"});
         requestParams.setFq(fq);
         requestParams.setPageSize(10);
 
@@ -1584,7 +1585,7 @@ public class WMSController {
             }
         }
 
-        String[] originalFqs = getFq(requestParams);
+        String[] originalFqs = wmsUtils.getFq(requestParams);
 
         //get from cache, or make it
         boolean canCache = wmsCache.isEnabled() && cache.equalsIgnoreCase("on");
@@ -2448,39 +2449,6 @@ public class WMSController {
         if (gCount != null) gCount.add(count);
     }
 
-    private String[] getFq(SpatialSearchRequestParams requestParams) {
-        int requestParamsFqLength = requestParams.getFq() != null ? requestParams.getFq().length : 0;
-
-        String[] qidFq = null;
-        int qidFqLength = 0;
-        String q = requestParams.getQ();
-        if (q.startsWith("qid:")) {
-            try {
-                qidFq = qidCacheDAO.get(q.substring(4)).getFqs();
-                if (qidFq != null) {
-                    qidFqLength = qidFq.length;
-                }
-            } catch (Exception e) {
-            }
-        }
-
-        if (requestParamsFqLength + qidFqLength == 0) {
-            return null;
-        }
-
-        String[] allFqs = new String[requestParamsFqLength + qidFqLength];
-
-        if (requestParamsFqLength > 0) {
-            System.arraycopy(requestParams.getFq(), 0, allFqs, 0, requestParamsFqLength);
-        }
-
-        if (qidFqLength > 0) {
-            System.arraycopy(qidFq, 0, allFqs, requestParamsFqLength, qidFqLength);
-        }
-
-        return allFqs;
-    }
-
     private void renderPoints(WmsEnv vars, double[] bbox, double[] pbbox, double width_mult, double height_mult, int pointWidth, boolean outlinePoints, String outlineColour, List<Integer> pColour, ImgObj imgObj, int j, float[] ps, boolean is4326, double[] tilebbox, int height, int width) {
         int x;
         int y;
@@ -2579,78 +2547,6 @@ public class WMSController {
         this.orgEmail = orgEmail;
     }
 }
-
-//class WmsEnv {
-//
-//    private final static Logger logger = Logger.getLogger(WmsEnv.class);
-//    public int red, green, blue, alpha, size, colour;
-//    public boolean uncertainty;
-//    public String colourMode, highlight;
-//
-//    /**
-//     * Get WMS ENV values from String, or use defaults.
-//     *
-//     * @param env
-//     */
-//    public WmsEnv(String env, String styles) {
-//        try {
-//            env = URLDecoder.decode(env, "UTF-8");
-//        } catch (UnsupportedEncodingException e) {
-//            logger.error(e.getMessage(), e);
-//        }
-//
-//        red = green = blue = alpha = 0;
-//        size = 4;
-//        uncertainty = false;
-//        highlight = null;
-//        colourMode = "-1";
-//        colour = 0x00000000; //rgba
-//
-//        if (StringUtils.trimToNull(env) == null && StringUtils.trimToNull(styles) == null) {
-//            env = "color:cd3844;size:10;opacity:1.0";
-//        }
-//
-//        if (StringUtils.trimToNull(env) != null) {
-//
-//            for (String s : env.split(";")) {
-//                String[] pair = s.split(":");
-//                pair[1] = s.substring(s.indexOf(":") + 1);
-//                if (pair[0].equals("color")) {
-//                    while (pair[1].length() < 6) {
-//                        pair[1] = "0" + pair[1];
-//                    }
-//                    red = Integer.parseInt(pair[1].substring(0, 2), 16);
-//                    green = Integer.parseInt(pair[1].substring(2, 4), 16);
-//                    blue = Integer.parseInt(pair[1].substring(4), 16);
-//                } else if (pair[0].equals("size")) {
-//                    size = Integer.parseInt(pair[1]);
-//                } else if (pair[0].equals("opacity")) {
-//                    alpha = (int) (255 * Double.parseDouble(pair[1]));
-//                } else if (pair[0].equals("uncertainty")) {
-//                    uncertainty = true;
-//                } else if (pair[0].equals("sel")) {
-//                    highlight = s.replace("sel:", "").replace("%3B", ";");
-//                } else if (pair[0].equals("colormode")) {
-//                    colourMode = pair[1];
-//                }
-//            }
-//        } else if (StringUtils.trimToNull(styles) != null) {
-//            //named styles
-//            //blue;opacity=1;size=1
-//            String firstStyle = styles.split(",")[0];
-//            String[] styleParts = firstStyle.split(";");
-//
-//            red = Integer.parseInt(styleParts[0].substring(0, 2), 16);
-//            green = Integer.parseInt(styleParts[0].substring(2, 4), 16);
-//            blue = Integer.parseInt(styleParts[0].substring(4), 16);
-//            alpha = (int) (255 * Double.parseDouble(styleParts[1].substring(8)));
-//            size = Integer.parseInt(styleParts[2].substring(5));
-//        }
-//
-//        colour = (red << 16) | (green << 8) | blue;
-//        colour = colour | (alpha << 24);
-//    }
-//}
 
 class ImgObj {
 

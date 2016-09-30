@@ -1,5 +1,6 @@
 package au.org.ala.biocache.web;
 
+import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
@@ -13,7 +14,7 @@ public class WmsEnv {
 
     private final static Logger logger = Logger.getLogger(WmsEnv.class);
     public int red, green, blue, alpha, size, colour;
-    public boolean uncertainty;
+    public boolean uncertainty, gridlabels;
     public String colourMode, highlight, gridres;
 
     /**
@@ -63,6 +64,8 @@ public class WmsEnv {
                     colourMode = pair[1];
                 } else if (pair[0].equals("gridres")) {
                     gridres = pair[1];
+                }  else if (pair[0].equals("gridlabels")) {
+                    gridlabels = BooleanUtils.toBoolean(pair[1]);
                 }
             }
         } else if (StringUtils.trimToNull(styles) != null) {

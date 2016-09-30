@@ -1057,4 +1057,12 @@ public class OccurrenceIndex {
     public void setMiscDoubleProperties(Map<String, Object> miscDoubleProperties) {
         this.miscDoubleProperties = miscDoubleProperties;
     }
+
+    public String getGridReference() {
+        return gridReference;
+    }
+
+    public void setGridReference(String gridReference) {
+        this.gridReference = gridReference;
+    }
 }

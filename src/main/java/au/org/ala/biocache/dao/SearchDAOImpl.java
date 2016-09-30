@@ -35,10 +35,11 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
-import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrQuery.ORDER;
 import org.apache.solr.client.solrj.SolrRequest;
+import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.beans.DocumentObjectBinder;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
@@ -95,7 +96,7 @@ public class SearchDAOImpl implements SearchDAO {
     public static final String OCCURRENCE_YEAR_INDEX_FIELD = "occurrence_year";
 
     /** SOLR server instance */
-    protected SolrClient server;
+    protected SolrServer server;
     protected SolrRequest.METHOD queryMethod;
     /** Limit search results - for performance reasons */
     @Value("${download.max:500000}")
@@ -224,7 +225,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public SearchDAOImpl() {}
 
-    private SolrClient getServer(){
+    private SolrServer getServer(){
         int retry = 0;
         while(server == null && retry < maxRetries){
             retry ++;
@@ -3453,14 +3454,6 @@ public class SearchDAOImpl implements SearchDAO {
             retry++;
             try {
                 qr = getServer().query(query, queryMethod == null ? this.queryMethod : queryMethod); // can throw exception
-            } catch (IOException e) {
-                if (retry < maxRetries) {
-                    if (retryWait > 0) try {
-                        Thread.sleep(retryWait);
-                    } catch (Exception ex) {
-                        //do nothing
-                    }
-                }
             } catch (SolrServerException e) {
                 //want to retry IOException and Proxy Error
                 if (retry < maxRetries && (e.getMessage().contains("IOException") || e.getMessage().contains("Proxy Error"))) {
@@ -3472,6 +3465,14 @@ public class SearchDAOImpl implements SearchDAO {
                 } else {
                     //throw all other errors
                     throw e;
+                }
+            } catch (Exception e) {
+                if (retry < maxRetries) {
+                    if (retryWait > 0) try {
+                        Thread.sleep(retryWait);
+                    } catch (Exception ex) {
+                        //do nothing
+                    }
                 }
             }
         }

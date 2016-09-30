@@ -1,11 +1,50 @@
 package au.org.ala.biocache.web;
 
+import au.org.ala.biocache.dao.QidCacheDAO;
+import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.apache.commons.lang.StringUtils;
+import org.springframework.stereotype.Component;
 
-/**
- * Created by mar759 on 22/09/2016.
- */
+import javax.inject.Inject;
+
+@Component("wmsUtils")
 public class WMSUtils {
+
+    @Inject
+    protected QidCacheDAO qidCacheDAO;
+
+    public String[] getFq(SpatialSearchRequestParams requestParams) {
+        int requestParamsFqLength = requestParams.getFq() != null ? requestParams.getFq().length : 0;
+
+        String[] qidFq = null;
+        int qidFqLength = 0;
+        String q = requestParams.getQ();
+        if (q.startsWith("qid:")) {
+            try {
+                qidFq = qidCacheDAO.get(q.substring(4)).getFqs();
+                if (qidFq != null) {
+                    qidFqLength = qidFq.length;
+                }
+            } catch (Exception e) {
+            }
+        }
+
+        if (requestParamsFqLength + qidFqLength == 0) {
+            return null;
+        }
+
+        String[] allFqs = new String[requestParamsFqLength + qidFqLength];
+
+        if (requestParamsFqLength > 0) {
+            System.arraycopy(requestParams.getFq(), 0, allFqs, 0, requestParamsFqLength);
+        }
+
+        if (qidFqLength > 0) {
+            System.arraycopy(qidFq, 0, allFqs, requestParamsFqLength, qidFqLength);
+        }
+
+        return allFqs;
+    }
 
     public static String getQ(String cql_filter) {
         String q = cql_filter;

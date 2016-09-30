@@ -8,6 +8,7 @@ import au.org.ala.biocache.util.GridUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.util.Precision;
 import org.apache.log4j.Logger;
+import org.apache.oro.util.CacheLRU;
 import org.geotools.geometry.GeneralDirectPosition;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.operation.DefaultCoordinateOperationFactory;
@@ -42,6 +43,9 @@ public class WMSOSGridController {
 
     @Inject
     protected SearchDAO searchDAO;
+
+    @Inject
+    protected WMSUtils wmsUtils;
 
     /**
      * Query for a record count at:
@@ -242,9 +246,9 @@ public class WMSOSGridController {
 
         //CQL Filter takes precedence of the layer
         if (org.apache.commons.lang.StringUtils.trimToNull(cql_filter) != null) {
-            requestParams.setQ(WMSUtils.getQ(cql_filter));
+            requestParams.setQ(wmsUtils.getQ(cql_filter));
         } else if (org.apache.commons.lang.StringUtils.trimToNull(layers) != null && !"ALA:Occurrences".equalsIgnoreCase(layers)) {
-            requestParams.setQ(WMSUtils.convertLayersParamToQ(layers));
+            requestParams.setQ(wmsUtils.convertLayersParamToQ(layers));
         }
 
         //get the requested extent for this tile
@@ -259,20 +263,7 @@ public class WMSOSGridController {
 
         String[] facets = new String[0];
 
-        if("variablegrid".equals(wmsEnv.gridres)){
-            facets = new String[]{ "grid_ref_10000", "grid_ref_2000", "grid_ref_1000" };
-
-            if(boundingBoxSizeInKm > 78){
-                facets = new String[]{"grid_ref_10000"};
-                gridSize = 10000;
-            }
-
-            if(boundingBoxSizeInKm < 19){
-                facets = new String[]{"grid_ref_2000", "grid_ref_1000", "grid_ref"};
-            }
-        } else if("10kgrid".equals(wmsEnv.gridres)){
-            facets = new String[]{"grid_ref_10000"};
-        } else {
+        if("singlegrid".equals(wmsEnv.gridres)){
             if(boundingBoxSizeInKm > 78){
                 facets = new String[]{"grid_ref_10000"};
                 gridSize = 10000;
@@ -280,34 +271,48 @@ public class WMSOSGridController {
                 facets = new String[]{"grid_ref_1000"};
                 gridSize = 1000;
             }
+        } else if("10kgrid".equals(wmsEnv.gridres)){
+            facets = new String[]{"grid_ref_10000"};
+        } else {
+            logger.info("Rendering at " + boundingBoxSizeInKm);
+            if(boundingBoxSizeInKm > 78){
+                facets = new String[]{"grid_ref_10000"};
+                gridSize = 10000;
+            } else if(boundingBoxSizeInKm > 19 && boundingBoxSizeInKm <= 78){
+                facets = new String[]{"grid_ref_1000", "grid_ref"};
+            } else {
+                facets = new String[]{"grid_ref_100", "grid_ref"};
+            }
         }
 
         double oneMetreInRequestedProjXInPixels = (float) width / (float)(maxx - minx);
         double oneMetreInRequestedProjYInPixels =  (float) height / (float)(maxy - miny);
 
-
         //get a bounding box in WGS84 decimal latitude/longitude
-        double[] minLatLng = convertMetersToWGS84(minx, miny);
-        double[] maxLatLng = convertMetersToWGS84(maxx, maxy);
-
-        Map<String, Integer> gridsRefs = new HashMap<String, Integer>();
-        String bboxFilterQuery =
-                "-((max_longitude:[* TO {0}])" +
-                        " OR " +
-                        "(min_longitude:[{1} TO *])" +
-                        " OR " +
-                        "(max_latitude:[* TO {2}])" +
-                        " OR " +
-                        "(min_latitude:[{3} TO *]))";
+//        double[] minLatLng = convertMetersToWGS84(minx, miny);
+//        double[] maxLatLng = convertMetersToWGS84(maxx, maxy);
 
 
-        String fq = MessageFormat.format(bboxFilterQuery, minLatLng[1], maxLatLng[1], minLatLng[0], maxLatLng[0]);
+//        String bboxFilterQuery =
+//                "-((max_longitude:[* TO {0}])" +
+//                        " OR " +
+//                        "(min_longitude:[{1} TO *])" +
+//                        " OR " +
+//                        "(max_latitude:[* TO {2}])" +
+//                        " OR " +
+//                        "(min_latitude:[{3} TO *]))";
+//
+//
+//        String fq = MessageFormat.format(bboxFilterQuery, minLatLng[1], maxLatLng[1], minLatLng[0], maxLatLng[0]);
 
-        String[] newFqs = new String[requestParams.getFq().length + 1];
-        System.arraycopy(requestParams.getFq(), 0, newFqs, 0, requestParams.getFq().length);
-        newFqs[newFqs.length - 1] = fq;
 
-        requestParams.setFq(newFqs);
+        String[] fqs = wmsUtils.getFq(requestParams);
+
+        String[] newFqs = new String[fqs.length + 1];
+        System.arraycopy(fqs, 0, newFqs, 0, fqs.length);
+//        newFqs[newFqs.length - 1] = fq;
+
+//        requestParams.setFq(newFqs);
         requestParams.setPageSize(0);
         requestParams.setFacet(true);
         requestParams.setFlimit(-1);
@@ -315,28 +320,11 @@ public class WMSOSGridController {
 
         WMSImg wmsImg = WMSImg.create(width, height);
 
-        SearchResultDTO resultsDTO = searchDAO.findByFulltextSpatialQuery(requestParams, new HashMap<String,String[]>());
-        Collection<FacetResultDTO> results = resultsDTO.getFacetResults();
-        for (FacetResultDTO result : results){
-            for (FieldResultDTO fieldResult : result.getFieldResult()) {
-                //temporary fix for irish grid reference indexing problem
-                if( facets.length == 1 && "grid_ref_10000".equals(facets[0])){
-                    if(fieldResult.getLabel().matches("[A-Z]{2}[0-9]{2}") || fieldResult.getLabel().matches("[A-Z]{1}[0-9]{2}")){
-                        gridsRefs.put(fieldResult.getLabel(), (int) fieldResult.getCount());
-                    }
-                } else {
-                    gridsRefs.put(fieldResult.getLabel(), (int) fieldResult.getCount());
-                }
-            }
-        }
-
-        /********** FUDGE *************/
-
         //  easting/northing range with buffer
         double[] minEN = convertMetersToEastingNorthing(minx, miny);
         double[] maxEN = convertMetersToEastingNorthing(maxx, maxy);
 
-        //query using easting northing bbox
+        //filter query using easting northing bbox
         String eastingNorthingFilterQuery =
                 "easting:[{0} TO {1}]" +
                 " AND " +
@@ -358,6 +346,8 @@ public class WMSOSGridController {
         requestParams.setFlimit(-1);
         requestParams.setFacets(facets);
 
+        Map<String, Integer> gridsRefs = new HashMap<String, Integer>();
+
         SearchResultDTO resultsDTO2 = searchDAO.findByFulltextSpatialQuery(requestParams, new HashMap<String,String[]>());
         Collection<FacetResultDTO> results2 = resultsDTO2.getFacetResults();
         for (FacetResultDTO result : results2){
@@ -366,7 +356,6 @@ public class WMSOSGridController {
             }
         }
 
-        /********** END FUDGE *************/
 
         List<String> gridRefsToRender =  Arrays.asList(gridsRefs.keySet().toArray(new String[0]));
         java.util.Collections.sort(gridRefsToRender, new Comparator<String>() {
@@ -458,7 +447,7 @@ public class WMSOSGridController {
                 oneMetreMercatorXInPixels, oneMetreMercatorYInPixels, imageWidth);
 
         int color = 0xFFFF0000; //red
-        if(!"variablegrid".equals(wmsEnv.gridres)){
+        if(!StringUtils.isEmpty(wmsEnv.gridres) && !"variablegrid".equals(wmsEnv.gridres)){
             //retrieve the supplied colour
             color = wmsEnv.colour;
         } else {
@@ -513,18 +502,20 @@ public class WMSOSGridController {
             4
         );
 
-        Paint textColor = new Color(0xFF000000, true);
-        wmsImg.g.setPaint(textColor);
-        wmsImg.g.setFont(new Font("Monaco", Font.PLAIN, 12));
+        if(wmsEnv.gridlabels) {
+            Paint textColor = new Color(0xFF000000, true);
+            wmsImg.g.setPaint(textColor);
+            wmsImg.g.setFont(new Font("Courier New", Font.PLAIN, 10));
 
-        FontMetrics fm = wmsImg.g.getFontMetrics();
-        int relativeStringWidth = fm.stringWidth(gridRef);
+            FontMetrics fm = wmsImg.g.getFontMetrics();
+            int relativeStringWidth = fm.stringWidth(gridRef);
 
-        if(relativeStringWidth < (coordinatesForImages[1][0] - coordinatesForImages[0][0])){
-            wmsImg.g.drawString(gridRef,
-                    coordinatesForImages[0][0] + (coordinatesForImages[1][0] - coordinatesForImages[0][0])/2 - (fm.stringWidth(gridRef)/2),
-                    coordinatesForImages[0][1] + (coordinatesForImages[2][1] - coordinatesForImages[0][1])/2
-            );
+            if ((relativeStringWidth) < (coordinatesForImages[1][0] - coordinatesForImages[0][0])) {
+                wmsImg.g.drawString(gridRef,
+                        coordinatesForImages[0][0] + (coordinatesForImages[1][0] - coordinatesForImages[0][0]) / 2 - (fm.stringWidth(gridRef) / 2),
+                        coordinatesForImages[0][1] + (coordinatesForImages[2][1] - coordinatesForImages[0][1]) / 2
+                );
+            }
         }
     }
 

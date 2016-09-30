@@ -36,6 +36,9 @@
         <!--<appender-ref ref="ALA_LOGGER" />-->
     <!--</appender>-->
     <category name="au.org.ala.biocache">
+        <priority value="WARN"/>
+    </category>
+    <category name="au.org.ala.biocache.web.WMSOSGridController">
         <priority value="DEBUG"/>
     </category>
     <category name="au.org.ala">
