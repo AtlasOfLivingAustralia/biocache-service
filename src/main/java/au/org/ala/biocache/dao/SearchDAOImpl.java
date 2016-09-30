@@ -2405,7 +2405,7 @@ public class SearchDAOImpl implements SearchDAO {
                         //split on the colon
                         String[] bits = StringUtils.split(value, ":", 2);
                         if(bits.length == 2){
-                            if(!bits[0].contains("urn") && !bits[1].contains("urn\\"))
+                            if (!bits[0].contains("urn") && !bits[1].contains("urn\\") && !bits[0].contains("http") && !bits[1].contains("http\\"))
                                 matcher.appendReplacement(queryString, bits[0] +":"+ prepareSolrStringForReplacement(bits[1]));
 
                         } else if(!value.endsWith(":")){
