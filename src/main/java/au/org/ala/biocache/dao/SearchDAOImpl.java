@@ -223,6 +223,9 @@ public class SearchDAOImpl implements SearchDAO {
     private long solrIndexVersionTime = 0;
     private Object solrIndexVersionLock = new Object();
 
+    @Value("${wms.colour:0x00000000}")
+    private int DEFAULT_COLOUR;
+
     /**
      * Initialise the SOLR server instance
      */
@@ -3731,5 +3734,115 @@ public class SearchDAOImpl implements SearchDAO {
         }
 
         return qasb;
+    }
+
+    /**
+     * @see au.org.ala.biocache.dao.SearchDAO#searchStat
+     */
+    public List<FieldStatsItem> searchStat(SpatialSearchRequestParams searchParams, String field, String facet) throws Exception {
+        searchParams.setFacets(new String[]{});
+
+        formatSearchQuery(searchParams);
+        //add context information
+        updateQueryContext(searchParams);
+        String queryString = buildSpatialQueryString(searchParams);
+
+        if (facet != null) searchParams.setFacet(true);
+
+        //get facet group counts
+        SolrQuery query = initSolrQuery(searchParams, false, null);
+        query.setQuery(queryString);
+        query.setFields(null);
+        query.setFacetLimit(-1);
+
+        //stats parameters
+        query.add("stats", "true");
+        if (facet != null) query.add("stats.facet", facet);
+        query.add("stats.field", field);
+
+        query.setRows(0);
+        searchParams.setPageSize(0);
+        QueryResponse response = runSolrQuery(query, searchParams);
+
+        List<FieldStatsItem> output = new ArrayList();
+        if (facet != null) {
+            for (FieldStatsInfo f : response.getFieldStatsInfo().values().iterator().next().getFacets().values().iterator().next()) {
+                FieldStatsItem item = new FieldStatsItem(f);
+                item.setFq(facet + ":" + f.getName());
+                output.add(item);
+            }
+        } else {
+            if (response.getFieldStatsInfo().size() > 0) {
+                output.add(new FieldStatsItem(response.getFieldStatsInfo().values().iterator().next()));
+            }
+        }
+
+        return output;
+    }
+
+    /**
+     * @see au.org.ala.biocache.dao.SearchDAO#getColours
+     */
+    @Cacheable(cacheName = "getColours")
+    public List<LegendItem> getColours(SpatialSearchRequestParams request, String colourMode) throws Exception {
+        List<LegendItem> colours = new ArrayList<LegendItem>();
+        if (colourMode.equals("grid")) {
+            for (int i = 0; i <= 500; i += 100) {
+                LegendItem li;
+                if (i == 0) {
+                    li = new LegendItem(">0", 0, null);
+                } else {
+                    li = new LegendItem(String.valueOf(i), 0, null);
+                }
+                li.setColour((((500 - i) / 2) << 8) | 0x00FF0000);
+                colours.add(li);
+            }
+        } else {
+            SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
+            requestParams.setFormattedQuery(request.getFormattedQuery());
+            requestParams.setWkt(request.getWkt());
+            requestParams.setRadius(request.getRadius());
+            requestParams.setLat(request.getLat());
+            requestParams.setLon(request.getLon());
+            requestParams.setQ(request.getQ());
+            requestParams.setQc(request.getQc());
+            requestParams.setFq(qidCacheDao.getFq(request));
+            requestParams.setFoffset(-1);
+
+            //test for cutpoints on the back of colourMode
+            String[] s = colourMode.split(",");
+            String[] cutpoints = null;
+            if (s.length > 1) {
+                cutpoints = new String[s.length - 1];
+                System.arraycopy(s, 1, cutpoints, 0, cutpoints.length);
+            }
+            if (s[0].equals("-1") || s[0].equals("grid")) {
+                return null;
+            } else {
+                List<LegendItem> legend = getLegend(requestParams, s[0], cutpoints);
+
+                if (cutpoints == null) {     //do not sort if cutpoints are provided
+                    java.util.Collections.sort(legend);
+                }
+                int i = 0;
+                int offset = 0;
+                for (i = 0; i < legend.size() && i < ColorUtil.colourList.length - 1; i++) {
+                    colours.add(new LegendItem(legend.get(i).getName(), legend.get(i).getCount(), legend.get(i).getFq()));
+                    int colour = DEFAULT_COLOUR;
+                    if (cutpoints == null) {
+                        colour = ColorUtil.colourList[i];
+                    } else if (cutpoints != null && i - offset < cutpoints.length) {
+                        if (StringUtils.isEmpty(legend.get(i).getName()) || legend.get(i).getName().equals("Unknown") || legend.get(i).getName().startsWith("-")) {
+                            offset++;
+                        } else {
+                            colour = ColorUtil.getRangedColour(i - offset, cutpoints.length / 2);
+                        }
+                    }
+                    colours.get(colours.size() - 1).setColour(colour);
+                }
+            }
+        }
+
+        return colours;
     }
 }

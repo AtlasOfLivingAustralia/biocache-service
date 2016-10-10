@@ -18,7 +18,7 @@
         <!-- This project uses UTF8 for Regular Expressions -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <openrdf.sesame.version>2.2</openrdf.sesame.version>
-        <spring.version>3.0.6.RELEASE</spring.version>
+        <spring.version>3.2.17.RELEASE</spring.version>
         <junit.version>4.8.2</junit.version>
         <netbeans.hint.deploy.server>Tomcat</netbeans.hint.deploy.server>
     </properties>
@@ -42,17 +42,21 @@
             <version>4.3.1.Final</version>
         </dependency>
         <!-- ALA header and tails -->
-        <dependency>
-            <groupId>au.org.ala</groupId>
-            <artifactId>ala-header-and-tails</artifactId>
-            <version>2.0</version>
-        </dependency>
+        <!--<dependency>-->
+        <!--<groupId>au.org.ala</groupId>-->
+        <!--<artifactId>ala-header-and-tails</artifactId>-->
+        <!--<version>2.0</version>-->
+        <!--</dependency>-->
         <!-- ALA logging -->
         <dependency>
             <groupId>au.org.ala</groupId>
             <artifactId>biocache-store</artifactId>
             <version>1.8.0</version>
             <exclusions>
+                <exclusion>
+                    <artifactId>org.springframework</artifactId>
+                    <groupId>spring-orm</groupId>
+                </exclusion>
                 <exclusion>
                     <artifactId>google-collect</artifactId>
                     <groupId>com.google.code.google-collections</groupId>
@@ -110,6 +114,20 @@
             <groupId>com.googlecode.ehcache-spring-annotations</groupId>
             <artifactId>ehcache-spring-annotations</artifactId>
             <version>1.2.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework</groupId>
+                    <artifactId>spring-aop</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.springframework</groupId>
+                    <artifactId>spring-beans</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.springframework</groupId>
+                    <artifactId>spring-expression</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- LOG4J -->
         <dependency>
@@ -133,13 +151,19 @@
             <artifactId>commons-math</artifactId>
             <version>1.1</version>
         </dependency>
-        <!-- Sun's Servlet API -->
+
+        <!-- swagger -->
         <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>servlet-api</artifactId>
-            <version>2.4</version>
-            <scope>provided</scope>
+            <groupId>io.springfox</groupId>
+            <artifactId>springfox-swagger2</artifactId>
+            <version>2.6.0</version>
         </dependency>
+        <dependency>
+            <groupId>io.springfox</groupId>
+            <artifactId>springfox-swagger-ui</artifactId>
+            <version>2.6.0</version>
+        </dependency>
+
         <!-- Sun's JSP API-->
         <dependency>
             <groupId>javax.servlet</groupId>
@@ -171,10 +195,15 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
-        <!-- SPRING 3.0 -->
+        <!-- SPRING 3.2 -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-core</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-orm</artifactId>
             <version>${spring.version}</version>
         </dependency>
         <dependency>
@@ -325,7 +354,7 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-jdbc</artifactId>
-            <version>3.0.3.RELEASE</version>
+            <version>${spring.version}</version>
             <type>jar</type>
             <scope>compile</scope>
         </dependency>

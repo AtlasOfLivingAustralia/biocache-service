@@ -66,22 +66,6 @@ public class WMSController {
      * webportal results limit
      */
     private final int DEFAULT_PAGE_SIZE = 1000000;
-    /**
-     * categorical colours
-     */
-    private final int[] colourList = {0x003366CC, 0x00DC3912, 0x00FF9900, 0x00109618, 0x00990099, 0x000099C6, 0x00DD4477,
-            0x0066AA00, 0x00B82E2E, 0x00316395, 0x00994499, 0x0022AA99, 0x00AAAA11, 0x006633CC, 0x00E67300, 0x008B0707,
-            0x00651067, 0x00329262, 0x005574A6, 0x003B3EAC, 0x00B77322, 0x0016D620, 0x00B91383, 0x00F4359E, 0x009C5935,
-            0x00A9C413, 0x002A778D, 0x00668D1C, 0x00BEA413, 0x000C5922, 0x00743411};
-    //For WMS services
-    final String[] colorsNames = new String[]{
-            "DarkRed", "IndianRed", "DarkSalmon", "SaddleBrown", "Chocolate", "SandyBrown", "Orange", "DarkGreen", "Green", "Lime", "LightGreen", "MidnightBlue", "Blue",
-            "SteelBlue", "CadetBlue", "Aqua", "PowderBlue", "DarkOliveGreen", "DarkKhaki", "Yellow", "Moccasin", "Indigo", "Purple", "Fuchsia", "Plum", "Black", "White"
-    };
-    final String[] colorsCodes = new String[]{
-            "8b0000", "FF0000", "CD5C5C", "E9967A", "8B4513", "D2691E", "F4A460", "FFA500", "006400", "008000", "00FF00", "90EE90", "191970", "0000FF",
-            "4682B4", "5F9EA0", "00FFFF", "B0E0E6", "556B2F", "BDB76B", "FFFF00", "FFE4B5", "4B0082", "800080", "FF00FF", "DDA0DD", "000000", "FFFFFF"
-    };
 
     @Value("${wms.colour:0x00000000}")
     private int DEFAULT_COLOUR;
@@ -239,7 +223,7 @@ public class WMSController {
         //store the title if necessary
         if (title == null)
             title = requestParams.getDisplayString();
-        String[] fqs = getFq(requestParams);
+        String[] fqs = qidCacheDAO.getFq(requestParams);
         if (fqs != null && fqs.length == 1 && fqs[0].length() == 0) {
             fqs = null;
         }
@@ -408,18 +392,18 @@ public class WMSController {
             }
             int colour = DEFAULT_COLOUR;
             if (cutpoints == null) {
-                colour = colourList[Math.min(i, colourList.length - 1)];
+                colour = ColorUtil.colourList[Math.min(i, ColorUtil.colourList.length - 1)];
             } else if (cutpoints != null && i - offset < cutpoints.length) {
                 if (name.equals(NULL_NAME) || name.startsWith("-")) {
                     offset++;
                     colour = DEFAULT_COLOUR;
                 } else {
-                    colour = getRangedColour(i - offset, cutpoints.length / 2);
+                    colour = ColorUtil.getRangedColour(i - offset, cutpoints.length / 2);
                 }
             }
             li.setRGB(colour);
             if (isCsv) {
-                sb.append("\n\"").append(name.replace("\"", "\"\"")).append("\",").append(getRGB(colour)) //repeat last colour if required
+                sb.append("\n\"").append(name.replace("\"", "\"\"")).append("\",").append(ColorUtil.getRGB(colour)) //repeat last colour if required
                         .append(",").append(legend.get(i).getCount());
             }
         }
@@ -818,110 +802,7 @@ public class WMSController {
         return q;
     }
 
-    /**
-     * Get legend items for the first colourList.length-1 items only.
-     *
-     * @param colourMode
-     * @throws Exception
-     */
-    @Cacheable(cacheName = "getColours")
-    private List<LegendItem> getColours(SpatialSearchRequestParams request, String colourMode) throws Exception {
-        List<LegendItem> colours = new ArrayList<LegendItem>();
-        if (colourMode.equals("grid")) {
-            for (int i = 0; i <= 500; i += 100) {
-                LegendItem li;
-                if (i == 0) {
-                    li = new LegendItem(">0", 0, null);
-                } else {
-                    li = new LegendItem(String.valueOf(i), 0, null);
-                }
-                li.setColour((((500 - i) / 2) << 8) | 0x00FF0000);
-                colours.add(li);
-            }
-        } else {
-            SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
-            requestParams.setFormattedQuery(request.getFormattedQuery());
-            requestParams.setWkt(request.getWkt());
-            requestParams.setRadius(request.getRadius());
-            requestParams.setLat(request.getLat());
-            requestParams.setLon(request.getLon());
-            requestParams.setQ(request.getQ());
-            requestParams.setQc(request.getQc());
-            requestParams.setFq(getFq(request));
-            requestParams.setFoffset(-1);
 
-            //test for cutpoints on the back of colourMode
-            String[] s = colourMode.split(",");
-            String[] cutpoints = null;
-            if (s.length > 1) {
-                cutpoints = new String[s.length - 1];
-                System.arraycopy(s, 1, cutpoints, 0, cutpoints.length);
-            }
-            if (s[0].equals("-1") || s[0].equals("grid")) {
-                return null;
-            } else {
-                List<LegendItem> legend = searchDAO.getLegend(requestParams, s[0], cutpoints);
-
-                if (cutpoints == null) {     //do not sort if cutpoints are provided
-                    java.util.Collections.sort(legend);
-                }
-                int i = 0;
-                int offset = 0;
-                for (i = 0; i < legend.size() && i < colourList.length - 1; i++) {
-                    colours.add(new LegendItem(legend.get(i).getName(), legend.get(i).getCount(), legend.get(i).getFq()));
-                    int colour = DEFAULT_COLOUR;
-                    if (cutpoints == null) {
-                        colour = colourList[i];
-                    } else if (cutpoints != null && i - offset < cutpoints.length) {
-                        if (StringUtils.isEmpty(legend.get(i).getName()) || legend.get(i).getName().equals(NULL_NAME) || legend.get(i).getName().startsWith("-")) {
-                            offset++;
-                        } else {
-                            colour = getRangedColour(i - offset, cutpoints.length / 2);
-                        }
-                    }
-                    colours.get(colours.size() - 1).setColour(colour);
-                }
-            }
-        }
-
-        return colours;
-    }
-
-    int getRangedColour(int pos, int length) {
-        int[] colourRange = {0x00002DD0, 0x00005BA2, 0x00008C73, 0x0000B944, 0x0000E716, 0x00A0FF00, 0x00FFFF00,
-                0x00FFC814, 0x00FFA000, 0x00FF5B00, 0x00FF0000};
-
-        double step = 1 / (double) colourRange.length;
-        double p = pos / (double) (length);
-        double dist = p / step;
-
-        int minI = (int) Math.floor(dist);
-        int maxI = (int) Math.ceil(dist);
-        if (maxI >= colourRange.length) {
-            maxI = colourRange.length - 1;
-        }
-
-        double minorP = p - (minI * step);
-        double minorDist = minorP / step;
-
-        //scale RGB individually
-        int colour = 0x00000000;
-        for (int i = 0; i < 3; i++) {
-            int minC = (colourRange[minI] >> (i * 8)) & 0x000000ff;
-            int maxC = (colourRange[maxI] >> (i * 8)) & 0x000000ff;
-            int c = Math.min((int) ((maxC - minC) * minorDist + minC), 255);
-
-            colour = colour | ((c & 0x000000ff) << (i * 8));
-        }
-
-        return colour;
-    }
-
-    String getRGB(int colour) {
-        return ((colour >> 16) & 0x000000ff) + ","
-                + ((colour >> 8) & 0x000000ff) + ","
-                + (colour & 0x000000ff);
-    }
 
     /**
      * Get bounding box for a query.
@@ -936,7 +817,7 @@ public class WMSController {
         String[] dir = {"asc", "asc", "desc", "desc"};
 
         //Filter for -180 +180 longitude and -90 +90 latitude to match WMS request bounds.
-        String[] fq = (String[]) ArrayUtils.addAll(getFq(requestParams), new String[]{"longitude:[-180 TO 180]", "latitude:[-90 TO 90]"});
+        String[] fq = (String[]) ArrayUtils.addAll(qidCacheDAO.getFq(requestParams), new String[]{"longitude:[-180 TO 180]", "latitude:[-90 TO 90]"});
         requestParams.setFq(fq);
         requestParams.setPageSize(10);
 
@@ -1480,12 +1361,12 @@ public class WMSController {
         int colorIdx = 0;
         int sizeIdx = 0;
         int opIdx = 0;
-        for (String color : colorsNames) {
+        for (String color : ColorUtil.colorsNames) {
             for (String size : sizes) {
                 for (String opacity : opacities) {
                     sb.append(
                             "<Style>\n" +
-                                    "<Name>" + colorsCodes[colorIdx] + ";opacity=" + opacity + ";size=" + size + "</Name> \n" +
+                                    "<Name>" + ColorUtil.colorsCodes[colorIdx] + ";opacity=" + opacity + ";size=" + size + "</Name> \n" +
                                     "<Title>" + color + ";opacity=" + opacitiesNames[opIdx] + ";size=" + sizesNames[sizeIdx] + "</Title> \n" +
                                     "</Style>\n"
                     );
@@ -1615,7 +1496,7 @@ public class WMSController {
             }
         }
 
-        String[] originalFqs = getFq(requestParams);
+        String[] originalFqs = qidCacheDAO.getFq(requestParams);
 
         //get from cache, or make it
         boolean canCache = wmsCache.isEnabled() && cache.equalsIgnoreCase("on");
@@ -2221,7 +2102,7 @@ public class WMSController {
             //not found, create it
             if (wco == null) {
                 requestParams.setFlimit(-1);
-                colours = cm.equals("-1") ? null : getColours(requestParams, vars.colourMode);
+                colours = cm.equals("-1") ? null : searchDAO.getColours(requestParams, vars.colourMode);
                 sz = colours == null ? 1 : colours.size() + 1;
 
                 wco = wmsCache.get(q, cm, pointType);
@@ -2235,7 +2116,7 @@ public class WMSController {
         }
 
         //still need colours when cannot cache
-        if (colours == null && !cm.equals("-1")) colours = getColours(requestParams, vars.colourMode);
+        if (colours == null && !cm.equals("-1")) colours = searchDAO.getColours(requestParams, vars.colourMode);
 
         //build only once
         synchronized (wco) {
@@ -2379,7 +2260,7 @@ public class WMSController {
                     colrmaxtime = (System.currentTimeMillis() - ms);
 
                     //in the last iteration check for more and batch.
-                    if (i == colourList.length - 2 && colours.size() == colourList.length - 1) {
+                    if (i == ColorUtil.colourList.length - 2 && colours.size() == ColorUtil.colourList.length - 1) {
                         colrmax = i;
 
                         fqs = new String[(requestParams.getFq() == null ? 0 : requestParams.getFq().length) + fqsDone.size()];
@@ -2398,7 +2279,7 @@ public class WMSController {
                         if (equivalentTile.getPoints() != null && equivalentTile.getPoints().size() > 0 && equivalentTile.getPoints().get(0).length > 0) {
                             pointsArrays.set(0, equivalentTile.getPoints().get(0));
                             //countsArrays.add(equivalentTile.getCounts().get(0));
-                            pColour.set(0, colourList[colourList.length - 1] | (vars.alpha << 24));
+                            pColour.set(0, ColorUtil.colourList[ColorUtil.colourList.length - 1] | (vars.alpha << 24));
                             otherPointsAdded = true;
                         }
                     }
@@ -2425,7 +2306,7 @@ public class WMSController {
                     List<FacetPivotResultDTO> piv = qr.get(0).getPivotResult();
 
                     //last colour
-                    int lastColour = colourList[colourList.length - 1] | (vars.alpha << 24);
+                    int lastColour = ColorUtil.colourList[ColorUtil.colourList.length - 1] | (vars.alpha << 24);
 
                     //get facet points
                     for (int j = 0; j < piv.size(); j++) {
@@ -2543,39 +2424,6 @@ public class WMSController {
 
         gPoints.add(points);
         if (gCount != null) gCount.add(count);
-    }
-
-    private String[] getFq(SpatialSearchRequestParams requestParams) {
-        int requestParamsFqLength = requestParams.getFq() != null ? requestParams.getFq().length : 0;
-
-        String[] qidFq = null;
-        int qidFqLength = 0;
-        String q = requestParams.getQ();
-        if (q.startsWith("qid:")) {
-            try {
-                qidFq = qidCacheDAO.get(q.substring(4)).getFqs();
-                if (qidFq != null) {
-                    qidFqLength = qidFq.length;
-                }
-            } catch (Exception e) {
-            }
-        }
-
-        if (requestParamsFqLength + qidFqLength == 0) {
-            return null;
-        }
-
-        String[] allFqs = new String[requestParamsFqLength + qidFqLength];
-
-        if (requestParamsFqLength > 0) {
-            System.arraycopy(requestParams.getFq(), 0, allFqs, 0, requestParamsFqLength);
-        }
-
-        if (qidFqLength > 0) {
-            System.arraycopy(qidFq, 0, allFqs, requestParamsFqLength, qidFqLength);
-        }
-
-        return allFqs;
     }
 
     private void renderPoints(WmsEnv vars, double[] bbox, double[] pbbox, double width_mult, double height_mult, int pointWidth, boolean outlinePoints, String outlineColour, List<Integer> pColour, ImgObj imgObj, int j, float[] ps, boolean is4326, double[] tilebbox, int height, int width) {
