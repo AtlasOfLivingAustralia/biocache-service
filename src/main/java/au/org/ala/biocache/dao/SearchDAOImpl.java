@@ -3769,6 +3769,7 @@ public class SearchDAOImpl implements SearchDAO {
             for (FieldStatsInfo f : response.getFieldStatsInfo().values().iterator().next().getFacets().values().iterator().next()) {
                 FieldStatsItem item = new FieldStatsItem(f);
                 item.setFq(facet + ":" + f.getName());
+                item.setLabel(f.getName());
                 output.add(item);
             }
         } else {

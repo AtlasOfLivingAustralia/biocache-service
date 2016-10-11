@@ -107,7 +107,7 @@ public class ChartController extends AbstractSecureController implements Seriali
             searchParams.setFacets(new String[]{x});
 
             Collection<FacetResultDTO> l = searchDAO.findByFulltextSpatialQuery(searchParams, null).getFacetResults();
-            return l.iterator().next();
+            return l.iterator().next().getFieldResult();
         } else if (xranges == null && stats != null) {
             //2. mean/max/min/quartile of field2, bar/pie/line chart of field1
             return searchDAO.searchStat(searchParams, stats, x);
@@ -128,6 +128,7 @@ public class ChartController extends AbstractSecureController implements Seriali
                 if (i < r.length - 1) {
                     String fq = x + ":[" + r[i] + " TO " + r[i + 1] + "]" + (i > 0 ? " AND -" + x + ":" + r[i] : "");
                     FieldResultDTO fr = new FieldResultDTO(r[i] + " - " + r[i + 1], 0, fq);
+                    fr.setLabel(r[i] + " - " + r[i + 1]);
                     output.add(fr);
                 }
             }
@@ -155,12 +156,13 @@ public class ChartController extends AbstractSecureController implements Seriali
             List output = new ArrayList<>(r.length - 1);
             for (int i = 0; i < r.length; i++) {
                 if (i < r.length - 1) {
-                    fqs[fqs.length - 1] = x + ":[" + r[i] + " TO " + r[i + 1] + "]";//+ (i > 0 ? " AND -" + x + ":" + r[i] : "");
+                    fqs[fqs.length - 1] = x + ":[" + r[i] + " TO " + r[i + 1] + "]" + (i > 0 ? " AND -" + x + ":" + r[i] : "");
                     searchParams.setFq(fqs);
 
                     List result = searchDAO.searchStat(searchParams, stats, null);
                     if (result.size() > 0) {
                         ((FieldStatsItem) result.iterator().next()).setFq(fqs[fqs.length - 1]);
+                        ((FieldStatsItem) result.iterator().next()).setLabel(r[i] + " - " + r[i + 1]);
                         output.addAll(result);
                     }
                 }

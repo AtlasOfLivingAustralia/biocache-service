@@ -11,6 +11,7 @@ public class FieldStatsItem {
     private Long missing;
     private Object mean;
     private Double stddev;
+    private String label;
 
     public FieldStatsItem(FieldStatsInfo info) {
         this.min = info.getMin();
@@ -84,5 +85,13 @@ public class FieldStatsItem {
 
     public void setStddev(Double stddev) {
         this.stddev = stddev;
+    }
+
+    public void setLabel(String label) {
+        this.label = label;
+    }
+
+    public String getLabel() {
+        return label;
     }
 }
