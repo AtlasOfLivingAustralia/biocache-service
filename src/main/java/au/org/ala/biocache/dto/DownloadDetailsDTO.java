@@ -14,9 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
-import org.codehaus.jackson.annotate.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import java.io.File;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;

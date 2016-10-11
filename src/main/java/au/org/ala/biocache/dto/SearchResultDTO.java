@@ -14,8 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.solr.client.solrj.response.QueryResponse;
-import org.codehaus.jackson.annotate.JsonIgnore;
 
 import java.util.Collection;
 import java.util.List;

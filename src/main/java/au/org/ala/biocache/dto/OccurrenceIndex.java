@@ -14,13 +14,16 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.commons.lang.time.DateFormatUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.beans.Field;
-import org.codehaus.jackson.annotate.JsonIgnore;
 import org.codehaus.jackson.map.ObjectMapper;
 
-import java.util.*;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A DTO representing an result from the search indexes.
