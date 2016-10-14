@@ -28,6 +28,8 @@ import org.geotools.data.shapefile.ShapefileDataStoreFactory;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.data.simple.SimpleFeatureStore;
+import org.geotools.feature.DefaultFeatureCollection;
+import org.geotools.feature.DefaultFeatureCollections;
 import org.geotools.feature.FeatureCollections;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
@@ -61,7 +63,7 @@ public class ShapeFileRecordWriter implements RecordWriter {
     private OutputStream outputStream;
     private File temporaryShapeFile;
     private int latIdx,longIdx;
-    private SimpleFeatureCollection collection = FeatureCollections.newCollection();
+    private DefaultFeatureCollection collection = new DefaultFeatureCollection();
     private Map<String,String> headerMappings = null;
 
     /**

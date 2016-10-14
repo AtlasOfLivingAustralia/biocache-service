@@ -260,6 +260,7 @@ public class WMSOSGridController {
 
         int boundingBoxSizeInKm = (int) (maxx - minx) /1000;
         int gridSize = 10000;
+        double buff = 0.0;
 
         String[] facets = new String[0];
 
@@ -267,20 +268,31 @@ public class WMSOSGridController {
             if(boundingBoxSizeInKm > 78){
                 facets = new String[]{"grid_ref_10000"};
                 gridSize = 10000;
-            } else {
+                buff = 0.5;
+            } else if(boundingBoxSizeInKm > 8 && boundingBoxSizeInKm <= 78) {
                 facets = new String[]{"grid_ref_1000"};
                 gridSize = 1000;
+                buff = 0.05;
+            } else {
+                facets = new String[]{"grid_ref_100"};
+                buff = 0.005;
+                gridSize = 100;
             }
         } else if("10kgrid".equals(wmsEnv.gridres)){
             facets = new String[]{"grid_ref_10000"};
+            buff = 0.5;
         } else {
             logger.info("Rendering at " + boundingBoxSizeInKm);
+
             if(boundingBoxSizeInKm > 78){
                 facets = new String[]{"grid_ref_10000"};
                 gridSize = 10000;
+                buff = 0.5;
             } else if(boundingBoxSizeInKm > 19 && boundingBoxSizeInKm <= 78){
+                buff = 0.05;
                 facets = new String[]{"grid_ref_1000", "grid_ref"};
             } else {
+                buff = 0.05;
                 facets = new String[]{"grid_ref_100", "grid_ref"};
             }
         }
@@ -289,9 +301,12 @@ public class WMSOSGridController {
         double oneMetreInRequestedProjYInPixels =  (float) height / (float)(maxy - miny);
 
         //get a bounding box in WGS84 decimal latitude/longitude
-//        double[] minLatLng = convertMetersToWGS84(minx, miny);
-//        double[] maxLatLng = convertMetersToWGS84(maxx, maxy);
+        double[] minLatLng = convertMetersToWGS84(minx, miny);
+        double[] maxLatLng = convertMetersToWGS84(maxx, maxy);
 
+
+        String bboxFilterQuery =
+                "(longitude:[{0} TO {2}] AND latitude:[{1} TO {3}] )";
 
 //        String bboxFilterQuery =
 //                "-((max_longitude:[* TO {0}])" +
@@ -301,18 +316,39 @@ public class WMSOSGridController {
 //                        "(max_latitude:[* TO {2}])" +
 //                        " OR " +
 //                        "(min_latitude:[{3} TO *]))";
-//
-//
-//        String fq = MessageFormat.format(bboxFilterQuery, minLatLng[1], maxLatLng[1], minLatLng[0], maxLatLng[0]);
+
+//        double buff = gridSize;
+
+//        String fq = MessageFormat.format(bboxFilterQuery, minLatLng[1] - buff, maxLatLng[1] - buff, minLatLng[0] + buff , maxLatLng[0] + buff);
+
+        double minX = minLatLng[1] - buff;
+        double maxX = maxLatLng[1] + buff;
+        double minY = minLatLng[0] - buff;
+        double maxY = maxLatLng[0] + buff;
+
+        if(minX > maxX){
+            double tmp = maxX;
+            maxX = minX;
+            minX = tmp;
+        }
+
+        if(minY > maxY){
+            double tmp = maxY;
+            maxY = minY;
+            minY = tmp;
+        }
+
+
+        String fq = MessageFormat.format(bboxFilterQuery, minX, minY, maxX, maxY);
 
 
         String[] fqs = wmsUtils.getFq(requestParams);
 
         String[] newFqs = new String[fqs.length + 1];
         System.arraycopy(fqs, 0, newFqs, 0, fqs.length);
-//        newFqs[newFqs.length - 1] = fq;
+        newFqs[newFqs.length - 1] = fq;
 
-//        requestParams.setFq(newFqs);
+        requestParams.setFq(newFqs);
         requestParams.setPageSize(0);
         requestParams.setFacet(true);
         requestParams.setFlimit(-1);
@@ -330,15 +366,15 @@ public class WMSOSGridController {
                 " AND " +
                 "northing:[{2} TO {3}]";
 
-        int buff = gridSize * 1;
-        int[] enbbox = new int[]{ (int) (minEN[0]-buff), (int) (maxEN[0]+buff), (int)( minEN[1]-buff), (int) (maxEN[1]+buff) };
-        newFqs[newFqs.length - 1] = MessageFormat.format(
-                eastingNorthingFilterQuery,
-                Integer.toString(enbbox[0]),
-                Integer.toString(enbbox[1]),
-                Integer.toString(enbbox[2]),
-                Integer.toString(enbbox[3])
-        );
+//        int buff = gridSize * 1;
+//        int[] enbbox = new int[]{ (int) (minEN[0]-buff), (int) (maxEN[0]+buff), (int)( minEN[1]-buff), (int) (maxEN[1]+buff) };
+//        newFqs[newFqs.length - 1] = MessageFormat.format(
+//                eastingNorthingFilterQuery,
+//                Integer.toString(enbbox[0]),
+//                Integer.toString(enbbox[1]),
+//                Integer.toString(enbbox[2]),
+//                Integer.toString(enbbox[3])
+//        );
 
         requestParams.setFq(newFqs);
         requestParams.setPageSize(0);
@@ -582,11 +618,11 @@ public class WMSOSGridController {
         return null;
     }
 
-    double[] convertWGS84ToEastingNorthing(Double coordinate1 , Double coordinate2){
+    double[] convertWGS84ToEastingNorthing(Double coordinate1, Double coordinate2){
         return reprojectPoint(coordinate1, coordinate2,  "EPSG:4326", "EPSG:27700");
     }
 
-    double[] convertMetersToWGS84(Double coordinate1 , Double coordinate2){
+    double[] convertMetersToWGS84(Double coordinate1, Double coordinate2){
         return reprojectPoint(coordinate1, coordinate2, "EPSG:3857", "EPSG:4326");
     }
 
