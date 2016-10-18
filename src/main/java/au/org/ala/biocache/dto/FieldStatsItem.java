@@ -1,4 +1,4 @@
-package au.org.ala.biocache.dao;
+package au.org.ala.biocache.dto;
 
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 

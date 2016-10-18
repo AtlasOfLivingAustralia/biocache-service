@@ -14,24 +14,18 @@
  ***************************************************************************/
 package au.org.ala.biocache.dao;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.UUID;
-
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
-
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import javax.annotation.PostConstruct;
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
 
 /**
  * A queue that stores the Downloads as JSON files in the supplied directory
@@ -64,7 +58,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
                 synchronized (listLock) {
                     offlineDownloadList = Collections.synchronizedList(new ArrayList<DownloadDetailsDTO>());
                     File file = new File(cacheDirectory);
-                    jsonMapper.configure(org.codehaus.jackson.map.DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+                    jsonMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
                     try {
                         FileUtils.forceMkdir(file);
@@ -206,7 +200,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
                             DownloadDetailsDTO dd = jsonMapper.readValue(f, DownloadDetailsDTO.class);
                             offlineDownloadList.add(dd);
                         } catch (Exception e) {
-                            logger.error("Unable to load cached downlaod " + f.getAbsolutePath(), e);
+                            logger.error("Unable to load cached download " + f.getAbsolutePath(), e);
                         }
                     }
                 }

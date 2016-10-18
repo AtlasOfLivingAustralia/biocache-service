@@ -15,20 +15,20 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.Store;
-import au.org.ala.biocache.vocab.AssertionCodes;
 import au.org.ala.biocache.model.FullRecord;
 import au.org.ala.biocache.model.QualityAssertion;
 import au.org.ala.biocache.model.Versions;
-import au.org.ala.biocache.vocab.AssertionStatus;
-import au.org.ala.biocache.vocab.ErrorCode;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.util.AssertionUtils;
+import au.org.ala.biocache.vocab.AssertionCodes;
+import au.org.ala.biocache.vocab.AssertionStatus;
+import au.org.ala.biocache.vocab.ErrorCode;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.StringRequestEntity;
 import org.apache.log4j.Logger;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.type.TypeReference;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Controller;
@@ -39,6 +39,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.net.HttpURLConnection;
 import java.util.List;
+import java.util.Map;
 
 /**
  * This controller provides web services for assertion creation/deletion.
@@ -132,7 +133,8 @@ public class AssertionController extends AbstractSecureController {
             String userDisplayName = request.getParameter("userDisplayName");
             //check to see that the assertions have come from a valid source before adding
             if (shouldPerformOperation(request, response)) {
-                List<java.util.Map<String,String>> assertions = om.readValue(json, new TypeReference<List<java.util.Map<String,String>>>(){});
+                List<java.util.Map<String, String>> assertions = om.readValue(json, new TypeReference<List<Map<String, String>>>() {
+                });
                 logger.debug("The assertions in a list of maps: " + assertions);
                 java.util.HashMap<String,QualityAssertion> qas = new java.util.HashMap<String,QualityAssertion>(assertions.size());
                 for(java.util.Map<String,String> assertion : assertions){
