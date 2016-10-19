@@ -6,6 +6,7 @@ import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dto.Facet;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.parser.AdHocParser;
+import au.org.ala.biocache.parser.DateParser;
 import org.ala.layers.dao.IntersectCallback;
 import org.ala.layers.dto.IntersectionFile;
 import org.apache.commons.collections.CollectionUtils;
@@ -608,28 +609,21 @@ class UploaderThread implements Runnable {
     protected String[] customIndexFields = null;
     protected Integer threads = 4;
     protected String alaId = null;
+    private ObjectMapper om = new ObjectMapper();
 
     @Override
     public void run(){
 
         File statusDir = null;
         File statusFile = null;
-        ObjectMapper om = new ObjectMapper();
-        List<String> intList = new ArrayList<String>();        
-        List<String> floatList = new ArrayList<String>();
-        List<String> stringList = new ArrayList<String>();
+        // List of custom fields separated by type (either user provided or to infer)
+        Set<String> userProvidedTypeList = new HashSet<>();
+        Set<String> intList = new HashSet<>();
+        Set<String> floatList = new HashSet<>();
+        Set<String> dateList = new HashSet<>();
+        Set<String> stringList = new HashSet<>();
 
-        try {
-            statusDir = new File(uploadStatusDir);
-            if(!statusDir.exists()){
-                FileUtils.forceMkdir(statusDir);
-            }
-            statusFile = new File(uploadStatusDir + File.separator + tempUid);
-            statusFile.createNewFile();
-        } catch (Exception e1){
-            logger.error(e1.getMessage(), e1);
-            throw new RuntimeException(e1);
-        }
+        statusFile = createStatusFile();
 
         try {
 
@@ -647,53 +641,8 @@ class UploaderThread implements Runnable {
                 recordCount--;
             }
 
-            Integer counter = 0;
+            loadRecords(statusFile, intList, floatList, stringList, dateList, userProvidedTypeList,recordCount);
 
-            try {
-                String[] currentLine = csvData.readNext();
-
-                //default data type for the "customIndexFields" is a string
-                CollectionUtils.addAll(intList, customIndexFields);
-
-                //if the first line is data, add a record, else discard
-                if(firstLineIsData){
-                    addRecord(tempUid, datasetName, currentLine, headers, intList, floatList, stringList);
-                }
-
-                //write the data to DB
-                Integer percentComplete  = 0;
-                while((currentLine = csvData.readNext()) != null){
-                    //System.out.println("######## loading line: " + counter);
-                    counter++;
-                    addRecord(tempUid, datasetName, currentLine, headers, intList, floatList, stringList);
-                    if(counter % 100 == 0){
-                        Integer percentageComplete = 0;
-                        if(counter != 0){
-                            percentageComplete = (int) ((float) (counter + 1) / (float) recordCount * 25);
-                        }
-                        FileUtils.writeStringToFile(
-                                statusFile,
-                                om.writeValueAsString(new UploadStatus("LOADING", String.format("%d of %d records loaded.", counter, recordCount), percentageComplete)));
-                    }
-                }
-            } catch(Exception e) {
-                logger.error(e.getMessage(),e);
-                throw e;
-            } finally {
-                csvData.close();
-            }
-
-            //update the custom index fields so that the are appended with the data type _i for int and _d for float/double
-            List<String> tmpCustIndexFields = new ArrayList<String>();
-            for(String f : customIndexFields){
-                if(intList.contains(f))
-                   tmpCustIndexFields.add(f + "_i");
-                else if(floatList.contains(f))
-                   tmpCustIndexFields.add(f + "_d");
-                else
-                    tmpCustIndexFields.add(f); //default is a string
-            }
-            
             status = "SAMPLING";
             UploadIntersectCallback u = new UploadIntersectCallback(statusFile);
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("SAMPLING","Starting",25)));
@@ -706,10 +655,12 @@ class UploaderThread implements Runnable {
             au.org.ala.biocache.Store.process(tempUid, threads, processingCallback);
 
             status = "INDEXING";
-            logger.debug("Indexing " + tempUid + " " + tmpCustIndexFields);
+            Set<String> suffixedCustIndexFields = getSuffixedCustomIndexFields(intList, floatList, dateList, stringList);
+            logger.debug("Indexing " + tempUid + " " + suffixedCustIndexFields);
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("INDEXING","Starting",75)));
             DefaultObserverCallback indexingCallback = new DefaultObserverCallback("INDEXING", recordCount, statusFile, 75, "indexed");
-            au.org.ala.biocache.Store.index(tempUid, tmpCustIndexFields.toArray(new String[0]), indexingCallback);
+            au.org.ala.biocache.Store.index(tempUid, suffixedCustIndexFields.toArray(new String[0]),
+                    userProvidedTypeList.toArray(new String[0]), indexingCallback);
 
             status = "COMPLETE";
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,"Loading complete",100)));
@@ -725,28 +676,144 @@ class UploaderThread implements Runnable {
         }
     }
 
-    private void addRecord(String tempUid, String datasetName, String[] currentLine, String[] headers, List<String> intList, List<String> floatList, List<String> stringList) {
+    private Set<String> getSuffixedCustomIndexFields(Set<String> intList, Set<String> floatList, Set<String> dateList,
+                                                      Set<String> stringList)  {
+        //update the custom index fields so that they are appended with the data type _i for int and _d for float/double
+        Set<String> suffixedCustIndexFields = new HashSet<>();
+
+        for(String field:intList) {
+            suffixedCustIndexFields.add(field + "_i");
+        }
+
+        for(String field:floatList) {
+            suffixedCustIndexFields.add(field + "_d");
+        }
+
+        for(String field:dateList) {
+            if(!intList.contains(field)) { // As addRecord works, a field could end up in date and list sets, int has priority
+                suffixedCustIndexFields.add(field + "_dt");
+            }
+        }
+
+        for(String field:stringList) {
+            if(!intList.contains(field)) { // As addRecord works, a field could end up in string and list sets, int has priority
+                suffixedCustIndexFields.add(field); // No suffix for strings
+            }
+        }
+
+        return suffixedCustIndexFields;
+    }
+
+    private File createStatusFile() {
+        File statusDir;
+        File statusFile;
+        try {
+            statusDir = new File(uploadStatusDir);
+            if(!statusDir.exists()){
+                FileUtils.forceMkdir(statusDir);
+            }
+            statusFile = new File(uploadStatusDir + File.separator + tempUid);
+            statusFile.createNewFile();
+        } catch (Exception e1){
+            logger.error(e1.getMessage(), e1);
+            throw new RuntimeException(e1);
+        }
+        return statusFile;
+    }
+
+    private void loadRecords(File statusFile, Set<String> intList, Set<String> floatList, Set<String> stringList,
+                             Set<String> dateList, Set<String> userProvidedTypeList,  Integer recordCount) throws IOException {
+        Integer counter = 0;
+
+        try {
+            String[] currentLine = csvData.readNext();
+
+            List<String> automaticFieldList = new ArrayList<>();
+
+            for(String customField: customIndexFields) {
+                if(customField.endsWith("_i") || customField.endsWith("_d") || customField.endsWith("_s") || customField.endsWith("_dt")) {
+                    userProvidedTypeList.add(customField);
+                } else {
+                    automaticFieldList.add(customField);
+                }
+            }
+
+
+            //addRecord will check fields if they are int, double or string in that order.
+            CollectionUtils.addAll(intList, automaticFieldList.iterator());
+
+            // We need to check all fields to see if they contain a date.
+            CollectionUtils.addAll(dateList, automaticFieldList.iterator());
+
+            //if the first line is data, add a record, else discard
+            if(firstLineIsData){
+                addRecord(tempUid, datasetName, currentLine, headers, intList, floatList, stringList, dateList);
+            }
+
+            //write the data to DB
+            Integer percentComplete  = 0;
+            while((currentLine = csvData.readNext()) != null){
+                //System.out.println("######## loading line: " + counter);
+                counter++;
+                addRecord(tempUid, datasetName, currentLine, headers, intList, floatList, stringList, dateList);
+                if(counter % 100 == 0){
+                    Integer percentageComplete = 0;
+                    if(counter != 0){
+                        percentageComplete = (int) ((float) (counter + 1) / (float) recordCount * 25);
+                    }
+                    FileUtils.writeStringToFile(
+                            statusFile,
+                            om.writeValueAsString(new UploadStatus("LOADING", String.format("%d of %d records loaded.", counter, recordCount), percentageComplete)));
+                }
+            }
+        } catch(Exception e) {
+            logger.error(e.getMessage(),e);
+            throw e;
+        } finally {
+            csvData.close();
+        }
+    }
+
+    private void addRecord(String tempUid, String datasetName, String[] currentLine, String[] headers, Set<String> intList, Set<String> floatList, Set<String> stringList, Set<String> dateList) {
         Map<String,String> map = new HashMap<String, String>();
         for(int i = 0; i < headers.length && i < currentLine.length; i++){
-            if(currentLine[i] != null && currentLine[i].trim().length() > 0 ){
-                map.put(headers[i], currentLine[i].trim());
-                //now test of the header value is part of the custom index fields and perform a data check
-                if(intList.contains(headers[i])){
-                    try {
-                        Integer.parseInt(currentLine[i].trim());
-                    } catch(Exception e){
-                        //this custom index column could not possible be an integer
-                        intList.remove(headers[i]);
-                        floatList.add(headers[i]);
+            if(currentLine[i] != null) {
+                String fieldValue = currentLine[i].trim();
+                if(fieldValue.length() > 0 ) {
+                    String currentHeader = headers[i];
+                    map.put(currentHeader, fieldValue);
+                    //now test of the header value is part of the custom index fields and perform a data check
+                    if (intList.contains(currentHeader)) {
+                        try {
+                            Integer.parseInt(fieldValue);
+                        } catch (Exception e) {
+                            //this custom index column could not possible be an integer
+                            intList.remove(currentHeader);
+                            floatList.add(currentHeader);
+                        }
                     }
-                }
-                if(floatList.contains(headers[i])){
-                    try {
-                        Float.parseFloat(currentLine[i].trim());
-                    } catch(Exception e) {
-                        //this custom index column can only be a string
-                      floatList.remove(headers[i]);
-                      stringList.add(headers[i]);
+
+                    if (floatList.contains(currentHeader)) {
+                        try {
+                            Float.parseFloat(fieldValue);
+                        } catch (Exception e) {
+                            //this custom index column can only be a string
+                            floatList.remove(currentHeader);
+                            stringList.add(currentHeader);
+                        }
+                    }
+
+                    if (dateList.contains(currentHeader)) {
+                        try {
+                            if(DateParser.parseDate(fieldValue, null, null).isEmpty()) {
+                                dateList.remove(currentHeader);
+                                stringList.add(currentHeader);
+                            }
+                        } catch (Exception e) {
+                            //this custom index column can only be a string
+                            dateList.remove(currentHeader);
+                            stringList.add(currentHeader);
+                        }
                     }
                 }
             }
