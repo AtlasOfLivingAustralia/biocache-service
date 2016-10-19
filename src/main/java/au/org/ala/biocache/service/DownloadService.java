@@ -16,13 +16,13 @@ package au.org.ala.biocache.service;
 
 import au.com.bytecode.opencsv.CSVReader;
 import au.com.bytecode.opencsv.CSVWriter;
-import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.IndexFieldDTO;
+import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import au.org.ala.biocache.util.AlaFileUtils;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
@@ -74,7 +74,7 @@ public class DownloadService {
     @Inject
     private RestOperations restTemplate;
     @Inject
-    private org.codehaus.jackson.map.ObjectMapper objectMapper;
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     @Inject
     private EmailService emailService;
     @Inject

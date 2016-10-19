@@ -3765,7 +3765,7 @@ public class SearchDAOImpl implements SearchDAO {
         QueryResponse response = runSolrQuery(query, searchParams);
 
         List<FieldStatsItem> output = new ArrayList();
-        if (facet != null) {
+        if (facet != null && response.getFieldStatsInfo().size() > 0) {
             for (FieldStatsInfo f : response.getFieldStatsInfo().values().iterator().next().getFacets().values().iterator().next()) {
                 FieldStatsItem item = new FieldStatsItem(f);
                 item.setFq(facet + ":" + f.getName());

@@ -15,16 +15,16 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.Store;
-import au.org.ala.biocache.model.ValidationRule;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.dto.ValidationRuleDTO;
+import au.org.ala.biocache.model.ValidationRule;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.SpeciesLookupService;
 import au.org.ala.biocache.util.AssertionUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocumentList;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;

@@ -60,9 +60,13 @@ public class DownloadDetailsDTO {
         requestParams = params;
         email = requestParams.getEmail();
     }
-    
-    public String getLastUpdate(){
-        return lastUpdate == null ? null:lastUpdate.toString();
+
+    public Date getLastUpdate() {
+        return lastUpdate;
+    }
+
+    public void setLastUpdate(Date lastUpdate) {
+        this.lastUpdate = lastUpdate;
     }
     
     @JsonIgnore

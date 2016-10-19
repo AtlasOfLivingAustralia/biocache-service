@@ -14,8 +14,8 @@
            http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd
 
 
-           http://activemq.apache.org/schema/core 
-           http://activemq.apache.org/schema/core/activemq-core.xsd
+
+
            http://ehcache-spring-annotations.googlecode.com/svn/schema/ehcache-spring
            http://ehcache-spring-annotations.googlecode.com/svn/schema/ehcache-spring/ehcache-spring-1.1.xsd
            http://www.springframework.org/schema/task
@@ -107,7 +107,7 @@
                         </bean>
                     </property>
                 </bean>
-                <bean class="org.springframework.web.servlet.view.json.MappingJacksonJsonView">
+                <bean class="org.springframework.web.servlet.view.json.MappingJackson2JsonView">
                     <property name="objectMapper" ref="jacksonObjectMapper" />
                 </bean>
             </list>
@@ -122,11 +122,11 @@
     </bean>
     
     <bean id="restfulClient" class="org.ala.client.util.RestfulClient"/>
-        <bean class="org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter" p:order="0">
+    <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter" p:order="0">
         <property name="messageConverters">
             <list>
                 <bean
-                    class="org.springframework.http.converter.json.MappingJacksonHttpMessageConverter">
+                        class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
                     <property name="objectMapper" ref="jacksonObjectMapper" />
                 </bean>
             </list>
@@ -137,25 +137,31 @@
     <bean id="restTemplate" class="org.springframework.web.client.RestTemplate">
         <property name="messageConverters">
             <list>
-                <!-- <bean class="org.springframework.http.converter.xml.SourceHttpMessageConverter"/> -->
-                <bean class="org.springframework.http.converter.json.MappingJacksonHttpMessageConverter"/>
+                <bean class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
+                    <property name="objectMapper" ref="jacksonObjectMapper"/>
+                </bean>
             </list>
         </property>
     </bean>
 
-    <bean id="jacksonObjectMapper" class="org.codehaus.jackson.map.ObjectMapper" />
-    <bean id="jacksonSerializationConfig" class="org.codehaus.jackson.map.SerializationConfig"
-        factory-bean="jacksonObjectMapper" factory-method="getSerializationConfig" />
-    <bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
-        <property name="targetObject" ref="jacksonSerializationConfig" />
-        <property name="targetMethod" value="setSerializationInclusion" />
+    <bean id="jacksonObjectMapper" class="com.fasterxml.jackson.databind.ObjectMapper">
+        <property name="serializationInclusion" value="NON_NULL"/>
+    </bean>
+
+    <bean id="jacksonDeserializationConfig" class="com.fasterxml.jackson.databind.DeserializationConfig"
+          factory-bean="jacksonObjectMapper" factory-method="getDeserializationConfig"/>
+    <bean
+            class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+        <property name="targetObject" ref="jacksonDeserializationConfig"/>
+        <property name="targetMethod" value="withAttribute"/>
         <property name="arguments">
             <list>
-                <value type="org.codehaus.jackson.map.annotate.JsonSerialize.Inclusion">NON_NULL</value>
+                <value type="com.fasterxml.jackson.databind.DeserializationFeature">FAIL_ON_UNKNOWN_PROPERTIES</value>
+                <value>false</value>
             </list>
         </property>
     </bean>
-    
+
     <!-- Ehcache settings @see http://blog.goyello.com/2010/07/29/quick-start-with-ehcache-annotations-for-spring/ -->
     <ehcache:annotation-driven />
  
