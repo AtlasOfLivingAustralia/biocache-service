@@ -5,6 +5,7 @@ jdk:
 branches:
   only:
   - master
+  - chart
   - 1.6
   - 1.5.1
 before_install:
