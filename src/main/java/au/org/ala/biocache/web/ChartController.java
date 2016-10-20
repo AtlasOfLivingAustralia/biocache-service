@@ -98,7 +98,7 @@ public class ChartController extends AbstractSecureController implements Seriali
     public
     @ResponseBody
     List chart(SpatialSearchRequestParams searchParams,
-               @RequestParam(value = "x", required = true) String x,
+               @RequestParam(value = "x", required = false) String x,
                @RequestParam(value = "xranges", required = false) String xranges,
                @RequestParam(value = "stats", required = false) String stats,
                @RequestParam(value = "series", required = false) String series,
