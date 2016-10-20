@@ -693,13 +693,13 @@ class UploaderThread implements Runnable {
         }
 
         for(String field:dateList) {
-            if(!intList.contains(field)) { // As addRecord works, a field could end up in date and list sets, int has priority
+            if(!intList.contains(field)) { // As addRecord works, a field could end up in date and int sets, int has priority
                 suffixedCustIndexFields.add(field + "_dt");
             }
         }
 
         for(String field:stringList) {
-            if(!intList.contains(field)) { // As addRecord works, a field could end up in string and list sets, int has priority
+            if(!intList.contains(field) && !dateList.contains(field) && !floatList.contains(field)) {
                 suffixedCustIndexFields.add(field); // No suffix for strings
             }
         }

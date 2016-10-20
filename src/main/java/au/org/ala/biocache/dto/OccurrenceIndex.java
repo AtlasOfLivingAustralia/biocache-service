@@ -120,6 +120,7 @@ public class OccurrenceIndex {
     @Field("*_s") Map<String, Object> miscStringProperties;
     @Field("*_i") Map<String, Object> miscIntProperties;
     @Field("*_d") Map<String, Object> miscDoubleProperties;
+    @Field("*_dt") Map<String, Object> miscDateProperties;
     List<Map<String, Object>> imageMetadata;
 
     String imageUrl;
@@ -1058,5 +1059,13 @@ public class OccurrenceIndex {
 
     public void setMiscDoubleProperties(Map<String, Object> miscDoubleProperties) {
         this.miscDoubleProperties = miscDoubleProperties;
+    }
+
+    public Map<String, Object> getMiscDateProperties() {
+        return miscDateProperties;
+    }
+
+    public void setMiscDateProperties(Map<String, Object> miscDateProperties) {
+        this.miscDateProperties = miscDateProperties;
     }
 }
