@@ -113,7 +113,7 @@ public class ChartController extends AbstractSecureController implements Seriali
             for (int i = 0; i < sr.length; i++) {
                 if (i < sr.length - 1) {
                     Map sm = new HashMap();
-                    sm.put("fq", x + ":[" + sr[i] + " TO " + sr[i + 1] + "]" + (i > 0 ? " AND -" + x + ":" + sr[i] : ""));
+                    sm.put("fq", series + ":[" + sr[i] + " TO " + sr[i + 1] + "]" + (i > 0 ? " AND -" + series + ":" + sr[i] : ""));
                     sm.put("label", sr[i] + " - " + sr[i + 1]);
                     seriesFqs.add(sm);
                 }
