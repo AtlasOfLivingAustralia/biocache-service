@@ -15,10 +15,7 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dao.SearchDAO;
-import au.org.ala.biocache.dto.FacetResultDTO;
-import au.org.ala.biocache.dto.FieldResultDTO;
-import au.org.ala.biocache.dto.FieldStatsItem;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.*;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import net.sf.ehcache.CacheManager;
@@ -26,6 +23,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.common.util.NamedList;
+import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -113,7 +111,7 @@ public class ChartController extends AbstractSecureController implements Seriali
             for (int i = 0; i < sr.length; i++) {
                 if (i < sr.length - 1) {
                     Map sm = new HashMap();
-                    sm.put("fq", series + ":[" + sr[i] + " TO " + sr[i + 1] + "]" + (i > 0 ? " AND -" + series + ":" + sr[i] : ""));
+                    sm.put("fq", series + ":[" + sr[i] + " TO " + sr[i + 1] + "]" + (i > 0 ? " AND -(" + series + ":\"" + sr[i] + "\")" : ""));
                     sm.put("label", sr[i] + " - " + sr[i + 1]);
                     seriesFqs.add(sm);
                 }
@@ -174,26 +172,45 @@ public class ChartController extends AbstractSecureController implements Seriali
                 searchParams.setFacets(new String[]{x});
 
                 Collection<FacetResultDTO> l = searchDAO.findByFulltextSpatialQuery(searchParams, null).getFacetResults();
-                if (l.size() > 0) {
+                if (l != null && l.size() > 0) {
                     FacetResultDTO result = l.iterator().next();
 
                     List ranges = new ArrayList<Double>();
+                    List rangesDate = new ArrayList<DateTime>();
                     String[] r = xranges.split(",");
                     List<FieldResultDTO> output = new ArrayList<FieldResultDTO>(r.length - 1);
+
+                    boolean isDate = false;
+                    for (IndexFieldDTO f : searchDAO.getIndexedFields()) {
+                        if (f.getName().equalsIgnoreCase(x) && f.getDataType().equalsIgnoreCase("tdate")) isDate = true;
+                    }
                     for (int i = 0; i < r.length; i++) {
-                        ranges.add(Double.parseDouble(r[i]));
+                        if (isDate) {
+                            rangesDate.add(new DateTime(r[i]));
+                        } else {
+                            ranges.add(Double.parseDouble(r[i]));
+                        }
 
                         if (i < r.length - 1) {
-                            String fq = x + ":[" + r[i] + " TO " + r[i + 1] + "]" + (i > 0 ? " AND -" + x + ":" + r[i] : "");
+                            String fq = x + ":[" + r[i] + " TO " + r[i + 1] + "]" + (i > 0 ? " AND -(" + x + ":\"" + r[i] + "\")" : "");
                             FieldResultDTO fr = new FieldResultDTO(r[i] + " - " + r[i + 1], 0, fq);
-                            fr.setLabel(r[i] + " - " + r[i + 1]);
+                            if (isDate) {
+                                fr.setLabel(r[i].substring(0, 10) + " - " + r[i + 1].substring(0, 10));
+                            } else {
+                                fr.setLabel(r[i] + " - " + r[i + 1]);
+                            }
                             output.add(fr);
                         }
                     }
 
                     for (FieldResultDTO f : result.getFieldResult()) {
                         if (StringUtils.isNotEmpty(f.getFieldValue())) {
-                            int idx = Collections.binarySearch(ranges, Double.parseDouble(f.getFieldValue()));
+                            int idx;
+                            if (isDate) {
+                                idx = Collections.binarySearch(rangesDate, new DateTime(f.getFieldValue()));
+                            } else {
+                                idx = Collections.binarySearch(ranges, Double.parseDouble(f.getFieldValue()));
+                            }
 
                             if (idx < 0) idx = (idx + 1) * -1;
                             if (idx > 0) idx--;
@@ -215,7 +232,7 @@ public class ChartController extends AbstractSecureController implements Seriali
                 List output = new ArrayList<>(r.length - 1);
                 for (int i = 0; i < r.length; i++) {
                     if (i < r.length - 1) {
-                        fqs[fqs.length - 1] = x + ":[" + r[i] + " TO " + r[i + 1] + "]" + (i > 0 ? " AND -" + x + ":" + r[i] : "");
+                        fqs[fqs.length - 1] = x + ":[" + r[i] + " TO " + r[i + 1] + "]" + (i > 0 ? " AND -(" + x + ":\"" + r[i] + "\")" : "");
                         searchParams.setFq(fqs);
 
                         List result = searchDAO.searchStat(searchParams, stats, null);
