@@ -3,7 +3,7 @@
     <excludes>
         <pattern>/v2*</pattern>
         <pattern>/swagger*</pattern>
-        <pattern>/chart.*</pattern>
+        <pattern>/chart*</pattern>
         <pattern>/styles/*</pattern>
         <pattern>/scripts/*</pattern>
         <pattern>/images/*</pattern>

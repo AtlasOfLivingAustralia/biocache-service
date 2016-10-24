@@ -21,6 +21,7 @@ public class FieldStatsItem {
         this.missing = info.getMissing();
         this.mean = info.getMean();
         this.stddev = info.getStddev();
+        this.label = info.getName();
     }
 
     public String getFq() {

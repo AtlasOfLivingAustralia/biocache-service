@@ -3753,7 +3753,7 @@ public class SearchDAOImpl implements SearchDAO {
         SolrQuery query = initSolrQuery(searchParams, false, null);
         query.setQuery(queryString);
         query.setFields(null);
-        query.setFacetLimit(-1);
+        //query.setFacetLimit(-1);
 
         //stats parameters
         query.add("stats", "true");
@@ -3768,7 +3768,11 @@ public class SearchDAOImpl implements SearchDAO {
         if (facet != null && response.getFieldStatsInfo().size() > 0) {
             for (FieldStatsInfo f : response.getFieldStatsInfo().values().iterator().next().getFacets().values().iterator().next()) {
                 FieldStatsItem item = new FieldStatsItem(f);
-                item.setFq(facet + ":" + f.getName());
+                if (f.getName() == null) {
+                    item.setFq("-" + facet + ":*");
+                } else {
+                    item.setFq(facet + ":\"" + f.getName() + "\"");
+                }
                 item.setLabel(f.getName());
                 output.add(item);
             }
