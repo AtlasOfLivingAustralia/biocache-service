@@ -356,4 +356,31 @@ public interface SearchDAO {
      * @param searchParams
      */
     void formatSearchQuery(SpatialSearchRequestParams searchParams, boolean forceQueryFormat);
+
+    /**
+     * Return statistics for a numerical field.
+     * <p>
+     * Supply an optional facet to return statistics for each value in the facet.
+     *
+     * @param searchParams
+     * @param field
+     * @param facet
+     * @return
+     * @throws Exception
+     */
+    List<FieldStatsItem> searchStat(SpatialSearchRequestParams searchParams, String field, String facet) throws Exception;
+
+    /**
+     * Return legend items for a query and facet.
+     * <p>
+     * Specifying the facet 'grid' will return a generic LegendItem list.
+     * <p>
+     * This will only use the first ColorUtil.colourList.length-1 items only.
+     *
+     * @param request    query
+     * @param colourMode a facet or 'grid'
+     * @return
+     * @throws Exception
+     */
+    List<LegendItem> getColours(SpatialSearchRequestParams request, String colourMode) throws Exception;
 }

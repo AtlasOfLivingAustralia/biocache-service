@@ -14,9 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
-import org.codehaus.jackson.annotate.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import java.io.File;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
@@ -61,9 +60,13 @@ public class DownloadDetailsDTO {
         requestParams = params;
         email = requestParams.getEmail();
     }
-    
-    public String getLastUpdate(){
-        return lastUpdate == null ? null:lastUpdate.toString();
+
+    public Date getLastUpdate() {
+        return lastUpdate;
+    }
+
+    public void setLastUpdate(Date lastUpdate) {
+        this.lastUpdate = lastUpdate;
     }
     
     @JsonIgnore

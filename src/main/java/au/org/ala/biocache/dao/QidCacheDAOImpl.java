@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.dao;
 
+import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.model.Qid;
 import au.org.ala.biocache.util.QidMissingException;
 import au.org.ala.biocache.util.QidSizeException;
@@ -317,5 +318,38 @@ public class QidCacheDAOImpl implements QidCacheDAO {
     void updateTriggerCleanSize() {
         triggerCleanSize = minCacheSize + (maxCacheSize - minCacheSize) / 2;
         logger.debug("triggerCleanSize=" + triggerCleanSize + " minCacheSize=" + minCacheSize + " maxCacheSize=" + maxCacheSize);
+    }
+
+    public String[] getFq(SpatialSearchRequestParams requestParams) {
+        int requestParamsFqLength = requestParams.getFq() != null ? requestParams.getFq().length : 0;
+
+        String[] qidFq = null;
+        int qidFqLength = 0;
+        String q = requestParams.getQ();
+        if (q.startsWith("qid:")) {
+            try {
+                qidFq = get(q.substring(4)).getFqs();
+                if (qidFq != null) {
+                    qidFqLength = qidFq.length;
+                }
+            } catch (Exception e) {
+            }
+        }
+
+        if (requestParamsFqLength + qidFqLength == 0) {
+            return null;
+        }
+
+        String[] allFqs = new String[requestParamsFqLength + qidFqLength];
+
+        if (requestParamsFqLength > 0) {
+            System.arraycopy(requestParams.getFq(), 0, allFqs, 0, requestParamsFqLength);
+        }
+
+        if (qidFqLength > 0) {
+            System.arraycopy(qidFq, 0, allFqs, requestParamsFqLength, qidFqLength);
+        }
+
+        return allFqs;
     }
 }
