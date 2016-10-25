@@ -350,7 +350,7 @@ public class ChartController extends AbstractSecureController implements Seriali
 
                 //use fqs as xranges
                 xranges = newXRanges;
-            } else if (fqs.size() > 0 && xranges == null) {
+            } else if (fqs.size() > 0) {
                 //this will include any facets excluded due to maxStringFacets
                 inverse.append(fqFromSeriesFacets(fqs, false));
                 query.append(fqFromSeriesFacets(fqs, true));
@@ -500,7 +500,7 @@ public class ChartController extends AbstractSecureController implements Seriali
             }
         } else {
             int maxSeries = newMax != null ? newMax : maxStringFacets;
-            List list = getSeriesFacets(series, searchParams, maxSeries, includeMissing);
+            List list = getSeriesFacets(series, searchParams, maxSeries + 1, includeMissing);
             if (list.size() > maxSeries + (includeMissing ? 1 : 0)) {
                 seriesFqs.addAll(list);
             }
