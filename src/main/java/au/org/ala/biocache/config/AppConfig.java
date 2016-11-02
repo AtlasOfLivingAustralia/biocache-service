@@ -25,7 +25,7 @@ public class AppConfig {
     @Inject
     private AbstractMessageSource messageSource; // use for i18n of the headers
 
-    @Value("${name.index.dir:/data/lucene/namematching_v13}")
+    @Value("${name.index.dir:/data/lucene/namematching}")
     protected String nameIndexLocation;
 
     @Inject

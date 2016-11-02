@@ -61,7 +61,7 @@ public class DownloadService {
      * default:
      * 4 threads for SOLR downloads for <50000 occurrences
      * 1 thread for SOLR downloads with any number of occurrences
-     * 2 threads for CASSANDA downloads for <50000 occurrences
+     * 2 threads for CASSANDRA downloads for <50000 occurrences
      */
     @Value("${concurrent.downloads.extra:[{\"threads\": 4, \"maxRecords\": 50000, \"type\": \"index\"}, {\"threads\": 1, \"maxRecords\": 100000000, \"type\": \"index\"}, {\"threads\": 1, \"maxRecords\": 50000, \"type\": \"db\"}]}")
     protected String concurrentDownloadsExtra;

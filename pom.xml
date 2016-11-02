@@ -370,6 +370,13 @@
             <artifactId>jfreechart</artifactId>
             <version>1.0.13</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.geotools</groupId>
+            <artifactId>gt-opengis</artifactId>
+            <version>11.1</version>
+        </dependency>
+
     </dependencies>
     <build>
         <finalName>biocache-service</finalName>

@@ -20,6 +20,7 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.model.Qid;
+import au.org.ala.layers.dto.Field;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -230,7 +231,14 @@ public class ExploreController {
         SearchResultDTO results = searchDao.findByFulltextSpatialQuery(requestParams, null);
         Integer speciesCount = 0;
         if(results.getFacetResults().size() > 0){
-            speciesCount = results.getFacetResults().iterator().next().getFieldResult().size();
+            List<FieldResultDTO> fieldResults = results.getFacetResults().iterator().next().getFieldResult();
+            int count = 0;
+            for (FieldResultDTO fr :  fieldResults){
+                if(fr.getCount() !=0 && !fr.getLabel().equalsIgnoreCase("Unknown")){
+                    count++;
+                }
+            }
+            speciesCount = count;
         }
         
         return new Integer[]{(int) results.getTotalRecords(), speciesCount};

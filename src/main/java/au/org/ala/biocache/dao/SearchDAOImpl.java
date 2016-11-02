@@ -39,7 +39,6 @@ import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrQuery.ORDER;
 import org.apache.solr.client.solrj.SolrRequest;
-import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.beans.DocumentObjectBinder;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
@@ -60,7 +59,6 @@ import org.springframework.util.CollectionUtils;
 
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
@@ -208,6 +206,9 @@ public class SearchDAOImpl implements SearchDAO {
 
     @Value("${media.dir:/data/biocache-media/}")
     public static String biocacheMediaDir = "/data/biocache-media/";
+
+    @Value("${default.download.fields:uuid,catalogNumber,taxonConceptID.p,scientificName,vernacularName,scientificName.p,taxonRank.p,vernacularName.p,kingdom.p,phylum.p,classs.p,order.p,family.p,genus.p,species.p,subspecies.p,institutionCode,collectionCode,locality,decimalLatitude,decimalLongitude,geodeticDatum,decimalLatitude.p,decimalLongitude.p,coordinatePrecision,coordinateUncertaintyInMeters.p,country.p,stateProvince.p,minimumElevationInMeters,maximumElevationInMeters,minimumDepthInMeters,maximumDepthInMeters,individualCount,recordedBy,year.p,month.p,day.p,eventDate.p,eventTime.p,basisOfRecord,basisOfRecord.p,sex,preparations,informationWithheld.p,dataGeneralizations.p,speciesHabitats.p,outlierForLayers.p,taxonomicIssue.p,geospatiallyKosher,license.p}")
+    protected String defaultDownloadFields;
 
     private Set<IndexFieldDTO> indexFields = null;
     private Map<String, IndexFieldDTO> indexFieldMap = null;
@@ -721,7 +722,7 @@ public class SearchDAOImpl implements SearchDAO {
             SolrQuery solrQuery = new SolrQuery();
             formatSearchQuery(downloadParams);
 
-            String dFields = downloadParams.getFields();
+            String dFields = getDownloadFields(downloadParams);
 
             if(includeSensitive){
                 //include raw latitude and longitudes
@@ -738,15 +739,16 @@ public class SearchDAOImpl implements SearchDAO {
             if (downloadFields == null) {
                 //default to include everything
                 java.util.List<String> mappedNames = new java.util.LinkedList<String>();
-                for (int i = 0; i < requestedFields.length; i++) mappedNames.add(requestedFields[i]);
-
+                for (int i = 0; i < requestedFields.length; i++) {
+                    mappedNames.add(requestedFields[i]);
+                }
                 indexedFields = new List[]{mappedNames, new java.util.LinkedList<String>(), mappedNames, mappedNames};
             } else {
                 indexedFields = downloadFields.getIndexFields(requestedFields, downloadParams.getDwcHeaders());
             }
-            logger.debug("Fields included in download: " +indexedFields[0]);
-            logger.debug("Fields excluded from download: "+indexedFields[1]);
-            logger.debug("The headers in downloads: "+indexedFields[2]);
+            logger.debug("Fields included in download: " + indexedFields[0]);
+            logger.debug("Fields excluded from download: " + indexedFields[1]);
+            logger.debug("The headers in downloads: " + indexedFields[2]);
 
             //set the fields to the ones that are available in the index
             final String[] fields = indexedFields[0].toArray(new String[]{});
@@ -780,7 +782,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
             QueryResponse facetQuery = runSolrQuery(monthAssertionsQuery, downloadParams.getFq(), 0, 0, "score", "asc");
 
-            //set the totalrecords for the download details
+            //set the total records for the download details
             dd.setTotalRecords(facetQuery.getResults().getNumFound());
             if(checkLimit && dd.getTotalRecords() < MAX_DOWNLOAD_SIZE){
                 checkLimit = false;
@@ -826,7 +828,8 @@ public class SearchDAOImpl implements SearchDAO {
             final String[] qaFields = qas.equals("") ? new String[]{} : qas.split(",");
             String[] qaTitles = downloadFields.getHeader(qaFields, false, false);
 
-            String[] header = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[2].toArray(new String[]{}),qaTitles);
+            //construct header
+            String[] header = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[2].toArray(new String[]{}), qaTitles);
 
             //retain output header fields and field names for inclusion of header info in the download
             StringBuilder infoFields = new StringBuilder("infoFields");
@@ -840,13 +843,14 @@ public class SearchDAOImpl implements SearchDAO {
             uidStats.put(infoHeader.toString(), -2);
 
             //construct correct RecordWriter based on the supplied fileType
-            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ?
-                    new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) :
-                    (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, header) :
-                            new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
-
-            if(rw instanceof ShapeFileRecordWriter){
-                dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
+            final au.org.ala.biocache.RecordWriter rw;
+            if (downloadParams.getFileType().equals("csv")){
+                rw = new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc());
+            } else if (downloadParams.getFileType().equals("tsv")){
+                rw = new TSVRecordWriter(out, header);
+            } else {
+                rw = new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields));
+                dd.setHeaderMap(((ShapeFileRecordWriter) rw).getHeaderMappings());
             }
 
             //order the query by _docid_ for faster paging
@@ -896,14 +900,14 @@ public class SearchDAOImpl implements SearchDAO {
 
                         while (qr != null &&!qr.getResults().isEmpty()) {
                             logger.debug("Start index: " + startIndex + ", " + splitByFacetQuery.getQuery());
-                            int count=0;
+                            int count;
                             synchronized (rw) {
-                                count = processQueryResults(uidStats, fields, qaFields, rw, qr, dd, threadCheckLimit, resultsCount);
+                                count = writeRecordAndCountStats(uidStats, fields, qaFields, rw, qr, dd, threadCheckLimit, resultsCount);
                                 recordsForThread += count;
                             }
                             startIndex += downloadBatchSize;
                             //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
-                            if(!threadCheckLimit || resultsCount.intValue()<MAX_DOWNLOAD_SIZE){
+                            if(!threadCheckLimit || resultsCount.intValue() < MAX_DOWNLOAD_SIZE){
                                 if(!threadCheckLimit){
                                     //throttle the download by sleeping
                                     try{
@@ -924,14 +928,13 @@ public class SearchDAOImpl implements SearchDAO {
             }
 
             //check the futures until all have finished
-            int totalDownload = 0;
             Set<Future<Integer>> completeFutures = new HashSet<Future<Integer>>();
             boolean allComplete = false;
             while(!allComplete){
                 for(Future future: futures){
                     if(!completeFutures.contains(future)){
                         if(future.isDone()){
-                            totalDownload += (Integer) future.get();
+                            future.get();
                             completeFutures.add(future);
                         }
                     }
@@ -947,7 +950,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             long finish = System.currentTimeMillis();
             long timeTakenInSecs = (finish-start)/1000;
-            if(timeTakenInSecs ==0) timeTakenInSecs =1;
+            if(timeTakenInSecs == 0) timeTakenInSecs = 1;
             logger.info("Download of " + resultsCount + " records in " + timeTakenInSecs + " seconds. Record/sec: " + resultsCount.intValue()/timeTakenInSecs);
 
         } catch (SolrServerException ex) {
@@ -956,10 +959,13 @@ public class SearchDAOImpl implements SearchDAO {
         return uidStats;
     }
 
-    private int processQueryResults( Map<String, Integer> uidStats, String[] fields, String[] qaFields, RecordWriter rw, QueryResponse qr, DownloadDetailsDTO dd, boolean checkLimit,AtomicInteger resultsCount) {
+    private int writeRecordAndCountStats(Map<String, Integer> uidStats, String[] fields, String[] qaFields, RecordWriter rw, QueryResponse qr, DownloadDetailsDTO dd, boolean checkLimit, AtomicInteger resultsCount) {
         int count = 0;
         for (SolrDocument sd : qr.getResults()) {
-            if(sd.getFieldValue("data_resource_uid") != null &&(!checkLimit || (checkLimit && resultsCount.intValue()<MAX_DOWNLOAD_SIZE))){
+
+            String dataResourceUid = (String) sd.getFieldValue("data_resource_uid");
+
+            if(dataResourceUid != null && (!checkLimit || (checkLimit && resultsCount.intValue() < MAX_DOWNLOAD_SIZE))){
 
                 //resultsCount++;
                 count++;
@@ -997,7 +1003,7 @@ public class SearchDAOImpl implements SearchDAO {
                 incrementCount(uidStats, sd.getFieldValue("institution_uid"));
                 incrementCount(uidStats, sd.getFieldValue("collection_uid"));
                 incrementCount(uidStats, sd.getFieldValue("data_provider_uid"));
-                incrementCount(uidStats,  sd.getFieldValue("data_resource_uid"));
+                incrementCount(uidStats, sd.getFieldValue("data_resource_uid"));
             }
         }
         dd.updateCounts(count);
@@ -1028,12 +1034,13 @@ public class SearchDAOImpl implements SearchDAO {
             formatSearchQuery(downloadParams);
             //add context information
             updateQueryContext(downloadParams);
+
             logger.info("search query: " + downloadParams.getFormattedQuery());
             solrQuery.setQuery(buildSpatialQueryString(downloadParams));
             //Only the fields specified below will be included in the results from the SOLR Query
             solrQuery.setFields("row_key", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid");
 
-            String dFields = downloadParams.getFields();
+            String dFields = getDownloadFields(downloadParams);
 
             if(includeSensitive){
                 //include raw latitude and longitudes
@@ -1050,9 +1057,9 @@ public class SearchDAOImpl implements SearchDAO {
             //get the assertion facets to add them to the download fields
             List<FacetField> facets = qr.getFacetFields();
             for(FacetField facet : facets){
-                if(facet.getName().equals("assertions") && facet.getValueCount()>0){
+                if (facet.getName().equals("assertions") && facet.getValueCount()>0){
 
-                 for(FacetField.Count facetEntry : facet.getValues()){
+                 for (FacetField.Count facetEntry : facet.getValues()){
                      if (facetEntry.getCount() > 0) {
                          if (qasb.length() > 0)
                              qasb.append(",");
@@ -1145,6 +1152,15 @@ public class SearchDAOImpl implements SearchDAO {
 
         return uidStats;
     }
+
+    private String getDownloadFields(DownloadRequestParams downloadParams) {
+        String dFields = downloadParams.getFields();
+        if(StringUtils.isEmpty(dFields)){
+           dFields = defaultDownloadFields;
+        }
+        return dFields;
+    }
+
     /**
      * Downloads the records for the supplied query. Used to break up the download into components
      * 1) 1 call for each data resource that has a download limit (supply the data resource uid as the argument dataResource)

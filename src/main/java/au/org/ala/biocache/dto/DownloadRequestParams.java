@@ -32,12 +32,7 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     protected String reason = "";
     protected String file = "data";
     /** CSV list of fields that should be downloaded.  If el or cl will need to map to appropriate column name */
-    protected String fields = "uuid,catalogNumber,taxonConceptID.p,scientificName,vernacularName,scientificName.p,taxonRank.p,"+
-    "vernacularName.p,kingdom.p,phylum.p,classs.p,order.p,family.p,genus.p,species.p,subspecies.p,institutionCode,collectionCode" +
-    ",locality,decimalLatitude,decimalLongitude,geodeticDatum,decimalLatitude.p,decimalLongitude.p,coordinatePrecision,coordinateUncertaintyInMeters.p,country.p,ibra.p,imcra.p,stateProvince.p," +
-    "cl959,minimumElevationInMeters,maximumElevationInMeters,minimumDepthInMeters,maximumDepthInMeters,individualCount,recordedBy,year.p,month.p,day.p," +
-    "eventDate.p,eventTime.p,basisOfRecord,basisOfRecord.p,sex,preparations,informationWithheld.p,dataGeneralizations.p,speciesHabitats.p,outlierForLayers.p," +
-    "taxonomicIssue.p,geospatiallyKosher";
+    protected String fields = "";
     /** CSV list of extra fields to be added to the download - useful if wish to make use of default list */
     protected String extra = "";
     /** the CSV list of issue types to include in the download, defaults to all. Also supports none. */
