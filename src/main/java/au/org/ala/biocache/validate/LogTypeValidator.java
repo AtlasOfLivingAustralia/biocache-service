@@ -19,6 +19,7 @@ import javax.validation.ConstraintValidatorContext;
 
 import au.org.ala.biocache.service.LoggerService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 
 /**
  * A custom validator to validate values associated with the LoggerService.
@@ -30,6 +31,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 public class LogTypeValidator implements ConstraintValidator<LogType,Integer>{
     @Autowired
     private LoggerService loggerService;
+
+    @Value("${caches.log.enabled:true}")
+    protected Boolean enabled;
     
     private String type;
     @Override
@@ -40,8 +44,9 @@ public class LogTypeValidator implements ConstraintValidator<LogType,Integer>{
     @Override
     public boolean isValid(Integer value, ConstraintValidatorContext context) {
         
-        if(value == null){
-          //Values can be null so is valid
+        if(value == null || !enabled){
+            //Values can be null so is valid
+            //When logger cacahe is not enabled this is always valid
             return true;
         }
         //check to see if the corresponding "type" contains the value
