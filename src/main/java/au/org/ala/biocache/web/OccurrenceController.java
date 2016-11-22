@@ -1315,7 +1315,11 @@ public class OccurrenceController extends AbstractSecureController {
             if(occ.getProcessed().getAttribution().getDataResourceUid() != null)
                 uidStats.put(occ.getProcessed().getAttribution().getDataResourceUid(), 1);
         }
-        
+
+        //remove header entries from uidStats
+        for (String key : uidStats.keySet()) {
+            if (uidStats.get(key) < 0) uidStats.remove(key);
+        }
         LogEventVO vo = new LogEventVO(LogEventType.OCCURRENCE_RECORDS_VIEWED, email, reason, ip, uidStats);
         logger.log(RestLevel.REMOTE, vo);
     }
