@@ -21,7 +21,9 @@ import org.apache.log4j.Logger;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Data Transfer Object to represent the request parameters required to search
@@ -327,8 +329,17 @@ public class SearchRequestParams {
     public void setFacets(String[] facets) {
         if (facets != null && facets.length == 1 && facets[0].contains(",")) facets = facets[0].split(",");
 
-        //limit facets terms
-        this.facets = facets != null && facets.length > facetsMax ? Arrays.copyOfRange(facets, 0, facetsMax) : facets;
+        //remove empty facets
+        List<String> list = new ArrayList<String>();
+        if (facets != null) {
+            for (String f : facets) {
+                //limit facets terms
+                if (StringUtils.isNotEmpty(f) && list.size() < facetsMax) {
+                    list.add(f);
+                }
+            }
+        }
+        this.facets = list.toArray(new String[0]);
     }
 
     public Integer getFlimit() {
