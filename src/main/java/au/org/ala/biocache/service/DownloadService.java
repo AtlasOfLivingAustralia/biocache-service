@@ -314,9 +314,11 @@ public class DownloadService {
 
         //remove header entries from uidStats
         if (uidStats != null) {
+            List<String> toRemove = new ArrayList<String>();
             for (String key : uidStats.keySet()) {
-                if (uidStats.get(key) < 0) uidStats.remove(key);
+                if (uidStats.get(key) < 0) toRemove.add(key);
             }
+            for (String key : toRemove) uidStats.remove(key);
         }
 
         //log the stats to ala logger        

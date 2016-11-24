@@ -1317,8 +1317,12 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         //remove header entries from uidStats
-        for (String key : uidStats.keySet()) {
-            if (uidStats.get(key) < 0) uidStats.remove(key);
+        if (uidStats != null) {
+            List<String> toRemove = new ArrayList<String>();
+            for (String key : uidStats.keySet()) {
+                if (uidStats.get(key) < 0) toRemove.add(key);
+            }
+            for (String key : toRemove) uidStats.remove(key);
         }
         LogEventVO vo = new LogEventVO(LogEventType.OCCURRENCE_RECORDS_VIEWED, email, reason, ip, uidStats);
         logger.log(RestLevel.REMOTE, vo);
