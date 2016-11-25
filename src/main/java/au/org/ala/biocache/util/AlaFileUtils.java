@@ -20,7 +20,6 @@ import java.util.*;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
-import org.apache.commons.compress.archivers.zip.ZipUtil;
 import org.apache.commons.io.IOUtils;
 
 
@@ -38,19 +37,14 @@ public class AlaFileUtils {
      * Creates a zip file at the specified path with the contents of the specified directory.
      * NB:
      *
-     * @param directoryPath The path of the directory where the archive will be created. eg. c:/temp
-     * @param zipPath The full path of the archive to create. eg. c:/temp/archive.zip
+     * @param directoryPath The path of the directory of files to put into the archive eg. c:/temp
+     * @param zipPath The full path of the archive to create. eg. c:/output/archive.zip
      * @throws IOException If anything goes wrong
      */
     public static void createZip(String directoryPath, String zipPath) throws IOException {
-        FileOutputStream fOut = null;
-        BufferedOutputStream bOut = null;
-        ZipArchiveOutputStream tOut = null;
- 
-        try {
-            fOut = new FileOutputStream(new File(zipPath));
-            bOut = new BufferedOutputStream(fOut);
-            tOut = new ZipArchiveOutputStream(bOut);
+        try(FileOutputStream fOut = new FileOutputStream(new File(zipPath));
+        	BufferedOutputStream bOut = new BufferedOutputStream(fOut);
+        	ZipArchiveOutputStream tOut = new ZipArchiveOutputStream(bOut);) {
 
             File[] children = new File(directoryPath).listFiles();
 
@@ -60,11 +54,7 @@ public class AlaFileUtils {
                 }
             }
 
-        } finally {
             tOut.finish();
-            tOut.close();
-            bOut.close();
-            fOut.close();
         }
     }
 
@@ -77,41 +67,16 @@ public class AlaFileUtils {
      * @throws IOException If anything goes wrong
      */
     public static void unzip(String outputDirectoryPath, String srcZipPath) throws IOException {
-        FileInputStream fis = null;
-        BufferedInputStream bis = null;
-        ZipArchiveInputStream zis = null;
-
-        try {
-            fis = new FileInputStream(srcZipPath);
-            bis = new BufferedInputStream(fis);
-            zis = new ZipArchiveInputStream(bis);
+        try(FileInputStream fis = new FileInputStream(srcZipPath);
+        	BufferedInputStream bis = new BufferedInputStream(fis);
+        	ZipArchiveInputStream zis = new ZipArchiveInputStream(bis);) {
 
             ZipArchiveEntry ze;
             while((ze = zis.getNextZipEntry()) != null) {
-                FileOutputStream fos = null;
-                BufferedOutputStream bos = null;
-                try {
-                    fos = new FileOutputStream(outputDirectoryPath + File.separator + ze.getName());
-                    bos = new BufferedOutputStream(fos);
+                try(FileOutputStream fos = new FileOutputStream(outputDirectoryPath + File.separator + ze.getName());
+                	BufferedOutputStream bos = new BufferedOutputStream(fos);) {
                     IOUtils.copy(zis, bos);
-                } finally {
-                    if (bos != null) {
-                        bos.close();
-                    }
-                    if (fos != null) {
-                        fos.close();
-                    }
                 }
-            }
-        } finally {
-            if (zis != null) {
-                zis.close();
-            }
-            if (bis != null) {
-                bis.close();
-            }
-            if (fis != null) {
-                fis.close();
             }
         }
     }
@@ -134,13 +99,9 @@ public class AlaFileUtils {
         zOut.putArchiveEntry(zipEntry);
  
         if (f.isFile()) {
-            FileInputStream fInputStream = null;
-            try {
-                fInputStream = new FileInputStream(f);
+            try(FileInputStream fInputStream = new FileInputStream(f);) {
                 IOUtils.copy(fInputStream, zOut);
                 zOut.closeArchiveEntry();
-            } finally {
-                IOUtils.closeQuietly(fInputStream);
             }
  
         } else {
