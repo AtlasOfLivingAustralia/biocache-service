@@ -281,7 +281,12 @@ public class AssertionController extends AbstractSecureController {
                 }
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
-
+            } finally {
+                try {
+                    m.releaseConnection();
+                } finally {
+                    h.getHttpConnectionManager().closeIdleConnections(0L);
+                }
             }
         }
     }
