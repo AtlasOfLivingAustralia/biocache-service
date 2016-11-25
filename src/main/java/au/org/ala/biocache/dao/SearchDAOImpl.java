@@ -64,6 +64,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -512,31 +513,32 @@ public class SearchDAOImpl implements SearchDAO {
         searchParams.setPageSize(-1);
         List<TaxaCountDTO> species = findAllSpeciesByCircleAreaAndHigherTaxa(searchParams, speciesGroup);
         logger.debug("There are " + species.size() + "records being downloaded");
-        CSVWriter csvWriter = new CSVWriter(new OutputStreamWriter(out), '\t', '"');
-        csvWriter.writeNext(new String[]{
-                    "Taxon ID",
-                    "Kingdom",
-                    "Family",
-                    "Scientific name",
-                    "Common name",
-                    "Record count",});
-        int count = 0;
-        for (TaxaCountDTO item : species) {
-
-            String[] record = new String[]{
-                item.getGuid(),
-                item.getKingdom(),
-                item.getFamily(),
-                item.getName(),
-                item.getCommonName(),
-                item.getCount().toString()
-            };
-
-            csvWriter.writeNext(record);
+        try(CSVWriter csvWriter = new CSVWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8), '\t', '"');) {
+            csvWriter.writeNext(new String[]{
+                        "Taxon ID",
+                        "Kingdom",
+                        "Family",
+                        "Scientific name",
+                        "Common name",
+                        "Record count",});
+            int count = 0;
+            for (TaxaCountDTO item : species) {
+    
+                String[] record = new String[]{
+                    item.getGuid(),
+                    item.getKingdom(),
+                    item.getFamily(),
+                    item.getName(),
+                    item.getCommonName(),
+                    item.getCount().toString()
+                };
+    
+                csvWriter.writeNext(record);
+                count++;
+            }
             csvWriter.flush();
-            count++;
+            return count;
         }
-        return count;
     }
 
     /**
@@ -582,66 +584,68 @@ public class SearchDAOImpl implements SearchDAO {
                 if (includeLists) {
                     header = (String[]) ArrayUtils.addAll(header, listsService.getTypes().toArray(new String[]{}));
                 }
+                
                 CSVRecordWriter writer = new CSVRecordWriter(out, header);
-
-                boolean addedNullFacet = false;
-
-                //out.write("\n".getBytes());
-                //PAGE through the facets until we reach the end.
-                //do not continue when null facet is already added and the next facet is only null
-                while (ff.getValueCount() > 1 || !addedNullFacet || (ff.getValueCount() == 1 && ff.getValues().get(0).getName() != null)) {
-                    //process the "species_guid_ facet by looking up the list of guids
-                    if (shouldLookup) {
-                        List<String> guids = new ArrayList<String>();
-                        List<Long> counts = new ArrayList<Long>();
-                        List<String[]> speciesLists = new ArrayList<String[]>();
-                        logger.debug("Downloading " + ff.getValueCount() + " species guids");
-                        for (FacetField.Count value : ff.getValues()) {
-                            //only add null facet once
-                            if (value.getName() == null) addedNullFacet = true;
-                            if (value.getCount() == 0 || (value.getName() == null && addedNullFacet)) continue;
-
-                            guids.add(value.getName());
-                            if (includeCount) {
-                                counts.add(value.getCount());
+                try {
+                    boolean addedNullFacet = false;
+    
+                    //out.write("\n".getBytes());
+                    //PAGE through the facets until we reach the end.
+                    //do not continue when null facet is already added and the next facet is only null
+                    while (ff.getValueCount() > 1 || !addedNullFacet || (ff.getValueCount() == 1 && ff.getValues().get(0).getName() != null)) {
+                        //process the "species_guid_ facet by looking up the list of guids
+                        if (shouldLookup) {
+                            List<String> guids = new ArrayList<String>();
+                            List<Long> counts = new ArrayList<Long>();
+                            List<String[]> speciesLists = new ArrayList<String[]>();
+                            logger.debug("Downloading " + ff.getValueCount() + " species guids");
+                            for (FacetField.Count value : ff.getValues()) {
+                                //only add null facet once
+                                if (value.getName() == null) addedNullFacet = true;
+                                if (value.getCount() == 0 || (value.getName() == null && addedNullFacet)) continue;
+    
+                                guids.add(value.getName());
+                                if (includeCount) {
+                                    counts.add(value.getCount());
+                                }
+    
+                                //Only want to send a sub set of the list so that the URI is not too long for BIE
+                                if (guids.size() == 30) {
+                                    //now get the list of species from the web service TODO may need to move this code
+                                    //handle null values being returned from the service...
+                                    writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, includeLists, writer);
+                                    guids.clear();
+                                    counts.clear();
+                                }
                             }
-
-                            //Only want to send a sub set of the list so that the URI is not too long for BIE
-                            if (guids.size() == 30) {
-                                //now get the list of species from the web service TODO may need to move this code
-                                //handle null values being returned from the service...
-                                writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, includeLists, writer);
-                                guids.clear();
-                                counts.clear();
+                            //now write any guids that remain at the end of the looping
+                            writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, includeLists, writer);
+                        } else {
+                            //default processing of facets
+                            for (FacetField.Count value : ff.getValues()) {
+                                //only add null facet once
+                                if (value.getName() == null) addedNullFacet = true;
+                                if (value.getCount() == 0 || (value.getName() == null && addedNullFacet)) continue;
+    
+                                String name = value.getName() != null ? value.getName() : "";
+                                String[] row = includeCount ? new String[]{name, Long.toString(value.getCount())} : new String[]{name};
+                                writer.write(row);
                             }
                         }
-                        //now write any guids that remain at the end of the looping
-                        writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, includeLists, writer);
-                    } else {
-                        //default processing of facets
-                        for (FacetField.Count value : ff.getValues()) {
-                            //only add null facet once
-                            if (value.getName() == null) addedNullFacet = true;
-                            if (value.getCount() == 0 || (value.getName() == null && addedNullFacet)) continue;
-
-                            String name = value.getName() != null ? value.getName() : "";
-                            String[] row = includeCount ? new String[]{name, Long.toString(value.getCount())} : new String[]{name};
-                            writer.write(row);
+                        offset += FACET_PAGE_SIZE;
+                        if (dd != null) {
+                            dd.updateCounts(FACET_PAGE_SIZE);
                         }
+    
+                        //get the next values
+                        solrQuery.remove("facet.offset");
+                        solrQuery.add("facet.offset", Integer.toString(offset));
+                        qr = runSolrQuery(solrQuery, searchParams);
+                        ff = qr.getFacetField(searchParams.getFacets()[0]);
                     }
-                    offset += FACET_PAGE_SIZE;
-                    if (dd != null) {
-                        dd.updateCounts(FACET_PAGE_SIZE);
-                    }
-
-                    //get the next values
-                    solrQuery.remove("facet.offset");
-                    solrQuery.add("facet.offset", Integer.toString(offset));
-                    qr = runSolrQuery(solrQuery, searchParams);
-                    ff = qr.getFacetField(searchParams.getFacets()[0]);
+                } finally {
+                    writer.finalise();
                 }
-
-                writer.finalise();
             }
         }
     }
@@ -868,130 +872,132 @@ public class SearchDAOImpl implements SearchDAO {
                     (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, header) :
                             new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
 
-            if(rw instanceof ShapeFileRecordWriter){
-                dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
-            }
-
-            //order the query by _docid_ for faster paging
-            solrQuery.addSortField("_docid_", ORDER.asc);
-
-            //for each month create a separate query that pages through 500 records per page
-            List<SolrQuery> queries = new ArrayList<SolrQuery>();
-            if(splitByFacet != null){
-                for(Count facet: splitByFacet){
-                    if(facet.getCount() > 0){
-                        SolrQuery splitByFacetQuery;
-                        //do not add remainderQuery here
-                        if (facet.getName() != null) {
-                            splitByFacetQuery = solrQuery.getCopy().addFilterQuery(facet.getFacetField().getName() + ":" + facet.getName());
-                            splitByFacetQuery.setFacet(false);
-                            queries.add(splitByFacetQuery);
-                        }
-
-                    }
+            try {
+                if(rw instanceof ShapeFileRecordWriter){
+                    dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
                 }
-                if (splitByFacet.size() > 0) {
-                    SolrQuery remainderQuery = solrQuery.getCopy().addFilterQuery("-" + splitByFacet.get(0).getFacetField().getName() + ":[* TO *]");
-                    queries.add(0, remainderQuery);
-                }
-            } else {
-                queries.add(0, solrQuery);
-            }
-
-            //split into sensitive and non-sensitive queries when
-            // - not including all sensitive values
-            // - there is a sensitive fq
-            final List<SolrQuery> sensitiveQ = new ArrayList<SolrQuery>();
-            if (!includeSensitive && dd.getSensitiveFq() != null) {
-                sensitiveQ.addAll(splitQueries(queries, dd.getSensitiveFq(), sensitiveSOLRHdr, notSensitiveSOLRHdr));
-            }
-
-            //multi-thread the requests...
-            ExecutorService pool = Executors.newFixedThreadPool(6);
-            Set<Future<Integer>> futures = new HashSet<Future<Integer>>();
-            final AtomicInteger resultsCount = new AtomicInteger(0);
-            final boolean threadCheckLimit = checkLimit;
-
-            //execute each query, writing the results to stream
-            for(final SolrQuery splitByFacetQuery: queries){
-                //define a thread
-                Callable<Integer> solrCallable = new Callable<Integer>(){
-
-                    int startIndex = 0;
-
-                    @Override
-                    public Integer call() throws Exception {
-                        String [] fq = downloadParams.getFq();
-                        if (splitByFacetQuery.getFilterQueries() != null && splitByFacetQuery.getFilterQueries().length > 0) {
-                            if (fq == null) fq = new String [0];
-                            fq = org.apache.commons.lang3.ArrayUtils.addAll(fq, splitByFacetQuery.getFilterQueries());
-                        }
-
-                        QueryResponse qr = runSolrQuery(splitByFacetQuery, fq, downloadBatchSize, startIndex, "_docid_", "asc");
-                        int recordsForThread = 0;
-                        logger.debug(splitByFacetQuery.getQuery() + " - results: " + qr.getResults().size());
-
-                        while (qr != null &&!qr.getResults().isEmpty()) {
-                            logger.debug("Start index: " + startIndex + ", " + splitByFacetQuery.getQuery());
-                            int count=0;
-                            synchronized (rw) {
-                                if (sensitiveQ.contains(splitByFacetQuery)) {
-                                    count = processQueryResults(uidStats, sensitiveFields, qaFields, rw, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize);
-                                } else {
-                                    //write non-sensitive values into sensitive fields when not authorised for their sensitive values
-                                    count = processQueryResults(uidStats, notSensitiveFields, qaFields, rw, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize);
-                                }
-                                recordsForThread += count;
+    
+                //order the query by _docid_ for faster paging
+                solrQuery.addSortField("_docid_", ORDER.asc);
+    
+                //for each month create a separate query that pages through 500 records per page
+                List<SolrQuery> queries = new ArrayList<SolrQuery>();
+                if(splitByFacet != null){
+                    for(Count facet: splitByFacet){
+                        if(facet.getCount() > 0){
+                            SolrQuery splitByFacetQuery;
+                            //do not add remainderQuery here
+                            if (facet.getName() != null) {
+                                splitByFacetQuery = solrQuery.getCopy().addFilterQuery(facet.getFacetField().getName() + ":" + facet.getName());
+                                splitByFacetQuery.setFacet(false);
+                                queries.add(splitByFacetQuery);
                             }
-                            startIndex += downloadBatchSize;
-                            //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
-                            if(!threadCheckLimit || resultsCount.intValue() < maxDownloadSize){
-                                if(!threadCheckLimit){
-                                    //throttle the download by sleeping
-                                    try{
-                                        Thread.currentThread().sleep(throttle);
-                                    } catch(InterruptedException e){
-                                        //don't care if the sleep was interrupted
+    
+                        }
+                    }
+                    if (splitByFacet.size() > 0) {
+                        SolrQuery remainderQuery = solrQuery.getCopy().addFilterQuery("-" + splitByFacet.get(0).getFacetField().getName() + ":[* TO *]");
+                        queries.add(0, remainderQuery);
+                    }
+                } else {
+                    queries.add(0, solrQuery);
+                }
+    
+                //split into sensitive and non-sensitive queries when
+                // - not including all sensitive values
+                // - there is a sensitive fq
+                final List<SolrQuery> sensitiveQ = new ArrayList<SolrQuery>();
+                if (!includeSensitive && dd.getSensitiveFq() != null) {
+                    sensitiveQ.addAll(splitQueries(queries, dd.getSensitiveFq(), sensitiveSOLRHdr, notSensitiveSOLRHdr));
+                }
+    
+                //multi-thread the requests...
+                ExecutorService pool = Executors.newFixedThreadPool(6);
+                Set<Future<Integer>> futures = new HashSet<Future<Integer>>();
+                final AtomicInteger resultsCount = new AtomicInteger(0);
+                final boolean threadCheckLimit = checkLimit;
+    
+                //execute each query, writing the results to stream
+                for(final SolrQuery splitByFacetQuery: queries){
+                    //define a thread
+                    Callable<Integer> solrCallable = new Callable<Integer>(){
+    
+                        int startIndex = 0;
+    
+                        @Override
+                        public Integer call() throws Exception {
+                            String [] fq = downloadParams.getFq();
+                            if (splitByFacetQuery.getFilterQueries() != null && splitByFacetQuery.getFilterQueries().length > 0) {
+                                if (fq == null) fq = new String [0];
+                                fq = org.apache.commons.lang3.ArrayUtils.addAll(fq, splitByFacetQuery.getFilterQueries());
+                            }
+    
+                            QueryResponse qr = runSolrQuery(splitByFacetQuery, fq, downloadBatchSize, startIndex, "_docid_", "asc");
+                            int recordsForThread = 0;
+                            logger.debug(splitByFacetQuery.getQuery() + " - results: " + qr.getResults().size());
+    
+                            while (qr != null &&!qr.getResults().isEmpty()) {
+                                logger.debug("Start index: " + startIndex + ", " + splitByFacetQuery.getQuery());
+                                int count=0;
+                                synchronized (rw) {
+                                    if (sensitiveQ.contains(splitByFacetQuery)) {
+                                        count = processQueryResults(uidStats, sensitiveFields, qaFields, rw, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize);
+                                    } else {
+                                        //write non-sensitive values into sensitive fields when not authorised for their sensitive values
+                                        count = processQueryResults(uidStats, notSensitiveFields, qaFields, rw, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize);
                                     }
+                                    recordsForThread += count;
                                 }
-                                qr = runSolrQuery(splitByFacetQuery, null, downloadBatchSize, startIndex, "_docid_", "asc");
-                            } else {
-                                qr = null;
+                                startIndex += downloadBatchSize;
+                                //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
+                                if(!threadCheckLimit || resultsCount.intValue() < maxDownloadSize){
+                                    if(!threadCheckLimit){
+                                        //throttle the download by sleeping
+                                        try{
+                                            Thread.currentThread().sleep(throttle);
+                                        } catch(InterruptedException e){
+                                            //don't care if the sleep was interrupted
+                                        }
+                                    }
+                                    qr = runSolrQuery(splitByFacetQuery, null, downloadBatchSize, startIndex, "_docid_", "asc");
+                                } else {
+                                    qr = null;
+                                }
+                            }
+                            return recordsForThread;
+                        }
+                    };
+                    futures.add(pool.submit(solrCallable));
+                }
+    
+                //check the futures until all have finished
+                int totalDownload = 0;
+                Set<Future<Integer>> completeFutures = new HashSet<Future<Integer>>();
+                boolean allComplete = false;
+                while(!allComplete){
+                    for(Future future: futures){
+                        if(!completeFutures.contains(future)){
+                            if(future.isDone()){
+                                totalDownload += (Integer) future.get();
+                                completeFutures.add(future);
                             }
                         }
-                        return recordsForThread;
                     }
-                };
-                futures.add(pool.submit(solrCallable));
-            }
-
-            //check the futures until all have finished
-            int totalDownload = 0;
-            Set<Future<Integer>> completeFutures = new HashSet<Future<Integer>>();
-            boolean allComplete = false;
-            while(!allComplete){
-                for(Future future: futures){
-                    if(!completeFutures.contains(future)){
-                        if(future.isDone()){
-                            totalDownload += (Integer) future.get();
-                            completeFutures.add(future);
-                        }
+                    allComplete = completeFutures.size() == futures.size();
+                    if(!allComplete){
+                        Thread.sleep(1000);
                     }
                 }
-                allComplete = completeFutures.size() == futures.size();
-                if(!allComplete){
-                    Thread.sleep(1000);
-                }
+                pool.shutdown();
+                out.flush();
+
+                long finish = System.currentTimeMillis();
+                long timeTakenInSecs = (finish-start)/1000;
+                if(timeTakenInSecs <= 0) timeTakenInSecs = 1;
+                logger.info("Download of " + resultsCount + " records in " + timeTakenInSecs + " seconds. Record/sec: " + resultsCount.intValue()/timeTakenInSecs);
+            } finally {
+                rw.finalise();
             }
-            pool.shutdown();
-            rw.finalise();
-            out.flush();
-
-            long finish = System.currentTimeMillis();
-            long timeTakenInSecs = (finish-start)/1000;
-            if(timeTakenInSecs ==0) timeTakenInSecs =1;
-            logger.info("Download of " + resultsCount + " records in " + timeTakenInSecs + " seconds. Record/sec: " + resultsCount.intValue()/timeTakenInSecs);
-
         } catch (SolrServerException ex) {
             logger.error("Problem communicating with SOLR server while processing download. " + ex.getMessage(), ex);
         }
@@ -1126,47 +1132,49 @@ public class SearchDAOImpl implements SearchDAO {
                     (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, header) :
                             new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
 
-            if(rw instanceof ShapeFileRecordWriter){
-                dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
-            }
-
-            //retain output header fields and field names for inclusion of header info in the download
-            StringBuilder infoFields = new StringBuilder("infoFields,");
-            for (String h : fields) infoFields.append(",").append(h);
-            for (String h : qaFields) infoFields.append(",").append(h);
-
-            StringBuilder infoHeader = new StringBuilder("infoHeaders,");
-            for (String h : header) infoHeader.append(",").append(h);
-
-            uidStats.put(infoFields.toString(), -1);
-            uidStats.put(infoHeader.toString(), -2);
-
-            //download the records that have limits first...
-            if(downloadLimit.size() > 0){
-                String[] originalFq = downloadParams.getFq();
-                StringBuilder fqBuilder = new StringBuilder("-(");
-                for(String dr : downloadLimit.keySet()){
-                    //add another fq to the search for data_resource_uid
-                     downloadParams.setFq((String[])ArrayUtils.add(originalFq, "data_resource_uid:" + dr));
-                     resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields,
-                             resultsCount, dr, includeSensitive,dd,limit);
-                     if(fqBuilder.length()>2)
-                         fqBuilder.append(" OR ");
-                     fqBuilder.append("data_resource_uid:").append(dr);
+            try {
+                if(rw instanceof ShapeFileRecordWriter){
+                    dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
                 }
-                fqBuilder.append(")");
-                //now include the rest of the data resources
-                //add extra fq for the remaining records
-                downloadParams.setFq((String[])ArrayUtils.add(originalFq, fqBuilder.toString()));
-                resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields,
-                        resultsCount, null, includeSensitive,dd,limit);
-            } else {
-                //download all at once
-                downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount,
-                        null, includeSensitive,dd,limit);
+    
+                //retain output header fields and field names for inclusion of header info in the download
+                StringBuilder infoFields = new StringBuilder("infoFields,");
+                for (String h : fields) infoFields.append(",").append(h);
+                for (String h : qaFields) infoFields.append(",").append(h);
+    
+                StringBuilder infoHeader = new StringBuilder("infoHeaders,");
+                for (String h : header) infoHeader.append(",").append(h);
+    
+                uidStats.put(infoFields.toString(), -1);
+                uidStats.put(infoHeader.toString(), -2);
+    
+                //download the records that have limits first...
+                if(downloadLimit.size() > 0){
+                    String[] originalFq = downloadParams.getFq();
+                    StringBuilder fqBuilder = new StringBuilder("-(");
+                    for(String dr : downloadLimit.keySet()){
+                        //add another fq to the search for data_resource_uid
+                         downloadParams.setFq((String[])ArrayUtils.add(originalFq, "data_resource_uid:" + dr));
+                         resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields,
+                                 resultsCount, dr, includeSensitive,dd,limit);
+                         if(fqBuilder.length()>2)
+                             fqBuilder.append(" OR ");
+                         fqBuilder.append("data_resource_uid:").append(dr);
+                    }
+                    fqBuilder.append(")");
+                    //now include the rest of the data resources
+                    //add extra fq for the remaining records
+                    downloadParams.setFq((String[])ArrayUtils.add(originalFq, fqBuilder.toString()));
+                    resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields,
+                            resultsCount, null, includeSensitive,dd,limit);
+                } else {
+                    //download all at once
+                    downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount,
+                            null, includeSensitive,dd,limit);
+                }
+            } finally {
+                rw.finalise();
             }
-            rw.finalise();
-
         } catch (SolrServerException ex) {
             logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
         }
