@@ -38,6 +38,8 @@ import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
@@ -46,31 +48,45 @@ import java.io.*;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Services to perform the downloads.
  * 
  * Can configure the number of off-line download processors
+ * 
  * @author Natasha Carter (natasha.carter@csiro.au)
  */
 @Component("downloadService")
 public class DownloadService {
 
     private static final Logger logger = Logger.getLogger(DownloadService.class);
-    /** Number of threads to perform to offline downloads on can be configured. */
+    /**
+     * Number of threads to perform to offline downloads on can be configured.
+     */
     @Value("${concurrent.downloads:1}")
     protected int concurrentDownloads = 1;
-    /** Additional download threads for matching subsets of offline downloads.
-     * default:
-     * 4 threads for SOLR downloads for <50000 occurrences
-     * 1 thread for SOLR downloads with any number of occurrences
-     * 2 threads for CASSANDA downloads for <50000 occurrences
+    /**
+     * Additional download threads for matching subsets of offline downloads.
+     * default: 4 threads for SOLR downloads for <50000 occurrences 1 thread for
+     * SOLR downloads with any number of occurrences 2 threads for CASSANDA
+     * downloads for <50000 occurrences
      */
     @Value("${concurrent.downloads.extra:[{\"threads\": 4, \"maxRecords\": 50000, \"type\": \"index\"}, {\"threads\": 1, \"maxRecords\": 100000000, \"type\": \"index\"}, {\"threads\": 1, \"maxRecords\": 50000, \"type\": \"db\"}]}")
     protected String concurrentDownloadsExtra;
     @Inject
     protected PersistentQueueDAO persistentQueueDAO;
-    @Inject 
+    @Inject
     SearchDAO searchDAO;
     @Inject
     private RestOperations restTemplate;
@@ -81,20 +97,21 @@ public class DownloadService {
     @Inject
     private AbstractMessageSource messageSource;
 
-    //default value is supplied for the property below
+    // default value is supplied for the property below
     @Value("${webservices.root:http://localhost:8080/biocache-service}")
     protected String webservicesRoot;
 
-    //NC 20131018: Allow citations to be disabled via config (enabled by default)
+    // NC 20131018: Allow citations to be disabled via config (enabled by
+    // default)
     @Value("${citations.enabled:true}")
     protected Boolean citationsEnabled;
 
-    //Allow headings information to be disabled via config (enabled by default)
+    // Allow headings information to be disabled via config (enabled by default)
     @Value("${headings.enabled:true}")
     protected Boolean headingsEnabled;
 
     /** Stores the current list of downloads that are being performed. */
-    private List<DownloadDetailsDTO> currentDownloads = Collections.synchronizedList(new ArrayList<DownloadDetailsDTO>());
+    private Queue<DownloadDetailsDTO> currentDownloads = new LinkedBlockingQueue<DownloadDetailsDTO>();
 
     @Value("${data.description.url:https://docs.google.com/spreadsheet/ccc?key=0AjNtzhUIIHeNdHhtcFVSM09qZ3c3N3ItUnBBc09TbHc}")
     private String dataFieldDescriptionURL;
@@ -135,30 +152,23 @@ public class DownloadService {
         new Thread() {
             @Override
             public void run() {
-                //create the threads that will be used to perform the downloads
-                int i = 0;
-                while (i < concurrentDownloads) {
-                    new Thread(new DownloadThread(null, null)).start();
-                    i++;
-                }
+                //create the executor that will be used to poll for downloads that do not match specific criteria defined in concurrentDownloadsExtra
+                new Thread(new DownloadControlThread(null, null, concurrentDownloads)).start();
 
-                //create additional threads to operate on subsets of downloads
+                //create additional executors to operate on subsets of downloads
                 try {
                     JSONParser jp = new JSONParser();
                     JSONArray concurrentDownloadsExtraJson = (JSONArray) jp.parse(concurrentDownloadsExtra);
                     for (Object o : concurrentDownloadsExtraJson) {
                         JSONObject jo = (JSONObject) o;
                         int threads = ((Long) jo.get("threads")).intValue();
-                        while (threads > 0) {
-                            Integer maxRecords = jo.containsKey("maxRecords") ? ((Long) jo.get("maxRecords")).intValue() : null;
-                            String type = jo.containsKey("type") ? jo.get("type").toString() : null;
-                            DownloadType dt = null;
-                            if (type != null) {
-                                dt = "index".equals(type) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
-                            }
-                            new Thread(new DownloadThread(maxRecords, dt)).start();
-                            threads--;
+                        Integer maxRecords = jo.containsKey("maxRecords") ? ((Long) jo.get("maxRecords")).intValue() : null;
+                        String type = jo.containsKey("type") ? jo.get("type").toString() : null;
+                        DownloadType dt = null;
+                        if (type != null) {
+                            dt = "index".equals(type) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
                         }
+                        new Thread(new DownloadControlThread(maxRecords, dt, threads)).start();
                     }
                 } catch (Exception e) {
                     logger.error("failed to create all extra offline download threads for concurrent.downloads.extra=" + concurrentDownloadsExtra, e);
@@ -169,12 +179,14 @@ public class DownloadService {
 
     /**
      * Registers a new active download
+     * 
      * @param requestParams
      * @param ip
      * @param type
      * @return
      */
-    public DownloadDetailsDTO registerDownload(DownloadRequestParams requestParams, String ip, DownloadDetailsDTO.DownloadType type){
+    public DownloadDetailsDTO registerDownload(DownloadRequestParams requestParams, String ip,
+            DownloadDetailsDTO.DownloadType type) {
         DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams.toString(), ip, type);
         currentDownloads.add(dd);
         return dd;
@@ -182,27 +194,27 @@ public class DownloadService {
 
     /**
      * Removes a completed download from active list.
+     * 
      * @param dd
      */
-    public void unregisterDownload(DownloadDetailsDTO dd){
-        //remove it from the list
+    public void unregisterDownload(DownloadDetailsDTO dd) {
+        // remove it from the list
         currentDownloads.remove(dd);
     }
 
     /**
      * Returns a list of current downloads
+     * 
      * @return
      */
-    public List<DownloadDetailsDTO> getCurrentDownloads(){
-        return currentDownloads;
+    public List<DownloadDetailsDTO> getCurrentDownloads() {
+        List<DownloadDetailsDTO> result = new ArrayList<>(currentDownloads);
+        return Collections.unmodifiableList(result);
     }
 
-    private void writeQueryToStream(DownloadDetailsDTO dd,DownloadRequestParams requestParams, String ip, OutputStream out, boolean includeSensitive, boolean fromIndex) throws Exception {
-        writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex, true, true);
-    }
-    
     /**
-     * Writes the supplied download to the supplied output stream. It will include all the appropriate citations etc.
+     * Writes the supplied download to the supplied output stream. It will
+     * include all the appropriate citations etc.
      * 
      * @param dd
      * @param requestParams
@@ -212,122 +224,141 @@ public class DownloadService {
      * @param fromIndex
      * @throws Exception
      */
-    public void writeQueryToStream(DownloadDetailsDTO dd,DownloadRequestParams requestParams, String ip, OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip) throws Exception {
+    public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
+            OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip)
+            throws Exception {
 
         String filename = requestParams.getFile();
         String originalParams = requestParams.toString();
-        //Use a zip output stream to include the data and citation together in the download
-        OptionalZipOutputStream sp = new OptionalZipOutputStream(zip ? OptionalZipOutputStream.Type.zipped : OptionalZipOutputStream.Type.unzipped, out);
-        String suffix = requestParams.getFileType().equals("shp") ? "zip" : requestParams.getFileType();
-        sp.putNextEntry(filename + "." +suffix);
-        //put the facets
-        if("all".equals(requestParams.getQa())){
-            requestParams.setFacets(new String[]{"assertions", "data_resource_uid"});
-        } else {
-            requestParams.setFacets(new String[]{"data_resource_uid"});
-        }
-        Map<String, Integer> uidStats = null;
-        try {
-            if(fromIndex)
-                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, sp, includeSensitive, dd, limit);
-            else
-                uidStats = searchDAO.writeResultsToStream(requestParams, sp, 100, includeSensitive ,dd, limit);
-        } catch (Exception e) {
-            logger.error(e.getMessage(),e);
-        } finally {
-            unregisterDownload(dd);
-        }
-        sp.closeEntry();
-
-        //add the readme for the Shape file header mappings if necessary
-        if(dd.getHeaderMap() != null){
-            sp.putNextEntry("Shape-README.html");
-            sp.write(("The name of features is limited to 10 characters. Listed below are the mappings of feature name to download field:").getBytes());
-            sp.write(("<table><td><b>Feature</b></td><td><b>Download Field<b></td>").getBytes());
-            for(String key:dd.getHeaderMap().keySet()){
-                sp.write(("<tr><td>"+key+"</td><td>"+dd.getHeaderMap().get(key)+"</td></tr>").getBytes());
+        // Use a zip output stream to include the data and citation together in
+        // the download
+        try(OptionalZipOutputStream sp = new OptionalZipOutputStream(
+                zip ? OptionalZipOutputStream.Type.zipped : OptionalZipOutputStream.Type.unzipped, out);) {
+            String suffix = requestParams.getFileType().equals("shp") ? "zip" : requestParams.getFileType();
+            sp.putNextEntry(filename + "." + suffix);
+            // put the facets
+            if ("all".equals(requestParams.getQa())) {
+                requestParams.setFacets(new String[] { "assertions", "data_resource_uid" });
+            } else {
+                requestParams.setFacets(new String[] { "data_resource_uid" });
             }
-            sp.write(("</table>").getBytes());
-        }
-        
-        //Add the data citation to the download
-        List<String> citationsForReadme = new ArrayList<String>();
-        if (uidStats != null &&!uidStats.isEmpty() && citationsEnabled) {
-            //add the citations for the supplied uids
-            sp.putNextEntry("citation.csv");
+            ConcurrentMap<String, AtomicInteger> uidStats = null;
             try {
-                getCitations(uidStats, sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme);
+                if (fromIndex) {
+                    uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, sp, includeSensitive, dd, limit);
+                } else {
+                    uidStats = searchDAO.writeResultsToStream(requestParams, sp, 100, includeSensitive, dd, limit);
+                }
             } catch (Exception e) {
-                logger.error(e.getMessage(),e);
+                logger.error(e.getMessage(), e);
+            } finally {
+                unregisterDownload(dd);
             }
             sp.closeEntry();
-        } else {
-            logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " +uidStats);
-        }
-        
-        //online downloads will not have a file location or request params set in dd.
-        if (dd.getRequestParams() == null) {
-            dd.setRequestParams(requestParams);
-        }
-        if (dd.getFileLocation() == null) {
-            dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
-        }
-
-        //add the Readme for the data field descriptions
-        sp.putNextEntry("README.html");
-        String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
-
-        //online downloads will not have a file location or request params set in dd.
-        if (dd.getRequestParams() == null) {
-            dd.setRequestParams(requestParams);
-        }
-        if (dd.getFileLocation() == null) {
-            dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
-        }
-
-        String fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
-        String readmeContent = biocacheDownloadReadme.replace("[url]", fileLocation).replace("[date]",
-                dd.getStartDateString()).replace("[searchUrl]",generateSearchUrl(dd.getRequestParams())).replace("[dataProviders]", dataProviders);
-        logger.debug(readmeContent);
-        sp.write((readmeContent).getBytes());
-        sp.write(("For more information about the fields that are being downloaded please consult <a href='" + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes());
-        sp.closeEntry();
-
-        //Add headings file, listing information about the headings
-        if (headingsEnabled) {
-            //add the citations for the supplied uids
-            sp.putNextEntry("headings.csv");
-            try {
-                getHeadings(uidStats, sp, requestParams, dd.getMiscFields());
-            } catch (Exception e) {
-                logger.error(e.getMessage(),e);
-            }
-            sp.closeEntry();
-        } else {
-            logger.debug("Not adding header. Enabled: " + headingsEnabled + " uids: " +uidStats);
-        }
-        
-        sp.flush();
-        sp.close();
-        
-        //now construct the sourceUrl for the log event
-        String sourceUrl = originalParams.contains("qid:")? webservicesRoot + "?"+ requestParams.toString(): webservicesRoot +"?"+ originalParams;
-
-        //remove header entries from uidStats
-        if (uidStats != null) {
-            List<String> toRemove = new ArrayList<String>();
-            for (String key : uidStats.keySet()) {
-                if (uidStats.get(key) < 0) toRemove.add(key);
-            }
-            for (String key : toRemove) uidStats.remove(key);
-        }
-
-        //log the stats to ala logger        
-        LogEventVO vo = new LogEventVO(1002,requestParams.getReasonTypeId(), requestParams.getSourceTypeId(), requestParams.getEmail(), requestParams.getReason(), ip,null, uidStats, sourceUrl);        
-        logger.log(RestLevel.REMOTE, vo);
-    }
     
-    public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, ServletOutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip) throws Exception {
+            // add the readme for the Shape file header mappings if necessary
+            if (dd.getHeaderMap() != null) {
+                sp.putNextEntry("Shape-README.html");
+                sp.write(
+                        ("The name of features is limited to 10 characters. Listed below are the mappings of feature name to download field:")
+                                .getBytes());
+                sp.write(("<table><td><b>Feature</b></td><td><b>Download Field<b></td>").getBytes());
+                for (String key : dd.getHeaderMap().keySet()) {
+                    sp.write(("<tr><td>" + key + "</td><td>" + dd.getHeaderMap().get(key) + "</td></tr>").getBytes());
+                }
+                sp.write(("</table>").getBytes());
+            }
+    
+            // Add the data citation to the download
+            List<String> citationsForReadme = new ArrayList<String>();
+            if (uidStats != null && !uidStats.isEmpty() && citationsEnabled) {
+                // add the citations for the supplied uids
+                sp.putNextEntry("citation.csv");
+                try {
+                    getCitations(uidStats, sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme);
+                } catch (Exception e) {
+                    logger.error(e.getMessage(), e);
+                }
+                sp.closeEntry();
+            } else {
+                logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " + uidStats);
+            }
+    
+            // online downloads will not have a file location or request params set
+            // in dd.
+            if (dd.getRequestParams() == null) {
+                dd.setRequestParams(requestParams);
+            }
+            if (dd.getFileLocation() == null) {
+                dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
+            }
+    
+            // add the Readme for the data field descriptions
+            sp.putNextEntry("README.html");
+            String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
+    
+            // online downloads will not have a file location or request params set
+            // in dd.
+            if (dd.getRequestParams() == null) {
+                dd.setRequestParams(requestParams);
+            }
+            if (dd.getFileLocation() == null) {
+                dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
+            }
+    
+            String fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
+            String readmeContent = biocacheDownloadReadme.replace("[url]", fileLocation)
+                    .replace("[date]", dd.getStartDateString())
+                    .replace("[searchUrl]", generateSearchUrl(dd.getRequestParams()))
+                    .replace("[dataProviders]", dataProviders);
+            logger.debug(readmeContent);
+            sp.write((readmeContent).getBytes());
+            sp.write(("For more information about the fields that are being downloaded please consult <a href='"
+                    + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes());
+            sp.closeEntry();
+    
+            // Add headings file, listing information about the headings
+            if (headingsEnabled) {
+                // add the citations for the supplied uids
+                sp.putNextEntry("headings.csv");
+                try {
+                    getHeadings(uidStats, sp, requestParams, dd.getMiscFields());
+                } catch (Exception e) {
+                    logger.error(e.getMessage(), e);
+                }
+                sp.closeEntry();
+            } else {
+                logger.debug("Not adding header. Enabled: " + headingsEnabled + " uids: " + uidStats);
+            }
+    
+            sp.flush();
+            
+            // now construct the sourceUrl for the log event
+            String sourceUrl = originalParams.contains("qid:") ? webservicesRoot + "?" + requestParams.toString()
+                    : webservicesRoot + "?" + originalParams;
+
+            // remove header entries from uidStats
+            if (uidStats != null) {
+                List<String> toRemove = new ArrayList<String>();
+                for (String key : uidStats.keySet()) {
+                    if (uidStats.get(key).get() < 0) {
+                        toRemove.add(key);
+                    }
+                }
+                for (String key : toRemove) {
+                    uidStats.remove(key);
+                }
+            }
+
+            // log the stats to ala logger
+            LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
+                    requestParams.getEmail(), requestParams.getReason(), ip, null, uidStats, sourceUrl);
+            logger.log(RestLevel.REMOTE, vo);
+        }
+    }
+
+    public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip,
+            ServletOutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip) throws Exception {
         String filename = requestParams.getFile();
 
         response.setHeader("Cache-Control", "must-revalidate");
@@ -340,57 +371,69 @@ public class DownloadService {
             response.setHeader("Content-Disposition", "attachment;filename=" + filename + ".txt");
             response.setContentType("text/plain");
         }
-        
-        DownloadDetailsDTO.DownloadType type= fromIndex ? DownloadType.RECORDS_INDEX:DownloadType.RECORDS_DB;
+
+        DownloadDetailsDTO.DownloadType type = fromIndex ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
         DownloadDetailsDTO dd = registerDownload(requestParams, ip, type);
         writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex, true, zip);
     }
-    
+
     /**
-     * get citation info from citation web service and write it into citation.txt file.
+     * get citation info from citation web service and write it into
+     * citation.txt file.
      * 
      * @param uidStats
      * @param out
      * @throws HttpException
      * @throws IOException
      */
-    public void getCitations(Map<String, Integer> uidStats, OutputStream out, char sep, char esc, List readmeCitations) throws IOException{
-        if(citationsEnabled){
-            if(uidStats == null || uidStats.isEmpty() || out == null){
-                //throw new NullPointerException("keys and/or out is null!!");
+    public void getCitations(ConcurrentMap<String, AtomicInteger> uidStats, OutputStream out, char sep, char esc,
+            List readmeCitations) throws IOException {
+        if (citationsEnabled) {
+            if (uidStats == null || uidStats.isEmpty() || out == null) {
+                // throw new NullPointerException("keys and/or out is null!!");
                 logger.error("Unable to generate citations: keys and/or out is null!!");
                 return;
             }
 
-            try(CSVWriter writer = new CSVWriter(new OutputStreamWriter(out), sep, '"',esc);) {
-                //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
-                List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl, uidStats.keySet(), List.class);
-                if(entities.size()>0){
-                    //i18n of the citation header
-                    writer.writeNext(new String[]{messageSource.getMessage("citation.uid", null, "UID", null),
-                        messageSource.getMessage("citation.name", null,"Name", null),
-                        messageSource.getMessage("citation.citation", null,"Citation", null),
-                        messageSource.getMessage("citation.rights", null,"Rights", null),
-                        messageSource.getMessage("citation.link", null,"More Information", null),
-                        messageSource.getMessage("citation.dataGeneralizations", null,"Data generalisations", null),
-                        messageSource.getMessage("citation.informationWithheld", null,"Information withheld", null),
-                        messageSource.getMessage("citation.downloadLimit", null,"Download limit", null),
-                        messageSource.getMessage("citation.count", null,"Number of Records in Download", null)});
-    
-                    for(Map<String,Object> record : entities){
+            try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(out), sep, '"', esc);) {
+                // Object[] citations =
+                // restfulClient.restPost(citationServiceUrl, "text/json",
+                // uidStats.keySet());
+                List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl,
+                        uidStats.keySet(), List.class);
+                if (entities.size() > 0) {
+                    // i18n of the citation header
+                    writer.writeNext(new String[] { messageSource.getMessage("citation.uid", null, "UID", null),
+                            messageSource.getMessage("citation.name", null, "Name", null),
+                            messageSource.getMessage("citation.citation", null, "Citation", null),
+                            messageSource.getMessage("citation.rights", null, "Rights", null),
+                            messageSource.getMessage("citation.link", null, "More Information", null),
+                            messageSource.getMessage("citation.dataGeneralizations", null, "Data generalisations",
+                                    null),
+                            messageSource.getMessage("citation.informationWithheld", null, "Information withheld",
+                                    null),
+                            messageSource.getMessage("citation.downloadLimit", null, "Download limit", null),
+                            messageSource.getMessage("citation.count", null, "Number of Records in Download", null) });
+
+                    for (Map<String, Object> record : entities) {
                         StringBuilder sb = new StringBuilder();
-                        //ensure that the record is not null to prevent NPE on the "get"s
-                        if(record != null){
+                        // ensure that the record is not null to prevent NPE on
+                        // the "get"s
+                        if (record != null) {
                             String count = uidStats.get(record.get("uid")).toString();
-                            String[] row = new String[]{getOrElse(record,"uid",""),getOrElse(record, "name",""), getOrElse(record, "citation",""),
-                                    getOrElse(record,"rights", ""), getOrElse(record, "link",""),getOrElse(record,"dataGeneralizations",""),
-                                    getOrElse(record, "informationWithheld",""), getOrElse(record, "downloadLimit", ""), count};
+                            String[] row = new String[] { getOrElse(record, "uid", ""), getOrElse(record, "name", ""),
+                                    getOrElse(record, "citation", ""), getOrElse(record, "rights", ""),
+                                    getOrElse(record, "link", ""), getOrElse(record, "dataGeneralizations", ""),
+                                    getOrElse(record, "informationWithheld", ""),
+                                    getOrElse(record, "downloadLimit", ""), count };
                             writer.writeNext(row);
-    
+
                             if (readmeCitations != null) {
-                                readmeCitations.add(row[2] + " (" + row[3] + "). " + row[4]); // used in README.txt
+                                readmeCitations.add(row[2] + " (" + row[3] + "). " + row[4]); // used
+                                                                                              // in
+                                                                                              // README.txt
                             }
-    
+
                         } else {
                             logger.warn("A null record was returned from the collectory citation service: " + entities);
                         }
@@ -402,214 +445,301 @@ public class DownloadService {
     }
 
     /**
-     * get headings info from index/fields web service and write it into headings.csv file.
+     * get headings info from index/fields web service and write it into
+     * headings.csv file.
      * 
-     * output columns:
-     *  column name
-     *  field requested
-     *  dwc 
-     *  description
-     *  info
-     *  field
+     * output columns: column name field requested dwc description info field
      *
      * @param out
      * @throws HttpException
      * @throws IOException
      */
-    public void getHeadings(Map<String, Integer> uidStats, OutputStream out, DownloadRequestParams params, String [] miscHeaders) throws Exception {
+    public void getHeadings(ConcurrentMap<String, AtomicInteger> uidStats, OutputStream out,
+            DownloadRequestParams params, String[] miscHeaders) throws Exception {
         if (headingsEnabled) {
             if (out == null) {
-                //throw new NullPointerException("keys and/or out is null!!");
+                // throw new NullPointerException("keys and/or out is null!!");
                 logger.error("Unable to generate headings info: out is null!!");
                 return;
             }
 
-            try(CSVWriter writer = new CSVWriter(new OutputStreamWriter(out), params.getSep(), '"', params.getEsc());) {
-                //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
+            try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(out), params.getSep(), '"',
+                    params.getEsc());) {
+                // Object[] citations =
+                // restfulClient.restPost(citationServiceUrl, "text/json",
+                // uidStats.keySet());
                 Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
-    
-                //header
-                writer.writeNext(new String[]{"Column name", "Requested field", "DwC Name", "Field name", "Field description", "Download field name", "Download field description", "More information"});
-    
+
+                // header
+                writer.writeNext(new String[] { "Column name", "Requested field", "DwC Name", "Field name",
+                        "Field description", "Download field name", "Download field description", "More information" });
+
                 String[] fieldsRequested = null;
                 String[] headerOutput = null;
-                for (Map.Entry<String, Integer> e : uidStats.entrySet()) {
-                    if (e.getValue() == -1) {
-                        //String fields requested
+                for (Map.Entry<String, AtomicInteger> e : uidStats.entrySet()) {
+                    if (e.getValue().get() == -1) {
+                        // String fields requested
                         fieldsRequested = e.getKey().split(",");
-    
-                    } else if (e.getValue() == -2) {
+                    } else if (e.getValue().get() == -2) {
                         headerOutput = e.getKey().split(",");
                     }
                 }
-    
+
                 if (fieldsRequested != null && headerOutput != null) {
-                    //ignore first fieldsRequested and headerOutput record
+                    // ignore first fieldsRequested and headerOutput record
                     for (int i = 1; i < fieldsRequested.length; i++) {
-    
-                        //find indexedField by download name
+
+                        // find indexedField by download name
                         IndexFieldDTO ifdto = null;
                         for (IndexFieldDTO f : indexedFields) {
-                            //find a matching field
+                            // find a matching field
                             if (fieldsRequested[i].equalsIgnoreCase(f.getDownloadName())) {
                                 ifdto = f;
                                 break;
                             }
                         }
-                        //find indexedField by field name
+                        // find indexedField by field name
                         if (ifdto == null) {
                             for (IndexFieldDTO f : indexedFields) {
-                                //find a matching field
+                                // find a matching field
                                 if (fieldsRequested[i].equalsIgnoreCase(f.getName())) {
                                     ifdto = f;
                                     break;
                                 }
                             }
                         }
-    
+
                         if (ifdto != null) {
-                            writer.writeNext(new String[]{headerOutput[i], fieldsRequested[i],
+                            writer.writeNext(new String[] { headerOutput[i], fieldsRequested[i],
                                     ifdto.getDwcTerm() != null ? ifdto.getDwcTerm() : "",
                                     ifdto.getName() != null ? ifdto.getName() : "",
                                     ifdto.getDescription() != null ? ifdto.getDescription() : "",
                                     ifdto.getDownloadName() != null ? ifdto.getDownloadName() : "",
                                     ifdto.getDownloadDescription() != null ? ifdto.getDownloadDescription() : "",
-                                    ifdto.getInfo() != null ? ifdto.getInfo() : ""
-                            });
+                                    ifdto.getInfo() != null ? ifdto.getInfo() : "" });
                         } else {
-                            //others, e.g. assertions
+                            // others, e.g. assertions
                             String info = messageSource.getMessage("description." + fieldsRequested[i], null, "", null);
-                            writer.writeNext(new String[]{headerOutput[i], fieldsRequested[i],
-                                    "",
-                                    "",
-                                    "",
-                                    "",
-                                    "",
-                                    info != null ? info : ""
-                            });
+                            writer.writeNext(new String[] { headerOutput[i], fieldsRequested[i], "", "", "", "", "",
+                                    info != null ? info : "" });
                         }
                     }
                 }
-    
-                //misc headers
+
+                // misc headers
                 if (miscHeaders != null) {
                     for (int i = 0; i < miscHeaders.length; i++) {
-                        writer.writeNext(new String[]{miscHeaders[i],
-                                "",
-                                "",
-                                "",
-                                "",
-                                "",
-                                "Raw header from data provider."
-                        });
+                        writer.writeNext(
+                                new String[] { miscHeaders[i], "", "", "", "", "", "Raw header from data provider." });
                     }
                 }
-    
+
                 writer.flush();
             }
         }
     }
 
-    private String getOrElse(Map map, String key, String value){
-        if(map.containsKey(key)){
+    private String getOrElse(Map map, String key, String value) {
+        if (map.containsKey(key)) {
             return map.get(key).toString();
-        } else{
+        } else {
             return value;
         }
     }
-    
-    /**
-     * A thread responsible for creating a records dump offline.
-     * 
-     * @author Natasha Carter (natasha.carter@csiro.au)
-     */
-    private class DownloadThread implements Runnable {
-        
-        private DownloadDetailsDTO currentDownload = null;
 
-        private Integer maxRecords = null;
-        private DownloadType downloadType = null;
+    private class DownloadServiceExecutor {
 
-        public DownloadThread(Integer maxRecords, DownloadType downloadType) {
+        private final Integer maxRecords;
+        private final DownloadType downloadType;
+        private final ExecutorService executor;
+        private final long executionDelay;
+        private final int priority;
+
+        public DownloadServiceExecutor(Integer maxRecords, DownloadType downloadType, int concurrencyLevel) {
             this.maxRecords = maxRecords;
             this.downloadType = downloadType;
+            if (maxRecords < 50000) {
+                executionDelay = 100 + Math.round(Math.random() * 500);
+                priority = Thread.NORM_PRIORITY;
+            } else {
+                executionDelay = 1000 + Math.round(Math.random() * 5000);
+                priority = Thread.MIN_PRIORITY;
+            }
+            String nameFormat = "download-";
+            nameFormat += (maxRecords == null ? "nolimit" : maxRecords.toString()) + "-";
+            nameFormat += (downloadType == null ? "alltypes" : downloadType.name()) + "-";
+            nameFormat += "%d";
+            this.executor = Executors.newFixedThreadPool(concurrencyLevel,
+                    new ThreadFactoryBuilder().setNameFormat(nameFormat).setPriority(priority).build());
+        }
+
+        private Callable<DownloadDetailsDTO> createCallable(final DownloadDetailsDTO currentDownload) {
+            return new Callable<DownloadDetailsDTO>() {
+
+                @Override
+                public DownloadDetailsDTO call() throws Exception {
+                    // Reduce congestion on db/index by artificially sleeping
+                    // for a random amount of time
+                    Thread.sleep(executionDelay);
+
+                    logger.info("Starting to download the offline request: " + currentDownload);
+                    // we are now ready to start the download
+                    // we need to create an output stream to the file system
+
+                    try (FileOutputStream fos = FileUtils
+                            .openOutputStream(new File(currentDownload.getFileLocation()));) {
+                        // register the download
+                        currentDownloads.add(currentDownload);
+                        // cannot include misc columns if shp
+                        if (!currentDownload.getRequestParams().getFileType().equals("csv")
+                                && currentDownload.getRequestParams().getIncludeMisc()) {
+                            currentDownload.getRequestParams().setIncludeMisc(false);
+                        }
+                        writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
+                                currentDownload.getIpAddress(), fos, currentDownload.getIncludeSensitive(),
+                                currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false, true);
+                        // now that the download is complete email a link to the
+                        // recipient.
+                        String subject = messageSource.getMessage("offlineEmailSubject", null,
+                                biocacheDownloadEmailSubject.replace("[filename]",
+                                        currentDownload.getRequestParams().getFile()),
+                                null);
+
+                        if (currentDownload != null && currentDownload.getFileLocation() != null) {
+                            insertMiscHeader(currentDownload);
+
+                            String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir,
+                                    biocacheDownloadUrl);
+                            String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
+                            String emailBodyHtml = biocacheDownloadEmailBody.replace("[url]", fileLocation)
+                                    .replace("[date]", currentDownload.getStartDateString())
+                                    .replace("[searchUrl]", searchUrl);
+                            String body = messageSource.getMessage("offlineEmailBody",
+                                    new Object[] { fileLocation, searchUrl, currentDownload.getStartDateString() },
+                                    emailBodyHtml, null);
+
+                            // save the statistics to the download directory
+                            try (FileOutputStream statsStream = FileUtils
+                                    .openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()
+                                            + File.separator + "downloadStats.json"));) {
+                                objectMapper.writeValue(statsStream, currentDownload);
+                            }
+
+                            emailService.sendEmail(currentDownload.getEmail(), subject, body);
+                        }
+
+                    } catch (Exception e) {
+                        logger.error("Error in offline download, sending email. download path: "
+                                + currentDownload.getFileLocation(), e);
+
+                        try {
+                            String subject = messageSource.getMessage("offlineEmailSubjectError", null,
+                                    biocacheDownloadEmailSubjectError.replace("[filename]",
+                                            currentDownload.getRequestParams().getFile()),
+                                    null);
+
+                            String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir,
+                                    biocacheDownloadUrl);
+                            String body = messageSource.getMessage("offlineEmailBodyError",
+                                    new Object[] { fileLocation },
+                                    biocacheDownloadEmailBodyError.replace("[url]", fileLocation), null);
+
+                            // user email
+                            emailService.sendEmail(currentDownload.getEmail(), subject,
+                                    body + "\r\n\r\nuniqueId:" + currentDownload.getUniqueId() + " path:"
+                                            + currentDownload.getFileLocation().replace(biocacheDownloadDir, ""));
+                        } catch (Exception ex) {
+                            logger.error("Error sending error message to download email. "
+                                    + currentDownload.getFileLocation(), ex);
+                        }
+                    } finally {
+                        // incase of server up/down, only remove from queue
+                        // after emails are sent
+                        persistentQueueDAO.removeDownloadFromQueue(currentDownload);
+                    }
+                    return currentDownload;
+                }
+            };
+        }
+
+        public void submitDownload(DownloadDetailsDTO nextDownload) throws RejectedExecutionException {
+            executor.submit(createCallable(nextDownload));
+        }
+
+        public void shutdown() {
+            executor.shutdown();
+        }
+        
+        public void shutdownNow() {
+            executor.shutdownNow();
+        }
+        
+        public void awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+            executor.awaitTermination(timeout, unit);
+        }
+    }
+
+    /**
+     * A thread responsible for scheduling a records dump.
+     * 
+     * @author Peter Ansell
+     */
+    private class DownloadControlThread implements Runnable {
+        private final long pollDelay;
+        private final Integer maxRecords;
+        private final DownloadType downloadType;
+        private final DownloadServiceExecutor downloadServiceExecutor;
+
+        public DownloadControlThread(Integer maxRecords, DownloadType downloadType, int concurrencyLevel) {
+            this.maxRecords = maxRecords;
+            this.downloadType = downloadType;
+            // Poll less often on the unrestricted max record queues to ensure others pick up downloads that match more often
+            if(maxRecords == null) {
+                // 1 second delay in polling for successive downloads in default threads
+                this.pollDelay = 1000;
+            } else if (maxRecords > 50000) {
+                // 150 millisecond delay in polling for successive downloads
+                this.pollDelay = 150;
+            } else {
+                // 10 ms delay in polling for successive short downloads
+                this.pollDelay = 10;
+            }
+            this.downloadServiceExecutor = new DownloadServiceExecutor(maxRecords, downloadType, concurrencyLevel);
         }
 
         @Override
         public void run() {
-            while(true){
-                if(persistentQueueDAO.getTotalDownloads()==0){
-                    try {
-                        Thread.currentThread().sleep(10000);
-                    } catch(InterruptedException e){
-                        //I don't care that I have been interrupted.
+            DownloadDetailsDTO currentDownload = null;
+            try {
+                while (true) {
+                    // Busy wait polling
+                    // TODO: Convert PersistentQueueDAO to a
+                    // blocking/interruptible wait to avoid busy wait
+                    Thread.sleep(pollDelay);
+                    currentDownload = persistentQueueDAO.getNextDownload(maxRecords, downloadType);
+                    if (currentDownload != null) {
+                        downloadServiceExecutor.submitDownload(currentDownload);
                     }
                 }
-                currentDownload = persistentQueueDAO.getNextDownload(maxRecords, downloadType);
-                if(currentDownload != null){
-                    logger.info("Starting to download the offline request: " + currentDownload);
-                    //we are now ready to start the download
-                    //we need to create an output stream to the file system
-
-                    try(FileOutputStream fos = FileUtils.openOutputStream(new File(currentDownload.getFileLocation()));){
-                        //register the download
-                        currentDownloads.add(currentDownload);
-                        //cannot include misc columns if shp
-                        if (!currentDownload.getRequestParams().getFileType().equals("csv") && currentDownload.getRequestParams().getIncludeMisc()) {
-                            currentDownload.getRequestParams().setIncludeMisc(false);
-                        }
-                        writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
-                                currentDownload.getIpAddress(), fos, currentDownload.getIncludeSensitive(), 
-                                currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false, true);
-                        //now that the download is complete email a link to the recipient.
-                        String subject = messageSource.getMessage("offlineEmailSubject",null,
-                                biocacheDownloadEmailSubject.replace("[filename]", currentDownload.getRequestParams().getFile()),null);
-
-                        if(currentDownload!=null && currentDownload.getFileLocation() != null){
-                            insertMiscHeader(currentDownload);
-
-                            String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
-                            String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
-                            String emailBodyHtml = biocacheDownloadEmailBody.replace("[url]", fileLocation).replace("[date]",
-                                    currentDownload.getStartDateString()).replace("[searchUrl]",searchUrl);
-                            String body = messageSource.getMessage("offlineEmailBody", new Object[]{fileLocation, searchUrl, currentDownload.getStartDateString()}, emailBodyHtml, null);
-
-                            //save the statistics to the download directory
-                            try(FileOutputStream statsStream = FileUtils.openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()+File.separator+"downloadStats.json"));) {
-                                objectMapper.writeValue(statsStream, currentDownload);
-                            }
-                            
-                            emailService.sendEmail(currentDownload.getEmail(), subject, body);
-                        }
-
-                    } catch(Exception e){
-                        logger.error("Error in offline download, sending email. download path: " + currentDownload.getFileLocation(), e);
-
-                        try {
-                            String subject = messageSource.getMessage("offlineEmailSubjectError", null,
-                                    biocacheDownloadEmailSubjectError.replace("[filename]", currentDownload.getRequestParams().getFile()), null);
-
-                            String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
-                            String body = messageSource.getMessage("offlineEmailBodyError", new Object[]{fileLocation},
-                                    biocacheDownloadEmailBodyError.replace("[url]", fileLocation), null);
-
-                            //user email
-                            emailService.sendEmail(currentDownload.getEmail(), subject,
-                                    body + "\r\n\r\nuniqueId:" + currentDownload.getUniqueId() + " path:" + currentDownload.getFileLocation().replace(biocacheDownloadDir, ""));
-                        } catch (Exception ex) {
-                            logger.error("Error sending error message to download email. " + currentDownload.getFileLocation(), ex);
-                        }
-                    } finally {
-                        //incase of server up/down, only remove from queue after emails are sent
-                        persistentQueueDAO.removeDownloadFromQueue(currentDownload);
-                    }
+            } catch (InterruptedException e) {
+                // Make sure that InterruptedException attempts to shutdown long running downloads thread immediately to avoid delays
+                if(maxRecords == null) {
+                    downloadServiceExecutor.shutdownNow();
+                }
+            } finally {
+                try {
+                    downloadServiceExecutor.shutdown();
+                    downloadServiceExecutor.awaitTermination(10, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    // Ignore issues while shutting down executors
                 }
             }
         }
     }
 
     /**
-     * Generate a search URL the user can use to regenerate the same download (assumes they came via biocache UI)
+     * Generate a search URL the user can use to regenerate the same download
+     * (assumes they came via biocache UI)
      *
      * @param params
      * @return url
@@ -633,7 +763,7 @@ public class DownloadService {
             }
         }
 
-        if (params.getFq().length > 0 ) {
+        if (params.getFq().length > 0) {
             for (String fq : params.getFq()) {
                 if (StringUtils.isNotEmpty(fq)) {
                     try {
@@ -671,49 +801,55 @@ public class DownloadService {
     }
 
     private void insertMiscHeader(DownloadDetailsDTO download) {
-        if (download.getMiscFields() != null && download.getMiscFields().length > 0 &&
-                download.getRequestParams() != null ) {
+        if (download.getMiscFields() != null && download.getMiscFields().length > 0
+                && download.getRequestParams() != null) {
             try {
-                //unpack zip
+                // unpack zip
                 File unzipDir = new File(download.getFileLocation() + ".dir" + File.separator);
                 unzipDir.mkdirs();
                 AlaFileUtils.unzip(unzipDir.getPath(), download.getFileLocation());
 
-                //insert header
+                // insert header
                 for (File f : unzipDir.listFiles()) {
-                    if ((f.getName().endsWith(".csv") || f.getName().endsWith(".tsv")) && !"headings.csv".equals(f.getName())) {
-                        //make new file
-                        try(FileReader fileReader = new FileReader(f);
+                    if ((f.getName().endsWith(".csv") || f.getName().endsWith(".tsv"))
+                            && !"headings.csv".equals(f.getName())) {
+                        // make new file
+                        try (FileReader fileReader = new FileReader(f);
                                 BufferedReader bufferedReader = new BufferedReader(fileReader);) {
                             File fnew = new File(f.getPath() + ".new");
-                            try(FileWriter fw = new FileWriter(fnew);) {
+                            try (FileWriter fw = new FileWriter(fnew);) {
                                 String line;
                                 int row = 0;
                                 while ((line = bufferedReader.readLine()) != null) {
                                     if (row == 0) {
                                         String miscHeader[] = download.getMiscFields();
-        
+
                                         if ("csv".equals(download.getRequestParams().getFileType())) {
-                                            //retain csv settings
+                                            // retain csv settings
                                             CSVReader reader = new CSVReader(new StringReader(line));
                                             String header[] = reader.readNext();
                                             reader.close();
-        
+
                                             String newHeader[] = new String[header.length + miscHeader.length];
-                                            if (header.length > 0) System.arraycopy(header, 0, newHeader, 0, header.length);
+                                            if (header.length > 0)
+                                                System.arraycopy(header, 0, newHeader, 0, header.length);
                                             if (miscHeader.length > 0)
-                                                System.arraycopy(miscHeader, 0, newHeader, header.length, miscHeader.length);
-        
+                                                System.arraycopy(miscHeader, 0, newHeader, header.length,
+                                                        miscHeader.length);
+
                                             StringWriter sw = new StringWriter();
-                                            try(CSVWriter writer = new CSVWriter(sw, download.getRequestParams().getSep(), '"', download.getRequestParams().getEsc());) {
+                                            try (CSVWriter writer = new CSVWriter(sw,
+                                                    download.getRequestParams().getSep(), '"',
+                                                    download.getRequestParams().getEsc());) {
                                                 writer.writeNext(newHeader);
                                             }
-        
+
                                             line = sw.toString();
                                         } else {
                                             for (int i = 0; i < miscHeader.length; i++) {
                                                 line += '\t';
-                                                line += miscHeader[i].replace("\r", "").replace("\n", "").replace("\t", "");
+                                                line += miscHeader[i].replace("\r", "").replace("\n", "").replace("\t",
+                                                        "");
                                             }
                                             line += '\n';
                                         }
@@ -724,14 +860,14 @@ public class DownloadService {
                                     row++;
                                 }
                             }
-                            //replace original file
+                            // replace original file
                             FileUtils.copyFile(fnew, f);
                             fnew.delete();
                         }
                     }
                 }
 
-                //rezip and cleanup
+                // rezip and cleanup
                 FileUtils.deleteQuietly(new File(download.getFileLocation()));
                 AlaFileUtils.createZip(unzipDir.getPath(), download.getFileLocation());
                 FileUtils.deleteDirectory(unzipDir);

@@ -26,6 +26,7 @@ import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * A queue that stores the Downloads as JSON files in the supplied directory
@@ -45,7 +46,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
 
     private final ObjectMapper jsonMapper = new ObjectMapper();
     
-    private List<DownloadDetailsDTO> offlineDownloadList;
+    private final Queue<DownloadDetailsDTO> offlineDownloadList = new LinkedBlockingQueue<>();
 
     private final Object listLock = new Object();
     
@@ -56,10 +57,9 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
             @Override
             public void run() {
                 synchronized (listLock) {
-                    offlineDownloadList = Collections.synchronizedList(new ArrayList<DownloadDetailsDTO>());
-                    File file = new File(cacheDirectory);
                     jsonMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
+                    File file = new File(cacheDirectory);
                     try {
                         FileUtils.forceMkdir(file);
                     } catch (IOException e) {
@@ -100,13 +100,11 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
     @Override
     public DownloadDetailsDTO getNextDownload() {
         synchronized (listLock) {
-            if (offlineDownloadList.size() > 0) {
-                for (DownloadDetailsDTO dd : offlineDownloadList) {
-                    if (dd.getFileLocation() == null) {
-                        //give a place for the downlaod
-                        dd.setFileLocation(biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes()) + File.separator + dd.getStartTime() + File.separator + dd.getRequestParams().getFile() + ".zip");
-                        return dd;
-                    }
+            for (DownloadDetailsDTO dd : offlineDownloadList) {
+                if (dd.getFileLocation() == null) {
+                    //give a place for the downlaod
+                    dd.setFileLocation(biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes()) + File.separator + dd.getStartTime() + File.separator + dd.getRequestParams().getFile() + ".zip");
+                    return dd;
                 }
             }
         }
@@ -121,15 +119,13 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
     @Override
     public DownloadDetailsDTO getNextDownload(Integer maxRecords, DownloadDetailsDTO.DownloadType type) {
         synchronized (listLock) {
-            if (offlineDownloadList.size() > 0) {
-                for (DownloadDetailsDTO dd : offlineDownloadList) {
-                    if (dd.getFileLocation() == null &&
-                            (maxRecords == null || dd.getTotalRecords() <= maxRecords) &&
-                            (type == null || dd.getDownloadType().equals(type))) {
-                        //give a place for the downlaod
-                        dd.setFileLocation(biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes()) + File.separator + dd.getStartTime() + File.separator + dd.getRequestParams().getFile() + ".zip");
-                        return dd;
-                    }
+            for (DownloadDetailsDTO dd : offlineDownloadList) {
+                if (dd.getFileLocation() == null &&
+                        (maxRecords == null || dd.getTotalRecords() <= maxRecords) &&
+                        (type == null || dd.getDownloadType().equals(type))) {
+                    //give a place for the downlaod
+                    dd.setFileLocation(biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes()) + File.separator + dd.getStartTime() + File.separator + dd.getRequestParams().getFile() + ".zip");
+                    return dd;
                 }
             }
         }
@@ -170,7 +166,8 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
      */
     @Override
     public List<DownloadDetailsDTO> getAllDownloads() {
-        return offlineDownloadList;
+        List<DownloadDetailsDTO> result = new ArrayList<>(offlineDownloadList);
+        return Collections.unmodifiableList(result);
     }
     
     /**
@@ -184,13 +181,11 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
             //load the list with the available downloads ordering by the least recently modified
             File[] files = file.listFiles();
             if (files != null) {
-                Arrays.sort(files, new Comparator() {
-
+                Arrays.sort(files, new Comparator<File>() {
                     @Override
-                    public int compare(Object o1, Object o2) {
+                    public int compare(File o1, File o2) {
                         return (int) (((File) o1).lastModified() - ((File) o2).lastModified());
                     }
-
                 });
 
                 //value = jsonMapper.readValue(file, ParamsCacheObject.class);
@@ -214,12 +209,10 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
     @Override
     public DownloadDetailsDTO isInQueue(DownloadDetailsDTO dd) {
         synchronized (listLock) {
-            if (offlineDownloadList.size() > 0) {
-                for (DownloadDetailsDTO d : offlineDownloadList) {
-                    if (d.getEmail().equalsIgnoreCase(d.getEmail()) &&
-                            d.getDownloadParams().equalsIgnoreCase(dd.getDownloadParams())) {
-                        return d;
-                    }
+            for (DownloadDetailsDTO d : offlineDownloadList) {
+                if (d.getEmail().equalsIgnoreCase(d.getEmail()) &&
+                        d.getDownloadParams().equalsIgnoreCase(dd.getDownloadParams())) {
+                    return d;
                 }
             }
         }

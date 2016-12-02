@@ -55,6 +55,9 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 /**
@@ -768,7 +771,7 @@ public class OccurrenceController extends AbstractSecureController {
                                     logger.debug("Outputting results to:" + outputFilePath + ", with LSID: " + lsid);
                                     try(FileOutputStream output = new FileOutputStream(outputFilePath);) {
                                         params.setQ("lsid:\""+lsid+"\"");
-                                        Map<String,Integer> uidStats = searchDAO.writeResultsFromIndexToStream(params, output, false, dd,false);
+                                        ConcurrentMap<String, AtomicInteger> uidStats = searchDAO.writeResultsFromIndexToStream(params, output, false, dd,false);
                                         output.flush();
                                         try(FileOutputStream citationOutput = new FileOutputStream(citationFilePath);) {
                                             downloadService.getCitations(uidStats, citationOutput, params.getSep(), params.getEsc(), null);
@@ -1303,27 +1306,33 @@ public class OccurrenceController extends AbstractSecureController {
     
     private void logViewEvent(String ip, OccurrenceDTO occ, String email, String reason) {
         //String ip = request.getLocalAddr();
-        Map<String, Integer> uidStats = new HashMap<String, Integer>();
+        ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
         if(occ.getProcessed() != null && occ.getProcessed().getAttribution()!=null){
             if (occ.getProcessed().getAttribution().getCollectionUid() != null) {
-                uidStats.put(occ.getProcessed().getAttribution().getCollectionUid(), 1);
+                uidStats.put(occ.getProcessed().getAttribution().getCollectionUid(), new AtomicInteger(1));
             }
             if (occ.getProcessed().getAttribution().getInstitutionUid() != null) {
-                uidStats.put(occ.getProcessed().getAttribution().getInstitutionUid(), 1);
+                uidStats.put(occ.getProcessed().getAttribution().getInstitutionUid(), new AtomicInteger(1));
             }
-            if(occ.getProcessed().getAttribution().getDataProviderUid() != null)
-                uidStats.put(occ.getProcessed().getAttribution().getDataProviderUid(), 1);
-            if(occ.getProcessed().getAttribution().getDataResourceUid() != null)
-                uidStats.put(occ.getProcessed().getAttribution().getDataResourceUid(), 1);
+            if(occ.getProcessed().getAttribution().getDataProviderUid() != null) {
+                uidStats.put(occ.getProcessed().getAttribution().getDataProviderUid(), new AtomicInteger(1));
+            }
+            if(occ.getProcessed().getAttribution().getDataResourceUid() != null) {
+                uidStats.put(occ.getProcessed().getAttribution().getDataResourceUid(), new AtomicInteger(1));
+            }
         }
 
         //remove header entries from uidStats
         if (uidStats != null) {
             List<String> toRemove = new ArrayList<String>();
             for (String key : uidStats.keySet()) {
-                if (uidStats.get(key) < 0) toRemove.add(key);
+                if (uidStats.get(key).get() < 0) {
+                    toRemove.add(key);
+                }
             }
-            for (String key : toRemove) uidStats.remove(key);
+            for (String key : toRemove) {
+                uidStats.remove(key);
+            }
         }
         LogEventVO vo = new LogEventVO(LogEventType.OCCURRENCE_RECORDS_VIEWED, email, reason, ip, uidStats);
         logger.log(RestLevel.REMOTE, vo);
