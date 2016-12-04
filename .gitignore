@@ -4,3 +4,7 @@ target/*
 out/*
 
 src/main/resources/git.properties
+target/
+.classpath
+.project
+.settings/

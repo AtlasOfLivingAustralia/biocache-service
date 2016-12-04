@@ -395,11 +395,11 @@ public class UploadController extends AbstractSecureController {
                 logger.debug("Line count: " + lineCount);
 
                 //derive a list of custom index field
-                CSVReader readerForCol = new CSVReader(new FileReader(csvFile), ',', '"');
-                List<String> filteredHeaders = filterByMaxColumnLengths(headers, readerForCol, 50);
-                filteredHeaders = filterCustomIndexFields(filteredHeaders);
-                customIndexFields = filteredHeaders.toArray(new String[0]);
-                readerForCol.close();
+                try(CSVReader readerForCol = new CSVReader(new FileReader(csvFile), ',', '"');) {
+                    List<String> filteredHeaders = filterByMaxColumnLengths(headers, readerForCol, 50);
+                    filteredHeaders = filterCustomIndexFields(filteredHeaders);
+                    customIndexFields = filteredHeaders.toArray(new String[0]);
+                }
 
                 //initialise the reader
                 csvData = new CSVReader(new FileReader(csvFile), ',', '"');
@@ -412,11 +412,11 @@ public class UploadController extends AbstractSecureController {
                 lineCount = doLineCount(csvDataAsString);
 
                 //derive a list of custom index field
-                CSVReader readerForCol = new CSVReader(new StringReader(csvDataAsString), separatorChar, '"');
-                List<String> filteredHeaders = filterByMaxColumnLengths(headers, readerForCol, 50);
-                filteredHeaders = filterCustomIndexFields(filteredHeaders);
-                customIndexFields = filteredHeaders.toArray(new String[0]);
-                readerForCol.close();
+                try(CSVReader readerForCol = new CSVReader(new StringReader(csvDataAsString), separatorChar, '"');) {
+                    List<String> filteredHeaders = filterByMaxColumnLengths(headers, readerForCol, 50);
+                    filteredHeaders = filterCustomIndexFields(filteredHeaders);
+                    customIndexFields = filteredHeaders.toArray(new String[0]);
+                }
 
                 //initialise the reader
                 csvData = new CSVReader(new StringReader(csvDataAsString), separatorChar, '"');
@@ -463,11 +463,11 @@ public class UploadController extends AbstractSecureController {
 
     private int doLineCount(String csvDataAsString) throws IOException {
         int lineCount = 0;
-        BufferedReader reader = new BufferedReader(new StringReader(csvDataAsString));
-        while(reader.readLine() != null){
-            lineCount++;
+        try(BufferedReader reader = new BufferedReader(new StringReader(csvDataAsString));) {
+            while(reader.readLine() != null){
+                lineCount++;
+            }
         }
-        reader.close();
         return lineCount;
     }
 
@@ -482,11 +482,12 @@ public class UploadController extends AbstractSecureController {
 
     private int doLineCount(File csvFile) throws IOException {
         int lineCount = 0;
-        BufferedReader reader = new BufferedReader(new FileReader(csvFile));
-        while(reader.readLine() != null){
-            lineCount++;
+        try(FileReader fr = new FileReader(csvFile);
+                BufferedReader reader = new BufferedReader(fr);) {
+            while(reader.readLine() != null){
+                lineCount++;
+            }
         }
-        reader.close();
         return lineCount;
     }
 
@@ -494,21 +495,23 @@ public class UploadController extends AbstractSecureController {
         long fileId = System.currentTimeMillis();
         String zipFilePath = uploadTempDir + File.separator + fileId + ".zip";
         String unzippedFilePath = uploadTempDir + File.separator + fileId + ".csv";
-        InputStream input = new URL(urlToZippedData).openStream();
-        OutputStream output = new FileOutputStream(zipFilePath);
-        IOUtils.copyLarge(input, output);
-
-        //extract zip
-        ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFilePath));
-        ZipEntry ze = zis.getNextEntry();
-        byte[] buffer = new byte[10240];
-        FileOutputStream fos = new FileOutputStream(unzippedFilePath);
-        int len;
-        while ((len = zis.read(buffer))>0){
-            fos.write(buffer, 0, len);
+        try(InputStream input = new URL(urlToZippedData).openStream();
+                OutputStream output = new FileOutputStream(zipFilePath);) {
+            IOUtils.copyLarge(input, output);
         }
-        fos.flush();
-        fos.close();
+        // extract zip
+        try(FileInputStream fis = new FileInputStream(zipFilePath);
+                ZipInputStream zis = new ZipInputStream(fis);) {
+            ZipEntry ze = zis.getNextEntry();
+            byte[] buffer = new byte[10240];
+            try(FileOutputStream fos = new FileOutputStream(unzippedFilePath);) {
+                int len;
+                while ((len = zis.read(buffer))>0){
+                    fos.write(buffer, 0, len);
+                }
+                fos.flush();
+            }
+        }
         return new File(unzippedFilePath);
     }
 
@@ -516,8 +519,16 @@ public class UploadController extends AbstractSecureController {
         DeleteMethod delete = new DeleteMethod(registryUrl + "/tempDataResource/" + datasetUid);
         delete.setRequestHeader("Authorization", apiKey);
         HttpClient httpClient = new HttpClient();
-        int statusCode = httpClient.executeMethod(delete);
-        return statusCode == 200 || statusCode == 204;
+        try {
+            int statusCode = httpClient.executeMethod(delete);
+            return statusCode == 200 || statusCode == 204;
+        } finally {
+            try {
+                delete.releaseConnection();
+            } finally {
+                httpClient.getHttpConnectionManager().closeIdleConnections(0L);
+            }
+        }
     }
 
 
@@ -537,11 +548,19 @@ public class UploadController extends AbstractSecureController {
         post.setRequestHeader("Authorization", apiKey);
         post.setRequestBody(json);
         HttpClient httpClient = new HttpClient();
-        httpClient.executeMethod(post);
+        try {
+            httpClient.executeMethod(post);
 
-        logger.info("Retrieved: " + post.getResponseHeader("location").getValue());
-        String collectoryUrl = post.getResponseHeader("location").getValue();
-        return collectoryUrl.substring(collectoryUrl.lastIndexOf('/') + 1);
+            logger.info("Retrieved: " + post.getResponseHeader("location").getValue());
+            String collectoryUrl = post.getResponseHeader("location").getValue();
+            return collectoryUrl.substring(collectoryUrl.lastIndexOf('/') + 1);
+        } finally {
+            try {
+                post.releaseConnection();
+            } finally {
+                httpClient.getHttpConnectionManager().closeIdleConnections(0L);
+            }
+        }
     }
 
 
@@ -561,9 +580,17 @@ public class UploadController extends AbstractSecureController {
         post.setRequestHeader("Authorization", apiKey);
         post.setRequestBody(json);
         HttpClient httpClient = new HttpClient();
-        int statusCode = httpClient.executeMethod(post);
+        try {
+            int statusCode = httpClient.executeMethod(post);
 
-        return statusCode == 200 || statusCode == 201;
+            return statusCode == 200 || statusCode == 201;
+        } finally {
+            try {
+                post.releaseConnection();
+            } finally {
+                httpClient.getHttpConnectionManager().closeIdleConnections(0L);
+            }
+        }
     }
 
 }

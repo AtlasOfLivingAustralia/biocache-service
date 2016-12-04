@@ -44,6 +44,7 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -361,41 +362,42 @@ public class DownloadService {
                 return;
             }
 
-            CSVWriter writer = new CSVWriter(new OutputStreamWriter(out), sep, '"',esc);
-            //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
-            List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl, uidStats.keySet(), List.class);
-            if(entities.size()>0){
-                //i18n of the citation header
-                writer.writeNext(new String[]{messageSource.getMessage("citation.uid", null, "UID", null),
-                    messageSource.getMessage("citation.name", null,"Name", null),
-                    messageSource.getMessage("citation.citation", null,"Citation", null),
-                    messageSource.getMessage("citation.rights", null,"Rights", null),
-                    messageSource.getMessage("citation.link", null,"More Information", null),
-                    messageSource.getMessage("citation.dataGeneralizations", null,"Data generalisations", null),
-                    messageSource.getMessage("citation.informationWithheld", null,"Information withheld", null),
-                    messageSource.getMessage("citation.downloadLimit", null,"Download limit", null),
-                    messageSource.getMessage("citation.count", null,"Number of Records in Download", null)});
-
-                for(Map<String,Object> record : entities){
-                    StringBuilder sb = new StringBuilder();
-                    //ensure that the record is not null to prevent NPE on the "get"s
-                    if(record != null){
-                        String count = uidStats.get(record.get("uid")).toString();
-                        String[] row = new String[]{getOrElse(record,"uid",""),getOrElse(record, "name",""), getOrElse(record, "citation",""),
-                                getOrElse(record,"rights", ""), getOrElse(record, "link",""),getOrElse(record,"dataGeneralizations",""),
-                                getOrElse(record, "informationWithheld",""), getOrElse(record, "downloadLimit", ""), count};
-                        writer.writeNext(row);
-
-                        if (readmeCitations != null) {
-                            readmeCitations.add(row[2] + " (" + row[3] + "). " + row[4]); // used in README.txt
+            try(CSVWriter writer = new CSVWriter(new OutputStreamWriter(out), sep, '"',esc);) {
+                //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
+                List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl, uidStats.keySet(), List.class);
+                if(entities.size()>0){
+                    //i18n of the citation header
+                    writer.writeNext(new String[]{messageSource.getMessage("citation.uid", null, "UID", null),
+                        messageSource.getMessage("citation.name", null,"Name", null),
+                        messageSource.getMessage("citation.citation", null,"Citation", null),
+                        messageSource.getMessage("citation.rights", null,"Rights", null),
+                        messageSource.getMessage("citation.link", null,"More Information", null),
+                        messageSource.getMessage("citation.dataGeneralizations", null,"Data generalisations", null),
+                        messageSource.getMessage("citation.informationWithheld", null,"Information withheld", null),
+                        messageSource.getMessage("citation.downloadLimit", null,"Download limit", null),
+                        messageSource.getMessage("citation.count", null,"Number of Records in Download", null)});
+    
+                    for(Map<String,Object> record : entities){
+                        StringBuilder sb = new StringBuilder();
+                        //ensure that the record is not null to prevent NPE on the "get"s
+                        if(record != null){
+                            String count = uidStats.get(record.get("uid")).toString();
+                            String[] row = new String[]{getOrElse(record,"uid",""),getOrElse(record, "name",""), getOrElse(record, "citation",""),
+                                    getOrElse(record,"rights", ""), getOrElse(record, "link",""),getOrElse(record,"dataGeneralizations",""),
+                                    getOrElse(record, "informationWithheld",""), getOrElse(record, "downloadLimit", ""), count};
+                            writer.writeNext(row);
+    
+                            if (readmeCitations != null) {
+                                readmeCitations.add(row[2] + " (" + row[3] + "). " + row[4]); // used in README.txt
+                            }
+    
+                        } else {
+                            logger.warn("A null record was returned from the collectory citation service: " + entities);
                         }
-
-                    } else {
-                        logger.warn("A null record was returned from the collectory citation service: " + entities);
                     }
                 }
+                writer.flush();
             }
-            writer.flush();
         }
     }
 
@@ -422,88 +424,89 @@ public class DownloadService {
                 return;
             }
 
-            CSVWriter writer = new CSVWriter(new OutputStreamWriter(out), params.getSep(), '"', params.getEsc());
-            //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
-            Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
-
-            //header
-            writer.writeNext(new String[]{"Column name", "Requested field", "DwC Name", "Field name", "Field description", "Download field name", "Download field description", "More information"});
-
-            String[] fieldsRequested = null;
-            String[] headerOutput = null;
-            for (Map.Entry<String, Integer> e : uidStats.entrySet()) {
-                if (e.getValue() == -1) {
-                    //String fields requested
-                    fieldsRequested = e.getKey().split(",");
-
-                } else if (e.getValue() == -2) {
-                    headerOutput = e.getKey().split(",");
-                }
-            }
-
-            if (fieldsRequested != null && headerOutput != null) {
-                //ignore first fieldsRequested and headerOutput record
-                for (int i = 1; i < fieldsRequested.length; i++) {
-
-                    //find indexedField by download name
-                    IndexFieldDTO ifdto = null;
-                    for (IndexFieldDTO f : indexedFields) {
-                        //find a matching field
-                        if (fieldsRequested[i].equalsIgnoreCase(f.getDownloadName())) {
-                            ifdto = f;
-                            break;
-                        }
+            try(CSVWriter writer = new CSVWriter(new OutputStreamWriter(out), params.getSep(), '"', params.getEsc());) {
+                //Object[] citations = restfulClient.restPost(citationServiceUrl, "text/json", uidStats.keySet());
+                Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
+    
+                //header
+                writer.writeNext(new String[]{"Column name", "Requested field", "DwC Name", "Field name", "Field description", "Download field name", "Download field description", "More information"});
+    
+                String[] fieldsRequested = null;
+                String[] headerOutput = null;
+                for (Map.Entry<String, Integer> e : uidStats.entrySet()) {
+                    if (e.getValue() == -1) {
+                        //String fields requested
+                        fieldsRequested = e.getKey().split(",");
+    
+                    } else if (e.getValue() == -2) {
+                        headerOutput = e.getKey().split(",");
                     }
-                    //find indexedField by field name
-                    if (ifdto == null) {
+                }
+    
+                if (fieldsRequested != null && headerOutput != null) {
+                    //ignore first fieldsRequested and headerOutput record
+                    for (int i = 1; i < fieldsRequested.length; i++) {
+    
+                        //find indexedField by download name
+                        IndexFieldDTO ifdto = null;
                         for (IndexFieldDTO f : indexedFields) {
                             //find a matching field
-                            if (fieldsRequested[i].equalsIgnoreCase(f.getName())) {
+                            if (fieldsRequested[i].equalsIgnoreCase(f.getDownloadName())) {
                                 ifdto = f;
                                 break;
                             }
                         }
+                        //find indexedField by field name
+                        if (ifdto == null) {
+                            for (IndexFieldDTO f : indexedFields) {
+                                //find a matching field
+                                if (fieldsRequested[i].equalsIgnoreCase(f.getName())) {
+                                    ifdto = f;
+                                    break;
+                                }
+                            }
+                        }
+    
+                        if (ifdto != null) {
+                            writer.writeNext(new String[]{headerOutput[i], fieldsRequested[i],
+                                    ifdto.getDwcTerm() != null ? ifdto.getDwcTerm() : "",
+                                    ifdto.getName() != null ? ifdto.getName() : "",
+                                    ifdto.getDescription() != null ? ifdto.getDescription() : "",
+                                    ifdto.getDownloadName() != null ? ifdto.getDownloadName() : "",
+                                    ifdto.getDownloadDescription() != null ? ifdto.getDownloadDescription() : "",
+                                    ifdto.getInfo() != null ? ifdto.getInfo() : ""
+                            });
+                        } else {
+                            //others, e.g. assertions
+                            String info = messageSource.getMessage("description." + fieldsRequested[i], null, "", null);
+                            writer.writeNext(new String[]{headerOutput[i], fieldsRequested[i],
+                                    "",
+                                    "",
+                                    "",
+                                    "",
+                                    "",
+                                    info != null ? info : ""
+                            });
+                        }
                     }
-
-                    if (ifdto != null) {
-                        writer.writeNext(new String[]{headerOutput[i], fieldsRequested[i],
-                                ifdto.getDwcTerm() != null ? ifdto.getDwcTerm() : "",
-                                ifdto.getName() != null ? ifdto.getName() : "",
-                                ifdto.getDescription() != null ? ifdto.getDescription() : "",
-                                ifdto.getDownloadName() != null ? ifdto.getDownloadName() : "",
-                                ifdto.getDownloadDescription() != null ? ifdto.getDownloadDescription() : "",
-                                ifdto.getInfo() != null ? ifdto.getInfo() : ""
-                        });
-                    } else {
-                        //others, e.g. assertions
-                        String info = messageSource.getMessage("description." + fieldsRequested[i], null, "", null);
-                        writer.writeNext(new String[]{headerOutput[i], fieldsRequested[i],
+                }
+    
+                //misc headers
+                if (miscHeaders != null) {
+                    for (int i = 0; i < miscHeaders.length; i++) {
+                        writer.writeNext(new String[]{miscHeaders[i],
                                 "",
                                 "",
                                 "",
                                 "",
                                 "",
-                                info != null ? info : ""
+                                "Raw header from data provider."
                         });
                     }
                 }
+    
+                writer.flush();
             }
-
-            //misc headers
-            if (miscHeaders != null) {
-                for (int i = 0; i < miscHeaders.length; i++) {
-                    writer.writeNext(new String[]{miscHeaders[i],
-                            "",
-                            "",
-                            "",
-                            "",
-                            "",
-                            "Raw header from data provider."
-                    });
-                }
-            }
-
-            writer.flush();
         }
     }
 
@@ -548,8 +551,7 @@ public class DownloadService {
                     //we are now ready to start the download
                     //we need to create an output stream to the file system
 
-                    try{
-                        FileOutputStream fos = FileUtils.openOutputStream(new File(currentDownload.getFileLocation()));
+                    try(FileOutputStream fos = FileUtils.openOutputStream(new File(currentDownload.getFileLocation()));){
                         //register the download
                         currentDownloads.add(currentDownload);
                         //cannot include misc columns if shp
@@ -573,12 +575,10 @@ public class DownloadService {
                             String body = messageSource.getMessage("offlineEmailBody", new Object[]{fileLocation, searchUrl, currentDownload.getStartDateString()}, emailBodyHtml, null);
 
                             //save the statistics to the download directory
-                            FileOutputStream statsStream = FileUtils.openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()+File.separator+"downloadStats.json"));
-                            String json = objectMapper.writeValueAsString(currentDownload);
-                            statsStream.write(json.getBytes() );
-                            statsStream.flush();
-                            statsStream.close();
-
+                            try(FileOutputStream statsStream = FileUtils.openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()+File.separator+"downloadStats.json"));) {
+                                objectMapper.writeValue(statsStream, currentDownload);
+                            }
+                            
                             emailService.sendEmail(currentDownload.getEmail(), subject, body);
                         }
 
@@ -683,47 +683,51 @@ public class DownloadService {
                 for (File f : unzipDir.listFiles()) {
                     if ((f.getName().endsWith(".csv") || f.getName().endsWith(".tsv")) && !"headings.csv".equals(f.getName())) {
                         //make new file
-                        BufferedReader bufferedReader = new BufferedReader(new FileReader(f));
-                        File fnew = new File(f.getPath() + ".new");
-                        FileWriter fw = new FileWriter(fnew);
-                        String line;
-                        int row = 0;
-                        while ((line = bufferedReader.readLine()) != null) {
-                            if (row == 0) {
-                                String miscHeader[] = download.getMiscFields();
-
-                                if ("csv".equals(download.getRequestParams().getFileType())) {
-                                    //retain csv settings
-                                    CSVReader reader = new CSVReader(new StringReader(line));
-                                    String header[] = reader.readNext();
-                                    reader.close();
-
-                                    String newHeader[] = new String[header.length + miscHeader.length];
-                                    if (header.length > 0) System.arraycopy(header, 0, newHeader, 0, header.length);
-                                    if (miscHeader.length > 0)
-                                        System.arraycopy(miscHeader, 0, newHeader, header.length, miscHeader.length);
-
-                                    StringWriter sw = new StringWriter();
-                                    CSVWriter writer = new CSVWriter(sw, download.getRequestParams().getSep(), '"', download.getRequestParams().getEsc());
-                                    writer.writeNext(newHeader);
-
-                                    line = sw.toString();
-                                } else {
-                                    for (int i = 0; i < miscHeader.length; i++) {
-                                        line += '\t';
-                                        line += miscHeader[i].replace("\r", "").replace("\n", "").replace("\t", "");
+                        try(FileReader fileReader = new FileReader(f);
+                                BufferedReader bufferedReader = new BufferedReader(fileReader);) {
+                            File fnew = new File(f.getPath() + ".new");
+                            try(FileWriter fw = new FileWriter(fnew);) {
+                                String line;
+                                int row = 0;
+                                while ((line = bufferedReader.readLine()) != null) {
+                                    if (row == 0) {
+                                        String miscHeader[] = download.getMiscFields();
+        
+                                        if ("csv".equals(download.getRequestParams().getFileType())) {
+                                            //retain csv settings
+                                            CSVReader reader = new CSVReader(new StringReader(line));
+                                            String header[] = reader.readNext();
+                                            reader.close();
+        
+                                            String newHeader[] = new String[header.length + miscHeader.length];
+                                            if (header.length > 0) System.arraycopy(header, 0, newHeader, 0, header.length);
+                                            if (miscHeader.length > 0)
+                                                System.arraycopy(miscHeader, 0, newHeader, header.length, miscHeader.length);
+        
+                                            StringWriter sw = new StringWriter();
+                                            try(CSVWriter writer = new CSVWriter(sw, download.getRequestParams().getSep(), '"', download.getRequestParams().getEsc());) {
+                                                writer.writeNext(newHeader);
+                                            }
+        
+                                            line = sw.toString();
+                                        } else {
+                                            for (int i = 0; i < miscHeader.length; i++) {
+                                                line += '\t';
+                                                line += miscHeader[i].replace("\r", "").replace("\n", "").replace("\t", "");
+                                            }
+                                            line += '\n';
+                                        }
+                                    } else {
+                                        fw.write("\n");
                                     }
-                                    line += '\n';
+                                    fw.write(line);
+                                    row++;
                                 }
-                            } else {
-                                fw.write("\n");
                             }
-                            fw.write(line);
-                            row++;
+                            //replace original file
+                            FileUtils.copyFile(fnew, f);
+                            fnew.delete();
                         }
-                        //replace original file
-                        FileUtils.copyFile(fnew, f);
-                        fnew.delete();
                     }
                 }
 

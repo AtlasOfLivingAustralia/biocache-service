@@ -229,7 +229,7 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping("/facets/i18n{qualifier:.*}*")
     public void writei18nPropertiesFile(@PathVariable("qualifier") String qualifier,
                                         HttpServletRequest request,
-                                        HttpServletResponse response) throws Exception{
+                                        HttpServletResponse response) throws Exception {
         qualifier = (StringUtils.isNotEmpty(qualifier)) ? qualifier : ".properties";
         logger.debug("qualifier = " + qualifier);
         
@@ -241,29 +241,32 @@ public class OccurrenceController extends AbstractSecureController {
         } else {
             is = request.getSession().getServletContext().getResourceAsStream("/WEB-INF/messages" + qualifier);
         }
-        OutputStream os = response.getOutputStream();
+        try(OutputStream os = response.getOutputStream();) {
+            if (is != null) {
+                byte[] buffer = new byte[1024];
+                int bytesRead;
+                while ((bytesRead = is.read(buffer)) != -1){
+                    os.write(buffer, 0, bytesRead);
+                }
+            }
+            
+            //append cl* and el* names as field.{fieldId}={display name}
+            try {
+                Map<String, String> fields = new LayersStore(Config.layersServiceUrl()).getFieldIdsAndDisplayNames();
+                for (String fieldId : fields.keySet()) {
+                    os.write(("\nfield." + fieldId + "=" + fields.get(fieldId)).getBytes("UTF-8"));
+                    os.write(("\nfacet." + fieldId + "=" + fields.get(fieldId)).getBytes("UTF-8"));
+                }
+            } catch (Exception e) {
+                logger.error("failed to add layer names from url: " + Config.layersServiceUrl(), e);
+            }
         
-        if (is != null) {
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = is.read(buffer)) != -1){
-                os.write(buffer, 0, bytesRead);
+            os.flush();
+        } finally {
+            if(is != null) {
+                is.close();
             }
         }
-        
-        //append cl* and el* names as field.{fieldId}={display name}
-        try {
-            Map<String, String> fields = new LayersStore(Config.layersServiceUrl()).getFieldIdsAndDisplayNames();
-            for (String fieldId : fields.keySet()) {
-                os.write(("\nfield." + fieldId + "=" + fields.get(fieldId)).getBytes("UTF-8"));
-                os.write(("\nfacet." + fieldId + "=" + fields.get(fieldId)).getBytes("UTF-8"));
-            }
-        } catch (Exception e) {
-            logger.error("failed to add layer names from url: " + Config.layersServiceUrl(), e);
-        }
-        
-        os.flush();
-        os.close();
     }
     
     /**
@@ -272,7 +275,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping("index/fields")
-    public @ResponseBody Set<IndexFieldDTO> getIndexedFields(@RequestParam(value="fl", required=false) String fields) throws Exception{
+    public @ResponseBody Set<IndexFieldDTO> getIndexedFields(@RequestParam(value="fl", required=false) String fields) throws Exception {
         if(fields == null)
             return searchDAO.getIndexedFields();
         else
@@ -751,12 +754,10 @@ public class OccurrenceController extends AbstractSecureController {
             Thread t = new Thread(){
                 @Override
                 public void run() {
-                    try {
+                    try(CSVReader reader  = new CSVReader(new FileReader(file));){
                         //start a thread
-                        CSVReader reader  = new CSVReader(new FileReader(file));
                         String[] row = reader.readNext();
                         while(row != null){
-                            
                             //get an lsid for the name
                             String lsid = mySpeciesLookupService.getGuidForName(row[0]);
                             if(lsid != null){
@@ -765,15 +766,15 @@ public class OccurrenceController extends AbstractSecureController {
                                     String outputFilePath = directory + File.separatorChar + row[0].replace(" ", "_") + ".txt";
                                     String citationFilePath = directory + File.separatorChar + row[0].replace(" ", "_") + "_citations.txt";
                                     logger.debug("Outputting results to:" + outputFilePath + ", with LSID: " + lsid);
-                                    FileOutputStream output = new FileOutputStream(outputFilePath);
-                                    params.setQ("lsid:\""+lsid+"\"");
-                                    Map<String,Integer> uidStats = searchDAO.writeResultsFromIndexToStream(params, output, false, dd,false);
-                                    FileOutputStream citationOutput = new FileOutputStream(citationFilePath);
-                                    downloadService.getCitations(uidStats, citationOutput, params.getSep(), params.getEsc(), null);
-                                    citationOutput.flush();
-                                    citationOutput.close();
-                                    output.flush();
-                                    output.close();
+                                    try(FileOutputStream output = new FileOutputStream(outputFilePath);) {
+                                        params.setQ("lsid:\""+lsid+"\"");
+                                        Map<String,Integer> uidStats = searchDAO.writeResultsFromIndexToStream(params, output, false, dd,false);
+                                        output.flush();
+                                        try(FileOutputStream citationOutput = new FileOutputStream(citationFilePath);) {
+                                            downloadService.getCitations(uidStats, citationOutput, params.getSep(), params.getEsc(), null);
+                                            citationOutput.flush();
+                                        }
+                                    }
                                 } catch (Exception e){
                                     logger.error(e.getMessage(),e);
                                 }
