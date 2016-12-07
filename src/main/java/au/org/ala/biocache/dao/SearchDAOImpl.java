@@ -202,7 +202,7 @@ public class SearchDAOImpl implements SearchDAO {
 
     /** Max number of threads to use in parallel for endemic queries */
     @Value("${endemic.query.maxthreads:30}")
-    protected Integer maxMultiPartThreads = 30;
+    protected Integer maxEndemicQueryThreads = 30;
 
     /** Max number of threads to use in parallel for large solr download queries */
     @Value("${solr.downloadquery.maxthreads:30}")
@@ -383,7 +383,7 @@ public class SearchDAOImpl implements SearchDAO {
                 nextExecutor = endemicExecutor;
                 if(nextExecutor == null) {
                     nextExecutor = endemicExecutor = Executors.newFixedThreadPool(
-                                                                getMaxMultiPartThreads(), 
+                                                                getMaxEndemicQueryThreads(), 
                                                                 new ThreadFactoryBuilder().setNameFormat("endemic-%d")
                                                                 .setPriority(Thread.MIN_PRIORITY).build());
                 }
@@ -402,7 +402,7 @@ public class SearchDAOImpl implements SearchDAO {
                 nextExecutor = solrExecutor;
                 if(nextExecutor == null) {
                     nextExecutor = solrExecutor = Executors.newFixedThreadPool(
-                                                                getMaxMultiPartThreads(),
+                                                                getMaxEndemicQueryThreads(),
                                                                 new ThreadFactoryBuilder().setNameFormat("solr-%d")
                                                                 .setPriority(Thread.MIN_PRIORITY).build());
                 }
@@ -3623,17 +3623,17 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @return the maxMultiPartThreads for endemic queries
+     * @return the maxEndemicQueryThreads for endemic queries
      */
-    public Integer getMaxMultiPartThreads() {
-      return maxMultiPartThreads;
+    public Integer getMaxEndemicQueryThreads() {
+      return maxEndemicQueryThreads;
     }
 
     /**
-     * @param maxMultiPartThreads the maxMultiPartThreads to set for endemic queries
+     * @param maxEndemicQueryThreads the maxEndemicQueryThreads to set for endemic queries
      */
-    public void setMaxMultiPartThreads(Integer maxMultiPartThreads) {
-      this.maxMultiPartThreads = Objects.requireNonNull(maxMultiPartThreads, "Max endemic multipart threads cannot be null");
+    public void setMaxEndemicQueryThreads(Integer maxEndemicQueryThreads) {
+      this.maxEndemicQueryThreads = Objects.requireNonNull(maxEndemicQueryThreads, "Max endemic multipart threads cannot be null");
     }
 
     /**
@@ -3644,7 +3644,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @param maxMultiPartThreads the maxMultiPartThreads to set for solr download queries
+     * @param maxEndemicQueryThreads the maxMultiPartThreads to set for solr download queries
      */
     public void setMaxSolrDownloadThreads(Integer maxSolrDownloadThreads) {
       this.maxSolrDownloadThreads = Objects.requireNonNull(maxSolrDownloadThreads, "Max solr download threads cannot be null");
