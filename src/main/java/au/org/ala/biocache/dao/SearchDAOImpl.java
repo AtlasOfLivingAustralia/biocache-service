@@ -110,7 +110,7 @@ public class SearchDAOImpl implements SearchDAO {
     private static final String [] notSensitiveSOLRHdr = {"longitude","latitude","locality"};
 
     /** SOLR server instance */
-    protected SolrServer server;
+    protected volatile SolrServer server;
     protected SolrRequest.METHOD queryMethod;
     /** Limit search results - for performance reasons */
     @Value("${download.max:500000}")
@@ -251,33 +251,54 @@ public class SearchDAOImpl implements SearchDAO {
     public SearchDAOImpl() {}
 
     private SolrServer getServer(){
-        int retry = 0;
-        while(server == null && retry < maxRetries){
-            retry ++;
-            if (retryWait > 0) try {Thread.sleep(retryWait);} catch (Exception e) {}
-            initServer();
-        }
-        return server;
-    }
-
-    private void initServer() {
-        if (this.server == null) {
-            try {
-                // use the solr server that has been in the biocache-store...
-                SolrIndexDAO dao = (SolrIndexDAO) au.org.ala.biocache.Config
-                    .getInstance(IndexDAO.class);
-                dao.init();
-                server = dao.solrServer();
-                queryMethod = server instanceof EmbeddedSolrServer? SolrRequest.METHOD.GET:SolrRequest.METHOD.POST;
-                if(logger.isDebugEnabled()) {
-                    logger.debug("The server " + server.getClass());
+        SolrServer result = server;
+        if(result == null) {
+            synchronized(this) {
+                result = server;
+                if(result == null) {
+                    int retry = 0;
+                    while(result == null && retry < maxRetries){
+                        retry ++;
+                        if (retryWait > 0) {
+                            try {
+                                Thread.sleep(retryWait);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
+                        }
+                        result = server = initServer();
+                    }
                 }
-                //CAUSING THE HANG....
-                downloadFields = new DownloadFields(getIndexedFields(), messageSource);
-            } catch (Exception ex) {
-                logger.error("Error initialising embedded SOLR server: " + ex.getMessage(), ex);
             }
         }
+        return result;
+    }
+
+    private SolrServer initServer() {
+        SolrServer result = server;
+        if (result == null) {
+            synchronized(this) {
+                result = server;
+                if(result == null) {
+                    try {
+                        // use the solr server that has been in the biocache-store...
+                        SolrIndexDAO dao = (SolrIndexDAO) au.org.ala.biocache.Config
+                            .getInstance(IndexDAO.class);
+                        dao.init();
+                        result = server = dao.solrServer();
+                        queryMethod = result instanceof EmbeddedSolrServer? SolrRequest.METHOD.GET:SolrRequest.METHOD.POST;
+                        if(logger.isDebugEnabled()) {
+                            logger.debug("The server " + result.getClass());
+                        }
+                        //CAUSING THE HANG....
+                        downloadFields = new DownloadFields(getIndexedFields(), messageSource);
+                    } catch (Exception ex) {
+                        logger.error("Error initialising embedded SOLR server: " + ex.getMessage(), ex);
+                    }
+                }
+            }
+        }
+        return result;
     }
 
     public Set<String> getAuthIndexFields(){
@@ -384,7 +405,7 @@ public class SearchDAOImpl implements SearchDAO {
                 if(nextExecutor == null) {
                     nextExecutor = endemicExecutor = Executors.newFixedThreadPool(
                                                                 getMaxEndemicQueryThreads(), 
-                                                                new ThreadFactoryBuilder().setNameFormat("endemic-%d")
+                                                                new ThreadFactoryBuilder().setNameFormat("biocache-endemic-%d")
                                                                 .setPriority(Thread.MIN_PRIORITY).build());
                 }
             }
@@ -403,7 +424,7 @@ public class SearchDAOImpl implements SearchDAO {
                 if(nextExecutor == null) {
                     nextExecutor = solrExecutor = Executors.newFixedThreadPool(
                                                                 getMaxEndemicQueryThreads(),
-                                                                new ThreadFactoryBuilder().setNameFormat("solr-%d")
+                                                                new ThreadFactoryBuilder().setNameFormat("biocache-solr-%d")
                                                                 .setPriority(Thread.MIN_PRIORITY).build());
                 }
             }
@@ -3764,7 +3785,13 @@ public class SearchDAOImpl implements SearchDAO {
 
                 if (immediately) {
                     //wait with lock
-                    t.run();
+                    t.start();
+                    try {
+                        t.join();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        logger.error("Failed to update solrIndexVersion", e);
+                    }
                 } else if (!force) {
                     //run in background
                     t.start();
@@ -3774,7 +3801,13 @@ public class SearchDAOImpl implements SearchDAO {
 
         if (force && t != null) {
             //wait without lock
-            t.run();
+            t.start();
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.error("Failed to update solrIndexVersion", e);
+            }
         }
 
         return solrIndexVersion;

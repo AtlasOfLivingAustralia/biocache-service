@@ -11,18 +11,22 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
 public class PersistentQueueDAOTest {
 
-    protected static final JsonPersistentQueueDAOImpl queueDAO = new JsonPersistentQueueDAOImpl();
+    protected final JsonPersistentQueueDAOImpl queueDAO = new JsonPersistentQueueDAOImpl();
     
     @Before
-    public void setup(){
+    public void setUp() throws Exception{
         System.out.println("BEFORE...");
 
         //init FacetThemes
         new FacetThemes();
 
         FileUtils.deleteQuietly(new java.io.File("/data/cache/downloads"));
+        Files.createDirectories(Paths.get("/", "data", "cache", "downloads"));
         queueDAO.init();
     }
 

@@ -51,25 +51,19 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
     private final Object listLock = new Object();
     
     @PostConstruct
-    public void init(){
-        //init on a thread so as to not hold up other @PostConstructs that it may depend on
-        new Thread() {
-            @Override
-            public void run() {
-                synchronized (listLock) {
-                    jsonMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    public void init() {
+        synchronized (listLock) {
+            jsonMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-                    File file = new File(cacheDirectory);
-                    try {
-                        FileUtils.forceMkdir(file);
-                    } catch (IOException e) {
-                        logger.error("Unable to construct cache directory.", e);
-                    }
-                }
-
-                refreshFromPersistent();
+            File file = new File(cacheDirectory);
+            try {
+                FileUtils.forceMkdir(file);
+            } catch (IOException e) {
+                logger.error("Unable to construct cache directory.", e);
             }
-        }.start();
+
+            refreshFromPersistent();
+        }
     }
     /**
      * Returns a file object that represents the a persisted download on the queue
