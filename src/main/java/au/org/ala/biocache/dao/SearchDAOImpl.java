@@ -3644,7 +3644,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @param maxEndemicQueryThreads the maxMultiPartThreads to set for solr download queries
+     * @param maxSolrDownloadThreads the maxSolrDownloadThreads to set for solr download queries
      */
     public void setMaxSolrDownloadThreads(Integer maxSolrDownloadThreads) {
       this.maxSolrDownloadThreads = Objects.requireNonNull(maxSolrDownloadThreads, "Max solr download threads cannot be null");
