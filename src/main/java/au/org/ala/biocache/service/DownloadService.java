@@ -155,6 +155,7 @@ public class DownloadService {
                 //create the executor that will be used to poll for downloads that do not match specific criteria defined in concurrentDownloadsExtra
                 Thread defaultThread = new Thread(new DownloadControlThread(null, null, concurrentDownloads));
                 defaultThread.setName("biocachedownload-control-default-poolsize-" + concurrentDownloads);
+                defaultThread.setPriority(Thread.MIN_PRIORITY);
                 defaultThread.start();
 
                 //create additional executors to operate on subsets of downloads
@@ -176,6 +177,7 @@ public class DownloadService {
                         nextThreadName += (dt == null ? "alltypes" : dt.name()) + "-";
                         nextThreadName += "poolsize-" + threads;
                         nextThread.setName(nextThreadName);
+                        nextThread.setPriority(Thread.NORM_PRIORITY);
                         nextThread.start();
                     }
                 } catch (Exception e) {

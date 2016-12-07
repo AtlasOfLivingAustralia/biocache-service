@@ -200,7 +200,7 @@ public class DownloadController extends AbstractSecureController {
         //get query (max) count for queue priority
         requestParams.setPageSize(0);
         SolrDocumentList result = searchDAO.findByFulltext(requestParams);
-        dd.setTotalRecords((int) result.getNumFound());
+        dd.setTotalRecords(result.getNumFound());
 
         DownloadDetailsDTO d = persistentQueueDAO.isInQueue(dd);
         if (d != null) {

@@ -117,10 +117,8 @@ public class SearchDAOImpl implements SearchDAO {
     protected Integer MAX_DOWNLOAD_SIZE;
     /** 
      * Throttle value used to split up large downloads from Solr.
-     * Throttle set to 100 based on empirical study identifying 100ms as a lower bound to the 75th percentile Solr query latency. 
-     * Note, this value is randomly added to for each download, up to 200%, to prevent periodic behaviour across different downloads.
      **/
-    private Integer throttle = 100;
+    private Integer throttle = 1000;
     /** Batch size for a download */
     @Value("${download.batch.size:500}")
     protected Integer downloadBatchSize;
@@ -3681,7 +3679,8 @@ public class SearchDAOImpl implements SearchDAO {
                             Thread.sleep(retryWait);
                         } catch (InterruptedException ex) {
                             // If the Thread sleep is interrupted, we shouldn't attempt to continue
-                            throw new UndeclaredThrowableException(ex);
+                            Thread.currentThread().interrupt();
+                            throw e;
                         }
                     }
                 } else {
