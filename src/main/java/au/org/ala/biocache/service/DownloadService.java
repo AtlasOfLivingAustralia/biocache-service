@@ -728,6 +728,7 @@ public class DownloadService {
         public void run() {
             DownloadDetailsDTO currentDownload = null;
             try {
+                // Runs until the thread is interrupted, then shuts down all of the downloads under its control before returning
                 while (true) {
                     // Busy wait polling
                     // TODO: Convert PersistentQueueDAO to a
