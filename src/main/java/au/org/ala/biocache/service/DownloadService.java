@@ -46,17 +46,13 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -72,15 +68,19 @@ public class DownloadService {
 
     private static final Logger logger = Logger.getLogger(DownloadService.class);
     /**
-     * Number of threads to perform to offline downloads on can be configured.
+     * Number of threads to perform arbitrary offline downloads using can be configured.
      */
     @Value("${concurrent.downloads:1}")
     protected int concurrentDownloads = 1;
     /**
      * Additional download threads for matching subsets of offline downloads.
-     * default: 4 threads for SOLR downloads for <50000 occurrences 1 thread for
-     * SOLR downloads with any number of occurrences 2 threads for CASSANDA
-     * downloads for <50000 occurrences
+     * <br>
+     * The default is: 
+     * <ul>
+     * <li>4 threads for SOLR downloads for &lt;50,000 occurrences</li>
+     * <li>1 thread for SOLR downloads for &lt;100,000,000 occurrences</li> 
+     * <li>2 threads for CASSANDA downloads for &lt;50,000 occurrences</li>
+     * </ul>
      */
     @Value("${concurrent.downloads.extra:[{\"threads\": 4, \"maxRecords\": 50000, \"type\": \"index\"}, {\"threads\": 1, \"maxRecords\": 100000000, \"type\": \"index\"}, {\"threads\": 1, \"maxRecords\": 50000, \"type\": \"db\"}]}")
     protected String concurrentDownloadsExtra;
@@ -111,7 +111,7 @@ public class DownloadService {
     protected Boolean headingsEnabled;
 
     /** Stores the current list of downloads that are being performed. */
-    private Queue<DownloadDetailsDTO> currentDownloads = new LinkedBlockingQueue<DownloadDetailsDTO>();
+    private final Queue<DownloadDetailsDTO> currentDownloads = new LinkedBlockingQueue<DownloadDetailsDTO>();
 
     @Value("${data.description.url:https://docs.google.com/spreadsheet/ccc?key=0AjNtzhUIIHeNdHhtcFVSM09qZ3c3N3ItUnBBc09TbHc}")
     private String dataFieldDescriptionURL;
@@ -153,7 +153,9 @@ public class DownloadService {
             @Override
             public void run() {
                 //create the executor that will be used to poll for downloads that do not match specific criteria defined in concurrentDownloadsExtra
-                new Thread(new DownloadControlThread(null, null, concurrentDownloads)).start();
+                Thread defaultThread = new Thread(new DownloadControlThread(null, null, concurrentDownloads));
+                defaultThread.setName("biocachedownload-control-default-poolsize-" + concurrentDownloads);
+                defaultThread.start();
 
                 //create additional executors to operate on subsets of downloads
                 try {
@@ -168,7 +170,13 @@ public class DownloadService {
                         if (type != null) {
                             dt = "index".equals(type) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
                         }
-                        new Thread(new DownloadControlThread(maxRecords, dt, threads)).start();
+                        Thread nextThread = new Thread(new DownloadControlThread(maxRecords, dt, threads));
+                        String nextThreadName = "biocachedownload-control-extra-";
+                        nextThreadName += (maxRecords == null ? "nolimit" : maxRecords.toString()) + "-";
+                        nextThreadName += (dt == null ? "alltypes" : dt.name()) + "-";
+                        nextThreadName += "poolsize-" + threads;
+                        nextThread.setName(nextThreadName);
+                        nextThread.start();
                     }
                 } catch (Exception e) {
                     logger.error("failed to create all extra offline download threads for concurrent.downloads.extra=" + concurrentDownloadsExtra, e);
@@ -387,7 +395,7 @@ public class DownloadService {
      * @throws IOException
      */
     public void getCitations(ConcurrentMap<String, AtomicInteger> uidStats, OutputStream out, char sep, char esc,
-            List readmeCitations) throws IOException {
+            List<String> readmeCitations) throws IOException {
         if (citationsEnabled) {
             if (uidStats == null || uidStats.isEmpty() || out == null) {
                 // throw new NullPointerException("keys and/or out is null!!");
@@ -429,9 +437,8 @@ public class DownloadService {
                             writer.writeNext(row);
 
                             if (readmeCitations != null) {
-                                readmeCitations.add(row[2] + " (" + row[3] + "). " + row[4]); // used
-                                                                                              // in
-                                                                                              // README.txt
+                                // used in README.txt
+                                readmeCitations.add(row[2] + " (" + row[3] + "). " + row[4]); 
                             }
 
                         } else {
@@ -539,7 +546,7 @@ public class DownloadService {
         }
     }
 
-    private String getOrElse(Map map, String key, String value) {
+    private String getOrElse(Map<String, Object> map, String key, String value) {
         if (map.containsKey(key)) {
             return map.get(key).toString();
         } else {
@@ -547,6 +554,11 @@ public class DownloadService {
         }
     }
 
+    /**
+     * A thread to abstract away the details of the ExecutorService/Callable being used. 
+     * 
+     * @author Peter Ansell
+     */
     private class DownloadServiceExecutor {
 
         private final Integer maxRecords;
@@ -558,16 +570,19 @@ public class DownloadService {
         public DownloadServiceExecutor(Integer maxRecords, DownloadType downloadType, int concurrencyLevel) {
             this.maxRecords = maxRecords;
             this.downloadType = downloadType;
-            if (maxRecords < 50000) {
-                executionDelay = 100 + Math.round(Math.random() * 500);
-                priority = Thread.NORM_PRIORITY;
-            } else {
-                executionDelay = 1000 + Math.round(Math.random() * 5000);
+            if (maxRecords == null || maxRecords > 50000) {
+                executionDelay = 100 + Math.round(Math.random() * 200);
+                // Large downloads receive minimum thread priority to give lower latency on short downloads
                 priority = Thread.MIN_PRIORITY;
+            } else {
+                executionDelay = 1 + Math.round(Math.random() * 10);
+                priority = Thread.NORM_PRIORITY;
             }
-            String nameFormat = "download-";
+            // Customise the name so they can be identified easily on thread traces in debuggers
+            String nameFormat = "biocachedownload-pool-";
             nameFormat += (maxRecords == null ? "nolimit" : maxRecords.toString()) + "-";
             nameFormat += (downloadType == null ? "alltypes" : downloadType.name()) + "-";
+            // This will be replaced by a number to identify the individual threads
             nameFormat += "%d";
             this.executor = Executors.newFixedThreadPool(concurrencyLevel,
                     new ThreadFactoryBuilder().setNameFormat(nameFormat).setPriority(priority).build());
@@ -680,7 +695,7 @@ public class DownloadService {
     }
 
     /**
-     * A thread responsible for scheduling a records dump.
+     * A thread responsible for scheduling all records dumps for a particular class of download.
      * 
      * @author Peter Ansell
      */
@@ -694,16 +709,18 @@ public class DownloadService {
             this.maxRecords = maxRecords;
             this.downloadType = downloadType;
             // Poll less often on the unrestricted max record queues to ensure others pick up downloads that match more often
+            // delays chosen so they are mutually prime to avoid them waking up periodically together
             if(maxRecords == null) {
-                // 1 second delay in polling for successive downloads in default threads
-                this.pollDelay = 1000;
+                // 300 millisecond delay in polling for successive downloads in default threads
+                this.pollDelay = 300;
             } else if (maxRecords > 50000) {
-                // 150 millisecond delay in polling for successive downloads
-                this.pollDelay = 150;
+                // 100 millisecond delay in polling for successive downloads in non-default, larger than 50,000 record threads
+                this.pollDelay = 100;
             } else {
-                // 10 ms delay in polling for successive short downloads
-                this.pollDelay = 10;
+                // 11 ms delay in polling for successive short downloads
+                this.pollDelay = 11;
             }
+            // Create a dedicated ExecutorService for this thread
             this.downloadServiceExecutor = new DownloadServiceExecutor(maxRecords, downloadType, concurrencyLevel);
         }
 
@@ -722,16 +739,16 @@ public class DownloadService {
                     }
                 }
             } catch (InterruptedException e) {
-                // Make sure that InterruptedException attempts to shutdown long running downloads thread immediately to avoid delays
-                if(maxRecords == null) {
-                    downloadServiceExecutor.shutdownNow();
-                }
+                Thread.currentThread().interrupt();
             } finally {
                 try {
                     downloadServiceExecutor.shutdown();
                     downloadServiceExecutor.awaitTermination(10, TimeUnit.SECONDS);
-                } catch (Exception e) {
-                    // Ignore issues while shutting down executors
+                } catch (InterruptedException e) {
+                    // Reset the interrupt status before returning
+                    Thread.currentThread().interrupt();
+                } finally {
+                    downloadServiceExecutor.shutdownNow();
                 }
             }
         }
