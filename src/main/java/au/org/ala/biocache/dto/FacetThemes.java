@@ -285,6 +285,9 @@ public class FacetThemes {
         }
     }
  
+    /**
+     * FIXME: This class is exposed on the FacetThemes public API but is not accessible.
+     */
     static class FacetTheme {
 
         private String title;
