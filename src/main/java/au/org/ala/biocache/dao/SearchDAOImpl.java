@@ -117,8 +117,9 @@ public class SearchDAOImpl implements SearchDAO {
     protected Integer MAX_DOWNLOAD_SIZE;
     /** 
      * Throttle value used to split up large downloads from Solr.
+     * Randomly set to a range of 100% up to 200% of the value given here.
      **/
-    private Integer throttle = 100;
+    private Integer throttle = 50;
     /** Batch size for a download */
     @Value("${download.batch.size:500}")
     protected Integer downloadBatchSize;

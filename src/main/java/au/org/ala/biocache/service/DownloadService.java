@@ -773,10 +773,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             executor.submit(createCallable(nextDownload));
         }
 
-        public void submitDownload(Callable<DownloadDetailsDTO> nextDownloadCallable) throws RejectedExecutionException {
-            executor.submit(nextDownloadCallable);
-        }
-        
         public void shutdown() {
             executor.shutdown();
         }

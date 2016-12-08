@@ -144,6 +144,54 @@ public class OccurrenceController extends AbstractSecureController {
     
     private final CountDownLatch initialisationLatch = new CountDownLatch(1);
     
+    @PostConstruct
+    public void init() {
+        // Avoid starting multiple copies of the initialisation thread by repeat calls to this method
+        if(initialised.compareAndSet(false, true)) {
+            String nameFormat = "occurrencecontroller-pool-%d";
+            executor = Executors.newFixedThreadPool(2,
+                    new ThreadFactoryBuilder().setNameFormat(nameFormat).setPriority(Thread.MIN_PRIORITY).build());
+            
+            //init on a thread because SOLR may not yet be up and waiting can prevent SOLR from starting
+            Thread initialisationThread = new Thread() {
+                @Override
+                public void run() {
+                    try {
+                        while (true) {
+                            try {
+                                searchDAO.refreshCaches();
+        
+                                Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
+        
+                                if (indexedFields != null) {
+                                    //init FacetThemes static values
+                                    new FacetThemes(facetConfig, indexedFields, facetsMax, facetsDefaultMax, facetDefault);
+        
+                                    //successful
+                                    break;
+                                }
+                            } catch (Exception e) {
+                                logger.error("Failed to update indexedFields. Retrying...", e);
+                            }
+                            try {
+                                //wait before trying again
+                                Thread.sleep(10000);
+                            } catch (InterruptedException e) {
+                                break;
+                            }
+                        }
+                    } finally {
+                        initialisationLatch.countDown();
+                    }
+                }
+            };
+            // Have been having issues with initialisation, set to maximum priority to test if it has benefit
+            initialisationThread.setPriority(Thread.MAX_PRIORITY);
+            initialisationThread.setName("biocache-occurrencecontroller-initialisation");
+            initialisationThread.start();
+        }
+    }
+
     /**
      * Call this method at the start of web service calls that require initialisation to be complete before continuing.
      * This blocks until it is either interrupted or the initialisation thread from {@link #init()} is finished (successful or not).
@@ -650,54 +698,6 @@ public class OccurrenceController extends AbstractSecureController {
         return null;
     }
 
-    @PostConstruct
-    public void init() {
-        // Avoid starting multiple copies of the initialisation thread by repeat calls to this method
-        if(initialised.compareAndSet(false, true)) {
-            String nameFormat = "occurrencecontroller-pool-%d";
-            executor = Executors.newFixedThreadPool(2,
-                    new ThreadFactoryBuilder().setNameFormat(nameFormat).setPriority(Thread.MIN_PRIORITY).build());
-            
-            //init on a thread because SOLR may not yet be up and waiting can prevent SOLR from starting
-            Thread initialisationThread = new Thread() {
-                @Override
-                public void run() {
-                    try {
-                        while (true) {
-                            try {
-                                searchDAO.refreshCaches();
-        
-                                Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
-        
-                                if (indexedFields != null) {
-                                    //init FacetThemes static values
-                                    new FacetThemes(facetConfig, indexedFields, facetsMax, facetsDefaultMax, facetDefault);
-        
-                                    //successful
-                                    break;
-                                }
-                            } catch (Exception e) {
-                                logger.error("Failed to update indexedFields. Retrying...", e);
-                            }
-                            try {
-                                //wait before trying again
-                                Thread.sleep(10000);
-                            } catch (InterruptedException e) {
-                                break;
-                            }
-                        }
-                    } finally {
-                        initialisationLatch.countDown();
-                    }
-                }
-            };
-            // Have been having issues with initialisation, set to maximum priority to test if it has benefit
-            initialisationThread.setPriority(Thread.MAX_PRIORITY);
-            initialisationThread.setName("biocache-occurrencecontroller-initialisation");
-            initialisationThread.start();
-        }
-    }
-
     /**
      * Occurrence search page uses SOLR JSON to display results
      *
@@ -816,10 +816,14 @@ public class OccurrenceController extends AbstractSecureController {
             Runnable t = new Runnable(){
                 @Override
                 public void run() {
+                    long executionDelay = 10 + Math.round(Math.random() * 50);
                     try(CSVReader reader  = new CSVReader(new FileReader(file));){
-                        //start a thread
                         String[] row = reader.readNext();
                         while(row != null){
+                            // Reduce congestion on db/index by artificially sleeping
+                            // for a random amount of time between rows in the batch file
+                            Thread.sleep(executionDelay);
+                            
                             //get an lsid for the name
                             String lsid = mySpeciesLookupService.getGuidForName(row[0]);
                             if(lsid != null){
