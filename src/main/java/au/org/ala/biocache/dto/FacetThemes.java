@@ -48,12 +48,12 @@ public class FacetThemes {
      * @throws IOException
      */
     public FacetThemes(String configFilePath, Set<IndexFieldDTO> indexedFields, int facetsMax, int facetsDefaultMax, boolean facetDefault) throws IOException {
-        this.facetsMax = facetsMax;
-        this.facetsDefaultMax = facetsDefaultMax;
-        this.facetDefault = facetDefault;
+        FacetThemes.facetsMax = facetsMax;
+        FacetThemes.facetsDefaultMax = facetsDefaultMax;
+        FacetThemes.facetDefault = facetDefault;
         
         if(configFilePath != null && new File(configFilePath).exists()){
-            allThemes.clear();
+            FacetThemes.allThemes.clear();
             ObjectMapper om = new ObjectMapper();
             List<Map<String,Object>> config = om.readValue(new File(configFilePath), List.class);
             for(Map<String, Object> facetGroup : config){
@@ -79,7 +79,7 @@ public class FacetThemes {
                         }
                     }
                 }
-                allThemes.add(new FacetTheme(title, facets));
+                FacetThemes.allThemes.add(new FacetTheme(title, facets));
             }
             initAllFacets();
         } else {
@@ -88,39 +88,44 @@ public class FacetThemes {
         initialised.countDown();
     }
 
-    private static void init() {
+    /**
+     * This method works around the static variable pattern used here, by ensuring that operations 
+     * do not continue until after the static fields have been initialised.
+     */
+    private static void afterInitialisation() {
         try {
             initialised.await();
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
     public static String[] getAllFacetsLimited() {
-        init();
+        afterInitialisation();
 
         return allFacetsLimited;
     }
 
     public static Integer getFacetsMax() {
-        init();
+        afterInitialisation();
 
         return facetsMax;
     }
 
     public static LinkedHashMap<String, Facet> getFacetsMap() {
-        init();
+        afterInitialisation();
 
         return facetsMap;
     }
 
     public static Boolean getFacetDefault() {
-        init();
+        afterInitialisation();
 
         return facetDefault;
     }
 
     public static List<FacetTheme> getAllThemes() {
-        init();
+        afterInitialisation();
 
         return allThemes;
     }
