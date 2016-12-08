@@ -175,6 +175,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     }
     
     private final Queue<Thread> runningDownloadControllers = new LinkedBlockingQueue<>();
+    private final Queue<DownloadControlThread> runningDownloadControlRunnables = new LinkedBlockingQueue<>();
     
     @PostConstruct    
     public void init(){
@@ -186,10 +187,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     try
                     {
                         //create the executor that will be used to poll for downloads that do not match specific criteria defined in concurrentDownloadsExtra
-                        Thread defaultThread = new Thread(new DownloadControlThread(null, null, concurrentDownloads));
+                        DownloadControlThread defaultRunnable = new DownloadControlThread(null, null, concurrentDownloads);
+                        Thread defaultThread = new Thread(defaultRunnable);
                         defaultThread.setName("biocachedownload-control-default-poolsize-" + concurrentDownloads);
                         defaultThread.setPriority(Thread.MIN_PRIORITY);
                         runningDownloadControllers.add(defaultThread);
+                        runningDownloadControlRunnables.add(defaultRunnable);
                         defaultThread.start();
                         
                         //create additional executors to operate on subsets of downloads
@@ -205,7 +208,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 if (type != null) {
                                     dt = "index".equals(type) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
                                 }
-                                Thread nextThread = new Thread(new DownloadControlThread(maxRecords, dt, threads));
+                                DownloadControlThread nextRunnable = new DownloadControlThread(maxRecords, dt, threads);
+                                Thread nextThread = new Thread(nextRunnable);
                                 String nextThreadName = "biocachedownload-control-extra-";
                                 nextThreadName += (maxRecords == null ? "nolimit" : maxRecords.toString()) + "-";
                                 nextThreadName += (dt == null ? "alltypes" : dt.name()) + "-";
@@ -218,6 +222,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 // this tells the JVM that these are more useful than the default thread.
                                 nextThread.setPriority(Thread.NORM_PRIORITY);
                                 runningDownloadControllers.add(nextThread);
+                                runningDownloadControlRunnables.add(nextRunnable);
                                 nextThread.start();
                             }
                         } catch (Exception e) {
@@ -243,9 +248,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 persistentQueueDAO.shutdown();
             }
             finally {
+                DownloadControlThread nextToCloseRunnable = null;
+                // Interrupt all of the download control threads
+                while((nextToCloseRunnable  = runningDownloadControlRunnables.poll()) != null) {
+                    nextToCloseRunnable.shutdown();
+                }
+                
                 Thread nextToCloseThread = null;
                 List<Thread> toJoinThreads = new ArrayList<>();
-                // Interrupt all of the download control threads
                 while((nextToCloseThread = runningDownloadControllers.poll()) != null) {
                     if(nextToCloseThread.isAlive()) {
                         nextToCloseThread.interrupt();
@@ -796,6 +806,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         private final Integer maxRecords;
         private final DownloadType downloadType;
         private final DownloadServiceExecutor downloadServiceExecutor;
+        private final AtomicBoolean shutdownFlag = new AtomicBoolean(false);
 
         public DownloadControlThread(Integer maxRecords, DownloadType downloadType, int concurrencyLevel) {
             this.maxRecords = maxRecords;
@@ -822,7 +833,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             try {
                 // Runs until the thread is interrupted, then shuts down all of the downloads under its control before returning
                 while (true) {
-                    if(Thread.currentThread().isInterrupted()) {
+                    if(Thread.currentThread().isInterrupted() || shutdownFlag.get()) {
                         break;
                     }
                     // Busy wait polling
@@ -847,6 +858,13 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     downloadServiceExecutor.shutdownNow();
                 }
             }
+        }
+        
+        /**
+         * Set a flag that may be more reliable than thread interrupts for shutdown.
+         */
+        public void shutdown() {
+            shutdownFlag.set(true);
         }
     }
 
