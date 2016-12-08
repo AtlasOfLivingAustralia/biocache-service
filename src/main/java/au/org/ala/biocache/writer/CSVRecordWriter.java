@@ -16,6 +16,7 @@ package au.org.ala.biocache.writer;
 
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.nio.charset.Charset;
 
 import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.RecordWriter;
@@ -34,12 +35,12 @@ public class CSVRecordWriter implements RecordWriter{
     private CSVWriter csvWriter;
 
     public CSVRecordWriter(OutputStream out, String[] header){
-        csvWriter = new CSVWriter(new OutputStreamWriter(out), ',', '"');  
+        csvWriter = new CSVWriter(new OutputStreamWriter(out, Charset.forName("UTF-8")), ',', '"');  
         csvWriter.writeNext(header);
     }
 
     public CSVRecordWriter(OutputStream out, String[] header, char sep, char esc){
-        csvWriter = new CSVWriter(new OutputStreamWriter(out), sep, '"', esc);
+        csvWriter = new CSVWriter(new OutputStreamWriter(out, Charset.forName("UTF-8")), sep, '"', esc);
         csvWriter.writeNext(header);
     }
     

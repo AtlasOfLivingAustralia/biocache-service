@@ -48,6 +48,8 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
@@ -502,7 +504,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 return;
             }
 
-            try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(out), sep, '"', esc);) {
+            try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(out, Charset.forName("UTF-8")), sep, '"', esc);) {
                 // Object[] citations =
                 // restfulClient.restPost(citationServiceUrl, "text/json",
                 // uidStats.keySet());
@@ -570,7 +572,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 return;
             }
 
-            try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(out), params.getSep(), '"',
+            try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(out, Charset.forName("UTF-8")), params.getSep(), '"',
                     params.getEsc());) {
                 // Object[] citations =
                 // restfulClient.restPost(citationServiceUrl, "text/json",
