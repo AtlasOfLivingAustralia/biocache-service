@@ -26,6 +26,7 @@ import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -64,23 +65,47 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
      */
     private final AtomicBoolean initialised = new AtomicBoolean(false);
     
+    private final CountDownLatch initialisationLatch = new CountDownLatch(1);
+    
+    /**
+     * Call this method at the start of web service calls that require initialisation to be complete before continuing.
+     * This blocks until it is either interrupted or the initialisation thread from {@link #init()} is finished (successful or not).
+     */
+    private final void afterInitialisation() {
+        try {
+            initialisationLatch.await();
+        } catch(InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+    
     @PostConstruct
     public void init() {
         // Ensure the initialisation code is only called once
         if(initialised.compareAndSet(false, true)) {
-            synchronized (listLock) {
-                jsonMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    
-                File file = new File(cacheDirectory);
-                try {
-                    FileUtils.forceMkdir(file);
-                } catch (IOException e) {
-                    logger.error("Unable to construct cache directory.", e);
+            //init on a thread so as to not hold up other @PostConstructs that it may depend on
+            new Thread() {
+                @Override
+                public void run() {
+                    try {
+                        synchronized (listLock) {
+                            jsonMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+                
+                            File file = new File(cacheDirectory);
+                            try {
+                                FileUtils.forceMkdir(file);
+                            } catch (IOException e) {
+                                logger.error("Unable to construct cache directory.", e);
+                            }
+                
+                            refreshFromPersistent();
+                            closed.set(false);
+                        }
+                    } finally {
+                        initialisationLatch.countDown();
+                    }
                 }
-    
-                refreshFromPersistent();
-                closed.set(false);
-            }
+            }.start();
         }
     }
     /**
@@ -96,6 +121,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
      */
     @Override
     public void addDownloadToQueue(DownloadDetailsDTO download) {
+        afterInitialisation();
         if(!closed.get()) {
             synchronized (listLock) {
                 boolean allGood = false;
@@ -119,6 +145,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
      */
     @Override
     public DownloadDetailsDTO getNextDownload() {
+        afterInitialisation();
         synchronized (listLock) {
             for (DownloadDetailsDTO dd : offlineDownloadList) {
                 if (dd.getFileLocation() == null) {
@@ -138,6 +165,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
      */
     @Override
     public DownloadDetailsDTO getNextDownload(Integer maxRecords, DownloadDetailsDTO.DownloadType type) {
+        afterInitialisation();
         synchronized (listLock) {
             for (DownloadDetailsDTO dd : offlineDownloadList) {
                 if (dd.getFileLocation() == null &&
@@ -159,6 +187,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
      */
     @Override
     public int getTotalDownloads() {
+        afterInitialisation();
         synchronized (listLock) {
             return offlineDownloadList.size();
         }
@@ -169,6 +198,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
      */
     @Override
     public void removeDownloadFromQueue(DownloadDetailsDTO download) {
+        afterInitialisation();
         synchronized (listLock) {
             logger.debug("Removing the download from the queue");
             // delete it from the directory
@@ -191,6 +221,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
      */
     @Override
     public List<DownloadDetailsDTO> getAllDownloads() {
+        afterInitialisation();
         synchronized (listLock) {
             List<DownloadDetailsDTO> result = new ArrayList<>(offlineDownloadList);
             return Collections.unmodifiableList(result);
@@ -243,6 +274,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
      */
     @Override
     public DownloadDetailsDTO isInQueue(DownloadDetailsDTO dd) {
+        afterInitialisation();
         synchronized (listLock) {
             for (DownloadDetailsDTO d : offlineDownloadList) {
                 if (d.getEmail().equalsIgnoreCase(d.getEmail()) &&
