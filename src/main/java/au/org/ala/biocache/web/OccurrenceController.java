@@ -28,6 +28,8 @@ import au.org.ala.biocache.service.ImageMetadataService;
 import au.org.ala.biocache.service.SpeciesLookupService;
 import au.org.ala.biocache.util.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import net.sf.ehcache.CacheManager;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventType;
@@ -58,6 +60,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
@@ -134,6 +138,8 @@ public class OccurrenceController extends AbstractSecureController {
     @Value("${facet.default:true}")
     protected Boolean facetDefault;
 
+    private ExecutorService executor;
+    
     private final AtomicBoolean initialised = new AtomicBoolean(false);
     
     private final CountDownLatch initialisationLatch = new CountDownLatch(1);
@@ -648,6 +654,10 @@ public class OccurrenceController extends AbstractSecureController {
     public void init() {
         // Avoid starting multiple copies of the initialisation thread by repeat calls to this method
         if(initialised.compareAndSet(false, true)) {
+            String nameFormat = "occurrencecontroller-pool-%d";
+            executor = Executors.newFixedThreadPool(2,
+                    new ThreadFactoryBuilder().setNameFormat(nameFormat).setPriority(Thread.MIN_PRIORITY).build());
+            
             //init on a thread because SOLR may not yet be up and waiting can prevent SOLR from starting
             Thread initialisationThread = new Thread() {
                 @Override
@@ -759,6 +769,7 @@ public class OccurrenceController extends AbstractSecureController {
                               @RequestParam(value="field", required = true, defaultValue = "") String field,
                               @RequestParam(value="separator", defaultValue = "\n") String separator,
                               @RequestParam(value="title", required=false) String title) throws Exception {
+        afterInitialisation();
         
         logger.info("/occurrences/batchSearch with action=Download Records");
         Long qid = getQidForBatchSearch(queries, field, separator, title);
@@ -781,7 +792,7 @@ public class OccurrenceController extends AbstractSecureController {
                                 @RequestParam(value="ip", required=false) String ip,
                                 Model model
                                 ) throws Exception {
-        
+        afterInitialisation();
         
         if(result.hasErrors()){
             if(logger.isInfoEnabled()) {
@@ -802,7 +813,7 @@ public class OccurrenceController extends AbstractSecureController {
         final DownloadDetailsDTO dd = downloadService.registerDownload(params, ip, DownloadType.RECORDS_INDEX);
         
         if(file.exists()){
-            Thread t = new Thread(){
+            Runnable t = new Runnable(){
                 @Override
                 public void run() {
                     try(CSVReader reader  = new CSVReader(new FileReader(file));){
@@ -843,7 +854,7 @@ public class OccurrenceController extends AbstractSecureController {
                     }
                 }
             };
-            t.start();
+            executor.submit(t);
         }
         return null;
     }
@@ -866,6 +877,7 @@ public class OccurrenceController extends AbstractSecureController {
                             @RequestParam(value="field", required = true, defaultValue = "") String field,
                             @RequestParam(value="separator", defaultValue = "\n") String separator,
                             @RequestParam(value="title", required=false) String title) throws Exception {
+        afterInitialisation();
         
         logger.info("/occurrences/batchSearch with action=Search");
         Long qid =  getQidForBatchSearch(queries, field, separator, title);
@@ -950,6 +962,7 @@ public class OccurrenceController extends AbstractSecureController {
                                      Model model,
                                      HttpServletResponse response,
                                      HttpServletRequest request) throws Exception {
+        afterInitialisation();
 
         //check to see if the DownloadRequestParams are valid
         if(result.hasErrors()){
@@ -987,6 +1000,7 @@ public class OccurrenceController extends AbstractSecureController {
                                           Model model,
                                           HttpServletResponse response,
                                           HttpServletRequest request) throws Exception{
+        afterInitialisation();
         
         if(result.hasErrors()){
             logger.info("validation failed  " + result.getErrorCount() + " checks");
@@ -1022,7 +1036,7 @@ public class OccurrenceController extends AbstractSecureController {
                                               boolean zip,
                                               HttpServletResponse response,
                                               HttpServletRequest request) throws Exception {
-        
+        afterInitialisation();
         
         if(shouldPerformOperation(apiKey, response, false)){
             ip = ip == null?getIPAddress(request):ip;

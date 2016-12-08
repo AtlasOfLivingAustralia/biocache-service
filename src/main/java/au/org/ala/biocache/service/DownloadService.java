@@ -51,6 +51,7 @@ import java.net.URLEncoder;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -159,6 +160,20 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      */
     private final AtomicBoolean initialised = new AtomicBoolean(false);
     
+    private final CountDownLatch initialisationLatch = new CountDownLatch(1);
+    
+    /**
+     * Call this method at the start of web service calls that require initialisation to be complete before continuing.
+     * This blocks until it is either interrupted or the initialisation thread from {@link #init()} is finished (successful or not).
+     */
+    private final void afterInitialisation() {
+        try {
+            initialisationLatch.await();
+        } catch(InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+    
     private final Queue<Thread> runningDownloadControllers = new LinkedBlockingQueue<>();
     
     @PostConstruct    
@@ -168,43 +183,48 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             new Thread() {
                 @Override
                 public void run() {
-                    //create the executor that will be used to poll for downloads that do not match specific criteria defined in concurrentDownloadsExtra
-                    Thread defaultThread = new Thread(new DownloadControlThread(null, null, concurrentDownloads));
-                    defaultThread.setName("biocachedownload-control-default-poolsize-" + concurrentDownloads);
-                    defaultThread.setPriority(Thread.MIN_PRIORITY);
-                    runningDownloadControllers.add(defaultThread);
-                    defaultThread.start();
-                    
-                    //create additional executors to operate on subsets of downloads
-                    try {
-                        JSONParser jp = new JSONParser();
-                        JSONArray concurrentDownloadsExtraJson = (JSONArray) jp.parse(concurrentDownloadsExtra);
-                        for (Object o : concurrentDownloadsExtraJson) {
-                            JSONObject jo = (JSONObject) o;
-                            int threads = ((Long) jo.get("threads")).intValue();
-                            Integer maxRecords = jo.containsKey("maxRecords") ? ((Long) jo.get("maxRecords")).intValue() : null;
-                            String type = jo.containsKey("type") ? jo.get("type").toString() : null;
-                            DownloadType dt = null;
-                            if (type != null) {
-                                dt = "index".equals(type) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
+                    try
+                    {
+                        //create the executor that will be used to poll for downloads that do not match specific criteria defined in concurrentDownloadsExtra
+                        Thread defaultThread = new Thread(new DownloadControlThread(null, null, concurrentDownloads));
+                        defaultThread.setName("biocachedownload-control-default-poolsize-" + concurrentDownloads);
+                        defaultThread.setPriority(Thread.MIN_PRIORITY);
+                        runningDownloadControllers.add(defaultThread);
+                        defaultThread.start();
+                        
+                        //create additional executors to operate on subsets of downloads
+                        try {
+                            JSONParser jp = new JSONParser();
+                            JSONArray concurrentDownloadsExtraJson = (JSONArray) jp.parse(concurrentDownloadsExtra);
+                            for (Object o : concurrentDownloadsExtraJson) {
+                                JSONObject jo = (JSONObject) o;
+                                int threads = ((Long) jo.get("threads")).intValue();
+                                Integer maxRecords = jo.containsKey("maxRecords") ? ((Long) jo.get("maxRecords")).intValue() : null;
+                                String type = jo.containsKey("type") ? jo.get("type").toString() : null;
+                                DownloadType dt = null;
+                                if (type != null) {
+                                    dt = "index".equals(type) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
+                                }
+                                Thread nextThread = new Thread(new DownloadControlThread(maxRecords, dt, threads));
+                                String nextThreadName = "biocachedownload-control-extra-";
+                                nextThreadName += (maxRecords == null ? "nolimit" : maxRecords.toString()) + "-";
+                                nextThreadName += (dt == null ? "alltypes" : dt.name()) + "-";
+                                nextThreadName += "poolsize-" + threads;
+                                nextThread.setName(nextThreadName);
+                                // These specialised control threads get a higher thread priority than 
+                                // the default control thread that would otherwise accept all downloads
+                                // This is not vital, as there are polling delay differences to also account
+                                // for the difference, but in the event of having to wake threads up by priority,
+                                // this tells the JVM that these are more useful than the default thread.
+                                nextThread.setPriority(Thread.NORM_PRIORITY);
+                                runningDownloadControllers.add(nextThread);
+                                nextThread.start();
                             }
-                            Thread nextThread = new Thread(new DownloadControlThread(maxRecords, dt, threads));
-                            String nextThreadName = "biocachedownload-control-extra-";
-                            nextThreadName += (maxRecords == null ? "nolimit" : maxRecords.toString()) + "-";
-                            nextThreadName += (dt == null ? "alltypes" : dt.name()) + "-";
-                            nextThreadName += "poolsize-" + threads;
-                            nextThread.setName(nextThreadName);
-                            // These specialised control threads get a higher thread priority than 
-                            // the default control thread that would otherwise accept all downloads
-                            // This is not vital, as there are polling delay differences to also account
-                            // for the difference, but in the event of having to wake threads up by priority,
-                            // this tells the JVM that these are more useful than the default thread.
-                            nextThread.setPriority(Thread.NORM_PRIORITY);
-                            runningDownloadControllers.add(nextThread);
-                            nextThread.start();
+                        } catch (Exception e) {
+                            logger.error("failed to create all extra offline download threads for concurrent.downloads.extra=" + concurrentDownloadsExtra, e);
                         }
-                    } catch (Exception e) {
-                        logger.error("failed to create all extra offline download threads for concurrent.downloads.extra=" + concurrentDownloadsExtra, e);
+                    } finally {
+                        initialisationLatch.countDown();
                     }
                 }
             }.start();
@@ -216,32 +236,31 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      */
     @Override
     public void onApplicationEvent(ContextClosedEvent event) {
-        if(initialised.get()) {
-            if(closed.compareAndSet(false, true)) {
-                try {
-                    // Stop more downloads from being added by shutting down additions to the persistent queue
-                    persistentQueueDAO.shutdown();
-                }
-                finally {
-                    Thread nextToCloseThread = null;
-                    List<Thread> toJoinThreads = new ArrayList<>();
-                    // Interrupt all of the download control threads
-                    while((nextToCloseThread = runningDownloadControllers.poll()) != null) {
-                        if(nextToCloseThread.isAlive()) {
-                            nextToCloseThread.interrupt();
-                            toJoinThreads.add(nextToCloseThread);
-                        }
+        if(closed.compareAndSet(false, true)) {
+            afterInitialisation();
+            try {
+                // Stop more downloads from being added by shutting down additions to the persistent queue
+                persistentQueueDAO.shutdown();
+            }
+            finally {
+                Thread nextToCloseThread = null;
+                List<Thread> toJoinThreads = new ArrayList<>();
+                // Interrupt all of the download control threads
+                while((nextToCloseThread = runningDownloadControllers.poll()) != null) {
+                    if(nextToCloseThread.isAlive()) {
+                        nextToCloseThread.interrupt();
+                        toJoinThreads.add(nextToCloseThread);
                     }
-                    
-                    // Give the download control threads a few seconds to cleanup before returning from this method
-                    for(Thread nextToJoinThread : toJoinThreads) {
-                        try {
-                            nextToJoinThread.join(5000);
-                        }
-                        catch(InterruptedException e) {
-                            // We need to iterate through all of the control threads before returning
-                            Thread.currentThread().interrupt();
-                        }
+                }
+                
+                // Give the download control threads a few seconds to cleanup before returning from this method
+                for(Thread nextToJoinThread : toJoinThreads) {
+                    try {
+                        nextToJoinThread.join(5000);
+                    }
+                    catch(InterruptedException e) {
+                        // We need to iterate through all of the control threads before returning
+                        Thread.currentThread().interrupt();
                     }
                 }
             }
@@ -258,6 +277,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      */
     public DownloadDetailsDTO registerDownload(DownloadRequestParams requestParams, String ip,
             DownloadDetailsDTO.DownloadType type) {
+        afterInitialisation();
         DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams.toString(), ip, type);
         currentDownloads.add(dd);
         return dd;
@@ -269,6 +289,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param dd
      */
     public void unregisterDownload(DownloadDetailsDTO dd) {
+        afterInitialisation();
         // remove it from the list
         currentDownloads.remove(dd);
         persistentQueueDAO.removeDownloadFromQueue(dd);
@@ -280,6 +301,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @return
      */
     public List<DownloadDetailsDTO> getCurrentDownloads() {
+        afterInitialisation();
         List<DownloadDetailsDTO> result = new ArrayList<>(currentDownloads);
         return Collections.unmodifiableList(result);
     }
@@ -299,6 +321,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
             OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip)
             throws Exception {
+        afterInitialisation();
 
         String filename = requestParams.getFile();
         String originalParams = requestParams.toString();
@@ -431,6 +454,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip,
             ServletOutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip) throws Exception {
+        afterInitialisation();
         String filename = requestParams.getFile();
 
         response.setHeader("Cache-Control", "must-revalidate");
@@ -461,6 +485,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     public void getCitations(ConcurrentMap<String, AtomicInteger> uidStats, OutputStream out, char sep, char esc,
             List<String> readmeCitations) throws IOException {
         if (citationsEnabled) {
+            afterInitialisation();
             if (uidStats == null || uidStats.isEmpty() || out == null) {
                 // throw new NullPointerException("keys and/or out is null!!");
                 logger.error("Unable to generate citations: keys and/or out is null!!");
@@ -528,6 +553,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     public void getHeadings(ConcurrentMap<String, AtomicInteger> uidStats, OutputStream out,
             DownloadRequestParams params, String[] miscHeaders) throws Exception {
         if (headingsEnabled) {
+            afterInitialisation();
             if (out == null) {
                 // throw new NullPointerException("keys and/or out is null!!");
                 logger.error("Unable to generate headings info: out is null!!");
@@ -747,6 +773,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             executor.submit(createCallable(nextDownload));
         }
 
+        public void submitDownload(Callable<DownloadDetailsDTO> nextDownloadCallable) throws RejectedExecutionException {
+            executor.submit(nextDownloadCallable);
+        }
+        
         public void shutdown() {
             executor.shutdown();
         }
