@@ -64,7 +64,6 @@ import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -72,6 +71,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -79,7 +79,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.MatchResult;
@@ -115,14 +114,23 @@ public class SearchDAOImpl implements SearchDAO {
     /** Limit search results - for performance reasons */
     @Value("${download.max:500000}")
     protected Integer MAX_DOWNLOAD_SIZE;
-    /** 
-     * Throttle value used to split up large downloads from Solr.
-     * Randomly set to a range of 100% up to 200% of the value given here.
+    /** Throttle value used to split up large downloads from Solr.
+     * Randomly set to a range of 100% up to 200% of the value given here in each case.
      **/
-    private Integer throttle = 50;
+    @Value("${download.throttle.ms:50}")
+    protected Integer throttle = 50;
     /** Batch size for a download */
     @Value("${download.batch.size:500}")
     protected Integer downloadBatchSize;
+    /** The size of an internal fixed length blocking queue used to parallelise 
+     * reading from Solr using 'solr.downloadquery.maxthreads' producers before 
+     * writing from the queue a single consumer thread. 
+     * <br> This should be set large enough so that writing to the output stream 
+     * is the limiting factor, but not so large as to allow OutOfMemoryError's to 
+     * occur due to its memory usage.
+     **/
+    @Value("${download.internal.queue.size:1000}")
+    protected Integer resultsQueueLength;
     public static final String NAMES_AND_LSID = "names_and_lsid";
     public static final String COMMON_NAME_AND_LSID = "common_name_and_lsid";
     protected static final String DECADE_FACET_NAME = "decade";
@@ -457,7 +465,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         String facet = parentQuery.getFacets()[0];
         String[] originalFqs = parentQuery.getFq();
-        List<Future<List<FieldResultDTO>>> threads = new ArrayList<Future<List<FieldResultDTO>>>();
+        List<Future<List<FieldResultDTO>>> futures = new ArrayList<Future<List<FieldResultDTO>>>();
         //batch up the rest of the world query so that we have fqs based on species we want to test for.
         // This should improve the performance of the endemic services.
         while(i < list1.size()){
@@ -487,11 +495,11 @@ public class SearchDAOImpl implements SearchDAO {
             srp.setFq((String[])ArrayUtils.add(originalFqs, newfq));
             int batch = i / termQueryLimit;
             EndemicCallable callable = new EndemicCallable(srp, batch,this);
-            threads.add(nextExecutor.submit(callable));
+            futures.add(nextExecutor.submit(callable));
         }
 
         Collections.sort(list1);
-        for(Future<List<FieldResultDTO>> future: threads){
+        for(Future<List<FieldResultDTO>> future: futures){
             List<FieldResultDTO> list = future.get();
             if(list != null) {
                 for (FieldResultDTO find : list) {
@@ -977,7 +985,8 @@ public class SearchDAOImpl implements SearchDAO {
                     (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, header) :
                             new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
 
-            final BlockingQueue<String[]> queue = new LinkedBlockingQueue<>();
+            // Create a fixed length blocking queue for buffering results before they are written
+            final BlockingQueue<String[]> queue = new ArrayBlockingQueue<>(resultsQueueLength);
             // Create a sentinel that we can check for reference equality to signal the end of the queue
             final String[] sentinel = new String[0];
             // An implementation of RecordWriter that adds to an in-memory queue
