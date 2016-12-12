@@ -993,15 +993,28 @@ public class SearchDAOImpl implements SearchDAO {
             final RecordWriter concurrentWrapper = new RecordWriter() {
                 @Override
                 public void write(String[] nextLine) {
-                    queue.add(nextLine);
+                    try {
+                        queue.put(nextLine);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        logger.error("Queue failed to accept the next record due to a thread interrupt, calling finalise the cleanup: ", e);
+                        // If we were interrupted then we should call finalise to cleanup
+                        finalise();
+                    }
                 }
                 
                 @Override
                 public void finalise() {
-                    queue.add(sentinel);
+                    try {
+                        queue.put(sentinel);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        logger.error("Queue failed to accept the sentinel in finalise due to a thread interrupt: ", e);
+                    }
                 }
             };
             
+            // A single thread that consumes elements put onto the queue until it sees the sentinel, finalising after the sentinel or an interrupt
             Runnable writerRunnable = new Runnable() {
                 @Override
                 public void run() {
@@ -1143,7 +1156,7 @@ public class SearchDAOImpl implements SearchDAO {
                     concurrentWrapper.finalise();
                 } finally {
                     try {
-                        writerThread.join(100000);
+                        writerThread.join(TimeUnit.DAYS.toMillis(1));
                     } finally {
                         out.flush();
                     }
