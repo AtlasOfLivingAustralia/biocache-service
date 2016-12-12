@@ -1094,7 +1094,7 @@ public class SearchDAOImpl implements SearchDAO {
                             String [] fq = downloadParams.getFq();
                             if (splitByFacetQuery.getFilterQueries() != null && splitByFacetQuery.getFilterQueries().length > 0) {
                                 if (fq == null) {
-                                    fq = new String[splitByFacetQuery.getFilterQueries().length];
+                                    fq = new String[0];
                                 }
                                 fq = org.apache.commons.lang3.ArrayUtils.addAll(fq, splitByFacetQuery.getFilterQueries());
                             }
