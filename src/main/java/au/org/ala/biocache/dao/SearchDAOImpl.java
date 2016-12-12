@@ -1138,7 +1138,7 @@ public class SearchDAOImpl implements SearchDAO {
                                 startIndex += downloadBatchSize;
                                 // we have already set the Filter query the first time the query was constructed 
                                 // rerun with the same params but different startIndex
-                                if(!threadCheckLimit || resultsCount.intValue() < maxDownloadSize){
+                                if(!threadCheckLimit || resultsCount.get() < maxDownloadSize){
                                     if(!threadCheckLimit){
                                         // throttle the download by sleeping
                                         Thread.sleep(localThrottle);
