@@ -1,4 +1,4 @@
-package au.org.ala.biocache.service;
+package au.org.ala.biocache.util.thread;
 
 import java.util.Queue;
 import java.util.concurrent.ExecutorService;

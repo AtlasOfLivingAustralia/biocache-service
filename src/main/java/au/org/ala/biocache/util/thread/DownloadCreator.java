@@ -12,7 +12,7 @@
  *  implied. See the License for the specific language governing
  *  rights and limitations under the License.
  ***************************************************************************/
-package au.org.ala.biocache.service;
+package au.org.ala.biocache.util.thread;
 
 import java.util.concurrent.Callable;
 

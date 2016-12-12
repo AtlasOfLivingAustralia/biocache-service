@@ -24,6 +24,9 @@ import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import au.org.ala.biocache.util.AlaFileUtils;
+import au.org.ala.biocache.util.thread.DownloadControlThread;
+import au.org.ala.biocache.util.thread.DownloadCreator;
+
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.httpclient.HttpException;
