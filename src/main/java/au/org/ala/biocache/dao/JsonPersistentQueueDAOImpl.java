@@ -15,6 +15,8 @@
 package au.org.ala.biocache.dao;
 
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
+import au.org.ala.biocache.dto.DownloadRequestParams;
+
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.FileUtils;
@@ -188,7 +190,11 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
                         (maxRecords == null || dd.getTotalRecords() <= maxRecords) &&
                         (type == null || dd.getDownloadType().equals(type))) {
                     //give a place for the downlaod
-                    dd.setFileLocation(biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes()) + File.separator + dd.getStartTime() + File.separator + dd.getRequestParams().getFile() + ".zip");
+                    UUID emailUUID = UUID.nameUUIDFromBytes(dd.getEmail().getBytes());
+                    long startTime = dd.getStartTime();
+                    DownloadRequestParams requestParams = dd.getRequestParams();
+                    String file = requestParams.getFile();
+                    dd.setFileLocation(biocacheDownloadDir + File.separator + emailUUID + File.separator + startTime + File.separator + file + ".zip");
                     return dd;
                 }
             }
