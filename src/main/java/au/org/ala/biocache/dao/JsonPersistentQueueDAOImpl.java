@@ -40,7 +40,9 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
 	
     /** log4 j logger */
     private static final Logger logger = Logger.getLogger(JsonPersistentQueueDAOImpl.class);
-    private String cacheDirectory="/data/cache/downloads";
+    
+    @Value("${download.cache.dir:/data/biocache-download}")
+    protected String cacheDirectory="/data/cache/downloads";
     private static final String FILE_PREFIX = "offline";
 
     @Value("${download.dir:/data/biocache-download}")
