@@ -18,6 +18,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
 
 import au.org.ala.biocache.dao.JsonPersistentQueueDAOImpl;
+import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
@@ -34,10 +35,7 @@ public class DownloadControlThreadTest {
     private Path testCacheDir;
     private Path testDownloadDir;
     
-    /**
-     * FIXME: The init method is not exposed on the interface, so need to reference the implementation to call it.
-     */
-    private JsonPersistentQueueDAOImpl persistentQueueDAO;
+    private PersistentQueueDAO persistentQueueDAO;
     private DownloadControlThread testDownloadControlThread;
 
     private Thread testRunningThread;

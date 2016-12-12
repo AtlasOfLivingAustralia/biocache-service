@@ -70,9 +70,15 @@ public interface PersistentQueueDAO {
     DownloadDetailsDTO isInQueue(DownloadDetailsDTO dd);
     
     /**
+     * Initialises the queue before use, to allow it to setup in-memory caches and start paused downloads.
+     */
+    void init();
+    
+    /**
      * Stops the queue from accepting new downloads using the {@link #addDownloadToQueue(DownloadDetailsDTO)} 
      * method, and returns immediately even if there are still downloads outstanding.<br>
      * Already existing downloads in the queue can still be requested using the accessor methods after shutdown.
      */
     void shutdown();
+
 }

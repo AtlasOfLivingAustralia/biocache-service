@@ -84,6 +84,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
     }
     
     @PostConstruct
+    @Override
     public void init() {
         // Ensure the initialisation code is only called once
         if (initialised.compareAndSet(false, true)) {
