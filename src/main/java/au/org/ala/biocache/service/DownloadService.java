@@ -479,7 +479,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 }
                 sp.closeEntry();
             } else {
-                logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " + uidStats);
+                if(logger.isDebugEnabled()) {
+                    logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " + uidStats);
+                }
             }
     
             // online downloads will not have a file location or request params set
@@ -509,7 +511,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     .replace("[date]", dd.getStartDateString())
                     .replace("[searchUrl]", generateSearchUrl(dd.getRequestParams()))
                     .replace("[dataProviders]", dataProviders);
-            logger.debug(readmeContent);
+            if(logger.isDebugEnabled()) {
+                logger.debug(readmeContent);
+            }
             sp.write((readmeContent).getBytes());
             sp.write(("For more information about the fields that are being downloaded please consult <a href='"
                     + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes());
@@ -526,7 +530,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 }
                 sp.closeEntry();
             } else {
-                logger.debug("Not adding header. Enabled: " + headingsEnabled + " uids: " + uidStats);
+                if(logger.isDebugEnabled()) {
+                    logger.debug("Not adding header. Enabled: " + headingsEnabled + " uids: " + uidStats);
+                }
             }
     
             sp.flush();
