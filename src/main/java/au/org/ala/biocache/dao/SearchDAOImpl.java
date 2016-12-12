@@ -154,13 +154,13 @@ public class SearchDAOImpl implements SearchDAO {
     protected Pattern layersPattern = Pattern.compile("(el|cl)[0-9abc]+");
     protected Pattern taxaPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')taxa:\"?([a-zA-Z0-9\\s\\(\\)\\.:\\-_]*)\"?");
 
-    //solr connection retry limit
+    /**solr connection retry limit **/
     @Value("${solr.server.retry.max:6}")
     int maxRetries = 6;
-    //solr connection wait time between retries in ms
+    /**solr connection wait time between retries in ms **/
     @Value("${solr.server.retry.wait:50}")
     long retryWait = 50;
-    //solr index version refresh time in ms, 5*60*1000
+    /**solr index version refresh time in ms, 5*60*1000 **/
     @Value("${solr.server.indexVersion.refresh:300000}")
     int solrIndexVersionRefreshTime = 300000;
 
@@ -1003,6 +1003,10 @@ public class SearchDAOImpl implements SearchDAO {
                 @Override
                 public void write(String[] nextLine) {
                     try {
+                        if(Thread.currentThread().isInterrupted()) {
+                            finalise();
+                            return;
+                        }
                         queue.offer(nextLine, writerTimeoutWaitMillis, TimeUnit.MILLISECONDS);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
@@ -1029,15 +1033,20 @@ public class SearchDAOImpl implements SearchDAO {
                 public void run() {
                     try {
                         while(true) {
+                            if(Thread.currentThread().isInterrupted()) {
+                                break;
+                            }
+                            
                             String[] take = queue.take();
                             // Sentinel object equality check to see if we are done
-                            if(take == sentinel) {
+                            if(take == sentinel || Thread.currentThread().isInterrupted()) {
                                 break;
                             }
                             // Otherwise write to the wrapped record writer
                             rw.write(take);
                         }
                     } catch(InterruptedException e) {
+                        Thread.currentThread().interrupt();
                         return;
                     } finally {
                         rw.finalise();
