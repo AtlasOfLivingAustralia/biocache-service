@@ -124,7 +124,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected Integer downloadBatchSize;
     /** The size of an internal fixed length blocking queue used to parallelise 
      * reading from Solr using 'solr.downloadquery.maxthreads' producers before 
-     * writing from the queue a single consumer thread. 
+     * writing from the queue using a single consumer thread. 
      * <br> This should be set large enough so that writing to the output stream 
      * is the limiting factor, but not so large as to allow OutOfMemoryError's to 
      * occur due to its memory usage.
@@ -216,6 +216,15 @@ public class SearchDAOImpl implements SearchDAO {
     /** Max number of threads to use in parallel for large solr download queries */
     @Value("${solr.downloadquery.maxthreads:30}")
     protected Integer maxSolrDownloadThreads = 30;
+    
+    /** The time (ms) to wait for the blocking queue to have new capacity before timing out. */
+    @Value("${solr.downloadquery.writertimeout:5000}")
+    protected Long writerTimeoutWaitMillis = 5000L;
+    
+    /** The time (ms) to wait for the writer to finalise once the queue contains all of the remaining results. 
+     * The maximum number of results to be written during this period is set using download.internal.queue.size */
+    @Value("${solr.downloadquery.writerfinalisationtimeout:100000}")
+    protected Long writerFinalisationWaitMillis = 100000L;
     
     /** thread pool for multipart endemic queries */
     private volatile ExecutorService endemicExecutor = null;
@@ -994,7 +1003,7 @@ public class SearchDAOImpl implements SearchDAO {
                 @Override
                 public void write(String[] nextLine) {
                     try {
-                        queue.put(nextLine);
+                        queue.offer(nextLine, writerTimeoutWaitMillis, TimeUnit.MILLISECONDS);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         logger.error("Queue failed to accept the next record due to a thread interrupt, calling finalise the cleanup: ", e);
@@ -1156,7 +1165,7 @@ public class SearchDAOImpl implements SearchDAO {
                     concurrentWrapper.finalise();
                 } finally {
                     try {
-                        writerThread.join(TimeUnit.DAYS.toMillis(1));
+                        writerThread.join(writerFinalisationWaitMillis);
                     } finally {
                         out.flush();
                     }
