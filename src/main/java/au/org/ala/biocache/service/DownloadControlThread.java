@@ -7,8 +7,6 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.log4j.Logger;
-
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import au.org.ala.biocache.dao.PersistentQueueDAO;
@@ -21,8 +19,6 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
  * @author Peter Ansell
  */
 public class DownloadControlThread implements Runnable {
-    private final Logger logger = Logger.getLogger(DownloadControlThread.class);
-    
     private final Integer maxRecords;
     private final DownloadType downloadType;
     private final int concurrencyLevel;
@@ -47,7 +43,13 @@ public class DownloadControlThread implements Runnable {
         this.downloadCreator = downloadCreator;
         this.persistentQueueDAO = persistentQueueDAO;
         // Create a dedicated ExecutorService for this thread
-        this.downloadServiceExecutor = new DownloadServiceExecutor(this.maxRecords, this.downloadType, this.concurrencyLevel, this.executionDelay, this.threadPriority, this.downloadCreator);
+        this.downloadServiceExecutor = createExecutor();
+    }
+
+    protected DownloadServiceExecutor createExecutor() {
+        return new DownloadServiceExecutor(this.maxRecords, this.downloadType, 
+                                           this.concurrencyLevel, this.executionDelay, 
+                                           this.threadPriority, this.downloadCreator);
     }
 
     @Override
@@ -91,12 +93,13 @@ public class DownloadControlThread implements Runnable {
     public void shutdown() {
         shutdownFlag.set(true);
     }
+    
     /**
      * A thread to abstract away the details of the ExecutorService/Callable being used. 
      * 
      * @author Peter Ansell
      */
-    private class DownloadServiceExecutor {
+    public class DownloadServiceExecutor {
     
         private final Integer maxRecords;
         private final DownloadType downloadType;
