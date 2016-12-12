@@ -36,7 +36,7 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -202,17 +202,15 @@ public class DownloadController extends AbstractSecureController {
         SolrDocumentList result = searchDAO.findByFulltext(requestParams);
         dd.setTotalRecords(result.getNumFound());
 
+        Map<String, Object> status = new LinkedHashMap<>();
         DownloadDetailsDTO d = persistentQueueDAO.isInQueue(dd);
         if (d != null) {
             dd = d;
+            status.put("message", "Already in queue.");
         } else {
             persistentQueueDAO.addDownloadToQueue(dd);
         }
 
-        Map status = new HashMap();
-        if (d != null) {
-            status.put("message", "Already in queue.");
-        }
         status.put("status", "inQueue");
         status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
         status.put("queueSize", persistentQueueDAO.getTotalDownloads());
@@ -222,7 +220,7 @@ public class DownloadController extends AbstractSecureController {
     @RequestMapping(value = "occurrences/offline/status/{id}", method = RequestMethod.GET)
     public @ResponseBody Object occurrenceDownloadStatus(@PathVariable("id") String id) throws Exception {
 
-        Map status = new HashMap();
+        Map<String, Object> status = new LinkedHashMap<>();
 
         //is it in the queue?
         List<DownloadDetailsDTO> downloads = persistentQueueDAO.getAllDownloads();
@@ -279,15 +277,16 @@ public class DownloadController extends AbstractSecureController {
             return null;
         }
 
-        Map status = new HashMap();
+        Map<String, Object> status = new LinkedHashMap<>();
 
         //is it in the queue?
         List<DownloadDetailsDTO> downloads = persistentQueueDAO.getAllDownloads();
         for (DownloadDetailsDTO dd : downloads) {
             if (id.equals(dd.getUniqueId())) {
                 if (dd.getFileLocation() == null) {
-                    status.put("cancelled", "true");
                     persistentQueueDAO.removeDownloadFromQueue(dd);
+                    status.put("cancelled", "true");
+                    status.put("status", "notInQueue");
                 } else {
                     status.put("cancelled", "false");
                     status.put("status", "running");

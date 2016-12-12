@@ -49,7 +49,6 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
@@ -74,22 +73,20 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     private static final Logger logger = Logger.getLogger(DownloadService.class);
     /**
-     * Number of threads to perform arbitrary offline downloads using can be configured.
-     */
-    @Value("${concurrent.downloads:1}")
-    protected int concurrentDownloads = 1;
-    /**
-     * Additional download threads for matching subsets of offline downloads.
+     * Download threads for matching subsets of offline downloads.
      * <br>
      * The default is: 
      * <ul>
-     * <li>4 threads for SOLR downloads for &lt;50,000 occurrences</li>
-     * <li>1 thread for SOLR downloads for &lt;100,000,000 occurrences</li> 
-     * <li>2 threads for CASSANDA downloads for &lt;50,000 occurrences</li>
+     * <li>4 threads for index (SOLR) downloads for &lt;50,000 occurrences with 10ms poll delay, 10ms execution delay, and normal thread priority (5)</li>
+     * <li>1 thread for index (SOLR) downloads for &lt;100,000,000 occurrences with 100ms poll delay, 100ms execution delay, and minimum thread priority (1)</li> 
+     * <li>2 threads for db (CASSANDA) downloads for &lt;50,000 occurrences with 10ms poll delay, 10ms execution delay, and normal thread priority (5)</li>
+     * <li>1 thread for either index or db downloads, an unrestricted count, with 300ms poll delay, 100ms execution delay, and minimum thread priority (1)</li>
      * </ul>
+     * 
+     * If there are no thread patterns specified here, a single thread with 10ms poll delay and 0ms execution delay, and normal thread priority (5) will be created and used instead.
      */
-    @Value("${concurrent.downloads.extra:[{\"threads\": 4, \"maxRecords\": 50000, \"type\": \"index\"}, {\"threads\": 1, \"maxRecords\": 100000000, \"type\": \"index\"}, {\"threads\": 1, \"maxRecords\": 50000, \"type\": \"db\"}]}")
-    protected String concurrentDownloadsExtra;
+    @Value("${concurrent.downloads.json:[{\"label\": \"smallSolr\", \"threads\": 4, \"maxRecords\": 50000, \"type\": \"index\", \"pollDelay\": 10, \"executionDelay\": 10, \"threadPriority\": 5}, {\"label\": \"largeSolr\", \"threads\": 1, \"maxRecords\": 100000000, \"type\": \"index\", \"pollDelay\": 100, \"executionDelay\": 100, \"threadPriority\": 1}, {\"label\": \"smallCassandra\", \"threads\": 1, \"maxRecords\": 50000, \"type\": \"db\", \"pollDelay\": 10, \"executionDelay\": 10, \"threadPriority\": 5}, {\"label\": \"defaultUnrestricted\", \"threads\": 1, \"pollDelay\": 1000, \"executionDelay\": 100, \"threadPriority\": 1}]}")
+    protected String concurrentDownloadsJSON;
     @Inject
     protected PersistentQueueDAO persistentQueueDAO;
     @Inject
@@ -188,47 +185,56 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 public void run() {
                     try
                     {
-                        //create the executor that will be used to poll for downloads that do not match specific criteria defined in concurrentDownloadsExtra
-                        DownloadControlThread defaultRunnable = new DownloadControlThread(null, null, concurrentDownloads);
-                        Thread defaultThread = new Thread(defaultRunnable);
-                        defaultThread.setName("biocachedownload-control-default-poolsize-" + concurrentDownloads);
-                        defaultThread.setPriority(Thread.MIN_PRIORITY);
-                        runningDownloadControllers.add(defaultThread);
-                        runningDownloadControlRunnables.add(defaultRunnable);
-                        defaultThread.start();
-                        
-                        //create additional executors to operate on subsets of downloads
+                        // Create executors based on the concurrent.downloads.json property
                         try {
                             JSONParser jp = new JSONParser();
-                            JSONArray concurrentDownloadsExtraJson = (JSONArray) jp.parse(concurrentDownloadsExtra);
-                            for (Object o : concurrentDownloadsExtraJson) {
+                            JSONArray concurrentDownloadsJsonArray = (JSONArray) jp.parse(concurrentDownloadsJSON);
+                            for (Object o : concurrentDownloadsJsonArray) {
                                 JSONObject jo = (JSONObject) o;
                                 int threads = ((Long) jo.get("threads")).intValue();
                                 Integer maxRecords = jo.containsKey("maxRecords") ? ((Long) jo.get("maxRecords")).intValue() : null;
                                 String type = jo.containsKey("type") ? jo.get("type").toString() : null;
+                                String label = jo.containsKey("label") ? jo.get("label").toString() + "-" : "";
+                                Long pollDelayMs = jo.containsKey("pollDelay") ? (Long) jo.get("pollDelay") : null;
+                                Long executionDelayMs = jo.containsKey("executionDelay") ? (Long) jo.get("executionDelay") : null;
+                                Integer threadPriority = jo.containsKey("threadPriority") ? ((Long) jo.get("threadPriority")).intValue() : Thread.NORM_PRIORITY;
                                 DownloadType dt = null;
                                 if (type != null) {
                                     dt = "index".equals(type) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
                                 }
-                                DownloadControlThread nextRunnable = new DownloadControlThread(maxRecords, dt, threads);
+                                DownloadControlThread nextRunnable = new DownloadControlThread(maxRecords, dt, threads, pollDelayMs, executionDelayMs, threadPriority);
                                 Thread nextThread = new Thread(nextRunnable);
-                                String nextThreadName = "biocachedownload-control-extra-";
+                                String nextThreadName = "biocache-download-control-";
+                                nextThreadName += label;
                                 nextThreadName += (maxRecords == null ? "nolimit" : maxRecords.toString()) + "-";
                                 nextThreadName += (dt == null ? "alltypes" : dt.name()) + "-";
                                 nextThreadName += "poolsize-" + threads;
                                 nextThread.setName(nextThreadName);
-                                // These specialised control threads get a higher thread priority than 
-                                // the default control thread that would otherwise accept all downloads
-                                // This is not vital, as there are polling delay differences to also account
-                                // for the difference, but in the event of having to wake threads up by priority,
-                                // this tells the JVM that these are more useful than the default thread.
-                                nextThread.setPriority(Thread.NORM_PRIORITY);
+                                // Control threads need to wakeup regularly to check for new downloads
+                                nextThread.setPriority(Thread.NORM_PRIORITY + 1);
                                 runningDownloadControllers.add(nextThread);
                                 runningDownloadControlRunnables.add(nextRunnable);
                                 nextThread.start();
                             }
                         } catch (Exception e) {
-                            logger.error("failed to create all extra offline download threads for concurrent.downloads.extra=" + concurrentDownloadsExtra, e);
+                            logger.error("Failed to create all extra offline download threads for concurrent.downloads.extra=" + concurrentDownloadsJSON, e);
+                        }
+                        // If no threads were created, then add a single default thread
+                        if(runningDownloadControllers.isEmpty()) {
+                            logger.warn("No offline download threads were created from configuration, creating a single default download thread instead.");
+                            DownloadControlThread nextRunnable = new DownloadControlThread(null, null, 1, 10L, 0L, Thread.NORM_PRIORITY);
+                            Thread nextThread = new Thread(nextRunnable);
+                            String nextThreadName = "biocache-download-control-";
+                            nextThreadName += "defaultNoConfigFound-";
+                            nextThreadName += "nolimit-";
+                            nextThreadName += "alltypes-";
+                            nextThreadName += "poolsize-1";
+                            nextThread.setName(nextThreadName);
+                            // Control threads need to wakeup regularly to check for new downloads
+                            nextThread.setPriority(Thread.NORM_PRIORITY + 1);
+                            runningDownloadControllers.add(nextThread);
+                            runningDownloadControlRunnables.add(nextRunnable);
+                            nextThread.start();
                         }
                     } finally {
                         initialisationLatch.countDown();
@@ -239,7 +245,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     }
     
     /**
-     * Ensures that all of the download threads are given a chance to shutdown cleanly using thread interrupts.
+     * Ensures that all of the download threads are given a chance to shutdown cleanly using thread interrupts when a Spring {@link ContextClosedEvent} occurs.
      */
     @Override
     public void onApplicationEvent(ContextClosedEvent event) {
@@ -251,8 +257,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             }
             finally {
                 DownloadControlThread nextToCloseRunnable = null;
-                // Interrupt all of the download control threads
-                while((nextToCloseRunnable  = runningDownloadControlRunnables.poll()) != null) {
+                // Call a non-blocking shutdown command on all of the download control threads
+                while((nextToCloseRunnable = runningDownloadControlRunnables.poll()) != null) {
                     nextToCloseRunnable.shutdown();
                 }
                 
@@ -260,18 +266,18 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 List<Thread> toJoinThreads = new ArrayList<>();
                 while((nextToCloseThread = runningDownloadControllers.poll()) != null) {
                     if(nextToCloseThread.isAlive()) {
+                        // Interrupt any threads that are still alive after the non-blocking shutdown command
                         nextToCloseThread.interrupt();
                         toJoinThreads.add(nextToCloseThread);
                     }
                 }
                 
-                // Give the download control threads a few seconds to cleanup before returning from this method
-                for(Thread nextToJoinThread : toJoinThreads) {
+                if(!toJoinThreads.isEmpty()) {
+                    // Give remaining download control threads a few seconds to cleanup before returning from this method
                     try {
-                        nextToJoinThread.join(5000);
+                        Thread.sleep(5000);
                     }
                     catch(InterruptedException e) {
-                        // We need to iterate through all of the control threads before returning
                         Thread.currentThread().interrupt();
                     }
                 }
@@ -669,23 +675,17 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         private final long executionDelay;
         private final int priority;
 
-        public DownloadServiceExecutor(Integer maxRecords, DownloadType downloadType, int concurrencyLevel) {
+        public DownloadServiceExecutor(Integer maxRecords, DownloadType downloadType, int concurrencyLevel, long executionDelay, int threadPriority) {
             this.maxRecords = maxRecords;
             this.downloadType = downloadType;
-            if (maxRecords == null || maxRecords > 50000) {
-                executionDelay = 100 + Math.round(Math.random() * 200);
-                // Large downloads receive minimum thread priority to give lower latency on short downloads
-                priority = Thread.MIN_PRIORITY;
-            } else {
-                executionDelay = 1 + Math.round(Math.random() * 10);
-                priority = Thread.NORM_PRIORITY;
-            }
             // Customise the name so they can be identified easily on thread traces in debuggers
             String nameFormat = "biocachedownload-pool-";
             nameFormat += (maxRecords == null ? "nolimit" : maxRecords.toString()) + "-";
             nameFormat += (downloadType == null ? "alltypes" : downloadType.name()) + "-";
             // This will be replaced by a number to identify the individual threads
             nameFormat += "%d";
+            this.executionDelay = executionDelay;
+            this.priority = threadPriority;
             this.executor = Executors.newFixedThreadPool(concurrencyLevel,
                     new ThreadFactoryBuilder().setNameFormat(nameFormat).setPriority(priority).build());
         }
@@ -799,34 +799,30 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     }
 
     /**
-     * A thread responsible for scheduling all records dumps for a particular class of download.
+     * A thread responsible for scheduling records dumps for a particular class of download.
      * 
      * @author Peter Ansell
      */
     private class DownloadControlThread implements Runnable {
-        private final long pollDelay;
         private final Integer maxRecords;
         private final DownloadType downloadType;
+        private final int concurrencyLevel;
+        private final long pollDelay;
+        private final long executionDelay;
+        private final int threadPriority;
+        
         private final DownloadServiceExecutor downloadServiceExecutor;
         private final AtomicBoolean shutdownFlag = new AtomicBoolean(false);
-
-        public DownloadControlThread(Integer maxRecords, DownloadType downloadType, int concurrencyLevel) {
+        
+        public DownloadControlThread(Integer maxRecords, DownloadType downloadType, int concurrencyLevel, Long pollDelayMs, Long executionDelayMs, Integer threadPriority) {
             this.maxRecords = maxRecords;
             this.downloadType = downloadType;
-            // Poll less often on the unrestricted max record queues to ensure others pick up downloads that match more often
-            // delays chosen so they are mutually prime to avoid them waking up periodically together
-            if(maxRecords == null) {
-                // 300 millisecond delay in polling for successive downloads in default threads
-                this.pollDelay = 300;
-            } else if (maxRecords > 50000) {
-                // 100 millisecond delay in polling for successive downloads in non-default, larger than 50,000 record threads
-                this.pollDelay = 100;
-            } else {
-                // 11 ms delay in polling for successive short downloads
-                this.pollDelay = 11;
-            }
+            this.concurrencyLevel = concurrencyLevel > 0 ? concurrencyLevel : 1;
+            this.pollDelay = pollDelayMs != null && pollDelayMs >= 0L ? pollDelayMs : 10L;
+            this.executionDelay = executionDelayMs != null && executionDelayMs >= 0L ? executionDelayMs : 0L;
+            this.threadPriority = threadPriority != null && threadPriority >= Thread.MIN_PRIORITY && threadPriority <= Thread.MAX_PRIORITY ? threadPriority : Thread.NORM_PRIORITY;
             // Create a dedicated ExecutorService for this thread
-            this.downloadServiceExecutor = new DownloadServiceExecutor(maxRecords, downloadType, concurrencyLevel);
+            this.downloadServiceExecutor = new DownloadServiceExecutor(this.maxRecords, this.downloadType, this.concurrencyLevel, this.executionDelay, this.threadPriority);
         }
 
         @Override
@@ -835,7 +831,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             try {
                 // Runs until the thread is interrupted, then shuts down all of the downloads under its control before returning
                 while (true) {
-                    if(Thread.currentThread().isInterrupted() || shutdownFlag.get()) {
+                    if(shutdownFlag.get() || Thread.currentThread().isInterrupted()) {
                         break;
                     }
                     // Busy wait polling
@@ -863,7 +859,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         }
         
         /**
-         * Set a flag that may be more reliable than thread interrupts for shutdown.
+         * Set a flag to indicate that we need to shutdown.
          */
         public void shutdown() {
             shutdownFlag.set(true);

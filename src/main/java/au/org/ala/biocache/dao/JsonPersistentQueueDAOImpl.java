@@ -82,7 +82,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
     @PostConstruct
     public void init() {
         // Ensure the initialisation code is only called once
-        if(initialised.compareAndSet(false, true)) {
+        if (initialised.compareAndSet(false, true)) {
             //init on a thread so as to not hold up other @PostConstructs that it may depend on
             new Thread() {
                 @Override
@@ -98,8 +98,10 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
                                 logger.error("Unable to construct cache directory.", e);
                             }
                 
-                            refreshFromPersistent();
+                            // IMPORTANT: must set closed to false before calling refreshFromPersistent, 
+                            // to avoid refresh adding downloads to queue when we are closed
                             closed.set(false);
+                            refreshFromPersistent();
                         }
                     } finally {
                         initialisationLatch.countDown();
@@ -122,22 +124,34 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
     @Override
     public void addDownloadToQueue(DownloadDetailsDTO download) {
         afterInitialisation();
-        if(!closed.get()) {
+        if (!closed.get()) {
             synchronized (listLock) {
                 boolean allGood = false;
                 try {
+                    // Avoid double addition by checking if it is already in the queue while we have the listLock
+                    DownloadDetailsDTO inQueue = isInQueue(download);
+                    if(inQueue != null) {
+                        if(logger.isInfoEnabled()) {
+                            logger.info("Did not add download to queue as it was already in the queue: " + download.toString());
+                        }
+                        return;
+                    }
                     File f = getFile(download.getStartTime());
                     jsonMapper.writeValue(f, download);
-                    allGood  = true;
+                    allGood = true;
                 } catch (Exception e) {
-                    logger.error("Unable to cache the download", e);
+                    logger.error("Unable to store download details to persistent storage: ", e);
                 }
                 finally {
-                    if(allGood) {
+                    if (allGood) {
                         offlineDownloadList.add(download);
+                    } else {
+                        logger.error("Download could not be added to the queue: " + download.toString());
                     }
                 }
             }
+        } else {
+            logger.error("Download could not be added to the queue because the queue has been closed: " + download.toString());
         }
     }
     /**
@@ -233,39 +247,44 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
      */
     @Override
     public void refreshFromPersistent() {
-        synchronized (listLock) {
-            offlineDownloadList.clear();
-            File file = new File(cacheDirectory);
-            //load the list with the available downloads ordering by the least recently modified
-            File[] files = file.listFiles();
-            if (files != null) {
-                Arrays.sort(files, new Comparator<File>() {
-                    @Override
-                    public int compare(File o1, File o2) {
-                        return (int) (((File) o1).lastModified() - ((File) o2).lastModified());
-                    }
-                });
-
-                //value = jsonMapper.readValue(file, ParamsCacheObject.class);
-                for (File f : files) {
-                    if (f.isFile()) {
-                        try {
-                            DownloadDetailsDTO dd = jsonMapper.readValue(f, DownloadDetailsDTO.class);
-                            // Ensure that previously partially downloaded files get their downloads 
-                            // reattempted by making them available for download again and removing 
-                            // any partial files that already exist for it
-                            String previousFileLocation = dd.getFileLocation();
-                            dd.setFileLocation(null);
-                            if (previousFileLocation != null) {
-                                FileUtils.deleteQuietly(new File(previousFileLocation));
+        if (!closed.get()) {
+            synchronized (listLock) {
+                offlineDownloadList.clear();
+                File file = new File(cacheDirectory);
+                //load the list with the available downloads ordering by the least recently modified
+                File[] files = file.listFiles();
+                if (files != null) {
+                    Arrays.sort(files, new Comparator<File>() {
+                        @Override
+                        public int compare(File o1, File o2) {
+                            return (int) (((File) o1).lastModified() - ((File) o2).lastModified());
+                        }
+                    });
+    
+                    //value = jsonMapper.readValue(file, ParamsCacheObject.class);
+                    for (File f : files) {
+                        if (f.isFile()) {
+                            try {
+                                DownloadDetailsDTO dd = jsonMapper.readValue(f, DownloadDetailsDTO.class);
+                                // Ensure that previously partially downloaded files get their downloads 
+                                // reattempted by making them available for download again and removing 
+                                // any partial files that already exist for it
+                                String previousFileLocation = dd.getFileLocation();
+                                dd.setFileLocation(null);
+                                if (previousFileLocation != null) {
+                                    FileUtils.deleteQuietly(new File(previousFileLocation));
+                                }
+                                offlineDownloadList.add(dd);
+                            } catch (Exception e) {
+                                logger.error("Unable to load cached download " + f.getAbsolutePath(), e);
                             }
-                            offlineDownloadList.add(dd);
-                        } catch (Exception e) {
-                            logger.error("Unable to load cached download " + f.getAbsolutePath(), e);
                         }
                     }
                 }
             }
+        } else {
+            // Add a stack trace to the error message to enable debugging of when refresh is called while we are closed
+            logger.error("Could not refresh from persistent storage because the queue has been closed", new Throwable());
         }
     }
 
