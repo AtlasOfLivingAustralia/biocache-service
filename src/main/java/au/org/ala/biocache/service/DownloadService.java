@@ -68,7 +68,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Component("downloadService")
 public class DownloadService implements ApplicationListener<ContextClosedEvent> {
 
-    private static final Logger logger = Logger.getLogger(DownloadService.class);
+    protected static final Logger logger = Logger.getLogger(DownloadService.class);
     /**
      * Download threads for matching subsets of offline downloads.
      * <br>
@@ -87,15 +87,15 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Inject
     protected PersistentQueueDAO persistentQueueDAO;
     @Inject
-    SearchDAO searchDAO;
+    protected SearchDAO searchDAO;
     @Inject
-    private RestOperations restTemplate;
+    protected RestOperations restTemplate;
     @Inject
-    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    protected com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     @Inject
-    private EmailService emailService;
+    protected EmailService emailService;
     @Inject
-    private AbstractMessageSource messageSource;
+    protected AbstractMessageSource messageSource;
 
     // default value is supplied for the property below
     @Value("${webservices.root:http://localhost:8080/biocache-service}")
@@ -111,10 +111,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     protected Boolean headingsEnabled;
 
     /** Stores the current list of downloads that are being performed. */
-    private final Queue<DownloadDetailsDTO> currentDownloads = new LinkedBlockingQueue<DownloadDetailsDTO>();
+    protected final Queue<DownloadDetailsDTO> currentDownloads = new LinkedBlockingQueue<DownloadDetailsDTO>();
 
     @Value("${data.description.url:https://docs.google.com/spreadsheet/ccc?key=0AjNtzhUIIHeNdHhtcFVSM09qZ3c3N3ItUnBBc09TbHc}")
-    private String dataFieldDescriptionURL;
+    protected String dataFieldDescriptionURL;
 
     @Value("${registry.url:http://collections.ala.org.au/ws}")
     protected String registryUrl;
@@ -162,7 +162,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * Call this method at the start of web service calls that require initialisation to be complete before continuing.
      * This blocks until it is either interrupted or the initialisation thread from {@link #init()} is finished (successful or not).
      */
-    private final void afterInitialisation() {
+    protected final void afterInitialisation() {
         try {
             initialisationLatch.await();
         } catch(InterruptedException e) {
@@ -183,7 +183,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     try
                     {
                         // Create the implementation for the threads running in the DownloadControlThread
-                        DownloadCreator nextDownloadCreator = new DownloadCreatorImpl();
+                        DownloadCreator nextDownloadCreator = getNewDownloadCreator();
                         // Create executors based on the concurrent.downloads.json property
                         try {
                             JSONParser jp = new JSONParser();
@@ -239,8 +239,19 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         initialisationLatch.countDown();
                     }
                 }
+
             }.start();
         }
+    }
+    
+    /**
+     * Overridable method called during the intialisation phase to customise the DownloadCreator implementation 
+     * used by the DownloadService, particularly for testing.
+     * 
+     * @return A new instance of DownloadCreator to be used by {@link DownloadControlThread} instances.
+     */
+    protected DownloadCreator getNewDownloadCreator() {
+        return new DownloadCreatorImpl();
     }
     
     /**
@@ -295,7 +306,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     public DownloadDetailsDTO registerDownload(DownloadRequestParams requestParams, String ip,
             DownloadDetailsDTO.DownloadType type) {
         afterInitialisation();
-        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams.toString(), ip, type);
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, type);
         currentDownloads.add(dd);
         return dd;
     }
