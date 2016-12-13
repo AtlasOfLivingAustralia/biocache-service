@@ -255,7 +255,7 @@ public class SearchDAOImpl implements SearchDAO {
     /** Lock for getIndexedFields refresh operations **/
     private final Object indexFieldRefreshLock = new Object();
     
-    private Map<String, StatsIndexFieldDTO> rangeFieldCache = null;
+    private volatile Map<String, StatsIndexFieldDTO> rangeFieldCache = null;
     private Set<String> authIndexFields = null;
 
     /** SOLR index version for client app caching use. */
@@ -338,11 +338,10 @@ public class SearchDAOImpl implements SearchDAO {
     public void refreshCaches() {
         collectionCache.updateCache();
         //empties the range cache to allow the settings to be recalculated.
-        rangeFieldCache = null;
+        rangeFieldCache = new HashMap<String, StatsIndexFieldDTO>();
         try {
             //update indexed fields
-            indexFields = getIndexedFields(true);
-            downloadFields = new DownloadFields(getIndexedFields(), messageSource);
+            downloadFields = new DownloadFields(getIndexedFields(true), messageSource);
         } catch(Exception e) {
             logger.error("Unable to refresh cache.", e);
         }
@@ -2942,10 +2941,13 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      */
     private StatsIndexFieldDTO getRangeFieldDetails(String field){
-        if(rangeFieldCache == null)
-            rangeFieldCache = new HashMap<String, StatsIndexFieldDTO>();
-        StatsIndexFieldDTO details=rangeFieldCache.get(field);
-        if(details == null && indexFieldMap!=null){
+        Map<String, StatsIndexFieldDTO> nextRangeFieldCache = rangeFieldCache;
+        if(nextRangeFieldCache == null) {
+            nextRangeFieldCache = rangeFieldCache = new HashMap<String, StatsIndexFieldDTO>();
+        }
+        StatsIndexFieldDTO details = nextRangeFieldCache.get(field);
+        Map<String, IndexFieldDTO> nextIndexFieldMap = indexFieldMap;
+        if(details == null && nextIndexFieldMap != null){
             //get the details
             SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
             searchParams.setQ("*:*");
@@ -2953,11 +2955,11 @@ public class SearchDAOImpl implements SearchDAO {
             try {
                 Map<String, FieldStatsInfo> stats = getStatistics(searchParams);
                 if(stats != null){
-                    IndexFieldDTO ifdto =indexFieldMap.get(field);
-                    if(ifdto !=null){
+                    IndexFieldDTO ifdto = nextIndexFieldMap.get(field);
+                    if(ifdto != null){
                         String type = ifdto.getDataType();
                         details = new StatsIndexFieldDTO(stats.get(field), type);
-                        rangeFieldCache.put(field, details);
+                        nextRangeFieldCache.put(field, details);
                     } else {
                         if(logger.isDebugEnabled()) {
                             logger.debug("Unable to locate field:  " + field);
@@ -3229,7 +3231,7 @@ public class SearchDAOImpl implements SearchDAO {
     public Set<IndexFieldDTO> getIndexedFields(boolean update) throws Exception {
         Set<IndexFieldDTO> result = indexFields;
         if(result == null || update) {
-            synchronized(indexFieldRefreshLock) {
+            synchronized(solrIndexVersionLock) {
                 result = indexFields;
                 if(result == null || update) {
                     result = getIndexFieldDetails(null);
@@ -3831,7 +3833,7 @@ public class SearchDAOImpl implements SearchDAO {
         synchronized (solrIndexVersionLock) {
             boolean immediately = solrIndexVersionTime == 0;
 
-            if (solrIndexVersionTime < System.currentTimeMillis() - solrIndexVersionRefreshTime || force) {
+            if (force || solrIndexVersionTime < System.currentTimeMillis() - solrIndexVersionRefreshTime) {
                 solrIndexVersionTime = System.currentTimeMillis();
 
                 t = new Thread() {

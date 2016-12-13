@@ -383,10 +383,7 @@ public class OccurrenceController extends AbstractSecureController {
             version = searchDAO.getIndexVersion(false);
         }
 
-        Map m = new HashMap<String, Long>();
-        m.put("version", version);
-        
-        return m;
+        return Collections.singletonMap("version", version);
     }
     
     /**
