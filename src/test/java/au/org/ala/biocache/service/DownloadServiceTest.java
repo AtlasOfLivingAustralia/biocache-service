@@ -38,14 +38,14 @@ import au.org.ala.biocache.util.thread.DownloadCreator;
 public class DownloadServiceTest {
 
     @Rule
-    public Timeout timeout = new Timeout(30, TimeUnit.SECONDS);
-    
+    public Timeout timeout = new Timeout(60, TimeUnit.SECONDS);
+
     @Rule
     public TemporaryFolder tempDir = new TemporaryFolder();
-    
+
     private Path testCacheDir;
     private Path testDownloadDir;
-    
+
     private PersistentQueueDAO persistentQueueDAO;
 
     private DownloadService testService;
@@ -58,7 +58,7 @@ public class DownloadServiceTest {
     @Before
     public void setUp() throws Exception {
         testCacheDir = tempDir.newFolder("downloadcontrolthreadtest-cache").toPath();
-        testDownloadDir = tempDir.newFolder("downloadcontrolthreadtest-destination").toPath();        
+        testDownloadDir = tempDir.newFolder("downloadcontrolthreadtest-destination").toPath();
         persistentQueueDAO = new JsonPersistentQueueDAOImpl() {
             @Override
             public void init() {
@@ -68,24 +68,27 @@ public class DownloadServiceTest {
             }
         };
         persistentQueueDAO.init();
-        
-        // Every application needs to explicitly initialise static fields in FacetThemes by calling its constructor
+
+        // Every application needs to explicitly initialise static fields in
+        // FacetThemes by calling its constructor
         new FacetThemes();
-        
+
         SearchDAOImpl searchDAO = new SearchDAOImpl();
-        
+
         testLatch = new CountDownLatch(1);
-        
+
         testService = new DownloadService() {
             protected DownloadCreator getNewDownloadCreator() {
                 return new DownloadCreator() {
                     @Override
-                    public Callable<DownloadDetailsDTO> createCallable(final DownloadDetailsDTO nextDownload, final long executionDelay) {
+                    public Callable<DownloadDetailsDTO> createCallable(final DownloadDetailsDTO nextDownload,
+                            final long executionDelay) {
                         return new Callable<DownloadDetailsDTO>() {
                             @Override
                             public DownloadDetailsDTO call() throws Exception {
                                 // Reliably test the sequence by waiting here
-                                // The latch must be at 0 before test to avoid a wait here
+                                // The latch must be at 0 before test to avoid a
+                                // wait here
                                 testLatch.await();
                                 Thread.sleep(executionDelay);
                                 return nextDownload;
@@ -102,16 +105,18 @@ public class DownloadServiceTest {
 
     @After
     public void tearDown() throws Exception {
-        // Ensure we are not stuck on the countdown latch if it failed to be called in test as expected
+        // Ensure we are not stuck on the countdown latch if it failed to be
+        // called in test as expected
         testLatch.countDown();
         persistentQueueDAO.shutdown();
     }
 
     /**
-     * Test method for {@link au.org.ala.biocache.service.DownloadService#afterInitialisation()}.
+     * Test method for
+     * {@link au.org.ala.biocache.service.DownloadService#afterInitialisation()}.
      */
     @Test
-    public final void testAfterInitialisation() {
+    public final void testAfterInitialisation() throws Exception {
         final CountDownLatch latch = new CountDownLatch(1);
         Thread testThread = new Thread(new Runnable() {
             @Override
@@ -126,70 +131,81 @@ public class DownloadServiceTest {
         });
         testThread.start();
         testService.init();
-        
+
         latch.countDown();
         testService.afterInitialisation();
     }
 
     /**
-     * Test method for {@link au.org.ala.biocache.service.DownloadService#init()}.
+     * Test method for
+     * {@link au.org.ala.biocache.service.DownloadService#init()}.
      */
     @Test
-    public final void testInit() {
+    public final void testInit() throws Exception {
         testService.init();
     }
 
     /**
-     * Test method for {@link au.org.ala.biocache.service.DownloadService#getNewDownloadCreator()}.
+     * Test method for
+     * {@link au.org.ala.biocache.service.DownloadService#getNewDownloadCreator()}.
      */
     @Test
-    public final void testGetNewDownloadCreator() {
-        // TODO: This method is overriden to avoid referencing classes that are not yet setup for testing
+    public final void testGetNewDownloadCreator() throws Exception {
+        // TODO: This method is overriden to avoid referencing classes that are
+        // not yet setup for testing
         // Just verifies that the method continues to exist
         testService.getNewDownloadCreator();
     }
 
     /**
-     * Test method for {@link au.org.ala.biocache.service.DownloadService#onApplicationEvent(org.springframework.context.event.ContextClosedEvent)}.
+     * Test method for
+     * {@link au.org.ala.biocache.service.DownloadService#onApplicationEvent(org.springframework.context.event.ContextClosedEvent)}.
      */
     @Test
-    public final void testOnApplicationEvent() {
+    public final void testOnApplicationEvent() throws Exception {
         testService.init();
         // Check that this method completes reliably
         testService.onApplicationEvent(new ContextClosedEvent(new GenericApplicationContext()));
     }
 
     /**
-     * Test method for {@link au.org.ala.biocache.service.DownloadService#registerDownload(au.org.ala.biocache.dto.DownloadRequestParams, java.lang.String, au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType)}.
+     * Test method for
+     * {@link au.org.ala.biocache.service.DownloadService#registerDownload(au.org.ala.biocache.dto.DownloadRequestParams, java.lang.String, au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType)}.
      */
     @Test
-    public final void testRegisterDownload() {
+    public final void testRegisterDownload() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", DownloadType.RECORDS_INDEX);
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+                DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
     }
 
     /**
-     * Test method for {@link au.org.ala.biocache.service.DownloadService#unregisterDownload(au.org.ala.biocache.dto.DownloadDetailsDTO)}.
+     * Test method for
+     * {@link au.org.ala.biocache.service.DownloadService#unregisterDownload(au.org.ala.biocache.dto.DownloadDetailsDTO)}.
      */
     @Test
-    public final void testUnregisterDownload() {
+    public final void testUnregisterDownload() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", DownloadType.RECORDS_INDEX);
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+                DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         testService.unregisterDownload(registerDownload);
     }
 
     /**
-     * Test method for {@link au.org.ala.biocache.service.DownloadService#getCurrentDownloads()}.
+     * Test method for
+     * {@link au.org.ala.biocache.service.DownloadService#getCurrentDownloads()}.
      */
     @Test
-    public final void testGetCurrentDownloadsWithDownloadLatchWaitOn() {
+    public final void testGetCurrentDownloadsWithDownloadLatchWaitOn() throws Exception {
         testService.init();
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", DownloadType.RECORDS_INDEX);
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+                DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
+        Thread.sleep(5000);
         List<DownloadDetailsDTO> notEmptyDownloads = testService.getCurrentDownloads();
         assertNotNull(notEmptyDownloads);
         // testLatch has not been called, so download should be still in queue
@@ -199,57 +215,65 @@ public class DownloadServiceTest {
     }
 
     /**
-     * Test method for {@link au.org.ala.biocache.service.DownloadService#getCurrentDownloads()}.
+     * Test method for
+     * {@link au.org.ala.biocache.service.DownloadService#getCurrentDownloads()}.
      */
     @Test
-    public final void testGetCurrentDownloadsWithoutDownloadLatchWaitOn() {
+    public final void testGetCurrentDownloadsWithoutDownloadLatchWaitOn() throws Exception {
         testLatch.countDown();
         testService.init();
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", DownloadType.RECORDS_INDEX);
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+                DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
+        Thread.sleep(5000);
         List<DownloadDetailsDTO> notEmptyDownloads = testService.getCurrentDownloads();
         assertNotNull(notEmptyDownloads);
-        // Can't rely on the download still being in the queue if the latch is not active, so not testing here
-        //assertEquals(1, notEmptyDownloads.size());
+        // Can't rely on the download still being in the queue if the latch is
+        // not active, so not testing here
+        // assertEquals(1, notEmptyDownloads.size());
         testService.unregisterDownload(registerDownload);
         assertEquals(0, emptyDownloads.size());
     }
 
     /**
-     * Test method for {@link au.org.ala.biocache.service.DownloadService#writeQueryToStream(au.org.ala.biocache.dto.DownloadDetailsDTO, au.org.ala.biocache.dto.DownloadRequestParams, java.lang.String, java.io.OutputStream, boolean, boolean, boolean, boolean)}.
+     * Test method for
+     * {@link au.org.ala.biocache.service.DownloadService#writeQueryToStream(au.org.ala.biocache.dto.DownloadDetailsDTO, au.org.ala.biocache.dto.DownloadRequestParams, java.lang.String, java.io.OutputStream, boolean, boolean, boolean, boolean)}.
      */
     @Ignore("TODO: Implement me")
     @Test
-    public final void testWriteQueryToStreamDownloadDetailsDTODownloadRequestParamsStringOutputStreamBooleanBooleanBooleanBoolean() {
+    public final void testWriteQueryToStreamDownloadDetailsDTODownloadRequestParamsStringOutputStreamBooleanBooleanBooleanBoolean() throws Exception {
         fail("Not yet implemented"); // TODO
     }
 
     /**
-     * Test method for {@link au.org.ala.biocache.service.DownloadService#writeQueryToStream(au.org.ala.biocache.dto.DownloadRequestParams, javax.servlet.http.HttpServletResponse, java.lang.String, javax.servlet.ServletOutputStream, boolean, boolean, boolean)}.
+     * Test method for
+     * {@link au.org.ala.biocache.service.DownloadService#writeQueryToStream(au.org.ala.biocache.dto.DownloadRequestParams, javax.servlet.http.HttpServletResponse, java.lang.String, javax.servlet.ServletOutputStream, boolean, boolean, boolean)}.
      */
     @Ignore("TODO: Implement me")
     @Test
-    public final void testWriteQueryToStreamDownloadRequestParamsHttpServletResponseStringServletOutputStreamBooleanBooleanBoolean() {
+    public final void testWriteQueryToStreamDownloadRequestParamsHttpServletResponseStringServletOutputStreamBooleanBooleanBoolean() throws Exception {
         fail("Not yet implemented"); // TODO
     }
 
     /**
-     * Test method for {@link au.org.ala.biocache.service.DownloadService#getCitations(java.util.concurrent.ConcurrentMap, java.io.OutputStream, char, char, java.util.List)}.
+     * Test method for
+     * {@link au.org.ala.biocache.service.DownloadService#getCitations(java.util.concurrent.ConcurrentMap, java.io.OutputStream, char, char, java.util.List)}.
      */
     @Ignore("TODO: Implement me")
     @Test
-    public final void testGetCitations() {
+    public final void testGetCitations() throws Exception {
         fail("Not yet implemented"); // TODO
     }
 
     /**
-     * Test method for {@link au.org.ala.biocache.service.DownloadService#getHeadings(java.util.concurrent.ConcurrentMap, java.io.OutputStream, au.org.ala.biocache.dto.DownloadRequestParams, java.lang.String[])}.
+     * Test method for
+     * {@link au.org.ala.biocache.service.DownloadService#getHeadings(java.util.concurrent.ConcurrentMap, java.io.OutputStream, au.org.ala.biocache.dto.DownloadRequestParams, java.lang.String[])}.
      */
     @Ignore("TODO: Implement me")
     @Test
-    public final void testGetHeadings() {
+    public final void testGetHeadings() throws Exception {
         fail("Not yet implemented"); // TODO
     }
 

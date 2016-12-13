@@ -68,8 +68,6 @@ public class DownloadControlThread implements Runnable {
                 currentDownload = persistentQueueDAO.getNextDownload(maxRecords, downloadType);
                 if (currentDownload != null) {
                     downloadServiceExecutor.submitDownload(currentDownload);
-                    // register the download
-                    currentDownloads.add(currentDownload);
                 }
             }
         } catch (InterruptedException | RejectedExecutionException e) {
