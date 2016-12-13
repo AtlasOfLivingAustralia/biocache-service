@@ -259,8 +259,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      */
     @Override
     public void onApplicationEvent(ContextClosedEvent event) {
+        afterInitialisation();
         if(closed.compareAndSet(false, true)) {
-            afterInitialisation();
             try {
                 // Stop more downloads from being added by shutting down additions to the persistent queue
                 persistentQueueDAO.shutdown();

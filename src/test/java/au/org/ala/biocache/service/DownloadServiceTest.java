@@ -152,6 +152,7 @@ public class DownloadServiceTest {
      */
     @Test
     public final void testOnApplicationEvent() {
+        testService.init();
         // Check that this method completes reliably
         testService.onApplicationEvent(new ContextClosedEvent(new GenericApplicationContext()));
     }
