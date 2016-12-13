@@ -5,18 +5,33 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.FacetThemes;
 import org.apache.commons.io.FileUtils;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.rules.Timeout;
 
 import static org.junit.Assert.assertEquals;
 
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.TimeUnit;
 
 public class PersistentQueueDAOTest {
 
-    protected final JsonPersistentQueueDAOImpl queueDAO = new JsonPersistentQueueDAOImpl();
+    @Rule
+    public Timeout timeout = new Timeout(30, TimeUnit.SECONDS);
+    
+    @Rule
+    public TemporaryFolder tempDir = new TemporaryFolder();
+    
+    private Path testCacheDir;
+    private Path testDownloadDir;
+    
+    private PersistentQueueDAO queueDAO;
     
     @Before
     public void setUp() throws Exception{
@@ -25,9 +40,22 @@ public class PersistentQueueDAOTest {
         //init FacetThemes
         new FacetThemes();
 
-        FileUtils.deleteQuietly(new java.io.File("/data/cache/downloads"));
-        Files.createDirectories(Paths.get("/", "data", "cache", "downloads"));
+        testCacheDir = tempDir.newFolder("persistentqueuedaotest-cache").toPath();
+        testDownloadDir = tempDir.newFolder("persistentqueuedaotest-destination").toPath();        
+        queueDAO = new JsonPersistentQueueDAOImpl() {
+            @Override
+            public void init() {
+                cacheDirectory = testCacheDir.toAbsolutePath().toString();
+                biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
+                super.init();
+            }
+        };
         queueDAO.init();
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        queueDAO.shutdown();
     }
 
     private DownloadRequestParams getParams(String query){

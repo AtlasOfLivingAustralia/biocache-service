@@ -42,8 +42,8 @@ public class DownloadControlThreadTest {
 
     @Before
     public void setUp() throws Exception {
-        testCacheDir = tempDir.newFolder("downloadcontrolthread-cache").toPath();
-        testDownloadDir = tempDir.newFolder("downloadcontrolthread-destination").toPath();        
+        testCacheDir = tempDir.newFolder("downloadcontrolthreadtest-cache").toPath();
+        testDownloadDir = tempDir.newFolder("downloadcontrolthreadtest-destination").toPath();        
         persistentQueueDAO = new JsonPersistentQueueDAOImpl() {
             @Override
             public void init() {
@@ -124,12 +124,6 @@ public class DownloadControlThreadTest {
         Thread.sleep(1000);
         // Verify that it completed and is now off the queue
         assertTrue(persistentQueueDAO.getAllDownloads().isEmpty());
-    }
-
-    @Ignore
-    @Test
-    public final void testShutdown() {
-        fail("Not yet implemented"); // TODO
     }
 
 }
