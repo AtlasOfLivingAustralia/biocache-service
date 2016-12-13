@@ -95,6 +95,7 @@ public class DownloadServiceTest {
                 };
             }
         };
+        testService.biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
         testService.persistentQueueDAO = persistentQueueDAO;
         testService.searchDAO = searchDAO;
     }
