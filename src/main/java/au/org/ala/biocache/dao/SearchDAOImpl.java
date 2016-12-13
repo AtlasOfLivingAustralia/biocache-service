@@ -156,16 +156,16 @@ public class SearchDAOImpl implements SearchDAO {
 
     /**solr connection retry limit **/
     @Value("${solr.server.retry.max:6}")
-    int maxRetries = 6;
+    protected int maxRetries = 6;
     /**solr connection wait time between retries in ms **/
     @Value("${solr.server.retry.wait:50}")
-    long retryWait = 50;
+    protected long retryWait = 50;
     /**solr index version refresh time in ms, 5*60*1000 **/
     @Value("${solr.server.indexVersion.refresh:300000}")
-    int solrIndexVersionRefreshTime = 300000;
+    protected int solrIndexVersionRefreshTime = 300000;
 
     @Value("${shapefile.tmp.dir:/data/biocache-download/tmp}")
-    String tmpShapefileDir;
+    protected String tmpShapefileDir;
 
     @Value("${download.unzipped.limit:10000}")
     protected Integer unzippedLimit;
@@ -177,13 +177,13 @@ public class SearchDAOImpl implements SearchDAO {
     protected SearchUtils searchUtils;
 
     @Inject
-    private CollectionsCache collectionCache;
+    protected CollectionsCache collectionCache;
 
     @Inject
-    private AbstractMessageSource messageSource;
+    protected AbstractMessageSource messageSource;
 
     @Inject
-    private SpeciesLookupService speciesLookupService;
+    protected SpeciesLookupService speciesLookupService;
 
     @Inject
     protected AuthService authService;
@@ -194,7 +194,8 @@ public class SearchDAOImpl implements SearchDAO {
     @Inject
     protected QidCacheDAO qidCacheDao;
 
-    @Inject RangeBasedFacets rangeBasedFacets;
+    @Inject 
+    protected RangeBasedFacets rangeBasedFacets;
 
     @Inject
     protected SpeciesCountsService speciesCountsService;
@@ -234,7 +235,7 @@ public class SearchDAOImpl implements SearchDAO {
 
     /** should we check download limits */
     @Value("${check.download.limits:false}")
-    private boolean checkDownloadLimits = false;
+    protected boolean checkDownloadLimits = false;
 
     @Value("${term.query.limit:1000}")
     protected Integer termQueryLimit = 1000;
@@ -252,9 +253,6 @@ public class SearchDAOImpl implements SearchDAO {
     private volatile Set<IndexFieldDTO> indexFields = null;
     private volatile Map<String, IndexFieldDTO> indexFieldMap = null;
     
-    /** Lock for getIndexedFields refresh operations **/
-    private final Object indexFieldRefreshLock = new Object();
-    
     private final Map<String, StatsIndexFieldDTO> rangeFieldCache = new HashMap<String, StatsIndexFieldDTO>();
     
     private Set<String> authIndexFields = null;
@@ -266,7 +264,7 @@ public class SearchDAOImpl implements SearchDAO {
     private Object solrIndexVersionLock = new Object();
 
     @Value("${wms.colour:0x00000000}")
-    private int DEFAULT_COLOUR;
+    protected int DEFAULT_COLOUR;
 
     /**
      * Initialise the SOLR server instance
