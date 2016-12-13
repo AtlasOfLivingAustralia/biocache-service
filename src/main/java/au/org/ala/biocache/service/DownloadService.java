@@ -83,7 +83,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * If there are no thread patterns specified here, a single thread with 10ms poll delay and 0ms execution delay, and normal thread priority (5) will be created and used instead.
      */
     @Value("${concurrent.downloads.json:[{\"label\": \"smallSolr\", \"threads\": 4, \"maxRecords\": 50000, \"type\": \"index\", \"pollDelay\": 10, \"executionDelay\": 10, \"threadPriority\": 5}, {\"label\": \"largeSolr\", \"threads\": 1, \"maxRecords\": 100000000, \"type\": \"index\", \"pollDelay\": 100, \"executionDelay\": 100, \"threadPriority\": 1}, {\"label\": \"smallCassandra\", \"threads\": 1, \"maxRecords\": 50000, \"type\": \"db\", \"pollDelay\": 10, \"executionDelay\": 10, \"threadPriority\": 5}, {\"label\": \"defaultUnrestricted\", \"threads\": 1, \"pollDelay\": 1000, \"executionDelay\": 100, \"threadPriority\": 1}]}")
-    protected String concurrentDownloadsJSON;
+    protected String concurrentDownloadsJSON = "[{\"label\": \"smallSolr\", \"threads\": 4, \"maxRecords\": 50000, \"type\": \"index\", \"pollDelay\": 10, \"executionDelay\": 10, \"threadPriority\": 5}, {\"label\": \"largeSolr\", \"threads\": 1, \"maxRecords\": 100000000, \"type\": \"index\", \"pollDelay\": 100, \"executionDelay\": 100, \"threadPriority\": 1}, {\"label\": \"smallCassandra\", \"threads\": 1, \"maxRecords\": 50000, \"type\": \"db\", \"pollDelay\": 10, \"executionDelay\": 10, \"threadPriority\": 5}, {\"label\": \"defaultUnrestricted\", \"threads\": 1, \"pollDelay\": 1000, \"executionDelay\": 100, \"threadPriority\": 1}]";
     @Inject
     protected PersistentQueueDAO persistentQueueDAO;
     @Inject
@@ -99,52 +99,52 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     // default value is supplied for the property below
     @Value("${webservices.root:http://localhost:8080/biocache-service}")
-    protected String webservicesRoot;
+    protected String webservicesRoot = "http://localhost:8080/biocache-service";
 
     // NC 20131018: Allow citations to be disabled via config (enabled by
     // default)
     @Value("${citations.enabled:true}")
-    protected Boolean citationsEnabled;
+    protected Boolean citationsEnabled = Boolean.TRUE;
 
     // Allow headings information to be disabled via config (enabled by default)
     @Value("${headings.enabled:true}")
-    protected Boolean headingsEnabled;
+    protected Boolean headingsEnabled = Boolean.TRUE;
 
     /** Stores the current list of downloads that are being performed. */
     protected final Queue<DownloadDetailsDTO> currentDownloads = new LinkedBlockingQueue<DownloadDetailsDTO>();
 
     @Value("${data.description.url:https://docs.google.com/spreadsheet/ccc?key=0AjNtzhUIIHeNdHhtcFVSM09qZ3c3N3ItUnBBc09TbHc}")
-    protected String dataFieldDescriptionURL;
+    protected String dataFieldDescriptionURL = "https://docs.google.com/spreadsheet/ccc?key=0AjNtzhUIIHeNdHhtcFVSM09qZ3c3N3ItUnBBc09TbHc";
 
     @Value("${registry.url:http://collections.ala.org.au/ws}")
-    protected String registryUrl;
+    protected String registryUrl = "http://collections.ala.org.au/ws";
 
     @Value("${citations.url:http://collections.ala.org.au/ws/citations}")
-    protected String citationServiceUrl;
+    protected String citationServiceUrl = "http://collections.ala.org.au/ws/citations";
 
     @Value("${download.url:http://biocache.ala.org.au/biocache-download}")
-    protected String biocacheDownloadUrl;
+    protected String biocacheDownloadUrl = "http://biocache.ala.org.au/biocache-download";
 
     @Value("${download.dir:/data/biocache-download}")
-    protected String biocacheDownloadDir;
+    protected String biocacheDownloadDir = "/data/biocache-download";
 
     @Value("${download.email.subject:ALA Occurrence Download Complete - [filename]}")
-    protected String biocacheDownloadEmailSubject;
+    protected String biocacheDownloadEmailSubject = "ALA Occurrence Download Complete - [filename]";
 
     @Value("${download.email.body:The download file has been generated on [date] via the search: [searchUrl]. Please download your file from [url]}")
-    protected String biocacheDownloadEmailBody;
+    protected String biocacheDownloadEmailBody = "The download file has been generated on [date] via the search: [searchUrl]. Please download your file from [url]";
 
     @Value("${download.email.subject:Occurrence Download Failed - [filename]}")
-    protected String biocacheDownloadEmailSubjectError;
+    protected String biocacheDownloadEmailSubjectError = "Occurrence Download Failed - [filename]";
 
     @Value("${download.email.body.error:The download has failed.}")
-    protected String biocacheDownloadEmailBodyError;
+    protected String biocacheDownloadEmailBodyError = "The download has failed.";
 
     @Value("${download.readme.content:When using this download please use the following citation:<br><br><cite>Atlas of Living Australia occurrence download at <a href='[url]'>biocache</a> accessed on [date].</cite><br><br>Data contributed by the following providers:<br><br>[dataProviders]<br><br>More information can be found at <a href='http://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.}")
-    protected String biocacheDownloadReadme;
+    protected String biocacheDownloadReadme = "When using this download please use the following citation:<br><br><cite>Atlas of Living Australia occurrence download at <a href='[url]'>biocache</a> accessed on [date].</cite><br><br>Data contributed by the following providers:<br><br>[dataProviders]<br><br>More information can be found at <a href='http://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.";
 
     @Value("${biocache.ui.url:http://biocache.ala.org.au}")
-    protected String biocacheUiUrl;
+    protected String biocacheUiUrl = "http://biocache.ala.org.au";
 
     /**
      * Ensures closure is only attempted once.
