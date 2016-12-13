@@ -5,11 +5,8 @@ package au.org.ala.biocache.service;
 
 import static org.junit.Assert.*;
 
-import java.io.IOException;
-import java.lang.annotation.Annotation;
 import java.nio.file.Path;
-import java.util.Locale;
-import java.util.Map;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -21,23 +18,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
-import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.BeanFactory;
-import org.springframework.beans.factory.NoSuchBeanDefinitionException;
-import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationEvent;
-import org.springframework.context.MessageSourceResolvable;
-import org.springframework.context.NoSuchMessageException;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.support.GenericApplicationContext;
-import org.springframework.core.env.Environment;
-import org.springframework.core.io.Resource;
 
 import au.org.ala.biocache.dao.JsonPersistentQueueDAOImpl;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
+import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
+import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.FacetThemes;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 
@@ -61,6 +50,11 @@ public class DownloadServiceTest {
 
     private DownloadService testService;
 
+    /**
+     * This latch is used to reliably simulate stalled and successful downloads.
+     */
+    private CountDownLatch testLatch;
+
     @Before
     public void setUp() throws Exception {
         testCacheDir = tempDir.newFolder("downloadcontrolthreadtest-cache").toPath();
@@ -80,6 +74,8 @@ public class DownloadServiceTest {
         
         SearchDAOImpl searchDAO = new SearchDAOImpl();
         
+        testLatch = new CountDownLatch(1);
+        
         testService = new DownloadService() {
             protected DownloadCreator getNewDownloadCreator() {
                 return new DownloadCreator() {
@@ -88,6 +84,9 @@ public class DownloadServiceTest {
                         return new Callable<DownloadDetailsDTO>() {
                             @Override
                             public DownloadDetailsDTO call() throws Exception {
+                                // Reliably test the sequence by waiting here
+                                // The latch must be at 0 before test to avoid a wait here
+                                testLatch.await();
                                 Thread.sleep(executionDelay);
                                 return nextDownload;
                             }
@@ -102,6 +101,8 @@ public class DownloadServiceTest {
 
     @After
     public void tearDown() throws Exception {
+        // Ensure we are not stuck on the countdown latch if it failed to be called in test as expected
+        testLatch.countDown();
         persistentQueueDAO.shutdown();
     }
 
@@ -160,28 +161,59 @@ public class DownloadServiceTest {
     /**
      * Test method for {@link au.org.ala.biocache.service.DownloadService#registerDownload(au.org.ala.biocache.dto.DownloadRequestParams, java.lang.String, au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType)}.
      */
-    @Ignore("TODO: Implement me")
     @Test
     public final void testRegisterDownload() {
-        fail("Not yet implemented"); // TODO
+        testService.init();
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", DownloadType.RECORDS_INDEX);
+        assertNotNull(registerDownload);
     }
 
     /**
      * Test method for {@link au.org.ala.biocache.service.DownloadService#unregisterDownload(au.org.ala.biocache.dto.DownloadDetailsDTO)}.
      */
-    @Ignore("TODO: Implement me")
     @Test
     public final void testUnregisterDownload() {
-        fail("Not yet implemented"); // TODO
+        testService.init();
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", DownloadType.RECORDS_INDEX);
+        assertNotNull(registerDownload);
+        testService.unregisterDownload(registerDownload);
     }
 
     /**
      * Test method for {@link au.org.ala.biocache.service.DownloadService#getCurrentDownloads()}.
      */
-    @Ignore("TODO: Implement me")
     @Test
-    public final void testGetCurrentDownloads() {
-        fail("Not yet implemented"); // TODO
+    public final void testGetCurrentDownloadsWithDownloadLatchWaitOn() {
+        testService.init();
+        List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
+        assertEquals(0, emptyDownloads.size());
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", DownloadType.RECORDS_INDEX);
+        assertNotNull(registerDownload);
+        List<DownloadDetailsDTO> notEmptyDownloads = testService.getCurrentDownloads();
+        assertNotNull(notEmptyDownloads);
+        // testLatch has not been called, so download should be still in queue
+        assertEquals(1, notEmptyDownloads.size());
+        testService.unregisterDownload(registerDownload);
+        assertEquals(0, emptyDownloads.size());
+    }
+
+    /**
+     * Test method for {@link au.org.ala.biocache.service.DownloadService#getCurrentDownloads()}.
+     */
+    @Test
+    public final void testGetCurrentDownloadsWithoutDownloadLatchWaitOn() {
+        testLatch.countDown();
+        testService.init();
+        List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
+        assertEquals(0, emptyDownloads.size());
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", DownloadType.RECORDS_INDEX);
+        assertNotNull(registerDownload);
+        List<DownloadDetailsDTO> notEmptyDownloads = testService.getCurrentDownloads();
+        assertNotNull(notEmptyDownloads);
+        // Can't rely on the download still being in the queue if the latch is not active, so not testing here
+        //assertEquals(1, notEmptyDownloads.size());
+        testService.unregisterDownload(registerDownload);
+        assertEquals(0, emptyDownloads.size());
     }
 
     /**
