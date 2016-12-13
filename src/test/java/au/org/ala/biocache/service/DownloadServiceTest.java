@@ -5,7 +5,12 @@ package au.org.ala.biocache.service;
 
 import static org.junit.Assert.*;
 
+import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.nio.file.Path;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -16,11 +21,25 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationEvent;
+import org.springframework.context.MessageSourceResolvable;
+import org.springframework.context.NoSuchMessageException;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.core.env.Environment;
+import org.springframework.core.io.Resource;
 
 import au.org.ala.biocache.dao.JsonPersistentQueueDAOImpl;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAOImpl;
+import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.FacetThemes;
+import au.org.ala.biocache.util.thread.DownloadCreator;
 
 /**
  * Test for {@link DownloadService}
@@ -61,7 +80,22 @@ public class DownloadServiceTest {
         
         SearchDAOImpl searchDAO = new SearchDAOImpl();
         
-        testService = new DownloadService();
+        testService = new DownloadService() {
+            protected DownloadCreator getNewDownloadCreator() {
+                return new DownloadCreator() {
+                    @Override
+                    public Callable<DownloadDetailsDTO> createCallable(final DownloadDetailsDTO nextDownload, final long executionDelay) {
+                        return new Callable<DownloadDetailsDTO>() {
+                            @Override
+                            public DownloadDetailsDTO call() throws Exception {
+                                Thread.sleep(executionDelay);
+                                return nextDownload;
+                            }
+                        };
+                    }
+                };
+            }
+        };
         testService.persistentQueueDAO = persistentQueueDAO;
         testService.searchDAO = searchDAO;
     }
@@ -106,19 +140,20 @@ public class DownloadServiceTest {
     /**
      * Test method for {@link au.org.ala.biocache.service.DownloadService#getNewDownloadCreator()}.
      */
-    @Ignore("TODO: Implement me")
     @Test
     public final void testGetNewDownloadCreator() {
-        fail("Not yet implemented"); // TODO
+        // TODO: This method is overriden to avoid referencing classes that are not yet setup for testing
+        // Just verifies that the method continues to exist
+        testService.getNewDownloadCreator();
     }
 
     /**
      * Test method for {@link au.org.ala.biocache.service.DownloadService#onApplicationEvent(org.springframework.context.event.ContextClosedEvent)}.
      */
-    @Ignore("TODO: Implement me")
     @Test
     public final void testOnApplicationEvent() {
-        fail("Not yet implemented"); // TODO
+        // Check that this method completes reliably
+        testService.onApplicationEvent(new ContextClosedEvent(new GenericApplicationContext()));
     }
 
     /**
