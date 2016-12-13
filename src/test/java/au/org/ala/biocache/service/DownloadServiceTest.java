@@ -190,6 +190,51 @@ public class DownloadServiceTest {
         DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
+        Thread.sleep(5000);
+        testService.unregisterDownload(registerDownload);
+    }
+
+    /**
+     * Test method for
+     * {@link au.org.ala.biocache.service.DownloadService#unregisterDownload(au.org.ala.biocache.dto.DownloadDetailsDTO)}.
+     */
+    @Test
+    public final void testUnregisterDownloadWithoutDownloadLatchWait() throws Exception {
+        testLatch.countDown();
+        testService.init();
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+                DownloadType.RECORDS_INDEX);
+        assertNotNull(registerDownload);
+        Thread.sleep(5000);
+        testService.unregisterDownload(registerDownload);
+    }
+
+    /**
+     * Test method for
+     * {@link au.org.ala.biocache.service.DownloadService#unregisterDownload(au.org.ala.biocache.dto.DownloadDetailsDTO)}.
+     */
+    @Test
+    public final void testUnregisterDownloadMultipleWithDownloadLatchWaitOn() throws Exception {
+        testService.init();
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+                DownloadType.RECORDS_INDEX);
+        assertNotNull(registerDownload);
+        Thread.sleep(5000);
+        testService.unregisterDownload(registerDownload);
+        testService.unregisterDownload(registerDownload);
+    }
+
+    /**
+     * Test method for
+     * {@link au.org.ala.biocache.service.DownloadService#unregisterDownload(au.org.ala.biocache.dto.DownloadDetailsDTO)}.
+     */
+    @Test
+    public final void testUnregisterDownloadMultipleWithDownloadLatchWaitOnNoSleep() throws Exception {
+        testService.init();
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+                DownloadType.RECORDS_INDEX);
+        assertNotNull(registerDownload);
+        testService.unregisterDownload(registerDownload);
         testService.unregisterDownload(registerDownload);
     }
 
