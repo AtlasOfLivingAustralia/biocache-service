@@ -307,6 +307,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             DownloadDetailsDTO.DownloadType type) {
         afterInitialisation();
         DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, type);
+        persistentQueueDAO.addDownloadToQueue(dd);
         currentDownloads.add(dd);
         return dd;
     }

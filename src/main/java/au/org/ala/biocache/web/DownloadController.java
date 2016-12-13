@@ -39,6 +39,7 @@ import java.io.File;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A Controller for downloading records based on queries.  This controller
@@ -156,8 +157,9 @@ public class DownloadController extends AbstractSecureController {
         boolean hasDBColumn = requestParams.getIncludeMisc();
         String fields = requestParams.getFields() + "," + requestParams.getExtra();
         if (fields.length() > 1) {
+            Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
             for (String column : fields.split(",")) {
-                for (IndexFieldDTO field : searchDAO.getIndexedFields()) {
+                for (IndexFieldDTO field : indexedFields) {
                     if (!field.isStored() && field.getDownloadName() != null && field.getDownloadName().equals(column)) {
                         hasDBColumn = true;
                         break;

@@ -148,6 +148,14 @@ public interface SearchDAO {
     Set<IndexFieldDTO> getIndexedFields() throws Exception;
     
     /**
+     * Retrieve a map of indexed fields based on {@link IndexFieldDTO#getName()}
+     *
+     * @return A map of indexed fields based on the field name.
+     * @throws Exception
+     */
+    Map<String, IndexFieldDTO> getIndexedFieldsMap() throws Exception;
+    
+    /**
      * Returns the up to date statistics for the supplied field
      * @param field
      * @return

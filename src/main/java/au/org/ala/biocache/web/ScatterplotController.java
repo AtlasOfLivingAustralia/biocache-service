@@ -26,6 +26,7 @@ import java.awt.*;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.util.*;
+import java.util.List;
 
 /**
  * This controller is responsible for providing basic scatterplot services.
@@ -136,27 +137,35 @@ public class ScatterplotController {
         //verify x and y are numerical and stored
         String displayNameX = null;
         String displayNameY = null;
-        for (IndexFieldDTO indexFieldDTO : searchDAO.getIndexFieldDetails(new String[]{x}) ){
-            if (!Arrays.asList(VALID_DATATYPES).contains(indexFieldDTO.getDataType() )) {
-                throw new Exception("Invalid datatype: " + indexFieldDTO.getDataType() + " for x: " + x);
-            }
-            if(!indexFieldDTO.isStored()) {
-                throw new Exception("Cannot use x: " + x + ".  It is not a stored field.");
-            }
-            displayNameX = indexFieldDTO.getDescription();
+        List<String> validDatatypes = Arrays.asList(VALID_DATATYPES);
+        Map<String, IndexFieldDTO> indexedFields = searchDAO.getIndexedFieldsMap();
+        
+        IndexFieldDTO xField = indexedFields.get(x);
+        if (xField == null) {
+            throw new Exception("Unknown field for x: " + x);
         }
-        for (IndexFieldDTO indexFieldDTO : searchDAO.getIndexFieldDetails(new String[]{y}) ){
-            if (!Arrays.asList(VALID_DATATYPES).contains(indexFieldDTO.getDataType() )) {
-                throw new Exception("Invalid datatype: " + indexFieldDTO.getDataType() + " for y: " + y);
-            }
-            if(!indexFieldDTO.isStored()) {
-                throw new Exception("Cannot use y: " + y + ".  It is not a stored field.");
-            }
-            displayNameY = indexFieldDTO.getDescription();
+        if (!validDatatypes.contains(xField.getDataType() )) {
+            throw new Exception("Invalid datatype: " + xField.getDataType() + " for x: " + x);
         }
+        if(!xField.isStored()) {
+            throw new Exception("Cannot use x: " + x + ".  It is not a stored field.");
+        }
+        displayNameX = xField.getDescription();
         if(displayNameX == null) {
             throw new Exception("Unknown value for x: " + x);
         }
+        
+        IndexFieldDTO yField = indexedFields.get(y);
+        if (yField == null) {
+            throw new Exception("Unknown field for y: " + y);
+        }
+        if (!validDatatypes.contains(yField.getDataType() )) {
+            throw new Exception("Invalid datatype: " + yField.getDataType() + " for y: " + y);
+        }
+        if(!yField.isStored()) {
+            throw new Exception("Cannot use y: " + y + ".  It is not a stored field.");
+        }
+        displayNameY = yField.getDescription();
         if(displayNameY == null) {
             throw new Exception("Unknown value for y: " + y);
         }

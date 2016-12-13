@@ -249,8 +249,12 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${media.dir:/data/biocache-media/}")
     public static String biocacheMediaDir = "/data/biocache-media/";
 
-    private Set<IndexFieldDTO> indexFields = null;
-    private Map<String, IndexFieldDTO> indexFieldMap = null;
+    private volatile Set<IndexFieldDTO> indexFields = null;
+    private volatile Map<String, IndexFieldDTO> indexFieldMap = null;
+    
+    /** Lock for getIndexedFields refresh operations **/
+    private final Object indexFieldRefreshLock = new Object();
+    
     private Map<String, StatsIndexFieldDTO> rangeFieldCache = null;
     private Set<String> authIndexFields = null;
 
@@ -3136,8 +3140,10 @@ public class SearchDAOImpl implements SearchDAO {
             params.set("fl" ,fields);
             params.set("numTerms", "1");
         }
-        else
+        else {
+            // TODO: We should be caching the result locally without calling Solr in this case, as it is called very often
             params.set("numTerms", "0");
+        }
         QueryResponse response = query(params, queryMethod);
         return parseLukeResponse(response.toString(), fields != null);
     }
@@ -3212,6 +3218,7 @@ public class SearchDAOImpl implements SearchDAO {
         return new ArrayList<FacetResultDTO>(facetResults);
     }
 
+    @Override
     public Set<IndexFieldDTO> getIndexedFields() throws Exception{
         return getIndexedFields(false);
     }
@@ -3219,18 +3226,32 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * Returns details about the fields in the index.
      */
-    public Set<IndexFieldDTO> getIndexedFields(boolean update) throws Exception{
-        if(indexFields == null || update){
-            indexFields = getIndexFieldDetails(null);
-            indexFieldMap = new HashMap<String, IndexFieldDTO>();
-            for(IndexFieldDTO field:indexFields){
-                indexFieldMap.put(field.getName(), field);
+    public Set<IndexFieldDTO> getIndexedFields(boolean update) throws Exception {
+        Set<IndexFieldDTO> result = indexFields;
+        if(result == null || update) {
+            synchronized(indexFieldRefreshLock) {
+                result = indexFields;
+                if(result == null || update) {
+                    result = getIndexFieldDetails(null);
+                    Map<String, IndexFieldDTO> resultMap = new HashMap<String, IndexFieldDTO>();
+                    for(IndexFieldDTO field: result) {
+                        resultMap.put(field.getName(), field);
+                    }
+                    indexFields = result;
+                    indexFieldMap = resultMap;
+                }
             }
         }
-        return indexFields;
+        return result;
     }
 
-
+    @Override
+    public Map<String, IndexFieldDTO> getIndexedFieldsMap() throws Exception {
+        // Refresh/populate the map if necessary
+        getIndexedFields();
+        return indexFieldMap;
+    }
+    
     /**
      * parses the response string from the service that returns details about the indexed fields
      * @param str
