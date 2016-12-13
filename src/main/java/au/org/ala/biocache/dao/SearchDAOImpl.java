@@ -255,7 +255,8 @@ public class SearchDAOImpl implements SearchDAO {
     /** Lock for getIndexedFields refresh operations **/
     private final Object indexFieldRefreshLock = new Object();
     
-    private volatile Map<String, StatsIndexFieldDTO> rangeFieldCache = null;
+    private final Map<String, StatsIndexFieldDTO> rangeFieldCache = new HashMap<String, StatsIndexFieldDTO>();
+    
     private Set<String> authIndexFields = null;
 
     /** SOLR index version for client app caching use. */
@@ -338,7 +339,7 @@ public class SearchDAOImpl implements SearchDAO {
     public void refreshCaches() {
         collectionCache.updateCache();
         //empties the range cache to allow the settings to be recalculated.
-        rangeFieldCache = new HashMap<String, StatsIndexFieldDTO>();
+        rangeFieldCache.clear();
         try {
             //update indexed fields
             downloadFields = new DownloadFields(getIndexedFields(true), messageSource);
@@ -2941,11 +2942,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      */
     private StatsIndexFieldDTO getRangeFieldDetails(String field){
-        Map<String, StatsIndexFieldDTO> nextRangeFieldCache = rangeFieldCache;
-        if(nextRangeFieldCache == null) {
-            nextRangeFieldCache = rangeFieldCache = new HashMap<String, StatsIndexFieldDTO>();
-        }
-        StatsIndexFieldDTO details = nextRangeFieldCache.get(field);
+        StatsIndexFieldDTO details = rangeFieldCache.get(field);
         Map<String, IndexFieldDTO> nextIndexFieldMap = indexFieldMap;
         if(details == null && nextIndexFieldMap != null){
             //get the details
@@ -2959,7 +2956,7 @@ public class SearchDAOImpl implements SearchDAO {
                     if(ifdto != null){
                         String type = ifdto.getDataType();
                         details = new StatsIndexFieldDTO(stats.get(field), type);
-                        nextRangeFieldCache.put(field, details);
+                        rangeFieldCache.put(field, details);
                     } else {
                         if(logger.isDebugEnabled()) {
                             logger.debug("Unable to locate field:  " + field);
