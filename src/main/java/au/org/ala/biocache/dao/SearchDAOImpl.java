@@ -229,8 +229,8 @@ public class SearchDAOImpl implements SearchDAO {
     protected Integer maxSolrDownloadThreads = 30;
     
     /** The time (ms) to wait for the blocking queue to have new capacity before timing out. */
-    @Value("${solr.downloadquery.writertimeout:5000}")
-    protected Long writerTimeoutWaitMillis = 5000L;
+    @Value("${solr.downloadquery.writertimeout:60000}")
+    protected Long writerTimeoutWaitMillis = 60000L;
     
     /** The time (ms) to wait between checking if interrupts have occurred or all of the download tasks have completed. */
     @Value("${solr.downloadquery.busywaitsleep:100}")
