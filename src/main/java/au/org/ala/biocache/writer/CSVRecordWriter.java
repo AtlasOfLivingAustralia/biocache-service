@@ -17,6 +17,7 @@ package au.org.ala.biocache.writer;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.RecordWriter;
@@ -34,6 +35,9 @@ public class CSVRecordWriter implements RecordWriter{
 
     private CSVWriter csvWriter;
 
+    private final AtomicBoolean finalised = new AtomicBoolean(false);
+    private final AtomicBoolean finalisedComplete = new AtomicBoolean(false);
+    
     public CSVRecordWriter(OutputStream out, String[] header){
         csvWriter = new CSVWriter(new OutputStreamWriter(out, Charset.forName("UTF-8")), ',', '"');  
         csvWriter.writeNext(header);
@@ -54,10 +58,19 @@ public class CSVRecordWriter implements RecordWriter{
 
     @Override
     public void finalise() {
-        try {
-            csvWriter.flush();            
-        } catch(java.io.IOException e){
-            logger.debug(e.getMessage(), e);
+        if (finalised.compareAndSet(false, true)) {
+            try {
+                csvWriter.flush();            
+            } catch(java.io.IOException e){
+                logger.debug(e.getMessage(), e);
+            } finally {
+                finalisedComplete.set(true);
+            }
         }
+    }
+
+    @Override
+    public boolean finalised() {
+        return finalisedComplete.get();
     }
 }

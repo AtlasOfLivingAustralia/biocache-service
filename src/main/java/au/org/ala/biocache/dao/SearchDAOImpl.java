@@ -76,10 +76,12 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
@@ -113,7 +115,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected SolrRequest.METHOD queryMethod;
     /** Limit search results - for performance reasons */
     @Value("${download.max:500000}")
-    protected Integer MAX_DOWNLOAD_SIZE;
+    protected Integer MAX_DOWNLOAD_SIZE = 500000;
     /** Throttle value used to split up large downloads from Solr.
      * Randomly set to a range of 100% up to 200% of the value given here in each case.
      **/
@@ -121,7 +123,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected Integer throttle = 50;
     /** Batch size for a download */
     @Value("${download.batch.size:500}")
-    protected Integer downloadBatchSize;
+    protected Integer downloadBatchSize = 500;
     /** The size of an internal fixed length blocking queue used to parallelise 
      * reading from Solr using 'solr.downloadquery.maxthreads' producers before 
      * writing from the queue using a single consumer thread. 
@@ -131,6 +133,14 @@ public class SearchDAOImpl implements SearchDAO {
      **/
     @Value("${download.internal.queue.size:1000}")
     protected Integer resultsQueueLength;
+    /** Maximum total time for downloads to be execute. Defaults to 1 week (604,800,000ms) */
+    @Value("${download.max.execute.time:604800000}")
+    protected Long downloadMaxTime = 604800000L;
+    /** Maximum total time for downloads to be allowed to normally complete before they are aborted, 
+     * once all of the Solr/etc. queries have been completed or aborted and the RecordWriter is reading the remaining download.internal.queue.size items off the queue. 
+     * Defaults to 5 minutes (300,000ms) */
+    @Value("${download.max.completion.time:300000}")
+    protected Long downloadMaxCompletionTime = 300000L;
     public static final String NAMES_AND_LSID = "names_and_lsid";
     public static final String COMMON_NAME_AND_LSID = "common_name_and_lsid";
     protected static final String DECADE_FACET_NAME = "decade";
@@ -222,10 +232,9 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${solr.downloadquery.writertimeout:5000}")
     protected Long writerTimeoutWaitMillis = 5000L;
     
-    /** The time (ms) to wait for the writer to finalise once the queue contains all of the remaining results. 
-     * The maximum number of results to be written during this period is set using download.internal.queue.size */
-    @Value("${solr.downloadquery.writerfinalisationtimeout:100000}")
-    protected Long writerFinalisationWaitMillis = 100000L;
+    /** The time (ms) to wait between checking if interrupts have occurred or all of the download tasks have completed. */
+    @Value("${solr.downloadquery.busywaitsleep:100}")
+    protected Long downloadCheckBusyWaitSleep = 100L;
     
     /** thread pool for multipart endemic queries */
     private volatile ExecutorService endemicExecutor = null;
@@ -996,22 +1005,35 @@ public class SearchDAOImpl implements SearchDAO {
                     (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, header) :
                             new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
 
+            // Requirement to be able to propagate interruptions to all other threads for this execution
+            // Doing this via this variable
+            final AtomicBoolean interruptFound = new AtomicBoolean(false);
+                    
             // Create a fixed length blocking queue for buffering results before they are written
             final BlockingQueue<String[]> queue = new ArrayBlockingQueue<>(resultsQueueLength);
             // Create a sentinel that we can check for reference equality to signal the end of the queue
             final String[] sentinel = new String[0];
             // An implementation of RecordWriter that adds to an in-memory queue
             final RecordWriter concurrentWrapper = new RecordWriter() {
+                private AtomicBoolean finalised = new AtomicBoolean(false);
+                private AtomicBoolean finalisedComplete = new AtomicBoolean(false);
+
                 @Override
                 public void write(String[] nextLine) {
                     try {
-                        if(Thread.currentThread().isInterrupted()) {
+                        if (Thread.currentThread().isInterrupted() || interruptFound.get()) {
                             finalise();
                             return;
                         }
-                        queue.offer(nextLine, writerTimeoutWaitMillis, TimeUnit.MILLISECONDS);
+                        while(!queue.offer(nextLine, writerTimeoutWaitMillis, TimeUnit.MILLISECONDS)) {
+                            if (Thread.currentThread().isInterrupted() || interruptFound.get()) {
+                                finalise();
+                                return;
+                            }
+                        }
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
+                        interruptFound.set(true);
                         logger.error("Queue failed to accept the next record due to a thread interrupt, calling finalise the cleanup: ", e);
                         // If we were interrupted then we should call finalise to cleanup
                         finalise();
@@ -1020,13 +1042,24 @@ public class SearchDAOImpl implements SearchDAO {
                 
                 @Override
                 public void finalise() {
-                    try {
-                        queue.put(sentinel);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        logger.error("Queue failed to accept the sentinel in finalise due to a thread interrupt: ", e);
+                    if (finalised.compareAndSet(false, true)) {
+                        try {
+                            queue.offer(sentinel, writerTimeoutWaitMillis, TimeUnit.MILLISECONDS);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            interruptFound.set(true);
+                            logger.error("Queue failed to accept the sentinel in finalise due to a thread interrupt: ", e);
+                        } finally {
+                            finalisedComplete.set(true);
+                        }
                     }
                 }
+
+                @Override
+                public boolean finalised() {
+                    return finalisedComplete.get();
+                }
+                
             };
             
             // A single thread that consumes elements put onto the queue until it sees the sentinel, finalising after the sentinel or an interrupt
@@ -1035,13 +1068,13 @@ public class SearchDAOImpl implements SearchDAO {
                 public void run() {
                     try {
                         while(true) {
-                            if(Thread.currentThread().isInterrupted()) {
+                            if (Thread.currentThread().isInterrupted() || interruptFound.get()) {
                                 break;
                             }
                             
                             String[] take = queue.take();
                             // Sentinel object equality check to see if we are done
-                            if(take == sentinel || Thread.currentThread().isInterrupted()) {
+                            if (take == sentinel || Thread.currentThread().isInterrupted() || interruptFound.get()) {
                                 break;
                             }
                             // Otherwise write to the wrapped record writer
@@ -1049,7 +1082,10 @@ public class SearchDAOImpl implements SearchDAO {
                         }
                     } catch(InterruptedException e) {
                         Thread.currentThread().interrupt();
-                        return;
+                        interruptFound.set(true);
+                    } catch(Exception e) {
+                        // Reuse interruptFound variable to signal that the writer had issues
+                        interruptFound.set(true);
                     } finally {
                         rw.finalise();
                     }
@@ -1156,12 +1192,41 @@ public class SearchDAOImpl implements SearchDAO {
                     solrCallables.add(solrCallable);
                 }
     
-                // TODO: Do we support downloads running for longer than 1 day??
-                List<Future<Integer>> futures = nextExecutor.invokeAll(solrCallables, 1, TimeUnit.DAYS);
+                List<Future<Integer>> futures = new ArrayList<>(solrCallables.size());
+                for(Callable<Integer> nextCallable : solrCallables) {
+                    futures.add(nextExecutor.submit(nextCallable));
+                }
+                
+                // Busy wait because we need to be able to respond to an interrupt on any callable 
+                // and propagate it to all of the others for this particular query
+                // Because the executor service is shared to prevent too many concurrent threads being run, 
+                // this requires a busy wait loop on the main thread to monitor state
+                boolean waitAgain = false;
+                do {
+                    waitAgain = false;
+                    for (Future<Integer> future : futures) {
+                        if (!future.isDone()) {
+                            waitAgain = true;
+                            // If one thread finds an interrupt it is propagated to others using the interruptFound AtomicBoolean
+                            if (interruptFound.get()) {
+                                future.cancel(true);
+                            }
+                        }
+                    }
+                    if ((System.currentTimeMillis() - start) > downloadMaxTime) {
+                        interruptFound.set(true);
+                        break;
+                    }
+                    Thread.sleep(downloadCheckBusyWaitSleep);
+                } while (waitAgain);
+                
                 AtomicInteger totalDownload = new AtomicInteger(0);
                 for(Future<Integer> future: futures){
-                    if(future.isDone()){
+                    if (future.isDone()){
                         totalDownload.addAndGet(future.get());
+                    } else {
+                        // All incomplete futures that survived the loop above are cancelled here
+                        future.cancel(true);
                     }
                 }
 
@@ -1173,12 +1238,48 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             } finally {
                 try {
+                    // Once we get here, we need to finalise starting at the concurrent wrapper, 
+                    // as there are no more non-sentinel records to be added to the queue
+                    // This eventually triggers finalisation of the underlying writer when the queue empties
+                    // This is a soft shutdown, and hence we wait below for this stage to complete in normal circumstances
+                    // Note, this blocks for writerTimeoutWaitMillis trying to legitimately add the sentinel to the end of the queue
+                    // We force the sentinel to be added in the hard shutdown phase below
                     concurrentWrapper.finalise();
                 } finally {
                     try {
-                        writerThread.join(writerFinalisationWaitMillis);
+                        final long completionStartTime = System.currentTimeMillis();
+                        // Busy wait check for finalised to be called in the RecordWriter or something is interrupted
+                        // By this stage, there are at maximum download.internal.queue.size items remaining (default 1000)
+                        while(writerThread.isAlive() 
+                               && !writerThread.isInterrupted()
+                               && !interruptFound.get() 
+                               && !Thread.currentThread().isInterrupted()
+                               && !rw.finalised()
+                               && !((System.currentTimeMillis() - completionStartTime) > downloadMaxCompletionTime)) {
+                            Thread.sleep(downloadCheckBusyWaitSleep);
+                        }
                     } finally {
-                        out.flush();
+                        try {
+                            // Attempt all actions that could trigger the writer thread to finalise, as by this stage we are in hard shutdown mode
+                            
+                            // Add the sentinel or clear the queue and try again until it gets onto the queue
+                            // We are in hard shutdown mode, so only priority is that the queue either 
+                            // gets the sentinel or the thread is interrupted to clean up resources
+                            while(!queue.offer(sentinel)) {
+                                queue.clear();
+                            }
+                            
+                            // Interrupt the single writer thread
+                            writerThread.interrupt();
+                            
+                            // Explicitly call finalise on the RecordWriter as a backup
+                            // In normal circumstances it is called via the sentinel or the interrupt
+                            // This will not block if finalise has been called previously in the current three implementations
+                            rw.finalise();
+                        } finally {
+                            // Flush whatever output was still pending for more deterministic debugging
+                            out.flush();
+                        }
                     }
                 }
             }
