@@ -1021,14 +1021,14 @@ public class SearchDAOImpl implements SearchDAO {
                 @Override
                 public void write(String[] nextLine) {
                     try {
-                        if (Thread.currentThread().isInterrupted() || interruptFound.get()) {
+                        if (Thread.currentThread().isInterrupted() || interruptFound.get() || finalised.get()) {
                             finalise();
                             return;
                         }
                         while(!queue.offer(nextLine, writerTimeoutWaitMillis, TimeUnit.MILLISECONDS)) {
-                            if (Thread.currentThread().isInterrupted() || interruptFound.get()) {
+                            if (Thread.currentThread().isInterrupted() || interruptFound.get() || finalised.get()) {
                                 finalise();
-                                return;
+                                break;
                             }
                         }
                     } catch (InterruptedException e) {
@@ -1261,6 +1261,9 @@ public class SearchDAOImpl implements SearchDAO {
                     } finally {
                         try {
                             // Attempt all actions that could trigger the writer thread to finalise, as by this stage we are in hard shutdown mode
+                            
+                            // Signal that we are in hard shutdown mode
+                            interruptFound.set(true);
                             
                             // Add the sentinel or clear the queue and try again until it gets onto the queue
                             // We are in hard shutdown mode, so only priority is that the queue either 
