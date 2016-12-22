@@ -2070,7 +2070,7 @@ public class WMSController {
                 pointsCount = getCachedCount(false, requestParams, q, pointType, useBbox);
 
                 //use bbox when too many points
-                if (pointsCount == null || pointsCount > wmsCacheMaxLayerPoints) {
+                if (pointsCount != null && pointsCount > wmsCacheMaxLayerPoints) {
                     q += StringUtils.join(origAndBBoxFqs, ",");
 
                     requestParams.setFq(origAndBBoxFqs);
