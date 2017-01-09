@@ -48,44 +48,47 @@ public class FacetThemes {
      * @throws IOException
      */
     public FacetThemes(String configFilePath, Set<IndexFieldDTO> indexedFields, int facetsMax, int facetsDefaultMax, boolean facetDefault) throws IOException {
-        FacetThemes.facetsMax = facetsMax;
-        FacetThemes.facetsDefaultMax = facetsDefaultMax;
-        FacetThemes.facetDefault = facetDefault;
-        
-        if(configFilePath != null && new File(configFilePath).exists()){
-            FacetThemes.allThemes.clear();
-            ObjectMapper om = new ObjectMapper();
-            List<Map<String,Object>> config = om.readValue(new File(configFilePath), List.class);
-            for(Map<String, Object> facetGroup : config){
-                String title = (String) facetGroup.get("title");
-                List<Map<String,String>> facetsConfig = (List<Map<String,String>>) facetGroup.get("facets");
-                List<Facet> facets = new ArrayList<Facet>();
-                for(Map<String,String> facetsMap : facetsConfig){
-                    String name = facetsMap.get("field");
-                    String description = null;
-                    String dwcTerm = null;
-                    Boolean i18nValues = null;
-                    if (indexedFields != null) {
-                        for (IndexFieldDTO field : indexedFields) {
-                            if (field.getName().equalsIgnoreCase(name)) {
-                                description = field.getDescription();
-                                dwcTerm = field.getDwcTerm();
-                                i18nValues = field.isI18nValues();
-                                
-                                //only add this facet if there is an associated SOLR field
-                                facets.add(new Facet(name, facetsMap.get("sort"), description, dwcTerm, i18nValues));
-                                break;
+        try {
+            FacetThemes.facetsMax = facetsMax;
+            FacetThemes.facetsDefaultMax = facetsDefaultMax;
+            FacetThemes.facetDefault = facetDefault;
+            
+            if(configFilePath != null && new File(configFilePath).exists()){
+                FacetThemes.allThemes.clear();
+                ObjectMapper om = new ObjectMapper();
+                List<Map<String,Object>> config = om.readValue(new File(configFilePath), List.class);
+                for(Map<String, Object> facetGroup : config){
+                    String title = (String) facetGroup.get("title");
+                    List<Map<String,String>> facetsConfig = (List<Map<String,String>>) facetGroup.get("facets");
+                    List<Facet> facets = new ArrayList<Facet>();
+                    for(Map<String,String> facetsMap : facetsConfig){
+                        String name = facetsMap.get("field");
+                        String description = null;
+                        String dwcTerm = null;
+                        Boolean i18nValues = null;
+                        if (indexedFields != null) {
+                            for (IndexFieldDTO field : indexedFields) {
+                                if (field.getName().equalsIgnoreCase(name)) {
+                                    description = field.getDescription();
+                                    dwcTerm = field.getDwcTerm();
+                                    i18nValues = field.isI18nValues();
+                                    
+                                    //only add this facet if there is an associated SOLR field
+                                    facets.add(new Facet(name, facetsMap.get("sort"), description, dwcTerm, i18nValues));
+                                    break;
+                                }
                             }
                         }
                     }
+                    FacetThemes.allThemes.add(new FacetTheme(title, facets));
                 }
-                FacetThemes.allThemes.add(new FacetTheme(title, facets));
+                initAllFacets();
+            } else {
+                defaultInit();
             }
-            initAllFacets();
-        } else {
-            defaultInit();
+        } finally {
+            initialised.countDown();
         }
-        initialised.countDown();
     }
 
     /**
