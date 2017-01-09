@@ -140,9 +140,9 @@ public interface SearchDAO {
     void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out, DownloadDetailsDTO dd) throws Exception;
 
     /**
-     * Retrieve a list of the indexed fields.
+     * Retrieve a Set of the indexed fields.
      *
-     * @return
+     * @return A Set containing the set of indexed fields made unique using {@link IndexFieldDTO#getDownloadName()}.
      * @throws Exception
      */
     Set<IndexFieldDTO> getIndexedFields() throws Exception;
