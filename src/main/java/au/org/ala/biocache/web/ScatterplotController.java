@@ -140,39 +140,47 @@ public class ScatterplotController {
         List<String> validDatatypes = Arrays.asList(VALID_DATATYPES);
         Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
         
+        Exception toThrowX = null;
+        
         // FIXME: VALID_DATATYPES does not contain all of the necesary datatypes
         for (IndexFieldDTO xField : indexedFields) {
             if(xField.getName().equals(x)) {
                 if (!validDatatypes.contains(xField.getDataType() )) {
-                    throw new Exception("Invalid datatype: " + xField.getDataType() + " for x: " + x);
+                    toThrowX = new Exception("Invalid datatype: " + xField.getDataType() + " for x: " + x, toThrowX);
                 }
-                if(!xField.isStored()) {
-                    throw new Exception("Cannot use x: " + x + ".  It is not a stored field.");
+                else if (!xField.isStored()) {
+                    toThrowX = new Exception("Cannot use x: " + x + ".  It is not a stored field.", toThrowX);
                 }
-                displayNameX = xField.getDescription();
-                break;
+                else {
+                    displayNameX = xField.getDescription();
+                    break;
+                }
             }
         }
         
         if(displayNameX == null) {
-            throw new Exception("Unknown value for x: " + x);
+            throw new Exception("Unknown, unsupported datatype, or not stored, value for x: " + x, toThrowX);
         }
+        
+        Exception toThrowY = null;
         
         for (IndexFieldDTO yField : indexedFields) {
             if(yField.getName().equals(y)) {
                 if (!validDatatypes.contains(yField.getDataType() )) {
-                    throw new Exception("Invalid datatype: " + yField.getDataType() + " for y: " + y);
+                    toThrowY = new Exception("Invalid datatype: " + yField.getDataType() + " for y: " + y, toThrowY);
                 }
-                if(!yField.isStored()) {
-                    throw new Exception("Cannot use y: " + y + ".  It is not a stored field.");
+                else if(!yField.isStored()) {
+                    toThrowY = new Exception("Cannot use y: " + y + ".  It is not a stored field.", toThrowY);
                 }
-                displayNameY = yField.getDescription();
-                break;
+                else {
+                    displayNameY = yField.getDescription();
+                    break;
+                }
             }
         }
         
         if(displayNameY == null) {
-            throw new Exception("Unknown value for y: " + y);
+            throw new Exception("Unknown, unsupported datatype, or not stored, value for y: " + y, toThrowY);
         }
 
         //get data
