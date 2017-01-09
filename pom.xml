@@ -83,6 +83,12 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- Reusing interfaces from layers-store -->
+        <dependency>
+            <groupId>au.org.ala</groupId>
+            <artifactId>layers-store</artifactId>
+            <version>1.2</version>
+        </dependency>
         <!-- ALA logging -->
         <dependency>
             <groupId>au.org.ala</groupId>
