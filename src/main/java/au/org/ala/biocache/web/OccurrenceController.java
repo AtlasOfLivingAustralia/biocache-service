@@ -35,6 +35,7 @@ import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
 import org.ala.client.util.RestfulClient;
+import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.gbif.utils.file.FileUtils;
@@ -833,7 +834,7 @@ public class OccurrenceController extends AbstractSecureController {
                                     }
                                     try(FileOutputStream output = new FileOutputStream(outputFilePath);) {
                                         params.setQ("lsid:\""+lsid+"\"");
-                                        ConcurrentMap<String, AtomicInteger> uidStats = searchDAO.writeResultsFromIndexToStream(params, output, false, dd,false);
+                                        ConcurrentMap<String, AtomicInteger> uidStats = searchDAO.writeResultsFromIndexToStream(params, new CloseShieldOutputStream(output), false, dd,false);
                                         output.flush();
                                         try(FileOutputStream citationOutput = new FileOutputStream(citationFilePath);) {
                                             downloadService.getCitations(uidStats, citationOutput, params.getSep(), params.getEsc(), null);
@@ -985,7 +986,7 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         try {
-            downloadService.writeQueryToStream(requestParams, response, ip, out, false, false, false);
+            downloadService.writeQueryToStream(requestParams, response, ip, new CloseShieldOutputStream(out), false, false, false);
         } catch (Exception e){
             logger.error(e.getMessage(),e);
         }
@@ -1022,7 +1023,7 @@ public class OccurrenceController extends AbstractSecureController {
             return null;
         }
         try {
-            downloadService.writeQueryToStream(requestParams, response, ip, out, false, true, zip);
+            downloadService.writeQueryToStream(requestParams, response, ip, new CloseShieldOutputStream(out), false, true, zip);
         } catch(Exception e){
             logger.error(e.getMessage(), e);
         }
@@ -1047,7 +1048,7 @@ public class OccurrenceController extends AbstractSecureController {
                 return null;
             }
             
-            downloadService.writeQueryToStream(requestParams, response, ip, out, true, fromIndex, zip);
+            downloadService.writeQueryToStream(requestParams, response, ip, new CloseShieldOutputStream(out), true, fromIndex, zip);
         }
         return null;
     }

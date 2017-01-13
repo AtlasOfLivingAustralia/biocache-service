@@ -34,6 +34,7 @@ import au.org.ala.biocache.writer.TSVRecordWriter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.googlecode.ehcache.annotations.Cacheable;
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateUtils;
@@ -643,7 +644,7 @@ public class SearchDAOImpl implements SearchDAO {
         if(logger.isDebugEnabled()) {
             logger.debug("There are " + species.size() + "records being downloaded");
         }
-        try(CSVWriter csvWriter = new CSVWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8), '\t', '"');) {
+        try(CSVWriter csvWriter = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(out), StandardCharsets.UTF_8), '\t', '"');) {
             csvWriter.writeNext(new String[]{
                         "Taxon ID",
                         "Kingdom",
@@ -717,7 +718,7 @@ public class SearchDAOImpl implements SearchDAO {
                     header = (String[]) ArrayUtils.addAll(header, listsService.getTypes().toArray(new String[]{}));
                 }
                 
-                CSVRecordWriter writer = new CSVRecordWriter(out, header);
+                CSVRecordWriter writer = new CSVRecordWriter(new CloseShieldOutputStream(out), header);
                 try {
                     boolean addedNullFacet = false;
     
@@ -1005,9 +1006,9 @@ public class SearchDAOImpl implements SearchDAO {
 
             //construct correct RecordWriter based on the supplied fileType
             final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ?
-                    new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) :
-                    (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, header) :
-                            new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
+                    new CSVRecordWriter(new CloseShieldOutputStream(out), header, downloadParams.getSep(), downloadParams.getEsc()) :
+                    (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(new CloseShieldOutputStream(out), header) :
+                            new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), new CloseShieldOutputStream(out), (String[]) ArrayUtils.addAll(fields, qaFields)));
 
             // Requirement to be able to propagate interruptions to all other threads for this execution
             // Doing this via this variable

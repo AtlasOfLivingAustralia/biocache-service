@@ -492,7 +492,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     }
 
     public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip,
-            ServletOutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip) throws Exception {
+            OutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip) throws Exception {
         afterInitialisation();
         String filename = requestParams.getFile();
 
@@ -509,7 +509,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
         DownloadDetailsDTO.DownloadType type = fromIndex ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
         DownloadDetailsDTO dd = registerDownload(requestParams, ip, type);
-        writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex, true, zip);
+        writeQueryToStream(dd, requestParams, ip, new CloseShieldOutputStream(out), includeSensitive, fromIndex, true, zip);
     }
 
     /**
@@ -531,7 +531,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 return;
             }
 
-            try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(out, Charset.forName("UTF-8")), sep, '"', esc);) {
+            try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(out), Charset.forName("UTF-8")), sep, '"', esc);) {
                 // Object[] citations =
                 // restfulClient.restPost(citationServiceUrl, "text/json",
                 // uidStats.keySet());
@@ -599,7 +599,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 return;
             }
 
-            try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(out, Charset.forName("UTF-8")), params.getSep(), '"',
+            try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(out), Charset.forName("UTF-8")), params.getSep(), '"',
                     params.getEsc());) {
                 // Object[] citations =
                 // restfulClient.restPost(citationServiceUrl, "text/json",
@@ -845,7 +845,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             currentDownload.getRequestParams().setIncludeMisc(false);
                         }
                         writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
-                                currentDownload.getIpAddress(), fos, currentDownload.getIncludeSensitive(),
+                                currentDownload.getIpAddress(), new CloseShieldOutputStream(fos), currentDownload.getIncludeSensitive(),
                                 currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false, true);
                         // now that the download is complete email a link to the
                         // recipient.
