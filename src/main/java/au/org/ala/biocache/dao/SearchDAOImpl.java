@@ -216,7 +216,6 @@ public class SearchDAOImpl implements SearchDAO {
     @Inject
     protected ListsService listsService;
 
-    /** Max number of threads to use in endemic queries */
     @Value("${media.store.local:true}")
     protected Boolean usingLocalMediaRepo = true;
 
@@ -267,10 +266,13 @@ public class SearchDAOImpl implements SearchDAO {
     private Set<String> authIndexFields = null;
 
     /** SOLR index version for client app caching use. */
-    private long solrIndexVersion = 0;
+    private volatile long solrIndexVersion = 0;
     /** last time SOLR index version was refreshed */
-    private long solrIndexVersionTime = 0;
-    private Object solrIndexVersionLock = new Object();
+    private volatile long solrIndexVersionTime = 0;
+    /** 
+     * Lock object used to synchronize updates to the solr index version
+     */
+    private final Object solrIndexVersionLock = new Object();
 
     @Value("${wms.colour:0x00000000}")
     protected int DEFAULT_COLOUR;
@@ -393,8 +395,9 @@ public class SearchDAOImpl implements SearchDAO {
         while(i < list1.size()){
             StringBuffer sb = new StringBuffer();
             while((localterms == 0 || localterms % termQueryLimit != 0) && i < list1.size()){
-                if(localterms != 0)
+                if(localterms > 0) {
                     sb.append(" OR ");
+                }
                 sb.append(facet).append(":").append(ClientUtils.escapeQueryChars(list1.get(i).getFieldValue()));
                 i++;
                 localterms++;
@@ -491,8 +494,9 @@ public class SearchDAOImpl implements SearchDAO {
         while(i < list1.size()){
             StringBuffer sb = new StringBuffer();
             while((localterms == 0 || localterms % termQueryLimit != 0) && i < list1.size()){
-                if(localterms != 0)
+                if(localterms > 0) {
                     sb.append(" OR ");
+                }
                 String value = list1.get(i).getFieldValue();
                 if (facet.equals(NAMES_AND_LSID)) {
                     if (value.startsWith("\"") && value.endsWith("\"")) {
@@ -3333,12 +3337,11 @@ public class SearchDAOImpl implements SearchDAO {
             synchronized(solrIndexVersionLock) {
                 result = indexFields;
                 if(result == null || update) {
-                    result = getIndexFieldDetails(null);
+                    result = indexFields = getIndexFieldDetails(null);
                     Map<String, IndexFieldDTO> resultMap = new HashMap<String, IndexFieldDTO>();
                     for(IndexFieldDTO field: result) {
                         resultMap.put(field.getName(), field);
                     }
-                    indexFields = result;
                     indexFieldMap = resultMap;
                 }
             }

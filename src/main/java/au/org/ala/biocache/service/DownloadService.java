@@ -156,6 +156,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      */
     private final AtomicBoolean initialised = new AtomicBoolean(false);
     
+    /**
+     * A latch that is released once initialisation completes, to enable the off-thread 
+     * initialisation to occur completely before servicing queries.
+     */
     private final CountDownLatch initialisationLatch = new CountDownLatch(1);
     
     /**
