@@ -31,6 +31,7 @@ import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.json.simple.JSONArray;
@@ -360,7 +361,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         // Use a zip output stream to include the data and citation together in
         // the download
         try(OptionalZipOutputStream sp = new OptionalZipOutputStream(
-                zip ? OptionalZipOutputStream.Type.zipped : OptionalZipOutputStream.Type.unzipped, out);) {
+                zip ? OptionalZipOutputStream.Type.zipped : OptionalZipOutputStream.Type.unzipped, new CloseShieldOutputStream(out));) {
             String suffix = requestParams.getFileType().equals("shp") ? "zip" : requestParams.getFileType();
             sp.putNextEntry(filename + "." + suffix);
             // put the facets
