@@ -62,14 +62,10 @@ public class DownloadControlThread implements Runnable {
                 if(shutdownFlag.get() || Thread.currentThread().isInterrupted()) {
                     break;
                 }
-                // Busy wait polling
-                // TODO: Convert PersistentQueueDAO to a
-                // blocking/interruptible wait to avoid busy wait
-                Thread.sleep(pollDelay);
-                if(shutdownFlag.get() || Thread.currentThread().isInterrupted()) {
-                    break;
+                if(!downloadServiceExecutor.reserveCapacity(pollDelay, TimeUnit.MILLISECONDS)) {
+                    // If we couldn't reserve capacity within this period, go back around and try again after checking the interrupt status
+                    continue;
                 }
-                downloadServiceExecutor.reserveCapacity();
                 if(shutdownFlag.get() || Thread.currentThread().isInterrupted()) {
                     break;
                 }
@@ -155,8 +151,8 @@ public class DownloadControlThread implements Runnable {
          * This method must be called exactly once before each call to {@link #submitDownload(DownloadDetailsDTO)} or {@link #returnCapacity()}.
          * @throws InterruptedException If the thread is interrupted while waiting.
          */
-        public void reserveCapacity() throws InterruptedException {
-            mySemaphore.acquire();
+        public boolean reserveCapacity(long timeout, TimeUnit timeUnit) throws InterruptedException {
+            return mySemaphore.tryAcquire(timeout, timeUnit);
         }
         
         /**
