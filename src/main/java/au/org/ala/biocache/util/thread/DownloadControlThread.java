@@ -4,6 +4,7 @@ import java.util.Queue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -65,9 +66,19 @@ public class DownloadControlThread implements Runnable {
                 // TODO: Convert PersistentQueueDAO to a
                 // blocking/interruptible wait to avoid busy wait
                 Thread.sleep(pollDelay);
+                if(shutdownFlag.get() || Thread.currentThread().isInterrupted()) {
+                    break;
+                }
+                downloadServiceExecutor.reserveCapacity();
+                if(shutdownFlag.get() || Thread.currentThread().isInterrupted()) {
+                    break;
+                }
                 currentDownload = persistentQueueDAO.getNextDownload(maxRecords, downloadType);
                 if (currentDownload != null) {
                     downloadServiceExecutor.submitDownload(currentDownload);
+                } else {
+                    // We need to return the capacity we reserved because we don't need to use it
+                    downloadServiceExecutor.returnCapacity();
                 }
             }
         } catch (InterruptedException | RejectedExecutionException e) {
@@ -105,6 +116,7 @@ public class DownloadControlThread implements Runnable {
         private final long executionDelay;
         private final int priority;
         private final DownloadCreator downloadCreator;
+        private final Semaphore mySemaphore;
     
         public DownloadServiceExecutor(Integer maxRecords, DownloadType downloadType, int concurrencyLevel, long executionDelay, int threadPriority, DownloadCreator downloadCreator) {
             this.maxRecords = maxRecords;
@@ -120,10 +132,11 @@ public class DownloadControlThread implements Runnable {
             this.downloadCreator = downloadCreator;
             this.executor = Executors.newFixedThreadPool(concurrencyLevel,
                     new ThreadFactoryBuilder().setNameFormat(nameFormat).setPriority(priority).build());
+            this.mySemaphore = new Semaphore(concurrencyLevel);
         }
     
         public void submitDownload(DownloadDetailsDTO nextDownload) throws RejectedExecutionException {
-            executor.submit(downloadCreator.createCallable(nextDownload, executionDelay));
+            executor.submit(downloadCreator.createCallable(nextDownload, executionDelay, mySemaphore));
         }
     
         public void shutdown() {
@@ -136,6 +149,21 @@ public class DownloadControlThread implements Runnable {
         
         public void awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
             executor.awaitTermination(timeout, unit);
+        }
+        
+        /**
+         * This method must be called exactly once before each call to {@link #submitDownload(DownloadDetailsDTO)} or {@link #returnCapacity()}.
+         * @throws InterruptedException If the thread is interrupted while waiting.
+         */
+        public void reserveCapacity() throws InterruptedException {
+            mySemaphore.acquire();
+        }
+        
+        /**
+         * This method must be called exactly once after a call to {@link #reserveCapacity()} is abandoned without a call to {@link #submitDownload(DownloadDetailsDTO)}.
+         */
+        public void returnCapacity() {
+            mySemaphore.release();
         }
     }
 }

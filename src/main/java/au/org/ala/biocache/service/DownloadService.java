@@ -56,6 +56,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -825,7 +826,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     
     private class DownloadCreatorImpl implements DownloadCreator {
         @Override
-        public Callable<DownloadDetailsDTO> createCallable(final DownloadDetailsDTO currentDownload, final long executionDelay) {
+        public Callable<DownloadDetailsDTO> createCallable(final DownloadDetailsDTO currentDownload, final long executionDelay, final Semaphore capacitySemaphore) {
             return new Callable<DownloadDetailsDTO>() {
     
                 @Override
@@ -902,9 +903,13 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     + currentDownload.getFileLocation(), ex);
                         }
                     } finally {
-                        // incase of server up/down, only remove from queue
-                        // after emails are sent
-                        persistentQueueDAO.removeDownloadFromQueue(currentDownload);
+                        try {
+                            // incase of server up/down, only remove from queue
+                            // after emails are sent
+                            persistentQueueDAO.removeDownloadFromQueue(currentDownload);
+                        } finally {
+                            capacitySemaphore.release();
+                        }
                     }
                     return currentDownload;
                 }

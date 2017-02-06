@@ -15,6 +15,7 @@
 package au.org.ala.biocache.util.thread;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.Semaphore;
 
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 
@@ -28,7 +29,8 @@ public interface DownloadCreator {
      * Create a {@link Callable} from the given DownloadDetailsDTO that can be executed by an ExecutorService.
      * @param nextDownload The details of the download
      * @param executionDelay The number of milliseconds that this download should sleep for after being executed to debug and work around database connectivity issues
+     * @param capacitySemaphore A Semaphore that is used to smoothly allocate downloads across DownloadControlThreads. {@link Semaphore#release()} must be called when the resulting Callable is finished downloading.
      * @return A Callable that can execute the download
      */
-    Callable<DownloadDetailsDTO> createCallable(DownloadDetailsDTO nextDownload, long executionDelay);
+    Callable<DownloadDetailsDTO> createCallable(DownloadDetailsDTO nextDownload, long executionDelay, Semaphore capacitySemaphore);
 }

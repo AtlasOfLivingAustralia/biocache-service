@@ -7,6 +7,7 @@ import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.After;
@@ -90,17 +91,21 @@ public class DownloadControlThreadTest {
         DownloadCreator downloadCreator = new DownloadCreator() {
             @Override
             public Callable<DownloadDetailsDTO> createCallable(final DownloadDetailsDTO nextDownload,
-                    final long executionDelay) {
+                    final long executionDelay, final Semaphore capacitySemaphore) {
                 return new Callable<DownloadDetailsDTO>() {
 
                     @Override
                     public DownloadDetailsDTO call() throws Exception {
-                        testLatch.await();
-                        Thread.sleep(executionDelay);
-                        // Signal download complete by removing from queue
-                        currentDownloads.remove(nextDownload);
-                        persistentQueueDAO.removeDownloadFromQueue(nextDownload);
-                        return nextDownload;
+                        try {
+                            testLatch.await();
+                            Thread.sleep(executionDelay);
+                            // Signal download complete by removing from queue
+                            currentDownloads.remove(nextDownload);
+                            persistentQueueDAO.removeDownloadFromQueue(nextDownload);
+                            return nextDownload;
+                        } finally {
+                            capacitySemaphore.release();
+                        }
                     }
                 };
             }
