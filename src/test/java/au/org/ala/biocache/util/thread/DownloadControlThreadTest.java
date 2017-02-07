@@ -6,6 +6,8 @@ import java.nio.file.Path;
 import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -91,7 +93,7 @@ public class DownloadControlThreadTest {
         DownloadCreator downloadCreator = new DownloadCreator() {
             @Override
             public Callable<DownloadDetailsDTO> createCallable(final DownloadDetailsDTO nextDownload,
-                    final long executionDelay, final Semaphore capacitySemaphore) {
+                    final long executionDelay, final Semaphore capacitySemaphore, ExecutorService parallelQueryExecutor) {
                 return new Callable<DownloadDetailsDTO>() {
 
                     @Override
@@ -110,8 +112,9 @@ public class DownloadControlThreadTest {
                 };
             }
         };
+        ExecutorService parallelQueryExecutor = Executors.newSingleThreadExecutor();
         testDownloadControlThread = new DownloadControlThread(maxRecords, downloadType, concurrencyLevel, pollDelayMs,
-                executionDelayMs, threadPriority, currentDownloads, downloadCreator, persistentQueueDAO);
+                executionDelayMs, threadPriority, currentDownloads, downloadCreator, persistentQueueDAO, parallelQueryExecutor );
         
         testRunningThread = new Thread(testDownloadControlThread);
         testRunningThread.start();

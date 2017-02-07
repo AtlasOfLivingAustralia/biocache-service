@@ -224,7 +224,7 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${endemic.query.maxthreads:30}")
     protected Integer maxEndemicQueryThreads = 30;
 
-    /** Max number of threads to use in parallel for large solr download queries */
+    /** Max number of threads to use in parallel for large online solr download queries */
     @Value("${solr.downloadquery.maxthreads:30}")
     protected Integer maxSolrDownloadThreads = 30;
     
@@ -240,7 +240,7 @@ public class SearchDAOImpl implements SearchDAO {
     private volatile ExecutorService endemicExecutor = null;
 
     /** thread pool for faceted solr queries */
-    private volatile ExecutorService solrExecutor = null;
+    private volatile ExecutorService solrOnlineExecutor = null;
 
     /** should we check download limits */
     @Value("${check.download.limits:false}")
@@ -447,17 +447,17 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @return An instance of ExecutorService used to concurrently execute multiple solr queries.
+     * @return An instance of ExecutorService used to concurrently execute multiple solr queries for online downloads.
      */
-    private ExecutorService getSolrThreadPoolExecutor() {
-        ExecutorService nextExecutor = solrExecutor;
+    private ExecutorService getSolrOnlineThreadPoolExecutor() {
+        ExecutorService nextExecutor = solrOnlineExecutor;
         if(nextExecutor == null){
             synchronized(this) {
-                nextExecutor = solrExecutor;
+                nextExecutor = solrOnlineExecutor;
                 if(nextExecutor == null) {
-                    nextExecutor = solrExecutor = Executors.newFixedThreadPool(
-                                                                getMaxEndemicQueryThreads(),
-                                                                new ThreadFactoryBuilder().setNameFormat("biocache-solr-%d")
+                    nextExecutor = solrOnlineExecutor = Executors.newFixedThreadPool(
+                                                                getMaxSolrOnlineDownloadThreads(),
+                                                                new ThreadFactoryBuilder().setNameFormat("biocache-solr-online-%d")
                                                                 .setPriority(Thread.MIN_PRIORITY).build());
                 }
             }
@@ -850,12 +850,43 @@ public class SearchDAOImpl implements SearchDAO {
      * @param downloadParams
      * @param out
      * @param includeSensitive
+     * @param dd The details of the download
+     * @param checkLimit
      * @throws Exception
      */
+    @Override
     public ConcurrentMap<String, AtomicInteger> writeResultsFromIndexToStream(final DownloadRequestParams downloadParams,
-                                                                         OutputStream out,
-                                                                         boolean includeSensitive, final DownloadDetailsDTO dd, boolean checkLimit) throws Exception {
-        ExecutorService nextExecutor = getSolrThreadPoolExecutor();
+                                                                         final OutputStream out,
+                                                                         final boolean includeSensitive, 
+                                                                         final DownloadDetailsDTO dd, 
+                                                                         final boolean checkLimit) throws Exception {
+        ExecutorService nextExecutor = getSolrOnlineThreadPoolExecutor();
+        return writeResultsFromIndexToStream(downloadParams, out, includeSensitive, dd, checkLimit, nextExecutor);
+    }
+    
+    /**
+     * Writes the index fields to the supplied output stream in CSV format.
+     *
+     * DM: refactored to split the query by month to improve performance.
+     * Further enhancements possible:
+     * 1) Multi threaded
+     * 2) More filtering, by year or decade..
+     *
+     * @param downloadParams
+     * @param out
+     * @param includeSensitive
+     * @param dd The details of the download
+     * @param checkLimit
+     * @param nextExecutor The ExecutorService to use to process results on different threads
+     * @throws Exception
+     */
+    @Override
+    public ConcurrentMap<String, AtomicInteger> writeResultsFromIndexToStream(final DownloadRequestParams downloadParams,
+                                                                         final OutputStream out,
+                                                                         final boolean includeSensitive, 
+                                                                         final DownloadDetailsDTO dd, 
+                                                                         boolean checkLimit,
+                                                                         final ExecutorService nextExecutor) throws Exception {
         long start = System.currentTimeMillis();
         final ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
         getServer();
@@ -1015,6 +1046,8 @@ public class SearchDAOImpl implements SearchDAO {
             final AtomicBoolean interruptFound = new AtomicBoolean(false);
                     
             // Create a fixed length blocking queue for buffering results before they are written
+            // This also creates a push-back effect to throttle the results generating threads 
+            // when it fills and offers to it are delayed until the writer consumes elements from the queue
             final BlockingQueue<String[]> queue = new ArrayBlockingQueue<>(resultsQueueLength);
             // Create a sentinel that we can check for reference equality to signal the end of the queue
             final String[] sentinel = new String[0];
@@ -1049,7 +1082,16 @@ public class SearchDAOImpl implements SearchDAO {
                 public void finalise() {
                     if (finalised.compareAndSet(false, true)) {
                         try {
-                            queue.offer(sentinel, writerTimeoutWaitMillis, TimeUnit.MILLISECONDS);
+                            // Offer the sentinel at least once, even when the thread is interrupted
+                            while(!queue.offer(sentinel, writerTimeoutWaitMillis, TimeUnit.MILLISECONDS)) {
+                                // If the thread is interrupted then the queue may not have any active consumers, 
+                                // so don't loop forever waiting for capacity in this case
+                                // The hard shutdown phase will use queue.clear to ensure that the 
+                                // sentinel gets onto the queue at least once
+                                if (Thread.currentThread().isInterrupted() || interruptFound.get()) {
+                                    break;
+                                }
+                            }
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                             interruptFound.set(true);
@@ -1211,6 +1253,8 @@ public class SearchDAOImpl implements SearchDAO {
                     waitAgain = false;
                     for (Future<Integer> future : futures) {
                         if (!future.isDone()) {
+                            // Wait again even if an interrupt flag is set, as it may have been set partway through the iteration
+                            // The calls to future.cancel will occur next time if the interrupt is setup partway through an iteration
                             waitAgain = true;
                             // If one thread finds an interrupt it is propagated to others using the interruptFound AtomicBoolean
                             if (interruptFound.get()) {
@@ -1218,11 +1262,15 @@ public class SearchDAOImpl implements SearchDAO {
                             }
                         }
                     }
-                    if ((System.currentTimeMillis() - start) > downloadMaxTime) {
+                    // Don't trigger the timeout interrupt if we don't have to wait again as we are already done at this point
+                    if (waitAgain && (System.currentTimeMillis() - start) > downloadMaxTime) {
                         interruptFound.set(true);
                         break;
+                    } 
+                    
+                    if (waitAgain) {
+                        Thread.sleep(downloadCheckBusyWaitSleep);
                     }
-                    Thread.sleep(downloadCheckBusyWaitSleep);
                 } while (waitAgain);
                 
                 AtomicInteger totalDownload = new AtomicInteger(0);
@@ -1252,6 +1300,7 @@ public class SearchDAOImpl implements SearchDAO {
                     concurrentWrapper.finalise();
                 } finally {
                     try {
+                        // Track the current time right now so we can abort after downloadMaxCompletionTime milliseconds in this phase
                         final long completionStartTime = System.currentTimeMillis();
                         // Busy wait check for finalised to be called in the RecordWriter or something is interrupted
                         // By this stage, there are at maximum download.internal.queue.size items remaining (default 1000)
@@ -3827,7 +3876,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * @return the maxSolrDownloadThreads for solr download queries
      */
-    public Integer getMaxSolrDownloadThreads() {
+    public Integer getMaxSolrOnlineDownloadThreads() {
       return maxSolrDownloadThreads;
     }
 

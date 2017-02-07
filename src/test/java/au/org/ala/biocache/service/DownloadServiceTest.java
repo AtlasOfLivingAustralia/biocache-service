@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -83,13 +84,13 @@ public class DownloadServiceTest {
                 return new DownloadCreator() {
                     @Override
                     public Callable<DownloadDetailsDTO> createCallable(final DownloadDetailsDTO nextDownload,
-                            final long executionDelay, final Semaphore capacitySemaphore) {
+                            final long executionDelay, final Semaphore capacitySemaphore, final ExecutorService parallelQueryExecutor) {
                         return new Callable<DownloadDetailsDTO>() {
                             @Override
                             public DownloadDetailsDTO call() throws Exception {
                                 try {
                                     // Reliably test the sequence by waiting here
-                                    // The latch must be at 0 before test to avoid a
+                                    // The latch must be already at 0 before test to avoid a
                                     // wait here
                                     testLatch.await();
                                     Thread.sleep(executionDelay);

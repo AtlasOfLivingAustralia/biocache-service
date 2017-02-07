@@ -32,8 +32,18 @@ public class DownloadControlThread implements Runnable {
     private final Queue<DownloadDetailsDTO> currentDownloads;
     private final DownloadCreator downloadCreator;
     private final PersistentQueueDAO persistentQueueDAO;
+    private final ExecutorService parallelQueryExecutor;
     
-    public DownloadControlThread(Integer maxRecords, DownloadType downloadType, int concurrencyLevel, Long pollDelayMs, Long executionDelayMs, Integer threadPriority, Queue<DownloadDetailsDTO> currentDownloads, DownloadCreator downloadCreator, PersistentQueueDAO persistentQueueDAO) {
+    public DownloadControlThread(Integer maxRecords, 
+                                DownloadType downloadType, 
+                                int concurrencyLevel, 
+                                Long pollDelayMs, 
+                                Long executionDelayMs, 
+                                Integer threadPriority, 
+                                Queue<DownloadDetailsDTO> currentDownloads, 
+                                DownloadCreator downloadCreator, 
+                                PersistentQueueDAO persistentQueueDAO,
+                                ExecutorService parallelQueryExecutor) {
         this.maxRecords = maxRecords;
         this.downloadType = downloadType;
         this.concurrencyLevel = concurrencyLevel > 0 ? concurrencyLevel : 1;
@@ -45,6 +55,7 @@ public class DownloadControlThread implements Runnable {
         this.persistentQueueDAO = persistentQueueDAO;
         // Create a dedicated ExecutorService for this thread
         this.downloadServiceExecutor = createExecutor();
+        this.parallelQueryExecutor = parallelQueryExecutor;
     }
 
     protected DownloadServiceExecutor createExecutor() {
@@ -62,6 +73,8 @@ public class DownloadControlThread implements Runnable {
                 if(shutdownFlag.get() || Thread.currentThread().isInterrupted()) {
                     break;
                 }
+                // We need this in addition to the reserveCapacity delay to minimise the busy-wait activity when there is capacity regularly available
+                Thread.sleep(pollDelay);
                 if(!downloadServiceExecutor.reserveCapacity(pollDelay, TimeUnit.MILLISECONDS)) {
                     // If we couldn't reserve capacity within this period, go back around and try again after checking the interrupt status
                     continue;
@@ -71,7 +84,8 @@ public class DownloadControlThread implements Runnable {
                 }
                 currentDownload = persistentQueueDAO.getNextDownload(maxRecords, downloadType);
                 if (currentDownload != null) {
-                    downloadServiceExecutor.submitDownload(currentDownload);
+                    // The submitted download will return the capacity when it finishes
+                    downloadServiceExecutor.submitDownload(currentDownload, parallelQueryExecutor);
                 } else {
                     // We need to return the capacity we reserved because we don't need to use it
                     downloadServiceExecutor.returnCapacity();
@@ -131,8 +145,8 @@ public class DownloadControlThread implements Runnable {
             this.mySemaphore = new Semaphore(concurrencyLevel);
         }
     
-        public void submitDownload(DownloadDetailsDTO nextDownload) throws RejectedExecutionException {
-            executor.submit(downloadCreator.createCallable(nextDownload, executionDelay, mySemaphore));
+        public void submitDownload(DownloadDetailsDTO nextDownload, ExecutorService parallelQueryExecutor) throws RejectedExecutionException {
+            executor.submit(downloadCreator.createCallable(nextDownload, executionDelay, mySemaphore, parallelQueryExecutor));
         }
     
         public void shutdown() {
@@ -156,7 +170,8 @@ public class DownloadControlThread implements Runnable {
         }
         
         /**
-         * This method must be called exactly once after a call to {@link #reserveCapacity()} is abandoned without a call to {@link #submitDownload(DownloadDetailsDTO)}.
+         * This method must be called exactly once after a call to {@link #reserveCapacity()}, 
+         * including if the reserved capacity is to be returned without a call to {@link #submitDownload(DownloadDetailsDTO)}.
          */
         public void returnCapacity() {
             mySemaphore.release();

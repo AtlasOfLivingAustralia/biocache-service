@@ -44,6 +44,8 @@ import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
@@ -55,6 +57,8 @@ import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -148,6 +152,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${biocache.ui.url:http://biocache.ala.org.au}")
     protected String biocacheUiUrl = "http://biocache.ala.org.au";
 
+    /** Max number of threads to use in parallel for large offline download queries */
+    @Value("${download.offline.parallelquery.maxthreads:30}")
+    protected Integer maxOfflineParallelQueryDownloadThreads = 30;
+    
     /**
      * Ensures closure is only attempted once.
      */
@@ -179,6 +187,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     private final Queue<Thread> runningDownloadControllers = new LinkedBlockingQueue<>();
     private final Queue<DownloadControlThread> runningDownloadControlRunnables = new LinkedBlockingQueue<>();
     
+    private volatile ExecutorService offlineParallelQueryExecutor;
+    
     @PostConstruct    
     public void init(){
         if(initialised.compareAndSet(false, true)) {
@@ -188,6 +198,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 public void run() {
                     try
                     {
+                        ExecutorService nextParallelExecutor = getOfflineThreadPoolExecutor();
                         // Create the implementation for the threads running in the DownloadControlThread
                         DownloadCreator nextDownloadCreator = getNewDownloadCreator();
                         // Create executors based on the concurrent.downloads.json property
@@ -207,7 +218,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 if (type != null) {
                                     dt = "index".equals(type) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
                                 }
-                                DownloadControlThread nextRunnable = new DownloadControlThread(maxRecords, dt, threads, pollDelayMs, executionDelayMs, threadPriority, currentDownloads, nextDownloadCreator, persistentQueueDAO);
+                                DownloadControlThread nextRunnable = new DownloadControlThread(maxRecords, dt, threads, pollDelayMs, executionDelayMs, threadPriority, currentDownloads, nextDownloadCreator, persistentQueueDAO, nextParallelExecutor);
                                 Thread nextThread = new Thread(nextRunnable);
                                 String nextThreadName = "biocache-download-control-";
                                 nextThreadName += label;
@@ -227,7 +238,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         // If no threads were created, then add a single default thread
                         if(runningDownloadControllers.isEmpty()) {
                             logger.warn("No offline download threads were created from configuration, creating a single default download thread instead.");
-                            DownloadControlThread nextRunnable = new DownloadControlThread(null, null, 1, 10L, 0L, Thread.NORM_PRIORITY, currentDownloads, nextDownloadCreator, persistentQueueDAO);
+                            DownloadControlThread nextRunnable = new DownloadControlThread(null, null, 1, 10L, 0L, Thread.NORM_PRIORITY, currentDownloads, nextDownloadCreator, persistentQueueDAO, nextParallelExecutor);
                             Thread nextThread = new Thread(nextRunnable);
                             String nextThreadName = "biocache-download-control-";
                             nextThreadName += "defaultNoConfigFound-";
@@ -260,6 +271,29 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         return new DownloadCreatorImpl();
     }
     
+    /**
+     * @return An instance of ExecutorService used to concurrently execute parallel queries for offline downloads.
+     */
+    private ExecutorService getOfflineThreadPoolExecutor() {
+        ExecutorService nextExecutor = offlineParallelQueryExecutor;
+        if(nextExecutor == null){
+            synchronized(this) {
+                nextExecutor = offlineParallelQueryExecutor;
+                if(nextExecutor == null) {
+                    nextExecutor = offlineParallelQueryExecutor = Executors.newFixedThreadPool(
+                                                                getMaxOfflineParallelDownloadThreads(),
+                                                                new ThreadFactoryBuilder().setNameFormat("biocache-query-offline-%d")
+                                                                .setPriority(Thread.MIN_PRIORITY).build());
+                }
+            }
+        }
+        return nextExecutor;
+    }
+
+    private int getMaxOfflineParallelDownloadThreads() {
+        return maxOfflineParallelQueryDownloadThreads;
+    }
+
     /**
      * Ensures that all of the download threads are given a chance to shutdown cleanly using thread interrupts when a Spring {@link ContextClosedEvent} occurs.
      */
@@ -356,7 +390,24 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip)
             throws Exception {
         afterInitialisation();
-
+    }
+    
+    /**
+     * Writes the supplied download to the supplied output stream. It will
+     * include all the appropriate citations etc.
+     * 
+     * @param dd
+     * @param requestParams
+     * @param ip
+     * @param out
+     * @param includeSensitive
+     * @param fromIndex
+     * @throws Exception
+     */
+    public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
+            OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip, ExecutorService parallelExecutor)
+            throws Exception {
+        afterInitialisation();
         String filename = requestParams.getFile();
         String originalParams = requestParams.toString();
         // Use a zip output stream to include the data and citation together in
@@ -374,7 +425,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             ConcurrentMap<String, AtomicInteger> uidStats = null;
             try {
                 if (fromIndex) {
-                    uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, sp, includeSensitive, dd, limit);
+                    uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, sp, includeSensitive, dd, limit, parallelExecutor);
                 } else {
                     uidStats = searchDAO.writeResultsToStream(requestParams, sp, 100, includeSensitive, dd, limit);
                 }
@@ -826,92 +877,92 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     
     private class DownloadCreatorImpl implements DownloadCreator {
         @Override
-        public Callable<DownloadDetailsDTO> createCallable(final DownloadDetailsDTO currentDownload, final long executionDelay, final Semaphore capacitySemaphore) {
+        public Callable<DownloadDetailsDTO> createCallable(final DownloadDetailsDTO currentDownload, final long executionDelay, final Semaphore capacitySemaphore, final ExecutorService parallelExecutor) {
             return new Callable<DownloadDetailsDTO>() {
     
                 @Override
                 public DownloadDetailsDTO call() throws Exception {
-                    if(logger.isInfoEnabled()) {
-                        logger.info("Starting to download the offline request: " + currentDownload);
-                    }
-                    Thread.sleep(executionDelay);
-                    // we are now ready to start the download
-                    // we need to create an output stream to the file system
-    
-                    try (FileOutputStream fos = FileUtils
-                            .openOutputStream(new File(currentDownload.getFileLocation()));) {
-                        // cannot include misc columns if shp
-                        if (!currentDownload.getRequestParams().getFileType().equals("csv")
-                                && currentDownload.getRequestParams().getIncludeMisc()) {
-                            currentDownload.getRequestParams().setIncludeMisc(false);
+                    try {
+                        if(logger.isInfoEnabled()) {
+                            logger.info("Starting to download the offline request: " + currentDownload);
                         }
-                        writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
-                                currentDownload.getIpAddress(), new CloseShieldOutputStream(fos), currentDownload.getIncludeSensitive(),
-                                currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false, true);
-                        // now that the download is complete email a link to the
-                        // recipient.
-                        String subject = messageSource.getMessage("offlineEmailSubject", null,
-                                biocacheDownloadEmailSubject.replace("[filename]",
-                                        currentDownload.getRequestParams().getFile()),
-                                null);
-    
-                        if (currentDownload != null && currentDownload.getFileLocation() != null) {
-                            insertMiscHeader(currentDownload);
-    
-                            String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir,
-                                    biocacheDownloadUrl);
-                            String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
-                            String emailBodyHtml = biocacheDownloadEmailBody.replace("[url]", fileLocation)
-                                    .replace("[date]", currentDownload.getStartDateString())
-                                    .replace("[searchUrl]", searchUrl);
-                            String body = messageSource.getMessage("offlineEmailBody",
-                                    new Object[] { fileLocation, searchUrl, currentDownload.getStartDateString() },
-                                    emailBodyHtml, null);
-    
-                            // save the statistics to the download directory
-                            try (FileOutputStream statsStream = FileUtils
-                                    .openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()
-                                            + File.separator + "downloadStats.json"));) {
-                                objectMapper.writeValue(statsStream, currentDownload);
+                        Thread.sleep(executionDelay);
+                        // we are now ready to start the download
+                        // we need to create an output stream to the file system
+        
+                        try (FileOutputStream fos = FileUtils
+                                .openOutputStream(new File(currentDownload.getFileLocation()));) {
+                            // cannot include misc columns if shp
+                            if (!currentDownload.getRequestParams().getFileType().equals("csv")
+                                    && currentDownload.getRequestParams().getIncludeMisc()) {
+                                currentDownload.getRequestParams().setIncludeMisc(false);
                             }
-    
-                            emailService.sendEmail(currentDownload.getEmail(), subject, body);
-                        }
-    
-                    } catch (Exception e) {
-                        logger.error("Error in offline download, sending email. download path: "
-                                + currentDownload.getFileLocation(), e);
-    
-                        try {
-                            String subject = messageSource.getMessage("offlineEmailSubjectError", null,
-                                    biocacheDownloadEmailSubjectError.replace("[filename]",
+                            writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
+                                    currentDownload.getIpAddress(), new CloseShieldOutputStream(fos), currentDownload.getIncludeSensitive(),
+                                    currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false, true, parallelExecutor);
+                            // now that the download is complete email a link to the
+                            // recipient.
+                            String subject = messageSource.getMessage("offlineEmailSubject", null,
+                                    biocacheDownloadEmailSubject.replace("[filename]",
                                             currentDownload.getRequestParams().getFile()),
                                     null);
-    
-                            String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir,
-                                    biocacheDownloadUrl);
-                            String body = messageSource.getMessage("offlineEmailBodyError",
-                                    new Object[] { fileLocation },
-                                    biocacheDownloadEmailBodyError.replace("[url]", fileLocation), null);
-    
-                            // user email
-                            emailService.sendEmail(currentDownload.getEmail(), subject,
-                                    body + "\r\n\r\nuniqueId:" + currentDownload.getUniqueId() + " path:"
-                                            + currentDownload.getFileLocation().replace(biocacheDownloadDir, ""));
-                        } catch (Exception ex) {
-                            logger.error("Error sending error message to download email. "
-                                    + currentDownload.getFileLocation(), ex);
-                        }
-                    } finally {
-                        try {
+        
+                            if (currentDownload != null && currentDownload.getFileLocation() != null) {
+                                insertMiscHeader(currentDownload);
+        
+                                String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir,
+                                        biocacheDownloadUrl);
+                                String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
+                                String emailBodyHtml = biocacheDownloadEmailBody.replace("[url]", fileLocation)
+                                        .replace("[date]", currentDownload.getStartDateString())
+                                        .replace("[searchUrl]", searchUrl);
+                                String body = messageSource.getMessage("offlineEmailBody",
+                                        new Object[] { fileLocation, searchUrl, currentDownload.getStartDateString() },
+                                        emailBodyHtml, null);
+        
+                                // save the statistics to the download directory
+                                try (FileOutputStream statsStream = FileUtils
+                                        .openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()
+                                                + File.separator + "downloadStats.json"));) {
+                                    objectMapper.writeValue(statsStream, currentDownload);
+                                }
+        
+                                emailService.sendEmail(currentDownload.getEmail(), subject, body);
+                            }
+        
+                        } catch (Exception e) {
+                            logger.error("Error in offline download, sending email. download path: "
+                                    + currentDownload.getFileLocation(), e);
+        
+                            try {
+                                String subject = messageSource.getMessage("offlineEmailSubjectError", null,
+                                        biocacheDownloadEmailSubjectError.replace("[filename]",
+                                                currentDownload.getRequestParams().getFile()),
+                                        null);
+        
+                                String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir,
+                                        biocacheDownloadUrl);
+                                String body = messageSource.getMessage("offlineEmailBodyError",
+                                        new Object[] { fileLocation },
+                                        biocacheDownloadEmailBodyError.replace("[url]", fileLocation), null);
+        
+                                // user email
+                                emailService.sendEmail(currentDownload.getEmail(), subject,
+                                        body + "\r\n\r\nuniqueId:" + currentDownload.getUniqueId() + " path:"
+                                                + currentDownload.getFileLocation().replace(biocacheDownloadDir, ""));
+                            } catch (Exception ex) {
+                                logger.error("Error sending error message to download email. "
+                                        + currentDownload.getFileLocation(), ex);
+                            }
+                        } finally {
                             // incase of server up/down, only remove from queue
                             // after emails are sent
                             persistentQueueDAO.removeDownloadFromQueue(currentDownload);
-                        } finally {
-                            capacitySemaphore.release();
                         }
+                        return currentDownload;
+                    } finally {
+                        capacitySemaphore.release();
                     }
-                    return currentDownload;
                 }
             };
         }
