@@ -385,11 +385,15 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param includeSensitive
      * @param fromIndex
      * @throws Exception
+     * @deprecated Use {@link #writeQueryToStream(DownloadDetailsDTO, DownloadRequestParams, String, OutputStream, boolean, boolean, boolean, boolean, ExecutorService)} instead.
      */
+    @Deprecated
     public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
             OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip)
             throws Exception {
         afterInitialisation();
+        
+        writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex, limit, zip, getOfflineThreadPoolExecutor());
     }
     
     /**
@@ -543,8 +547,28 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         }
     }
 
+    /**
+     * 
+     * @param requestParams
+     * @param response
+     * @param ip
+     * @param out
+     * @param includeSensitive
+     * @param fromIndex
+     * @param zip
+     * @throws Exception
+     * @deprecated Use {@link #writeQueryToStream(DownloadRequestParams, HttpServletResponse, String, OutputStream, boolean, boolean, boolean, ExecutorService)} instead.
+     */
+    @Deprecated
     public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip,
             OutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip) throws Exception {
+        afterInitialisation();
+        writeQueryToStream(requestParams, response, ip, out, includeSensitive, fromIndex, zip, getOfflineThreadPoolExecutor());
+    }
+    
+    
+    public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip,
+            OutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip, ExecutorService parallelQueryExecutor) throws Exception {
         afterInitialisation();
         String filename = requestParams.getFile();
 
@@ -561,7 +585,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
         DownloadDetailsDTO.DownloadType type = fromIndex ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
         DownloadDetailsDTO dd = registerDownload(requestParams, ip, type);
-        writeQueryToStream(dd, requestParams, ip, new CloseShieldOutputStream(out), includeSensitive, fromIndex, true, zip);
+        writeQueryToStream(dd, requestParams, ip, new CloseShieldOutputStream(out), includeSensitive, fromIndex, true, zip, parallelQueryExecutor);
     }
 
     /**

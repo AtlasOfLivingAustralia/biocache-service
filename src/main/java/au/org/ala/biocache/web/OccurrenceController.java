@@ -986,7 +986,7 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         try {
-            downloadService.writeQueryToStream(requestParams, response, ip, new CloseShieldOutputStream(out), false, false, false);
+            downloadService.writeQueryToStream(requestParams, response, ip, new CloseShieldOutputStream(out), false, false, false, executor);
         } catch (Exception e){
             logger.error(e.getMessage(),e);
         }
@@ -1023,7 +1023,7 @@ public class OccurrenceController extends AbstractSecureController {
             return null;
         }
         try {
-            downloadService.writeQueryToStream(requestParams, response, ip, new CloseShieldOutputStream(out), false, true, zip);
+            downloadService.writeQueryToStream(requestParams, response, ip, new CloseShieldOutputStream(out), false, true, zip, executor);
         } catch(Exception e){
             logger.error(e.getMessage(), e);
         }
@@ -1048,7 +1048,7 @@ public class OccurrenceController extends AbstractSecureController {
                 return null;
             }
             
-            downloadService.writeQueryToStream(requestParams, response, ip, new CloseShieldOutputStream(out), true, fromIndex, zip);
+            downloadService.writeQueryToStream(requestParams, response, ip, new CloseShieldOutputStream(out), true, fromIndex, zip, executor);
         }
         return null;
     }
