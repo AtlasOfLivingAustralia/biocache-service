@@ -139,6 +139,10 @@ public class OccurrenceController extends AbstractSecureController {
     @Value("${facet.default:true}")
     protected Boolean facetDefault;
 
+    /** Max number of threads available to all online solr download queries */
+    @Value("${online.downloadquery.maxthreads:30}")
+    protected Integer maxOnlineDownloadThreads = 30;
+
     private ExecutorService executor;
     
     private final AtomicBoolean initialised = new AtomicBoolean(false);
@@ -150,7 +154,7 @@ public class OccurrenceController extends AbstractSecureController {
         // Avoid starting multiple copies of the initialisation thread by repeat calls to this method
         if(initialised.compareAndSet(false, true)) {
             String nameFormat = "occurrencecontroller-pool-%d";
-            executor = Executors.newFixedThreadPool(2,
+            executor = Executors.newFixedThreadPool(maxOnlineDownloadThreads,
                     new ThreadFactoryBuilder().setNameFormat(nameFormat).setPriority(Thread.MIN_PRIORITY).build());
             
             //init on a thread because SOLR may not yet be up and waiting can prevent SOLR from starting
