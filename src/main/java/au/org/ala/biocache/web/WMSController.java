@@ -2061,7 +2061,7 @@ public class WMSController {
         if (canCache) {
             //count docs
             count = getCachedCount(true, requestParams, q, pointType, useBbox);
-            if (count == 0) {
+            if (count == null || count == 0) {
                 return new WMSTile();
             }
 
@@ -2070,14 +2070,14 @@ public class WMSController {
                 pointsCount = getCachedCount(false, requestParams, q, pointType, useBbox);
 
                 //use bbox when too many points
-                if (pointsCount > wmsCacheMaxLayerPoints) {
+                if (pointsCount != null && pointsCount > wmsCacheMaxLayerPoints) {
                     q += StringUtils.join(origAndBBoxFqs, ",");
 
                     requestParams.setFq(origAndBBoxFqs);
                     count = getCachedCount(true, requestParams, q, pointType, useBbox);
                     requestParams.setFq(originalFqs);
 
-                    if (count == 0) {
+                    if (count == null || count == 0) {
                         return new WMSTile();
                     }
 
