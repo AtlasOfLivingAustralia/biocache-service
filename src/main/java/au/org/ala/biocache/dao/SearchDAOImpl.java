@@ -323,8 +323,9 @@ public class SearchDAOImpl implements SearchDAO {
                         if(logger.isDebugEnabled()) {
                             logger.debug("The server " + result.getClass());
                         }
-                        //CAUSING THE HANG....
-                        downloadFields = new DownloadFields(getIndexedFields(), messageSource);
+                        // TODO: There was a note about possible issues with the following two lines
+                        Set<IndexFieldDTO> indexedFields = getIndexedFields();
+                        downloadFields = new DownloadFields(indexedFields, messageSource);
                     } catch (Exception ex) {
                         logger.error("Error initialising embedded SOLR server: " + ex.getMessage(), ex);
                     }

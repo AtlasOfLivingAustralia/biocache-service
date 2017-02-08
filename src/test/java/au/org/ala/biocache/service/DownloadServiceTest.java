@@ -84,16 +84,19 @@ public class DownloadServiceTest {
                 return new DownloadCreator() {
                     @Override
                     public Callable<DownloadDetailsDTO> createCallable(final DownloadDetailsDTO nextDownload,
-                            final long executionDelay, final Semaphore capacitySemaphore, final ExecutorService parallelQueryExecutor) {
+                            final long executionDelay, final Semaphore capacitySemaphore,
+                            final ExecutorService parallelQueryExecutor) {
                         return new Callable<DownloadDetailsDTO>() {
                             @Override
                             public DownloadDetailsDTO call() throws Exception {
                                 try {
-                                    // Reliably test the sequence by waiting here
-                                    // The latch must be already at 0 before test to avoid a
+                                    // Reliably test the sequence by waiting
+                                    // here
+                                    // The latch must be already at 0 before
+                                    // test to avoid a
                                     // wait here
                                     testLatch.await();
-                                    Thread.sleep(executionDelay);
+                                    Thread.sleep(executionDelay + Math.round(Math.random() * executionDelay));
                                     return nextDownload;
                                 } finally {
                                     capacitySemaphore.release();
@@ -271,6 +274,8 @@ public class DownloadServiceTest {
      */
     @Test
     public final void testGetCurrentDownloadsWithoutDownloadLatchWaitOn() throws Exception {
+        // Not verifying the individual stage transitions in this test, just
+        // verifying the complete workflow, so switching off the control latch
         testLatch.countDown();
         testService.init();
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
@@ -294,7 +299,8 @@ public class DownloadServiceTest {
      */
     @Ignore("TODO: Implement me")
     @Test
-    public final void testWriteQueryToStreamDownloadDetailsDTODownloadRequestParamsStringOutputStreamBooleanBooleanBooleanBoolean() throws Exception {
+    public final void testWriteQueryToStreamDownloadDetailsDTODownloadRequestParamsStringOutputStreamBooleanBooleanBooleanBoolean()
+            throws Exception {
         fail("Not yet implemented"); // TODO
     }
 
@@ -304,7 +310,8 @@ public class DownloadServiceTest {
      */
     @Ignore("TODO: Implement me")
     @Test
-    public final void testWriteQueryToStreamDownloadRequestParamsHttpServletResponseStringServletOutputStreamBooleanBooleanBoolean() throws Exception {
+    public final void testWriteQueryToStreamDownloadRequestParamsHttpServletResponseStringServletOutputStreamBooleanBooleanBoolean()
+            throws Exception {
         fail("Not yet implemented"); // TODO
     }
 
