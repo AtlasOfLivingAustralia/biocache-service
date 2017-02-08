@@ -44,6 +44,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A record writer that produces a shapefile.
@@ -64,6 +65,9 @@ public class ShapeFileRecordWriter implements RecordWriter {
     private SimpleFeatureCollection collection = FeatureCollections.newCollection();
     private Map<String,String> headerMappings = null;
 
+    private final AtomicBoolean finalised = new AtomicBoolean(false);
+    private final AtomicBoolean finalisedComplete = new AtomicBoolean(false);
+    
     /**
      * GeometryFactory will be used to create the geometry attribute of each feature (a Point
      * object for the location)
@@ -143,52 +147,56 @@ public class ShapeFileRecordWriter implements RecordWriter {
      */
     @Override
     public void finalise() {
-        // stream the contents of the file into the supplied outputStream
-        //Properties for the shape file construction
-    	try {
-            Map<String, Serializable> params = new HashMap<String, Serializable>();
-            params.put("url", temporaryShapeFile.toURI().toURL());
-            params.put("create spatial index", Boolean.TRUE);
-            
-            ShapefileDataStore newDataStore = (ShapefileDataStore) dataStoreFactory.createNewDataStore(params);
-            newDataStore.createSchema(simpleFeature);
-            String typeName = newDataStore.getTypeNames()[0];
-            SimpleFeatureSource featureSource = newDataStore.getFeatureSource(typeName);
-            //inputStream = new java.io.FileInputStream(temporaryShapeFile);
-            
-            if (featureSource instanceof SimpleFeatureStore) {
-                SimpleFeatureStore featureStore = (SimpleFeatureStore) featureSource;
-    
-               // featureStore.setTransaction(transaction);
-                try {
-                    featureStore.addFeatures(collection);
-                 //   transaction.commit();
-    
-                } catch (Exception problem) {
-                    logger.error(problem.getMessage(), problem);
-                   // transaction.rollback();
-    
-                } finally {
-                   // transaction.close();
-                }
-                //zip the parent directory
-                String targetZipFile = temporaryShapeFile.getParentFile().getParent()+File.separator+temporaryShapeFile.getName().replace(".shp", ".zip");                
-                AlaFileUtils.createZip(temporaryShapeFile.getParent(), targetZipFile);
-                try(java.io.FileInputStream inputStream = new java.io.FileInputStream(targetZipFile);) {
-                    //write the shapefile to the supplied output stream
-                    logger.info("Copying Shape zip file to outputstream");
-                    IOUtils.copy(inputStream,outputStream);
-                    //now remove the temporary directory
-                    FileUtils.deleteDirectory(temporaryShapeFile.getParentFile().getParentFile());
+        if(finalised.compareAndSet(false, true)) {
+            // stream the contents of the file into the supplied outputStream
+            //Properties for the shape file construction
+        	try {
+                Map<String, Serializable> params = new HashMap<String, Serializable>();
+                params.put("url", temporaryShapeFile.toURI().toURL());
+                params.put("create spatial index", Boolean.TRUE);
+                
+                ShapefileDataStore newDataStore = (ShapefileDataStore) dataStoreFactory.createNewDataStore(params);
+                newDataStore.createSchema(simpleFeature);
+                String typeName = newDataStore.getTypeNames()[0];
+                SimpleFeatureSource featureSource = newDataStore.getFeatureSource(typeName);
+                //inputStream = new java.io.FileInputStream(temporaryShapeFile);
+                
+                if (featureSource instanceof SimpleFeatureStore) {
+                    SimpleFeatureStore featureStore = (SimpleFeatureStore) featureSource;
+        
+                   // featureStore.setTransaction(transaction);
+                    try {
+                        featureStore.addFeatures(collection);
+                     //   transaction.commit();
+        
+                    } catch (Exception problem) {
+                        logger.error(problem.getMessage(), problem);
+                       // transaction.rollback();
+        
+                    } finally {
+                       // transaction.close();
+                    }
+                    //zip the parent directory
+                    String targetZipFile = temporaryShapeFile.getParentFile().getParent()+File.separator+temporaryShapeFile.getName().replace(".shp", ".zip");                
+                    AlaFileUtils.createZip(temporaryShapeFile.getParent(), targetZipFile);
+                    try(java.io.FileInputStream inputStream = new java.io.FileInputStream(targetZipFile);) {
+                        //write the shapefile to the supplied output stream
+                        logger.info("Copying Shape zip file to outputstream");
+                        IOUtils.copy(inputStream,outputStream);
+                        //now remove the temporary directory
+                        FileUtils.deleteDirectory(temporaryShapeFile.getParentFile().getParentFile());
+                    }
+                    
+                } else {
+                    logger.error(typeName + " does not support read/write access");                
                 }
                 
-            } else {
-                logger.error(typeName + " does not support read/write access");                
+                outputStream.flush();
+            } catch (java.io.IOException e){
+                logger.error("Unable to create ShapeFile", e);
+            } finally {
+                finalisedComplete.set(true);
             }
-            
-            outputStream.flush();
-        } catch (java.io.IOException e){
-            logger.error("Unable to create ShapeFile", e);
         }
     }
     
@@ -231,5 +239,10 @@ public class ShapeFileRecordWriter implements RecordWriter {
      */
     public Map<String, String> getHeaderMappings() {
         return headerMappings;
+    }
+
+    @Override
+    public boolean finalised() {
+        return finalisedComplete.get();
     }
 }

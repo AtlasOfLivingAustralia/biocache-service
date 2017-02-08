@@ -48,79 +48,87 @@ public class FacetThemes {
      * @throws IOException
      */
     public FacetThemes(String configFilePath, Set<IndexFieldDTO> indexedFields, int facetsMax, int facetsDefaultMax, boolean facetDefault) throws IOException {
-        this.facetsMax = facetsMax;
-        this.facetsDefaultMax = facetsDefaultMax;
-        this.facetDefault = facetDefault;
-        
-        if(configFilePath != null && new File(configFilePath).exists()){
-            allThemes.clear();
-            ObjectMapper om = new ObjectMapper();
-            List<Map<String,Object>> config = om.readValue(new File(configFilePath), List.class);
-            for(Map<String, Object> facetGroup : config){
-                String title = (String) facetGroup.get("title");
-                List<Map<String,String>> facetsConfig = (List<Map<String,String>>) facetGroup.get("facets");
-                List<Facet> facets = new ArrayList<Facet>();
-                for(Map<String,String> facetsMap : facetsConfig){
-                    String name = facetsMap.get("field");
-                    String description = null;
-                    String dwcTerm = null;
-                    Boolean i18nValues = null;
-                    if (indexedFields != null) {
-                        for (IndexFieldDTO field : indexedFields) {
-                            if (field.getName().equalsIgnoreCase(name)) {
-                                description = field.getDescription();
-                                dwcTerm = field.getDwcTerm();
-                                i18nValues = field.isI18nValues();
-                                
-                                //only add this facet if there is an associated SOLR field
-                                facets.add(new Facet(name, facetsMap.get("sort"), description, dwcTerm, i18nValues));
-                                break;
+        try {
+            FacetThemes.facetsMax = facetsMax;
+            FacetThemes.facetsDefaultMax = facetsDefaultMax;
+            FacetThemes.facetDefault = facetDefault;
+            
+            if(configFilePath != null && new File(configFilePath).exists()){
+                FacetThemes.allThemes.clear();
+                ObjectMapper om = new ObjectMapper();
+                List<Map<String,Object>> config = om.readValue(new File(configFilePath), List.class);
+                for(Map<String, Object> facetGroup : config){
+                    String title = (String) facetGroup.get("title");
+                    List<Map<String,String>> facetsConfig = (List<Map<String,String>>) facetGroup.get("facets");
+                    List<Facet> facets = new ArrayList<Facet>();
+                    for(Map<String,String> facetsMap : facetsConfig){
+                        String name = facetsMap.get("field");
+                        String description = null;
+                        String dwcTerm = null;
+                        Boolean i18nValues = null;
+                        if (indexedFields != null) {
+                            for (IndexFieldDTO field : indexedFields) {
+                                if (field.getName().equalsIgnoreCase(name)) {
+                                    description = field.getDescription();
+                                    dwcTerm = field.getDwcTerm();
+                                    i18nValues = field.isI18nValues();
+                                    
+                                    //only add this facet if there is an associated SOLR field
+                                    facets.add(new Facet(name, facetsMap.get("sort"), description, dwcTerm, i18nValues));
+                                    break;
+                                }
                             }
                         }
                     }
+                    FacetThemes.allThemes.add(new FacetTheme(title, facets));
                 }
-                allThemes.add(new FacetTheme(title, facets));
+                initAllFacets();
+            } else {
+                defaultInit();
             }
-            initAllFacets();
-        } else {
-            defaultInit();
+        } finally {
+            initialised.countDown();
         }
-        initialised.countDown();
     }
 
-    private static void init() {
+    /**
+     * This method works around the static variable pattern used here, by ensuring that operations 
+     * do not continue until after the static fields have been initialised.
+     */
+    private static void afterInitialisation() {
         try {
             initialised.await();
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
     public static String[] getAllFacetsLimited() {
-        init();
+        afterInitialisation();
 
         return allFacetsLimited;
     }
 
     public static Integer getFacetsMax() {
-        init();
+        afterInitialisation();
 
         return facetsMax;
     }
 
     public static LinkedHashMap<String, Facet> getFacetsMap() {
-        init();
+        afterInitialisation();
 
         return facetsMap;
     }
 
     public static Boolean getFacetDefault() {
-        init();
+        afterInitialisation();
 
         return facetDefault;
     }
 
     public static List<FacetTheme> getAllThemes() {
-        init();
+        afterInitialisation();
 
         return allThemes;
     }
@@ -285,6 +293,9 @@ public class FacetThemes {
         }
     }
  
+    /**
+     * FIXME: This class is exposed on the FacetThemes public API but is not accessible.
+     */
     static class FacetTheme {
 
         private String title;

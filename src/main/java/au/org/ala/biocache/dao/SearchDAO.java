@@ -25,6 +25,9 @@ import java.io.OutputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * DAO for searching occurrence records held in the biocache.
@@ -103,7 +106,7 @@ public interface SearchDAO {
      * @return A map of uids and counts that needs to be logged to the ala-logger
      * @throws Exception
      */
-	Map<String,Integer> writeResultsToStream(DownloadRequestParams searchParams, OutputStream out, int maxNoOfRecords, boolean includeSensitive, DownloadDetailsDTO dd, boolean limit) throws Exception;
+	ConcurrentMap<String, AtomicInteger> writeResultsToStream(DownloadRequestParams searchParams, OutputStream out, int maxNoOfRecords, boolean includeSensitive, DownloadDetailsDTO dd, boolean limit) throws Exception;
 	
 	/**
 	 * Writes the results of this query to the output stream using the index as a source of the data.
@@ -113,7 +116,18 @@ public interface SearchDAO {
 	 * @return
 	 * @throws Exception
 	 */
-	Map<String, Integer> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, boolean includeSensitive, DownloadDetailsDTO dd,boolean checkLimit) throws Exception;
+	ConcurrentMap<String, AtomicInteger> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, boolean includeSensitive, DownloadDetailsDTO dd, boolean checkLimit) throws Exception;
+
+    /**
+     * Writes the results of this query to the output stream using the index as a source of the data.
+     * @param downloadParams
+     * @param out
+     * @param includeSensitive
+     * @param parallelQueryExecutor The ExecutorService to manage parallel query executions
+     * @return
+     * @throws Exception
+     */
+    ConcurrentMap<String, AtomicInteger> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, boolean includeSensitive, DownloadDetailsDTO dd, boolean checkLimit, ExecutorService parallelQueryExecutor) throws Exception;
 
     /**
      * Write coordinates out to the supplied stream.
@@ -138,12 +152,20 @@ public interface SearchDAO {
     void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out, DownloadDetailsDTO dd) throws Exception;
 
     /**
-     * Retrieve a list of the indexed fields.
+     * Retrieve a Set of the indexed fields.
      *
-     * @return
+     * @return A Set containing the set of indexed fields made unique using {@link IndexFieldDTO#getDownloadName()}.
      * @throws Exception
      */
     Set<IndexFieldDTO> getIndexedFields() throws Exception;
+    
+    /**
+     * Retrieve a map of indexed fields based on {@link IndexFieldDTO#getName()}
+     *
+     * @return A map of indexed fields based on the field name.
+     * @throws Exception
+     */
+    Map<String, IndexFieldDTO> getIndexedFieldsMap() throws Exception;
     
     /**
      * Returns the up to date statistics for the supplied field

@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Stores the details of a download.  Will allow for monitoring of downloads
@@ -31,7 +32,7 @@ public class DownloadDetailsDTO {
     private Date startDate;
     private Date lastUpdate;
     private long totalRecords = 0;
-    private long recordsDownloaded = 0;
+    private AtomicLong recordsDownloaded = new AtomicLong(0);
     private String downloadParams;
     private String ipAddress;
     private String email;
@@ -86,7 +87,7 @@ public class DownloadDetailsDTO {
         this.startDate = startDate;
     }
     
-    public long getRecordsDownloaded(){
+    public AtomicLong getRecordsDownloaded(){
         return recordsDownloaded;
     }
     
@@ -117,7 +118,7 @@ public class DownloadDetailsDTO {
     }
     
     public void updateCounts(int number){
-        recordsDownloaded +=number;
+        recordsDownloaded.addAndGet(number);
         lastUpdate = new Date();
     }
     

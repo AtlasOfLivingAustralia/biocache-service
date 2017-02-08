@@ -18,6 +18,7 @@ import au.org.ala.biocache.RecordWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.OutputStream;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 
@@ -28,8 +29,11 @@ import java.io.OutputStream;
 public class TSVRecordWriter implements RecordWriter{
     private final static Logger logger = LoggerFactory.getLogger(TSVRecordWriter.class);
 
-    private OutputStream outputStream;
+    private final OutputStream outputStream;
 
+    private final AtomicBoolean finalised = new AtomicBoolean(false);
+    private final AtomicBoolean finalisedComplete = new AtomicBoolean(false);
+    
     public TSVRecordWriter(OutputStream out, String[] header){
         this.outputStream = out;
         write(header);
@@ -59,10 +63,19 @@ public class TSVRecordWriter implements RecordWriter{
 
     @Override
     public void finalise() {
-        try {
-            outputStream.flush();
-        } catch(java.io.IOException e){
-            logger.debug(e.getMessage(), e);
+        if(finalised.compareAndSet(false, true)) {
+            try {
+                outputStream.flush();
+            } catch(java.io.IOException e){
+                logger.debug(e.getMessage(), e);
+            } finally {
+                finalisedComplete.set(true);
+            }
         }
+    }
+
+    @Override
+    public boolean finalised() {
+        return finalisedComplete.get();
     }
 }
