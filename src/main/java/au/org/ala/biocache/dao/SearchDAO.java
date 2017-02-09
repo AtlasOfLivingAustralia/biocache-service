@@ -152,6 +152,20 @@ public interface SearchDAO {
     void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out, DownloadDetailsDTO dd) throws Exception;
 
     /**
+     * Write endemic parentQuery.facets()[0] content to supplied output stream that only occur in the subQuery
+     * and not in the parentQuery.
+     *
+     * @param subQuery
+     * @param parentQuery
+     * @param includeCount
+     * @param lookupName
+     * @param includeSynonyms
+     * @param out
+     * @throws Exception
+     */
+    void writeEndemicFacetToStream(SpatialSearchRequestParams subQuery, SpatialSearchRequestParams parentQuery, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out) throws Exception;
+
+    /**
      * Retrieve a Set of the indexed fields.
      *
      * @return A Set containing the set of indexed fields made unique using {@link IndexFieldDTO#getDownloadName()}.
@@ -166,7 +180,7 @@ public interface SearchDAO {
      * @throws Exception
      */
     Map<String, IndexFieldDTO> getIndexedFieldsMap() throws Exception;
-    
+
     /**
      * Returns the up to date statistics for the supplied field
      * @param field

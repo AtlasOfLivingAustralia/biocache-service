@@ -26,7 +26,7 @@ import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import au.org.ala.biocache.util.AlaFileUtils;
 import au.org.ala.biocache.util.thread.DownloadControlThread;
 import au.org.ala.biocache.util.thread.DownloadCreator;
-
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.httpclient.HttpException;
@@ -44,23 +44,14 @@ import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -68,7 +59,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Services to perform the downloads.
  * 
  * Can configure the number of off-line download processors
- * 
+ *
  * @author Natasha Carter (natasha.carter@csiro.au)
  */
 @Component("downloadService")
@@ -78,14 +69,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     /**
      * Download threads for matching subsets of offline downloads.
      * <br>
-     * The default is: 
+     * The default is:
      * <ul>
      * <li>4 threads for index (SOLR) downloads for &lt;50,000 occurrences with 10ms poll delay, 10ms execution delay, and normal thread priority (5)</li>
-     * <li>1 thread for index (SOLR) downloads for &lt;100,000,000 occurrences with 100ms poll delay, 100ms execution delay, and minimum thread priority (1)</li> 
+     * <li>1 thread for index (SOLR) downloads for &lt;100,000,000 occurrences with 100ms poll delay, 100ms execution delay, and minimum thread priority (1)</li>
      * <li>2 threads for db (CASSANDA) downloads for &lt;50,000 occurrences with 10ms poll delay, 10ms execution delay, and normal thread priority (5)</li>
      * <li>1 thread for either index or db downloads, an unrestricted count, with 300ms poll delay, 100ms execution delay, and minimum thread priority (1)</li>
      * </ul>
-     * 
+     *
      * If there are no thread patterns specified here, a single thread with 10ms poll delay and 0ms execution delay, and normal thread priority (5) will be created and used instead.
      */
     @Value("${concurrent.downloads.json:[{\"label\": \"smallSolr\", \"threads\": 4, \"maxRecords\": 50000, \"type\": \"index\", \"pollDelay\": 10, \"executionDelay\": 10, \"threadPriority\": 5}, {\"label\": \"largeSolr\", \"threads\": 1, \"maxRecords\": 100000000, \"type\": \"index\", \"pollDelay\": 100, \"executionDelay\": 100, \"threadPriority\": 1}, {\"label\": \"smallCassandra\", \"threads\": 1, \"maxRecords\": 50000, \"type\": \"db\", \"pollDelay\": 10, \"executionDelay\": 10, \"threadPriority\": 5}, {\"label\": \"defaultUnrestricted\", \"threads\": 1, \"pollDelay\": 1000, \"executionDelay\": 100, \"threadPriority\": 1}]}")
@@ -155,23 +146,23 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     /** Max number of threads to use in parallel for large offline download queries */
     @Value("${download.offline.parallelquery.maxthreads:30}")
     protected Integer maxOfflineParallelQueryDownloadThreads = 30;
-    
+
     /**
      * Ensures closure is only attempted once.
      */
     private final AtomicBoolean closed = new AtomicBoolean(false);
-    
+
     /**
      * Ensures initialisation is only attempted once, to avoid creating too many threads.
      */
     private final AtomicBoolean initialised = new AtomicBoolean(false);
-    
+
     /**
-     * A latch that is released once initialisation completes, to enable the off-thread 
+     * A latch that is released once initialisation completes, to enable the off-thread
      * initialisation to occur completely before servicing queries.
      */
     private final CountDownLatch initialisationLatch = new CountDownLatch(1);
-    
+
     /**
      * Call this method at the start of web service calls that require initialisation to be complete before continuing.
      * This blocks until it is either interrupted or the initialisation thread from {@link #init()} is finished (successful or not).
@@ -183,13 +174,13 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             Thread.currentThread().interrupt();
         }
     }
-    
+
     private final Queue<Thread> runningDownloadControllers = new LinkedBlockingQueue<>();
     private final Queue<DownloadControlThread> runningDownloadControlRunnables = new LinkedBlockingQueue<>();
-    
+
     private volatile ExecutorService offlineParallelQueryExecutor;
-    
-    @PostConstruct    
+
+    @PostConstruct
     public void init(){
         if(initialised.compareAndSet(false, true)) {
             //init on thread so as to not hold up other PostConstruct that this may depend on
@@ -260,17 +251,17 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             }.start();
         }
     }
-    
+
     /**
-     * Overridable method called during the intialisation phase to customise the DownloadCreator implementation 
+     * Overridable method called during the intialisation phase to customise the DownloadCreator implementation
      * used by the DownloadService, particularly for testing.
-     * 
+     *
      * @return A new instance of DownloadCreator to be used by {@link DownloadControlThread} instances.
      */
     protected DownloadCreator getNewDownloadCreator() {
         return new DownloadCreatorImpl();
     }
-    
+
     /**
      * @return An instance of ExecutorService used to concurrently execute parallel queries for offline downloads.
      */
@@ -311,7 +302,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 while((nextToCloseRunnable = runningDownloadControlRunnables.poll()) != null) {
                     nextToCloseRunnable.shutdown();
                 }
-                
+
                 Thread nextToCloseThread = null;
                 List<Thread> toJoinThreads = new ArrayList<>();
                 while((nextToCloseThread = runningDownloadControllers.poll()) != null) {
@@ -321,7 +312,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         toJoinThreads.add(nextToCloseThread);
                     }
                 }
-                
+
                 if(!toJoinThreads.isEmpty()) {
                     // Give remaining download control threads a few seconds to cleanup before returning from this method
                     try {
@@ -334,10 +325,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             }
         }
     }
-    
+
     /**
      * Registers a new active download
-     * 
+     *
      * @param requestParams
      * @param ip
      * @param type
@@ -347,13 +338,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             DownloadDetailsDTO.DownloadType type) {
         afterInitialisation();
         DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, type);
+        dd.setRequestParams(requestParams);
         currentDownloads.add(dd);
         return dd;
     }
 
     /**
      * Removes a completed download from active list.
-     * 
+     *
      * @param dd
      */
     public void unregisterDownload(DownloadDetailsDTO dd) {
@@ -365,7 +357,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     /**
      * Returns a list of current downloads
-     * 
+     *
      * @return
      */
     public List<DownloadDetailsDTO> getCurrentDownloads() {
@@ -392,14 +384,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip)
             throws Exception {
         afterInitialisation();
-        
+
         writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex, limit, zip, getOfflineThreadPoolExecutor());
     }
-    
+
     /**
      * Writes the supplied download to the supplied output stream. It will
      * include all the appropriate citations etc.
-     * 
+     *
      * @param dd
      * @param requestParams
      * @param ip
@@ -439,7 +431,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 unregisterDownload(dd);
             }
             sp.closeEntry();
-    
+
             // add the readme for the Shape file header mappings if necessary
             if (dd.getHeaderMap() != null) {
                 sp.putNextEntry("Shape-README.html");
@@ -452,7 +444,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 }
                 sp.write(("</table>").getBytes());
             }
-    
+
             // Add the data citation to the download
             List<String> citationsForReadme = new ArrayList<String>();
             if (uidStats != null && !uidStats.isEmpty() && citationsEnabled) {
@@ -469,7 +461,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " + uidStats);
                 }
             }
-    
+
             // online downloads will not have a file location or request params set
             // in dd.
             if (dd.getRequestParams() == null) {
@@ -478,11 +470,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             if (dd.getFileLocation() == null) {
                 dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
             }
-    
+
             // add the Readme for the data field descriptions
             sp.putNextEntry("README.html");
             String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
-    
+
             // online downloads will not have a file location or request params set
             // in dd.
             if (dd.getRequestParams() == null) {
@@ -491,7 +483,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             if (dd.getFileLocation() == null) {
                 dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
             }
-    
+
             String fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
             String readmeContent = biocacheDownloadReadme.replace("[url]", fileLocation)
                     .replace("[date]", dd.getStartDateString())
@@ -504,7 +496,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             sp.write(("For more information about the fields that are being downloaded please consult <a href='"
                     + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes());
             sp.closeEntry();
-    
+
             // Add headings file, listing information about the headings
             if (headingsEnabled) {
                 // add the citations for the supplied uids
@@ -520,9 +512,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     logger.debug("Not adding header. Enabled: " + headingsEnabled + " uids: " + uidStats);
                 }
             }
-    
+
             sp.flush();
-            
+
             // now construct the sourceUrl for the log event
             String sourceUrl = originalParams.contains("qid:") ? webservicesRoot + "?" + requestParams.toString()
                     : webservicesRoot + "?" + originalParams;
@@ -548,7 +540,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     }
 
     /**
-     * 
+     *
      * @param requestParams
      * @param response
      * @param ip
@@ -565,8 +557,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         afterInitialisation();
         writeQueryToStream(requestParams, response, ip, out, includeSensitive, fromIndex, zip, getOfflineThreadPoolExecutor());
     }
-    
-    
+
+
     public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip,
             OutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip, ExecutorService parallelQueryExecutor) throws Exception {
         afterInitialisation();
@@ -642,7 +634,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                             if (readmeCitations != null) {
                                 // used in README.txt
-                                readmeCitations.add(row[2] + " (" + row[3] + "). " + row[4]); 
+                                readmeCitations.add(row[2] + " (" + row[3] + "). " + row[4]);
                             }
 
                         } else {
@@ -898,12 +890,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             }
         }
     }
-    
+
     private class DownloadCreatorImpl implements DownloadCreator {
         @Override
         public Callable<DownloadDetailsDTO> createCallable(final DownloadDetailsDTO currentDownload, final long executionDelay, final Semaphore capacitySemaphore, final ExecutorService parallelExecutor) {
             return new Callable<DownloadDetailsDTO>() {
-    
+
                 @Override
                 public DownloadDetailsDTO call() throws Exception {
                     try {
@@ -913,7 +905,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         Thread.sleep(executionDelay);
                         // we are now ready to start the download
                         // we need to create an output stream to the file system
-        
+
                         try (FileOutputStream fos = FileUtils
                                 .openOutputStream(new File(currentDownload.getFileLocation()));) {
                             // cannot include misc columns if shp
@@ -930,10 +922,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     biocacheDownloadEmailSubject.replace("[filename]",
                                             currentDownload.getRequestParams().getFile()),
                                     null);
-        
+
                             if (currentDownload != null && currentDownload.getFileLocation() != null) {
                                 insertMiscHeader(currentDownload);
-        
+
                                 String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir,
                                         biocacheDownloadUrl);
                                 String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
@@ -943,33 +935,33 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 String body = messageSource.getMessage("offlineEmailBody",
                                         new Object[] { fileLocation, searchUrl, currentDownload.getStartDateString() },
                                         emailBodyHtml, null);
-        
+
                                 // save the statistics to the download directory
                                 try (FileOutputStream statsStream = FileUtils
                                         .openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()
                                                 + File.separator + "downloadStats.json"));) {
                                     objectMapper.writeValue(statsStream, currentDownload);
                                 }
-        
+
                                 emailService.sendEmail(currentDownload.getEmail(), subject, body);
                             }
-        
+
                         } catch (Exception e) {
                             logger.error("Error in offline download, sending email. download path: "
                                     + currentDownload.getFileLocation(), e);
-        
+
                             try {
                                 String subject = messageSource.getMessage("offlineEmailSubjectError", null,
                                         biocacheDownloadEmailSubjectError.replace("[filename]",
                                                 currentDownload.getRequestParams().getFile()),
                                         null);
-        
+
                                 String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir,
                                         biocacheDownloadUrl);
                                 String body = messageSource.getMessage("offlineEmailBodyError",
                                         new Object[] { fileLocation },
                                         biocacheDownloadEmailBodyError.replace("[url]", fileLocation), null);
-        
+
                                 // user email
                                 emailService.sendEmail(currentDownload.getEmail(), subject,
                                         body + "\r\n\r\nuniqueId:" + currentDownload.getUniqueId() + " path:"

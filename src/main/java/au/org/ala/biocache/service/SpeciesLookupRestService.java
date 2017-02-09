@@ -176,8 +176,8 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
     @Override
     public List<String[]> getSpeciesDetails(List<String> guids, List<Long> counts, boolean includeCounts, boolean includeSynonyms, boolean includeLists) {
         List<String[]> details= new  java.util.ArrayList<String[]>(guids.size());
-        List<Map<String,String>> values = getNameDetailsForGuids(guids);
-        Map<String,List<Map<String, String>>> synonyms = includeSynonyms? getSynonymDetailsForGuids(guids):new HashMap<String,List<Map<String,String>>>();
+        List<Map<String,String>> values = null;
+        Map<String,List<Map<String, String>>> synonyms = null;
         int size = includeSynonyms && includeCounts ? 13 : ((includeCounts && !includeSynonyms) || (includeSynonyms && !includeCounts)) ? 12: 11;
 
         if (includeLists) {
@@ -196,11 +196,12 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                     if (split.length == 5) {
                         taxonConceptIds.add(split[1]);
                     } else {
-                        taxonConceptIds.add("");
+                        taxonConceptIds.add(s);
                     }
                 }
             }
             values = getNameDetailsForGuids(taxonConceptIds);
+            synonyms = includeSynonyms? getSynonymDetailsForGuids(taxonConceptIds):new HashMap<String,List<Map<String,String>>>();
         }
 
         for(int i =0 ; i<guids.size();i++){

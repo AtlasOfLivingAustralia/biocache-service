@@ -461,7 +461,35 @@ public class ExploreController {
         } else {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply a valid sub query qid.");
         }
+
         return null;
+    }
+
+    /**
+     * Returns count of facet values that only occur in the supplied subQueryQid
+     * and not in the parentQuery.
+     *
+     * The facet is defined in the parentQuery. Default facet is SearchDAOImpl.NAMES_AND_LSID
+     *
+     * If no requestParams defined the default q=geospatial_kosher:* is used.
+     *
+     * @return
+     */
+    @RequestMapping(value = "/explore/endemic/speciescount/{subQueryQid}*", method = RequestMethod.GET)
+    public @ResponseBody Map getSpeciesOnlyInOneCountQuery(SpatialSearchRequestParams parentQuery,
+                                                                       @PathVariable(value="subQueryQid") Long subQueryQid,
+                                                                       HttpServletResponse response)
+            throws Exception{
+        List items = getSpeciesOnlyInOneQuery(parentQuery, subQueryQid, response);
+
+        Map m = null;
+
+        if (items != null) {
+            m = new HashMap();
+            m.put("count", items.size());
+        }
+
+        return m;
     }
 
    /**
@@ -501,8 +529,13 @@ public class ExploreController {
      */
     @RequestMapping(value = "/explore/endemic/species/{subQueryQid}.csv", method = RequestMethod.GET)
     public void getSpeciesOnlyInOneQueryCSV(SpatialSearchRequestParams parentQuery,
-                                                                       @PathVariable(value="subQueryQid") Long subQueryQid,
-                                                                       HttpServletResponse response)
+                                            @PathVariable(value="subQueryQid") Long subQueryQid,
+                                            @RequestParam(value="count", required=false, defaultValue="false") boolean includeCount,
+                                            @RequestParam(value="lookup" ,required=false, defaultValue="false") boolean lookupName,
+                                            @RequestParam(value="synonym", required=false, defaultValue="false") boolean includeSynonyms,
+                                            @RequestParam(value = "lists", required = false, defaultValue = "false") boolean includeLists,
+                                            @RequestParam(value = "file", required = false, defaultValue = "") String file,
+                                            HttpServletResponse response)
             throws Exception{
         Qid qid = qidCacheDao.getQidFromQuery("qid:" + subQueryQid);
         SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
@@ -518,23 +551,13 @@ public class ExploreController {
         }
 
         if(subQuery != null ){
-            if(parentQuery.getFacets() != null && parentQuery.getFacets().length ==1){
-                List<FieldResultDTO> list = searchDao.getSubquerySpeciesOnly(subQuery, parentQuery);
-                response.setCharacterEncoding("UTF-8");
-                response.setContentType("text/plain");
-                java.io.PrintWriter writer = response.getWriter();
-                writer.write("Family,Scientific name,Common name,Taxon rank,LSID,# Occurrences");
-                for(FieldResultDTO item: list){
-                    String s = item.getLabel();
-                    if (s.startsWith("\"") && s.endsWith("\"") && s.length() > 2) s = s.substring(1, s.length() - 1);
-                    String[] values = s.split("\\|", 6);
-                    if(values.length >= 5){
-                        writer.write("\n"+values[4]+",\""+values[0].replace("\"","\"\"").replace("\\", "\\\\")+"\"," +
-                                "\""+values[2].replace("\"","\"\"").replace("\\", "\\\\")+"\",,"+values[1] + ","+item.getCount());
-                    }
-                }
-                writer.flush();
-                writer.close();
+            if(parentQuery.getFacets() != null && parentQuery.getFacets().length == 1){
+                String filename = StringUtils.isNotEmpty(file) ? file:parentQuery.getFacets()[0];
+                response.setHeader("Cache-Control", "must-revalidate");
+                response.setHeader("Pragma", "must-revalidate");
+                response.setHeader("Content-Disposition", "attachment;filename=" + filename +".csv");
+                response.setContentType("text/csv");
+                searchDao.writeEndemicFacetToStream(subQuery, parentQuery, includeCount, lookupName, includeSynonyms, includeLists, response.getOutputStream());
             } else {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply only one facet.");
             }

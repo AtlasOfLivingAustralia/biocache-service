@@ -17,6 +17,7 @@ package au.org.ala.biocache.util;
 import au.org.ala.biocache.Config;
 import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dto.IndexFieldDTO;
+import au.org.ala.biocache.service.LayersService;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,12 +36,16 @@ public class DownloadFields {
     private final static Logger logger = LoggerFactory.getLogger(DownloadFields.class);
 
     private AbstractMessageSource messageSource;
+
+    private LayersService layersService;
     
     private Properties layerProperties = new Properties();
     private Map<String,IndexFieldDTO> indexFieldMaps;
 
-    public DownloadFields(Set<IndexFieldDTO> indexFields, AbstractMessageSource messageSource){
+    public DownloadFields(Set<IndexFieldDTO> indexFields, AbstractMessageSource messageSource, LayersService layersService){
         this.messageSource = messageSource;
+
+        this.layersService = layersService;
         
         //initialise the properties
         try {
@@ -129,30 +134,35 @@ public class DownloadFields {
      * @param values
      * @return
      */
-    public List<String>[] getIndexFields(String[] values, boolean dwcHeaders){
+    public List<String>[] getIndexFields(String[] values, boolean dwcHeaders, String layersServiceUrl){
         updateLayerNames();
 
         java.util.List<String> mappedNames = new java.util.LinkedList<String>();
         java.util.List<String> headers = new java.util.LinkedList<String>();
         java.util.List<String> unmappedNames = new java.util.LinkedList<String>();
         java.util.List<String> originalName = new java.util.LinkedList<String>();
+        java.util.List<String> analysisHeaders = new java.util.LinkedList<String>();
+        java.util.List<String> analysisLayers = new java.util.LinkedList<String>();
         java.util.Map<String, String> storageFieldMap = Store.getStorageFieldMap();
         for(String value : values){
             //check to see if it is the the
             String indexName = storageFieldMap.containsKey(value) ? storageFieldMap.get(value) : value;
             //now check to see if this index field is stored
             IndexFieldDTO field = indexFieldMaps.get(indexName);
-            if((field != null && field.isStored()) || value.startsWith("sensitive")){
+            if((field != null && field.isStored()) || value.startsWith("sensitive")) {
                 mappedNames.add(indexName);
                 //only dwcHeader lookup is permitted when dwcHeaders == true
                 String v = dwcHeaders ? value : layerProperties.getProperty(value, messageSource.getMessage(value, null, generateTitle(value, true), Locale.getDefault()));
                 String dwc = dwcHeaders ? messageSource.getMessage("dwc." + value, null, "", Locale.getDefault()) : null;
                 headers.add(dwc != null && dwc.length() > 0 ? dwc : v);
                 originalName.add(value);
+            } else if (layersService.findAnalysisLayerName(value, layersServiceUrl) != null) {
+                analysisLayers.add(value);
+                analysisHeaders.add(layersService.findAnalysisLayerName(value, layersServiceUrl));
             } else {
                 unmappedNames.add(indexName);
             }
         }
-        return new List[]{mappedNames,unmappedNames,headers,originalName};
+        return new List[]{mappedNames,unmappedNames,headers,originalName, analysisHeaders, analysisLayers};
     }
 }

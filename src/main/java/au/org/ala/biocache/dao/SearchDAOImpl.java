@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.dao;
 
+import au.com.bytecode.opencsv.CSVReader;
 import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.Config;
 import au.org.ala.biocache.RecordWriter;
@@ -30,7 +31,6 @@ import au.org.ala.biocache.vocab.ErrorCode;
 import au.org.ala.biocache.writer.CSVRecordWriter;
 import au.org.ala.biocache.writer.ShapeFileRecordWriter;
 import au.org.ala.biocache.writer.TSVRecordWriter;
-
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.googlecode.ehcache.annotations.Cacheable;
 import org.apache.commons.io.output.ByteArrayOutputStream;
@@ -63,8 +63,10 @@ import org.springframework.util.CollectionUtils;
 
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -72,16 +74,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.MatchResult;
@@ -125,11 +118,11 @@ public class SearchDAOImpl implements SearchDAO {
     /** Batch size for a download */
     @Value("${download.batch.size:500}")
     protected Integer downloadBatchSize = 500;
-    /** The size of an internal fixed length blocking queue used to parallelise 
-     * reading from Solr using 'solr.downloadquery.maxthreads' producers before 
-     * writing from the queue using a single consumer thread. 
-     * <br> This should be set large enough so that writing to the output stream 
-     * is the limiting factor, but not so large as to allow OutOfMemoryError's to 
+    /** The size of an internal fixed length blocking queue used to parallelise
+     * reading from Solr using 'solr.downloadquery.maxthreads' producers before
+     * writing from the queue using a single consumer thread.
+     * <br> This should be set large enough so that writing to the output stream
+     * is the limiting factor, but not so large as to allow OutOfMemoryError's to
      * occur due to its memory usage.
      **/
     @Value("${download.internal.queue.size:1000}")
@@ -137,8 +130,8 @@ public class SearchDAOImpl implements SearchDAO {
     /** Maximum total time for downloads to be execute. Defaults to 1 week (604,800,000ms) */
     @Value("${download.max.execute.time:604800000}")
     protected Long downloadMaxTime = 604800000L;
-    /** Maximum total time for downloads to be allowed to normally complete before they are aborted, 
-     * once all of the Solr/etc. queries have been completed or aborted and the RecordWriter is reading the remaining download.internal.queue.size items off the queue. 
+    /** Maximum total time for downloads to be allowed to normally complete before they are aborted,
+     * once all of the Solr/etc. queries have been completed or aborted and the RecordWriter is reading the remaining download.internal.queue.size items off the queue.
      * Defaults to 5 minutes (300,000ms) */
     @Value("${download.max.completion.time:300000}")
     protected Long downloadMaxCompletionTime = 300000L;
@@ -205,7 +198,7 @@ public class SearchDAOImpl implements SearchDAO {
     @Inject
     protected QidCacheDAO qidCacheDao;
 
-    @Inject 
+    @Inject
     protected RangeBasedFacets rangeBasedFacets;
 
     @Inject
@@ -227,15 +220,15 @@ public class SearchDAOImpl implements SearchDAO {
     /** Max number of threads to use in parallel for large online solr download queries */
     @Value("${solr.downloadquery.maxthreads:30}")
     protected Integer maxSolrDownloadThreads = 30;
-    
+
     /** The time (ms) to wait for the blocking queue to have new capacity before timing out. */
     @Value("${solr.downloadquery.writertimeout:60000}")
     protected Long writerTimeoutWaitMillis = 60000L;
-    
+
     /** The time (ms) to wait between checking if interrupts have occurred or all of the download tasks have completed. */
     @Value("${solr.downloadquery.busywaitsleep:100}")
     protected Long downloadCheckBusyWaitSleep = 100L;
-    
+
     /** thread pool for multipart endemic queries */
     private volatile ExecutorService endemicExecutor = null;
 
@@ -261,16 +254,16 @@ public class SearchDAOImpl implements SearchDAO {
 
     private volatile Set<IndexFieldDTO> indexFields = null;
     private volatile Map<String, IndexFieldDTO> indexFieldMap = null;
-    
+
     private final Map<String, StatsIndexFieldDTO> rangeFieldCache = new HashMap<String, StatsIndexFieldDTO>();
-    
+
     private Set<String> authIndexFields = null;
 
     /** SOLR index version for client app caching use. */
     private volatile long solrIndexVersion = 0;
     /** last time SOLR index version was refreshed */
     private volatile long solrIndexVersionTime = 0;
-    /** 
+    /**
      * Lock object used to synchronize updates to the solr index version
      */
     private final Object solrIndexVersionLock = new Object();
@@ -325,7 +318,7 @@ public class SearchDAOImpl implements SearchDAO {
                         }
                         // TODO: There was a note about possible issues with the following two lines
                         Set<IndexFieldDTO> indexedFields = getIndexedFields();
-                        downloadFields = new DownloadFields(indexedFields, messageSource);
+                        downloadFields = new DownloadFields(indexedFields, messageSource, layersService);
                     } catch (Exception ex) {
                         logger.error("Error initialising embedded SOLR server: " + ex.getMessage(), ex);
                     }
@@ -353,7 +346,7 @@ public class SearchDAOImpl implements SearchDAO {
         rangeFieldCache.clear();
         try {
             //update indexed fields
-            downloadFields = new DownloadFields(getIndexedFields(true), messageSource);
+            downloadFields = new DownloadFields(getIndexedFields(true), messageSource, layersService);
         } catch(Exception e) {
             logger.error("Unable to refresh cache.", e);
         }
@@ -438,7 +431,7 @@ public class SearchDAOImpl implements SearchDAO {
                 nextExecutor = endemicExecutor;
                 if(nextExecutor == null) {
                     nextExecutor = endemicExecutor = Executors.newFixedThreadPool(
-                                                                getMaxEndemicQueryThreads(), 
+                                                                getMaxEndemicQueryThreads(),
                                                                 new ThreadFactoryBuilder().setNameFormat("biocache-endemic-%d")
                                                                 .setPriority(Thread.MIN_PRIORITY).build());
                 }
@@ -541,6 +534,65 @@ public class SearchDAOImpl implements SearchDAO {
             logger.debug("Determined final endemic list (" + list1.size() + ")...");
         }
         return list1;
+    }
+
+    public void writeEndemicFacetToStream(SpatialSearchRequestParams subQuery, SpatialSearchRequestParams parentQuery, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out) throws Exception {
+        List<FieldResultDTO> list = getSubquerySpeciesOnly(subQuery, parentQuery);
+        String facet = parentQuery.getFacets()[0];
+
+        boolean shouldLookup = lookupName && (facet.contains("_guid")||facet.contains("_lsid"));
+
+        String[] header = new String[]{facet};
+        if(shouldLookup){
+            header = speciesLookupService.getHeaderDetails(facet, includeCount, includeSynonyms);
+        }
+        else if(includeCount){
+            header = (String[])ArrayUtils.add(header, "count");
+        }
+        if (includeLists) {
+            header = (String[]) ArrayUtils.addAll(header, listsService.getTypes().toArray(new String[]{}));
+        }
+        CSVRecordWriter writer = new CSVRecordWriter(out, header);
+
+        boolean addedNullFacet = false;
+
+        List<String> guids = new ArrayList<String>();
+        List<Long> counts = new ArrayList<Long>();
+
+        for (FieldResultDTO ff : list) {
+            //only add null facet once
+            if (ff.getLabel() == null) addedNullFacet = true;
+            if (ff.getCount() == 0 || (ff.getLabel() == null && addedNullFacet)) continue;
+
+            //process the "species_guid_ facet by looking up the list of guids
+            if (shouldLookup) {
+                guids.add(ff.getLabel());
+                if (includeCount) {
+                    counts.add(ff.getCount());
+                }
+
+                //Only want to send a sub set of the list so that the URI is not too long for BIE
+                if (guids.size() == 30) {
+                    //now get the list of species from the web service TODO may need to move this code
+                    //handle null values being returned from the service...
+                    writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, includeLists, writer);
+                    guids.clear();
+                    counts.clear();
+                }
+            } else {
+                //default processing of facets
+                String name = ff.getLabel() != null ? ff.getLabel() : "";
+                String[] row = includeCount ? new String[]{name, Long.toString(ff.getCount())} : new String[]{name};
+                writer.write(row);
+            }
+        }
+
+        if (shouldLookup) {
+            //now write any guids that remain at the end of the looping
+            writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, includeLists, writer);
+        }
+
+        writer.finalise();
     }
 
     /**
@@ -655,7 +707,7 @@ public class SearchDAOImpl implements SearchDAO {
                         "Record count",});
             int count = 0;
             for (TaxaCountDTO item : species) {
-    
+
                 String[] record = new String[]{
                     item.getGuid(),
                     item.getKingdom(),
@@ -664,7 +716,7 @@ public class SearchDAOImpl implements SearchDAO {
                     item.getCommonName(),
                     item.getCount().toString()
                 };
-    
+
                 csvWriter.writeNext(record);
                 count++;
             }
@@ -718,11 +770,11 @@ public class SearchDAOImpl implements SearchDAO {
                 if (includeLists) {
                     header = (String[]) ArrayUtils.addAll(header, listsService.getTypes().toArray(new String[]{}));
                 }
-                
+
                 CSVRecordWriter writer = new CSVRecordWriter(new CloseShieldOutputStream(out), header);
                 try {
                     boolean addedNullFacet = false;
-    
+
                     //out.write("\n".getBytes());
                     //PAGE through the facets until we reach the end.
                     //do not continue when null facet is already added and the next facet is only null
@@ -739,12 +791,12 @@ public class SearchDAOImpl implements SearchDAO {
                                 //only add null facet once
                                 if (value.getName() == null) addedNullFacet = true;
                                 if (value.getCount() == 0 || (value.getName() == null && addedNullFacet)) continue;
-    
+
                                 guids.add(value.getName());
                                 if (includeCount) {
                                     counts.add(value.getCount());
                                 }
-    
+
                                 //Only want to send a sub set of the list so that the URI is not too long for BIE
                                 if (guids.size() == 30) {
                                     //now get the list of species from the web service TODO may need to move this code
@@ -762,7 +814,7 @@ public class SearchDAOImpl implements SearchDAO {
                                 //only add null facet once
                                 if (value.getName() == null) addedNullFacet = true;
                                 if (value.getCount() == 0 || (value.getName() == null && addedNullFacet)) continue;
-    
+
                                 String name = value.getName() != null ? value.getName() : "";
                                 String[] row = includeCount ? new String[]{name, Long.toString(value.getCount())} : new String[]{name};
                                 writer.write(row);
@@ -772,7 +824,7 @@ public class SearchDAOImpl implements SearchDAO {
                         if (dd != null) {
                             dd.updateCounts(FACET_PAGE_SIZE);
                         }
-    
+
                         //get the next values
                         solrQuery.remove("facet.offset");
                         solrQuery.add("facet.offset", Integer.toString(offset));
@@ -858,13 +910,13 @@ public class SearchDAOImpl implements SearchDAO {
     @Override
     public ConcurrentMap<String, AtomicInteger> writeResultsFromIndexToStream(final DownloadRequestParams downloadParams,
                                                                          final OutputStream out,
-                                                                         final boolean includeSensitive, 
-                                                                         final DownloadDetailsDTO dd, 
+                                                                         final boolean includeSensitive,
+                                                                         final DownloadDetailsDTO dd,
                                                                          final boolean checkLimit) throws Exception {
         ExecutorService nextExecutor = getSolrOnlineThreadPoolExecutor();
         return writeResultsFromIndexToStream(downloadParams, out, includeSensitive, dd, checkLimit, nextExecutor);
     }
-    
+
     /**
      * Writes the index fields to the supplied output stream in CSV format.
      *
@@ -884,8 +936,8 @@ public class SearchDAOImpl implements SearchDAO {
     @Override
     public ConcurrentMap<String, AtomicInteger> writeResultsFromIndexToStream(final DownloadRequestParams downloadParams,
                                                                          final OutputStream out,
-                                                                         final boolean includeSensitive, 
-                                                                         final DownloadDetailsDTO dd, 
+                                                                         final boolean includeSensitive,
+                                                                         final DownloadDetailsDTO dd,
                                                                          boolean checkLimit,
                                                                          final ExecutorService nextExecutor) throws Exception {
         long start = System.currentTimeMillis();
@@ -924,16 +976,32 @@ public class SearchDAOImpl implements SearchDAO {
                 java.util.List<String> mappedNames = new java.util.LinkedList<String>();
                 for (int i = 0; i < requestedFields.length; i++) mappedNames.add(requestedFields[i]);
 
-                indexedFields = new List[]{mappedNames, new java.util.LinkedList<String>(), mappedNames, mappedNames};
+                indexedFields = new List[]{mappedNames, new java.util.LinkedList<String>(), mappedNames, mappedNames, new ArrayList(), new ArrayList()};
             } else {
-                indexedFields = downloadFields.getIndexFields(requestedFields, downloadParams.getDwcHeaders());
+                indexedFields = downloadFields.getIndexFields(requestedFields, downloadParams.getDwcHeaders(), downloadParams.getLayersServiceUrl());
+            }
+            //apply custom header
+            String[] customHeader = dd.getRequestParams().getCustomHeader().split(",");
+            for (int i = 0; i + 1 < customHeader.length; i += 2) {
+                for (int j = 0; j < indexedFields[0].size(); j++) {
+                    if (customHeader[i].equals(indexedFields[0].get(j))) {
+                        indexedFields[2].set(j, customHeader[i + 1]);
+                    }
+                }
+                for (int j = 0; j < indexedFields[4].size(); j++) {
+                    if (customHeader[i].equals(indexedFields[5].get(j))) {
+                        indexedFields[4].set(j, customHeader[i + 1]);
+                    }
+                }
             }
             if(logger.isDebugEnabled()) {
                 logger.debug("Fields included in download: " +indexedFields[0]);
                 logger.debug("Fields excluded from download: "+indexedFields[1]);
                 logger.debug("The headers in downloads: "+indexedFields[2]);
+                logger.debug("Analysis headers: "+indexedFields[4]);
+                logger.debug("Analysis fields: "+indexedFields[5]);
             }
-            
+
             //set the fields to the ones that are available in the index
             String[] fields = indexedFields[0].toArray(new String[]{});
             solrQuery.setFields(fields);
@@ -1004,7 +1072,7 @@ public class SearchDAOImpl implements SearchDAO {
             final String [] sensitiveFields;
             final String [] notSensitiveFields;
             if (dd.getSensitiveFq() != null) {
-                List<String>[] sensitiveHdr = downloadFields.getIndexFields(sensitiveSOLRHdr, downloadParams.getDwcHeaders());
+                List<String>[] sensitiveHdr = downloadFields.getIndexFields(sensitiveSOLRHdr, downloadParams.getDwcHeaders(), downloadParams.getLayersServiceUrl());
 
                 //header for the output file
                 indexedFields[2].addAll(sensitiveHdr[2]);
@@ -1019,6 +1087,10 @@ public class SearchDAOImpl implements SearchDAO {
                 sensitiveFields = new String[0];
                 notSensitiveFields = fields;
             }
+
+            //add analysis headers
+            indexedFields[2].addAll(indexedFields[4]);
+            final String[] analysisFields = indexedFields[5].toArray(new String[0]);
 
             final String[] qaFields = qas.equals("") ? new String[]{} : qas.split(",");
             String[] qaTitles = downloadFields.getHeader(qaFields, false, false);
@@ -1045,9 +1117,9 @@ public class SearchDAOImpl implements SearchDAO {
             // Requirement to be able to propagate interruptions to all other threads for this execution
             // Doing this via this variable
             final AtomicBoolean interruptFound = new AtomicBoolean(false);
-                    
+
             // Create a fixed length blocking queue for buffering results before they are written
-            // This also creates a push-back effect to throttle the results generating threads 
+            // This also creates a push-back effect to throttle the results generating threads
             // when it fills and offers to it are delayed until the writer consumes elements from the queue
             final BlockingQueue<String[]> queue = new ArrayBlockingQueue<>(resultsQueueLength);
             // Create a sentinel that we can check for reference equality to signal the end of the queue
@@ -1078,16 +1150,16 @@ public class SearchDAOImpl implements SearchDAO {
                         finalise();
                     }
                 }
-                
+
                 @Override
                 public void finalise() {
                     if (finalised.compareAndSet(false, true)) {
                         try {
                             // Offer the sentinel at least once, even when the thread is interrupted
                             while(!queue.offer(sentinel, writerTimeoutWaitMillis, TimeUnit.MILLISECONDS)) {
-                                // If the thread is interrupted then the queue may not have any active consumers, 
+                                // If the thread is interrupted then the queue may not have any active consumers,
                                 // so don't loop forever waiting for capacity in this case
-                                // The hard shutdown phase will use queue.clear to ensure that the 
+                                // The hard shutdown phase will use queue.clear to ensure that the
                                 // sentinel gets onto the queue at least once
                                 if (Thread.currentThread().isInterrupted() || interruptFound.get()) {
                                     break;
@@ -1107,9 +1179,9 @@ public class SearchDAOImpl implements SearchDAO {
                 public boolean finalised() {
                     return finalisedComplete.get();
                 }
-                
+
             };
-            
+
             // A single thread that consumes elements put onto the queue until it sees the sentinel, finalising after the sentinel or an interrupt
             Runnable writerRunnable = new Runnable() {
                 @Override
@@ -1119,7 +1191,7 @@ public class SearchDAOImpl implements SearchDAO {
                             if (Thread.currentThread().isInterrupted() || interruptFound.get()) {
                                 break;
                             }
-                            
+
                             String[] take = queue.take();
                             // Sentinel object equality check to see if we are done
                             if (take == sentinel || Thread.currentThread().isInterrupted() || interruptFound.get()) {
@@ -1145,10 +1217,10 @@ public class SearchDAOImpl implements SearchDAO {
                 if(rw instanceof ShapeFileRecordWriter){
                     dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
                 }
-    
+
                 //order the query by _docid_ for faster paging
                 solrQuery.addSortField("_docid_", ORDER.asc);
-    
+
                 //for each month create a separate query that pages through 500 records per page
                 List<SolrQuery> queries = new ArrayList<SolrQuery>();
                 if(splitByFacet != null){
@@ -1161,7 +1233,7 @@ public class SearchDAOImpl implements SearchDAO {
                                 splitByFacetQuery.setFacet(false);
                                 queries.add(splitByFacetQuery);
                             }
-    
+
                         }
                     }
                     if (splitByFacet.size() > 0) {
@@ -1171,7 +1243,7 @@ public class SearchDAOImpl implements SearchDAO {
                 } else {
                     queries.add(0, solrQuery);
                 }
-    
+
                 //split into sensitive and non-sensitive queries when
                 // - not including all sensitive values
                 // - there is a sensitive fq
@@ -1179,11 +1251,11 @@ public class SearchDAOImpl implements SearchDAO {
                 if (!includeSensitive && dd.getSensitiveFq() != null) {
                     sensitiveQ.addAll(splitQueries(queries, dd.getSensitiveFq(), sensitiveSOLRHdr, notSensitiveSOLRHdr));
                 }
-    
+
                 //Set<Future<Integer>> futures = new HashSet<Future<Integer>>();
                 final AtomicInteger resultsCount = new AtomicInteger(0);
                 final boolean threadCheckLimit = checkLimit;
-    
+
                 List<Callable<Integer>> solrCallables = new ArrayList<>(queries.size());
                 // execute each query, writing the results to stream
                 for(final SolrQuery splitByFacetQuery: queries){
@@ -1194,7 +1266,7 @@ public class SearchDAOImpl implements SearchDAO {
                             int startIndex = 0;
                             // Randomise the wakeup time so they don't all wakeup on a periodic cycle
                             long localThrottle = throttle + Math.round(Math.random() * throttle);
-        
+
                             String [] fq = downloadParams.getFq();
                             if (splitByFacetQuery.getFilterQueries() != null && splitByFacetQuery.getFilterQueries().length > 0) {
                                 if (fq == null) {
@@ -1202,27 +1274,27 @@ public class SearchDAOImpl implements SearchDAO {
                                 }
                                 fq = org.apache.commons.lang3.ArrayUtils.addAll(fq, splitByFacetQuery.getFilterQueries());
                             }
-    
+
                             QueryResponse qr = runSolrQuery(splitByFacetQuery, fq, downloadBatchSize, startIndex, "_docid_", "asc");
                             AtomicInteger recordsForThread = new AtomicInteger(0);
                             if(logger.isDebugEnabled()) {
                                 logger.debug(splitByFacetQuery.getQuery() + " - results: " + qr.getResults().size());
                             }
-    
+
                             while (qr != null && !qr.getResults().isEmpty()) {
                                 if(logger.isDebugEnabled()) {
                                     logger.debug("Start index: " + startIndex + ", " + splitByFacetQuery.getQuery());
                                 }
                                 int count=0;
                                 if (sensitiveQ.contains(splitByFacetQuery)) {
-                                    count = processQueryResults(uidStats, sensitiveFields, qaFields, concurrentWrapper, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize);
+                                    count = processQueryResults(uidStats, sensitiveFields, qaFields, concurrentWrapper, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize, analysisFields);
                                 } else {
                                     // write non-sensitive values into sensitive fields when not authorised for their sensitive values
-                                    count = processQueryResults(uidStats, notSensitiveFields, qaFields, concurrentWrapper, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize);
+                                    count = processQueryResults(uidStats, notSensitiveFields, qaFields, concurrentWrapper, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize, analysisFields);
                                 }
                                 recordsForThread.addAndGet(count);
                                 startIndex += downloadBatchSize;
-                                // we have already set the Filter query the first time the query was constructed 
+                                // we have already set the Filter query the first time the query was constructed
                                 // rerun with the same params but different startIndex
                                 if(!threadCheckLimit || resultsCount.get() < maxDownloadSize){
                                     if(!threadCheckLimit){
@@ -1239,15 +1311,15 @@ public class SearchDAOImpl implements SearchDAO {
                     };
                     solrCallables.add(solrCallable);
                 }
-    
+
                 List<Future<Integer>> futures = new ArrayList<>(solrCallables.size());
                 for(Callable<Integer> nextCallable : solrCallables) {
                     futures.add(nextExecutor.submit(nextCallable));
                 }
-                
-                // Busy wait because we need to be able to respond to an interrupt on any callable 
+
+                // Busy wait because we need to be able to respond to an interrupt on any callable
                 // and propagate it to all of the others for this particular query
-                // Because the executor service is shared to prevent too many concurrent threads being run, 
+                // Because the executor service is shared to prevent too many concurrent threads being run,
                 // this requires a busy wait loop on the main thread to monitor state
                 boolean waitAgain = false;
                 do {
@@ -1267,13 +1339,13 @@ public class SearchDAOImpl implements SearchDAO {
                     if (waitAgain && (System.currentTimeMillis() - start) > downloadMaxTime) {
                         interruptFound.set(true);
                         break;
-                    } 
-                    
+                    }
+
                     if (waitAgain) {
                         Thread.sleep(downloadCheckBusyWaitSleep);
                     }
                 } while (waitAgain);
-                
+
                 AtomicInteger totalDownload = new AtomicInteger(0);
                 for(Future<Integer> future: futures){
                     if (future.isDone()){
@@ -1292,7 +1364,7 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             } finally {
                 try {
-                    // Once we get here, we need to finalise starting at the concurrent wrapper, 
+                    // Once we get here, we need to finalise starting at the concurrent wrapper,
                     // as there are no more non-sentinel records to be added to the queue
                     // This eventually triggers finalisation of the underlying writer when the queue empties
                     // This is a soft shutdown, and hence we wait below for this stage to complete in normal circumstances
@@ -1305,9 +1377,9 @@ public class SearchDAOImpl implements SearchDAO {
                         final long completionStartTime = System.currentTimeMillis();
                         // Busy wait check for finalised to be called in the RecordWriter or something is interrupted
                         // By this stage, there are at maximum download.internal.queue.size items remaining (default 1000)
-                        while(writerThread.isAlive() 
+                        while(writerThread.isAlive()
                                && !writerThread.isInterrupted()
-                               && !interruptFound.get() 
+                               && !interruptFound.get()
                                && !Thread.currentThread().isInterrupted()
                                && !rw.finalised()
                                && !((System.currentTimeMillis() - completionStartTime) > downloadMaxCompletionTime)) {
@@ -1316,20 +1388,20 @@ public class SearchDAOImpl implements SearchDAO {
                     } finally {
                         try {
                             // Attempt all actions that could trigger the writer thread to finalise, as by this stage we are in hard shutdown mode
-                            
+
                             // Signal that we are in hard shutdown mode
                             interruptFound.set(true);
-                            
+
                             // Add the sentinel or clear the queue and try again until it gets onto the queue
-                            // We are in hard shutdown mode, so only priority is that the queue either 
+                            // We are in hard shutdown mode, so only priority is that the queue either
                             // gets the sentinel or the thread is interrupted to clean up resources
                             while(!queue.offer(sentinel)) {
                                 queue.clear();
                             }
-                            
+
                             // Interrupt the single writer thread
                             writerThread.interrupt();
-                            
+
                             // Explicitly call finalise on the RecordWriter as a backup
                             // In normal circumstances it is called via the sentinel or the interrupt
                             // This will not block if finalise has been called previously in the current three implementations
@@ -1347,8 +1419,51 @@ public class SearchDAOImpl implements SearchDAO {
         return uidStats;
     }
 
-    private int processQueryResults( ConcurrentMap<String, AtomicInteger> uidStats, String[] fields, String[] qaFields, RecordWriter rw, QueryResponse qr, DownloadDetailsDTO dd, boolean checkLimit,AtomicInteger resultsCount, long maxDownloadSize) {
+    private List<String []> intersectResults(String layersServiceUrl, String [] analysisLayers, SolrDocumentList results) {
+        List<String []> intersection = new ArrayList<String []>();
+
+        if (analysisLayers.length > 0 && StringUtils.isNotEmpty(layersServiceUrl)) {
+            try {
+                double[][] points = new double[results.size()][2];
+                int invalid = 0;
+                int i = 0;
+                for (SolrDocument sd : results) {
+                    if (sd.containsKey("sensitive_longitude") && sd.containsKey("sensitive_latitude")) {
+                        points[i][0] = (double) sd.getFirstValue("sensitive_longitude");
+                        points[i][1] = (double) sd.getFirstValue("sensitive_latitude");
+                    } else if (sd.containsKey("longitude") && sd.containsKey("latitude")) {
+                        points[i][0] = (double) sd.getFirstValue("longitude");
+                        points[i][1] = (double) sd.getFirstValue("latitude");
+                    } else {
+                        points[i][0] = 0;
+                        points[i][1] = 0;
+                        invalid ++;
+                    }
+                    i++;
+                }
+
+                if (invalid < results.size()) {
+                    LayersStore ls = new LayersStore(layersServiceUrl);
+                    Reader reader = ls.sample(analysisLayers, points, null);
+
+                    CSVReader csv = new CSVReader(reader);
+                    intersection = csv.readAll();
+                    csv.close();
+                }
+            } catch (IOException e) {
+                logger.error("Failed to intersect analysis layers", e);
+            }
+        }
+
+        return intersection;
+    }
+
+    private int processQueryResults( ConcurrentMap<String, AtomicInteger> uidStats, String[] fields, String[] qaFields, RecordWriter rw, QueryResponse qr, DownloadDetailsDTO dd, boolean checkLimit,AtomicInteger resultsCount, long maxDownloadSize, String[] analysisLayers) {
+        //handle analysis layer intersections
+        List<String []> intersection = intersectResults(dd.getRequestParams().getLayersServiceUrl(), analysisLayers, qr.getResults());
+
         int count = 0;
+        int record = 0;
         for (SolrDocument sd : qr.getResults()) {
             if(sd.getFieldValue("data_resource_uid") != null &&(!checkLimit || (checkLimit && resultsCount.intValue() < maxDownloadSize))){
 
@@ -1357,7 +1472,7 @@ public class SearchDAOImpl implements SearchDAO {
                 resultsCount.incrementAndGet();
 
                 //add the record
-                String[] values = new String[fields.length + qaFields.length];
+                String[] values = new String[fields.length + analysisLayers.length + qaFields.length];
 
                 //get all the "single" values from the index
                 for(int j = 0; j < fields.length; j++){
@@ -1366,6 +1481,16 @@ public class SearchDAOImpl implements SearchDAO {
                         values[j] = value == null ? "" : org.apache.commons.lang.time.DateFormatUtils.format((Date)value, "yyyy-MM-dd");
                     } else {
                         values[j] = value == null ? "" : value.toString();
+                    }
+                }
+
+                //add analysis layer intersections
+                if (analysisLayers.length > 0 && intersection.size() > record) {
+                    //+1 offset for header in intersection list
+                    String [] sampling = intersection.get(record + 1);
+                    //+2 offset for latitude,longitude columns in sampling array
+                    if (sampling != null && sampling.length == analysisLayers.length + 2) {
+                        System.arraycopy(sampling, 2, values, fields.length, sampling.length - 2);
                     }
                 }
 
@@ -1389,6 +1514,8 @@ public class SearchDAOImpl implements SearchDAO {
                 incrementCount(uidStats, sd.getFieldValue("data_provider_uid"));
                 incrementCount(uidStats,  sd.getFieldValue("data_resource_uid"));
             }
+
+            record ++;
         }
         dd.updateCounts(count);
         return count;
@@ -1458,18 +1585,47 @@ public class SearchDAOImpl implements SearchDAO {
             //Write the header line
             String qas = qasb.toString();
 
+            List<String>[] indexedFields = downloadFields.getIndexFields(downloadParams.getFields().split(","), false, downloadParams.getLayersServiceUrl());
+
             String[] fields = sb.toString().split(",");
+
+            //avoid analysis field duplicates
+            for (String s : indexedFields[5]) fields = (String[]) ArrayUtils.removeElement(fields, s);
+
             String[] qaFields = qas.equals("")?new String[]{}:qas.split(",");
             String[] qaTitles = downloadFields.getHeader(qaFields,false,false);
             String[] titles = downloadFields.getHeader(fields,true,downloadParams.getDwcHeaders());
+            String[] analysisHeaders = indexedFields[4].toArray(new String[0]);
+            String[] analysisFields = indexedFields[5].toArray(new String[0]);
+
+            //apply custom header
+            String[] customHeader = dd.getRequestParams().getCustomHeader().split(",");
+            for (i = 0; i + 1 < customHeader.length; i += 2) {
+                for (int j = 0; j < analysisFields.length; j++) {
+                    if (customHeader[i].equals(analysisFields[j])) {
+                        analysisFields[j] = customHeader[i + 1];
+                    }
+                }
+                for (int j = 0; j < qaFields.length; j++) {
+                    if (customHeader[i].equals(qaFields[j])) {
+                        qaTitles[j] = customHeader[i + 1];
+                    }
+                }
+                for (int j = 0; j < fields.length; j++) {
+                    if (customHeader[i].equals(fields[j])) {
+                        titles[j] = customHeader[i + 1];
+                    }
+                }
+            }
+
             //append sensitive fields for the header only
             if (!includeSensitive && dd.getSensitiveFq() != null) {
                 //sensitive headers do not have a DwC name, always set getIndexFields dwcHeader=false
-                List<String>[] sensitiveHdr = downloadFields.getIndexFields(sensitiveSOLRHdr, false);
+                List<String>[] sensitiveHdr = downloadFields.getIndexFields(sensitiveSOLRHdr, false, downloadParams.getLayersServiceUrl());
 
                 titles = org.apache.commons.lang3.ArrayUtils.addAll(titles, sensitiveHdr[2].toArray(new String[]{}));
             }
-            String[] header = org.apache.commons.lang3.ArrayUtils.addAll(titles,qaTitles);
+            String[] header = org.apache.commons.lang3.ArrayUtils.addAll(org.apache.commons.lang3.ArrayUtils.addAll(titles,qaTitles), analysisHeaders);
             //Create the Writer that will be used to format the records
             //construct correct RecordWriter based on the supplied fileType
             final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ?
@@ -1481,18 +1637,19 @@ public class SearchDAOImpl implements SearchDAO {
                 if(rw instanceof ShapeFileRecordWriter) {
                     dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
                 }
-    
+
                 //retain output header fields and field names for inclusion of header info in the download
                 StringBuilder infoFields = new StringBuilder("infoFields,");
                 for (String h : fields) infoFields.append(",").append(h);
+                for (String h : analysisFields) infoFields.append(",").append(h);
                 for (String h : qaFields) infoFields.append(",").append(h);
-    
+
                 StringBuilder infoHeader = new StringBuilder("infoHeaders,");
                 for (String h : header) infoHeader.append(",").append(h);
-    
+
                 uidStats.put(infoFields.toString(), new AtomicInteger(-1));
                 uidStats.put(infoHeader.toString(), new AtomicInteger(-2));
-    
+
                 //download the records that have limits first...
                 if(downloadLimit.size() > 0) {
                     String[] originalFq = downloadParams.getFq();
@@ -1501,7 +1658,7 @@ public class SearchDAOImpl implements SearchDAO {
                         //add another fq to the search for data_resource_uid
                          downloadParams.setFq((String[])ArrayUtils.add(originalFq, "data_resource_uid:" + dr));
                          resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields,
-                                 resultsCount, dr, includeSensitive,dd,limit);
+                                 resultsCount, dr, includeSensitive,dd,limit, analysisFields);
                          if(fqBuilder.length() > 2) {
                              fqBuilder.append(" OR ");
                          }
@@ -1512,11 +1669,11 @@ public class SearchDAOImpl implements SearchDAO {
                     //add extra fq for the remaining records
                     downloadParams.setFq((String[])ArrayUtils.add(originalFq, fqBuilder.toString()));
                     resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields,
-                            resultsCount, null, includeSensitive,dd,limit);
+                            resultsCount, null, includeSensitive,dd,limit, analysisFields);
                 } else {
                     //download all at once
                     downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount,
-                            null, includeSensitive,dd,limit);
+                            null, includeSensitive,dd,limit, analysisFields);
                 }
             } finally {
                 rw.finalise();
@@ -1560,7 +1717,7 @@ public class SearchDAOImpl implements SearchDAO {
     private int downloadRecords(DownloadRequestParams downloadParams, au.org.ala.biocache.RecordWriter writer,
                 Map<String, Integer> downloadLimit,  ConcurrentMap<String, AtomicInteger> uidStats,
                 String[] fields, String[] qaFields,int resultsCount, String dataResource, boolean includeSensitive,
-                DownloadDetailsDTO dd, boolean limit) throws Exception {
+                DownloadDetailsDTO dd, boolean limit, String [] analysisLayers) throws Exception {
         if(logger.isInfoEnabled()) {
             logger.info("download query: " + downloadParams.getQ());
         }
@@ -1571,12 +1728,22 @@ public class SearchDAOImpl implements SearchDAO {
         //Only the fields specified below will be included in the results from the SOLR Query
         solrQuery.setFields("row_key", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid");
 
+        //get coordinates for analysis layer intersection
+        if (analysisLayers.length > 0) {
+
+            if (!includeSensitive && dd.getSensitiveFq() != null) {
+                for (String s : sensitiveSOLRHdr) solrQuery.addField(s);
+            } else {
+                for (String s : notSensitiveSOLRHdr) solrQuery.addField(s);
+            }
+        }
+
         int pageSize = downloadBatchSize;
-        StringBuilder  sb = new StringBuilder(downloadParams.getFields());
+        StringBuilder sb = new StringBuilder(downloadParams.getFields());
         if(downloadParams.getExtra().length() > 0) {
             sb.append(",").append(downloadParams.getExtra());
         }
-        
+
         List<SolrQuery> queries = new ArrayList<SolrQuery>();
         queries.add(solrQuery);
 
@@ -1615,18 +1782,27 @@ public class SearchDAOImpl implements SearchDAO {
             QueryResponse qr = runSolrQuery(q, fq, pageSize, startIndex, "_docid_", "asc");
             List<String> uuids = new ArrayList<String>();
 
+            List<String []> intersectionAll = intersectResults(dd.getRequestParams().getLayersServiceUrl(), analysisLayers, qr.getResults());
+
             while (qr.getResults().size() > 0 && (!limit || resultsCount < MAX_DOWNLOAD_SIZE) &&
                     shouldDownload(dataResource, downloadLimit, false)) {
                 if(logger.isDebugEnabled()) {
                     logger.debug("Start index: " + startIndex);
                 }
+
+                Map<String, String []> dataToInsert = new HashMap<String, String []>();
+
                 //cycle through the results adding them to the list that will be sent to cassandra
+                int row = 0;
                 for (SolrDocument sd : qr.getResults()) {
                     if (sd.getFieldValue("data_resource_uid") != null) {
                         String druid = sd.getFieldValue("data_resource_uid").toString();
                         if (shouldDownload(druid, downloadLimit, true) && (!limit || resultsCount < MAX_DOWNLOAD_SIZE)) {
                             resultsCount++;
                             uuids.add(sd.getFieldValue("row_key").toString());
+
+                            //include analysis layer intersections
+                            if (intersectionAll.size() > row + 1) dataToInsert.put(sd.getFieldValue("row_key").toString(), (String[]) ArrayUtils.subarray(intersectionAll.get(row + 1), 2, intersectionAll.get(row + 1).length));
 
                             //increment the counters....
                             incrementCount(uidStats, sd.getFieldValue("institution_uid"));
@@ -1635,13 +1811,14 @@ public class SearchDAOImpl implements SearchDAO {
                             incrementCount(uidStats, druid);
                         }
                     }
+                    row++;
                 }
 
                 String[] newMiscFields;
                 if (sensitiveQ.contains(q)) {
-                    newMiscFields = au.org.ala.biocache.Store.writeToWriter(writer, uuids.toArray(new String[]{}), sensitiveFields, qaFields, true, (dd.getRequestParams() != null ? dd.getRequestParams().getIncludeMisc() : false), dd.getMiscFields());
+                    newMiscFields = au.org.ala.biocache.Store.writeToWriter(writer, uuids.toArray(new String[]{}), sensitiveFields, qaFields, true, (dd.getRequestParams() != null ? dd.getRequestParams().getIncludeMisc() : false), dd.getMiscFields(), dataToInsert);
                 } else {
-                    newMiscFields = au.org.ala.biocache.Store.writeToWriter(writer, uuids.toArray(new String[]{}), notSensitiveFields, qaFields, includeSensitive, (dd.getRequestParams() != null ? dd.getRequestParams().getIncludeMisc() : false), dd.getMiscFields());
+                    newMiscFields = au.org.ala.biocache.Store.writeToWriter(writer, uuids.toArray(new String[]{}), notSensitiveFields, qaFields, includeSensitive, (dd.getRequestParams() != null ? dd.getRequestParams().getIncludeMisc() : false), dd.getMiscFields(), dataToInsert);
                 }
                 dd.setMiscFields(newMiscFields);
                 startIndex += pageSize;
@@ -2606,7 +2783,7 @@ public class SearchDAOImpl implements SearchDAO {
                         logger.debug("term query: " + value );
                         logger.debug("groups: " + matcher.group(1) + "|" + matcher.group(2) );
                     }
-                    
+
                     if ("matched_name".equals(matcher.group(1))) {
                         // name -> accepted taxon name (taxon_name:)
                         String field = matcher.group(1);
@@ -3406,7 +3583,7 @@ public class SearchDAOImpl implements SearchDAO {
         getIndexedFields();
         return indexFieldMap;
     }
-    
+
     /**
      * parses the response string from the service that returns details about the indexed fields
      * @param str
@@ -3566,7 +3743,7 @@ public class SearchDAOImpl implements SearchDAO {
 
                     //(4) check as json name
                     String json = (String) indexToJsonMap.get(fieldName);
-                    if (json != null && downloadField == null) {
+                    if (json != null) {
                         f.setJsonName(json);
                     }
 

@@ -40,6 +40,8 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
     @Inject
     protected ListsService listsService;
 
+    @Inject
+    protected LayersService layersService;
 
     protected String nameIndexLocation;
 
@@ -260,7 +262,12 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
                 long count = counts ? speciesCountsService.getCount(countlist, Long.parseLong(nsr.get("left").toString()), Long.parseLong(nsr.get("right").toString())) : 0;
 
                 if (!speciesCountsService.isEnabled() || count > 0 || includeAll) {
-                    if (counts) nsr.put("count", count);
+                    if (counts) {
+                        nsr.put("count", count);
+                        nsr.put("distributionsCount", layersService.getDistributionsCount(nsr.get("lsid").toString()));
+                        nsr.put("checklistsCount", layersService.getChecklistsCount(nsr.get("lsid").toString()));
+                        nsr.put("tracksCount", layersService.getTracksCount(nsr.get("lsid").toString()));
+                    }
 
                     nsr.put("images", speciesImageService.get(Long.parseLong((String) nsr.get("left")), Long.parseLong((String) nsr.get("right"))));
 
@@ -377,6 +384,9 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         formatted.put("nameComplete", m.get("name"));
 
         formatted.put("occCount", m.get("count"));
+        formatted.put("distributionsCount", m.get("distributionsCount"));
+        formatted.put("checklistsCount", m.get("checklistsCount"));
+        formatted.put("tracksCount", m.get("tracksCount"));
 
         SpeciesImageDTO speciesImage = (SpeciesImageDTO) m.get("images");
 
