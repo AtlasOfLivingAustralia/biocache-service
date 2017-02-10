@@ -35,11 +35,8 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
-import org.apache.solr.client.solrj.SolrServer;
-import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.*;
 import org.apache.solr.client.solrj.SolrQuery.ORDER;
-import org.apache.solr.client.solrj.SolrRequest;
-import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.beans.DocumentObjectBinder;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
 import org.apache.solr.client.solrj.response.*;
@@ -94,7 +91,7 @@ public class SearchDAOImpl implements SearchDAO {
     public static final String OCCURRENCE_YEAR_INDEX_FIELD = "occurrence_year";
 
     /** SOLR server instance */
-    protected SolrServer server;
+    protected SolrClient server;
     protected SolrRequest.METHOD queryMethod;
     /** Limit search results - for performance reasons */
     @Value("${download.max:500000}")
@@ -226,7 +223,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public SearchDAOImpl() {}
 
-    private SolrServer getServer(){
+    private SolrClient getServer(){
         int retry = 0;
         while(server == null && retry < maxRetries){
             retry ++;
@@ -854,7 +851,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
 
             //order the query by _docid_ for faster paging
-            solrQuery.addSort("_docid_", ORDER.asc);
+//            solrQuery.addSort("_docid_", ORDER.asc);
 
             //for each month create a separate query that pages through 500 records per page
             List<SolrQuery> queries = new ArrayList<SolrQuery>();
@@ -894,7 +891,7 @@ public class SearchDAOImpl implements SearchDAO {
 
                     @Override
                     public Integer call() throws Exception {
-                        QueryResponse qr = runSolrQuery(splitByFacetQuery, downloadParams.getFq(), downloadBatchSize, startIndex, "_docid_", "asc");
+                        QueryResponse qr = runSolrQuery(splitByFacetQuery, downloadParams.getFq(), downloadBatchSize, startIndex, "", "");
                         int recordsForThread = 0;
                         logger.debug(splitByFacetQuery.getQuery() + " - results: " + qr.getResults().size());
 
@@ -916,7 +913,7 @@ public class SearchDAOImpl implements SearchDAO {
                                         //don't care if the sleep was interrupted
                                     }
                                 }
-                                qr = runSolrQuery(splitByFacetQuery, null, downloadBatchSize, startIndex, "_docid_", "asc");
+                                qr = runSolrQuery(splitByFacetQuery, null, downloadBatchSize, startIndex, "", "");
                             } else {
                                 qr = null;
                             }
@@ -1052,7 +1049,7 @@ public class SearchDAOImpl implements SearchDAO {
                 sb.append(",").append(downloadParams.getExtra());
             StringBuilder qasb = new StringBuilder();
 
-            QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), 0, 0, "_docid_", "asc");
+            QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), 0, 0, "", "");
             dd.setTotalRecords(qr.getResults().getNumFound());
             //get the assertion facets to add them to the download fields
             List<FacetField> facets = qr.getFacetFields();
@@ -1193,7 +1190,7 @@ public class SearchDAOImpl implements SearchDAO {
         if(downloadParams.getExtra().length()>0)
             sb.append(",").append(downloadParams.getExtra());
         StringBuilder qasb = new StringBuilder();
-        QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), pageSize, startIndex, "_docid_", "asc");
+        QueryResponse qr = runSolrQuery(solrQuery, downloadParams.getFq(), pageSize, startIndex, "", "");
         List<String> uuids = new ArrayList<String>();
 
         while (qr.getResults().size() > 0 && resultsCount < MAX_DOWNLOAD_SIZE && shouldDownload(dataResource, downloadLimit, false)) {
@@ -1220,7 +1217,7 @@ public class SearchDAOImpl implements SearchDAO {
             dd.updateCounts(qr.getResults().size());
             if (resultsCount < MAX_DOWNLOAD_SIZE) {
                 //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
-                qr = runSolrQuery(solrQuery, null, pageSize, startIndex, "_docid_", "asc");
+                qr = runSolrQuery(solrQuery, null, pageSize, startIndex, "", "");
             }
         }
         return resultsCount;
@@ -1371,7 +1368,7 @@ public class SearchDAOImpl implements SearchDAO {
         //add the context information
         updateQueryContext(searchParams);
 
-        QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFq(), 0, 0, "_docid_", "asc");
+        QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFq(), 0, 0, "", "");
         List<FacetField> facets = qr.getFacetFields();
 
         //return first facet, there should only be 1
@@ -1843,11 +1840,12 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFacetMissing(true);
         solrQuery.setRows(requestParams.getPageSize());
         solrQuery.setStart(requestParams.getStart());
-        solrQuery.setSort(requestParams.getSort(), ORDER.valueOf(requestParams.getDir()));
-        logger.debug("runSolrQuery: " + solrQuery.toString());
+        if(StringUtils.isNotBlank(requestParams.getDir())) {
+            solrQuery.setSort(requestParams.getSort(), ORDER.valueOf(requestParams.getDir()));
+        }
         QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
-        logger.debug("runSolrQuery: " + solrQuery.toString() + " qtime:" + qr.getQTime());
         if(logger.isDebugEnabled()){
+            logger.debug("runSolrQuery: " + solrQuery.toString() + " qtime:" + qr.getQTime());
             logger.debug("matched records: " + qr.getResults().getNumFound());
         }
         return qr;
@@ -1882,8 +1880,10 @@ public class SearchDAOImpl implements SearchDAO {
         searchResult.setStatus("OK");
         String[] solrSort = StringUtils.split(solrQuery.getSortField(), " "); // e.g. "taxon_name asc"
         logger.debug("sortField post-split: " + StringUtils.join(solrSort, "|"));
-        searchResult.setSort(solrSort[0]); // sortField
-        searchResult.setDir(solrSort[1]); // sortDirection
+        if(solrSort != null && solrSort.length == 2) {
+            searchResult.setSort(solrSort[0]); // sortField
+            searchResult.setDir(solrSort[1]); // sortDirection
+        }
         searchResult.setQuery(params.getUrlParams()); //this needs to be the original URL>>>>
         searchResult.setOccurrences(results);
 
@@ -2973,7 +2973,7 @@ public class SearchDAOImpl implements SearchDAO {
         if(indexFields == null){
             indexFields = getIndexFieldDetails(null);
             indexFieldMap = new HashMap<String, IndexFieldDTO>();
-            for(IndexFieldDTO field:indexFields){
+            for(IndexFieldDTO field : indexFields){
                 indexFieldMap.put(field.getName(), field);
             }
         }

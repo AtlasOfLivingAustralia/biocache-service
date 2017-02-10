@@ -25,7 +25,7 @@ import java.io.OutputStream;
  * 
  * @author Natasha Carter
  */
-public class TSVRecordWriter implements RecordWriter{
+public class TSVRecordWriter implements RecordWriter {
     private final static Logger logger = LoggerFactory.getLogger(TSVRecordWriter.class);
 
     private OutputStream outputStream;
@@ -65,4 +65,7 @@ public class TSVRecordWriter implements RecordWriter{
             logger.debug(e.getMessage(), e);
         }
     }
+
+    @Override
+    public boolean finalised() { return true; }
 }

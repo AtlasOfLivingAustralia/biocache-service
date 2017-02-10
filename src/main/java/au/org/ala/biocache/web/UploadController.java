@@ -709,7 +709,7 @@ class UploaderThread implements Runnable {
             logger.debug("Indexing " + tempUid + " " + tmpCustIndexFields);
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("INDEXING","Starting",75)));
             DefaultObserverCallback indexingCallback = new DefaultObserverCallback("INDEXING", recordCount, statusFile, 75, "indexed");
-            au.org.ala.biocache.Store.index(tempUid, tmpCustIndexFields.toArray(new String[0]), indexingCallback);
+            au.org.ala.biocache.Store.index(tempUid, tmpCustIndexFields.toArray(new String[0]), new String[0], indexingCallback);
 
             status = "COMPLETE";
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,"Loading complete",100)));

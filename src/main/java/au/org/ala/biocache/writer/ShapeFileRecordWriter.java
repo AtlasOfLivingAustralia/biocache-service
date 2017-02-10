@@ -28,8 +28,6 @@ import org.geotools.data.shapefile.ShapefileDataStoreFactory;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.data.simple.SimpleFeatureStore;
-import org.geotools.feature.DefaultFeatureCollection;
-import org.geotools.feature.DefaultFeatureCollections;
 import org.geotools.feature.FeatureCollections;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
@@ -63,7 +61,7 @@ public class ShapeFileRecordWriter implements RecordWriter {
     private OutputStream outputStream;
     private File temporaryShapeFile;
     private int latIdx,longIdx;
-    private DefaultFeatureCollection collection = new DefaultFeatureCollection();
+    private SimpleFeatureCollection collection = FeatureCollections.newCollection();
     private Map<String,String> headerMappings = null;
 
     /**
@@ -132,8 +130,10 @@ public class ShapeFileRecordWriter implements RecordWriter {
 
         // build the type
         final SimpleFeatureType LOCATION = builder.buildFeatureType();
-        logger.debug("FEATURES IN HEADER::: " + StringUtils.join(features, "|"));
-        logger.debug("LOCATION INFO:::" +LOCATION.getAttributeCount() +" " + i +" " + LOCATION.getAttributeDescriptors());
+        if(logger.isDebugEnabled()) {
+            logger.debug("FEATURES IN HEADER::: " + StringUtils.join(features, "|"));
+            logger.debug("LOCATION INFO:::" +LOCATION.getAttributeCount() +" " + i +" " + LOCATION.getAttributeDescriptors());
+        }
         return LOCATION;
     }
     
@@ -145,7 +145,6 @@ public class ShapeFileRecordWriter implements RecordWriter {
     public void finalise() {
         // stream the contents of the file into the supplied outputStream
       //Properties for the shape file construction
-        java.io.FileInputStream inputStream=null;
         try{
             Map<String, Serializable> params = new HashMap<String, Serializable>();
             params.put("url", temporaryShapeFile.toURI().toURL());
@@ -175,26 +174,21 @@ public class ShapeFileRecordWriter implements RecordWriter {
                 //zip the parent directory
                 String targetZipFile = temporaryShapeFile.getParentFile().getParent()+File.separator+temporaryShapeFile.getName().replace(".shp", ".zip");                
                 AlaFileUtils.createZip(temporaryShapeFile.getParent(), targetZipFile);
-                inputStream = new java.io.FileInputStream(targetZipFile);
+                try(java.io.FileInputStream inputStream = new java.io.FileInputStream(targetZipFile);) {
                 //write the shapefile to the supplied output stream
                 logger.info("Copying Shape zip file to outputstream");
                 IOUtils.copy(inputStream,outputStream);
                 //now remove the temporary directory
                 FileUtils.deleteDirectory(temporaryShapeFile.getParentFile().getParentFile());
-                
+                }
+
             } else {
                 logger.error(typeName + " does not support read/write access");                
             }
             
+            outputStream.flush();
         } catch (java.io.IOException e){
             logger.error("Unable to create ShapeFile", e);
-        } finally {
-            try {
-                outputStream.flush();
-                IOUtils.closeQuietly(inputStream);                
-            } catch(Exception e){
-                logger.error("Unable to flush the file " , e);
-            }
         }
     }
     
@@ -238,4 +232,6 @@ public class ShapeFileRecordWriter implements RecordWriter {
     public Map<String, String> getHeaderMappings() {
         return headerMappings;
     }
+
+    public boolean finalised() { return true; }
 }

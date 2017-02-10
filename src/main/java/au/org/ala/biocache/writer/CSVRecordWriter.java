@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @author Natasha Carter
  */
-public class CSVRecordWriter implements RecordWriter{
+public class CSVRecordWriter implements RecordWriter {
     private final static Logger logger = LoggerFactory.getLogger(CSVRecordWriter.class);
 
     private CSVWriter csvWriter;
@@ -59,4 +59,6 @@ public class CSVRecordWriter implements RecordWriter{
             logger.debug(e.getMessage(), e);
         }
     }
+
+    public boolean finalised() { return true; }
 }

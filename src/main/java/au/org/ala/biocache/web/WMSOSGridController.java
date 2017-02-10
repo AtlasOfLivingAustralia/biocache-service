@@ -318,10 +318,10 @@ public class WMSOSGridController {
         if ("singlegrid".equals(wmsEnv.gridres)){
             if(boundingBoxSizeInKm >= 1000 ) {
                 facets = new String[]{"grid_ref_100000"};
-                buff = 0.5;
+                buff = 1.0;
             } else if(boundingBoxSizeInKm > 78 && boundingBoxSizeInKm <1000 ){
                 facets = new String[]{"grid_ref_10000"};
-                buff = 0.5;
+                buff = 0.75;
             } else if(boundingBoxSizeInKm > 39 && boundingBoxSizeInKm <= 78) {
                 facets = new String[]{"grid_ref_2000"};
                 buff = 0.05;
@@ -334,20 +334,22 @@ public class WMSOSGridController {
             }
         } else if ("10kgrid".equals(wmsEnv.gridres)){
             facets = new String[]{"grid_ref_10000"};
-            buff = 0.25;
+            buff = 0.75; //no problems with buff 1.0
         } else {
             if(boundingBoxSizeInKm >= 1000 ) {
                 facets = new String[]{"grid_ref_100000"};
-                buff = 0.5;
+                buff = 1.0;
             } else if(boundingBoxSizeInKm > 39 && boundingBoxSizeInKm < 1000 ){
                 facets = new String[]{"grid_ref_10000"};
-                buff = 0.25;
+                buff = 0.75;
             } else if(boundingBoxSizeInKm > 19 && boundingBoxSizeInKm <= 39){
-                buff = 0.1;
-                facets = new String[]{"grid_ref_1000", "grid_ref"};
+                buff = 0.5;
+                facets = new String[]{"grid_ref_1000", "grid_ref_10000"};
+//                additionalFqs = new String[]{"-coordinate_uncertainty:100000"};
             } else {
                 buff = 0.1;
-                facets = new String[]{"grid_ref_100", "grid_ref"};
+                facets = new String[]{"grid_ref_100", "grid_ref_1000", "grid_ref_10000"};
+//                additionalFqs = new String[]{"-coordinate_uncertainty:100000"};
             }
         }
 
