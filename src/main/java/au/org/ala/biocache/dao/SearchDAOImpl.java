@@ -274,6 +274,9 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${wms.colour:0x00000000}")
     protected int DEFAULT_COLOUR;
 
+    @Value("${dwc.url:http://rs.tdwg.org/dwc/terms/}")
+    protected String dwcUrl = "http://rs.tdwg.org/dwc/terms/";
+
     /**
      * Initialise the SOLR server instance
      */
@@ -3808,6 +3811,12 @@ public class SearchDAOImpl implements SearchDAO {
                         if (dwcTerm.length() > 0) {
                             f.setDwcTerm(dwcTerm);
                         }
+                    }
+
+                    //append dwc url to info
+                    if (!dwcTerm.isEmpty() && StringUtils.isNotEmpty(dwcUrl)) {
+                        if (info.length() > 0) info += " ";
+                        f.setInfo(info + dwcUrl + dwcTerm.replace("_raw",""));
                     }
 
                     //(4) check as json name
