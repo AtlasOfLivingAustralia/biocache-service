@@ -157,6 +157,9 @@ public class SearchDAOImpl implements SearchDAO {
     protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("[a-z_0-9]{1,}:");
     protected Pattern layersPattern = Pattern.compile("(el|cl)[0-9abc]+");
     protected Pattern taxaPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')taxa:\"?([a-zA-Z0-9\\s\\(\\)\\.:\\-_]*)\"?");
+    protected Pattern clpField = Pattern.compile("(,|^)cl.p(,|$)");
+    protected Pattern elpField = Pattern.compile("(,|^)el.p(,|$)");
+    protected Pattern allDwcField = Pattern.compile("(,|^)allDwc(,|$)");
 
     /**solr connection retry limit **/
     @Value("${solr.server.retry.max:6}")
@@ -940,6 +943,8 @@ public class SearchDAOImpl implements SearchDAO {
                                                                          final DownloadDetailsDTO dd,
                                                                          boolean checkLimit,
                                                                          final ExecutorService nextExecutor) throws Exception {
+        expandRequestedFields(downloadParams, true);
+
         long start = System.currentTimeMillis();
         final ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
         getServer();
@@ -1527,6 +1532,7 @@ public class SearchDAOImpl implements SearchDAO {
     public ConcurrentMap<String, AtomicInteger> writeResultsToStream(
             DownloadRequestParams downloadParams, OutputStream out, int i,
             boolean includeSensitive, DownloadDetailsDTO dd, boolean limit) throws Exception {
+        expandRequestedFields(downloadParams, false);
 
         int resultsCount = 0;
         ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
@@ -1683,6 +1689,69 @@ public class SearchDAOImpl implements SearchDAO {
         }
 
         return uidStats;
+    }
+
+    /**
+     * Expand field abbreviations
+     *
+     * cl.p Include all contextual spatial layers
+     * el.p Include all environmental spatial layers
+     * allDwc Include all fields with a dwcTerm
+     *
+     * @param downloadParams
+     */
+    private void expandRequestedFields(DownloadRequestParams downloadParams, boolean isSolr) {
+        String fields = downloadParams.getFields();
+
+        try {
+            Matcher matcher = clpField.matcher(fields);
+            if (matcher.find()) {
+                StringBuilder sb = new StringBuilder();
+                for (IndexFieldDTO field : getIndexedFields()) {
+                    if (field.getName().matches("cl[0-9]*")) {
+                        if (sb.length() > 0 || matcher.start() > 0) sb.append(",");
+                        sb.append(field.getName());
+                    }
+                }
+                if (sb.length() > 0 && matcher.end() < fields.length()) sb.append(",");
+                fields = matcher.replaceFirst(sb.toString());
+            }
+
+            matcher = elpField.matcher(fields);
+            if (matcher.find()) {
+                StringBuilder sb = new StringBuilder();
+                for (IndexFieldDTO field : getIndexedFields()) {
+                    if (field.getName().matches("el[0-9]*")) {
+                        if (sb.length() > 0 || matcher.start() > 0) sb.append(",");
+                        sb.append(field.getName());
+                    }
+                }
+                if (sb.length() > 0 && matcher.end() < fields.length()) sb.append(",");
+                fields = matcher.replaceFirst(sb.toString());
+            }
+
+            matcher = allDwcField.matcher(fields);
+            if (matcher.find()) {
+                StringBuilder sb = new StringBuilder();
+                for (IndexFieldDTO field : getIndexedFields()) {
+                    if (StringUtils.isNotEmpty(field.getDwcTerm()) &&
+                            (!isSolr || field.isStored())) {
+                        if (sb.length() > 0 || matcher.start() > 0) sb.append(",");
+                        if (isSolr) {
+                            sb.append(field.getName());
+                        } else {
+                            sb.append(field.getDownloadName());
+                        }
+                    }
+                }
+                if (sb.length() > 0 && matcher.end() < fields.length()) sb.append(",");
+                fields = matcher.replaceFirst(sb.toString());
+            }
+        } catch (Exception e) {
+            logger.error("failed to substitute fields", e);
+        }
+
+        downloadParams.setFields(fields);
     }
 
     private String getQAFromFacet(FacetField facet) {
