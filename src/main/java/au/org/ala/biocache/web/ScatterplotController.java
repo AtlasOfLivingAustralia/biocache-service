@@ -2,7 +2,6 @@ package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.IndexFieldDTO;
-import au.org.ala.biocache.dto.SearchResultDTO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocumentList;
@@ -53,7 +52,7 @@ public class ScatterplotController {
     private final static String DEFAULT_SCATTERPLOT_WIDTH = "256";
     private final static String DEFAULT_SCATTERPLOT_POINTCOLOUR = "0000FF";
     private final static String DEFAULT_SCATTERPLOT_POINTRADIUS = "3";
-    private final static String [] VALID_DATATYPES = {"double","int","long"};
+    private final static String [] VALID_DATATYPES = {"float","double","int","long","tfloat","tdouble","tint","tlong"};
 
     @Inject
     protected SearchDAO searchDAO;
@@ -142,7 +141,6 @@ public class ScatterplotController {
         
         Exception toThrowX = null;
         
-        // FIXME: VALID_DATATYPES does not contain all of the necesary datatypes
         for (IndexFieldDTO xField : indexedFields) {
             if(xField.getName().equals(x)) {
                 if (!validDatatypes.contains(xField.getDataType() )) {
