@@ -14,28 +14,6 @@
  ***************************************************************************/
 package au.org.ala.biocache.web;
 
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.Shape;
-import java.awt.geom.Ellipse2D;
-import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
-import java.io.*;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import org.apache.commons.io.FileUtils;
-
-import javax.imageio.ImageIO;
-import javax.inject.Inject;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.OccurrencePoint;
 import au.org.ala.biocache.dto.PointType;
@@ -43,6 +21,7 @@ import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.heatmap.HeatMap;
 import au.org.ala.biocache.util.ColorUtil;
 import au.org.ala.biocache.util.SearchUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.log4j.Logger;
@@ -54,6 +33,23 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.context.ServletConfigAware;
+
+import javax.imageio.ImageIO;
+import javax.inject.Inject;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.awt.*;
+import java.awt.geom.Ellipse2D;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.io.*;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * WMS and static map controller. This controller generates static PNG image files
@@ -251,6 +247,16 @@ public class MapController implements ServletConfigAware {
             Model model,
             HttpServletResponse response)
             throws Exception {
+
+        if (requestParams.getLon() == null) {
+            response.sendError(400, "Required Double parameter 'lon' is not present");
+        }
+        if (requestParams.getLat() == null) {
+            response.sendError(400,"Required Double parameter 'lat' is not present");
+        }
+        if (requestParams.getRadius() == null) {
+            response.sendError(400, "Required Double parameter 'radius' is not present");
+        }
 
         if (callback != null && !callback.isEmpty()) {
             response.setContentType("text/javascript");
