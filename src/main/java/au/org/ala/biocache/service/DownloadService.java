@@ -732,9 +732,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                 // misc headers
                 if (miscHeaders != null) {
+                    String defaultDescription = messageSource.getMessage("description.", null, "Raw field from data provider.", null);
                     for (int i = 0; i < miscHeaders.length; i++) {
                         writer.writeNext(
-                                new String[] { miscHeaders[i], "", "", "", "", "", "Raw header from data provider." });
+                                new String[] { miscHeaders[i], "", "", "", "", "", messageSource.getMessage("description." + miscHeaders[i], null, defaultDescription, null)});
                     }
                 }
 
@@ -926,7 +927,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             if (currentDownload != null && currentDownload.getFileLocation() != null) {
                                 insertMiscHeader(currentDownload);
 
-                                String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir,
+                                String fileLocation = URLEncoder.encode(currentDownload.getFileLocation(), "UTF-8").replace("%2F","/").replace(biocacheDownloadDir,
                                         biocacheDownloadUrl);
                                 String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
                                 String emailBodyHtml = biocacheDownloadEmailBody.replace("[url]", fileLocation)
