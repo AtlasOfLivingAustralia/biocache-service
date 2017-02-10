@@ -151,8 +151,8 @@ public class DownloadFields {
             IndexFieldDTO field = indexFieldMaps.get(indexName);
             if((field != null && field.isStored()) || value.startsWith("sensitive")) {
                 mappedNames.add(indexName);
-                //only dwcHeader lookup is permitted when dwcHeaders == true
-                String v = dwcHeaders ? value : layerProperties.getProperty(value, messageSource.getMessage(value, null, generateTitle(value, true), Locale.getDefault()));
+                //only dwcHeader lookup is permitted when dwcHeaders == true or it is a cl or el field
+                String v = dwcHeaders && !isSpatialField(field.getName()) ? value : layerProperties.getProperty(value, messageSource.getMessage(value, null, generateTitle(value, true), Locale.getDefault()));
                 String dwc = dwcHeaders ? messageSource.getMessage("dwc." + value, null, "", Locale.getDefault()) : null;
                 headers.add(dwc != null && dwc.length() > 0 ? dwc : v);
                 originalName.add(value);
@@ -164,5 +164,9 @@ public class DownloadFields {
             }
         }
         return new List[]{mappedNames,unmappedNames,headers,originalName, analysisHeaders, analysisLayers};
+    }
+
+    private boolean isSpatialField(String name) {
+        return name.matches("((cl)|(el))[0-9]+");
     }
 }
