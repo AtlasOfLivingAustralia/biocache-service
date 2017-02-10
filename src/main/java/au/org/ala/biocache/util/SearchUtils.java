@@ -17,6 +17,7 @@ import org.apache.solr.client.solrj.util.ClientUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.servlet.HandlerMapping;
 
 import javax.inject.Inject;
@@ -233,7 +234,10 @@ public class SearchUtils {
      * @return The guid
      */
     public String getGuidFromPath(HttpServletRequest request) {
-        String guid = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        String guid = new AntPathMatcher().extractPathWithinPattern(
+                (String) request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE),
+                request.getServletPath());
+
         if (guid.endsWith(".json"))
             guid = guid.substring(0, guid.length() - 5);
         Matcher duds = DUD_URL_PATTERN.matcher(guid);
