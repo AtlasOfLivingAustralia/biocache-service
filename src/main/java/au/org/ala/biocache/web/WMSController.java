@@ -2297,7 +2297,7 @@ public class WMSController {
             long t2 = System.currentTimeMillis();
 
             //pivot
-            if (!numericalFacetCategories && docCount <= wmsFacetPivotCutoff) {
+            if (!numericalFacetCategories && docCount <= wmsFacetPivotCutoff && canCache) {
                 requestParams.setFacets(new String[]{vars.colourMode + "," + pointType.getLabel()});
                 requestParams.setFlimit(-1);
                 //get pivot and drill to colourMode level
@@ -2308,24 +2308,30 @@ public class WMSController {
                     //last colour
                     int lastColour = ColorUtil.colourList[ColorUtil.colourList.length - 1] | (vars.alpha << 24);
 
-                    //get facet points
-                    for (int j = 0; j < piv.size(); j++) {
-                        FacetPivotResultDTO p = piv.get(j);
-                        boolean added = false;
-                        for (int i = 0; i < colours.size(); i++) {
-                            LegendItem li = colours.get(i);
+                    //get facet points, retain colours order so it does not break hq
+                    for (int i = 0; i < colours.size(); i++) {
+                        LegendItem li = colours.get(i);
+
+                        int j = 0;
+                        while (j < piv.size() && piv.size() > 0) {
+                            FacetPivotResultDTO p = piv.get(j);
                             if ((StringUtils.isEmpty(li.getName()) && StringUtils.isEmpty(p.getValue()))
                                     || (StringUtils.isNotEmpty(li.getName()) && li.getName().equals(p.getValue()))) {
                                 makePointsFromPivot(p.getPivotResult(), pointsArrays, countsArrays);
                                 pColour.add(li.getColour() | (vars.alpha << 24));
-                                added = true;
+                                piv.remove(j);
                                 break;
+                            } else {
+                                j++;
                             }
                         }
-                        if (!added) {
-                            makePointsFromPivot(p.getPivotResult(), pointsArrays, countsArrays);
-                            pColour.add(lastColour);
-                        }
+                    }
+
+                    // ensure all point/colour pairs are added
+                    while (piv.size() > 0) {
+                        makePointsFromPivot(piv.get(0).getPivotResult(), pointsArrays, countsArrays);
+                        pColour.add(lastColour);
+                        piv.remove(0);
                     }
                 }
             }
