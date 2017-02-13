@@ -22,6 +22,7 @@ import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.cas.util.AuthenticationUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocumentList;
@@ -36,10 +37,7 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * A Controller for downloading records based on queries.  This controller
@@ -93,6 +91,16 @@ public class DownloadController extends AbstractSecureController {
             "\n" +
             "}}")
     protected String sensitiveAccessRoles;
+
+    @Value("${download.offline.max.url:http://downloads.ala.org.au}")
+    protected String dowloadOfflineMaxUrl = "http://downloads.ala.org.au";
+
+    /** By default this is set to a very large value to 'disable' the offline download limit. */
+    @Value("${download.offline.max.size:100000000}")
+    protected Integer dowloadOfflineMaxSize = 100000000;
+
+    @Value("${download.offline.msg:Too many records requested. Bulk download files for Lifeforms are available.}")
+    protected String downloadOfflineMsg = "Too many records requested. Bulk download files for Lifeforms are available.";
 
     /**
      * Retrieves all the downloads that are on the queue
@@ -153,6 +161,10 @@ public class DownloadController extends AbstractSecureController {
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
 
+        if (StringUtils.isEmpty(requestParams.getEmail())) {
+            response.sendError(400, "Required parameter 'email' is not present");
+        }
+
         //download from index when there are no CASSANDRA fields requested
         boolean hasDBColumn = requestParams.getIncludeMisc();
         String fields = requestParams.getFields() + "," + requestParams.getExtra();
@@ -201,21 +213,33 @@ public class DownloadController extends AbstractSecureController {
 
         //get query (max) count for queue priority
         requestParams.setPageSize(0);
+        requestParams.setFacet(false);
         SolrDocumentList result = searchDAO.findByFulltext(requestParams);
         dd.setTotalRecords(result.getNumFound());
 
         Map<String, Object> status = new LinkedHashMap<>();
         DownloadDetailsDTO d = persistentQueueDAO.isInQueue(dd);
+
         if (d != null) {
-            dd = d;
             status.put("message", "Already in queue.");
+            status.put("status", "inQueue");
+            status.put("queueSize", persistentQueueDAO.getTotalDownloads());
+            status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
+        } else if (dd.getTotalRecords() >= dowloadOfflineMaxSize) {
+            //identify this download as too large
+            File file = new File(biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes()) + File.separator + dd.getStartTime() + File.separator + "tooLarge");
+            FileUtils.forceMkdir(file.getParentFile());
+            FileUtils.writeStringToFile(file, "", "UTF-8");
+            status.put("downloadUrl", biocacheDownloadUrl);
+            status.put("status", "Skipped. " + downloadOfflineMsg);
+            status.put("message", downloadOfflineMsg);
         } else {
             persistentQueueDAO.addDownloadToQueue(dd);
+            status.put("status", "inQueue");
+            status.put("queueSize", persistentQueueDAO.getTotalDownloads());
+            status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
         }
 
-        status.put("status", "inQueue");
-        status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
-        status.put("queueSize", persistentQueueDAO.getTotalDownloads());
         return status;
     }
 
@@ -232,7 +256,9 @@ public class DownloadController extends AbstractSecureController {
                     status.put("status", "inQueue");
                 } else {
                     status.put("status", "running");
+                    status.put("records", dd.getRecordsDownloaded());
                 }
+                status.put("totalRecords", dd.getTotalRecords());
                 status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + id);
                 break;
             }
@@ -247,6 +273,11 @@ public class DownloadController extends AbstractSecureController {
                     if (file.isFile() && file.getPath().endsWith(".zip") && file.length() > 0) {
                         status.put("status", "finished");
                         status.put("downloadUrl", file.getPath().replace(biocacheDownloadDir, biocacheDownloadUrl));
+                    }
+                    if (file.isFile() && "tooLarge".equals(file.getName())) {
+                        status.put("status", "Skipped. " + downloadOfflineMsg);
+                        status.put("message", downloadOfflineMsg);
+                        status.put("downloadUrl", dowloadOfflineMaxUrl);
                     }
                 }
                 if (!status.containsKey("status")) {
