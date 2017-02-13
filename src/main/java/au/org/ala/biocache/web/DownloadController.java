@@ -285,14 +285,9 @@ public class DownloadController extends AbstractSecureController {
         List<DownloadDetailsDTO> downloads = persistentQueueDAO.getAllDownloads();
         for (DownloadDetailsDTO dd : downloads) {
             if (id.equals(dd.getUniqueId())) {
-                if (dd.getFileLocation() == null) {
-                    persistentQueueDAO.removeDownloadFromQueue(dd);
-                    status.put("cancelled", "true");
-                    status.put("status", "notInQueue");
-                } else {
-                    status.put("cancelled", "false");
-                    status.put("status", "running");
-                }
+                persistentQueueDAO.removeDownloadFromQueue(dd);
+                status.put("cancelled", "true");
+                status.put("status", "notInQueue");
                 break;
             }
         }

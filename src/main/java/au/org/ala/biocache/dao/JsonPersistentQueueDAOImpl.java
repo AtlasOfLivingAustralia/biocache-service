@@ -16,7 +16,6 @@ package au.org.ala.biocache.dao;
 
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadRequestParams;
-
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.FileUtils;
@@ -239,6 +238,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
             }
             finally {
                 offlineDownloadList.remove(download);
+                download.getInterrupt().set(true);
             }
         }
         

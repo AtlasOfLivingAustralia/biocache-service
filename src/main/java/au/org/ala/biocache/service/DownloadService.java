@@ -419,123 +419,132 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 requestParams.setFacets(new String[] { "data_resource_uid" });
             }
             ConcurrentMap<String, AtomicInteger> uidStats = null;
+            boolean shuttingDown = false;
             try {
                 if (fromIndex) {
                     uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, sp, includeSensitive, dd, limit, parallelExecutor);
                 } else {
                     uidStats = searchDAO.writeResultsToStream(requestParams, sp, 100, includeSensitive, dd, limit);
                 }
+            } catch (InterruptedException e) {
+                //Application may be shutting down, do not delete the download file
+                shuttingDown = true;
+                throw e;
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
             } finally {
-                unregisterDownload(dd);
+                if (!shuttingDown) {
+                    unregisterDownload(dd);
+                }
             }
             sp.closeEntry();
 
-            // add the readme for the Shape file header mappings if necessary
-            if (dd.getHeaderMap() != null) {
-                sp.putNextEntry("Shape-README.html");
-                sp.write(
-                        ("The name of features is limited to 10 characters. Listed below are the mappings of feature name to download field:")
-                                .getBytes());
-                sp.write(("<table><td><b>Feature</b></td><td><b>Download Field<b></td>").getBytes());
-                for (String key : dd.getHeaderMap().keySet()) {
-                    sp.write(("<tr><td>" + key + "</td><td>" + dd.getHeaderMap().get(key) + "</td></tr>").getBytes());
+            if (!shuttingDown) {
+                // add the readme for the Shape file header mappings if necessary
+                if (dd.getHeaderMap() != null) {
+                    sp.putNextEntry("Shape-README.html");
+                    sp.write(
+                            ("The name of features is limited to 10 characters. Listed below are the mappings of feature name to download field:")
+                                    .getBytes());
+                    sp.write(("<table><td><b>Feature</b></td><td><b>Download Field<b></td>").getBytes());
+                    for (String key : dd.getHeaderMap().keySet()) {
+                        sp.write(("<tr><td>" + key + "</td><td>" + dd.getHeaderMap().get(key) + "</td></tr>").getBytes());
+                    }
+                    sp.write(("</table>").getBytes());
                 }
-                sp.write(("</table>").getBytes());
-            }
 
-            // Add the data citation to the download
-            List<String> citationsForReadme = new ArrayList<String>();
-            if (uidStats != null && !uidStats.isEmpty() && citationsEnabled) {
-                // add the citations for the supplied uids
-                sp.putNextEntry("citation.csv");
-                try {
-                    getCitations(uidStats, sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme);
-                } catch (Exception e) {
-                    logger.error(e.getMessage(), e);
-                }
-                sp.closeEntry();
-            } else {
-                if(logger.isDebugEnabled()) {
-                    logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " + uidStats);
-                }
-            }
-
-            // online downloads will not have a file location or request params set
-            // in dd.
-            if (dd.getRequestParams() == null) {
-                dd.setRequestParams(requestParams);
-            }
-            if (dd.getFileLocation() == null) {
-                dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
-            }
-
-            // add the Readme for the data field descriptions
-            sp.putNextEntry("README.html");
-            String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
-
-            // online downloads will not have a file location or request params set
-            // in dd.
-            if (dd.getRequestParams() == null) {
-                dd.setRequestParams(requestParams);
-            }
-            if (dd.getFileLocation() == null) {
-                dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
-            }
-
-            String fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
-            String readmeContent = biocacheDownloadReadme.replace("[url]", fileLocation)
-                    .replace("[date]", dd.getStartDateString())
-                    .replace("[searchUrl]", generateSearchUrl(dd.getRequestParams()))
-                    .replace("[dataProviders]", dataProviders);
-            if(logger.isDebugEnabled()) {
-                logger.debug(readmeContent);
-            }
-            sp.write((readmeContent).getBytes());
-            sp.write(("For more information about the fields that are being downloaded please consult <a href='"
-                    + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes());
-            sp.closeEntry();
-
-            // Add headings file, listing information about the headings
-            if (headingsEnabled) {
-                // add the citations for the supplied uids
-                sp.putNextEntry("headings.csv");
-                try {
-                    getHeadings(uidStats, sp, requestParams, dd.getMiscFields());
-                } catch (Exception e) {
-                    logger.error(e.getMessage(), e);
-                }
-                sp.closeEntry();
-            } else {
-                if(logger.isDebugEnabled()) {
-                    logger.debug("Not adding header. Enabled: " + headingsEnabled + " uids: " + uidStats);
-                }
-            }
-
-            sp.flush();
-
-            // now construct the sourceUrl for the log event
-            String sourceUrl = originalParams.contains("qid:") ? webservicesRoot + "?" + requestParams.toString()
-                    : webservicesRoot + "?" + originalParams;
-
-            // remove header entries from uidStats
-            if (uidStats != null) {
-                List<String> toRemove = new ArrayList<String>();
-                for (String key : uidStats.keySet()) {
-                    if (uidStats.get(key).get() < 0) {
-                        toRemove.add(key);
+                // Add the data citation to the download
+                List<String> citationsForReadme = new ArrayList<String>();
+                if (uidStats != null && !uidStats.isEmpty() && citationsEnabled) {
+                    // add the citations for the supplied uids
+                    sp.putNextEntry("citation.csv");
+                    try {
+                        getCitations(uidStats, sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme);
+                    } catch (Exception e) {
+                        logger.error(e.getMessage(), e);
+                    }
+                    sp.closeEntry();
+                } else {
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " + uidStats);
                     }
                 }
-                for (String key : toRemove) {
-                    uidStats.remove(key);
-                }
-            }
 
-            // log the stats to ala logger
-            LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
-                    requestParams.getEmail(), requestParams.getReason(), ip, null, uidStats, sourceUrl);
-            logger.log(RestLevel.REMOTE, vo);
+                // online downloads will not have a file location or request params set
+                // in dd.
+                if (dd.getRequestParams() == null) {
+                    dd.setRequestParams(requestParams);
+                }
+                if (dd.getFileLocation() == null) {
+                    dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
+                }
+
+                // add the Readme for the data field descriptions
+                sp.putNextEntry("README.html");
+                String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
+
+                // online downloads will not have a file location or request params set
+                // in dd.
+                if (dd.getRequestParams() == null) {
+                    dd.setRequestParams(requestParams);
+                }
+                if (dd.getFileLocation() == null) {
+                    dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
+                }
+
+                String fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
+                String readmeContent = biocacheDownloadReadme.replace("[url]", fileLocation)
+                        .replace("[date]", dd.getStartDateString())
+                        .replace("[searchUrl]", generateSearchUrl(dd.getRequestParams()))
+                        .replace("[dataProviders]", dataProviders);
+                if (logger.isDebugEnabled()) {
+                    logger.debug(readmeContent);
+                }
+                sp.write((readmeContent).getBytes());
+                sp.write(("For more information about the fields that are being downloaded please consult <a href='"
+                        + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes());
+                sp.closeEntry();
+
+                // Add headings file, listing information about the headings
+                if (headingsEnabled) {
+                    // add the citations for the supplied uids
+                    sp.putNextEntry("headings.csv");
+                    try {
+                        getHeadings(uidStats, sp, requestParams, dd.getMiscFields());
+                    } catch (Exception e) {
+                        logger.error(e.getMessage(), e);
+                    }
+                    sp.closeEntry();
+                } else {
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Not adding header. Enabled: " + headingsEnabled + " uids: " + uidStats);
+                    }
+                }
+
+                sp.flush();
+
+                // now construct the sourceUrl for the log event
+                String sourceUrl = originalParams.contains("qid:") ? webservicesRoot + "?" + requestParams.toString()
+                        : webservicesRoot + "?" + originalParams;
+
+                // remove header entries from uidStats
+                if (uidStats != null) {
+                    List<String> toRemove = new ArrayList<String>();
+                    for (String key : uidStats.keySet()) {
+                        if (uidStats.get(key).get() < 0) {
+                            toRemove.add(key);
+                        }
+                    }
+                    for (String key : toRemove) {
+                        uidStats.remove(key);
+                    }
+                }
+
+                // log the stats to ala logger
+                LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
+                        requestParams.getEmail(), requestParams.getReason(), ip, null, uidStats, sourceUrl);
+                logger.log(RestLevel.REMOTE, vo);
+            }
         }
     }
 
@@ -907,6 +916,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         // we are now ready to start the download
                         // we need to create an output stream to the file system
 
+                        boolean shuttingDown = false;
+
                         try (FileOutputStream fos = FileUtils
                                 .openOutputStream(new File(currentDownload.getFileLocation()));) {
                             // cannot include misc columns if shp
@@ -927,14 +938,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             if (currentDownload != null && currentDownload.getFileLocation() != null) {
                                 insertMiscHeader(currentDownload);
 
-                                String fileLocation = URLEncoder.encode(currentDownload.getFileLocation(), "UTF-8").replace("%2F","/").replace(biocacheDownloadDir,
+                                String fileLocation = URLEncoder.encode(currentDownload.getFileLocation(), "UTF-8").replace("%2F", "/").replace(biocacheDownloadDir,
                                         biocacheDownloadUrl);
                                 String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
                                 String emailBodyHtml = biocacheDownloadEmailBody.replace("[url]", fileLocation)
                                         .replace("[date]", currentDownload.getStartDateString())
                                         .replace("[searchUrl]", searchUrl);
                                 String body = messageSource.getMessage("offlineEmailBody",
-                                        new Object[] { fileLocation, searchUrl, currentDownload.getStartDateString() },
+                                        new Object[]{fileLocation, searchUrl, currentDownload.getStartDateString()},
                                         emailBodyHtml, null);
 
                                 // save the statistics to the download directory
@@ -947,6 +958,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 emailService.sendEmail(currentDownload.getEmail(), subject, body);
                             }
 
+                        } catch (InterruptedException e) {
+                            //shutting down
+                            shuttingDown = true;
+                            throw e;
                         } catch (Exception e) {
                             logger.error("Error in offline download, sending email. download path: "
                                     + currentDownload.getFileLocation(), e);
@@ -974,7 +989,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         } finally {
                             // incase of server up/down, only remove from queue
                             // after emails are sent
-                            persistentQueueDAO.removeDownloadFromQueue(currentDownload);
+                            if (!shuttingDown) {
+                                persistentQueueDAO.removeDownloadFromQueue(currentDownload);
+                            }
                         }
                         return currentDownload;
                     } finally {

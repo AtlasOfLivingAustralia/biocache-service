@@ -1124,7 +1124,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             // Requirement to be able to propagate interruptions to all other threads for this execution
             // Doing this via this variable
-            final AtomicBoolean interruptFound = new AtomicBoolean(false);
+            final AtomicBoolean interruptFound = dd != null ? dd.getInterrupt() : new AtomicBoolean(false);
 
             // Create a fixed length blocking queue for buffering results before they are written
             // This also creates a push-back effect to throttle the results generating threads
@@ -1153,7 +1153,9 @@ public class SearchDAOImpl implements SearchDAO {
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         interruptFound.set(true);
-                        logger.error("Queue failed to accept the next record due to a thread interrupt, calling finalise the cleanup: ", e);
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("Queue failed to accept the next record due to a thread interrupt, calling finalise the cleanup: ", e);
+                        }
                         // If we were interrupted then we should call finalise to cleanup
                         finalise();
                     }
@@ -1176,7 +1178,9 @@ public class SearchDAOImpl implements SearchDAO {
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                             interruptFound.set(true);
-                            logger.error("Queue failed to accept the sentinel in finalise due to a thread interrupt: ", e);
+                            if (logger.isDebugEnabled()) {
+                                logger.debug("Queue failed to accept the sentinel in finalise due to a thread interrupt: ", e);
+                            }
                         } finally {
                             finalisedComplete.set(true);
                         }
@@ -1214,6 +1218,7 @@ public class SearchDAOImpl implements SearchDAO {
                     } catch(Exception e) {
                         // Reuse interruptFound variable to signal that the writer had issues
                         interruptFound.set(true);
+                        logger.error("Download writer failed.", e);
                     } finally {
                         rw.finalise();
                     }
@@ -1222,8 +1227,8 @@ public class SearchDAOImpl implements SearchDAO {
             Thread writerThread = new Thread(writerRunnable);
             writerThread.start();
             try {
-                if(rw instanceof ShapeFileRecordWriter){
-                    dd.setHeaderMap(((ShapeFileRecordWriter)rw).getHeaderMappings());
+                if (rw instanceof ShapeFileRecordWriter) {
+                    dd.setHeaderMap(((ShapeFileRecordWriter) rw).getHeaderMappings());
                 }
 
                 //order the query by _docid_ for faster paging
@@ -1231,9 +1236,9 @@ public class SearchDAOImpl implements SearchDAO {
 
                 //for each month create a separate query that pages through 500 records per page
                 List<SolrQuery> queries = new ArrayList<SolrQuery>();
-                if(splitByFacet != null){
-                    for(Count facet: splitByFacet){
-                        if(facet.getCount() > 0){
+                if (splitByFacet != null) {
+                    for (Count facet : splitByFacet) {
+                        if (facet.getCount() > 0) {
                             SolrQuery splitByFacetQuery;
                             //do not add remainderQuery here
                             if (facet.getName() != null) {
@@ -1266,16 +1271,16 @@ public class SearchDAOImpl implements SearchDAO {
 
                 List<Callable<Integer>> solrCallables = new ArrayList<>(queries.size());
                 // execute each query, writing the results to stream
-                for(final SolrQuery splitByFacetQuery: queries){
+                for (final SolrQuery splitByFacetQuery : queries) {
                     // define a thread
-                    Callable<Integer> solrCallable = new Callable<Integer>(){
+                    Callable<Integer> solrCallable = new Callable<Integer>() {
                         @Override
                         public Integer call() throws Exception {
                             int startIndex = 0;
                             // Randomise the wakeup time so they don't all wakeup on a periodic cycle
                             long localThrottle = throttle + Math.round(Math.random() * throttle);
 
-                            String [] fq = downloadParams.getFq();
+                            String[] fq = downloadParams.getFq();
                             if (splitByFacetQuery.getFilterQueries() != null && splitByFacetQuery.getFilterQueries().length > 0) {
                                 if (fq == null) {
                                     fq = new String[0];
@@ -1285,15 +1290,15 @@ public class SearchDAOImpl implements SearchDAO {
 
                             QueryResponse qr = runSolrQuery(splitByFacetQuery, fq, downloadBatchSize, startIndex, "_docid_", "asc");
                             AtomicInteger recordsForThread = new AtomicInteger(0);
-                            if(logger.isDebugEnabled()) {
+                            if (logger.isDebugEnabled()) {
                                 logger.debug(splitByFacetQuery.getQuery() + " - results: " + qr.getResults().size());
                             }
 
-                            while (qr != null && !qr.getResults().isEmpty()) {
-                                if(logger.isDebugEnabled()) {
+                            while (qr != null && !qr.getResults().isEmpty() && !interruptFound.get()) {
+                                if (logger.isDebugEnabled()) {
                                     logger.debug("Start index: " + startIndex + ", " + splitByFacetQuery.getQuery());
                                 }
-                                int count=0;
+                                int count = 0;
                                 if (sensitiveQ.contains(splitByFacetQuery)) {
                                     count = processQueryResults(uidStats, sensitiveFields, qaFields, concurrentWrapper, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize, analysisFields);
                                 } else {
@@ -1304,8 +1309,8 @@ public class SearchDAOImpl implements SearchDAO {
                                 startIndex += downloadBatchSize;
                                 // we have already set the Filter query the first time the query was constructed
                                 // rerun with the same params but different startIndex
-                                if(!threadCheckLimit || resultsCount.get() < maxDownloadSize){
-                                    if(!threadCheckLimit){
+                                if (!threadCheckLimit || resultsCount.get() < maxDownloadSize) {
+                                    if (!threadCheckLimit) {
                                         // throttle the download by sleeping
                                         Thread.sleep(localThrottle);
                                     }
@@ -1321,7 +1326,7 @@ public class SearchDAOImpl implements SearchDAO {
                 }
 
                 List<Future<Integer>> futures = new ArrayList<>(solrCallables.size());
-                for(Callable<Integer> nextCallable : solrCallables) {
+                for (Callable<Integer> nextCallable : solrCallables) {
                     futures.add(nextExecutor.submit(nextCallable));
                 }
 
@@ -1355,8 +1360,8 @@ public class SearchDAOImpl implements SearchDAO {
                 } while (waitAgain);
 
                 AtomicInteger totalDownload = new AtomicInteger(0);
-                for(Future<Integer> future: futures){
-                    if (future.isDone()){
+                for (Future<Integer> future : futures) {
+                    if (future.isDone()) {
                         totalDownload.addAndGet(future.get());
                     } else {
                         // All incomplete futures that survived the loop above are cancelled here
@@ -1365,10 +1370,10 @@ public class SearchDAOImpl implements SearchDAO {
                 }
 
                 long finish = System.currentTimeMillis();
-                long timeTakenInSecs = (finish-start)/1000;
-                if(timeTakenInSecs <= 0) timeTakenInSecs = 1;
-                if(logger.isInfoEnabled()) {
-                    logger.info("Download of " + resultsCount + " records in " + timeTakenInSecs + " seconds. Record/sec: " + resultsCount.intValue()/timeTakenInSecs);
+                long timeTakenInSecs = (finish - start) / 1000;
+                if (timeTakenInSecs <= 0) timeTakenInSecs = 1;
+                if (logger.isInfoEnabled()) {
+                    logger.info("Download of " + resultsCount + " records in " + timeTakenInSecs + " seconds. Record/sec: " + resultsCount.intValue() / timeTakenInSecs);
                 }
             } finally {
                 try {

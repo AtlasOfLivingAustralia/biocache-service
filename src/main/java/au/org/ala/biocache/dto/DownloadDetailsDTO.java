@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -42,6 +43,8 @@ public class DownloadDetailsDTO {
     private Map<String,String> headerMap = null;
     private String [] miscFields = null;
     private String sensitiveFq = null;
+    private AtomicBoolean interrupt = new AtomicBoolean(false);
+    private String uniqueId = null;
 
     /**
      * Default constructor necessary for Jackson to create an object from the JSON. 
@@ -216,9 +219,12 @@ public class DownloadDetailsDTO {
     /**
      * @return unique id constructed from email and start time
      */
-    @JsonIgnore
     public String getUniqueId() {
-        return UUID.nameUUIDFromBytes(getEmail().getBytes()) + "-" + getStartTime();
+        return uniqueId = UUID.nameUUIDFromBytes(getEmail().getBytes()) + "-" + getStartTime();
+    }
+
+    public void setUniqueId(String uniqueId) {
+        this.uniqueId = uniqueId;
     }
 
     /**
@@ -234,6 +240,14 @@ public class DownloadDetailsDTO {
 
     public String getSensitiveFq() {
         return sensitiveFq;
+    }
+
+    public void setInterrupt(AtomicBoolean interrupt) {
+        this.interrupt = interrupt;
+    }
+
+    public AtomicBoolean getInterrupt() {
+        return interrupt;
     }
 
     /**
