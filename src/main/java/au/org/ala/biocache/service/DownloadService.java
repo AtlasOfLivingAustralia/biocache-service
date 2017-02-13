@@ -430,6 +430,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 //Application may be shutting down, do not delete the download file
                 shuttingDown = true;
                 throw e;
+            } catch (CancellationException e) {
+                //download is cancelled
+                throw e;
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
             } finally {
@@ -506,7 +509,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 sp.closeEntry();
 
                 // Add headings file, listing information about the headings
-                if (headingsEnabled) {
+                if (uidStats != null && headingsEnabled) {
                     // add the citations for the supplied uids
                     sp.putNextEntry("headings.csv");
                     try {
@@ -541,9 +544,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 }
 
                 // log the stats to ala logger
-                LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
-                        requestParams.getEmail(), requestParams.getReason(), ip, null, uidStats, sourceUrl);
-                logger.log(RestLevel.REMOTE, vo);
+                if (uidStats != null) {
+                    LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
+                            requestParams.getEmail(), requestParams.getReason(), ip, null, uidStats, sourceUrl);
+                    logger.log(RestLevel.REMOTE, vo);
+                }
             }
         }
     }
@@ -962,6 +967,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             //shutting down
                             shuttingDown = true;
                             throw e;
+                        } catch (CancellationException e) {
+                            //download cancelled, do not send an email
                         } catch (Exception e) {
                             logger.error("Error in offline download, sending email. download path: "
                                     + currentDownload.getFileLocation(), e);
