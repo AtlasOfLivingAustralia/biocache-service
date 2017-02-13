@@ -14,12 +14,12 @@
  ***************************************************************************/
 package au.org.ala.biocache.util;
 
-import au.org.ala.biocache.model.ValidationRule;
-import au.org.ala.biocache.model.FullRecord;
-import au.org.ala.biocache.model.QualityAssertion;
 import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dto.ContactDTO;
 import au.org.ala.biocache.dto.OccurrenceDTO;
+import au.org.ala.biocache.model.FullRecord;
+import au.org.ala.biocache.model.QualityAssertion;
+import au.org.ala.biocache.model.ValidationRule;
 import au.org.ala.biocache.service.AuthService;
 import org.springframework.stereotype.Component;
 
@@ -43,13 +43,13 @@ public class AssertionUtils {
      * @return quality assertions
      */
     public List<QualityAssertion> getUserAssertions(String recordUuid) {
-        FullRecord[] fr = Store.getAllVersionsByUuid(recordUuid, false);
+        FullRecord[] fr = OccurrenceUtils.getAllVersionsByUuid(recordUuid, false);
         OccurrenceDTO occ = new OccurrenceDTO(fr);
         return getUserAssertions(occ);
     }
 
     public ValidationRule[] getQueryAssertions(String recordUuid) {
-        FullRecord[] fr = Store.getAllVersionsByUuid(recordUuid, false);
+        FullRecord[] fr = OccurrenceUtils.getAllVersionsByUuid(recordUuid, false);
         OccurrenceDTO occ = new OccurrenceDTO(fr);
         Map<String,String> queryAssertionMap = occ.getProcessed().getQueryAssertions();
         ValidationRule[] aqs = Store.getValidationRules(queryAssertionMap.keySet().toArray(new String[0]));
@@ -111,7 +111,7 @@ public class AssertionUtils {
     }
 
     public QualityAssertion enhanceQA(String recordUuid, QualityAssertion ua) {
-        FullRecord[] fr = Store.getAllVersionsByUuid(recordUuid, false);
+        FullRecord[] fr = OccurrenceUtils.getAllVersionsByUuid(recordUuid, false);
         OccurrenceDTO occ = new OccurrenceDTO(fr);
         String email = ua.getUserEmail();
         ContactDTO contact = contactUtils.getContactForEmailAndUid(email, occ.getProcessed().getAttribution().getCollectionUid());

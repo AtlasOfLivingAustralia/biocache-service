@@ -29,7 +29,6 @@ import au.org.ala.biocache.service.SpeciesLookupService;
 import au.org.ala.biocache.util.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import net.sf.ehcache.CacheManager;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventType;
@@ -58,11 +57,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
@@ -1148,10 +1143,10 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = {"/occurrence/compare/{uuid}.json", "/occurrence/compare/{uuid}"}, method = RequestMethod.GET)
     public @ResponseBody Object showOccurrence(@PathVariable("uuid") String uuid){
         afterInitialisation();
-        Map values = Store.getComparisonByUuid(uuid);
+        Map values = OccurrenceUtils.getComparisonByUuid(uuid);
         if(values.isEmpty()) {
             // Try again, better the second time around?
-            values = Store.getComparisonByUuid(uuid);
+            values = OccurrenceUtils.getComparisonByUuid(uuid);
         }
         //substitute the values for recordedBy if it is an authenticated user
         if(values.containsKey("Occurrence")){
@@ -1309,7 +1304,7 @@ public class OccurrenceController extends AbstractSecureController {
     private Object getOccurrenceInformation(String uuid, String ip, HttpServletRequest request, boolean includeSensitive) throws Exception{
         logger.debug("Retrieving occurrence record with guid: '" + uuid + "'");
         
-        FullRecord[] fullRecord = Store.getAllVersionsByUuid(uuid, includeSensitive);
+        FullRecord[] fullRecord = OccurrenceUtils.getAllVersionsByUuid(uuid, includeSensitive);
         if(fullRecord == null){
             //get the rowKey for the supplied uuid in the index
             //This is a workaround.  There seems to be an issue on Cassandra with retrieving uuids that start with e or f
@@ -1319,7 +1314,7 @@ public class OccurrenceController extends AbstractSecureController {
             srp.setFacets(new String[]{});
             SearchResultDTO results = occurrenceSearch(srp);
             if(results.getTotalRecords()>0) {
-                fullRecord = Store.getAllVersionsByUuid(results.getOccurrences().get(0).getUuid(), includeSensitive);
+                fullRecord = OccurrenceUtils.getAllVersionsByUuid(results.getOccurrences().get(0).getUuid(), includeSensitive);
             }
         }
         
@@ -1333,7 +1328,7 @@ public class OccurrenceController extends AbstractSecureController {
             else if(result.getTotalRecords() == 0)
                 return new OccurrenceDTO();
             else
-                fullRecord = Store.getAllVersionsByUuid(result.getOccurrences().get(0).getUuid(), includeSensitive);
+                fullRecord = OccurrenceUtils.getAllVersionsByUuid(result.getOccurrences().get(0).getUuid(), includeSensitive);
         }
         
         OccurrenceDTO occ = new OccurrenceDTO(fullRecord);
