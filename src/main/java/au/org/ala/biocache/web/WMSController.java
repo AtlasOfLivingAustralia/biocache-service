@@ -1086,7 +1086,7 @@ public class WMSController {
         if ("EPSG:4326".equals(srs))
             bboxString = convertBBox4326To900913(bboxString);    // to work around a UDIG bug
 
-        WmsEnv vars = new WmsEnv(env, styles);
+        WMSEnv vars = new WMSEnv(env, styles);
         double[] mbbox = new double[4];
         double[] bbox = new double[4];
         double[] pbbox = new double[4];
@@ -1167,7 +1167,7 @@ public class WMSController {
                 style = "8b0000;opacity=1;size=5";
             }
 
-            WmsEnv wmsEnv = new WmsEnv(env, style);
+            WMSEnv wmsEnv = new WMSEnv(env, style);
             BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
             Graphics2D g = (Graphics2D) img.getGraphics();
             int size = width > height ? height : width;
@@ -1526,7 +1526,7 @@ public class WMSController {
         response.setContentType("image/png"); //only png images generated
 
         boolean is4326 = false;
-        WmsEnv vars = new WmsEnv(env, styles);
+        WMSEnv vars = new WMSEnv(env, styles);
         double[] mbbox = new double[4];
         double[] bbox = new double[4];
         double[] pbbox = new double[4];
@@ -1772,7 +1772,7 @@ public class WMSController {
      * @throws Exception
      */
     private ImgObj wmsCached(WMSTile wco, SpatialSearchRequestParams requestParams,
-                             WmsEnv vars, PointType pointType, double[] pbbox,
+                             WMSEnv vars, PointType pointType, double[] pbbox,
                              double[] bbox, double[] mbbox, int width, int height, double width_mult,
                              double height_mult, int pointWidth, String[] originalFqs, Set<Integer> hq,
                              String[] boundingBoxFqs, boolean outlinePoints,
@@ -1888,7 +1888,7 @@ public class WMSController {
         return imgObj;
     }
 
-    void drawUncertaintyCircles(SpatialSearchRequestParams requestParams, WmsEnv vars, int height, int width,
+    void drawUncertaintyCircles(SpatialSearchRequestParams requestParams, WMSEnv vars, int height, int width,
                                 double[] pbbox, double[] mbbox, double[] bbox, double width_mult, double height_mult, Graphics2D g,
                                 String[] originalFqs, String[] boundingBoxFqs, boolean is4326, double[] tilebbox,
                                 PointType pointType) throws Exception {
@@ -1975,7 +1975,7 @@ public class WMSController {
         }
     }
 
-    ImgObj drawHighlight(SpatialSearchRequestParams requestParams, WmsEnv vars, PointType pointType,
+    ImgObj drawHighlight(SpatialSearchRequestParams requestParams, WMSEnv vars, PointType pointType,
                          int width, int height, double[] pbbox, double width_mult,
                          double height_mult, ImgObj imgObj, String[] originalFqs, String[] boundingBoxFqs,
                          boolean is4326, double[] tilebbox) throws Exception {
@@ -2041,7 +2041,7 @@ public class WMSController {
      * @throws Exception
      */
     WMSTile getWMSCacheObject(SpatialSearchRequestParams requestParams,
-                              WmsEnv vars, PointType pointType,
+                              WMSEnv vars, PointType pointType,
                               double[] bbox, String[] originalFqs,
                               String[] boundingBoxFqs, boolean canCache) throws Exception {
         // do not cache this query if the cache is disabled or full
@@ -2229,7 +2229,7 @@ public class WMSController {
         return count;
     }
 
-    private void queryTile(SpatialSearchRequestParams requestParams, WmsEnv vars, PointType pointType, List<int[]> countsArrays,
+    private void queryTile(SpatialSearchRequestParams requestParams, WMSEnv vars, PointType pointType, List<int[]> countsArrays,
                            List<float[]> pointsArrays, List<LegendItem> colours, List<Integer> pColour,
                            double[] bbox, String[] originalFqs,
                            String[] boundingBoxFqs, boolean canCache, int docCount) throws Exception {
@@ -2449,7 +2449,7 @@ public class WMSController {
         if (gCount != null) gCount.add(count);
     }
 
-    private void renderPoints(WmsEnv vars, double[] bbox, double[] pbbox, double width_mult, double height_mult, int pointWidth, boolean outlinePoints, String outlineColour, List<Integer> pColour, ImgObj imgObj, int j, float[] ps, boolean is4326, double[] tilebbox, int height, int width) {
+    private void renderPoints(WMSEnv vars, double[] bbox, double[] pbbox, double width_mult, double height_mult, int pointWidth, boolean outlinePoints, String outlineColour, List<Integer> pColour, ImgObj imgObj, int j, float[] ps, boolean is4326, double[] tilebbox, int height, int width) {
         int x;
         int y;
         Paint currentFill = new Color(pColour.get(j), true);

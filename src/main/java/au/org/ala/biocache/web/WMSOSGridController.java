@@ -7,7 +7,6 @@ import au.org.ala.biocache.util.GISUtil;
 import au.org.ala.biocache.util.GridRef;
 import au.org.ala.biocache.util.GridUtil;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.math3.util.Precision;
 import org.apache.log4j.Logger;
 import org.geotools.geometry.GeneralDirectPosition;
 import org.geotools.referencing.CRS;
@@ -29,7 +28,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.math.BigDecimal;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.List;
@@ -288,7 +286,7 @@ public class WMSOSGridController {
             HttpServletResponse response)
             throws Exception {
 
-        WmsEnv wmsEnv = new WmsEnv(env, styles);
+        WMSEnv wmsEnv = new WMSEnv(env, styles);
 
         if(StringUtils.isEmpty(bboxString)){
             return;
@@ -494,7 +492,7 @@ public class WMSOSGridController {
      * @param oneMetreMercatorYInPixels
      */
     private Set<int[]> renderGrid(WMSImg wmsImg, String gridRef, double minx, double miny, double oneMetreMercatorXInPixels,
-                            double oneMetreMercatorYInPixels, String targetSrs, int imageWidth, int imageHeight, WmsEnv wmsEnv, List<String> renderedLines){
+                                  double oneMetreMercatorYInPixels, String targetSrs, int imageWidth, int imageHeight, WMSEnv wmsEnv, List<String> renderedLines){
 
         if(StringUtils.isEmpty(gridRef)) return new HashSet<int[]>();
 

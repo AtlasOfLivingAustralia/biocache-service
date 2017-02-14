@@ -10,9 +10,9 @@ import java.net.URLDecoder;
 /**
  * Created by mar759 on 23/09/2016.
  */
-public class WmsEnv {
+public class WMSEnv {
 
-    private final static Logger logger = Logger.getLogger(WmsEnv.class);
+    private final static Logger logger = Logger.getLogger(WMSEnv.class);
     public int red, green, blue, alpha, size, colour;
     public boolean uncertainty, gridlabels;
     public String colourMode, highlight, gridres;
@@ -22,7 +22,7 @@ public class WmsEnv {
      *
      * @param env
      */
-    public WmsEnv(String env, String styles) {
+    public WMSEnv(String env, String styles) {
         try {
             env = URLDecoder.decode(env, "UTF-8");
         } catch (UnsupportedEncodingException e) {
