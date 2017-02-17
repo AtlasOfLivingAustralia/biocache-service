@@ -21,8 +21,7 @@ public class SwaggerConfig {
     public Docket api() {
         return new Docket(DocumentationType.SWAGGER_2)
                 .select()
-                //limit webservices listed in swagger
-                .paths(regex("/chart.*"))
+                .paths(regex("/.*"))
                 .build()
                 .apiInfo(metadata());
     }

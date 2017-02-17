@@ -67,10 +67,14 @@ public class ExploreController {
     @RequestMapping(value = "/explore/hierarchy", method = RequestMethod.GET)
     public void getHierarchy(HttpServletResponse response) throws Exception {
         response.setContentType("application/json");
-        OutputStream out = response.getOutputStream();
-        out.write(Store.retrieveSubgroupsConfig().getBytes("UTF-8"));
-        out.flush();
-        out.close();
+        try {
+            OutputStream out = response.getOutputStream();
+            out.write(Store.retrieveSubgroupsConfig().getBytes("UTF-8"));
+            out.flush();
+            out.close();
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        }
     }
 
     /**
@@ -351,10 +355,14 @@ public class ExploreController {
        
         addGroupFilterToQuery(requestParams, group);
         applyFacetForCounts(requestParams, common);
-        
-        ServletOutputStream out = response.getOutputStream();
-        int count = searchDao.writeSpeciesCountByCircleToStream(requestParams,group, out);
-        logger.debug("Exported " + count + " species records in the requested area");
+
+        try {
+            ServletOutputStream out = response.getOutputStream();
+            int count = searchDao.writeSpeciesCountByCircleToStream(requestParams, group, out);
+            logger.debug("Exported " + count + " species records in the requested area");
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        }
         
 	}
 
@@ -557,7 +565,13 @@ public class ExploreController {
                 response.setHeader("Pragma", "must-revalidate");
                 response.setHeader("Content-Disposition", "attachment;filename=" + filename +".csv");
                 response.setContentType("text/csv");
-                searchDao.writeEndemicFacetToStream(subQuery, parentQuery, includeCount, lookupName, includeSynonyms, includeLists, response.getOutputStream());
+
+                try {
+                    searchDao.writeEndemicFacetToStream(subQuery, parentQuery, includeCount, lookupName, includeSynonyms, includeLists, response.getOutputStream());
+                } catch (Exception e) {
+                    logger.error(e.getMessage(), e);
+                }
+
             } else {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply only one facet.");
             }

@@ -108,8 +108,15 @@ public class AssertionController extends AbstractSecureController {
     public void addAssertionWithParams(
             @RequestParam(value="recordUuid", required=true) String recordUuid,
             HttpServletRequest request,
+            @RequestParam(value = "apiKey", required = true) String apiKey,
+            @RequestParam(value = "code", required = true) String code,
+            @RequestParam(value = "comment", required = false) String comment,
+            @RequestParam(value = "userId", required = true) String userId,
+            @RequestParam(value = "userDisplayName", required = true) String userDisplayName,
+            @RequestParam(value = "userAssertionStatus", required = false) String userAssertionStatus,
+            @RequestParam(value = "assertionUuid", required = false) String assertionUuid,
             HttpServletResponse response) throws Exception {
-        addAssertion(recordUuid, request,response);
+        addAssertion(recordUuid, request,apiKey, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, response);
     }
     /**
      * Adds a bulk list of assertions.
@@ -125,12 +132,14 @@ public class AssertionController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping(value="/bulk/assertions/add", method = RequestMethod.POST)
-    public void addBulkAssertions(HttpServletRequest request, HttpServletResponse response) throws Exception {
+    public void addBulkAssertions(HttpServletRequest request,
+                                  @RequestParam(value = "apiKey", required = true) String apiKey,
+                                  @RequestParam(value = "assertions", required = true) String json,
+                                  @RequestParam(value = "userId", required = true) String userId,
+                                  @RequestParam(value = "userDisplayName", required = true) String userDisplayName,
+                                  HttpServletResponse response) throws Exception {
         ObjectMapper om = new ObjectMapper();
         try {
-            String json = request.getParameter("assertions");            
-            String userId = request.getParameter("userId");
-            String userDisplayName = request.getParameter("userDisplayName");
             //check to see that the assertions have come from a valid source before adding
             if (shouldPerformOperation(request, response)) {
                 List<java.util.Map<String, String>> assertions = om.readValue(json, new TypeReference<List<Map<String, String>>>() {
@@ -165,14 +174,14 @@ public class AssertionController extends AbstractSecureController {
     public void addAssertion(
        @PathVariable(value="recordUuid") String recordUuid,
         HttpServletRequest request,
+       @RequestParam(value = "apiKey", required = true) String apiKey,
+       @RequestParam(value = "code", required = true) String code,
+       @RequestParam(value = "comment", required = false) String comment,
+       @RequestParam(value = "userId", required = true) String userId,
+       @RequestParam(value = "userDisplayName", required = true) String userDisplayName,
+       @RequestParam(value = "userAssertionStatus", required = false) String userAssertionStatus,
+       @RequestParam(value = "assertionUuid", required = false) String assertionUuid,
         HttpServletResponse response) throws Exception {
-
-        String code = request.getParameter("code");
-        String comment = request.getParameter("comment");
-        String userId = request.getParameter("userId");
-        String userDisplayName = request.getParameter("userDisplayName");
-        String userAssertionStatus = request.getParameter("userAssertionStatus");
-        String assertionUuid = request.getParameter("assertionUuid");
 
         if (shouldPerformOperation(request, response)) {
             try {
@@ -192,11 +201,6 @@ public class AssertionController extends AbstractSecureController {
                 }
 
                 Store.addUserAssertion(recordUuid, qa);
-                  //NC 2013-07-25 No need to post a notification to the collectory the biocache service is queried for the annotations required by the notification service
-//                if(qa.getUuid() != null) {
-//                    //send this assertion addition event to the notification service
-//                    postNotificationEvent("create", recordUuid, qa.getUuid());
-//                }
 
                 String server = request.getSession().getServletContext().getInitParameter("serverName");
                 response.setHeader("Location", server + "/occurrences/" + recordUuid + "/assertions/" + qa.getUuid());
@@ -223,10 +227,11 @@ public class AssertionController extends AbstractSecureController {
     @RequestMapping(value = {"/occurrences/assertions/delete"}, method = RequestMethod.POST)
     public void deleteAssertionWithParams(
             @RequestParam(value="recordUuid", required=true) String recordUuid,
+            @RequestParam(value = "apiKey", required = true) String apiKey,
             @RequestParam(value="assertionUuid", required=true) String assertionUuid,
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
-        deleteAssertion(recordUuid, assertionUuid, request, response);
+        deleteAssertion(recordUuid, apiKey, assertionUuid, request, response);
     }
 
     /**
@@ -235,6 +240,7 @@ public class AssertionController extends AbstractSecureController {
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/delete"}, method = RequestMethod.POST)
     public void deleteAssertion(
         @PathVariable(value="recordUuid") String recordUuid,
+        @RequestParam(value = "apiKey", required = true) String apiKey,
         @RequestParam(value="assertionUuid", required=true) String assertionUuid,
         HttpServletRequest request,
         HttpServletResponse response) throws Exception {

@@ -18,6 +18,7 @@ public class OptionalZipOutputStream extends OutputStream {
     private Type type;
     private OutputStream out;
     private ZipOutputStream zop;
+    private String currentEntry;
 
     public OptionalZipOutputStream(Type type, OutputStream out) {
         this.type = type;
@@ -29,6 +30,8 @@ public class OptionalZipOutputStream extends OutputStream {
     }
 
     public void putNextEntry(String name) throws IOException {
+        currentEntry = name;
+
         if (type == Type.zipped) {
             zop.putNextEntry(new java.util.zip.ZipEntry(name));
         } else {
@@ -83,6 +86,10 @@ public class OptionalZipOutputStream extends OutputStream {
 
     public Type getType() {
         return type;
+    }
+
+    public String getCurrentEntry() {
+        return currentEntry;
     }
 
 }

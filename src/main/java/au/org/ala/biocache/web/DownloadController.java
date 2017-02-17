@@ -106,7 +106,7 @@ public class DownloadController extends AbstractSecureController {
      * Retrieves all the downloads that are on the queue
      * @return
      */
-    @RequestMapping("occurrences/offline/download/stats")
+    @RequestMapping(value = "occurrences/offline/download/stats", method = RequestMethod.GET)
     public @ResponseBody List<DownloadDetailsDTO> getCurrentDownloads(
             HttpServletResponse response,
             @RequestParam(value = "apiKey", required = true) String apiKey) throws Exception {

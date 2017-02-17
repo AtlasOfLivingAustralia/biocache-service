@@ -22,6 +22,7 @@ import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.inject.Inject;
@@ -47,7 +48,7 @@ public class DuplicationController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/duplicates/**"})
+    @RequestMapping(value = {"/duplicates/**"}, method = RequestMethod.GET)
     public @ResponseBody DuplicateRecordDetails getDuplicateStats(HttpServletRequest request) throws Exception {
         String guid = searchUtils.getGuidFromPath(request);
         try {
@@ -58,7 +59,7 @@ public class DuplicationController {
         }
     }
 
-    @RequestMapping(value = {"/stats/**"})
+    @RequestMapping(value = {"/stats/**"}, method = RequestMethod.GET)
     public @ResponseBody Map<String, FieldStatsInfo> printStats(HttpServletRequest request) throws Exception {
         String guid = searchUtils.getGuidFromPath(request);
         SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();

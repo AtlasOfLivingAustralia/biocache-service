@@ -26,6 +26,7 @@ import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import au.org.ala.biocache.util.AlaFileUtils;
 import au.org.ala.biocache.util.thread.DownloadControlThread;
 import au.org.ala.biocache.util.thread.DownloadCreator;
+import au.org.ala.biocache.writer.RecordWriterException;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
@@ -110,8 +111,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     /** Stores the current list of downloads that are being performed. */
     protected final Queue<DownloadDetailsDTO> currentDownloads = new LinkedBlockingQueue<DownloadDetailsDTO>();
 
-    @Value("${data.description.url:https://docs.google.com/spreadsheet/ccc?key=0AjNtzhUIIHeNdHhtcFVSM09qZ3c3N3ItUnBBc09TbHc}")
-    protected String dataFieldDescriptionURL = "https://docs.google.com/spreadsheet/ccc?key=0AjNtzhUIIHeNdHhtcFVSM09qZ3c3N3ItUnBBc09TbHc";
+    @Value("${data.description.url:headings.csv}")
+    protected String dataFieldDescriptionURL = "headings.csv";
 
     @Value("${registry.url:http://collections.ala.org.au/ws}")
     protected String registryUrl = "http://collections.ala.org.au/ws";
@@ -406,11 +407,15 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         afterInitialisation();
         String filename = requestParams.getFile();
         String originalParams = requestParams.toString();
+
+        boolean shuttingDown = false;
+
         // Use a zip output stream to include the data and citation together in
-        // the download
+        // the download.
+        // Note: When producing a shp the output will stream a csv followed by a zip.
         try(OptionalZipOutputStream sp = new OptionalZipOutputStream(
                 zip ? OptionalZipOutputStream.Type.zipped : OptionalZipOutputStream.Type.unzipped, new CloseShieldOutputStream(out));) {
-            String suffix = requestParams.getFileType().equals("shp") ? "zip" : requestParams.getFileType();
+            String suffix = requestParams.getFileType().equals("shp") ? "csv" : requestParams.getFileType();
             sp.putNextEntry(filename + "." + suffix);
             // put the facets
             if ("all".equals(requestParams.getQa())) {
@@ -419,30 +424,16 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 requestParams.setFacets(new String[] { "data_resource_uid" });
             }
             ConcurrentMap<String, AtomicInteger> uidStats = null;
-            boolean shuttingDown = false;
-            try {
-                if (fromIndex) {
-                    uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, sp, includeSensitive, dd, limit, parallelExecutor);
-                } else {
-                    uidStats = searchDAO.writeResultsToStream(requestParams, sp, 100, includeSensitive, dd, limit);
-                }
-            } catch (InterruptedException e) {
-                //Application may be shutting down, do not delete the download file
-                shuttingDown = true;
-                throw e;
-            } catch (CancellationException e) {
-                //download is cancelled
-                throw e;
-            } catch (Exception e) {
-                logger.error(e.getMessage(), e);
-            } finally {
-                if (!shuttingDown) {
-                    unregisterDownload(dd);
-                }
+
+            if (fromIndex) {
+                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, sp, includeSensitive, dd, limit, parallelExecutor);
+            } else {
+                uidStats = searchDAO.writeResultsToStream(requestParams, sp, 100, includeSensitive, dd, limit);
             }
+
             sp.closeEntry();
 
-            if (!shuttingDown) {
+            if (uidStats != null && !uidStats.isEmpty()) {
                 // add the readme for the Shape file header mappings if necessary
                 if (dd.getHeaderMap() != null) {
                     sp.putNextEntry("Shape-README.html");
@@ -458,7 +449,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                 // Add the data citation to the download
                 List<String> citationsForReadme = new ArrayList<String>();
-                if (uidStats != null && !uidStats.isEmpty() && citationsEnabled) {
+                if (citationsEnabled) {
                     // add the citations for the supplied uids
                     sp.putNextEntry("citation.csv");
                     try {
@@ -509,7 +500,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 sp.closeEntry();
 
                 // Add headings file, listing information about the headings
-                if (uidStats != null && headingsEnabled) {
+                if (headingsEnabled) {
                     // add the citations for the supplied uids
                     sp.putNextEntry("headings.csv");
                     try {
@@ -531,24 +522,31 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         : webservicesRoot + "?" + originalParams;
 
                 // remove header entries from uidStats
-                if (uidStats != null) {
-                    List<String> toRemove = new ArrayList<String>();
-                    for (String key : uidStats.keySet()) {
-                        if (uidStats.get(key).get() < 0) {
-                            toRemove.add(key);
-                        }
+                List<String> toRemove = new ArrayList<String>();
+                for (String key : uidStats.keySet()) {
+                    if (uidStats.get(key).get() < 0) {
+                        toRemove.add(key);
                     }
-                    for (String key : toRemove) {
-                        uidStats.remove(key);
-                    }
+                }
+                for (String key : toRemove) {
+                    uidStats.remove(key);
                 }
 
                 // log the stats to ala logger
-                if (uidStats != null) {
-                    LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
-                            requestParams.getEmail(), requestParams.getReason(), ip, null, uidStats, sourceUrl);
-                    logger.log(RestLevel.REMOTE, vo);
-                }
+                LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
+                        requestParams.getEmail(), requestParams.getReason(), ip, null, uidStats, sourceUrl);
+                logger.log(RestLevel.REMOTE, vo);
+            }
+        } catch (RecordWriterException e) {
+            //there is no useful stack trace for RecordWriterExceptions
+            logger.error(e.getMessage());
+        } catch (InterruptedException e) {
+            //Application may be shutting down, do not delete the download file
+            shuttingDown = true;
+            throw e;
+        } finally {
+            if (!shuttingDown) {
+                unregisterDownload(dd);
             }
         }
     }
@@ -727,7 +725,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             }
                         }
 
-                        if (ifdto != null) {
+                        if (ifdto != null && StringUtils.isNotEmpty(headerOutput[i])) {
                             writer.writeNext(new String[] { headerOutput[i], fieldsRequested[i],
                                     ifdto.getDwcTerm() != null ? ifdto.getDwcTerm() : "",
                                     ifdto.getName() != null ? ifdto.getName() : "",
@@ -735,7 +733,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     ifdto.getDownloadName() != null ? ifdto.getDownloadName() : "",
                                     ifdto.getDownloadDescription() != null ? ifdto.getDownloadDescription() : "",
                                     ifdto.getInfo() != null ? ifdto.getInfo() : "" });
-                        } else {
+                        } else if (StringUtils.isNotEmpty(headerOutput[i])){
                             // others, e.g. assertions
                             String info = messageSource.getMessage("description." + fieldsRequested[i], null, "", null);
                             writer.writeNext(new String[] { headerOutput[i], fieldsRequested[i], "", "", "", "", "",

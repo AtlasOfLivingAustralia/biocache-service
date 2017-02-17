@@ -7,6 +7,7 @@ import au.org.ala.biocache.util.SearchUtils;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.inject.Inject;
@@ -24,7 +25,7 @@ public class OutlierController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value={"/outlierInfo/**" })
+    @RequestMapping(value={"/outlierInfo/**" }, method = RequestMethod.GET)
     public @ResponseBody Map<String,JackKnifeStats> getJackKnifeStats(HttpServletRequest request) throws Exception {
         String guid = searchUtils.getGuidFromPath(request);
 
@@ -36,7 +37,7 @@ public class OutlierController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value={"/outlier/record/{uuid}" })
+    @RequestMapping(value={"/outlier/record/{uuid}" }, method = RequestMethod.GET)
     public @ResponseBody List<RecordJackKnifeStats> getOutlierForUUid(@PathVariable("uuid") String recordUuid) throws Exception {
         return Store.getJackKnifeRecordDetailsFor(recordUuid);
     }

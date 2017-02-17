@@ -14,15 +14,14 @@
  ***************************************************************************/
 package au.org.ala.biocache.writer;
 
+import au.com.bytecode.opencsv.CSVWriter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import au.com.bytecode.opencsv.CSVWriter;
-import au.org.ala.biocache.RecordWriter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * 
@@ -30,7 +29,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @author Natasha Carter
  */
-public class CSVRecordWriter implements RecordWriter{
+public class CSVRecordWriter implements RecordWriterError {
     private final static Logger logger = LoggerFactory.getLogger(CSVRecordWriter.class);
 
     private CSVWriter csvWriter;
@@ -53,7 +52,12 @@ public class CSVRecordWriter implements RecordWriter{
      */
     @Override
     public void write(String[] record) {
-       csvWriter.writeNext(record);       
+       csvWriter.writeNext(record);
+    }
+
+    @Override
+    public boolean hasError() {
+        return csvWriter.checkError();
     }
 
     @Override

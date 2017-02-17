@@ -76,7 +76,12 @@ public class ScatterplotController {
 
         //output image
         response.setContentType("image/png");
-        response.getOutputStream().write(bytes);
+
+        try {
+            response.getOutputStream().write(bytes);
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        }
     }
 
     @RequestMapping(value = {"/scatterplot/point"}, method = RequestMethod.GET)

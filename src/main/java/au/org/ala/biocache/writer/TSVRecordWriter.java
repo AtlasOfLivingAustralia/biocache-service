@@ -14,9 +14,9 @@
  ***************************************************************************/
 package au.org.ala.biocache.writer;
 
-import au.org.ala.biocache.RecordWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -26,13 +26,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 
  * @author Natasha Carter
  */
-public class TSVRecordWriter implements RecordWriter{
+public class TSVRecordWriter implements RecordWriterError {
     private final static Logger logger = LoggerFactory.getLogger(TSVRecordWriter.class);
 
     private final OutputStream outputStream;
 
     private final AtomicBoolean finalised = new AtomicBoolean(false);
     private final AtomicBoolean finalisedComplete = new AtomicBoolean(false);
+
+    private boolean writerError = false;
     
     public TSVRecordWriter(OutputStream out, String[] header){
         this.outputStream = out;
@@ -56,8 +58,8 @@ public class TSVRecordWriter implements RecordWriter{
 
         try {
             outputStream.write(line.toString().getBytes());
-        } catch (Exception e) {
-            logger.debug(e.getMessage(), e);
+        } catch (java.io.IOException e) {
+            writerError = true;
         }
     }
 
@@ -67,15 +69,19 @@ public class TSVRecordWriter implements RecordWriter{
             try {
                 outputStream.flush();
             } catch(java.io.IOException e){
-                logger.debug(e.getMessage(), e);
-            } finally {
-                finalisedComplete.set(true);
+                writerError = true;
             }
+            finalisedComplete.set(true);
         }
     }
 
     @Override
     public boolean finalised() {
         return finalisedComplete.get();
+    }
+
+    @Override
+    public boolean hasError() {
+        return writerError;
     }
 }

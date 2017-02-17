@@ -537,13 +537,17 @@ public class WMSController {
         response.setContentType("text/plain");
         response.setCharacterEncoding("gzip");
 
-        ServletOutputStream outStream = response.getOutputStream();
-        java.util.zip.GZIPOutputStream gzip = new java.util.zip.GZIPOutputStream(outStream);
+        try {
+            ServletOutputStream outStream = response.getOutputStream();
+            java.util.zip.GZIPOutputStream gzip = new java.util.zip.GZIPOutputStream(outStream);
 
-        writeOccurrencesCsvToStream(requestParams, gzip);
+            writeOccurrencesCsvToStream(requestParams, gzip);
 
-        gzip.flush();
-        gzip.close();
+            gzip.flush();
+            gzip.close();
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        }
     }
 
     private void writeOccurrencesCsvToStream(SpatialSearchRequestParams requestParams, OutputStream stream) throws Exception {
@@ -597,12 +601,16 @@ public class WMSController {
     }
 
     private void writeBytes(HttpServletResponse response, byte[] bytes) throws IOException {
-        response.setContentType("text/plain");
-        response.setCharacterEncoding("UTF-8");
-        ServletOutputStream outStream = response.getOutputStream();
-        outStream.write(bytes);
-        outStream.flush();
-        outStream.close();
+        try {
+            response.setContentType("text/plain");
+            response.setCharacterEncoding("UTF-8");
+            ServletOutputStream outStream = response.getOutputStream();
+            outStream.write(bytes);
+            outStream.flush();
+            outStream.close();
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        }
     }
 
     /**
@@ -1670,19 +1678,23 @@ public class WMSController {
             response.setContentType("image/jpeg");
         }
 
-        if (format.equalsIgnoreCase("png")) {
-            OutputStream os = response.getOutputStream();
-            ImageIO.write(img, format, os);
-            os.close();
-        } else {
-            //handle jpeg + BufferedImage.TYPE_INT_ARGB
-            BufferedImage img2;
-            Graphics2D c2;
-            (c2 = (Graphics2D) (img2 = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)).getGraphics()).drawImage(img, 0, 0, Color.WHITE, null);
-            c2.dispose();
-            OutputStream os = response.getOutputStream();
-            ImageIO.write(img2, format, os);
-            os.close();
+        try {
+            if (format.equalsIgnoreCase("png")) {
+                OutputStream os = response.getOutputStream();
+                ImageIO.write(img, format, os);
+                os.close();
+            } else {
+                //handle jpeg + BufferedImage.TYPE_INT_ARGB
+                BufferedImage img2;
+                Graphics2D c2;
+                (c2 = (Graphics2D) (img2 = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)).getGraphics()).drawImage(img, 0, 0, Color.WHITE, null);
+                c2.dispose();
+                OutputStream os = response.getOutputStream();
+                ImageIO.write(img2, format, os);
+                os.close();
+            }
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
         }
     }
 

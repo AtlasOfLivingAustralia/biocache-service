@@ -419,4 +419,9 @@ public interface SearchDAO {
      * @throws Exception
      */
     List<LegendItem> getColours(SpatialSearchRequestParams request, String colourMode) throws Exception;
+
+    /**
+     * Get maxBooleanClauses value from SOLR
+     */
+    int getMaxBooleanClauses();
 }

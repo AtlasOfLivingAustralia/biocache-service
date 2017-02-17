@@ -7,9 +7,9 @@ import au.org.ala.biocache.dto.Facet;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.parser.AdHocParser;
 import au.org.ala.biocache.parser.DateParser;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import au.org.ala.layers.dao.IntersectCallback;
 import au.org.ala.layers.dto.IntersectionFile;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.DeleteMethod;
@@ -21,10 +21,7 @@ import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.ServletRequestUtils;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -318,12 +315,13 @@ public class UploadController extends AbstractSecureController {
     @RequestMapping(value="/upload/{tempDataResourceUid}", method = RequestMethod.DELETE)
     public void deleteResource(
             @PathVariable String tempDataResourceUid,
+            @RequestParam(value = "apiKey", required = true) String apiKey,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
 
         //auth check
         boolean apiKeyValid = shouldPerformOperation(request, response);
         if(!apiKeyValid){
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Supplied API key not recognised or missing");
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Supplied API key not recognised");
             return;
         }
 

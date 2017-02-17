@@ -229,7 +229,7 @@ public class OccurrenceController extends AbstractSecureController {
      *
      * @return viewname to render
      */
-    @RequestMapping("/")
+    @RequestMapping(value = "/", method = RequestMethod.GET)
     public String homePageHandler(Model model) {
         model.addAttribute("webservicesRoot", webservicesRoot);
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
@@ -263,14 +263,14 @@ public class OccurrenceController extends AbstractSecureController {
      *
      * @return viewname to render
      */
-    @RequestMapping("/oldapi")
+    @RequestMapping(value = "/oldapi", method = RequestMethod.GET)
     public String oldApiHandler(Model model) {
         model.addAttribute("webservicesRoot", webservicesRoot);
         return "oldapi";
     }
     
     
-    @RequestMapping("/active/download/stats")
+    @RequestMapping(value = "/active/download/stats", method = RequestMethod.GET)
     public @ResponseBody List<DownloadDetailsDTO> getCurrentDownloads(){
         return downloadService.getCurrentDownloads();
     }
@@ -279,7 +279,7 @@ public class OccurrenceController extends AbstractSecureController {
      * Returns the default facets that are applied to a search
      * @return
      */
-    @RequestMapping("/search/facets")
+    @RequestMapping(value = "/search/facets", method = RequestMethod.GET)
     public @ResponseBody String[] listAllFacets() {
         afterInitialisation();
         return new SearchRequestParams().getFacets();
@@ -289,7 +289,7 @@ public class OccurrenceController extends AbstractSecureController {
      * Returns the default facets grouped by themes that are applied to a search
      * @return
      */
-    @RequestMapping("/search/grouped/facets")
+    @RequestMapping(value = "/search/grouped/facets", method = RequestMethod.GET)
     public @ResponseBody List groupFacets() throws IOException {
         afterInitialisation();
         return FacetThemes.getAllThemes();
@@ -303,7 +303,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @RequestMapping("/facets/i18n{qualifier:.*}*")
+    @RequestMapping(value = "/facets/i18n{qualifier:.*}*", method = RequestMethod.GET)
     public void writei18nPropertiesFile(@PathVariable("qualifier") String qualifier,
                                         HttpServletRequest request,
                                         HttpServletResponse response) throws Exception {
@@ -352,7 +352,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping("index/fields")
+    @RequestMapping(value = "index/fields", method = RequestMethod.GET)
     public @ResponseBody Set<IndexFieldDTO> getIndexedFields(@RequestParam(value="fl", required=false) String fields) throws Exception {
         afterInitialisation();
         if(fields == null) {
@@ -370,7 +370,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping("index/version")
+    @RequestMapping(value = "index/version", method = RequestMethod.GET)
     public @ResponseBody Map getIndexedFields(@RequestParam(value="apiKey", required=false) String apiKey,
                                               @RequestParam(value="force", required=false, defaultValue="false") Boolean force,
                                               HttpServletResponse response) throws Exception{
@@ -385,6 +385,25 @@ public class OccurrenceController extends AbstractSecureController {
 
         return Collections.singletonMap("version", version);
     }
+
+    /**
+     * Returns current index version number.
+     *
+     * Can force the refresh if an apiKey is also provided. e.g. after a known edit.
+     *
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "index/maxBooleanClauses", method = RequestMethod.GET)
+    public @ResponseBody Map getIndexedFields() throws Exception{
+
+        int m = searchDAO.getMaxBooleanClauses();
+
+        Map map = new HashMap();
+        map.put("maxBooleanClauses", m);
+
+        return map;
+    }
     
     /**
      * Returns a facet list including the number of distinct values for a field
@@ -392,7 +411,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping("occurrence/facets")
+    @RequestMapping(value = "occurrence/facets", method = RequestMethod.GET)
     public @ResponseBody List<FacetResultDTO> getOccurrenceFacetDetails(SpatialSearchRequestParams requestParams) throws Exception{
         afterInitialisation();
         return searchDAO.getFacetCounts(requestParams);
@@ -407,7 +426,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping("occurrence/groups")
+    @RequestMapping(value = "occurrence/groups", method = RequestMethod.GET)
     public
     @ResponseBody
     List<GroupFacetResultDTO> getOccurrenceGroupDetails(SpatialSearchRequestParams requestParams,
@@ -430,7 +449,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping("/images/taxon/**")
+    @RequestMapping(value = "/images/taxon/**", method = RequestMethod.GET)
     public @ResponseBody List<String> getImages(HttpServletRequest request) throws Exception {
         afterInitialisation();
         String guid = searchUtils.getGuidFromPath(request);
@@ -454,7 +473,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value={"/australian/taxon/**", "/native/taxon/**"})
+    @RequestMapping(value={"/australian/taxon/**", "/native/taxon/**"}, method = RequestMethod.GET)
     public @ResponseBody NativeDTO isAustralian(HttpServletRequest request) throws Exception {
         //check to see if we have any occurrences on Australia  country:Australia or state != empty
         String guid = searchUtils.getGuidFromPath(request);
@@ -473,7 +492,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value={"/australian/taxa.json*","/australian/taxa*", "/native/taxa.json*","/native/taxa*" })
+    @RequestMapping(value={"/australian/taxa.json*","/australian/taxa*", "/native/taxa.json*","/native/taxa*" }, method = RequestMethod.GET)
     public @ResponseBody List<NativeDTO> isAustralianForList(@RequestParam(value = "guids", required = true) String guids) throws Exception {
         afterInitialisation();
         List<NativeDTO> nativeDTOs = new ArrayList<NativeDTO>();
@@ -736,12 +755,14 @@ public class OccurrenceController extends AbstractSecureController {
             ip = ip == null ? getIPAddress(request) : ip;
             DownloadDetailsDTO dd = downloadService.registerDownload(requestParams, ip, DownloadDetailsDTO.DownloadType.FACET);
             try {
-                String filename = requestParams.getFile() != null ? requestParams.getFile():requestParams.getFacets()[0];
+                String filename = requestParams.getFile() != null ? requestParams.getFile() : requestParams.getFacets()[0];
                 response.setHeader("Cache-Control", "must-revalidate");
                 response.setHeader("Pragma", "must-revalidate");
-                response.setHeader("Content-Disposition", "attachment;filename=" + filename +".csv");
+                response.setHeader("Content-Disposition", "attachment;filename=" + filename + ".csv");
                 response.setContentType("text/csv");
                 searchDAO.writeFacetToStream(requestParams, includeCount, lookupName, includeSynonyms, includeLists, response.getOutputStream(), dd);
+            } catch (Exception e) {
+                logger.error(e.getMessage(), e);
             } finally {
                 downloadService.unregisterDownload(dd);
             }
@@ -960,6 +981,7 @@ public class OccurrenceController extends AbstractSecureController {
                                      BindingResult result,
                                      @RequestParam(value="ip", required=false) String ip,
                                      @RequestParam(value="apiKey", required=false) String apiKey,
+                                     @RequestParam(value="zip", required=false, defaultValue="true") Boolean zip,
                                      Model model,
                                      HttpServletResponse response,
                                      HttpServletRequest request) throws Exception {
@@ -975,17 +997,17 @@ public class OccurrenceController extends AbstractSecureController {
         }
         
         ip = ip == null?getIPAddress(request):ip;//request.getRemoteAddr():ip;
-        ServletOutputStream out = response.getOutputStream();
         //search params must have a query or formatted query for the downlaod to work
         if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
             return null;
         }
         if(apiKey != null){
-            return occurrenceSensitiveDownload(requestParams, apiKey, ip, false, false, response, request);
+            return occurrenceSensitiveDownload(requestParams, apiKey, ip, false, zip, response, request);
         }
 
         try {
-            downloadService.writeQueryToStream(requestParams, response, ip, new CloseShieldOutputStream(out), false, false, false, executor);
+            ServletOutputStream out = response.getOutputStream();
+            downloadService.writeQueryToStream(requestParams, response, ip, new CloseShieldOutputStream(out), false, false, zip, executor);
         } catch (Exception e){
             logger.error(e.getMessage(),e);
         }
@@ -1012,7 +1034,7 @@ public class OccurrenceController extends AbstractSecureController {
         }
         
         ip = ip == null ? getIPAddress(request) : ip;
-        ServletOutputStream out = response.getOutputStream();
+
         //search params must have a query or formatted query for the download to work
         if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
             return null;
@@ -1022,6 +1044,7 @@ public class OccurrenceController extends AbstractSecureController {
             return null;
         }
         try {
+            ServletOutputStream out = response.getOutputStream();
             downloadService.writeQueryToStream(requestParams, response, ip, new CloseShieldOutputStream(out), false, true, zip, executor);
         } catch(Exception e){
             logger.error(e.getMessage(), e);
@@ -1041,13 +1064,19 @@ public class OccurrenceController extends AbstractSecureController {
         
         if(shouldPerformOperation(apiKey, response, false)){
             ip = ip == null?getIPAddress(request):ip;
-            ServletOutputStream out = response.getOutputStream();
+
             //search params must have a query or formatted query for the downlaod to work
             if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
                 return null;
             }
-            
-            downloadService.writeQueryToStream(requestParams, response, ip, new CloseShieldOutputStream(out), true, fromIndex, zip, executor);
+
+            try {
+                ServletOutputStream out = response.getOutputStream();
+                downloadService.writeQueryToStream(requestParams, response, ip, new CloseShieldOutputStream(out), true, fromIndex, zip, executor);
+            } catch (Exception e) {
+                logger.error(e.getMessage(), e);
+            }
+
         }
         return null;
     }
@@ -1123,8 +1152,12 @@ public class OccurrenceController extends AbstractSecureController {
         requestParams.setFacets(new String[]{"lat_long"});
         if(requestParams.getQ().length()<1)
             requestParams.setQ("*:*");
-        ServletOutputStream out = response.getOutputStream();
-        searchDAO.writeCoordinatesToStream(requestParams,out);
+        try {
+            ServletOutputStream out = response.getOutputStream();
+            searchDAO.writeCoordinatesToStream(requestParams,out);
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        }
     }
     
     /**
@@ -1223,6 +1256,7 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value={"/occurrence/{dataResourceUid}"}, method = RequestMethod.POST)
     public @ResponseBody Object uploadSingleRecord(
             @PathVariable String dataResourceUid,
+            @RequestParam(value = "apiKey", required = true) String apiKey,
             @RequestParam(value = "index", required = true, defaultValue = "true") Boolean index,
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
@@ -1279,29 +1313,31 @@ public class OccurrenceController extends AbstractSecureController {
     public @ResponseBody Object showOccurrence(@PathVariable("uuid") String uuid,
                                                @RequestParam(value="apiKey", required=false) String apiKey,
                                                @RequestParam(value="ip", required=false) String ip,
+                                               @RequestParam(value="im", required=false) String im,
                                                HttpServletRequest request, HttpServletResponse response) throws Exception {
         afterInitialisation();
         ip = ip == null?getIPAddress(request):ip;
         if(apiKey != null){
-            return showSensitiveOccurrence(uuid, apiKey, ip, request, response);
+            return showSensitiveOccurrence(uuid, apiKey, ip, im, request, response);
         }
-        return getOccurrenceInformation(uuid, ip, request, false);
+        return getOccurrenceInformation(uuid, ip, im, request, false);
     }
     
     @RequestMapping(value = {"/sensitive/occurrence/{uuid:.+}","/sensitive/occurrences/{uuid:.+}", "/sensitive/occurrence/{uuid:.+}.json", "/senstive/occurrences/{uuid:.+}.json"}, method = RequestMethod.GET)
     public @ResponseBody Object showSensitiveOccurrence(@PathVariable("uuid") String uuid,
                                                         @RequestParam(value="apiKey", required=true) String apiKey,
                                                         @RequestParam(value="ip", required=false) String ip,
+                                                        @RequestParam(value="im", required=false) String im,
                                                         HttpServletRequest request, HttpServletResponse response) throws Exception {
         afterInitialisation();
         ip = ip == null ? getIPAddress(request) : ip;
         if(shouldPerformOperation(apiKey, response)){
-            return getOccurrenceInformation(uuid, ip, request, true);
+            return getOccurrenceInformation(uuid, ip, im, request, true);
         }
         return null;
     }
     
-    private Object getOccurrenceInformation(String uuid, String ip, HttpServletRequest request, boolean includeSensitive) throws Exception{
+    private Object getOccurrenceInformation(String uuid, String ip, String im, HttpServletRequest request, boolean includeSensitive) throws Exception{
         logger.debug("Retrieving occurrence record with guid: '" + uuid + "'");
         
         FullRecord[] fullRecord = OccurrenceUtils.getAllVersionsByUuid(uuid, includeSensitive);
@@ -1367,7 +1403,6 @@ public class OccurrenceController extends AbstractSecureController {
         
         //ADD THE DIFFERENT IMAGE FORMATS...thumb,small,large,raw
         //default lookupImageMetadata to "true"
-        String im = request.getParameter("im");
         setupImageUrls(occ, im == null || !im.equalsIgnoreCase("false"));
         
         //fix media store URLs
