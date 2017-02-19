@@ -1156,8 +1156,12 @@ public class SearchDAOImpl implements SearchDAO {
             StringBuilder infoHeader = new StringBuilder("infoHeaders");
             for (String h : header) infoHeader.append(",").append(h);
 
-            uidStats.put(infoFields.toString(), new AtomicInteger(-1));
-            uidStats.put(infoHeader.toString(), new AtomicInteger(-2));
+            String info = infoFields.toString();
+            while (info.contains(",,")) info = info.replace(",,", ",");
+            uidStats.put(info,  new AtomicInteger(-1));
+            String hdr = infoHeader.toString();
+            while (hdr.contains(",,")) hdr = hdr.replace(",,", ",");
+            uidStats.put(hdr, new AtomicInteger(-2));
 
             //construct correct RecordWriter based on the supplied fileType
             final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ?
@@ -1723,8 +1727,12 @@ public class SearchDAOImpl implements SearchDAO {
                 StringBuilder infoHeader = new StringBuilder("infoHeaders,");
                 for (String h : header) infoHeader.append(",").append(h);
 
-                uidStats.put(infoFields.toString().replace(",,", ","), new AtomicInteger(-1));
-                uidStats.put(infoHeader.toString().replace(",,", ","), new AtomicInteger(-2));
+                String info = infoFields.toString();
+                while (info.contains(",,")) info = info.replace(",,", ",");
+                uidStats.put(info,  new AtomicInteger(-1));
+                String hdr = infoHeader.toString();
+                while (hdr.contains(",,")) hdr = hdr.replace(",,", ",");
+                uidStats.put(hdr, new AtomicInteger(-2));
 
                 //download the records that have limits first...
                 if (downloadLimit.size() > 0) {
@@ -3707,6 +3715,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * Returns details about the fields in the index.
      */
+    @Cacheable(cacheName = "getIndexedFields")
     public Set<IndexFieldDTO> getIndexedFields(boolean update) throws Exception {
         Set<IndexFieldDTO> result = indexFields;
         if (result == null || update) {
