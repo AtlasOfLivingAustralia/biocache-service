@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -39,10 +40,10 @@ public class LoggerRestService implements LoggerService {
 
     private final static Logger logger = Logger.getLogger(LoggerRestService.class);
 
-    private List<Map<String,Object>> loggerReasons;
-    private List<Map<String,Object>> loggerSources;
-    private List<Integer> reasonIds;
-    private List<Integer> sourceIds;
+    private List<Map<String,Object>> loggerReasons = RestartDataService.get(this, "loggerReasons", new TypeReference<ArrayList<Map<String,Object>>>(){}, ArrayList.class);
+    private List<Map<String,Object>> loggerSources = RestartDataService.get(this, "loggerSources", new TypeReference<ArrayList<Map<String,Object>>>(){}, ArrayList.class);
+    private List<Integer> reasonIds = RestartDataService.get(this, "reasonIds", new TypeReference<ArrayList<Integer>>(){}, ArrayList.class);
+    private List<Integer> sourceIds = RestartDataService.get(this, "sourceIds", new TypeReference<ArrayList<Integer>>(){}, ArrayList.class);
 
     //Used to wait for reloadCache() to complete
     private CountDownLatch initialised = new CountDownLatch(1);
@@ -100,13 +101,26 @@ public class LoggerRestService implements LoggerService {
      */
     @Scheduled(fixedDelay = 43200000)// schedule to run every 12 hours
     public void reloadCache() {
+        if (loggerReasons.size() > 0) {
+            //data exists, no need to wait
+            initialised.countDown();
+        }
         if (enabled) {
             logger.info("Refreshing the log sources and reasons");
-            loggerReasons = getEntities(LoggerType.reasons);
-            loggerSources = getEntities(LoggerType.sources);
+            List list;
+
+            list = getEntities(LoggerType.reasons);
+            if (list.size() > 0) loggerReasons = list;
+
+            list = getEntities(LoggerType.sources);
+            if (list.size() > 0) loggerSources = list;
+
             //now get the ids
-            reasonIds = getIdList(loggerReasons);
-            sourceIds = getIdList(loggerSources);
+            list = getIdList(loggerReasons);
+            if (list.size() > 0) reasonIds = list;
+
+            list = getIdList(loggerSources);
+            if (list.size() > 0) sourceIds = list;
         } else {
             if (reasonIds == null) {
                 logger.info("Providing some sensible default values for the log cache");

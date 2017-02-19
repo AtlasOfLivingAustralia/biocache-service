@@ -134,11 +134,12 @@ public class FacetThemes {
     }
 
     private void initAllFacets() {
-        facetsMap.clear();
+        LinkedHashMap<String, FacetDTO> map = new LinkedHashMap<String, FacetDTO>();
         for (FacetTheme theme : allThemes) {
             for(FacetDTO f : theme.getFacets()) {
-                facetsMap.put(f.getField(), f);
+                map.put(f.getField(), f);
             }
+            facetsMap = map;
             allFacets = facetsMap.keySet().toArray(new String[]{});
             allFacetsLimited = allFacets != null && allFacets.length > facetsDefaultMax ? Arrays.copyOfRange(allFacets, 0, facetsDefaultMax) : allFacets;
         }

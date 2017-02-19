@@ -14,7 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
-import org.apache.commons.collections.MapUtils;
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -59,9 +59,9 @@ public class AuthService {
     @Value("${caches.auth.enabled:true}")
     protected Boolean enabled = true;
     // Keep a reference to the output Map in case subsequent web service lookups fail
-    protected Map<String, String> userNamesById = new HashMap<String, String>();
-    protected Map<String, String> userNamesByNumericIds = new HashMap<String, String>();
-    protected Map<String, String> userEmailToId = new HashMap<String, String>();
+    protected Map<String, String> userNamesById = RestartDataService.get(this, "userNamesById", new TypeReference<HashMap<String, String>>(){}, HashMap.class);
+    protected Map<String, String> userNamesByNumericIds = RestartDataService.get(this, "userNamesByNumericIds", new TypeReference<HashMap<String, String>>(){}, HashMap.class);
+    protected Map<String, String> userEmailToId = RestartDataService.get(this, "userEmailToId", new TypeReference<HashMap<String, String>>(){}, HashMap.class);
 
     public AuthService() {
         logger.info("Instantiating AuthService: " + this);
@@ -113,7 +113,8 @@ public class AuthService {
         final String jsonUri = userDetailsUrl + userNamesForIdPath;
         try {
             logger.info("authCache requesting: " + jsonUri);
-            userNamesById = restTemplate.postForObject(jsonUri, null, Map.class);
+            Map m = restTemplate.postForObject(jsonUri, null, Map.class);
+            if (m != null && m.size() > 0) userNamesById = m;
         } catch (Exception ex) {
             logger.error("RestTemplate error for " + jsonUri + ": " + ex.getMessage(), ex);
         }
@@ -123,7 +124,8 @@ public class AuthService {
         final String jsonUri = userDetailsUrl + userNamesForNumericIdPath;
         try {
             logger.info("authCache requesting: " + jsonUri);
-            userNamesByNumericIds = restTemplate.postForObject(jsonUri, null, Map.class);
+            Map m = restTemplate.postForObject(jsonUri, null, Map.class);
+            if (m != null && m.size() > 0) userNamesByNumericIds = m;
         } catch (Exception ex) {
             logger.error("RestTemplate error for " + jsonUri + ": " + ex.getMessage(), ex);
         }
@@ -133,7 +135,8 @@ public class AuthService {
         final String jsonUri = userDetailsUrl + userNamesFullPath;
         try {
             logger.info("authCache requesting: " + jsonUri);
-            userEmailToId = restTemplate.postForObject(jsonUri, null, Map.class);
+            Map m = restTemplate.postForObject(jsonUri, null, Map.class);
+            if (m != null && m.size() > 0) userEmailToId = m;
             logger.info("authCache userEmail cache: " + userEmailToId.size());
             if(userEmailToId.size()>0){
                 String email = userEmailToId.keySet().iterator().next();
@@ -148,15 +151,27 @@ public class AuthService {
     @Scheduled(fixedDelay = 600000) // schedule to run every 10 min
     //@Async NC 2013-07-29: Disabled the Async so that we don't get bombarded with calls.
     public void reloadCaches() {
-        if(enabled){
-            logger.info("Triggering reload of auth user names");               
-            loadMapOfAllUserNamesById();
-            loadMapOfAllUserNamesByNumericId();
-            loadMapOfEmailToUserId();
-            logger.info("Finished reload of auth user names");
-        } else{
-            logger.info("Authentication Cache has been disabled");
+        Thread thread = new Thread() {
+            @Override
+            public void run() {
+                if(enabled){
+                    logger.info("Triggering reload of auth user names");
+                    loadMapOfAllUserNamesById();
+                    loadMapOfAllUserNamesByNumericId();
+                    loadMapOfEmailToUserId();
+                    logger.info("Finished reload of auth user names");
+                } else{
+                    logger.info("Authentication Cache has been disabled");
+                }
+            }
+        };
+
+        if (userDetailsPath.length() > 0) {
+            thread.start();
+        } else {
+            thread.run();
         }
+
     }
 
     public List getUserRoles(String userId) {

@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -43,7 +44,7 @@ public class ListsService {
     @Value("${list.tool.url:http://lists.ala.org.au}")
     private String speciesListUrl;
 
-    private Map<String, Map<String, Set<String>>> data = new HashMap();
+    private Map<String, Map<String, Set<String>>> data = RestartDataService.get(this, "data", new TypeReference<HashMap<String, Map<String, Set<String>>>>(){}, HashMap.class);
 
     @PostConstruct
     private void init() {
@@ -62,14 +63,25 @@ public class ListsService {
 
     @Scheduled(fixedDelay = 43200000)// schedule to run every 12 hours
     public void refreshCache() {
+        if (data.size() > 0) {
+            //data exists, no need to wait
+            wait.countDown();
+        }
+
         if (enabled) {
             try {
+                HashMap map = new HashMap();
+
                 Map threatened = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/?isThreatened=eq:true&isAuthoritative=eq:true"), Map.class);
                 Map invasive = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/?isInvasive=eq:true&isAuthoritative=eq:true"), Map.class);
 
-                data.put("Conservation", getItemsMap(threatened));
-                data.put("Invasive", getItemsMap(invasive));
+                if ((threatened != null && threatened.size() > 0) ||
+                        (invasive != null && invasive.size() > 0)) {
+                    map.put("Conservation", getItemsMap(threatened));
+                    map.put("Invasive", getItemsMap(invasive));
 
+                    data = map;
+                }
             } catch (Exception e) {
                 logger.error("failed to get species lists for threatened or invasive species", e);
             }

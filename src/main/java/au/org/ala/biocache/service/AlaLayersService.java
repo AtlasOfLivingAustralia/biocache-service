@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,8 +42,8 @@ public class AlaLayersService implements LayersService {
 
     private final static Logger logger = LoggerFactory.getLogger(AlaLayersService.class);
 
-    private Map<String,String> idToNameMap = new HashMap<String, String>();
-    private List<Map<String,Object>> layers = new ArrayList<Map<String,Object>>();
+    private Map<String,String> idToNameMap = RestartDataService.get(this, "idToNameMap", new TypeReference<HashMap<String, String>>(){}, HashMap.class);
+    private List<Map<String,Object>> layers = RestartDataService.get(this, "layers", new TypeReference<ArrayList<Map<String, Object>>>(){}, ArrayList.class);
     private Map<String,String> extraLayers = new HashMap<String,String>();
     
     //NC 20131018: Allow cache to be disabled via config (enabled by default)
@@ -58,9 +59,9 @@ public class AlaLayersService implements LayersService {
     @Value("${layers.service.url:http://spatial.ala.org.au/ws}")
     protected String layersServiceUrl;
 
-    protected Map<String, Integer> distributions = new HashMap<String, Integer>();
-    protected Map<String, Integer> checklists = new HashMap<String, Integer>();
-    protected Map<String, Integer> tracks = new HashMap<String, Integer>();
+    protected Map<String, Integer> distributions = RestartDataService.get(this, "distributions", new TypeReference<HashMap<String, Integer>>(){}, HashMap.class);
+    protected Map<String, Integer> checklists = RestartDataService.get(this, "checklists", new TypeReference<HashMap<String, Integer>>(){}, HashMap.class);
+    protected Map<String, Integer> tracks = RestartDataService.get(this, "tracks", new TypeReference<HashMap<String, Integer>>(){}, HashMap.class);
     
     @Inject
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
@@ -78,18 +79,28 @@ public class AlaLayersService implements LayersService {
     
     @Scheduled(fixedDelay = 43200000)// schedule to run every 12 hours
     public void refreshCache(){
+        if (layers.size() > 0) {
+            //data exists, no need to wait
+            wait.countDown();
+        }
+
         //initialise the cache based on the values at http://spatial.ala.org.au/ws/fields
         if(enabled){
             //create a tmp map
-            Map<String,String> tmpMap = new HashMap<String,String>();
-            layers = restTemplate.getForObject(spatialUrl, List.class);
+            Map tmpMap = new HashMap<String,String>();
+            List list = restTemplate.getForObject(spatialUrl, List.class);
+            if (list != null && list.size() > 0) layers = list;
             for(Map<String,Object> values : layers){
                 tmpMap.put((String)values.get("id"), (String)values.get("desc"));
             }
-            idToNameMap = tmpMap;
 
-            distributions = initDistribution("distributions");
-            checklists = initDistribution("checklists");
+            if (tmpMap.size() > 0) idToNameMap = tmpMap;
+
+            tmpMap = initDistribution("distributions");
+            if (tmpMap.size() > 0) distributions = tmpMap;
+
+            tmpMap = initDistribution("checklists");
+            if (tmpMap.size() > 0) checklists = tmpMap;
 
             //TODO: initialize tracks only when webservices are available
             //tracks = initDistribution("tracks");

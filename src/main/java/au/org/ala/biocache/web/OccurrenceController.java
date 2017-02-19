@@ -159,8 +159,6 @@ public class OccurrenceController extends AbstractSecureController {
                     try {
                         while (true) {
                             try {
-                                searchDAO.refreshCaches();
-        
                                 Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
         
                                 if (indexedFields != null) {

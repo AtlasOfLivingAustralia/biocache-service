@@ -29,6 +29,7 @@ import au.org.ala.biocache.util.*;
 import au.org.ala.biocache.util.thread.EndemicCallable;
 import au.org.ala.biocache.vocab.ErrorCode;
 import au.org.ala.biocache.writer.*;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.googlecode.ehcache.annotations.Cacheable;
 import org.apache.commons.io.output.ByteArrayOutputStream;
@@ -59,6 +60,7 @@ import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
 import java.io.IOException;
@@ -85,6 +87,7 @@ import java.util.regex.Pattern;
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  * @see au.org.ala.biocache.dao.SearchDAO
  */
+
 @Component("searchDao")
 public class SearchDAOImpl implements SearchDAO {
 
@@ -291,12 +294,11 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${media.dir:/data/biocache-media/}")
     public static String biocacheMediaDir = "/data/biocache-media/";
 
-    private volatile Set<IndexFieldDTO> indexFields = null;
-    private volatile Map<String, IndexFieldDTO> indexFieldMap = null;
-
+    private volatile Set<IndexFieldDTO> indexFields = RestartDataService.get(this, "indexFields", new TypeReference<TreeSet<IndexFieldDTO>>(){}, TreeSet.class);
+    private volatile Map<String, IndexFieldDTO> indexFieldMap = RestartDataService.get(this, "indexFieldMap", new TypeReference<HashMap<String, IndexFieldDTO>>(){}, HashMap.class);
     private final Map<String, StatsIndexFieldDTO> rangeFieldCache = new HashMap<String, StatsIndexFieldDTO>();
 
-    private Set<String> authIndexFields = null;
+    private Set<String> authIndexFields = new HashSet<String>();
 
     /**
      * SOLR index version for client app caching use.
@@ -367,7 +369,11 @@ public class SearchDAOImpl implements SearchDAO {
                         }
                         // TODO: There was a note about possible issues with the following two lines
                         Set<IndexFieldDTO> indexedFields = getIndexedFields();
-                        downloadFields = new DownloadFields(indexedFields, messageSource, layersService);
+                        if (downloadFields == null) {
+                            downloadFields = new DownloadFields(indexedFields, messageSource, layersService);
+                        } else {
+                            downloadFields.update(indexedFields);
+                        }
                     } catch (Exception ex) {
                         logger.error("Error initialising embedded SOLR server: " + ex.getMessage(), ex);
                     }
@@ -377,25 +383,33 @@ public class SearchDAOImpl implements SearchDAO {
         return result;
     }
 
+    @PostConstruct
+    public void init() {
+        initServer();
+    }
+
     public Set<String> getAuthIndexFields() {
-        if (authIndexFields == null) {
+        if (authIndexFields.size() == 0) {
             //set up the hash set of the fields that need to have the authentication service substitute
             if (logger.isDebugEnabled()) {
                 logger.debug("Auth substitution fields to use: " + authServiceFields);
             }
-            authIndexFields = new java.util.HashSet<String>();
-            CollectionUtils.mergeArrayIntoCollection(authServiceFields.split(","), authIndexFields);
+            Set set = new java.util.HashSet<String>();
+            CollectionUtils.mergeArrayIntoCollection(authServiceFields.split(","), set);
+            authIndexFields = set;
         }
         return authIndexFields;
     }
 
     public void refreshCaches() {
+        initServer();
+
         collectionCache.updateCache();
         //empties the range cache to allow the settings to be recalculated.
         rangeFieldCache.clear();
         try {
             //update indexed fields
-            downloadFields = new DownloadFields(getIndexedFields(true), messageSource, layersService);
+            downloadFields.update(getIndexedFields(true));
         } catch (Exception e) {
             logger.error("Unable to refresh cache.", e);
         }
@@ -3718,16 +3732,19 @@ public class SearchDAOImpl implements SearchDAO {
     @Cacheable(cacheName = "getIndexedFields")
     public Set<IndexFieldDTO> getIndexedFields(boolean update) throws Exception {
         Set<IndexFieldDTO> result = indexFields;
-        if (result == null || update) {
+        if (result.size() == 0 || update) {
             synchronized (solrIndexVersionLock) {
                 result = indexFields;
-                if (result == null || update) {
-                    result = indexFields = getIndexFieldDetails(null);
-                    Map<String, IndexFieldDTO> resultMap = new HashMap<String, IndexFieldDTO>();
-                    for (IndexFieldDTO field : result) {
-                        resultMap.put(field.getName(), field);
+                if (result.size() == 0 || update) {
+                    result = getIndexFieldDetails(null);
+                    if (result != null && result.size() > 0) {
+                        Map<String, IndexFieldDTO> resultMap = new HashMap<String, IndexFieldDTO>();
+                        for (IndexFieldDTO field : result) {
+                            resultMap.put(field.getName(), field);
+                        }
+                        indexFields = result;
+                        indexFieldMap = resultMap;
                     }
-                    indexFieldMap = resultMap;
                 }
             }
         }

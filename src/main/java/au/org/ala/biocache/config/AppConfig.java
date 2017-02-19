@@ -1,5 +1,6 @@
 package au.org.ala.biocache.config;
 
+import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.service.SpeciesLookupIndexService;
 import au.org.ala.biocache.service.SpeciesLookupRestService;
 import au.org.ala.biocache.service.SpeciesLookupService;
@@ -51,6 +52,13 @@ public class AppConfig {
     protected Integer facetsMax;
     @Value("${facet.default:true}")
     protected Boolean facetDefault;
+
+
+
+    @Value("${restart.data.dir:/tmp}")
+    public void setDatabase(String dir) {
+        RestartDataService.dir = dir;
+    }
 
 
     protected SpeciesLookupService getSpeciesLookupRestService() {

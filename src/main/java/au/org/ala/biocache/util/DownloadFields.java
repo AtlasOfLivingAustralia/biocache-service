@@ -18,6 +18,8 @@ import au.org.ala.biocache.Config;
 import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.service.LayersService;
+import au.org.ala.biocache.service.RestartDataService;
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +41,7 @@ public class DownloadFields {
 
     private LayersService layersService;
     
-    private Properties layerProperties = new Properties();
+    private Properties layerProperties = RestartDataService.get(this, "layerProperties", new TypeReference<Properties>(){}, Properties.class);
     private Map<String,IndexFieldDTO> indexFieldMaps;
 
     public DownloadFields(Set<IndexFieldDTO> indexFields, AbstractMessageSource messageSource, LayersService layersService){
@@ -47,17 +49,7 @@ public class DownloadFields {
 
         this.layersService = layersService;
         
-        //initialise the properties
-        try {
-            indexFieldMaps = new TreeMap<String,IndexFieldDTO>();
-            for(IndexFieldDTO field: indexFields){
-                indexFieldMaps.put(field.getName(), field);
-            }
-
-            updateLayerNames();
-        } catch(Exception e) {
-        	logger.error(e.getMessage(), e);
-        }
+        update(indexFields);
     }
 
     private void updateLayerNames() {
@@ -168,5 +160,20 @@ public class DownloadFields {
 
     private boolean isSpatialField(String name) {
         return name.matches("((cl)|(el))[0-9]+");
+    }
+
+    public void update(Set<IndexFieldDTO> indexedFields) {
+        //initialise the properties
+        try {
+            Map<String,IndexFieldDTO> map = new TreeMap<String,IndexFieldDTO>();
+            for(IndexFieldDTO field: indexedFields){
+                map.put(field.getName(), field);
+            }
+            indexFieldMaps = map;
+
+            updateLayerNames();
+        } catch(Exception e) {
+            logger.error(e.getMessage(), e);
+        }
     }
 }

@@ -14,6 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.util;
 
+import au.org.ala.biocache.service.RestartDataService;
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -37,13 +39,13 @@ import java.util.List;
 @Component("collectionsCache")
 public class CollectionsCache {
 
-    protected LinkedHashMap<String, String> dataResources = new LinkedHashMap<String, String>();
-    protected LinkedHashMap<String, String> dataProviders = new LinkedHashMap<String, String>();
-    protected LinkedHashMap<String, String> tempDataResources = new LinkedHashMap<String, String>();
-    protected LinkedHashMap<String, Integer> downloadLimits = new LinkedHashMap<String, Integer>();
-    protected LinkedHashMap<String, String> institutions = new LinkedHashMap<String, String>();
-    protected LinkedHashMap<String, String> collections = new LinkedHashMap<String, String>();
-    protected LinkedHashMap<String, String> dataHubs =  new LinkedHashMap<String,String>();
+    protected LinkedHashMap<String, String> dataResources = RestartDataService.get(this, "dataResources", new TypeReference<LinkedHashMap>(){}, LinkedHashMap.class);
+    protected LinkedHashMap<String, String> dataProviders = RestartDataService.get(this, "dataProviders", new TypeReference<LinkedHashMap>(){}, LinkedHashMap.class);
+    protected LinkedHashMap<String, String> tempDataResources = RestartDataService.get(this, "tempDataResources", new TypeReference<LinkedHashMap>(){}, LinkedHashMap.class);
+    protected LinkedHashMap<String, Integer> downloadLimits = RestartDataService.get(this, "downloadLimits", new TypeReference<LinkedHashMap>(){}, LinkedHashMap.class);
+    protected LinkedHashMap<String, String> institutions = RestartDataService.get(this, "institutions", new TypeReference<LinkedHashMap>(){}, LinkedHashMap.class);
+    protected LinkedHashMap<String, String> collections = RestartDataService.get(this, "collections", new TypeReference<LinkedHashMap>(){}, LinkedHashMap.class);
+    protected LinkedHashMap<String, String> dataHubs = RestartDataService.get(this, "dataHubs", new TypeReference<LinkedHashMap>(){}, LinkedHashMap.class);
     protected List<String> institution_uid = null;
     protected List<String> collection_uid = null;
     protected List<String> data_resource_uid = null;
@@ -55,7 +57,7 @@ public class CollectionsCache {
 
     //NC 20131018: Allow cache to be disabled via config (enabled by default)
     @Value("${caches.collections.enabled:true}")
-    protected Boolean enabled =null;
+    protected Boolean enabled = null;
     /** Spring injected RestTemplate object */
     @Inject
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
@@ -100,19 +102,44 @@ public class CollectionsCache {
      */
     @Scheduled(fixedDelay = 3600000L) //every hour
     public void updateCache() {
-        if(enabled){
-            logger.info("Updating collectory cache...");
-            this.collections = getCodesMap(ResourceType.COLLECTION, collection_uid);
-            this.institutions = getCodesMap(ResourceType.INSTITUTION, institution_uid);
-            this.dataResources = getCodesMap(ResourceType.DATA_RESOURCE,data_resource_uid);
-            this.dataProviders = getCodesMap(ResourceType.DATA_PROVIDER, data_provider_uid);
-            this.tempDataResources = getCodesMap(ResourceType.TEMP_DATA_RESOURCE, null);
-            this.dataHubs = getCodesMap(ResourceType.DATA_HUB, data_hub_uid);
-            this.dataResources.putAll(tempDataResources);
-        } else{
-            logger.info("Collectory cache has been disabled");
+        Thread thread = new Thread() {
+            @Override
+            public void run() {
+                if(enabled){
+                    logger.info("Updating collectory cache...");
+                    LinkedHashMap m;
+                    m = getCodesMap(ResourceType.COLLECTION, collection_uid);
+                    if (m != null && m.size() > 0) collections = m;
+
+                    m = getCodesMap(ResourceType.INSTITUTION, institution_uid);
+                    if (m != null && m.size() > 0) institutions = m;
+
+                    m = getCodesMap(ResourceType.DATA_RESOURCE,data_resource_uid);
+                    if (m != null && m.size() > 0) dataResources = m;
+
+                    m = getCodesMap(ResourceType.DATA_PROVIDER, data_provider_uid);
+                    if (m != null && m.size() > 0) dataProviders = m;
+
+                    m = getCodesMap(ResourceType.TEMP_DATA_RESOURCE, null);
+                    if (m != null && m.size() > 0) tempDataResources = m;
+
+                    m = dataHubs = getCodesMap(ResourceType.DATA_HUB, data_hub_uid);
+                    if (m != null && m.size() > 0) dataHubs = m;
+
+                    dataResources.putAll(tempDataResources);
+                } else{
+                    logger.info("Collectory cache has been disabled");
+                }
+            }
+        };
+
+        if (collections.size() > 0) {
+            //data already exists, do not wait
+            thread.start();
+        } else {
+            //wait
+            thread.run();
         }
-        
     }
     
     /**

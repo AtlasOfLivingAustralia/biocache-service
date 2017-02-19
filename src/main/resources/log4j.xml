@@ -80,6 +80,9 @@
     <category name="org.quartz">
         <priority value="ERROR"/>
     </category>
+    <category name="springfox">
+        <priority value="ERROR"/>
+    </category>
     <root>
         <priority value ="DEBUG" />
          <appender-ref ref="CONSOLE"/>
