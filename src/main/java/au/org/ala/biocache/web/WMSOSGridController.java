@@ -334,20 +334,19 @@ public class WMSOSGridController {
             facets = new String[]{"grid_ref_10000"};
             buff = 0.75; //no problems with buff 1.0
         } else {
+            //variable grid
             if(boundingBoxSizeInKm >= 1000 ) {
                 facets = new String[]{"grid_ref_100000"};
                 buff = 1.0;
             } else if(boundingBoxSizeInKm > 39 && boundingBoxSizeInKm < 1000 ){
                 facets = new String[]{"grid_ref_10000"};
                 buff = 0.75;
-            } else if(boundingBoxSizeInKm > 19 && boundingBoxSizeInKm <= 39){
+            } else if(boundingBoxSizeInKm >= 19 && boundingBoxSizeInKm <= 39){
                 buff = 0.5;
                 facets = new String[]{"grid_ref_1000", "grid_ref_10000"};
-//                additionalFqs = new String[]{"-coordinate_uncertainty:100000"};
             } else {
                 buff = 0.1;
-                facets = new String[]{"grid_ref_100", "grid_ref_1000", "grid_ref_10000"};
-//                additionalFqs = new String[]{"-coordinate_uncertainty:100000"};
+                facets = new String[]{"grid_ref"};
             }
         }
 
