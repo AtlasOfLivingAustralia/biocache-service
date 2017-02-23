@@ -54,9 +54,10 @@ public class AppConfig {
     protected Boolean facetDefault;
 
 
-
+    //Set RestartDataService.dir before classes using RestartDataService are instantiated.
     @Value("${restart.data.dir:/tmp}")
     public void setDatabase(String dir) {
+        logger.debug("setting RestartDataService.dir: " + dir);
         RestartDataService.dir = dir;
     }
 

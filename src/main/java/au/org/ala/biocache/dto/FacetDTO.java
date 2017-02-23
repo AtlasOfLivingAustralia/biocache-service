@@ -25,6 +25,8 @@ public class FacetDTO {
     private String dwcTerm;
     private Boolean i18nValues;
 
+    public FacetDTO() {}
+
     public FacetDTO(String title, String sort, String description, String dwcTerm, Boolean i18nValues) {
         this.field = title;
         this.sort = sort;

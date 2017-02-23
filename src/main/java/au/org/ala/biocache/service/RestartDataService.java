@@ -43,11 +43,14 @@ public class RestartDataService {
     private static Map<Object, List<String>> sources = new ConcurrentHashMap<Object, List<String>>();
     private static Map<String, Object> values = new ConcurrentHashMap<>();
 
-    //dir is set by AppConfig
+    //dir is set by AppConfig so it has a value before any get() calls.
     public static String dir;
 
     @Value("${restart.data.enabled:true}")
     public Boolean enabled;
+
+    @Value("${restart.data.frequency:10000}")
+    public Integer frequency;
 
     private Thread loop;
 
@@ -55,6 +58,10 @@ public class RestartDataService {
     public void init() {
 
         if (enabled) {
+            if (logger.isDebugEnabled()) {
+                logger.debug("RestartDataService dir: " + dir);
+            }
+
             new File(dir).mkdirs();
 
             jsonMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -74,19 +81,19 @@ public class RestartDataService {
                                         }
                                         Object value = f.get(rc);
 
-                                        String key = rc.getClass().toString() + field;
+                                        String key = rc.getClass().getCanonicalName() + "." + field;
                                         if (value != values.get(key)) {
                                             saveToDisk(key, value);
                                             values.remove(key);
                                             values.put(key, value);
                                         }
                                     } catch (Exception e) {
-                                        logger.error("error checking value: " + rc.getClass().toString() + field, e);
+                                        logger.error("error checking value: " + rc.getClass().getCanonicalName() + "." + field, e);
                                     }
                                 }
                             }
 
-                            sleep(10000);
+                            sleep(frequency);
                         }
                     } catch (InterruptedException e) {
                     }
@@ -142,7 +149,9 @@ public class RestartDataService {
                 }
                 jsonMapper.writeValue(file, value);
             }
-            logger.debug("writing " + path + " to disk");
+            if (logger.isDebugEnabled()) {
+                logger.debug("writing " + path + " to disk");
+            }
         } catch (Exception e) {
             logger.error("failed to save to disk: " + path, e);
         }
@@ -161,7 +170,7 @@ public class RestartDataService {
             sources.put(parent, list);
         }
 
-        String key = parent.getClass().toString() + name;
+        String key = parent.getClass().getCanonicalName() + "." + name;
 
         T value = null;
         try {

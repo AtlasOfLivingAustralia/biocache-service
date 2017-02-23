@@ -23,6 +23,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.net.URLEncoder;
 import java.util.ArrayList;
@@ -79,6 +80,11 @@ public class AlaLayersService implements LayersService {
     
     @Scheduled(fixedDelay = 43200000)// schedule to run every 12 hours
     public void refreshCache(){
+        init();
+    }
+
+    @PostConstruct
+    public void init() {
         if (layers.size() > 0) {
             //data exists, no need to wait
             wait.countDown();
@@ -107,7 +113,6 @@ public class AlaLayersService implements LayersService {
         }
         wait.countDown();
     }
-
     @Override
     public String getName(String code) {
         try {
@@ -119,7 +124,7 @@ public class AlaLayersService implements LayersService {
 
     public String findAnalysisLayerName(String analysisLayer, String layersServiceUrl) {
         String url = this.layersServiceUrl;
-        if (layersServiceUrl != null) url = layersServiceUrl;
+        if (StringUtils.isNotEmpty(layersServiceUrl)) url = layersServiceUrl;
 
         if (!layersServiceAnalysisLayers) {
             return null;

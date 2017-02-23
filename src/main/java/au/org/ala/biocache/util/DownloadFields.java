@@ -148,7 +148,7 @@ public class DownloadFields {
                 String dwc = dwcHeaders ? messageSource.getMessage("dwc." + value, null, "", Locale.getDefault()) : null;
                 headers.add(dwc != null && dwc.length() > 0 ? dwc : v);
                 originalName.add(value);
-            } else if (layersService.findAnalysisLayerName(value, layersServiceUrl) != null) {
+            } else if (field == null && layersService.findAnalysisLayerName(value, layersServiceUrl) != null) {
                 analysisLayers.add(value);
                 analysisHeaders.add(layersService.findAnalysisLayerName(value, layersServiceUrl));
             } else {

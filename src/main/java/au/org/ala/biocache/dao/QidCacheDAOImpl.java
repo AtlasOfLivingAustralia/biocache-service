@@ -88,6 +88,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
                 }
             }
         };
+        cacheCleaner.setName("qid-cache-cleaner");
         cacheCleaner.start();
 
         try {

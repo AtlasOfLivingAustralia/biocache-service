@@ -21,6 +21,8 @@ public class FacetTheme {
     private String title;
     private FacetDTO[] facets;
 
+    public FacetTheme() {}
+
     public FacetTheme(String title, FacetDTO... facets) {
         this.title = title;
         this.facets = facets;

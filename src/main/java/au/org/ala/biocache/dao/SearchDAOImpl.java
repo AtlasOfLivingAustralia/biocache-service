@@ -289,10 +289,10 @@ public class SearchDAOImpl implements SearchDAO {
     protected String authServiceFields = "";
 
     @Value("${media.url:http://biocache.ala.org.au/biocache-media/}")
-    public static String biocacheMediaUrl = "http://biocache.ala.org.au/biocache-media/";
+    public String biocacheMediaUrl = "http://biocache.ala.org.au/biocache-media/";
 
     @Value("${media.dir:/data/biocache-media/}")
-    public static String biocacheMediaDir = "/data/biocache-media/";
+    public String biocacheMediaDir = "/data/biocache-media/";
 
     private volatile Set<IndexFieldDTO> indexFields = RestartDataService.get(this, "indexFields", new TypeReference<TreeSet<IndexFieldDTO>>(){}, TreeSet.class);
     private volatile Map<String, IndexFieldDTO> indexFieldMap = RestartDataService.get(this, "indexFieldMap", new TypeReference<HashMap<String, IndexFieldDTO>>(){}, HashMap.class);

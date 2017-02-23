@@ -14,6 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import au.org.ala.biocache.service.RestartDataService;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
@@ -30,7 +32,7 @@ public class FacetThemes {
 	
     private static String[] allFacets = new String[]{};
     private static String[] allFacetsLimited = new String[]{};
-    private static java.util.List<FacetTheme> allThemes = new java.util.ArrayList<FacetTheme>();
+    private static java.util.List<FacetTheme> allThemes = RestartDataService.get(new FacetThemes(false), "allThemes", new TypeReference<java.util.ArrayList<FacetTheme>>(){}, java.util.ArrayList.class);
     private static LinkedHashMap<String, FacetDTO> facetsMap = new LinkedHashMap<String, FacetDTO>();
     
     private static Integer facetsMax = 4;
@@ -54,7 +56,7 @@ public class FacetThemes {
             FacetThemes.facetDefault = facetDefault;
             
             if(configFilePath != null && new File(configFilePath).exists()){
-                FacetThemes.allThemes.clear();
+                java.util.List<FacetTheme> newThemes = new ArrayList<>();
                 ObjectMapper om = new ObjectMapper();
                 List<Map<String,Object>> config = om.readValue(new File(configFilePath), List.class);
                 for(Map<String, Object> facetGroup : config){
@@ -80,9 +82,12 @@ public class FacetThemes {
                             }
                         }
                     }
-                    FacetThemes.allThemes.add(new FacetTheme(title, facets));
+                    newThemes.add(new FacetTheme(title, facets));
                 }
-                initAllFacets();
+                if (newThemes.size() > 0) {
+                    FacetThemes.allThemes = newThemes;
+                    initAllFacets();
+                }
             } else {
                 defaultInit();
             }
@@ -97,7 +102,13 @@ public class FacetThemes {
      */
     private static void afterInitialisation() {
         try {
-            initialised.await();
+            if (initialised.getCount() > 0 && allThemes.size() > 0) {
+                //data exists, do not wait
+                initAllFacets();
+                initialised.countDown();
+            } else {
+                initialised.await();
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -133,7 +144,7 @@ public class FacetThemes {
         return allThemes;
     }
 
-    private void initAllFacets() {
+    synchronized private static void initAllFacets() {
         LinkedHashMap<String, FacetDTO> map = new LinkedHashMap<String, FacetDTO>();
         for (FacetTheme theme : allThemes) {
             for(FacetDTO f : theme.getFacets()) {
@@ -148,6 +159,13 @@ public class FacetThemes {
     public FacetThemes() {
         defaultInit();
         initialised.countDown();
+    }
+
+    public FacetThemes(boolean init) {
+        if (init) {
+            defaultInit();
+            initialised.countDown();
+        }
     }
 
     private void defaultInit() {
