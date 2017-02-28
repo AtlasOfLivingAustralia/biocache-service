@@ -22,6 +22,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.lang.reflect.Field;
 import java.util.LinkedHashMap;
@@ -95,6 +96,12 @@ public class CollectionsCache {
 
     public LinkedHashMap<String, Integer> getDownloadLimits(){
         return downloadLimits;
+    }
+
+
+    @PostConstruct
+    public void init() {
+        updateCache();
     }
 
     /**

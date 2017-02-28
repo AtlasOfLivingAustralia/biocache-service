@@ -148,6 +148,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.offline.parallelquery.maxthreads:30}")
     protected Integer maxOfflineParallelQueryDownloadThreads = 30;
 
+    /** restrict the size of files in a zip */
+    @Value("${zip.file.size.mb.max:4000}")
+    private Integer maxMB;
+
     /**
      * Ensures closure is only attempted once.
      */
@@ -414,7 +418,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         // the download.
         // Note: When producing a shp the output will stream a csv followed by a zip.
         try(OptionalZipOutputStream sp = new OptionalZipOutputStream(
-                zip ? OptionalZipOutputStream.Type.zipped : OptionalZipOutputStream.Type.unzipped, new CloseShieldOutputStream(out));) {
+                zip ? OptionalZipOutputStream.Type.zipped : OptionalZipOutputStream.Type.unzipped, new CloseShieldOutputStream(out), maxMB);) {
             String suffix = requestParams.getFileType().equals("shp") ? "csv" : requestParams.getFileType();
             sp.putNextEntry(filename + "." + suffix);
             // put the facets
@@ -941,8 +945,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             if (currentDownload != null && currentDownload.getFileLocation() != null) {
                                 insertMiscHeader(currentDownload);
 
-                                String fileLocation = URLEncoder.encode(currentDownload.getFileLocation(), "UTF-8").replace("%2F", "/").replace(biocacheDownloadDir,
-                                        biocacheDownloadUrl);
+                                String fileLocation = biocacheDownloadUrl + File.separator + URLEncoder.encode(currentDownload.getFileLocation().replace(biocacheDownloadDir + "/",""), "UTF-8").replace("%2F", "/").replace("+", "%20");
                                 String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
                                 String emailBodyHtml = biocacheDownloadEmailBody.replace("[url]", fileLocation)
                                         .replace("[date]", currentDownload.getStartDateString())

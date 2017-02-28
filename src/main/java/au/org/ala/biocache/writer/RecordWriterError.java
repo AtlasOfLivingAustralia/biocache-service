@@ -25,4 +25,6 @@ public interface RecordWriterError extends RecordWriter {
      * @return true when there is a write error
      */
     boolean hasError();
+
+    void flush();
 }

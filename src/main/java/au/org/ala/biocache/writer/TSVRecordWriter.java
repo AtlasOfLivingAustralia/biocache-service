@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.writer;
 
+import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,9 +36,11 @@ public class TSVRecordWriter implements RecordWriterError {
     private final AtomicBoolean finalisedComplete = new AtomicBoolean(false);
 
     private boolean writerError = false;
+    private String[] header;
     
     public TSVRecordWriter(OutputStream out, String[] header){
         this.outputStream = out;
+        this.header = header;
         write(header);
     }
     
@@ -57,7 +60,16 @@ public class TSVRecordWriter implements RecordWriterError {
         line.append("\n");
 
         try {
-            outputStream.write(line.toString().getBytes());
+            String str = line.toString();
+            byte [] bytes = str.getBytes("UTF-8");
+            outputStream.write(bytes);
+
+            //mark the end of line
+            if (outputStream instanceof OptionalZipOutputStream) {
+                if (((OptionalZipOutputStream) outputStream).isNewFile(outputStream, bytes.length)) {
+                    write(header);
+                }
+            }
         } catch (java.io.IOException e) {
             writerError = true;
         }
@@ -66,11 +78,7 @@ public class TSVRecordWriter implements RecordWriterError {
     @Override
     public void finalise() {
         if(finalised.compareAndSet(false, true)) {
-            try {
-                outputStream.flush();
-            } catch(java.io.IOException e){
-                writerError = true;
-            }
+            flush();
             finalisedComplete.set(true);
         }
     }
@@ -83,5 +91,14 @@ public class TSVRecordWriter implements RecordWriterError {
     @Override
     public boolean hasError() {
         return writerError;
+    }
+
+    @Override
+    public void flush() {
+        try {
+            outputStream.flush();
+        } catch(java.io.IOException e){
+            writerError = true;
+        }
     }
 }

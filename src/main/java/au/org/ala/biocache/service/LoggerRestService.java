@@ -21,6 +21,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,28 +59,28 @@ public class LoggerRestService implements LoggerService {
 
     @Override    
     public List<Map<String,Object>> getReasons() {
-        init();
+        isReady();
 
         return loggerReasons;
     }
 
     @Override    
     public List<Map<String,Object>> getSources() {
-        init();
+        isReady();
 
         return loggerSources;
     }
     
     @Override 
     public List<Integer> getReasonIds(){
-        init();
+        isReady();
 
         return reasonIds; 
     }
     
     @Override
     public List<Integer> getSourceIds(){
-        init();
+        isReady();
 
         return sourceIds;
     }
@@ -88,7 +89,7 @@ public class LoggerRestService implements LoggerService {
      * x
      * wait for reloadCache()
      */
-    private void init() {
+    private void isReady() {
         try {
             initialised.await();
         } catch (Exception e) {
@@ -101,6 +102,11 @@ public class LoggerRestService implements LoggerService {
      */
     @Scheduled(fixedDelay = 43200000)// schedule to run every 12 hours
     public void reloadCache() {
+        init();
+    }
+
+    @PostConstruct
+    public void init() {
         if (loggerReasons.size() > 0) {
             //data exists, no need to wait
             initialised.countDown();

@@ -1,5 +1,7 @@
 package au.org.ala.biocache.stream;
 
+import au.org.ala.biocache.writer.RecordWriterError;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.zip.ZipOutputStream;
@@ -19,10 +21,43 @@ public class OptionalZipOutputStream extends OutputStream {
     private OutputStream out;
     private ZipOutputStream zop;
     private String currentEntry;
+    private long currentEntryLength;
+    private int splitCount;
+    private Integer maxMB;
 
-    public OptionalZipOutputStream(Type type, OutputStream out) {
+    /**
+     * Determine when a file has reached the maxMB.
+     *
+     * Keeps track of the length of written records so a flush is not required.
+     *
+     * @param writer
+     * @param length number of characters written
+     * @return
+     * @throws IOException
+     */
+    public boolean isNewFile(Object writer, long length) throws IOException {
+        boolean isNewFile = false;
+        if (type == OptionalZipOutputStream.Type.zipped) {
+            currentEntryLength += length;
+            if (currentEntryLength >= maxMB * 1024 * 1024) {
+                if (writer instanceof RecordWriterError) ((RecordWriterError) writer).flush();
+
+                closeEntry();
+                currentEntryLength = 0;
+
+                splitCount++;
+                String[] parts = currentEntry.split("\\.(?=[^\\.]+$)");
+                zop.putNextEntry(new java.util.zip.ZipEntry(parts[0] + "_part" + splitCount + "." + parts[1]));
+                isNewFile = true;
+            }
+        }
+        return isNewFile;
+    }
+
+    public OptionalZipOutputStream(Type type, OutputStream out, Integer maxZipFileMB) {
         this.type = type;
         this.out = out;
+        this.maxMB = maxZipFileMB;
 
         if (type == Type.zipped) {
             zop = new ZipOutputStream(out);
@@ -31,6 +66,8 @@ public class OptionalZipOutputStream extends OutputStream {
 
     public void putNextEntry(String name) throws IOException {
         currentEntry = name;
+        currentEntryLength = 0;
+        splitCount = 1;
 
         if (type == Type.zipped) {
             zop.putNextEntry(new java.util.zip.ZipEntry(name));

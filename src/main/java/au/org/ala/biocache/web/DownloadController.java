@@ -37,6 +37,7 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
+import java.net.URLEncoder;
 import java.util.*;
 
 /**
@@ -272,7 +273,7 @@ public class DownloadController extends AbstractSecureController {
                 for (File file : dir.listFiles()) {
                     if (file.isFile() && file.getPath().endsWith(".zip") && file.length() > 0) {
                         status.put("status", "finished");
-                        status.put("downloadUrl", file.getPath().replace(biocacheDownloadDir, biocacheDownloadUrl));
+                        status.put("downloadUrl", biocacheDownloadUrl + File.separator + URLEncoder.encode(file.getPath().replace(biocacheDownloadDir + "/", ""), "UTF-8").replace("%2F", "/").replace("+", "%20"));
                     }
                     if (file.isFile() && "tooLarge".equals(file.getName())) {
                         status.put("status", "Skipped. " + downloadOfflineMsg);
