@@ -39,7 +39,7 @@ public class OptionalZipOutputStream extends OutputStream {
         boolean isNewFile = false;
         if (type == OptionalZipOutputStream.Type.zipped) {
             currentEntryLength += length;
-            if (currentEntryLength >= maxMB * 1024 * 1024) {
+            if (currentEntryLength >= maxMB * 1024L * 1024L) {
                 if (writer instanceof RecordWriterError) ((RecordWriterError) writer).flush();
 
                 closeEntry();
