@@ -385,7 +385,13 @@ public class SearchDAOImpl implements SearchDAO {
 
     @PostConstruct
     public void init() {
-        initServer();
+        //avoid locking if SOLR is not up
+        new Thread() {
+            @Override
+            public void run() {
+                initServer();
+            }
+        }.start();
     }
 
     public Set<String> getAuthIndexFields() {
