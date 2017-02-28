@@ -301,4 +301,13 @@ public class ShapeFileRecordWriter implements RecordWriterError {
     public boolean hasError() {
         return writerError;
     }
+
+    @Override
+    public void flush() {
+        try {
+            outputStream.flush();
+        } catch (Exception e) {
+            writerError = true;
+        }
+    }
 }
