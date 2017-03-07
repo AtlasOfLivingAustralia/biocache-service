@@ -945,6 +945,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             if (currentDownload != null && currentDownload.getFileLocation() != null) {
                                 insertMiscHeader(currentDownload);
 
+                                //ensure new directories have correct permissions
+                                new File(currentDownload.getFileLocation()).getParentFile().setExecutable(true, false);
+                                new File(currentDownload.getFileLocation()).getParentFile().getParentFile().setExecutable(true, false);
+
                                 String fileLocation = biocacheDownloadUrl + File.separator + URLEncoder.encode(currentDownload.getFileLocation().replace(biocacheDownloadDir + "/",""), "UTF-8").replace("%2F", "/").replace("+", "%20");
                                 String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
                                 String emailBodyHtml = biocacheDownloadEmailBody.replace("[url]", fileLocation)
