@@ -38,6 +38,7 @@ import org.apache.log4j.Logger;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.scale7.cassandra.pelops.exceptions.NoConnectionsAvailableException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextClosedEvent;
@@ -915,6 +916,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         // we need to create an output stream to the file system
 
                         boolean shuttingDown = false;
+                        boolean doRetry = false;
 
                         try (FileOutputStream fos = FileUtils
                                 .openOutputStream(new File(currentDownload.getFileLocation()));) {
@@ -965,6 +967,28 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             throw e;
                         } catch (CancellationException e) {
                             //download cancelled, do not send an email
+                        } catch (NoConnectionsAvailableException e) {
+                            logger.warn("Offline download failed. No connection with Cassandra. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage());
+                            //return to queue in 5mins
+                            doRetry = true;
+                            new Thread() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        Thread.sleep(5*60*1000);
+                                        try {
+                                            FileUtils.deleteDirectory(new File(currentDownload.getFileLocation()).getParentFile());
+                                        } catch (IOException e) {
+                                            logger.error("Exception when attempting to delete failed download " +
+                                                    "directory before retrying: " + new File(currentDownload.getFileLocation()).getParent() +
+                                                    ", " + e.getMessage(), e);
+                                        }
+                                        currentDownload.setFileLocation(null);
+
+                                    } catch (InterruptedException e1) {
+                                    }
+                                }
+                            }.start();
                         } catch (Exception e) {
                             logger.error("Error in offline download, sending email. download path: "
                                     + currentDownload.getFileLocation(), e);
@@ -992,7 +1016,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         } finally {
                             // incase of server up/down, only remove from queue
                             // after emails are sent
-                            if (!shuttingDown) {
+                            if (!shuttingDown && !doRetry) {
                                 persistentQueueDAO.removeDownloadFromQueue(currentDownload);
                             }
                         }
