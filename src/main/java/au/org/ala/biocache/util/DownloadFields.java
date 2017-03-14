@@ -52,34 +52,42 @@ public class DownloadFields {
         update(indexFields);
     }
 
-    private void updateLayerNames() {
-        //avoid a delay here
-        Thread t = new Thread() {
-            public void run() {
-                Properties newDownloadProperties = new Properties();
-
-                try {
-                    Map<String, String> fields = new LayersStore(Config.layersServiceUrl()).getFieldIdsAndDisplayNames();
-                    for (String fieldId : fields.keySet()) {
-                        newDownloadProperties.put(fieldId, fields.get(fieldId));
-                    }
-
-                    //something might have gone wrong if empty
-                    if (newDownloadProperties.size() > 0) {
-                        layerProperties = newDownloadProperties;
-                    }
-                } catch (Exception e) {
-                    logger.error("failed to update layer names from url: " + Config.layersServiceUrl(), e);
-                }
+    private Long lastUpdate = 0L;
+    private Thread updateThread = null;
+    private synchronized void updateLayerNames() {
+        //update hourly
+        if (layerProperties == null || layerProperties.size() == 0 || System.currentTimeMillis() > lastUpdate + 3600*1000) {
+            //close any running update threads
+            if (updateThread != null && updateThread.isAlive()) {
+                updateThread.interrupt();
             }
-        };
+            lastUpdate = System.currentTimeMillis();
+            updateThread = new Thread() {
+                public void run() {
+                    Properties newDownloadProperties = new Properties();
 
-        if (layerProperties == null || layerProperties.size() == 0) {
-            //wait
-            t.run();
-        } else {
-            //do not wait 
-            t.start();
+                    try {
+                        Map<String, String> fields = new LayersStore(Config.layersServiceUrl()).getFieldIdsAndDisplayNames();
+                        for (String fieldId : fields.keySet()) {
+                            newDownloadProperties.put(fieldId, fields.get(fieldId));
+                        }
+
+                        //something might have gone wrong if empty
+                        if (newDownloadProperties.size() > 0) {
+                            layerProperties = newDownloadProperties;
+                        }
+                    } catch (Exception e) {
+                        logger.error("failed to update layer names from url: " + Config.layersServiceUrl() + " " + e.getMessage(), e);
+                    }
+                }
+            };
+            if (layerProperties == null || layerProperties.size() == 0) {
+                //wait
+                updateThread.run();
+            } else {
+                //do not wait
+                updateThread.start();
+            }
         }
     }
     

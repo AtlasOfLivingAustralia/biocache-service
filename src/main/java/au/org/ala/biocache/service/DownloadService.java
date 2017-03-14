@@ -481,15 +481,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 sp.putNextEntry("README.html");
                 String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
 
-                // online downloads will not have a file location or request params set
-                // in dd.
-                if (dd.getRequestParams() == null) {
-                    dd.setRequestParams(requestParams);
-                }
-                if (dd.getFileLocation() == null) {
-                    dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
-                }
-
                 String fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
                 String readmeContent = biocacheDownloadReadme.replace("[url]", fileLocation)
                         .replace("[date]", dd.getStartDateString())

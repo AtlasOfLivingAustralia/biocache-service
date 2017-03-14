@@ -14,14 +14,38 @@
  ***************************************************************************/
 package au.org.ala.biocache.writer;
 
+import au.org.ala.biocache.dto.DownloadDetailsDTO;
+import au.org.ala.biocache.dto.DownloadRequestParams;
+import org.apache.log4j.Logger;
+
 import java.io.IOException;
 
 /**
  * RecordWriters hide exceptions. This is to identify them.
  */
 public class RecordWriterException extends IOException {
+    private final static Logger logger = Logger.getLogger(RecordWriterException.class);
 
     public RecordWriterException() {
         super("RecordWriter Exception");
+    }
+
+    public RecordWriterException(String msg) {
+        super("RecordWriter Exception: " + msg);
+    }
+
+    public static RecordWriterException newRecordWriterException(DownloadDetailsDTO dd, DownloadRequestParams downloadParams, boolean solr) {
+        String msg = "";
+        if (dd != null) {
+            if (dd.getFileLocation() != null) {
+                msg += "Offline request: " + dd.getFileLocation();
+                logger.error("msg");
+            } else {
+                msg += "Online " + (solr?"SOLR":"Cassandra") + " download request: " + downloadParams.toString() + ", " + dd.getIpAddress();
+            }
+        } else if (downloadParams != null) {
+            msg += "Online " + (solr?"SOLR":"Cassandra") + "  download request: " + downloadParams.toString();
+        }
+        return new RecordWriterException(msg);
     }
 }

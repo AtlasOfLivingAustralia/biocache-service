@@ -1284,12 +1284,13 @@ public class SearchDAOImpl implements SearchDAO {
 
                             //test for errors. This can contain a flush so only test occasionally
                             if (counter % resultsQueueLength == 0 && ((RecordWriterError) rw).hasError()) {
-                                throw new RecordWriterException();
+                                throw RecordWriterException.newRecordWriterException(dd, downloadParams, true);
                             }
 
                         }
                     } catch (RecordWriterException e) {
                         //no trace information is available to print for these errors
+                        logger.error(e.getMessage());
                         interruptFound.set(true);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
@@ -1502,7 +1503,7 @@ public class SearchDAOImpl implements SearchDAO {
                             rw.finalise();
                         } finally {
                             if (rw != null && ((RecordWriterError) rw).hasError()) {
-                                throw new RecordWriterException();
+                                throw RecordWriterException.newRecordWriterException(dd, downloadParams, true);
                             } else {
                                 // Flush whatever output was still pending for more deterministic debugging
                                 out.flush();
@@ -1992,7 +1993,7 @@ public class SearchDAOImpl implements SearchDAO {
 
                 //test for errors
                 if (((RecordWriterError) writer).hasError()) {
-                    throw new RecordWriterException();
+                    throw RecordWriterException.newRecordWriterException(dd, downloadParams, false);
                 }
 
                 dd.setMiscFields(newMiscFields);
