@@ -104,7 +104,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
                             try {
                                 FileUtils.forceMkdir(file);
                             } catch (IOException e) {
-                                logger.error("Unable to construct cache directory.", e);
+                                logger.error("Unable to construct cache directory with correct permissions.", e);
                             }
                 
                             // IMPORTANT: must set closed to false before calling refreshFromPersistent, 
