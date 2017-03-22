@@ -274,6 +274,17 @@ public class DownloadService {
         //now construct the sourceUrl for the log event
         String sourceUrl = originalParams.contains("qid:")? webservicesRoot + "?"+ requestParams.toString(): webservicesRoot +"?"+ originalParams;
 
+        // remove header entries from uidStats
+        List<String> toRemove = new ArrayList<String>();
+        for (String key : uidStats.keySet()) {
+            if (uidStats.get(key) < 0) {
+                toRemove.add(key);
+            }
+        }
+        for (String key : toRemove) {
+            uidStats.remove(key);
+        }
+
         //logger.debug("UID stats : " + uidStats);
         //log the stats to ala logger        
         LogEventVO vo = new LogEventVO(1002,requestParams.getReasonTypeId(), requestParams.getSourceTypeId(), requestParams.getEmail(), requestParams.getReason(), ip,null, uidStats, sourceUrl);        
