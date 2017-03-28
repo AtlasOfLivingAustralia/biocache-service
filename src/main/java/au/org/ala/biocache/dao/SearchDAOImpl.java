@@ -2922,9 +2922,6 @@ public class SearchDAOImpl implements SearchDAO {
         facetQuery.setFields(null);
         facetQuery.setRows(0);
         facetQuery.setFacetLimit(-1);
-
-        System.out.println(facetQuery.toQueryString());
-
         QueryResponse qr = query(facetQuery, queryMethod);
         SearchResultDTO searchResults = processSolrResponse(searchParams, qr, facetQuery, OccurrenceIndex.class);
 
@@ -2937,7 +2934,7 @@ public class SearchDAOImpl implements SearchDAO {
                 if (fr.getCount() == null) {
                     fr.setCount(fr.getFieldResult().size());
                 }
-                //reduce the number of facets returned...
+                //reduce the number of facets returned if flimit specified in request...
                 if(searchParams.getFlimit() != null && searchParams.getFlimit() < fr.getFieldResult().size()){
                     fr.getFieldResult().subList(0, searchParams.getFlimit());
                 }
