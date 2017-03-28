@@ -126,6 +126,7 @@ public class WMSController {
     protected QidCacheDAO qidCacheDAO;
     @Inject
     protected WMSCache wmsCache;
+
     /**
      * Load a smaller 256x256 png than java.image produces
      */
@@ -133,6 +134,10 @@ public class WMSController {
 
     @Value("${webservices.root:http://biocache.ala.org.au/ws}")
     protected String baseWsUrl;
+
+    @Value("${biocache.ui.url:http://bicoache.ala.org.au}")
+    protected String baseUiUrl;
+
     @Value("${geoserver.url:http://spatial.ala.org.au/geoserver}")
     protected String geoserverUrl;
 
@@ -158,6 +163,12 @@ public class WMSController {
 
     @Value("${service.bie.ui.url:http://bie.ala.org.au}")
     protected String bieUiUrl;
+
+    @Value("${wms.capabilities.focus:latitude:[-90 TO 90] AND longitude:[-180 TO 180]}")
+    protected String limitToFocusValue;
+
+    @Value("${default.srs:900913}")
+    protected String defaultSRS;
 
     /**
      * Limit WKT complexity to reduce index query time for qids.
@@ -1133,12 +1144,11 @@ public class WMSController {
             model.addAttribute("totalRecords", sdl.getNumFound());
         }
 
-        model.addAttribute("uriUrl", "http://biocache.ala.org.au/occurrences/search?q=" +
+        model.addAttribute("uriUrl", baseUiUrl + "/occurrences/search?q=" +
                 URLEncoder.encode(q, "UTF-8")
                 + "&fq=" + URLEncoder.encode(fqs[0], "UTF-8")
                 + "&fq=" + URLEncoder.encode(fqs[1], "UTF-8")
         );
-
 
         model.addAttribute("pointType", pointType.name());
         model.addAttribute("minLng", minLng);
@@ -1238,7 +1248,7 @@ public class WMSController {
             @RequestParam(value = "spatiallyValidOnly", required = false, defaultValue = "true") boolean spatiallyValidOnly,
             @RequestParam(value = "marineSpecies", required = false, defaultValue = "false") boolean marineOnly,
             @RequestParam(value = "terrestrialSpecies", required = false, defaultValue = "false") boolean terrestrialOnly,
-            @RequestParam(value = "limitToFocus", required = false, defaultValue = "true") boolean limitToFocus,
+            @RequestParam(value = "limitToFocus", required = false, defaultValue = "false") boolean limitToFocus,
             @RequestParam(value = "useSpeciesGroups", required = false, defaultValue = "false") boolean useSpeciesGroups,
             @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") int gridDivisionCount,
             HttpServletRequest request,
@@ -1394,6 +1404,7 @@ public class WMSController {
                     "    <Layer>\n" +
                     "      <Title>" + organizationName + " - Species occurrence layers</Title>\n" +
                     "      <Abstract>Custom WMS services for " + organizationName + " species occurrences</Abstract>\n" +
+                    "      <SRS>EPSG:3857</SRS>\n" +
                     "      <SRS>EPSG:900913</SRS>\n" +
                     "      <SRS>EPSG:4326</SRS>\n" +
                     "     <LatLonBoundingBox minx=\"-179.9\" miny=\"-89.9\" maxx=\"179.9\" maxy=\"89.9\"/>\n"
@@ -1415,7 +1426,7 @@ public class WMSController {
 
             if (limitToFocus) {
                 //TODO retrieve focus from config file
-                filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, "latitude:[-89 TO -8] AND longitude:[100 TO 165]");
+                filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, limitToFocusValue);
             }
 
             query = searchUtils.convertRankAndName(query);
@@ -1652,6 +1663,7 @@ public class WMSController {
             @RequestParam(value = "pradiusmm", required = false, defaultValue = "2") Double pointRadiusMm,
             @RequestParam(value = "pradiuspx", required = false) Integer pradiusPx,
             @RequestParam(value = "pcolour", required = false, defaultValue = "FF0000") String pointColour,
+            @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
             @RequestParam(value = "popacity", required = false, defaultValue = "0.8") Double pointOpacity,
             @RequestParam(value = "baselayer", required = false, defaultValue = "world") String baselayer,
             @RequestParam(value = "scale", required = false, defaultValue = "off") String scale,
@@ -1698,17 +1710,35 @@ public class WMSController {
 
         double[] boundingBox = transformBbox4326To900913(Double.parseDouble(bb[0]), Double.parseDouble(bb[1]), Double.parseDouble(bb[2]), Double.parseDouble(bb[3]));
 
+
+        String rendering = "ENV=color%3A" + pointColour + "%3Bname%3Acircle%3Bsize%3A" + pointSize
+                + "%3Bopacity%3A" + pointOpacity;
+        if(StringUtils.isNotEmpty(env)){
+            rendering = "ENV=" + env;
+        }
+
         //"http://biocache.ala.org.au/ws/webportal/wms/reflect?
         //q=macropus&ENV=color%3Aff0000%3Bname%3Acircle%3Bsize%3A3%3Bopacity%3A1
         //&BBOX=12523443.0512,-2504688.2032,15028131.5936,0.33920000120997&WIDTH=256&HEIGHT=256");
         String speciesAddress = baseWsUrl
                 + "/ogc/wms/reflect?"
-                + "ENV=color%3A" + pointColour
-                + "%3Bname%3Acircle%3Bsize%3A" + pointSize
-                + "%3Bopacity%3A" + pointOpacity
+                + rendering
                 + "&BBOX=" + boundingBox[0] + "," + boundingBox[1] + "," + boundingBox[2] + "," + boundingBox[3]
-                + "&WIDTH=" + width + "&HEIGHT=" + height + "&OUTLINE=" + outlinePoints + "&OUTLINECOLOUR=" + outlineColour
-                + "&" + request.getQueryString();
+                + "&WIDTH=" + width + "&HEIGHT=" + height
+                + "&OUTLINE=" + outlinePoints + "&OUTLINECOLOUR=" + outlineColour;
+//                + "&" + request.getQueryString();
+
+        //get query parameters
+        String q = request.getParameter("q");
+        String[] fqs = request.getParameterValues("fq");
+        if(!StringUtils.isEmpty(q)){
+            speciesAddress = speciesAddress + "&q=" + q;
+        }
+        if(fqs != null && fqs.length != 0){
+           for(String fq: fqs){
+               speciesAddress = speciesAddress + "&fq=" + fq;
+           }
+        }
 
         URL speciesURL = new URL(speciesAddress);
         BufferedImage speciesImage = ImageIO.read(speciesURL);

@@ -9,7 +9,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
         <meta name="pageName" content="home"/>
-        <title>Occurrence Web Services | Atlas of Living Australia</title>
+        <title>Occurrence Web Services</title>
 <%
         InputStream manifestStream = application.getResourceAsStream("/META-INF/MANIFEST.MF");
         try {

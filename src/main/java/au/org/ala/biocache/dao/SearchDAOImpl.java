@@ -1846,7 +1846,11 @@ public class SearchDAOImpl implements SearchDAO {
         QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
         if(logger.isDebugEnabled()){
             logger.debug("runSolrQuery: " + solrQuery.toString() + " qtime:" + qr.getQTime());
-            logger.debug("matched records: " + qr.getResults().getNumFound());
+            if(qr !=null && qr.getResults() !=null){
+                logger.debug("matched records: " + qr.getResults().getNumFound());
+            } else {
+                logger.debug("matched records: 0");
+            }
         }
         return qr;
     }
@@ -2903,67 +2907,43 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * Returns the count of distinct values for the facets.  Uses groups for group counts.
-     * Supports foffset and flimit for paging. Supports fsort 'count' or 'index'.
-     * <p/>
-     * TODO work out whether or not we should allow facet ranges to be downloaded....
+     * Returns the count of distinct values for the facets.
      */
     public List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception {
+
         formatSearchQuery(searchParams);
         //add context information
         updateQueryContext(searchParams);
         String queryString = buildSpatialQueryString(searchParams);
-        searchParams.setFacet(false);
+        searchParams.setFacet(true);
         searchParams.setPageSize(0);
+        SolrQuery facetQuery = initSolrQuery(searchParams, false, null);
+        facetQuery.setQuery(queryString);
+        facetQuery.setFields(null);
+        facetQuery.setRows(0);
+        facetQuery.setFacetLimit(-1);
 
-        //get facet group counts
-        SolrQuery query = initSolrQuery(searchParams, false, null);
-        query.setQuery(queryString);
-        query.setFields(null);
-        //now use the supplied facets to add groups to the query
-        query.add("group", "true");
-        query.add("group.ngroups", "true");
-        query.add("group.limit", "0");
-        query.setRows(0);
-        searchParams.setPageSize(0);
-        for (String facet : searchParams.getFacets()) {
-            query.add("group.field", facet);
-        }
-        QueryResponse response = runSolrQuery(query, searchParams);
-        GroupResponse groupResponse = response.getGroupResponse();
+        System.out.println(facetQuery.toQueryString());
 
-        Map<String, Integer> ngroups = new HashMap<String, Integer>();
-        for (GroupCommand gc : groupResponse.getValues()) {
-            ngroups.put(gc.getName(), gc.getNGroups());
-        }
+        QueryResponse qr = query(facetQuery, queryMethod);
+        SearchResultDTO searchResults = processSolrResponse(searchParams, qr, facetQuery, OccurrenceIndex.class);
 
-        //include paged facets when flimit > 0
-        Collection<FacetResultDTO> facetResults = new ArrayList<FacetResultDTO>();
-        if (searchParams.getFlimit() > 0) {
-            searchParams.setFacet(true);
-            SolrQuery facetQuery = initSolrQuery(searchParams, false, null);
-            facetQuery.setQuery(queryString);
-            facetQuery.setFields(null);
-            facetQuery.setSort(searchParams.getSort(), ORDER.valueOf(searchParams.getDir()));
-            QueryResponse qr = query(facetQuery, queryMethod);
-            SearchResultDTO searchResults = processSolrResponse(searchParams, qr, facetQuery, OccurrenceIndex.class);
-            facetResults = searchResults.getFacetResults();
-            if (facetResults != null) {
-                for (FacetResultDTO fr : facetResults) {
-                    Integer count = ngroups.get(fr.getFieldName());
-                    if (count != null) {
-                        fr.setCount(count);
-                    }
+        List<FacetResultDTO> facetResults = searchResults.getFacetResults();
+        if (facetResults != null) {
+            for (FacetResultDTO fr : facetResults) {
+                FacetResultDTO frDTO = new FacetResultDTO();
+                frDTO.setCount(fr.getCount());
+                frDTO.setFieldName(fr.getFieldName());
+                if (fr.getCount() == null) {
+                    fr.setCount(fr.getFieldResult().size());
+                }
+                //reduce the number of facets returned...
+                if(searchParams.getFlimit() != null && searchParams.getFlimit() < fr.getFieldResult().size()){
+                    fr.getFieldResult().subList(0, searchParams.getFlimit());
                 }
             }
-        } else {
-            //only return group counts
-            for (GroupCommand gc : groupResponse.getValues()) {
-                facetResults.add(new FacetResultDTO(gc.getName(), null, gc.getNGroups()));
-            }
         }
-
-        return new ArrayList<FacetResultDTO>(facetResults);
+        return facetResults;
     }
 
     /**

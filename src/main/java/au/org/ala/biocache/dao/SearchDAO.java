@@ -22,6 +22,7 @@ import org.apache.solr.common.SolrDocumentList;
 
 import javax.servlet.ServletOutputStream;
 import java.io.OutputStream;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;

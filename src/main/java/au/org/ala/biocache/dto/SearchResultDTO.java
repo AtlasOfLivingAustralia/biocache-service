@@ -150,7 +150,7 @@ public class SearchResultDTO {
     }
 
     //@JsonIgnore
-    public Collection<FacetResultDTO> getFacetResults() {
+    public List<FacetResultDTO> getFacetResults() {
         return facetResults;
     }
 
