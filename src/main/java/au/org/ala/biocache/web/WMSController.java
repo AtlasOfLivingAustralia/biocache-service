@@ -1664,6 +1664,7 @@ public class WMSController {
             @RequestParam(value = "pradiuspx", required = false) Integer pradiusPx,
             @RequestParam(value = "pcolour", required = false, defaultValue = "FF0000") String pointColour,
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
+            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:900913") String srs,
             @RequestParam(value = "popacity", required = false, defaultValue = "0.8") Double pointOpacity,
             @RequestParam(value = "baselayer", required = false, defaultValue = "world") String baselayer,
             @RequestParam(value = "scale", required = false, defaultValue = "off") String scale,
@@ -1723,6 +1724,7 @@ public class WMSController {
         String speciesAddress = baseWsUrl
                 + "/ogc/wms/reflect?"
                 + rendering
+                + "&SRS=" + srs
                 + "&BBOX=" + boundingBox[0] + "," + boundingBox[1] + "," + boundingBox[2] + "," + boundingBox[3]
                 + "&WIDTH=" + width + "&HEIGHT=" + height
                 + "&OUTLINE=" + outlinePoints + "&OUTLINECOLOUR=" + outlineColour;
@@ -1753,7 +1755,7 @@ public class WMSController {
         String basemapAddress = geoserverUrl + "/wms/reflect?"
                 + "LAYERS=ALA%3A" + baselayer
                 + "&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&STYLES="
-                + "&FORMAT=image%2Fpng&SRS=EPSG%3A900913"     //specify the mercator projection
+                + "&FORMAT=image%2Fpng&SRS=" + srs     //specify the mercator projection
                 + "&BBOX=" + boundingBox[0] + "," + boundingBox[1] + "," + boundingBox[2] + "," + boundingBox[3]
                 + "&WIDTH=" + width + "&HEIGHT=" + height + "&OUTLINE=" + outlinePoints
                 + "&format_options=dpi:" + dpi + ";" + layout;

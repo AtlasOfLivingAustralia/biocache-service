@@ -286,6 +286,12 @@ public class WMSOSGridController {
             HttpServletResponse response)
             throws Exception {
 
+
+        System.out.println(request.getRequestURI() + "?" + request.getQueryString());
+
+        srs = srs.split(",")[0];
+
+
         WMSEnv wmsEnv = new WMSEnv(env, styles);
 
         if(StringUtils.isEmpty(bboxString)){
@@ -350,14 +356,14 @@ public class WMSOSGridController {
             }
         }
 
-        double oneMetreInRequestedProjXInPixels = (float) width / (float)(maxx - minx);
-        double oneMetreInRequestedProjYInPixels =  (float) height / (float)(maxy - miny);
+        double oneUnitInRequestedProjXInPixels = (double) width / (double)(maxx - minx);
+        double oneUnitInRequestedProjYInPixels =  (double) height / (double)(maxy - miny);
 
         //get a bounding box in WGS84 decimal latitude/longitude
-        double[] minLatLng = convertMetersToWGS84(minx, miny);
-        double[] maxLatLng = convertMetersToWGS84(maxx, maxy);
+        double[] minLatLng = convertProjectionToWGS84(minx, miny, srs);
+        double[] maxLatLng = convertProjectionToWGS84(maxx, maxy, srs);
 
-        String bboxFilterQuery = "(longitude:[{0} TO {2}] AND latitude:[{1} TO {3}] )";
+        String bboxFilterQuery = "(longitude:[{0} TO {2}] AND latitude:[{1} TO {3}])";
 
         double minX = minLatLng[1] - buff;
         double maxX = maxLatLng[1] + buff;
@@ -376,10 +382,7 @@ public class WMSOSGridController {
             minY = tmp;
         }
 
-
         String fq = MessageFormat.format(bboxFilterQuery, minX, minY, maxX, maxY);
-
-
         String[] fqs = wmsUtils.getFq(requestParams);
         if(fqs.length==1 && StringUtils.isBlank(fqs[0])){
             fqs = new String[0];
@@ -435,8 +438,8 @@ public class WMSOSGridController {
                     gridRef,
                     minx,
                     miny,
-                    oneMetreInRequestedProjXInPixels,
-                    oneMetreInRequestedProjYInPixels,
+                    oneUnitInRequestedProjXInPixels,
+                    oneUnitInRequestedProjYInPixels,
                     srs,
                     width,
                     height,
@@ -483,15 +486,18 @@ public class WMSOSGridController {
 
     /**
      * Render a single grid reference on the supplied tile
+     *
+     * //TODO note imageHeight is not used.....
+     *
      * @param wmsImg
      * @param gridRef
      * @param minx
      * @param miny
-     * @param oneMetreMercatorXInPixels
-     * @param oneMetreMercatorYInPixels
+     * @param oneUnitXInPixels
+     * @param oneUnitYInPixels
      */
-    private Set<int[]> renderGrid(WMSImg wmsImg, String gridRef, double minx, double miny, double oneMetreMercatorXInPixels,
-                                  double oneMetreMercatorYInPixels, String targetSrs, int imageWidth, int imageHeight, WMSEnv wmsEnv, List<String> renderedLines){
+    private Set<int[]> renderGrid(WMSImg wmsImg, String gridRef, double minx, double miny, double oneUnitXInPixels,
+                                  double oneUnitYInPixels, String targetSrs, int imageWidth, int imageHeight, WMSEnv wmsEnv, List<String> renderedLines){
 
         if(StringUtils.isEmpty(gridRef)) return new HashSet<int[]>();
 
@@ -524,10 +530,8 @@ public class WMSOSGridController {
                 targetSrs
         );
 
-//        System.out.println(gridRef);
-
-        int[][] coordinatesForImages = convertMetersToPixelOffset(polygonInMercator, minx, miny,
-                oneMetreMercatorXInPixels, oneMetreMercatorYInPixels, imageWidth);
+        int[][] coordinatesForImages = convertUnitsToPixelOffset(polygonInMercator, minx, miny,
+                oneUnitXInPixels, oneUnitYInPixels, imageWidth);
 
         int color;
         if(!StringUtils.isEmpty(wmsEnv.gridres) && !"variablegrid".equals(wmsEnv.gridres)){
@@ -554,25 +558,27 @@ public class WMSOSGridController {
         Paint polygonFill = new Color(color, true);
         wmsImg.g.setPaint(polygonFill);
 
-        wmsImg.g.fillPolygon(
-            new int[]{
-                coordinatesForImages[0][0],
-                coordinatesForImages[1][0],
-                coordinatesForImages[2][0],
-                coordinatesForImages[3][0]
-            },
-            new int[]{
-                coordinatesForImages[0][1],
-                coordinatesForImages[1][1],
-                coordinatesForImages[2][1],
-                coordinatesForImages[3][1]
-            },
-            4
-        );
+
+        if(overlapping(coordinatesForImages)){
+            wmsImg.g.fillPolygon(
+                    new int[]{
+                            coordinatesForImages[0][0],
+                            coordinatesForImages[1][0],
+                            coordinatesForImages[2][0],
+                            coordinatesForImages[3][0]
+                    },
+                    new int[]{
+                            coordinatesForImages[0][1],
+                            coordinatesForImages[1][1],
+                            coordinatesForImages[2][1],
+                            coordinatesForImages[3][1]
+                    },
+                    4
+            );
+        }
 
         Paint polygonBorder = new Color(0xFF000000, true);
         wmsImg.g.setPaint(polygonBorder);
-//        wmsImg.g.setStroke(new BasicStroke(2));
 
         //line 1 -  bottom line
         String key1 = getLineKey(minEastingOfGridCell,minNorthingOfGridCell,maxEastingOfGridCell,minNorthingOfGridCell);
@@ -617,6 +623,14 @@ public class WMSOSGridController {
         return linesToRender;
     }
 
+    public boolean overlapping(int[][] imageCoords){
+        for(int i=0; i < imageCoords.length; i++){
+            if(imageCoords[i][0] >=0 && imageCoords[i][1] >=0 ){
+                return true;
+            }
+        }
+        return false;
+    }
 
     public String getLineKey(int x1, int y1 , int x2 , int y2){
 
@@ -710,12 +724,8 @@ public class WMSOSGridController {
         return reprojectPoint(coordinate1, coordinate2,  "EPSG:4326", "EPSG:27700");
     }
 
-    double[] convertMetersToWGS84(Double coordinate1, Double coordinate2){
-        return reprojectPoint(coordinate1, coordinate2, "EPSG:3857", "EPSG:4326");
-    }
-
-    double[] convertMetersToEastingNorthing(Double coordinate1 , Double coordinate2){
-        return reprojectPoint(coordinate1, coordinate2, "EPSG:3857", "EPSG:27700");
+    double[] convertProjectionToWGS84(Double coordinate1, Double coordinate2, String sourceProjection){
+        return reprojectPoint(coordinate1, coordinate2, sourceProjection, "EPSG:4326");
     }
 
     /**
@@ -723,22 +733,22 @@ public class WMSOSGridController {
      * @param polygon coordinates for the polygon
      * @param minXOfTileInMetres
      * @param minYOfTileInMetres
-     * @param onePixelInMetresX
-     * @param onePixelInMetresY
+     * @param onePixelInUnitX
+     * @param onePixelInUnitY
      * @param tileSizeInPixels
      * @return
      */
-    int[][] convertMetersToPixelOffset(double[][] polygon,
-                                       double minXOfTileInMetres,
-                                       double minYOfTileInMetres,
-                                       double onePixelInMetresX,
-                                       double onePixelInMetresY,
-                                       int tileSizeInPixels){
+    int[][] convertUnitsToPixelOffset(double[][] polygon,
+                                      double minXOfTileInMetres,
+                                      double minYOfTileInMetres,
+                                      double onePixelInUnitX,
+                                      double onePixelInUnitY,
+                                      int tileSizeInPixels){
 
         int[][] offsetXYWidthHeights = new int[polygon.length][2];
         for(int i = 0; i < polygon.length; i++){
-            int x = (int)((polygon[i][0] - minXOfTileInMetres) * onePixelInMetresX);
-            int y = (int)((polygon[i][1] - minYOfTileInMetres) * onePixelInMetresY);
+            int x = (int)((polygon[i][0] - minXOfTileInMetres) * onePixelInUnitX);
+            int y = (int)((polygon[i][1] - minYOfTileInMetres) * onePixelInUnitY);
             offsetXYWidthHeights[i] = new int[]{x, tileSizeInPixels - y};
         }
         return offsetXYWidthHeights;
@@ -764,15 +774,8 @@ class WMSImg {
         g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
         g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_NORMALIZE);
-
-
-//        g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-        //KEY_STROKE_CONTROL	VALUE_STROKE_NORMALIZE
-//        VALUE_STROKE_DEFAULT
-//                VALUE_STROKE_PURE
-
+        g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
         return new WMSImg(g, img);
     }
 
