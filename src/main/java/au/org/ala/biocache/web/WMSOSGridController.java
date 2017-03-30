@@ -357,7 +357,7 @@ public class WMSOSGridController {
         }
 
         double oneUnitInRequestedProjXInPixels = (double) width / (double)(maxx - minx);
-        double oneUnitInRequestedProjYInPixels =  (double) height / (double)(maxy - miny);
+        double oneUnitInRequestedProjYInPixels = (double) height / (double)(maxy - miny);
 
         //get a bounding box in WGS84 decimal latitude/longitude
         double[] minLatLng = convertProjectionToWGS84(minx, miny, srs);
@@ -531,7 +531,7 @@ public class WMSOSGridController {
         );
 
         int[][] coordinatesForImages = convertUnitsToPixelOffset(polygonInMercator, minx, miny,
-                oneUnitXInPixels, oneUnitYInPixels, imageWidth);
+                oneUnitXInPixels, oneUnitYInPixels, imageWidth, imageHeight);
 
         int color;
         if(!StringUtils.isEmpty(wmsEnv.gridres) && !"variablegrid".equals(wmsEnv.gridres)){
@@ -735,7 +735,6 @@ public class WMSOSGridController {
      * @param minYOfTileInMetres
      * @param onePixelInUnitX
      * @param onePixelInUnitY
-     * @param tileSizeInPixels
      * @return
      */
     int[][] convertUnitsToPixelOffset(double[][] polygon,
@@ -743,13 +742,14 @@ public class WMSOSGridController {
                                       double minYOfTileInMetres,
                                       double onePixelInUnitX,
                                       double onePixelInUnitY,
-                                      int tileSizeInPixels){
+                                      int tileSizeInPixelsX,
+                                      int tileSizeInPixelsY){
 
         int[][] offsetXYWidthHeights = new int[polygon.length][2];
         for(int i = 0; i < polygon.length; i++){
             int x = (int)((polygon[i][0] - minXOfTileInMetres) * onePixelInUnitX);
             int y = (int)((polygon[i][1] - minYOfTileInMetres) * onePixelInUnitY);
-            offsetXYWidthHeights[i] = new int[]{x, tileSizeInPixels - y};
+            offsetXYWidthHeights[i] = new int[]{x, tileSizeInPixelsY - y};
         }
         return offsetXYWidthHeights;
     }
