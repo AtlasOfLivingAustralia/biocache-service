@@ -607,16 +607,27 @@ public class WMSOSGridController {
         if(wmsEnv.gridlabels) {
             Paint textColor = new Color(0xFF000000, true);
             wmsImg.g.setPaint(textColor);
-            wmsImg.g.setFont(new Font("Courier New", Font.PLAIN, 10));
+            wmsImg.g.setFont(new Font("Ofliant", Font.PLAIN, 11));
 
             FontMetrics fm = wmsImg.g.getFontMetrics();
             int relativeStringWidth = fm.stringWidth(gridRef);
 
-            if ((relativeStringWidth) < (coordinatesForImages[1][0] - coordinatesForImages[0][0])) {
-                wmsImg.g.drawString(gridRef,
+            String toDisplay = gridRef;
+
+            if ((relativeStringWidth + 5) <= (coordinatesForImages[1][0] - coordinatesForImages[0][0])) {
+                wmsImg.g.drawString(toDisplay,
                         coordinatesForImages[0][0] + (coordinatesForImages[1][0] - coordinatesForImages[0][0]) / 2 - (fm.stringWidth(gridRef) / 2),
                         coordinatesForImages[0][1] + (coordinatesForImages[2][1] - coordinatesForImages[0][1]) / 2
                 );
+            } else {
+                wmsImg.g.setFont(new Font("Ofliant", Font.PLAIN, 9));
+                relativeStringWidth = fm.stringWidth(gridRef);
+                if ((relativeStringWidth + 5) <= (coordinatesForImages[1][0] - coordinatesForImages[0][0])) {
+                    wmsImg.g.drawString(toDisplay,
+                            coordinatesForImages[0][0] + (coordinatesForImages[1][0] - coordinatesForImages[0][0]) / 2 - (fm.stringWidth(gridRef) / 2),
+                            coordinatesForImages[0][1] + (coordinatesForImages[2][1] - coordinatesForImages[0][1]) / 2
+                    );
+                }
             }
         }
 
