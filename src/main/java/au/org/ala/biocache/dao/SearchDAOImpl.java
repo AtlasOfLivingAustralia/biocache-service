@@ -45,6 +45,7 @@ import org.apache.solr.client.solrj.response.RangeFacet.Numeric;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
+import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
@@ -193,6 +194,9 @@ public class SearchDAOImpl implements SearchDAO {
 
     @Value("${term.query.limit:1000}")
     protected Integer termQueryLimit = 1000;
+
+    @Value("${threads.per.download:1}")
+    protected Integer threadsPerDownload = 1;
 
     /** Comma separated list of solr fields that need to have the authService substitute values if they are used in a facet. */
     @Value("${auth.substitution.fields:}")
@@ -850,9 +854,6 @@ public class SearchDAOImpl implements SearchDAO {
                 dd.setHeaderMap(((ShapeFileRecordWriter) rw).getHeaderMappings());
             }
 
-            //order the query by _docid_ for faster paging
-//            solrQuery.addSort("_docid_", ORDER.asc);
-
             //for each month create a separate query that pages through 500 records per page
             List<SolrQuery> queries = new ArrayList<SolrQuery>();
             if(splitByFacet != null){
@@ -877,7 +878,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
 
             //multi-thread the requests...
-            ExecutorService pool = Executors.newFixedThreadPool(6);
+            ExecutorService pool = Executors.newFixedThreadPool(threadsPerDownload);
             Set<Future<Integer>> futures = new HashSet<Future<Integer>>();
             final AtomicInteger resultsCount = new AtomicInteger(0);
             final boolean threadCheckLimit = checkLimit;
@@ -887,23 +888,23 @@ public class SearchDAOImpl implements SearchDAO {
                 //define a thread
                 Callable<Integer> solrCallable = new Callable<Integer>(){
 
-                    int startIndex = 0;
 
                     @Override
                     public Integer call() throws Exception {
-                        QueryResponse qr = runSolrQuery(splitByFacetQuery, downloadParams.getFq(), downloadBatchSize, startIndex, "", "");
+
+                        QueryResponse qr = runSolrQueryWithCursorMark(splitByFacetQuery, downloadParams.getFq(), downloadBatchSize, null);
+
                         int recordsForThread = 0;
                         logger.debug(splitByFacetQuery.getQuery() + " - results: " + qr.getResults().size());
 
-                        while (qr != null &&!qr.getResults().isEmpty()) {
-                            logger.debug("Start index: " + startIndex + ", " + splitByFacetQuery.getQuery());
+                        while (qr != null && !qr.getResults().isEmpty()) {
                             int count;
                             synchronized (rw) {
                                 count = writeRecordAndCountStats(uidStats, fields, qaFields, rw, qr, dd, threadCheckLimit, resultsCount);
                                 recordsForThread += count;
                             }
-                            startIndex += downloadBatchSize;
-                            //we have already set the Filter query the first time the query was constructed rerun with he same params but different startIndex
+
+                            //we have already set the Filter query the first time the query was constructed rerun with he same params but different cursor
                             if(!threadCheckLimit || resultsCount.intValue() < MAX_DOWNLOAD_SIZE){
                                 if(!threadCheckLimit){
                                     //throttle the download by sleeping
@@ -913,7 +914,8 @@ public class SearchDAOImpl implements SearchDAO {
                                         //don't care if the sleep was interrupted
                                     }
                                 }
-                                qr = runSolrQuery(splitByFacetQuery, null, downloadBatchSize, startIndex, "", "");
+
+                                qr = runSolrQueryWithCursorMark(splitByFacetQuery, null, downloadBatchSize, qr.getNextCursorMark());
                             } else {
                                 qr = null;
                             }
@@ -1399,11 +1401,7 @@ public class SearchDAOImpl implements SearchDAO {
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
         solrQuery.setQuery(queryString);
-        solrQuery.setRows(0);
-        solrQuery.setFacet(true);
-        solrQuery.addFacetField(pointType.getLabel());
-        solrQuery.setFacetMinCount(1);
-        solrQuery.setFacetLimit(MAX_DOWNLOAD_SIZE);  // unlimited = -1
+        solrQuery.setFacet(false);
 
         //add the context information
         updateQueryContext(searchParams);
@@ -1766,7 +1764,16 @@ public class SearchDAOImpl implements SearchDAO {
         requestParams.setStart(startIndex);
         requestParams.setSort(sortField);
         requestParams.setDir(sortDirection);
-        return runSolrQuery(solrQuery, requestParams);
+        return runSolrQuery(solrQuery, requestParams, null, false);
+    }
+
+
+    private QueryResponse runSolrQueryWithCursorMark(SolrQuery solrQuery, String filterQuery[],
+                                                     Integer pageSize, String cursorMark) throws SolrServerException {
+        SearchRequestParams requestParams = new SearchRequestParams();
+        requestParams.setFq(filterQuery);
+        requestParams.setPageSize(pageSize);
+        return runSolrQuery(solrQuery, requestParams, cursorMark, true);
     }
 
     /**
@@ -1778,12 +1785,24 @@ public class SearchDAOImpl implements SearchDAO {
      * @throws SolrServerException
      */
     private QueryResponse runSolrQuery(SolrQuery solrQuery, SearchRequestParams requestParams) throws SolrServerException {
+        return runSolrQuery(solrQuery, requestParams, null, false);
+    }
+
+    /**
+     * Perform SOLR query - takes a SolrQuery and search params
+     *
+     * @param solrQuery
+     * @param requestParams
+     * @return
+     * @throws SolrServerException
+     */
+    private QueryResponse runSolrQuery(SolrQuery solrQuery, SearchRequestParams requestParams, String cursorMark, boolean useCursorMark) throws SolrServerException {
 
         if (requestParams.getFq() != null) {
             for (String fq : requestParams.getFq()) {
                 // pull apart fq. E.g. Rank:species and then sanitize the string parts
                 // so that special characters are escaped appropriately
-                if (fq ==null || fq.isEmpty()) {
+                if (fq == null || fq.isEmpty()) {
                     continue;
                 }
                 // use of AND/OR requires correctly formed fq.
@@ -1839,17 +1858,30 @@ public class SearchDAOImpl implements SearchDAO {
         //include null facets
         solrQuery.setFacetMissing(true);
         solrQuery.setRows(requestParams.getPageSize());
-        solrQuery.setStart(requestParams.getStart());
-        if(StringUtils.isNotBlank(requestParams.getDir())) {
+
+        //if set to true, use the cursor mark - better paging performance
+        if(useCursorMark){
+            if(cursorMark == null){
+                cursorMark = CursorMarkParams.CURSOR_MARK_START;
+            }
+            solrQuery.set(CursorMarkParams.CURSOR_MARK_PARAM, cursorMark);
+        } else {
+            solrQuery.setStart(requestParams.getStart());
+        }
+
+        if(useCursorMark) {
+            solrQuery.setSort("id", SolrQuery.ORDER.desc);
+        } else if(StringUtils.isNotBlank(requestParams.getDir())) {
             solrQuery.setSort(requestParams.getSort(), ORDER.valueOf(requestParams.getDir()));
         }
+
         QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
         if(logger.isDebugEnabled()){
             logger.debug("runSolrQuery: " + solrQuery.toString() + " qtime:" + qr.getQTime());
-            if(qr !=null && qr.getResults() !=null){
+            if(qr != null && qr.getResults() != null){
                 logger.debug("matched records: " + qr.getResults().getNumFound());
             } else {
-                logger.debug("matched records: 0");
+                logger.debug("matched records: 0. Null or empty response returned.");
             }
         }
         return qr;
