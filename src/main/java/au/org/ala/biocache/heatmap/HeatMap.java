@@ -14,35 +14,17 @@
  ***************************************************************************/
 package au.org.ala.biocache.heatmap;
 
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Image;
-import java.awt.LinearGradientPaint;
-import java.awt.MultipleGradientPaint;
-import java.awt.Point;
-import java.awt.RenderingHints;
-import java.awt.Shape;
-import java.awt.Toolkit;
+import org.apache.log4j.Logger;
+
+import javax.imageio.ImageIO;
+import java.awt.*;
 import java.awt.geom.Ellipse2D;
-import java.awt.image.BufferedImage;
-import java.awt.image.ByteLookupTable;
-import java.awt.image.FilteredImageSource;
-import java.awt.image.ImageFilter;
-import java.awt.image.ImageProducer;
-import java.awt.image.LookupOp;
-import java.awt.image.LookupTable;
-import java.awt.image.RGBImageFilter;
-import java.awt.image.Raster;
+import java.awt.image.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
-import javax.imageio.ImageIO;
-
-import org.apache.log4j.Logger;
+import static java.awt.image.BufferedImage.TYPE_INT_ARGB;
 
 /**
  * HeatMap generator for species.
@@ -169,7 +151,7 @@ public class HeatMap {
     private static BufferedImage createCompatibleTranslucentImage(int width,
             int height) {
 
-        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage image = new BufferedImage(width, height, TYPE_INT_ARGB);
         int[] image_bytes;
 
         image_bytes = image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth());
@@ -211,7 +193,7 @@ public class HeatMap {
         }
 
         /* write bytes to image */
-        BufferedImage biColorized = new BufferedImage(monochromeImage.getWidth(), monochromeImage.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        BufferedImage biColorized = new BufferedImage(monochromeImage.getWidth(), monochromeImage.getHeight(), TYPE_INT_ARGB);
         biColorized.setRGB(0, 0, biColorized.getWidth(), biColorized.getHeight(), image_bytes2, 0, biColorized.getWidth());
 
         return biColorized;
@@ -361,13 +343,61 @@ public class HeatMap {
         generateLogScaleCircle(dPoints);
     }
 
-    public void generatePoints(double[] points, Color pointColour) {
+    public void generatePoints(double[] points, Color pointColour, String label) {
         for (int i = 0; i < points.length; i += 2) {
             double cx = points[i];
             double cy = points[i + 1];
             Point p = translate(cx, cy);
             addDotImage(p, pointColour);
         }
+        addToLegend(pointColour, label);
+    }
+
+    /**
+     * add an item to the legend
+     *
+     * @param pointColour
+     * @param label
+     */
+    private void addToLegend(Color pointColour, String label) {
+        int padding = 10; // 10px padding around the image
+        int keyHeight = 30; // 30px key height
+        int keyWidth = 25; // 30px key width
+
+        int left = padding * 2 + keyWidth; // padding + width/2;
+        int top = padding + (keyHeight / 2);
+
+        BufferedImage newLegend;
+        if (legendImage == null) {
+            newLegend = new BufferedImage(100, 10 + keyHeight, TYPE_INT_ARGB);
+        } else {
+            //add one item
+            newLegend = new BufferedImage(legendImage.getWidth(), legendImage.getHeight() + keyHeight,
+                    legendImage.getType());
+        }
+
+        Graphics2D cg = (Graphics2D) newLegend.getGraphics();
+
+        //copy current legend
+        cg.drawImage(legendImage, 0, 0, null);
+
+        cg.setColor(Color.BLACK);
+        //1.2em/1.6em Arial, Helvetica, sans-serif
+        Font font = new Font("SanSerif", Font.PLAIN, 11);
+        cg.setFont(font);
+
+        RenderingHints rh = new RenderingHints(
+                RenderingHints.KEY_TEXT_ANTIALIASING,
+                RenderingHints.VALUE_TEXT_ANTIALIAS_GASP
+        );
+        cg.setRenderingHints(rh);
+
+        cg.drawString(label, left, legendImage.getHeight() + padding + (keyHeight / 2));
+
+        cg.setColor(pointColour);
+        cg.drawRect(padding + 5, padding + legendImage.getHeight() + 5,keyWidth - 10, keyHeight - 10);
+
+        legendImage = newLegend;
     }
 
     private void generateLegend(int maxValue) {

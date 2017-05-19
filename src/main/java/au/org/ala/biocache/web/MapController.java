@@ -15,6 +15,7 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dao.SearchDAO;
+import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.OccurrencePoint;
 import au.org.ala.biocache.dto.PointType;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
@@ -79,7 +80,10 @@ public class MapController implements ServletConfigAware {
     private ServletConfig cfg;
     
     private static final int map_offset = 268435456; // half the Earth's circumference at zoom level 21
-    private static final double map_radius = map_offset / Math.PI;    
+    private static final double map_radius = map_offset / Math.PI;
+
+    @Value("${heatmap.legend.occurrence.label:occurrence}")
+    protected String heatmapLegendOccurrenceLabel;
 
     @Deprecated
     @RequestMapping(value = "/occurrences/wms", method = RequestMethod.GET)
@@ -577,31 +581,29 @@ public class MapController implements ServletConfigAware {
         //heatmap versus points
         if (forcePointsDisplay || points.length == 0 || (points.length / 2) < pointHeatMapThreshold) {
             if (!generateLegend){
-
-                if(colourByFq != null){
-
-                    String[] originalFq = requestParams.getFq();
-
-                    for(int k = 0; k < colourByFq.length; k++){
-                        if(originalFq != null){
-                            requestParams.setFq(ArrayUtils.add(originalFq, colourByFq[k]));
-                        } else {
-                            requestParams.setFq(new String[]{colourByFq[k]});
-                        }
-                        if(forcePointsDisplay && points.length > 0 && (points.length / 2 < pointHeatMapThreshold) ){
-                            pointType = PointType.POINT_01;
-                        }
-
-                        double[] pointsForFacet = retrievePoints(requestParams, pointType);
-                        Color pointColor = ColorUtil.getColor(colours[k], opacity);
-                        hm.generatePoints(pointsForFacet, pointColor);
+                String[] originalFq = requestParams.getFq();
+                for(int k = 0; k < colourByFq.length; k++){
+                    if(originalFq != null){
+                        requestParams.setFq(ArrayUtils.add(originalFq, colourByFq[k]));
+                    } else {
+                        requestParams.setFq(new String[]{colourByFq[k]});
                     }
-                } else {
-                    Color pointColor = ColorUtil.getColor(defaultPointColour, opacity);
-                    hm.generatePoints(points, pointColor);
+                    if(forcePointsDisplay && points.length > 0 && (points.length / 2 < pointHeatMapThreshold) ){
+                        pointType = PointType.POINT_01;
+                    }
+
+                    double[] pointsForFacet = retrievePoints(requestParams, pointType);
+                    Color pointColor = ColorUtil.getColor(colours[k], opacity);
+
+                    String facetDisplayString = ((SearchDAOImpl) searchDAO).formatQueryTerm(colourByFq[k], null, true)[0];
+                    hm.generatePoints(pointsForFacet, pointColor, facetDisplayString);
                 }
-                hm.drawOutput(baseDir + "/" + outputHMFile, false);
+            } else {
+                Color pointColor = ColorUtil.getColor(defaultPointColour, opacity);
+                hm.generatePoints(points, pointColor, heatmapLegendOccurrenceLabel);
             }
+            hm.drawOutput(baseDir + "/" + outputHMFile, false);
+            hm.drawLegend(baseDir + "/" + outputHMFile);
         } else {
             hm.generateClasses(points); //this will create legend
             if (generateLegend){
