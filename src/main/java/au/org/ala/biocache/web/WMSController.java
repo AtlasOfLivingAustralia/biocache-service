@@ -1224,10 +1224,10 @@ public class WMSController {
         response.setHeader("Content-Transfer-Encoding", "binary");
         try {
             //webservicesRoot
-            String biocacheServerUrl = request.getSession().getServletContext().getInitParameter("webservicesRoot");
+            String biocacheServerUrl = baseWsUrl;
             PrintWriter writer = response.getWriter();
             writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-                            "<!DOCTYPE WMT_MS_Capabilities SYSTEM \"http://spatial.ala.org.au/geoserver/schemas/wms/1.1.1/WMS_MS_Capabilities.dtd\">\n" +
+                            "<!DOCTYPE WMT_MS_Capabilities SYSTEM \"" + geoserverUrl + "/schemas/wms/1.1.1/WMS_MS_Capabilities.dtd\">\n" +
                             "<WMT_MS_Capabilities version=\"1.1.1\" updateSequence=\"28862\">\n" +
                             "  <Service>\n" +
                             "    <Name>OGC:WMS</Name>\n" +
