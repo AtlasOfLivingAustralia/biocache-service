@@ -87,6 +87,11 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
      */
     @Override
     public String getAcceptedNameForGuid(String guid) {
+        //do escaping for restTemplate when guid is like http://id.biodiversity.org.au/node/apni/6719673
+        if (guid.contains("//") && !guid.contains("////")) {
+            guid = guid.replace("//", "////");
+        }
+
         final String jsonUri = bieUriPrefix + "/species/shortProfile/" + guid + ".json";
         String acceptedName = "";
         if(enabled){

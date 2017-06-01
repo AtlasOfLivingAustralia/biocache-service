@@ -15,12 +15,12 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dao.SearchDAO;
-import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.OccurrencePoint;
 import au.org.ala.biocache.dto.PointType;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.heatmap.HeatMap;
 import au.org.ala.biocache.util.ColorUtil;
+import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.SearchUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
@@ -77,6 +77,8 @@ public class MapController implements ServletConfigAware {
     /** Search Utils helper class */
     @Inject
     protected SearchUtils searchUtils;
+    @Inject
+    protected QueryFormatUtils queryFormatUtils;
     private ServletConfig cfg;
     
     private static final int map_offset = 268435456; // half the Earth's circumference at zoom level 21
@@ -270,7 +272,7 @@ public class MapController implements ServletConfigAware {
 
         PointType pointType = getPointTypeForZoomLevel(zoomLevel);
 
-        List<OccurrencePoint> points = searchDAO.getOccurrences(requestParams, pointType, "", 1);
+        List<OccurrencePoint> points = searchDAO.getOccurrences(requestParams, pointType, "");
         logger.info("Points search for " + pointType.getLabel() + " - found: " + points.size());
         model.addAttribute("points", points);
         model.addAttribute("count", points.size());
@@ -595,7 +597,7 @@ public class MapController implements ServletConfigAware {
                     double[] pointsForFacet = retrievePoints(requestParams, pointType);
                     Color pointColor = ColorUtil.getColor(colours[k], opacity);
 
-                    String facetDisplayString = ((SearchDAOImpl) searchDAO).formatQueryTerm(colourByFq[k], null, true)[0];
+                    String facetDisplayString = queryFormatUtils.formatQueryTerm(colourByFq[k], null, true)[0];
                     hm.generatePoints(pointsForFacet, pointColor, facetDisplayString);
                 }
             } else {

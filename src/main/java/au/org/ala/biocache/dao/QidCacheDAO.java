@@ -82,4 +82,6 @@ public interface QidCacheDAO {
     long getSize();
 
     String[] getFq(SpatialSearchRequestParams requestParams);
+
+    String generateQid(SpatialSearchRequestParams requestParams, String bbox, String title, Long maxage, String source);
 }

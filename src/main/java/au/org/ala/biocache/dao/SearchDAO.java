@@ -216,11 +216,10 @@ public interface SearchDAO {
      * @param requestParams
      * @param pointType
      * @param colourBy
-     * @param searchType
      * @return
      * @throws Exception
      */
-    List<OccurrencePoint> getOccurrences(SpatialSearchRequestParams requestParams, PointType pointType, String colourBy, int searchType) throws Exception;
+    List<OccurrencePoint> getOccurrences(SpatialSearchRequestParams requestParams, PointType pointType, String colourBy) throws Exception;
 
     /**
      * Get a list of occurrence points for a given lat/long and distance (radius)
@@ -384,16 +383,6 @@ public interface SearchDAO {
     List<FacetPivotResultDTO> searchPivot(SpatialSearchRequestParams searchParams) throws Exception;
 
     /**
-     * Format the search input query for a full-text search.
-     *
-     * This includes constructing a user friendly version of the query to
-     * be used for display purposes.
-     *
-     * @param searchParams
-     */
-    void formatSearchQuery(SpatialSearchRequestParams searchParams, boolean forceQueryFormat);
-
-    /**
      * Return statistics for a numerical field.
      * <p>
      * Supply an optional facet to return statistics for each value in the facet.
@@ -424,4 +413,17 @@ public interface SearchDAO {
      * Get maxBooleanClauses value from SOLR
      */
     int getMaxBooleanClauses();
+
+    /**
+     * Wait for @PostConstruct to complete
+     */
+    void waitForPostConstruct();
+
+    /**
+     * get bounding box for a query.
+     *
+     * @param requestParams
+     * @return
+     */
+    double[] getBBox(SpatialSearchRequestParams requestParams) throws Exception;
 }
