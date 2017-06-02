@@ -71,7 +71,7 @@ public class QueryFormatUtils {
     protected Pattern qidPattern = QidCacheDAO.qidPattern;//Pattern.compile("qid:[0-9]*");
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
     protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("<span.*?</span>|\\b[a-z_0-9]{1,}:");
-    protected Pattern layersPattern = Pattern.compile("\\b(el|cl)[0-9abc]+");
+    protected Pattern layersPattern = Pattern.compile("(^|\\b)(el|cl)[0-9abc]+:");
     protected Pattern taxaPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')taxa:\"?([a-zA-Z0-9\\s\\(\\)\\.:\\-_]*)\"?");
 
     private int maxBooleanClauses = 1024;
@@ -729,11 +729,11 @@ public class QueryFormatUtils {
                     formatted += matchedIndexTerm;
                     currentPos = m.end();
                 } else {
-                    matchedIndexTerm = matchedIndexTerm.replaceAll(":", "");
                     MatchResult mr = m.toMatchResult();
 
                     //format facet name
                     Matcher lm = layersPattern.matcher(matchedIndexTerm);
+                    matchedIndexTerm = matchedIndexTerm.replaceAll(":", "");
                     String i18n = null;
                     if (lm.matches()) {
                         i18n = layersService.getName(matchedIndexTerm);
