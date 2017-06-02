@@ -8,7 +8,7 @@
            http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
   <!-- Scan source files for annotations for DI -->
-  <context:component-scan base-package="org.ala.biocache"/>
+  <context:component-scan base-package="au.org.ala.biocache"/>
   
   <context:property-override location="classpath:biocache.properties" ignore-unresolvable="true" ignore-resource-not-found="true" />
   <context:property-placeholder location="classpath:biocache.properties" ignore-unresolvable="true" />
@@ -51,7 +51,7 @@
     </bean>
 
     <bean id="messageSource" class="org.springframework.context.support.ResourceBundleMessageSource">
-        <property name="basename" value="messages"/>
+        <property name="basenames" value="/WEB-INF/messages"/>
         <property name="useCodeAsDefaultMessage" value="true"/>
     </bean>
 </beans>

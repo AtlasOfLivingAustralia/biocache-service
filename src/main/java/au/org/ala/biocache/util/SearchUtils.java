@@ -46,7 +46,7 @@ public class SearchUtils {
     @Value("${auth.substitution.fields:}")
     protected String authServiceFields = "";
 
-    private Set<String> authIndexFields = new HashSet<String>();
+    public Set<String> authIndexFields = new HashSet<String>();
 
     //for i18n of display values for facets
     @Inject
@@ -158,7 +158,9 @@ public class SearchUtils {
             else
                 return collectionCache.getDataHubs().get(uid);
         }
-        return messageSource.getMessage(fieldName + "." + StringUtils.remove(uid, "\""), null, uid, null);
+        String value = StringUtils.remove(uid, "\"");
+
+        return messageSource.getMessage(fieldName + "." + value, null, value, null);
     }
 
     /**
@@ -310,8 +312,14 @@ public class SearchUtils {
                     name = collectionCache.getCollections().get(key);
                 else if (key.startsWith("in"))
                     name = collectionCache.getInstitutions().get(key);
+                else if (key.startsWith("drt"))
+                    name = collectionCache.getTempDataResources().get(key);
                 else if (key.startsWith("dr"))
                     name = collectionCache.getDataResources().get(key);
+                else if (key.startsWith("dp"))
+                    name = collectionCache.getDataProviders().get(key);
+                else if (key.startsWith("dh"))
+                    name = collectionCache.getDataHubs().get(key);
                 lsources.add(new OccurrenceSourceDTO(name, key, sources.get(key)));
             }
         } catch (Exception e) {

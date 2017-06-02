@@ -70,7 +70,7 @@ public class QueryFormatUtils {
     protected Pattern spatialPattern = Pattern.compile(spatialField + ":\"Intersects\\([a-zA-Z=\\-\\s0-9\\.\\,():]*\\)\\\"");
     protected Pattern qidPattern = QidCacheDAO.qidPattern;//Pattern.compile("qid:[0-9]*");
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
-    protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("\\b[a-z_0-9]{1,}:");
+    protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("<span.*?</span>|\\b[a-z_0-9]{1,}:");
     protected Pattern layersPattern = Pattern.compile("\\b(el|cl)[0-9abc]+");
     protected Pattern taxaPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')taxa:\"?([a-zA-Z0-9\\s\\(\\)\\.:\\-_]*)\"?");
 
@@ -722,61 +722,60 @@ public class QueryFormatUtils {
             Matcher m = indexFieldPatternMatcher.matcher(displayText);
             int currentPos = 0;
             while (m.find(currentPos)) {
-                String matchedIndexTerm = m.group(0).replaceAll(":", "");
-                MatchResult mr = m.toMatchResult();
+                formatted += displayText.substring(currentPos, m.start());
 
-                if (currentPos < mr.start()) {
-                    gap = displayText.substring(currentPos, mr.start());
+                String matchedIndexTerm = m.group(0);
+                if (matchedIndexTerm.startsWith("<span")) {
+                    formatted += matchedIndexTerm;
+                    currentPos = m.end();
                 } else {
-                    gap = "";
-                }
+                    matchedIndexTerm = matchedIndexTerm.replaceAll(":", "");
+                    MatchResult mr = m.toMatchResult();
 
-                //format facet name
-                Matcher lm = layersPattern.matcher(matchedIndexTerm);
-                String i18n = null;
-                if (lm.matches()) {
-                    i18n = layersService.getName(matchedIndexTerm);
-                }
-                if (i18n == null) {
-                    i18n = messageSource.getMessage("facet." + matchedIndexTerm, null, matchedIndexTerm, null);
-                }
+                    //format facet name
+                    Matcher lm = layersPattern.matcher(matchedIndexTerm);
+                    String i18n = null;
+                    if (lm.matches()) {
+                        i18n = layersService.getName(matchedIndexTerm);
+                    }
+                    if (i18n == null) {
+                        i18n = messageSource.getMessage("facet." + matchedIndexTerm, null, matchedIndexTerm, null);
+                    }
 
-                //format display value
-                //values that contain indexFieldPatternMatcher matches, e.g. urn: http:, are already replaced.
-                String extractedValue = displayText.substring(mr.end());
-                int end = 0;
-                //remove wrapping '(', '"', and check for termination with ' ' if it is not wrapped
-                if (extractedValue.startsWith("(")) {
-                    extractedValue = extractedValue.substring(1, extractedValue.indexOf(')') > 1 ? extractedValue.indexOf(')') : extractedValue.length());
-                    end+=2;
-                }
-                if (extractedValue.startsWith("\"")) {
-                    extractedValue = extractedValue.substring(1, extractedValue.indexOf('\"', 1) > 1 ? extractedValue.indexOf('\"', 1) - 1 : extractedValue.length());
-                    end+=2;
-                }
-                String tail = extractedValue.split(indexFieldPatternMatcher.pattern())[0];
-                if (extractedValue.contains(" ") && end == 0) {
-                    extractedValue = extractedValue.substring(0, extractedValue.indexOf(' ') > 1 ? extractedValue.indexOf(' ') : extractedValue.length());
-                }
-                if (extractedValue.length() + end == tail.length()) {
-                    tail = "";
-                } else {
-                    tail = tail.substring(extractedValue.length() + end);
-                }
+                    //format display value
+                    //values that contain indexFieldPatternMatcher matches, e.g. urn: http:, are already replaced.
+                    String extractedValue = displayText.substring(mr.end());
+                    int end = 0;
+                    //remove wrapping '(', '"', and check for termination with ' ' if it is not wrapped
+                    if (extractedValue.startsWith("(")) {
+                        extractedValue = extractedValue.substring(1, extractedValue.indexOf(')') > 1 ? extractedValue.indexOf(')') : extractedValue.length());
+                        end += 2;
+                    }
+                    if (extractedValue.startsWith("\"")) {
+                        extractedValue = extractedValue.substring(1, extractedValue.indexOf('\"', 1) > 1 ? extractedValue.indexOf('\"', 1) : extractedValue.length());
+                        end += 2;
+                    }
+                    if (extractedValue.startsWith("[")) {
+                        extractedValue = extractedValue.substring(1, extractedValue.indexOf(']') > 1 ? extractedValue.indexOf(']') : extractedValue.length());
+                        end += 2;
+                    }
+                    if (extractedValue.contains(" ") && end == 0) {
+                        extractedValue = extractedValue.substring(0, extractedValue.indexOf(' ') > 1 ? extractedValue.indexOf(' ') : extractedValue.length());
+                    }
 
-                String formattedExtractedValue = formatValue(matchedIndexTerm, extractedValue);
+                    String formattedExtractedValue = formatValue(matchedIndexTerm, extractedValue);
 
-                String i18nForValue = messageSource.getMessage(matchedIndexTerm + "." + formattedExtractedValue, null, "", null);
-                if (i18nForValue.length() == 0)
-                    i18nForValue = messageSource.getMessage(formattedExtractedValue, null, formattedExtractedValue, null);
+                    String i18nForValue = messageSource.getMessage(matchedIndexTerm + "." + formattedExtractedValue, null, "", null);
+                    if (i18nForValue.length() == 0)
+                        i18nForValue = messageSource.getMessage(formattedExtractedValue, null, formattedExtractedValue, null);
 
-                formatted += gap + i18n + ":" + i18nForValue + tail;
+                    formatted += i18n + ":" + i18nForValue;
 
-                currentPos = mr.end();
+                    currentPos = mr.end() + extractedValue.length() + end;
+                }
             }
-            if (formatted.length() == 0) {
-                formatted = displayText;
-            }
+            formatted += displayText.substring(currentPos, displayText.length());
+
             return formatted;
 
         } catch (Exception e) {
