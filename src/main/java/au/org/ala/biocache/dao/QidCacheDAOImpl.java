@@ -186,17 +186,48 @@ public class QidCacheDAOImpl implements QidCacheDAO {
 
         if (obj == null) {
             obj = load(key);
-        }
 
-        if (obj != null) {
-            obj.setLastUse(System.currentTimeMillis());
+            // remove SOLR escaping of older qid
+            if (obj.getQ() != null && obj.getQ().indexOf('\\') >= 0) {
+                obj.setQ(removeSolrEscaping(obj.getQ()));
+            }
+
+            if (obj != null) {
+                cache.put(key, obj);
+            }
         }
 
         if (obj == null) {
             throw new QidMissingException(key);
+        } else {
+            obj.setLastUse(System.currentTimeMillis());
         }
 
         return obj;
+    }
+
+    private String removeSolrEscaping(String s) {
+        if (s == null || s.length() == 0) {
+            return s;
+        }
+
+        StringBuilder sb = new StringBuilder();
+
+        char a, c = ' ';
+        int len = s.length() - 1;
+        for(int i = 0; i < len; i++) {
+            a = s.charAt(i);
+            c = s.charAt(i + 1);
+            if(a != '\\' ||
+                    !(c == 92 || c == 43 || c == 45 || c == 33 || c == 40 || c == 41 || c == 58 || c == 94 || c == 91 ||
+                            c == 93 || c == 34 || c == 123 || c == 125 || c == 126 || c == 42 || c == 63 || c == 124 ||
+                            c == 38 || c == 59 || c == 47 || Character.isWhitespace(c))) {
+                sb.append(a);
+            }
+        }
+        sb.append(c);
+
+        return sb.toString();
     }
 
     /**
