@@ -351,13 +351,38 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping(value = "index/fields", method = RequestMethod.GET)
-    public @ResponseBody Set<IndexFieldDTO> getIndexedFields(@RequestParam(value="fl", required=false) String fields) throws Exception {
+    public @ResponseBody Set<IndexFieldDTO> getIndexedFields(
+            @RequestParam(value="fl", required=false) String fields,
+            @RequestParam(value="indexed", required=false) Boolean indexed,
+            @RequestParam(value="stored", required=false) Boolean stored,
+            @RequestParam(value="multivalue", required=false) Boolean multivalue,
+            @RequestParam(value="dataType", required=false) String dataType,
+            @RequestParam(value="classs", required=false) String classs) throws Exception {
         afterInitialisation();
+        Set<IndexFieldDTO> result;
         if(fields == null) {
-            return searchDAO.getIndexedFields();
+            result = searchDAO.getIndexedFields();
         } else {
-            return searchDAO.getIndexFieldDetails(fields.split(","));
+            result = searchDAO.getIndexFieldDetails(fields.split(","));
         }
+
+        if (indexed != null || stored != null || multivalue != null || dataType != null || classs != null) {
+            Set<IndexFieldDTO> filtered = new HashSet();
+            Set<String> dataTypes = dataType == null ? null : new HashSet(Arrays.asList(dataType.split(",")));
+            Set<String> classss = classs == null ? null : new HashSet(Arrays.asList(classs.split(",")));
+            for (IndexFieldDTO i : result) {
+                if ((indexed == null || i.isIndexed() == indexed) &&
+                        (stored == null || i.isStored() == stored) &&
+                        (multivalue == null || i.isMultivalue() == multivalue) &&
+                        (dataType == null || dataTypes.contains(i.getDataType())) &&
+                        (classs == null || classss.contains(i.getClasss()))) {
+                    filtered.add(i);
+                }
+            }
+            result = filtered;
+        }
+
+        return result;
     }
 
     /**
