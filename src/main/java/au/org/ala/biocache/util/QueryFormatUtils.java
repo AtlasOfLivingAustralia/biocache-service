@@ -14,10 +14,12 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.util.ClientUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -70,11 +72,23 @@ public class QueryFormatUtils {
     protected Pattern spatialPattern = Pattern.compile(spatialField + ":\"Intersects\\([a-zA-Z=\\-\\s0-9\\.\\,():]*\\)\\\"");
     protected Pattern qidPattern = QidCacheDAO.qidPattern;//Pattern.compile("qid:[0-9]*");
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
-    protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("<span.*?</span>|\\b[a-z_0-9]{1,}:");
+    protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("<span.*?</span>|(\\b|-)[a-z_0-9*\\(]{1,}:");
     protected Pattern layersPattern = Pattern.compile("(^|\\b)(el|cl)[0-9abc]+:");
     protected Pattern taxaPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')taxa:\"?([a-zA-Z0-9\\s\\(\\)\\.:\\-_]*)\"?");
 
     private int maxBooleanClauses = 1024;
+
+    /**
+     * This is appended to the query displayString when SpatialSearchRequestParams.wkt is used.
+     */
+    @Value("${wkt.display.string: - within user defined polygon}")
+    protected String wktDisplayString;
+
+    /**
+     * This is appended to the query displayString when SpatialSearchRequestParams.lat, lon, radius are used.
+     */
+    @Value("${circle.display.string: - within {0} km of point({1}, {2})}")
+    protected String circleDisplayString;
 
     public int getMaxBooleanClauses() {
         return maxBooleanClauses;
@@ -93,25 +107,26 @@ public class QueryFormatUtils {
         Map<String, Facet> activeFacetMap = new HashMap();
         //Only format the query if it doesn't already supply a formattedQuery.
         if (forceQueryFormat || StringUtils.isEmpty(searchParams.getFormattedQuery())) {
-            // set the query
-            String query = searchParams.getQ();
+            String [] originalFqs = searchParams.getFq();
 
-            int requestedFqCount = searchParams.getFq() == null ? 0 : searchParams.getFq().length;
-
-            formatQueryTerm(query, searchParams, false);
+            String [] formatted = formatQueryTerm(searchParams.getQ(), searchParams);
+            searchParams.setDisplayString(formatted[0]);
+            searchParams.setFormattedQuery(formatted[1]);
 
             //format fqs for facets that need ranges substituted
             for (int i = 0; i < searchParams.getFq().length; i++) {
                 String fq = searchParams.getFq()[i];
 
                 if (fq != null && fq.length() > 0) {
-                    String [] formatted = formatQueryTerm(fq, searchParams, true);
+                    formatted = formatQueryTerm(fq, searchParams);
 
-                    addFormattedFq(new String[]{formatted[1]}, searchParams);
+                    if (StringUtils.isNotEmpty(formatted[1])) {
+                        addFormattedFq(new String[]{formatted[1]}, searchParams);
+                    }
 
                     //add to activeFacetMap fqs that are not inserted by a qid, and the q of qids in fqs.
                     //do not add spatial fields
-                    if (i < requestedFqCount && !formatted[1].contains(spatialField + ":")) {
+                    if (originalFqs != null && i < originalFqs.length && !formatted[1].contains(spatialField + ":")) {
                         Facet facet = new Facet();
                         facet.setDisplayName(formatted[0]);
                         String [] fv = fq.split(":");
@@ -124,9 +139,12 @@ public class QueryFormatUtils {
                 }
             }
 
-            //add spatial query term for wkt or lat/lon/radius parameters
+            //remove any fqs that were added
+            searchParams.setFq(originalFqs);
+
+            //add spatial query term for wkt or lat/lon/radius parameters. DisplayString is already added by formatGeneral
             String spatialQuery = buildSpatialQueryString(searchParams);
-            if (spatialQuery != null) {
+            if (StringUtils.isNotEmpty(spatialQuery)) {
                 addFormattedFq(new String[] { spatialQuery }, searchParams);
             }
         }
@@ -165,11 +183,10 @@ public class QueryFormatUtils {
      * When !isFq the searchParams q, formattedQuery and displayString may be updated with the qid values.
      *
      * @param query
-     * @param searchParams required when !isFq
-     * @param isFq
+     * @param searchParams
      * @return
      */
-    private String [] formatQid(String query, SpatialSearchRequestParams searchParams, boolean isFq) {
+    private String [] formatQid(String query, SpatialSearchRequestParams searchParams) {
         String q = query;
         String displayString = query;
         if (query.contains("qid:")) {
@@ -181,9 +198,6 @@ public class QueryFormatUtils {
                     Qid qid = qidCacheDao.get(qidValue);
                     if (qid != null) {
                         q = qid.getQ();
-                        if (!isFq) {
-                            searchParams.setQ(qid.getQ());
-                        }
 
                         //add the fqs from the params cache
                         addFqs(qid.getFqs(), searchParams);
@@ -203,7 +217,7 @@ public class QueryFormatUtils {
                 }
             }
         }
-        return new String[] {q, displayString};
+        return new String[] {displayString, q};
     }
 
     /**
@@ -477,11 +491,13 @@ public class QueryFormatUtils {
                 if (logger.isDebugEnabled()) {
                     logger.debug("escaping lsid urns  " + value);
                 }
-                matcher.appendReplacement(queryString, prepareSolrStringForReplacement(value));
-                String name = searchUtils.substituteLsidsForNames(value);
-                if (name != null) {
-                    current[0] = current[0].replace(value, name);
-                }
+                matcher.appendReplacement(queryString, prepareSolrStringForReplacement(value, true));
+
+                //this lsid->name replacement is too slow
+//                String name = searchUtils.substituteLsidsForNames(value);
+//                if (name != null) {
+//                    current[0] = current[0].replace(value, name);
+//                }
             }
             matcher.appendTail(queryString);
             current[1] = queryString.toString();
@@ -505,12 +521,13 @@ public class QueryFormatUtils {
                 if (logger.isDebugEnabled()) {
                     logger.debug("escaping lsid http uris  " + value);
                 }
-                matcher.appendReplacement(queryString, prepareSolrStringForReplacement(value));
+                matcher.appendReplacement(queryString, prepareSolrStringForReplacement(value, true));
 
-                String name = searchUtils.substituteLsidsForNames(value);
-                if (name != null) {
-                    current[0].replace(value, name);
-                }
+                //this lsid->name replacement is too slow
+//                String name = searchUtils.substituteLsidsForNames(value);
+//                if (name != null) {
+//                    current[0].replace(value, name);
+//                }
             }
             matcher.appendTail(queryString);
             current[1] = queryString.toString();
@@ -585,46 +602,9 @@ public class QueryFormatUtils {
      * @param searchParams The search parameters
      */
     private void formatGeneral(String [] current, SpatialSearchRequestParams searchParams) {
-        StringBuffer queryString = new StringBuffer();
+        current[1] = formatString(current[1], true);
 
-        //escape reserved characters unless the colon represents a field name colon
-        Matcher matcher = spacesPattern.matcher(current[1]);
-        if (!current[1].contains(" OR ") && !current[1].contains(" AND ")) {
-            while (matcher.find()) {
-
-                String value = matcher.group();
-
-                //special cases to ignore from character escaping
-                //if the value is a single - or * it means that we don't want to escape it as it is likely
-                // to have occurred in the following situation -(occurrence_date:[* TO *]) or *:*
-                if (!value.equals("-") && /*!value.equals("*")  && !value.equals("*:*") && */ !value.endsWith("*")) {
-
-                    //split on the colon
-                    String[] bits = StringUtils.split(value, ":", 2);
-                    if (bits.length == 2) {
-                        //urn and http are already encoded for SOLR
-                        //range queries are not to be escaped
-                        //bracketed queries are not to be escaped
-                        if (!(bits[0].contains("urn") || !bits[1].contains("urn\\") || !bits[0].contains("http") || !bits[1].contains("http\\") ||
-                                (bits[1].contains("[") && bits[1].contains(" TO ") && bits[1].contains("]")) ||
-                                bits[0].startsWith("-(") || bits[0].startsWith("("))) {
-                            matcher.appendReplacement(queryString, bits[0] + ":" + prepareSolrStringForReplacement(bits[1]));
-                        } else {
-                            matcher.appendReplacement(queryString, prepareSolrStringForReplacement(bits[0]) + ":" + prepareSolrStringForReplacement(bits[1]));
-                        }
-
-
-                    } else if (!value.endsWith(":")) {
-                        //need to ignore field names where the : is at the end because the pattern matching will
-                        // return field_name: as a match when it has a double quoted value
-                        //default behaviour is to escape all
-                        matcher.appendReplacement(queryString, prepareSolrStringForReplacement(value));
-                    }
-                }
-            }
-        }
-        matcher.appendTail(queryString);
-
+        Matcher matcher;
         StringBuffer displaySb = new StringBuffer();
         //substitute better display strings for collection/inst etc searches
         if (current[0].contains("_uid")) {
@@ -641,31 +621,27 @@ public class QueryFormatUtils {
         if (current[1].equals("*:*")) {
             current[0] = "[all records]";
         }
-        if (searchParams != null && searchParams.getLat() != null && searchParams.getLon() != null && searchParams.getRadius() != null) {
-            displaySb.setLength(0);
-            displaySb.append(current[0]);
-            displaySb.append(" - within ").append(searchParams.getRadius()).append(" km of point(")
-                    .append(searchParams.getLat()).append(",").append(searchParams.getLon()).append(")");
-            current[0] = displaySb.toString();
-
+        if (searchParams != null) {
+            if (searchParams.getLat() != null && searchParams.getLon() != null && searchParams.getRadius() != null) {
+                current[0] += MessageFormat.format(circleDisplayString, searchParams.getRadius(), searchParams.getLat(),
+                        searchParams.getLon());
+            } else if(StringUtils.isNotEmpty(searchParams.getWkt())) {
+                current[0] += wktDisplayString;
+            }
         }
-        current[1] = queryString.length() > 0 ? queryString.toString() : current[1];
     }
 
     /**
      * Reverse rangeBasedFacet display strings to valid query values.
      *
      * @param current String [] { displayString, formattedQuery } to update.
-     * @param isFq true iff the query is an fq. else false.
      */
-    private void formatTitleMap(String [] current, boolean isFq) {
-        if (isFq) {
-            String[] parts = current[1].split(":", 2);
-            //check to see if the first part is a range based query and update if necessary
-            Map<String, String> titleMap = rangeBasedFacets.getTitleMap(parts[0]);
-            if (titleMap != null) {
-                current[1] = titleMap.get(parts[1]);
-            }
+    private void formatTitleMap(String [] current) {
+        String[] parts = current[1].split(":", 2);
+        //check to see if the first part is a range based query and update if necessary
+        Map<String, String> titleMap = rangeBasedFacets.getTitleMap(parts[0]);
+        if (titleMap != null) {
+            current[1] = titleMap.get(parts[1]);
         }
     }
 
@@ -677,12 +653,11 @@ public class QueryFormatUtils {
      * Additional fqs may be added to searchParams.
      *
      * @param query The query or fq
-     * @param searchParams The search parameters. Can be null when isFq == true
-     * @param isFq true iff the query is an fq. else false.
+     * @param searchParams The search parameters.
      * @return String [] { displayString, formattedQuery }
      */
-    public String [] formatQueryTerm(String query, SpatialSearchRequestParams searchParams, boolean isFq) {
-        String [] formatted = formatQid(query, searchParams, isFq);
+    public String [] formatQueryTerm(String query, SpatialSearchRequestParams searchParams) {
+        String [] formatted = formatQid(query, searchParams);
 
         formatTerms(formatted);
         formatTaxa(formatted);
@@ -691,38 +666,33 @@ public class QueryFormatUtils {
         formatLsid(formatted);
         formatUrn(formatted);
         formatHttp(formatted);
-        formatTitleMap(formatted, isFq);
+        formatTitleMap(formatted);
 
         if (!formatSpatial(formatted)) {
             formatGeneral(formatted, searchParams);
         }
 
-        formatted[0] = formatDisplayStringWithI18n(formatted[0]);
-
-        if (!isFq) {
-            searchParams.setDisplayString(formatted[0]);
-            searchParams.setFormattedQuery(formatted[1]);
-        }
+        formatted[0] = formatString(formatted[0], false);
 
         return formatted;
     }
 
     /**
-     * Substitute displayText with i18n properties
+     * Substitute text with i18n properties or escape for SOLR.
      *
-     * @param displayText
+     * @param text String to format
+     * @param isQuery
      * @return
      */
-    public String formatDisplayStringWithI18n(String displayText) {
-        if (StringUtils.trimToNull(displayText) == null) return displayText;
+    public String formatString(String text, boolean isQuery) {
+        if (StringUtils.trimToNull(text) == null) return text;
         try {
             String formatted = "";
-            String gap;
 
-            Matcher m = indexFieldPatternMatcher.matcher(displayText);
+            Matcher m = indexFieldPatternMatcher.matcher(text);
             int currentPos = 0;
             while (m.find(currentPos)) {
-                formatted += displayText.substring(currentPos, m.start());
+                formatted += text.substring(currentPos, m.start());
 
                 String matchedIndexTerm = m.group(0);
                 if (matchedIndexTerm.startsWith("<span")) {
@@ -731,20 +701,31 @@ public class QueryFormatUtils {
                 } else {
                     MatchResult mr = m.toMatchResult();
 
-                    //format facet name
-                    Matcher lm = layersPattern.matcher(matchedIndexTerm);
-                    matchedIndexTerm = matchedIndexTerm.replaceAll(":", "");
-                    String i18n = null;
-                    if (lm.matches()) {
-                        i18n = layersService.getName(matchedIndexTerm);
+                    if (matchedIndexTerm.startsWith("-")) {
+                        matchedIndexTerm = matchedIndexTerm.substring(1);
+                        formatted += "-";
                     }
-                    if (i18n == null) {
-                        i18n = messageSource.getMessage("facet." + matchedIndexTerm, null, matchedIndexTerm, null);
+
+                    //format facet name
+                    String i18n = null;
+                    if (isQuery) {
+                        i18n = matchedIndexTerm;
+                    } else {
+                        Matcher lm = layersPattern.matcher(matchedIndexTerm);
+                        matchedIndexTerm = matchedIndexTerm.replaceAll(":", "");
+                        if (lm.matches()) {
+                            i18n = layersService.getName(matchedIndexTerm);
+                        }
+                        if (i18n == null) {
+                            i18n = messageSource.getMessage("facet." + matchedIndexTerm, null, matchedIndexTerm, null);
+                        }
+                        i18n += ":";
                     }
 
                     //format display value
                     //values that contain indexFieldPatternMatcher matches, e.g. urn: http:, are already replaced.
-                    String extractedValue = displayText.substring(mr.end());
+                    String extractedValue = text.substring(mr.end());
+
                     int end = 0;
                     //remove wrapping '(', '"', and check for termination with ' ' if it is not wrapped
                     if (extractedValue.startsWith("(")) {
@@ -752,29 +733,49 @@ public class QueryFormatUtils {
                         end += 2;
                     }
                     if (extractedValue.startsWith("\"")) {
-                        extractedValue = extractedValue.substring(1, extractedValue.indexOf('\"', 1) > 1 ? extractedValue.indexOf('\"', 1) : extractedValue.length());
+                        //find unescaped "
+                        int pos = 1;
+                        while ((pos = extractedValue.indexOf('\"', pos + 1)) >= 0 && extractedValue.charAt(pos - 1) == '\\');
+
+                        //unescape \\ and \"
+                        extractedValue = extractedValue.replace("\\\\", "\\").replace("\\\"", "\"");
+
+                        if (pos >= 0) {
+                            extractedValue = extractedValue.substring(1, pos);
+                        } else {
+                            extractedValue = extractedValue.substring(1, extractedValue.length());
+                        }
                         end += 2;
                     }
                     if (extractedValue.startsWith("[")) {
                         extractedValue = extractedValue.substring(1, extractedValue.indexOf(']') > 1 ? extractedValue.indexOf(']') : extractedValue.length());
                         end += 2;
                     }
-                    if (extractedValue.contains(" ") && end == 0) {
+
+                    if (extractedValue.endsWith(")") && end == 0) {
+                        extractedValue = extractedValue.substring(0, extractedValue.length() - 1);
+                        end += 1;
+                    } else if (extractedValue.contains(" ") && end == 0) {
                         extractedValue = extractedValue.substring(0, extractedValue.indexOf(' ') > 1 ? extractedValue.indexOf(' ') : extractedValue.length());
                     }
 
-                    String formattedExtractedValue = formatValue(matchedIndexTerm, extractedValue);
+                    String i18nForValue;
+                    if (isQuery) {
+                        i18nForValue = prepareSolrStringForReplacement(extractedValue, false);
+                    } else {
+                        String formattedExtractedValue = formatValue(matchedIndexTerm, extractedValue);
+                        i18nForValue = messageSource.getMessage(matchedIndexTerm + "." + formattedExtractedValue, null, "", null);
+                        if (i18nForValue.length() == 0)
+                            i18nForValue = messageSource.getMessage(formattedExtractedValue, null, formattedExtractedValue, null);
+                    }
 
-                    String i18nForValue = messageSource.getMessage(matchedIndexTerm + "." + formattedExtractedValue, null, "", null);
-                    if (i18nForValue.length() == 0)
-                        i18nForValue = messageSource.getMessage(formattedExtractedValue, null, formattedExtractedValue, null);
-
-                    formatted += i18n + ":" + i18nForValue;
+                    formatted += i18n + text.substring(mr.end(), mr.end() + extractedValue.length() + end).replace(extractedValue, i18nForValue);
 
                     currentPos = mr.end() + extractedValue.length() + end;
                 }
             }
-            formatted += displayText.substring(currentPos, displayText.length());
+
+            formatted += text.substring(currentPos, text.length());
 
             return formatted;
 
@@ -782,7 +783,7 @@ public class QueryFormatUtils {
             if (logger.isDebugEnabled()) {
                 logger.debug(e.getMessage(), e);
             }
-            return displayText;
+            return text;
         }
     }
 
@@ -821,7 +822,7 @@ public class QueryFormatUtils {
      * @param value
      * @return
      */
-    private String prepareSolrStringForReplacement(String value) {
+    private String prepareSolrStringForReplacement(String value, boolean forMatcher) {
         if (value.equals("*")) {
             return value;
         }
@@ -830,14 +831,12 @@ public class QueryFormatUtils {
         boolean quoted = false;
 
         StringBuffer sb = new StringBuffer();
-        if (value.startsWith("-")) {
-            sb.append("-");
-            value = value.substring(1);
-        }
         if (value.startsWith("\"") && value.endsWith("\"")) {
             quoted = true;
             value = value.substring(1, value.length() - 1);
             sb.append("\"");
+        }
+        if (forMatcher) {
             sb.append(ClientUtils.escapeQueryChars(value).replaceAll("\\\\", "\\\\\\\\"));
         } else {
             sb.append(ClientUtils.escapeQueryChars(value));

@@ -597,7 +597,7 @@ public class MapController implements ServletConfigAware {
                     double[] pointsForFacet = retrievePoints(requestParams, pointType);
                     Color pointColor = ColorUtil.getColor(colours[k], opacity);
 
-                    String facetDisplayString = queryFormatUtils.formatQueryTerm(colourByFq[k], null, true)[0];
+                    String facetDisplayString = queryFormatUtils.formatQueryTerm(colourByFq[k], null)[0];
                     hm.generatePoints(pointsForFacet, pointColor, facetDisplayString);
                 }
             } else {

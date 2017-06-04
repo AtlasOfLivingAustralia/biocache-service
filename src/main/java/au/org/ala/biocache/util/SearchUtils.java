@@ -223,7 +223,7 @@ public class SearchUtils {
                 sb.append(lft).append(" TO ").append(rgt).append("]");
                 return new String[]{sb.toString(), dispSB.toString()};
             } else {
-                return new String[]{"taxon_concept_lsid:\"" + ClientUtils.escapeQueryChars(lsid) + "\"", "taxon_concept_lsid:\"" + lsid + "\""};
+                return new String[]{"taxon_concept_lsid:" + ClientUtils.escapeQueryChars(lsid), "taxon_concept_lsid:" + lsid};
             }
         } catch(Exception e){
             logger.error(e.getMessage(), e);
@@ -437,7 +437,7 @@ public class SearchUtils {
      */
     public String substituteYearsForDates(String fieldValue) {
         String dateRange = URLDecoder.decode(fieldValue);
-        String formattedDate = StringUtils.replaceChars(dateRange, "[]", "");
+        String formattedDate = StringUtils.replaceChars(dateRange, "[]\\", "");
         String[] dates =  formattedDate.split(" TO ");
         
         if (dates != null && dates.length > 1) {
