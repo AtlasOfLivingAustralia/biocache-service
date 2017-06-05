@@ -1669,6 +1669,7 @@ public class WMSController {
             @RequestParam(value = "baselayer", required = false, defaultValue = "world") String baselayer,
             @RequestParam(value = "scale", required = false, defaultValue = "off") String scale,
             @RequestParam(value = "dpi", required = false, defaultValue = "300") Integer dpi,
+            @RequestParam(value = "baselayerStyle", required = false, defaultValue = "") String baselayerStyle,
             @RequestParam(value = "outline", required = true, defaultValue = "false") boolean outlinePoints,
             @RequestParam(value = "outlineColour", required = true, defaultValue = "#000000") String outlineColour,
             @RequestParam(value = "fileName", required = false) String fileName,
@@ -1754,7 +1755,7 @@ public class WMSController {
         }
         String basemapAddress = geoserverUrl + "/wms/reflect?"
                 + "LAYERS=ALA%3A" + baselayer
-                + "&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&STYLES="
+                + "&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&STYLES=" + baselayerStyle
                 + "&FORMAT=image%2Fpng&SRS=" + srs     //specify the mercator projection
                 + "&BBOX=" + boundingBox[0] + "," + boundingBox[1] + "," + boundingBox[2] + "," + boundingBox[3]
                 + "&WIDTH=" + width + "&HEIGHT=" + height + "&OUTLINE=" + outlinePoints
