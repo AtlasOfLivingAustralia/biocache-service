@@ -686,6 +686,11 @@ public class QueryFormatUtils {
      */
     public String formatString(String text, boolean isQuery) {
         if (StringUtils.trimToNull(text) == null) return text;
+
+        // Queries containing OR, AND or Intersects( must already be correctly escaped for SOLR
+        // Note: if escaping is required, extract expressions from nested () [] "" for escaping with formatString.
+        if (isQuery && text.contains(" OR ") || text.contains(" AND ") || text.contains("Intersects(")) return text;
+
         try {
             String formatted = "";
 
@@ -747,7 +752,9 @@ public class QueryFormatUtils {
                         }
                         end += 2;
                     }
+                    boolean skipEncoding = false;
                     if (extractedValue.startsWith("[")) {
+                        skipEncoding = true;
                         extractedValue = extractedValue.substring(1, extractedValue.indexOf(']') > 1 ? extractedValue.indexOf(']') : extractedValue.length());
                         end += 2;
                     }
@@ -760,8 +767,15 @@ public class QueryFormatUtils {
                     }
 
                     String i18nForValue;
-                    if (isQuery) {
-                        i18nForValue = prepareSolrStringForReplacement(extractedValue, false);
+                    if (skipEncoding) {
+                        i18nForValue = extractedValue;
+                    } else if (isQuery) {
+                        // some values are already encoded
+                        if (!extractedValue.contains("http\\") && !extractedValue.contains("urn\\")) {
+                            i18nForValue = prepareSolrStringForReplacement(extractedValue, false);
+                        } else {
+                            i18nForValue = extractedValue;
+                        }
                     } else {
                         String formattedExtractedValue = formatValue(matchedIndexTerm, extractedValue);
                         i18nForValue = messageSource.getMessage(matchedIndexTerm + "." + formattedExtractedValue, null, "", null);
