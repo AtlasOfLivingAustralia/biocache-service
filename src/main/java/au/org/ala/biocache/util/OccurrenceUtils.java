@@ -36,10 +36,12 @@ public class OccurrenceUtils {
     static public FullRecord[] getAllVersionsByUuid(String uuid, Boolean includeSensitive) {
         FullRecord [] occ = Store.getAllVersionsByUuid(uuid, includeSensitive);
 
-        for (FullRecord fr : occ) {
-            Location loc = fr.getLocation();
-            if (loc != null && "null,null,null,null".equals(loc.getBbox())) {
-                loc.setBbox(null);
+        if (occ != null) {
+            for (FullRecord fr : occ) {
+                Location loc = fr.getLocation();
+                if (loc != null && "null,null,null,null".equals(loc.getBbox())) {
+                    loc.setBbox(null);
+                }
             }
         }
 

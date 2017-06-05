@@ -691,17 +691,28 @@ public class WMSController {
      * @param mbbox       the mbbox to initialise
      * @param bbox        the bbox to initialise
      * @param pbbox       the pbbox to initialise
+     * @param tilebbox    the tilebbox to initialise
      * @return
      */
     private double getBBoxes(String bboxString, int width, int height, int size, boolean uncertainty, double[] mbbox, double[] bbox, double[] pbbox, double[] tilebbox) {
-        int i = 0;
-        for (String s : bboxString.split(",")) {
+        String[] splitBBox = bboxString.split(",");
+        for (int i = 0; i < 4; i++) {
+            boolean errorInThisPosition = false;
             try {
-                tilebbox[i] = Double.parseDouble(s);
-                mbbox[i] = tilebbox[i];
-                i++;
+                if(splitBBox.length > i) {
+                    tilebbox[i] = Double.parseDouble(splitBBox[i]);
+                    mbbox[i] = tilebbox[i];
+                } else {
+                    logger.error("Problem parsing BBOX: '" + bboxString + "' at position " + i);
+                    errorInThisPosition = true;
+                }
             } catch (Exception e) {
-                logger.error("Problem parsing BBOX: '" + bboxString + "'", e);
+                logger.error("Problem parsing BBOX: '" + bboxString + "' at position " + i, e);
+                errorInThisPosition = true;
+            }
+            if (errorInThisPosition) {
+                tilebbox[i] = 0.0d;
+                mbbox[i] = 0.0d;
             }
         }
 
