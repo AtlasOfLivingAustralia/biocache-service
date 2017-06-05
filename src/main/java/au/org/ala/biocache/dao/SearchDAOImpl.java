@@ -3096,11 +3096,29 @@ public class SearchDAOImpl implements SearchDAO {
             facetResults = searchResults.getFacetResults();
             if (facetResults != null) {
                 for (FacetResultDTO fr : facetResults) {
-                    for (FacetField ff :response.getFacetFields()) {
-                        fr.setCount(0);
-                        if (ff != null && StringUtils.equals(ff.getName(), fr.getFieldName())) {
-                            fr.setCount(ff.getValueCount());
+                    if (fr.getFieldResult() != null && fr.getFieldResult().size() > 0) {
+                        for (FacetField ff : response.getFacetFields()) {
+                            fr.setCount(0);
+                            if (ff != null && StringUtils.equals(ff.getName(), fr.getFieldName())) {
+                                fr.setCount(ff.getValueCount());
+                            }
                         }
+                        //sort and apply limit and offset
+                        Collections.sort(fr.getFieldResult(), new Comparator<FieldResultDTO>() {
+                            @Override
+                            public int compare(FieldResultDTO o1, FieldResultDTO o2) {
+                                long result = o1.getCount() - o2.getCount();
+                                if (result == 0) {
+                                    return o1.getLabel() != null ? o1.getLabel().compareTo(o2.getLabel()) :
+                                            (o2.getLabel() == null ? 0 : 1);
+                                } else {
+                                    return result > 0 ? -1 : 1;
+                                }
+                            }
+                        });
+                        int from = Math.min(fr.getFieldResult().size() - 1, searchParams.getFoffset());
+                        int to = Math.min(fr.getFieldResult().size(), searchParams.getFoffset() + searchParams.getFlimit());
+                        fr.setFieldResult(new ArrayList(fr.getFieldResult().subList(from, to)));
                     }
                 }
             }
