@@ -113,6 +113,9 @@ public class QueryFormatUtils {
             searchParams.setDisplayString(formatted[0]);
             searchParams.setFormattedQuery(formatted[1]);
 
+            //reset formattedFq in case of searchParams reuse
+            searchParams.setFormattedFq(null);
+
             //format fqs for facets that need ranges substituted
             if (searchParams.getFq() != null) {
                 for (int i = 0; i < searchParams.getFq().length; i++) {
