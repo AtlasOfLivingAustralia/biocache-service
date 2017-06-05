@@ -10,7 +10,7 @@
     <groupId>au.org.ala</groupId>
     <artifactId>biocache-service</artifactId>
     <packaging>war</packaging>
-    <version>1.9</version>
+    <version>1.9-SNAPSHOT</version>
     <name>biocache-service</name>
     <url>http://biocache.ala.org.au/ws</url>
     <description>This is a the service layer for the Biocache</description>

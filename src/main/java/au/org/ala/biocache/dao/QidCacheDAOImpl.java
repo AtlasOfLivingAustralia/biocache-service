@@ -187,13 +187,13 @@ public class QidCacheDAOImpl implements QidCacheDAO {
         if (obj == null) {
             obj = load(key);
 
-            // remove SOLR escaping of older qid
-            if (obj.getQ() != null && obj.getQ().indexOf('\\') >= 0) {
-                obj.setQ(removeSolrEscaping(obj.getQ()));
-            }
-
             if (obj != null) {
                 cache.put(key, obj);
+
+                // remove SOLR escaping of older qid
+                if (obj.getQ() != null && obj.getQ().indexOf('\\') >= 0) {
+                    obj.setQ(removeSolrEscaping(obj.getQ()));
+                }
             }
         }
 

@@ -640,8 +640,11 @@ public class QueryFormatUtils {
         String[] parts = current[1].split(":", 2);
         //check to see if the first part is a range based query and update if necessary
         Map<String, String> titleMap = rangeBasedFacets.getTitleMap(parts[0]);
-        if (titleMap != null) {
-            current[1] = titleMap.get(parts[1]);
+        if (titleMap != null && titleMap.size() > 0) {
+            String q = titleMap.get(parts[1]);
+            if (StringUtils.isNotEmpty(q)) {
+                current[1] = q;
+            }
         }
     }
 
@@ -767,7 +770,7 @@ public class QueryFormatUtils {
                     }
 
                     String i18nForValue;
-                    if (skipEncoding) {
+                    if (skipEncoding && isQuery) {
                         i18nForValue = extractedValue;
                     } else if (isQuery) {
                         // some values are already encoded
