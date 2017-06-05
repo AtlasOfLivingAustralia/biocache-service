@@ -2466,6 +2466,7 @@ public class SearchDAOImpl implements SearchDAO {
                                        Integer startIndex, String sortField, String sortDirection) throws SolrServerException {
         SearchRequestParams requestParams = new SearchRequestParams();
         requestParams.setFq(filterQuery);
+        requestParams.setFormattedFq(filterQuery);
         requestParams.setPageSize(pageSize);
         requestParams.setStart(startIndex);
         requestParams.setSort(sortField);
