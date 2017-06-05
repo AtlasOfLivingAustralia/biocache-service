@@ -69,6 +69,7 @@ public class SpeciesImageService {
                 params.setFl("data_resource_uid,image_url");
                 params.setQ("image_url:*");
 
+                searchDAO.waitForPostConstruct();
                 List<GroupFacetResultDTO> qr = searchDAO.searchGroupedFacets(params);
 
                 //get lft and count

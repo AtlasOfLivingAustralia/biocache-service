@@ -18,10 +18,13 @@ import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.model.Qid;
 import au.org.ala.biocache.util.QidMissingException;
 import au.org.ala.biocache.util.QidSizeException;
+import au.org.ala.biocache.util.SpatialUtils;
+import com.googlecode.ehcache.annotations.Cacheable;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -49,6 +52,11 @@ public class QidCacheDAOImpl implements QidCacheDAO {
     //max single cacheable object size
     @Value("${qid.cache.largestCacheableSize:5242880}")
     long largestCacheableSize;
+    /**
+     * Limit WKT complexity to reduce index query time for qids.
+     */
+    @Value("${qid.wkt.maxPoints:5000}")
+    private int maxWktPoints;
     //in memory store of params
     private ConcurrentHashMap<String, Qid> cache = new ConcurrentHashMap<String, Qid>();
     //counter and lock
@@ -58,6 +66,9 @@ public class QidCacheDAOImpl implements QidCacheDAO {
     private long triggerCleanSize = minCacheSize + (maxCacheSize - minCacheSize) / 2;
     //thread for cache size limitation
     private Thread cacheCleaner;
+
+    @Inject
+    private SearchDAO searchDAO;
 
     protected QidDAO qidDao = (QidDAO) au.org.ala.biocache.Config.getInstance(QidDAO.class);
 
@@ -175,17 +186,48 @@ public class QidCacheDAOImpl implements QidCacheDAO {
 
         if (obj == null) {
             obj = load(key);
-        }
 
-        if (obj != null) {
-            obj.setLastUse(System.currentTimeMillis());
+            if (obj != null) {
+                cache.put(key, obj);
+
+                // remove SOLR escaping of older qid
+                if (obj.getQ() != null && obj.getQ().indexOf('\\') >= 0) {
+                    obj.setQ(removeSolrEscaping(obj.getQ()));
+                }
+            }
         }
 
         if (obj == null) {
             throw new QidMissingException(key);
+        } else {
+            obj.setLastUse(System.currentTimeMillis());
         }
 
         return obj;
+    }
+
+    private String removeSolrEscaping(String s) {
+        if (s == null || s.length() == 0) {
+            return s;
+        }
+
+        StringBuilder sb = new StringBuilder();
+
+        char a, c = ' ';
+        int len = s.length() - 1;
+        for(int i = 0; i < len; i++) {
+            a = s.charAt(i);
+            c = s.charAt(i + 1);
+            if(a != '\\' ||
+                    !(c == 92 || c == 43 || c == 45 || c == 33 || c == 40 || c == 41 || c == 58 || c == 94 || c == 91 ||
+                            c == 93 || c == 34 || c == 123 || c == 125 || c == 126 || c == 42 || c == 63 || c == 124 ||
+                            c == 38 || c == 59 || c == 47 || Character.isWhitespace(c))) {
+                sb.append(a);
+            }
+        }
+        sb.append(c);
+
+        return sb.toString();
     }
 
     /**
@@ -352,5 +394,56 @@ public class QidCacheDAOImpl implements QidCacheDAO {
         }
 
         return allFqs;
+    }
+
+    @Cacheable(cacheName = "qidGeneration")
+    @Override
+    public String generateQid(SpatialSearchRequestParams requestParams, String bbox, String title, Long maxage, String source) {
+        try {
+            //simplify wkt
+            String wkt = requestParams.getWkt();
+            if (wkt != null && wkt.length() > 0) {
+                //TODO: Is this too slow? Do not want to send large WKT to SOLR.
+                wkt = fixWkt(wkt);
+
+                if (wkt == null) {
+                    //wkt too large and simplification failed, do not produce qid
+                    return null;
+                }
+
+                //set wkt
+                requestParams.setWkt(wkt);
+            }
+
+            //get bbox (also cleans up Q)
+            double[] bb = null;
+            if (bbox != null && bbox.equals("true")) {
+                bb = searchDAO.getBBox(requestParams);
+            } else {
+                //get a formatted Q by running a query
+                requestParams.setPageSize(0);
+                requestParams.setFacet(false);
+                searchDAO.findByFulltext(requestParams);
+            }
+
+            //store the title if necessary
+            if (title == null)
+                title = requestParams.getDisplayString();
+            String[] fqs = requestParams.getFq();
+            if (fqs != null && (fqs.length == 0 || (fqs.length == 1 && fqs[0].length() == 0))) {
+                fqs = null;
+            }
+            String qid = put(requestParams.getQ(), title, requestParams.getWkt(), bb, fqs, maxage, source);
+
+            return qid;
+        } catch (Exception e) {
+            logger.error("error generating QID", e);
+        }
+        return null;
+    }
+
+    @Cacheable(cacheName = "fixWkt")
+    private String fixWkt(String wkt) {
+        return SpatialUtils.simplifyWkt(wkt, maxWktPoints);
     }
 }

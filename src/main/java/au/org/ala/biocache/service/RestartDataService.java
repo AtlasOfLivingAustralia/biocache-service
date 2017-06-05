@@ -73,22 +73,24 @@ public class RestartDataService {
                         while (true) {
 
                             for (Object rc : sources.keySet()) {
-                                for (String field : sources.get(rc)) {
-                                    try {
-                                        Field f = rc.getClass().getDeclaredField(field);
-                                        if (!f.isAccessible()) {
-                                            f.setAccessible(true);
-                                        }
-                                        Object value = f.get(rc);
+                                if (rc != null && sources.get(rc) != null) {
+                                    for (String field : sources.get(rc)) {
+                                        try {
+                                            Field f = rc.getClass().getDeclaredField(field);
+                                            if (!f.isAccessible()) {
+                                                f.setAccessible(true);
+                                            }
+                                            Object value = f.get(rc);
 
-                                        String key = rc.getClass().getCanonicalName() + "." + field;
-                                        if (value != values.get(key)) {
-                                            saveToDisk(key, value);
-                                            values.remove(key);
-                                            values.put(key, value);
+                                            String key = rc.getClass().getCanonicalName() + "." + field;
+                                            if (value != values.get(key)) {
+                                                saveToDisk(key, value);
+                                                values.remove(key);
+                                                values.put(key, value);
+                                            }
+                                        } catch (Exception e) {
+                                            logger.error("error checking value: " + rc.getClass().getCanonicalName() + "." + field, e);
                                         }
-                                    } catch (Exception e) {
-                                        logger.error("error checking value: " + rc.getClass().getCanonicalName() + "." + field, e);
                                     }
                                 }
                             }

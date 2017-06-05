@@ -92,26 +92,38 @@ public class AlaLayersService implements LayersService {
 
         //initialise the cache based on the values at http://spatial.ala.org.au/ws/fields
         if(enabled){
-            //create a tmp map
-            Map tmpMap = new HashMap<String,String>();
-            List list = restTemplate.getForObject(spatialUrl, List.class);
-            if (list != null && list.size() > 0) layers = list;
-            for(Map<String,Object> values : layers){
-                tmpMap.put((String)values.get("id"), (String)values.get("desc"));
-            }
+            new Thread() {
+                @Override
+                public void run() {
+                    try {
+                        //create a tmp map
+                        Map tmpMap = new HashMap<String, String>();
+                        List list = restTemplate.getForObject(spatialUrl, List.class);
+                        if (list != null && list.size() > 0) layers = list;
+                        for (Map<String, Object> values : layers) {
+                            tmpMap.put((String) values.get("id"), (String) values.get("desc"));
+                        }
 
-            if (tmpMap.size() > 0) idToNameMap = tmpMap;
+                        if (tmpMap.size() > 0) idToNameMap = tmpMap;
 
-            tmpMap = initDistribution("distributions");
-            if (tmpMap.size() > 0) distributions = tmpMap;
+                        tmpMap = initDistribution("distributions");
+                        if (tmpMap.size() > 0) distributions = tmpMap;
 
-            tmpMap = initDistribution("checklists");
-            if (tmpMap.size() > 0) checklists = tmpMap;
+                        tmpMap = initDistribution("checklists");
+                        if (tmpMap.size() > 0) checklists = tmpMap;
 
-            //TODO: initialize tracks only when webservices are available
-            //tracks = initDistribution("tracks");
+                        //TODO: initialize tracks only when webservices are available
+                        //tracks = initDistribution("tracks");
+                    } catch (Exception e) {
+                        logger.error("failed to init distribution and checklists", e);
+                    }
+
+                    wait.countDown();
+                }
+            }.start();
+        } else {
+            wait.countDown();
         }
-        wait.countDown();
     }
     @Override
     public String getName(String code) {

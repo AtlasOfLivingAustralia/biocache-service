@@ -37,7 +37,8 @@ public class SearchRequestParams {
     protected Long qId = null;  // "qid:12312321"
     protected String formattedQuery = null;
     protected String q = "*:*";
-    protected String[] fq = {""}; // must not be null
+    protected String[] fq = {}; // must not be null
+    protected String[] formattedFq = {}; // must not be null
     protected String fl = "";
     /**
      * The facets to be included by the search
@@ -60,6 +61,9 @@ public class SearchRequestParams {
     protected String sort = "score";
     protected String dir = "asc";
     private String displayString;
+
+    protected Boolean includeMultivalues;
+
     /**  The query context to be used for the search.  This will be used to generate extra query filters based on the search technology */
     protected String qc = "";
     /** To disable facets */
@@ -422,6 +426,22 @@ public class SearchRequestParams {
 	public void setFprefix(String fprefix) {
 		this.fprefix = fprefix;
 	}
+
+    public Boolean getIncludeMultivalues() {
+        return includeMultivalues;
+    }
+
+    public void setIncludeMultivalues(Boolean includeMultivalues) {
+        this.includeMultivalues = includeMultivalues;
+    }
+
+    public String[] getFormattedFq() {
+        return formattedFq;
+    }
+
+    public void setFormattedFq(String[] formattedFq) {
+        this.formattedFq = formattedFq;
+    }
 
   /* (non-Javadoc)
    * @see java.lang.Object#hashCode()

@@ -22,15 +22,14 @@ import au.org.ala.biocache.model.Qid;
 import au.org.ala.biocache.util.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.googlecode.ehcache.annotations.Cacheable;
 import org.apache.commons.collections.map.LRUMap;
-import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.ehcache.EhCacheManagerFactoryBean;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -42,9 +41,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.*;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.RandomAccessFile;
 import java.net.URL;
-import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.*;
 import java.util.List;
@@ -94,6 +95,8 @@ public class WMSController {
      */
     @Value("${wms.cache.enabled:true}")
     private boolean wmsCacheEnabled;
+    @Value("${qid.wkt.maxPoints:5000}")
+    private int maxWktPoints;
     /**
      * Logger initialisation
      */
@@ -103,6 +106,8 @@ public class WMSController {
      */
     @Inject
     protected SearchDAO searchDAO;
+    @Inject
+    protected QueryFormatUtils queryFormatUtils;
     @Inject
     protected TaxonDAO taxonDAO;
     @Inject
@@ -144,13 +149,6 @@ public class WMSController {
     @Value("${service.bie.ui.url:http://bie.ala.org.au}")
     protected String bieUiUrl;
 
-
-    /**
-     * Limit WKT complexity to reduce index query time for qids.
-     */
-    @Value("${qid.wkt.maxPoints:5000}")
-    private int maxWktPoints;
-
     /**
      * Threshold for caching a whole PointType for a query or only caching the current bounding box.
      */
@@ -182,9 +180,9 @@ public class WMSController {
         blankImageBytes = b;
     }
 
-    /**
-     * Store query params list
-     */
+    @Inject
+    EhCacheManagerFactoryBean cacheManager;
+
     @RequestMapping(value = {"/webportal/params", "/mapping/params"}, method = RequestMethod.POST)
     public void storeParams(SpatialSearchRequestParams requestParams,
                             @RequestParam(value = "bbox", required = false, defaultValue = "false") String bbox,
@@ -193,49 +191,42 @@ public class WMSController {
                             @RequestParam(value = "source", required = false) String source,
                             HttpServletResponse response) throws Exception {
 
-        //simplify wkt
-        String wkt = requestParams.getWkt();
-        if (wkt != null && wkt.length() > 0) {
-            //TODO: Is this too slow? Do not want to send large WKT to SOLR. 
-            wkt = fixWkt(wkt);
+        //set default values for parameters not stored in the qid.
+        requestParams.setFl("");
+        requestParams.setFacets(new String[] {});
+        requestParams.setStart(0);
+        requestParams.setFacet(false);
+        requestParams.setFlimit(0);
+        requestParams.setPageSize(0);
+        requestParams.setSort("score");
+        requestParams.setDir("asc");
+        requestParams.setFoffset(0);
+        requestParams.setFprefix("");
+        requestParams.setFsort("");
+        requestParams.setIncludeMultivalues(false);
 
-            if (wkt == null) {
-                //wkt too large and simplification failed, do not produce qid
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "WKT provided has more than " + maxWktPoints + " points and failed to be simplified.");
-                return;
-            }
-
-            //set wkt
-            requestParams.setWkt(wkt);
+        //move qc to fq
+        if (StringUtils.isNotEmpty(requestParams.getQc())) {
+            queryFormatUtils.addFqs(new String[]{requestParams.getQc()}, requestParams);
+            requestParams.setQc("");
         }
 
-        //get bbox (also cleans up Q)
-        double[] bb = null;
-        if (bbox != null && bbox.equals("true")) {
-            bb = getBBox(requestParams);
+        //move lat/lon/radius to fq
+        if (requestParams.getLat() != null) {
+            String fq = queryFormatUtils.latLonPart(requestParams);
+            queryFormatUtils.addFqs(new String[]{fq}, requestParams);
+            requestParams.setLat(null);
+            requestParams.setLon(null);
+            requestParams.setRadius(null);
+        }
+
+        String qid = qidCacheDAO.generateQid(requestParams, bbox, title, maxage, source);
+        if (qid == null) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "WKT provided has more than " + maxWktPoints + " points and failed to be simplified.");
         } else {
-            //get a formatted Q by running a query
-            requestParams.setPageSize(0);
-            requestParams.setFacet(false);
-            searchDAO.findByFulltext(requestParams);
+            response.setContentType("text/plain");
+            writeBytes(response, qid.getBytes());
         }
-
-        //store the title if necessary
-        if (title == null)
-            title = requestParams.getDisplayString();
-        String[] fqs = qidCacheDAO.getFq(requestParams);
-        if (fqs != null && fqs.length == 1 && fqs[0].length() == 0) {
-            fqs = null;
-        }
-        String qid = qidCacheDAO.put(requestParams.getFormattedQuery(), title, requestParams.getWkt(), bb, fqs, maxage, source);
-
-        response.setContentType("text/plain");
-        writeBytes(response, qid.getBytes());
-    }
-
-    @Cacheable(cacheName = "fixWkt")
-    private String fixWkt(String wkt) {
-        return SpatialUtils.simplifyWkt(wkt, maxWktPoints);
     }
 
     /**
@@ -449,7 +440,7 @@ public class WMSController {
         double[] bbox = null;
 
         if (bbox == null) {
-            bbox = getBBox(requestParams);
+            bbox = searchDAO.getBBox(requestParams);
         }
 
         writeBytes(response, (bbox[0] + "," + bbox[1] + "," + bbox[2] + "," + bbox[3]).getBytes("UTF-8"));
@@ -486,7 +477,7 @@ public class WMSController {
         }
 
         if (bbox == null) {
-            bbox = getBBox(requestParams);
+            bbox = searchDAO.getBBox(requestParams);
         }
 
         return bbox;
@@ -819,42 +810,6 @@ public class WMSController {
             q = cql_filter.substring(p1, p2);
         }
         return q;
-    }
-
-
-
-    /**
-     * Get bounding box for a query.
-     *
-     * @param requestParams
-     * @return
-     * @throws Exception
-     */
-    double[] getBBox(SpatialSearchRequestParams requestParams) throws Exception {
-        double[] bbox = new double[4];
-        String[] sort = {"longitude", "latitude", "longitude", "latitude"};
-        String[] dir = {"asc", "asc", "desc", "desc"};
-
-        //Filter for -180 +180 longitude and -90 +90 latitude to match WMS request bounds.
-        String[] fq = (String[]) ArrayUtils.addAll(qidCacheDAO.getFq(requestParams), new String[]{"longitude:[-180 TO 180]", "latitude:[-90 TO 90]"});
-        requestParams.setFq(fq);
-        requestParams.setPageSize(10);
-
-        for (int i = 0; i < sort.length; i++) {
-            requestParams.setSort(sort[i]);
-            requestParams.setDir(dir[i]);
-            requestParams.setFl(sort[i]);
-
-            SolrDocumentList sdl = searchDAO.findByFulltext(requestParams);
-            if (sdl != null && sdl.size() > 0) {
-                if (sdl.get(0) != null) {
-                    bbox[i] = (Double) sdl.get(0).getFieldValue(sort[i]);
-                } else {
-                    logger.error("searchDAO.findByFulltext returning SolrDocumentList with null records");
-                }
-            }
-        }
-        return bbox;
     }
 
     private String convertBBox4326To900913(String bbox) {
@@ -1235,10 +1190,10 @@ public class WMSController {
         response.setHeader("Content-Transfer-Encoding", "binary");
         try {
             //webservicesRoot
-            String biocacheServerUrl = request.getSession().getServletContext().getInitParameter("webservicesRoot");
+            String biocacheServerUrl = baseWsUrl;
             PrintWriter writer = response.getWriter();
             writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-                            "<!DOCTYPE WMT_MS_Capabilities SYSTEM \"http://spatial.ala.org.au/geoserver/schemas/wms/1.1.1/WMS_MS_Capabilities.dtd\">\n" +
+                            "<!DOCTYPE WMT_MS_Capabilities SYSTEM \"" + geoserverUrl + "/schemas/wms/1.1.1/WMS_MS_Capabilities.dtd\">\n" +
                             "<WMT_MS_Capabilities version=\"1.1.1\" updateSequence=\"28862\">\n" +
                             "  <Service>\n" +
                             "    <Name>OGC:WMS</Name>\n" +
@@ -2108,7 +2063,7 @@ public class WMSController {
                 }
             }
         } else {
-            searchDAO.formatSearchQuery(requestParams, false);
+            queryFormatUtils.formatSearchQuery(requestParams, false);
         }
 
         List<LegendItem> colours = null;
@@ -2223,7 +2178,7 @@ public class WMSController {
                 }
             }
         } else {
-            searchDAO.formatSearchQuery(requestParams, false);
+            queryFormatUtils.formatSearchQuery(requestParams, false);
         }
 
         return count;
@@ -2554,92 +2509,3 @@ public class WMSController {
     }
 }
 
-class WmsEnv {
-
-    private final static Logger logger = Logger.getLogger(WmsEnv.class);
-    public int red, green, blue, alpha, size, colour;
-    public boolean uncertainty;
-    public String colourMode, highlight;
-
-    /**
-     * Get WMS ENV values from String, or use defaults.
-     *
-     * @param env
-     */
-    public WmsEnv(String env, String styles) {
-        try {
-            env = URLDecoder.decode(env, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            logger.error(e.getMessage(), e);
-        }
-
-        red = green = blue = alpha = 0;
-        size = 4;
-        uncertainty = false;
-        highlight = null;
-        colourMode = "-1";
-        colour = 0x00000000; //rgba
-
-        if (StringUtils.trimToNull(env) == null && StringUtils.trimToNull(styles) == null) {
-            env = "color:cd3844;size:10;opacity:1.0";
-        }
-
-        if (StringUtils.trimToNull(env) != null) {
-
-            for (String s : env.split(";")) {
-                String[] pair = s.split(":");
-                pair[1] = s.substring(s.indexOf(":") + 1);
-                if (pair[0].equals("color")) {
-                    while (pair[1].length() < 6) {
-                        pair[1] = "0" + pair[1];
-                    }
-                    red = Integer.parseInt(pair[1].substring(0, 2), 16);
-                    green = Integer.parseInt(pair[1].substring(2, 4), 16);
-                    blue = Integer.parseInt(pair[1].substring(4), 16);
-                } else if (pair[0].equals("size")) {
-                    size = Integer.parseInt(pair[1]);
-                } else if (pair[0].equals("opacity")) {
-                    alpha = (int) (255 * Double.parseDouble(pair[1]));
-                } else if (pair[0].equals("uncertainty")) {
-                    uncertainty = true;
-                } else if (pair[0].equals("sel")) {
-                    highlight = s.replace("sel:", "").replace("%3B", ";");
-                } else if (pair[0].equals("colormode")) {
-                    colourMode = pair[1];
-                }
-            }
-        } else if (StringUtils.trimToNull(styles) != null) {
-            //named styles
-            //blue;opacity=1;size=1
-            String firstStyle = styles.split(",")[0];
-            String[] styleParts = firstStyle.split(";");
-
-            red = Integer.parseInt(styleParts[0].substring(0, 2), 16);
-            green = Integer.parseInt(styleParts[0].substring(2, 4), 16);
-            blue = Integer.parseInt(styleParts[0].substring(4), 16);
-            alpha = (int) (255 * Double.parseDouble(styleParts[1].substring(8)));
-            size = Integer.parseInt(styleParts[2].substring(5));
-        }
-
-        colour = (red << 16) | (green << 8) | blue;
-        colour = colour | (alpha << 24);
-    }
-}
-
-class ImgObj {
-
-    Graphics2D g;
-    BufferedImage img;
-
-    public static ImgObj create(int width, int height) {
-        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = (Graphics2D) img.getGraphics();
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        return new ImgObj(g, img);
-    }
-
-    public ImgObj(Graphics2D g, BufferedImage img) {
-        this.g = g;
-        this.img = img;
-    }
-}
