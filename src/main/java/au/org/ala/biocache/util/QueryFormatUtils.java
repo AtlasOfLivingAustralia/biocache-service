@@ -134,7 +134,7 @@ public class QueryFormatUtils {
                             facet.setName(fv[0]);
                             facet.setValue(fq.substring(fv[0].length() + 1));
                         }
-                        activeFacetMap.put(fq, facet);
+                        activeFacetMap.put(facet.getName(), facet);
                     }
                 }
             }
