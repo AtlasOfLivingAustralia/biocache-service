@@ -114,27 +114,29 @@ public class QueryFormatUtils {
             searchParams.setFormattedQuery(formatted[1]);
 
             //format fqs for facets that need ranges substituted
-            for (int i = 0; i < searchParams.getFq().length; i++) {
-                String fq = searchParams.getFq()[i];
+            if (searchParams.getFq() != null) {
+                for (int i = 0; i < searchParams.getFq().length; i++) {
+                    String fq = searchParams.getFq()[i];
 
-                if (fq != null && fq.length() > 0) {
-                    formatted = formatQueryTerm(fq, searchParams);
+                    if (fq != null && fq.length() > 0) {
+                        formatted = formatQueryTerm(fq, searchParams);
 
-                    if (StringUtils.isNotEmpty(formatted[1])) {
-                        addFormattedFq(new String[]{formatted[1]}, searchParams);
-                    }
-
-                    //add to activeFacetMap fqs that are not inserted by a qid, and the q of qids in fqs.
-                    //do not add spatial fields
-                    if (originalFqs != null && i < originalFqs.length && !formatted[1].contains(spatialField + ":")) {
-                        Facet facet = new Facet();
-                        facet.setDisplayName(formatted[0]);
-                        String [] fv = fq.split(":");
-                        if (fv.length >= 2) {
-                            facet.setName(fv[0]);
-                            facet.setValue(fq.substring(fv[0].length() + 1));
+                        if (StringUtils.isNotEmpty(formatted[1])) {
+                            addFormattedFq(new String[]{formatted[1]}, searchParams);
                         }
-                        activeFacetMap.put(facet.getName(), facet);
+
+                        //add to activeFacetMap fqs that are not inserted by a qid, and the q of qids in fqs.
+                        //do not add spatial fields
+                        if (originalFqs != null && i < originalFqs.length && !formatted[1].contains(spatialField + ":")) {
+                            Facet facet = new Facet();
+                            facet.setDisplayName(formatted[0]);
+                            String[] fv = fq.split(":");
+                            if (fv.length >= 2) {
+                                facet.setName(fv[0]);
+                                facet.setValue(fq.substring(fv[0].length() + 1));
+                            }
+                            activeFacetMap.put(facet.getName(), facet);
+                        }
                     }
                 }
             }
