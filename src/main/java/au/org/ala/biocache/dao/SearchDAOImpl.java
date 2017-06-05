@@ -2583,7 +2583,11 @@ public class SearchDAOImpl implements SearchDAO {
                         suffix = parts[1];
                     } else {
                         if (parts[0].startsWith("-")) {
-                            prefix = "-" + ClientUtils.escapeQueryChars(parts[0].substring(1));
+                            if (parts[0].length() > 1) {
+                                prefix = "-" + ClientUtils.escapeQueryChars(parts[0].substring(1));
+                            } else {
+                                prefix = "-";
+                            }
                         } else {
                             prefix = ClientUtils.escapeQueryChars(parts[0]);
                         }
