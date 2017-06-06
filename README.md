@@ -9,5 +9,5 @@ Theses services are documented here http://api.ala.org.au/apps/biocache
 
 There are currently two supported version
 
-* 1.9.x  - SOLR 4 and Cassandra 1.2.x
-* 2.x - SOLR 5 with SOLR Cloud support and Cassandra 3.x
+* 1.9.x  - SOLR 4 and Cassandra 1.2.x. See the master branch.
+* 2.x - SOLR 5 with SOLR Cloud support and Cassandra 3.x. See the 2.x branch.
