@@ -6,8 +6,10 @@ import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dto.Facet;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.parser.AdHocParser;
+import au.org.ala.biocache.parser.DateParser;
 import au.org.ala.layers.dao.IntersectCallback;
 import au.org.ala.layers.dto.IntersectionFile;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.DeleteMethod;
@@ -16,7 +18,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.ServletRequestUtils;
@@ -314,12 +315,13 @@ public class UploadController extends AbstractSecureController {
     @RequestMapping(value="/upload/{tempDataResourceUid}", method = RequestMethod.DELETE)
     public void deleteResource(
             @PathVariable String tempDataResourceUid,
+            @RequestParam(value = "apiKey", required = true) String apiKey,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
 
         //auth check
         boolean apiKeyValid = shouldPerformOperation(request, response);
         if(!apiKeyValid){
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Supplied API key not recognised or missing");
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Supplied API key not recognised");
             return;
         }
 
@@ -391,11 +393,11 @@ public class UploadController extends AbstractSecureController {
                 logger.debug("Line count: " + lineCount);
 
                 //derive a list of custom index field
-                CSVReader readerForCol = new CSVReader(new FileReader(csvFile), ',', '"');
-                List<String> filteredHeaders = filterByMaxColumnLengths(headers, readerForCol, 50);
-                filteredHeaders = filterCustomIndexFields(filteredHeaders);
-                customIndexFields = filteredHeaders.toArray(new String[0]);
-                readerForCol.close();
+                try(CSVReader readerForCol = new CSVReader(new FileReader(csvFile), ',', '"');) {
+                    List<String> filteredHeaders = filterByMaxColumnLengths(headers, readerForCol, 50);
+                    filteredHeaders = filterCustomIndexFields(filteredHeaders);
+                    customIndexFields = filteredHeaders.toArray(new String[0]);
+                }
 
                 //initialise the reader
                 csvData = new CSVReader(new FileReader(csvFile), ',', '"');
@@ -408,11 +410,11 @@ public class UploadController extends AbstractSecureController {
                 lineCount = doLineCount(csvDataAsString);
 
                 //derive a list of custom index field
-                CSVReader readerForCol = new CSVReader(new StringReader(csvDataAsString), separatorChar, '"');
-                List<String> filteredHeaders = filterByMaxColumnLengths(headers, readerForCol, 50);
-                filteredHeaders = filterCustomIndexFields(filteredHeaders);
-                customIndexFields = filteredHeaders.toArray(new String[0]);
-                readerForCol.close();
+                try(CSVReader readerForCol = new CSVReader(new StringReader(csvDataAsString), separatorChar, '"');) {
+                    List<String> filteredHeaders = filterByMaxColumnLengths(headers, readerForCol, 50);
+                    filteredHeaders = filterCustomIndexFields(filteredHeaders);
+                    customIndexFields = filteredHeaders.toArray(new String[0]);
+                }
 
                 //initialise the reader
                 csvData = new CSVReader(new StringReader(csvDataAsString), separatorChar, '"');
@@ -459,11 +461,11 @@ public class UploadController extends AbstractSecureController {
 
     private int doLineCount(String csvDataAsString) throws IOException {
         int lineCount = 0;
-        BufferedReader reader = new BufferedReader(new StringReader(csvDataAsString));
-        while(reader.readLine() != null){
-            lineCount++;
+        try(BufferedReader reader = new BufferedReader(new StringReader(csvDataAsString));) {
+            while(reader.readLine() != null){
+                lineCount++;
+            }
         }
-        reader.close();
         return lineCount;
     }
 
@@ -478,11 +480,12 @@ public class UploadController extends AbstractSecureController {
 
     private int doLineCount(File csvFile) throws IOException {
         int lineCount = 0;
-        BufferedReader reader = new BufferedReader(new FileReader(csvFile));
-        while(reader.readLine() != null){
-            lineCount++;
+        try(FileReader fr = new FileReader(csvFile);
+                BufferedReader reader = new BufferedReader(fr);) {
+            while(reader.readLine() != null){
+                lineCount++;
+            }
         }
-        reader.close();
         return lineCount;
     }
 
@@ -490,21 +493,23 @@ public class UploadController extends AbstractSecureController {
         long fileId = System.currentTimeMillis();
         String zipFilePath = uploadTempDir + File.separator + fileId + ".zip";
         String unzippedFilePath = uploadTempDir + File.separator + fileId + ".csv";
-        InputStream input = new URL(urlToZippedData).openStream();
-        OutputStream output = new FileOutputStream(zipFilePath);
-        IOUtils.copyLarge(input, output);
-
-        //extract zip
-        ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFilePath));
-        ZipEntry ze = zis.getNextEntry();
-        byte[] buffer = new byte[10240];
-        FileOutputStream fos = new FileOutputStream(unzippedFilePath);
-        int len;
-        while ((len = zis.read(buffer))>0){
-            fos.write(buffer, 0, len);
+        try(InputStream input = new URL(urlToZippedData).openStream();
+                OutputStream output = new FileOutputStream(zipFilePath);) {
+            IOUtils.copyLarge(input, output);
         }
-        fos.flush();
-        fos.close();
+        // extract zip
+        try(FileInputStream fis = new FileInputStream(zipFilePath);
+                ZipInputStream zis = new ZipInputStream(fis);) {
+            ZipEntry ze = zis.getNextEntry();
+            byte[] buffer = new byte[10240];
+            try(FileOutputStream fos = new FileOutputStream(unzippedFilePath);) {
+                int len;
+                while ((len = zis.read(buffer))>0){
+                    fos.write(buffer, 0, len);
+                }
+                fos.flush();
+            }
+        }
         return new File(unzippedFilePath);
     }
 
@@ -512,8 +517,16 @@ public class UploadController extends AbstractSecureController {
         DeleteMethod delete = new DeleteMethod(registryUrl + "/tempDataResource/" + datasetUid);
         delete.setRequestHeader("Authorization", apiKey);
         HttpClient httpClient = new HttpClient();
-        int statusCode = httpClient.executeMethod(delete);
-        return statusCode == 200 || statusCode == 204;
+        try {
+            int statusCode = httpClient.executeMethod(delete);
+            return statusCode == 200 || statusCode == 204;
+        } finally {
+            try {
+                delete.releaseConnection();
+            } finally {
+                httpClient.getHttpConnectionManager().closeIdleConnections(0L);
+            }
+        }
     }
 
 
@@ -533,11 +546,19 @@ public class UploadController extends AbstractSecureController {
         post.setRequestHeader("Authorization", apiKey);
         post.setRequestBody(json);
         HttpClient httpClient = new HttpClient();
-        httpClient.executeMethod(post);
+        try {
+            httpClient.executeMethod(post);
 
-        logger.info("Retrieved: " + post.getResponseHeader("location").getValue());
-        String collectoryUrl = post.getResponseHeader("location").getValue();
-        return collectoryUrl.substring(collectoryUrl.lastIndexOf('/') + 1);
+            logger.info("Retrieved: " + post.getResponseHeader("location").getValue());
+            String collectoryUrl = post.getResponseHeader("location").getValue();
+            return collectoryUrl.substring(collectoryUrl.lastIndexOf('/') + 1);
+        } finally {
+            try {
+                post.releaseConnection();
+            } finally {
+                httpClient.getHttpConnectionManager().closeIdleConnections(0L);
+            }
+        }
     }
 
 
@@ -557,9 +578,17 @@ public class UploadController extends AbstractSecureController {
         post.setRequestHeader("Authorization", apiKey);
         post.setRequestBody(json);
         HttpClient httpClient = new HttpClient();
-        int statusCode = httpClient.executeMethod(post);
+        try {
+            int statusCode = httpClient.executeMethod(post);
 
-        return statusCode == 200 || statusCode == 201;
+            return statusCode == 200 || statusCode == 201;
+        } finally {
+            try {
+                post.releaseConnection();
+            } finally {
+                httpClient.getHttpConnectionManager().closeIdleConnections(0L);
+            }
+        }
     }
 
 }
@@ -608,28 +637,21 @@ class UploaderThread implements Runnable {
     protected String[] customIndexFields = null;
     protected Integer threads = 4;
     protected String alaId = null;
+    private ObjectMapper om = new ObjectMapper();
 
     @Override
     public void run(){
 
         File statusDir = null;
         File statusFile = null;
-        ObjectMapper om = new ObjectMapper();
-        List<String> intList = new ArrayList<String>();        
-        List<String> floatList = new ArrayList<String>();
-        List<String> stringList = new ArrayList<String>();
+        // List of custom fields separated by type (either user provided or to infer)
+        Set<String> userProvidedTypeList = new HashSet<>();
+        Set<String> intList = new HashSet<>();
+        Set<String> floatList = new HashSet<>();
+        Set<String> dateList = new HashSet<>();
+        Set<String> stringList = new HashSet<>();
 
-        try {
-            statusDir = new File(uploadStatusDir);
-            if(!statusDir.exists()){
-                FileUtils.forceMkdir(statusDir);
-            }
-            statusFile = new File(uploadStatusDir + File.separator + tempUid);
-            statusFile.createNewFile();
-        } catch (Exception e1){
-            logger.error(e1.getMessage(), e1);
-            throw new RuntimeException(e1);
-        }
+        statusFile = createStatusFile();
 
         try {
 
@@ -647,53 +669,8 @@ class UploaderThread implements Runnable {
                 recordCount--;
             }
 
-            Integer counter = 0;
+            loadRecords(statusFile, intList, floatList, stringList, dateList, userProvidedTypeList,recordCount);
 
-            try {
-                String[] currentLine = csvData.readNext();
-
-                //default data type for the "customIndexFields" is a string
-                CollectionUtils.addAll(intList, customIndexFields);
-
-                //if the first line is data, add a record, else discard
-                if(firstLineIsData){
-                    addRecord(tempUid, datasetName, currentLine, headers, intList, floatList, stringList);
-                }
-
-                //write the data to DB
-                Integer percentComplete  = 0;
-                while((currentLine = csvData.readNext()) != null){
-                    //System.out.println("######## loading line: " + counter);
-                    counter++;
-                    addRecord(tempUid, datasetName, currentLine, headers, intList, floatList, stringList);
-                    if(counter % 100 == 0){
-                        Integer percentageComplete = 0;
-                        if(counter != 0){
-                            percentageComplete = (int) ((float) (counter + 1) / (float) recordCount * 25);
-                        }
-                        FileUtils.writeStringToFile(
-                                statusFile,
-                                om.writeValueAsString(new UploadStatus("LOADING", String.format("%d of %d records loaded.", counter, recordCount), percentageComplete)));
-                    }
-                }
-            } catch(Exception e) {
-                logger.error(e.getMessage(),e);
-                throw e;
-            } finally {
-                csvData.close();
-            }
-
-            //update the custom index fields so that the are appended with the data type _i for int and _d for float/double
-            List<String> tmpCustIndexFields = new ArrayList<String>();
-            for(String f : customIndexFields){
-                if(intList.contains(f))
-                   tmpCustIndexFields.add(f + "_i");
-                else if(floatList.contains(f))
-                   tmpCustIndexFields.add(f + "_d");
-                else
-                    tmpCustIndexFields.add(f); //default is a string
-            }
-            
             status = "SAMPLING";
             UploadIntersectCallback u = new UploadIntersectCallback(statusFile);
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("SAMPLING","Starting",25)));
@@ -706,10 +683,12 @@ class UploaderThread implements Runnable {
             au.org.ala.biocache.Store.process(tempUid, threads, processingCallback);
 
             status = "INDEXING";
-            logger.debug("Indexing " + tempUid + " " + tmpCustIndexFields);
+            Set<String> suffixedCustIndexFields = getSuffixedCustomIndexFields(intList, floatList, dateList, stringList);
+            logger.debug("Indexing " + tempUid + " " + suffixedCustIndexFields);
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("INDEXING","Starting",75)));
             DefaultObserverCallback indexingCallback = new DefaultObserverCallback("INDEXING", recordCount, statusFile, 75, "indexed");
-            au.org.ala.biocache.Store.index(tempUid, tmpCustIndexFields.toArray(new String[0]), new String[0], indexingCallback);
+            au.org.ala.biocache.Store.index(tempUid, suffixedCustIndexFields.toArray(new String[0]),
+                    userProvidedTypeList.toArray(new String[0]), indexingCallback);
 
             status = "COMPLETE";
             FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,"Loading complete",100)));
@@ -725,28 +704,144 @@ class UploaderThread implements Runnable {
         }
     }
 
-    private void addRecord(String tempUid, String datasetName, String[] currentLine, String[] headers, List<String> intList, List<String> floatList, List<String> stringList) {
+    private Set<String> getSuffixedCustomIndexFields(Set<String> intList, Set<String> floatList, Set<String> dateList,
+                                                      Set<String> stringList)  {
+        //update the custom index fields so that they are appended with the data type _i for int and _d for float/double
+        Set<String> suffixedCustIndexFields = new HashSet<>();
+
+        for(String field:intList) {
+            suffixedCustIndexFields.add(field + "_i");
+        }
+
+        for(String field:floatList) {
+            suffixedCustIndexFields.add(field + "_d");
+        }
+
+        for(String field:dateList) {
+            if(!intList.contains(field)) { // As addRecord works, a field could end up in date and int sets, int has priority
+                suffixedCustIndexFields.add(field + "_dt");
+            }
+        }
+
+        for(String field:stringList) {
+            if(!intList.contains(field) && !dateList.contains(field) && !floatList.contains(field)) {
+                suffixedCustIndexFields.add(field); // No suffix for strings
+            }
+        }
+
+        return suffixedCustIndexFields;
+    }
+
+    private File createStatusFile() {
+        File statusDir;
+        File statusFile;
+        try {
+            statusDir = new File(uploadStatusDir);
+            if(!statusDir.exists()){
+                FileUtils.forceMkdir(statusDir);
+            }
+            statusFile = new File(uploadStatusDir + File.separator + tempUid);
+            statusFile.createNewFile();
+        } catch (Exception e1){
+            logger.error(e1.getMessage(), e1);
+            throw new RuntimeException(e1);
+        }
+        return statusFile;
+    }
+
+    private void loadRecords(File statusFile, Set<String> intList, Set<String> floatList, Set<String> stringList,
+                             Set<String> dateList, Set<String> userProvidedTypeList,  Integer recordCount) throws IOException {
+        Integer counter = 0;
+
+        try {
+            String[] currentLine = csvData.readNext();
+
+            List<String> automaticFieldList = new ArrayList<>();
+
+            for(String customField: customIndexFields) {
+                if(customField.endsWith("_i") || customField.endsWith("_d") || customField.endsWith("_s") || customField.endsWith("_dt")) {
+                    userProvidedTypeList.add(customField);
+                } else {
+                    automaticFieldList.add(customField);
+                }
+            }
+
+
+            //addRecord will check fields if they are int, double or string in that order.
+            CollectionUtils.addAll(intList, automaticFieldList.iterator());
+
+            // We need to check all fields to see if they contain a date.
+            CollectionUtils.addAll(dateList, automaticFieldList.iterator());
+
+            //if the first line is data, add a record, else discard
+            if(firstLineIsData){
+                addRecord(tempUid, datasetName, currentLine, headers, intList, floatList, stringList, dateList);
+            }
+
+            //write the data to DB
+            Integer percentComplete  = 0;
+            while((currentLine = csvData.readNext()) != null){
+                //System.out.println("######## loading line: " + counter);
+                counter++;
+                addRecord(tempUid, datasetName, currentLine, headers, intList, floatList, stringList, dateList);
+                if(counter % 100 == 0){
+                    Integer percentageComplete = 0;
+                    if(counter != 0){
+                        percentageComplete = (int) ((float) (counter + 1) / (float) recordCount * 25);
+                    }
+                    FileUtils.writeStringToFile(
+                            statusFile,
+                            om.writeValueAsString(new UploadStatus("LOADING", String.format("%d of %d records loaded.", counter, recordCount), percentageComplete)));
+                }
+            }
+        } catch(Exception e) {
+            logger.error(e.getMessage(),e);
+            throw e;
+        } finally {
+            csvData.close();
+        }
+    }
+
+    private void addRecord(String tempUid, String datasetName, String[] currentLine, String[] headers, Set<String> intList, Set<String> floatList, Set<String> stringList, Set<String> dateList) {
         Map<String,String> map = new HashMap<String, String>();
         for(int i = 0; i < headers.length && i < currentLine.length; i++){
-            if(currentLine[i] != null && currentLine[i].trim().length() > 0 ){
-                map.put(headers[i], currentLine[i].trim());
-                //now test of the header value is part of the custom index fields and perform a data check
-                if(intList.contains(headers[i])){
-                    try {
-                        Integer.parseInt(currentLine[i].trim());
-                    } catch(Exception e){
-                        //this custom index column could not possible be an integer
-                        intList.remove(headers[i]);
-                        floatList.add(headers[i]);
+            if(currentLine[i] != null) {
+                String fieldValue = currentLine[i].trim();
+                if(fieldValue.length() > 0 ) {
+                    String currentHeader = headers[i];
+                    map.put(currentHeader, fieldValue);
+                    //now test of the header value is part of the custom index fields and perform a data check
+                    if (intList.contains(currentHeader)) {
+                        try {
+                            Integer.parseInt(fieldValue);
+                        } catch (Exception e) {
+                            //this custom index column could not possible be an integer
+                            intList.remove(currentHeader);
+                            floatList.add(currentHeader);
+                        }
                     }
-                }
-                if(floatList.contains(headers[i])){
-                    try {
-                        Float.parseFloat(currentLine[i].trim());
-                    } catch(Exception e) {
-                        //this custom index column can only be a string
-                      floatList.remove(headers[i]);
-                      stringList.add(headers[i]);
+
+                    if (floatList.contains(currentHeader)) {
+                        try {
+                            Float.parseFloat(fieldValue);
+                        } catch (Exception e) {
+                            //this custom index column can only be a string
+                            floatList.remove(currentHeader);
+                            stringList.add(currentHeader);
+                        }
+                    }
+
+                    if (dateList.contains(currentHeader)) {
+                        try {
+                            if(DateParser.parseDate(fieldValue, null, null).isEmpty()) {
+                                dateList.remove(currentHeader);
+                                stringList.add(currentHeader);
+                            }
+                        } catch (Exception e) {
+                            //this custom index column can only be a string
+                            dateList.remove(currentHeader);
+                            stringList.add(currentHeader);
+                        }
                     }
                 }
             }

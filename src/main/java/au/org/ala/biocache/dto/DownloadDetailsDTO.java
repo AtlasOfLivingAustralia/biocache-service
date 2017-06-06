@@ -14,12 +14,13 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
-import org.codehaus.jackson.annotate.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import java.io.File;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Stores the details of a download.  Will allow for monitoring of downloads
@@ -32,7 +33,7 @@ public class DownloadDetailsDTO {
     private Date startDate;
     private Date lastUpdate;
     private long totalRecords = 0;
-    private long recordsDownloaded = 0;
+    private AtomicLong recordsDownloaded = new AtomicLong(0);
     private String downloadParams;
     private String ipAddress;
     private String email;
@@ -41,6 +42,9 @@ public class DownloadDetailsDTO {
     private boolean includeSensitive = false;
     private Map<String,String> headerMap = null;
     private String [] miscFields = null;
+    private String sensitiveFq = null;
+    private AtomicBoolean interrupt = new AtomicBoolean(false);
+    private String uniqueId = null;
 
     /**
      * Default constructor necessary for Jackson to create an object from the JSON. 
@@ -60,9 +64,13 @@ public class DownloadDetailsDTO {
         requestParams = params;
         email = requestParams.getEmail();
     }
-    
-    public String getLastUpdate(){
-        return lastUpdate == null ? null:lastUpdate.toString();
+
+    public Date getLastUpdate() {
+        return lastUpdate;
+    }
+
+    public void setLastUpdate(Date lastUpdate) {
+        this.lastUpdate = lastUpdate;
     }
     
     @JsonIgnore
@@ -82,7 +90,7 @@ public class DownloadDetailsDTO {
         this.startDate = startDate;
     }
     
-    public long getRecordsDownloaded(){
+    public AtomicLong getRecordsDownloaded(){
         return recordsDownloaded;
     }
     
@@ -113,7 +121,7 @@ public class DownloadDetailsDTO {
     }
     
     public void updateCounts(int number){
-        recordsDownloaded +=number;
+        recordsDownloaded.addAndGet(number);
         lastUpdate = new Date();
     }
     
@@ -211,9 +219,12 @@ public class DownloadDetailsDTO {
     /**
      * @return unique id constructed from email and start time
      */
-    @JsonIgnore
     public String getUniqueId() {
-        return UUID.nameUUIDFromBytes(getEmail().getBytes()) + "-" + getStartTime();
+        return uniqueId = UUID.nameUUIDFromBytes(getEmail().getBytes()) + "-" + getStartTime();
+    }
+
+    public void setUniqueId(String uniqueId) {
+        this.uniqueId = uniqueId;
     }
 
     /**
@@ -221,6 +232,22 @@ public class DownloadDetailsDTO {
      */
     public void setHeaderMap(Map<String, String> headerMap) {
         this.headerMap = headerMap;
+    }
+
+    public void setSensitiveFq(String sensitiveFq) {
+        this.sensitiveFq = sensitiveFq;
+    }
+
+    public String getSensitiveFq() {
+        return sensitiveFq;
+    }
+
+    public void setInterrupt(AtomicBoolean interrupt) {
+        this.interrupt = interrupt;
+    }
+
+    public AtomicBoolean getInterrupt() {
+        return interrupt;
     }
 
     /**

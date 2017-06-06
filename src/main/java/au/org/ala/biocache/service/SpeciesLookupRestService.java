@@ -24,10 +24,7 @@ import org.springframework.web.client.RestOperations;
 import javax.inject.Inject;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Implementation of SpeciesLookupService.java that calls the bie-service application
@@ -48,6 +45,9 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
     @Inject
     private AbstractMessageSource messageSource; // use for i18n of the headers
 
+    @Inject
+    private ListsService listsService;
+
     private String[] baseHeader;
     private String[] countBaseHeader;
     private String[] synonymHeader;
@@ -61,25 +61,22 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
      */
     @Override
     public String getGuidForName(String name) {
+        String jsonUri = null;
         String guid = null;
-        if(enabled){
+        if (enabled) {
 
             try {
-                final String jsonUri = bieUriPrefix + "/guid/" + name;
-                logger.info("Requesting: " + jsonUri);
-                List<Object> jsonList = restTemplate.getForObject(jsonUri, List.class);
-
-                if (!jsonList.isEmpty()) {
-                    Map<String, String> jsonMap = (Map<String, String>) jsonList.get(0);
-                    if (jsonMap.containsKey("acceptedIdentifier")) {
-                        guid = jsonMap.get("acceptedIdentifier");
-                    }
-                }
+                // Use link identifier to see if we can get a unqique name
+                jsonUri = bieUriPrefix + "/species/" + URLEncoder.encode(name, "UTF-8");
+                logger.debug("Requesting: " + jsonUri);
+                Map<String, Object> json = restTemplate.getForObject(jsonUri, Map.class);
+                Map<String, String> tc = (Map<String, String>) json.get("taxonConcept");
+                if (tc != null)
+                    guid = tc.get("guid");
             } catch (Exception ex) {
-                logger.error("RestTemplate error: " + ex.getMessage(), ex);
+                logger.error("RestTemplate error for " + jsonUri + ": " + ex.getMessage(), ex);
             }
         }
-
         return guid;
     }
 
@@ -90,10 +87,15 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
      */
     @Override
     public String getAcceptedNameForGuid(String guid) {
+        //do escaping for restTemplate when guid is like http://id.biodiversity.org.au/node/apni/6719673
+        if (guid.contains("//") && !guid.contains("////")) {
+            guid = guid.replace("//", "////");
+        }
+
+        final String jsonUri = bieUriPrefix + "/species/shortProfile/" + guid + ".json";
         String acceptedName = "";
         if(enabled){
             try {
-                final String jsonUri = bieUriPrefix + "/species/shortProfile/" + guid + ".json";
                 logger.info("Requesting: " + jsonUri);
                 Map<String, String> jsonMap = restTemplate.getForObject(jsonUri, Map.class);
 
@@ -102,7 +104,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                 }
 
             } catch (Exception ex) {
-                logger.error("RestTemplate error: " + ex.getMessage(), ex);
+                logger.error("RestTemplate error for " + jsonUri + ": " + ex.getMessage(), ex);
             }
         }
 
@@ -117,19 +119,28 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
      */
     @Override
     public List<String> getNamesForGuids(List<String> guids) {
+        final String jsonUri = bieUriPrefix + "/species/guids/bulklookup.json";
         List<String> names = null;
         if(enabled){
             try {
-                final String jsonUri = bieUriPrefix + "/species/namesFromGuids.json";
-                String params = "?guid=" + StringUtils.join(guids, "&guid=");
-                names = restTemplate.postForObject(jsonUri + params, null, List.class);
+                Map<String, Object> result = restTemplate.postForObject(jsonUri, guids, Map.class);
+                if (result.containsKey("searchDTOList")) {
+                    List<Object> results = (List<Object>) result.get("searchDTOList");
+                    if (results != null && !results.isEmpty()) {
+                        names = new ArrayList<String>(results.size());
+                        for (Object nm: results) {
+                            Map<String, String> nmm = (Map<String, String>) nm;
+                            if (nmm.containsKey("scientificName"))
+                                names.add(nmm.get("scientificName"));
+                            else if (nmm.containsKey("name"))
+                                names.add(nmm.get("name"));
+                        }
+                    }
+                }
             } catch (Exception ex) {
-                logger.error("Requested URI: " + bieUriPrefix + "/species/namesFromGuids.json");
-                logger.error("With POST body: guid=" + StringUtils.join(guids, "&guid="));
-                logger.error("RestTemplate error: " + ex.getMessage(), ex);
-            }
+                logger.error("RestTemplate error for " + jsonUri + " and guids " + guids + ": " + ex.getMessage(), ex);
+             }
         }
-
         return names;
     }
 
@@ -168,17 +179,21 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
     }
 
     @Override
-    public List<String[]> getSpeciesDetails(List<String> guids,List<Long> counts, boolean includeCounts, boolean includeSynonyms){
+    public List<String[]> getSpeciesDetails(List<String> guids, List<Long> counts, boolean includeCounts, boolean includeSynonyms, boolean includeLists) {
         List<String[]> details= new  java.util.ArrayList<String[]>(guids.size());
         List<Map<String,String>> values = getNameDetailsForGuids(guids);
         Map<String,List<Map<String, String>>> synonyms = includeSynonyms? getSynonymDetailsForGuids(guids):new HashMap<String,List<Map<String,String>>>();
         int size = includeSynonyms && includeCounts ? 13 : ((includeCounts && !includeSynonyms) || (includeSynonyms && !includeCounts)) ? 12: 11;
 
+        if (includeLists) {
+            size += listsService.getTypes().size();
+        }
+
         //case names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
         //rebuild values using taxonConceptIds
-        if (values != null && values.get(0) == null
+        if ((values == null || values.get(0) == null)
                 && guids.size() > 0 && StringUtil.countMatches(guids.get(0), "|") == 4) {
-            List<String> taxonConceptIds = new ArrayList(guids.size());
+            List<String> taxonConceptIds =   new ArrayList(guids.size());
             for(String s : guids) {
                 if (s != null) {
                     if (s.startsWith("\"") && s.endsWith("\"") && s.length() > 2) s = s.substring(1, s.length() - 1);
@@ -186,11 +201,12 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                     if (split.length == 5) {
                         taxonConceptIds.add(split[1]);
                     } else {
-                        taxonConceptIds.add("");
+                        taxonConceptIds.add(s);
                     }
                 }
             }
             values = getNameDetailsForGuids(taxonConceptIds);
+            synonyms = includeSynonyms? getSynonymDetailsForGuids(taxonConceptIds):new HashMap<String,List<Map<String,String>>>();
         }
 
         for(int i =0 ; i<guids.size();i++){
@@ -199,11 +215,18 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
             //guid
             String guid = guids.get(i);
             row[0]=guid;
+            Set<String> lsids = new HashSet<String>();
+            lsids.add(guid);
             if(values!= null && synonyms != null){
                 Map<String, String> map;
                 if (i < values.size() && (map = values.get(i)) != null) {
+                    if (map.containsKey("guid")) lsids.add(map.get("guid"));
+                    if (map.containsKey("speciesId")) lsids.add(map.get("speciesId"));
+                    if (map.containsKey("genusId")) lsids.add(map.get("genusId"));
+                    if (map.containsKey("familyId")) lsids.add(map.get("familyId"));
+
                     //scientific name
-                    row[1]=map.get("nameComplete");
+                    row[1] = map.get("scientificName");
                     row[2]=map.get("author");
                     row[3]=map.get("rank");
                     row[4]=map.get("kingdom");
@@ -217,6 +240,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                     //not matched and is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
                     if (guid.startsWith("\"") && guid.endsWith("\"") && guid.length() > 2) guid = guid.substring(1, guid.length() - 1);
                     String [] split = guid.split("\\|", 6);
+                    lsids.add(split[1]);
                     row[0] = guid;
                     row[1] = split[0];
                     row[2] = "";
@@ -257,6 +281,27 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                     }
                     row[11] = sb.toString();
                     countIdx = 12;
+                }
+
+                if (includeLists) {
+                    List types = listsService.getTypes();
+                    System.arraycopy(row, 0, row, 0, row.length);
+                    Set<String> matches = new HashSet<String>();
+                    for (int j = 0; j < types.size(); j++) {
+                        int idx = row.length - types.size() + j;
+                        matches.clear();
+                        for (String lsid : lsids) {
+                            Set<String> found = listsService.get(types.get(j).toString(), lsid);
+                            if (found != null) matches.addAll(found);
+                        }
+                        row[row.length - types.size() + j] = "";
+                        for (String match : matches) {
+                            if (row[idx].length() > 0) {
+                                row[idx] += "|";
+                            }
+                            row[idx] += match;
+                        }
+                    }
                 }
             }
             if(includeCounts){
@@ -362,7 +407,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
     }
 
     public Map search(String query, String [] filterQuery, int max, boolean includeSynonyms, boolean includeAll, boolean counts) {
-        String url = bieUriPrefix + "/ws/search.json?q=" + query + "&pageSize=" + max;
+        String url = bieUriPrefix + "/search.json?q=" + query + "&pageSize=" + max;
         logger.info("Requesting: " + url);
         Map<String, Object> jsonMap = restTemplate.getForObject(url, Map.class);
 

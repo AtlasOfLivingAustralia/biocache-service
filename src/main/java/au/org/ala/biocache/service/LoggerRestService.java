@@ -14,16 +14,19 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Implementation of @see au.org.ala.biocache.service.LoggerService that
@@ -38,10 +41,13 @@ public class LoggerRestService implements LoggerService {
 
     private final static Logger logger = Logger.getLogger(LoggerRestService.class);
 
-    private List<Map<String,Object>> loggerReasons;
-    private List<Map<String,Object>> loggerSources;
-    private List<Integer> reasonIds;
-    private List<Integer> sourceIds;
+    private List<Map<String,Object>> loggerReasons = RestartDataService.get(this, "loggerReasons", new TypeReference<ArrayList<Map<String,Object>>>(){}, ArrayList.class);
+    private List<Map<String,Object>> loggerSources = RestartDataService.get(this, "loggerSources", new TypeReference<ArrayList<Map<String,Object>>>(){}, ArrayList.class);
+    private List<Integer> reasonIds = RestartDataService.get(this, "reasonIds", new TypeReference<ArrayList<Integer>>(){}, ArrayList.class);
+    private List<Integer> sourceIds = RestartDataService.get(this, "sourceIds", new TypeReference<ArrayList<Integer>>(){}, ArrayList.class);
+
+    //Used to wait for reloadCache() to complete
+    private CountDownLatch initialised = new CountDownLatch(1);
 
     @Value("${logger.service.url:http://logger.ala.org.au/service/logger/}")
     protected String loggerUriPrefix;
@@ -53,53 +59,89 @@ public class LoggerRestService implements LoggerService {
 
     @Override    
     public List<Map<String,Object>> getReasons() {
+        isReady();
+
         return loggerReasons;
-        //return getEntities(LoggerType.reasons);
     }
 
     @Override    
     public List<Map<String,Object>> getSources() {
+        isReady();
+
         return loggerSources;
-        //return getEntities(LoggerType.sources);
     }
     
     @Override 
     public List<Integer> getReasonIds(){
+        isReady();
+
         return reasonIds; 
     }
     
     @Override
     public List<Integer> getSourceIds(){
+        isReady();
+
         return sourceIds;
+    }
+
+    /**
+     * x
+     * wait for reloadCache()
+     */
+    private void isReady() {
+        try {
+            initialised.await();
+        } catch (Exception e) {
+            logger.error(e);
+        }
     }
 
     /**
      * Use a fixed delay so that the next time it is run depends on the last time it finished
      */
     @Scheduled(fixedDelay = 43200000)// schedule to run every 12 hours
-    public void reloadCache(){
-        if(enabled){
+    public void reloadCache() {
+        init();
+    }
+
+    @PostConstruct
+    public void init() {
+        if (loggerReasons.size() > 0) {
+            //data exists, no need to wait
+            initialised.countDown();
+        }
+        if (enabled) {
             logger.info("Refreshing the log sources and reasons");
-            loggerReasons = getEntities(LoggerType.reasons);
-            loggerSources = getEntities(LoggerType.sources);
+            List list;
+
+            list = getEntities(LoggerType.reasons);
+            if (list.size() > 0) loggerReasons = list;
+
+            list = getEntities(LoggerType.sources);
+            if (list.size() > 0) loggerSources = list;
+
             //now get the ids
-            reasonIds = getIdList(loggerReasons);
-            sourceIds = getIdList(loggerSources);
+            list = getIdList(loggerReasons);
+            if (list.size() > 0) reasonIds = list;
+
+            list = getIdList(loggerSources);
+            if (list.size() > 0) sourceIds = list;
         } else {
-            if(reasonIds== null){
+            if (reasonIds == null) {
                 logger.info("Providing some sensible default values for the log cache");
                 reasonIds = new ArrayList<Integer>();
                 sourceIds = new ArrayList<Integer>();
                 //provide sensible defaults for the ID lists
-                for(Integer i = 0 ; i<11;i++){
+                for (Integer i = 0; i < 11; i++) {
                     reasonIds.add(i);
-                    if(i<8){
+                    if (i < 8) {
                         sourceIds.add(i);
                     }
                 }
-                
             }
         }
+        initialised.countDown();
     }
 
     /**

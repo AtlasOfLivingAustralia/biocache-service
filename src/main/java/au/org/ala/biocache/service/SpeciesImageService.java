@@ -16,10 +16,12 @@ package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -46,7 +48,7 @@ public class SpeciesImageService {
     protected SearchDAO searchDAO;
 
     private Object cacheLock = new Object();
-    private SpeciesImagesDTO cache;
+    private SpeciesImagesDTO cache = RestartDataService.get(this, "cache", new TypeReference<SpeciesImagesDTO>(){}, SpeciesImagesDTO.class);
     private boolean updatingCache = false;
 
     Thread updateCacheThread = new CacheThread();
@@ -67,6 +69,7 @@ public class SpeciesImageService {
                 params.setFl("data_resource_uid,image_url");
                 params.setQ("image_url:*");
 
+                searchDAO.waitForPostConstruct();
                 List<GroupFacetResultDTO> qr = searchDAO.searchGroupedFacets(params);
 
                 //get lft and count
@@ -105,15 +108,23 @@ public class SpeciesImageService {
                 //store in map
                 synchronized (cacheLock) {
                     updatingCache = false;
-                    cache = speciesImages;
+                    if (speciesImages.getSpeciesImage().length > 0) {
+                        cache = speciesImages;
+                    }
                 }
 
                 logger.debug("time to refresh SpeciesImageService: " + (System.currentTimeMillis() - startTime) + "ms");
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.error(e.getMessage(), e);
             }
         }
-    };
+    }
+
+    @PostConstruct
+    public void init() {
+        resetCache();
+    }
+
 
     /**
      * Permit disabling of cached species images
@@ -129,7 +140,7 @@ public class SpeciesImageService {
     public SpeciesImagesDTO getSpeciesImages() {
         if (!enabled) return null;
 
-        if (cache == null) {
+        if (cache.getSpeciesImage() == null) {
             synchronized (cacheLock) {
                 if (!updatingCache && cache == null) {
                     updatingCache = true;

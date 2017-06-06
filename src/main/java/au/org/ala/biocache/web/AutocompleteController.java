@@ -31,13 +31,13 @@ import java.util.Map;
 public class AutocompleteController extends AbstractSecureController {
 
     @Inject
-    protected SpeciesLookupService speciesLookupService;
+    protected SpeciesLookupService speciesLookupIndexService;
 
     @RequestMapping(value = "autocomplete/search", method = RequestMethod.GET)
     public
     @ResponseBody
     Map search(
-            @RequestParam(value = "q", required = false) String query,
+            @RequestParam(value = "q", required = true) String query,
             @RequestParam(value = "fq", required = false) String[] filterQuery,
             @RequestParam(value = "pageSize", required = false, defaultValue = "10") Integer max,
             @RequestParam(value = "all", required = false, defaultValue = "false") Boolean includeAll,
@@ -45,6 +45,6 @@ public class AutocompleteController extends AbstractSecureController {
             @RequestParam(value = "counts", required = false, defaultValue = "true") Boolean counts) throws Exception {
 
 
-        return speciesLookupService.search(query, filterQuery, max, searchSynonyms, includeAll, counts);
+        return speciesLookupIndexService.search(query, filterQuery, max, searchSynonyms, includeAll, counts);
     }
 }

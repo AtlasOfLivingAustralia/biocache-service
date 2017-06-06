@@ -1,8 +1,10 @@
 package au.org.ala.biocache.util;
 
 import au.org.ala.biocache.dto.PointType;
-import junit.framework.TestCase;
-import org.junit.Ignore;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.runners.MockitoJUnitRunner;
+import org.springframework.test.context.ContextConfiguration;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,17 +14,22 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 /**
  * This test isnt written in a fashion that can be executed as part of a build.
  */
-@Ignore
-public class WMSCacheTest extends TestCase {
+@RunWith(MockitoJUnitRunner.class)
+@ContextConfiguration(locations = {"classpath:springTest.xml"})
+public class WMSCacheTest {
 
     private WMSCache wmsCache = new WMSCache();
 
     /**
      * test put and get
      */
+    @Test
     public void testPutGetWMS() {
         initCache();
         
@@ -114,6 +121,7 @@ public class WMSCacheTest extends TestCase {
      * test that cache does operate with concurrent requests
      * 1. perform many puts and gets on multiple threads
      */
+    @Test
     public void testConcurrency() throws InterruptedException {
         initCache();
 

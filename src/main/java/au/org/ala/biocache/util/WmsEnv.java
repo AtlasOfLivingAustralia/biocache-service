@@ -1,4 +1,4 @@
-package au.org.ala.biocache.web;
+package au.org.ala.biocache.util;
 
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
@@ -7,12 +7,9 @@ import org.apache.log4j.Logger;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 
-/**
- * Created by mar759 on 23/09/2016.
- */
-public class WMSEnv {
+public class WmsEnv {
 
-    private final static Logger logger = Logger.getLogger(WMSEnv.class);
+    private final static Logger logger = Logger.getLogger(WmsEnv.class);
     public int red, green, blue, alpha, size, colour;
     public boolean uncertainty, gridlabels;
     public String colourMode, highlight, gridres;
@@ -22,7 +19,7 @@ public class WMSEnv {
      *
      * @param env
      */
-    public WMSEnv(String env, String styles) {
+    public WmsEnv(String env, String styles) {
         try {
             env = URLDecoder.decode(env, "UTF-8");
         } catch (UnsupportedEncodingException e) {

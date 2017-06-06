@@ -62,7 +62,16 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
         }
         return false;
     }
-    
+
+    @Override
+    public int hashCode() {
+        if (downloadName != null) {
+            return (name + downloadName).hashCode();
+        } else {
+            return name.hashCode();
+        }
+    }
+
     /**
      * @return the name
      */

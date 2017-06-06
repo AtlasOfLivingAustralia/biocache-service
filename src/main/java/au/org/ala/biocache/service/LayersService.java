@@ -24,12 +24,20 @@ public interface LayersService {
      * Retrieve a map of layers
      * @return
      */
-    public java.util.Map<String,String> getLayerNameMap();
+    java.util.Map<String,String> getLayerNameMap();
 
     /**
      * Retrieve a layer name with the supplied code.
      * @param code
      * @return
      */
-    public String getName(String code);
+    String getName(String code);
+
+    String findAnalysisLayerName(String analysisLayer, String layersServiceUrl);
+
+    Integer getDistributionsCount(String lsid);
+
+    Integer getChecklistsCount(String lsid);
+
+    Integer getTracksCount(String lsid);
 }

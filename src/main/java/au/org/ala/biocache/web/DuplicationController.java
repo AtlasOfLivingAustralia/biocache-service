@@ -14,17 +14,19 @@
  ***************************************************************************/
 package au.org.ala.biocache.web;
 import au.org.ala.biocache.Store;
-import au.org.ala.biocache.model.DuplicateRecordDetails;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.model.DuplicateRecordDetails;
+import au.org.ala.biocache.util.SearchUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
 import java.util.Map;
 
 @Controller
@@ -35,18 +37,20 @@ public class DuplicationController {
     /** Fulltext search DAO */
     @Inject
     protected SearchDAO searchDAO;
+    @Inject
+    protected SearchUtils searchUtils;
 
     /**
      * Retrieves the duplication information for the supplied guid.
      * <p/>
      * Returns empty details when the record is not the "representative" occurrence.
      *
-     * @param guid
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/duplicates/{guid:.+}.json*", "/duplicates/{guid:.+}*"})
-    public @ResponseBody DuplicateRecordDetails getDuplicateStats(@PathVariable("guid") String guid) throws Exception {
+    @RequestMapping(value = {"/duplicates/**"}, method = RequestMethod.GET)
+    public @ResponseBody DuplicateRecordDetails getDuplicateStats(HttpServletRequest request) throws Exception {
+        String guid = searchUtils.getGuidFromPath(request);
         try {
             return Store.getDuplicateDetails(guid);
         } catch (Exception e) {
@@ -55,8 +59,9 @@ public class DuplicationController {
         }
     }
 
-    @RequestMapping(value = {"/stats/{guid:.+}.json*", "/stats/{guid:.+}*"})
-    public @ResponseBody Map<String, FieldStatsInfo> printStats(@PathVariable("guid") String guid) throws Exception {
+    @RequestMapping(value = {"/stats/**"}, method = RequestMethod.GET)
+    public @ResponseBody Map<String, FieldStatsInfo> printStats(HttpServletRequest request) throws Exception {
+        String guid = searchUtils.getGuidFromPath(request);
         SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
         searchParams.setQ("*:*");
         searchParams.setFacets(new String[]{guid});

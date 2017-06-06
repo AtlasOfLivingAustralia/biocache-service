@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
 import javax.inject.Inject;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,16 +50,18 @@ public class AuthService {
     protected String userNamesForIdPath = null;
     @Value("${auth.usernames.for.numeric.id.path:getUserListWithIds}")
     protected String userNamesForNumericIdPath = null;
-    @Value("${auth.usernames.full.path:getUserListWithIds}")
+    @Value("${auth.usernames.full.path:getUserList}")
     protected String userNamesFullPath = null;
+    @Value("${auth.user.details.path:getUserDetails}")
+    protected String userDetailsPath = null;
     @Value("${auth.startup.initialise:false}")
     protected boolean startupInitialise = false;
     @Value("${caches.auth.enabled:true}")
     protected Boolean enabled = true;
     // Keep a reference to the output Map in case subsequent web service lookups fail
-    protected Map<String, String> userNamesById = new HashMap<String, String>();
-    protected Map<String, String> userNamesByNumericIds = new HashMap<String, String>();
-    protected Map<String, String> userEmailToId = new HashMap<String, String>();
+    protected Map<String, String> userNamesById = RestartDataService.get(this, "userNamesById", new TypeReference<HashMap<String, String>>(){}, HashMap.class);
+    protected Map<String, String> userNamesByNumericIds = RestartDataService.get(this, "userNamesByNumericIds", new TypeReference<HashMap<String, String>>(){}, HashMap.class);
+    protected Map<String, String> userEmailToId = RestartDataService.get(this, "userEmailToId", new TypeReference<HashMap<String, String>>(){}, HashMap.class);
 
     public AuthService() {
         logger.info("Instantiating AuthService: " + this);
@@ -106,33 +110,33 @@ public class AuthService {
     }
 
     private void loadMapOfAllUserNamesById() {
+        final String jsonUri = userDetailsUrl + userNamesForIdPath;
         try {
-            final String jsonUri = userDetailsUrl + userNamesForIdPath;
             logger.info("authCache requesting: " + jsonUri);
-            userNamesById = restTemplate.postForObject(jsonUri, null, Map.class);
+            Map m = restTemplate.postForObject(jsonUri, null, Map.class);
+            if (m != null && m.size() > 0) userNamesById = m;
         } catch (Exception ex) {
-            logger.error("RestTemplate error: " + ex.getMessage(), ex);
+            logger.error("RestTemplate error for " + jsonUri + ": " + ex.getMessage(), ex);
         }
     }
 
     private void loadMapOfAllUserNamesByNumericId() {
+        final String jsonUri = userDetailsUrl + userNamesForNumericIdPath;
         try {
-            final String jsonUri = userDetailsUrl + userNamesForNumericIdPath;
             logger.info("authCache requesting: " + jsonUri);
-            userNamesByNumericIds = restTemplate.postForObject(jsonUri, null, Map.class);
+            Map m = restTemplate.postForObject(jsonUri, null, Map.class);
+            if (m != null && m.size() > 0) userNamesByNumericIds = m;
         } catch (Exception ex) {
-            logger.error("RestTemplate error: " + ex.getMessage(), ex);
+            logger.error("RestTemplate error for " + jsonUri + ": " + ex.getMessage(), ex);
         }
     }
 
     private void loadMapOfEmailToUserId() {
+        final String jsonUri = userDetailsUrl + userNamesFullPath;
         try {
-            final String jsonUri = userDetailsUrl + userNamesFullPath;
             logger.info("authCache requesting: " + jsonUri);
-            List<Map<String,Object>> users = restTemplate.postForObject(jsonUri, null, List.class);
-            for(Map<String,Object> user: users){
-                userEmailToId.put(user.get("email").toString(), user.get("id").toString());
-            }
+            Map m = restTemplate.postForObject(jsonUri, null, Map.class);
+            if (m != null && m.size() > 0) userEmailToId = m;
             logger.info("authCache userEmail cache: " + userEmailToId.size());
             if(userEmailToId.size()>0){
                 String email = userEmailToId.keySet().iterator().next();
@@ -140,21 +144,46 @@ public class AuthService {
                 logger.info("authCache userEmail example: " + email +" -> " + id);
             }
         } catch (Exception ex) {
-            logger.error("RestTemplate error: " + ex.getMessage(), ex);
+            logger.error("RestTemplate error for " + jsonUri + ": " + ex.getMessage(), ex);
         }
     }
 
     @Scheduled(fixedDelay = 600000) // schedule to run every 10 min
     //@Async NC 2013-07-29: Disabled the Async so that we don't get bombarded with calls.
     public void reloadCaches() {
-        if(enabled){
-            logger.info("Triggering reload of auth user names");               
-            loadMapOfAllUserNamesById();
-            loadMapOfAllUserNamesByNumericId();
-            loadMapOfEmailToUserId();
-            logger.info("Finished reload of auth user names");
-        } else{
-            logger.info("Authentication Cache has been disabled");
+        Thread thread = new Thread() {
+            @Override
+            public void run() {
+                if(enabled){
+                    logger.info("Triggering reload of auth user names");
+                    loadMapOfAllUserNamesById();
+                    loadMapOfAllUserNamesByNumericId();
+                    loadMapOfEmailToUserId();
+                    logger.info("Finished reload of auth user names");
+                } else{
+                    logger.info("Authentication Cache has been disabled");
+                }
+            }
+        };
+
+        if (userDetailsPath.length() > 0) {
+            thread.start();
+        } else {
+            thread.run();
         }
+
+    }
+
+    public List getUserRoles(String userId) {
+        List roles = new ArrayList();
+        try {
+            final String jsonUri = userDetailsUrl + userDetailsPath + "?userName=" + userId;
+            logger.info("authCache requesting: " + jsonUri);
+            roles = (List) restTemplate.postForObject(jsonUri, null, Map.class).get("roles");
+        } catch (Exception ex) {
+            logger.error("RestTemplate error: " + ex.getMessage(), ex);
+        }
+
+        return roles;
     }
 }

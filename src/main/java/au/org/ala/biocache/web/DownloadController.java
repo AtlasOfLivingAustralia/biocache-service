@@ -20,8 +20,15 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.IndexFieldDTO;
+import au.org.ala.biocache.service.AuthService;
+import au.org.ala.cas.util.AuthenticationUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocumentList;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -30,9 +37,8 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.net.URLEncoder;
+import java.util.*;
 
 /**
  * A Controller for downloading records based on queries.  This controller
@@ -46,12 +52,17 @@ import java.util.Map;
 @Controller
 public class DownloadController extends AbstractSecureController {
 
+    private final static Logger logger = Logger.getLogger(DownloadController.class);
+
     /** Fulltext search DAO */
     @Inject
     protected SearchDAO searchDAO;
 
     @Inject
     protected PersistentQueueDAO persistentQueueDAO;
+
+    @Inject
+    protected AuthService authService;
 
     @Value("${webservices.root:http://localhost:8080/biocache-service}")
     protected String webservicesRoot;
@@ -62,11 +73,41 @@ public class DownloadController extends AbstractSecureController {
     @Value("${download.dir:/data/biocache-download}")
     protected String biocacheDownloadDir;
 
+    @Value("${download.auth.sensitive:false}")
+    protected Boolean downloadAuthSensitive;
+
+    //TODO: this should be retrieved from SDS
+    @Value("${sensitiveAccessRoles:{\n" +
+            "\n" +
+            "\"ROLE_SDS_ACT\" : \"sensitive:\\\"generalised\\\" AND (cl927:\\\"Australian Captial Territory\\\" OR cl927:\\\"Jervis Bay Territory\\\") AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
+            "\"ROLE_SDS_NSW\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"New South Wales (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_NZ\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr2707 OR data_resource_uid:dr812 OR data_resource_uid:dr814 OR data_resource_uid:dr808 OR data_resource_uid:dr806 OR data_resource_uid:dr815 OR data_resource_uid:dr802 OR data_resource_uid:dr805 OR data_resource_uid:dr813) AND -cl927:* AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_NT\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Northern Territory (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_QLD\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Queensland (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_SA\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"South Australia (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_TAS\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Tasmania (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_VIC\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Victoria (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_WA\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Western Australia (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_BIRDLIFE\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
+            "\n" +
+            "}}")
+    protected String sensitiveAccessRoles;
+
+    @Value("${download.offline.max.url:http://downloads.ala.org.au}")
+    protected String dowloadOfflineMaxUrl = "http://downloads.ala.org.au";
+
+    /** By default this is set to a very large value to 'disable' the offline download limit. */
+    @Value("${download.offline.max.size:100000000}")
+    protected Integer dowloadOfflineMaxSize = 100000000;
+
+    @Value("${download.offline.msg:Too many records requested. Bulk download files for Lifeforms are available.}")
+    protected String downloadOfflineMsg = "Too many records requested. Bulk download files for Lifeforms are available.";
+
     /**
      * Retrieves all the downloads that are on the queue
      * @return
      */
-    @RequestMapping("occurrences/offline/download/stats")
+    @RequestMapping(value = "occurrences/offline/download/stats", method = RequestMethod.GET)
     public @ResponseBody List<DownloadDetailsDTO> getCurrentDownloads(
             HttpServletResponse response,
             @RequestParam(value = "apiKey", required = true) String apiKey) throws Exception {
@@ -98,33 +139,9 @@ public class DownloadController extends AbstractSecureController {
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
 
-        boolean sensitive = false;
-        if (apiKey != null) {
-            if (shouldPerformOperation(apiKey, response, false)) {
-                sensitive = true;
-            }
-        } else if (StringUtils.isEmpty(requestParams.getEmail())) {
-            response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
-        }
-
-        ip = ip == null ? request.getRemoteAddr() : ip;
         DownloadType downloadType = "index".equals(type.toLowerCase()) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
-        //create a new task
-        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, downloadType);
-        dd.setIncludeSensitive(sensitive);
 
-        //get query (max) count for queue priority
-        requestParams.setPageSize(0);
-        SolrDocumentList result = searchDAO.findByFulltext(requestParams);
-        dd.setTotalRecords((int) result.getNumFound());
-
-        persistentQueueDAO.addDownloadToQueue(dd);
-
-        Map status = new HashMap();
-        status.put("status", "inQueue");
-        status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
-        status.put("queueSize", persistentQueueDAO.getTotalDownloads());
-        return status;
+        return download(requestParams, ip, apiKey, response, request, downloadType);
     }
 
     /**
@@ -145,23 +162,17 @@ public class DownloadController extends AbstractSecureController {
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
 
-        boolean sensitive = false;
-        if (apiKey != null) {
-            if (shouldPerformOperation(apiKey, response, false)) {
-                sensitive = true;
-            }
-        } else if (StringUtils.isEmpty(requestParams.getEmail())) {
-            response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
+        if (StringUtils.isEmpty(requestParams.getEmail())) {
+            response.sendError(400, "Required parameter 'email' is not present");
         }
-
-        ip = ip == null ? request.getRemoteAddr() : ip;
 
         //download from index when there are no CASSANDRA fields requested
         boolean hasDBColumn = requestParams.getIncludeMisc();
         String fields = requestParams.getFields() + "," + requestParams.getExtra();
         if (fields.length() > 1) {
+            Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
             for (String column : fields.split(",")) {
-                for (IndexFieldDTO field : searchDAO.getIndexedFields()) {
+                for (IndexFieldDTO field : indexedFields) {
                     if (!field.isStored() && field.getDownloadName() != null && field.getDownloadName().equals(column)) {
                         hasDBColumn = true;
                         break;
@@ -172,35 +183,71 @@ public class DownloadController extends AbstractSecureController {
         }
         DownloadType downloadType = hasDBColumn ? DownloadType.RECORDS_DB : DownloadType.RECORDS_INDEX;
 
+        return download(requestParams, ip, apiKey, response, request, downloadType);
+    }
+
+    private Object download(DownloadRequestParams requestParams, String ip, String apiKey,
+                            HttpServletResponse response, HttpServletRequest request,
+                            DownloadType downloadType) throws Exception {
+
+        boolean sensitive = false;
+        if (apiKey != null) {
+            if (shouldPerformOperation(apiKey, response, false)) {
+                sensitive = true;
+            }
+        } else if (StringUtils.isEmpty(requestParams.getEmail())) {
+            response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
+        }
+
+        //get the fq that includes only the sensitive data that the userId ROLES permits
+        String sensitiveFq = null;
+        if (!sensitive) {
+            sensitiveFq = getSensitiveFq(request);
+        }
+
+        ip = ip == null ? request.getRemoteAddr() : ip;
+
         //create a new task
         DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, downloadType);
         dd.setIncludeSensitive(sensitive);
+        dd.setSensitiveFq(sensitiveFq);
 
         //get query (max) count for queue priority
         requestParams.setPageSize(0);
+        requestParams.setFacet(false);
         SolrDocumentList result = searchDAO.findByFulltext(requestParams);
-        dd.setTotalRecords((int) result.getNumFound());
+        dd.setTotalRecords(result.getNumFound());
 
+        Map<String, Object> status = new LinkedHashMap<>();
         DownloadDetailsDTO d = persistentQueueDAO.isInQueue(dd);
-        if (d != null) {
-            dd = d;
-        } else {
-            persistentQueueDAO.addDownloadToQueue(dd);
-        }
 
-        Map status = new HashMap();
         if (d != null) {
             status.put("message", "Already in queue.");
+            status.put("status", "inQueue");
+            status.put("queueSize", persistentQueueDAO.getTotalDownloads());
+            status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
+        } else if (dd.getTotalRecords() >= dowloadOfflineMaxSize) {
+            //identify this download as too large
+            File file = new File(biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes()) + File.separator + dd.getStartTime() + File.separator + "tooLarge");
+            FileUtils.forceMkdir(file.getParentFile());
+            FileUtils.writeStringToFile(file, "", "UTF-8");
+            status.put("downloadUrl", biocacheDownloadUrl);
+            status.put("status", "Skipped. " + downloadOfflineMsg);
+            status.put("message", downloadOfflineMsg);
+        } else {
+            persistentQueueDAO.addDownloadToQueue(dd);
+            status.put("status", "inQueue");
+            status.put("queueSize", persistentQueueDAO.getTotalDownloads());
+            status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
         }
-        status.put("status", "inQueue");
-        status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
-        status.put("queueSize", persistentQueueDAO.getTotalDownloads());
+
         return status;
     }
+
     @RequestMapping(value = "occurrences/offline/status/{id}", method = RequestMethod.GET)
     public @ResponseBody Object occurrenceDownloadStatus(@PathVariable("id") String id) throws Exception {
 
-        Map status = new HashMap();
+        Map<String, Object> status = new LinkedHashMap<>();
 
         //is it in the queue?
         List<DownloadDetailsDTO> downloads = persistentQueueDAO.getAllDownloads();
@@ -210,7 +257,9 @@ public class DownloadController extends AbstractSecureController {
                     status.put("status", "inQueue");
                 } else {
                     status.put("status", "running");
+                    status.put("records", dd.getRecordsDownloaded());
                 }
+                status.put("totalRecords", dd.getTotalRecords());
                 status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + id);
                 break;
             }
@@ -224,7 +273,12 @@ public class DownloadController extends AbstractSecureController {
                 for (File file : dir.listFiles()) {
                     if (file.isFile() && file.getPath().endsWith(".zip") && file.length() > 0) {
                         status.put("status", "finished");
-                        status.put("downloadUrl", file.getPath().replace(biocacheDownloadDir, biocacheDownloadUrl));
+                        status.put("downloadUrl", biocacheDownloadUrl + File.separator + URLEncoder.encode(file.getPath().replace(biocacheDownloadDir + "/", ""), "UTF-8").replace("%2F", "/").replace("+", "%20"));
+                    }
+                    if (file.isFile() && "tooLarge".equals(file.getName())) {
+                        status.put("status", "Skipped. " + downloadOfflineMsg);
+                        status.put("message", downloadOfflineMsg);
+                        status.put("downloadUrl", dowloadOfflineMaxUrl);
                     }
                 }
                 if (!status.containsKey("status")) {
@@ -257,19 +311,15 @@ public class DownloadController extends AbstractSecureController {
             return null;
         }
 
-        Map status = new HashMap();
+        Map<String, Object> status = new LinkedHashMap<>();
 
         //is it in the queue?
         List<DownloadDetailsDTO> downloads = persistentQueueDAO.getAllDownloads();
         for (DownloadDetailsDTO dd : downloads) {
             if (id.equals(dd.getUniqueId())) {
-                if (dd.getFileLocation() == null) {
-                    status.put("cancelled", "true");
-                    persistentQueueDAO.removeDownloadFromQueue(dd);
-                } else {
-                    status.put("cancelled", "false");
-                    status.put("status", "running");
-                }
+                persistentQueueDAO.removeDownloadFromQueue(dd);
+                status.put("cancelled", "true");
+                status.put("status", "notInQueue");
                 break;
             }
         }
@@ -280,5 +330,34 @@ public class DownloadController extends AbstractSecureController {
         }
 
         return status;
+    }
+
+    private String getSensitiveFq(HttpServletRequest request) throws ParseException {
+
+        if (!isValidKey(request.getHeader("apiKey")) || !downloadAuthSensitive) {
+            return null;
+        }
+
+        String sensitiveFq = "";
+        JSONParser jp = new JSONParser();
+        JSONObject jo = (JSONObject) jp.parse(sensitiveAccessRoles);
+        List roles = authService.getUserRoles(request.getHeader("X-ALA-userId"));
+        for (Object role : jo.keySet()) {
+            if (roles.contains(role)) {
+                if (sensitiveFq.length() > 0) {
+                    sensitiveFq += " OR ";
+                }
+                sensitiveFq += "(" + jo.get(role) + ")";
+            }
+        }
+
+        if (sensitiveFq.length() == 0) {
+            return null;
+        }
+
+        logger.debug("sensitiveOnly download requested for user: " + AuthenticationUtils.getUserId(request) +
+                ", using fq: " + sensitiveFq);
+
+        return sensitiveFq;
     }
 }

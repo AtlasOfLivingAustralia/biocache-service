@@ -2,7 +2,6 @@ package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.IndexFieldDTO;
-import au.org.ala.biocache.dto.SearchResultDTO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocumentList;
@@ -26,6 +25,7 @@ import java.awt.*;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.util.*;
+import java.util.List;
 
 /**
  * This controller is responsible for providing basic scatterplot services.
@@ -52,7 +52,7 @@ public class ScatterplotController {
     private final static String DEFAULT_SCATTERPLOT_WIDTH = "256";
     private final static String DEFAULT_SCATTERPLOT_POINTCOLOUR = "0000FF";
     private final static String DEFAULT_SCATTERPLOT_POINTRADIUS = "3";
-    private final static String [] VALID_DATATYPES = {"double","int","long"};
+    private final static String [] VALID_DATATYPES = {"float","double","int","long","tfloat","tdouble","tint","tlong"};
 
     @Inject
     protected SearchDAO searchDAO;
@@ -76,7 +76,12 @@ public class ScatterplotController {
 
         //output image
         response.setContentType("image/png");
-        response.getOutputStream().write(bytes);
+
+        try {
+            response.getOutputStream().write(bytes);
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        }
     }
 
     @RequestMapping(value = {"/scatterplot/point"}, method = RequestMethod.GET)
@@ -136,29 +141,49 @@ public class ScatterplotController {
         //verify x and y are numerical and stored
         String displayNameX = null;
         String displayNameY = null;
-        for (IndexFieldDTO indexFieldDTO : searchDAO.getIndexFieldDetails(new String[]{x}) ){
-            if (!Arrays.asList(VALID_DATATYPES).contains(indexFieldDTO.getDataType() )) {
-                throw new Exception("Invalid datatype: " + indexFieldDTO.getDataType() + " for x: " + x);
+        List<String> validDatatypes = Arrays.asList(VALID_DATATYPES);
+        Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
+        
+        Exception toThrowX = null;
+        
+        for (IndexFieldDTO xField : indexedFields) {
+            if(xField.getName().equals(x)) {
+                if (!validDatatypes.contains(xField.getDataType() )) {
+                    toThrowX = new Exception("Invalid datatype: " + xField.getDataType() + " for x: " + x, toThrowX);
+                }
+                else if (!xField.isStored()) {
+                    toThrowX = new Exception("Cannot use x: " + x + ".  It is not a stored field.", toThrowX);
+                }
+                else {
+                    displayNameX = xField.getDescription();
+                    break;
+                }
             }
-            if(!indexFieldDTO.isStored()) {
-                throw new Exception("Cannot use x: " + x + ".  It is not a stored field.");
-            }
-            displayNameX = indexFieldDTO.getDescription();
         }
-        for (IndexFieldDTO indexFieldDTO : searchDAO.getIndexFieldDetails(new String[]{y}) ){
-            if (!Arrays.asList(VALID_DATATYPES).contains(indexFieldDTO.getDataType() )) {
-                throw new Exception("Invalid datatype: " + indexFieldDTO.getDataType() + " for y: " + y);
-            }
-            if(!indexFieldDTO.isStored()) {
-                throw new Exception("Cannot use y: " + y + ".  It is not a stored field.");
-            }
-            displayNameY = indexFieldDTO.getDescription();
-        }
+        
         if(displayNameX == null) {
-            throw new Exception("Unknown value for x: " + x);
+            throw new Exception("Unknown, unsupported datatype, or not stored, value for x: " + x, toThrowX);
         }
+        
+        Exception toThrowY = null;
+        
+        for (IndexFieldDTO yField : indexedFields) {
+            if(yField.getName().equals(y)) {
+                if (!validDatatypes.contains(yField.getDataType() )) {
+                    toThrowY = new Exception("Invalid datatype: " + yField.getDataType() + " for y: " + y, toThrowY);
+                }
+                else if(!yField.isStored()) {
+                    toThrowY = new Exception("Cannot use y: " + y + ".  It is not a stored field.", toThrowY);
+                }
+                else {
+                    displayNameY = yField.getDescription();
+                    break;
+                }
+            }
+        }
+        
         if(displayNameY == null) {
-            throw new Exception("Unknown value for y: " + y);
+            throw new Exception("Unknown, unsupported datatype, or not stored, value for y: " + y, toThrowY);
         }
 
         //get data

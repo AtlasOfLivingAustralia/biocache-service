@@ -14,7 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
-import org.codehaus.jackson.annotate.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  * A DTO bean that represents a single (facet) field result (SOLR)

@@ -26,6 +26,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * DAO for searching occurrence records held in the biocache.
@@ -104,7 +107,7 @@ public interface SearchDAO {
      * @return A map of uids and counts that needs to be logged to the ala-logger
      * @throws Exception
      */
-	Map<String,Integer> writeResultsToStream(DownloadRequestParams searchParams, OutputStream out, int maxNoOfRecords, boolean includeSensitive, DownloadDetailsDTO dd, boolean limit) throws Exception;
+	ConcurrentMap<String, AtomicInteger> writeResultsToStream(DownloadRequestParams searchParams, OutputStream out, int maxNoOfRecords, boolean includeSensitive, DownloadDetailsDTO dd, boolean limit) throws Exception;
 	
 	/**
 	 * Writes the results of this query to the output stream using the index as a source of the data.
@@ -114,7 +117,18 @@ public interface SearchDAO {
 	 * @return
 	 * @throws Exception
 	 */
-	Map<String, Integer> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, boolean includeSensitive, DownloadDetailsDTO dd,boolean checkLimit) throws Exception;
+	ConcurrentMap<String, AtomicInteger> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, boolean includeSensitive, DownloadDetailsDTO dd, boolean checkLimit) throws Exception;
+
+    /**
+     * Writes the results of this query to the output stream using the index as a source of the data.
+     * @param downloadParams
+     * @param out
+     * @param includeSensitive
+     * @param parallelQueryExecutor The ExecutorService to manage parallel query executions
+     * @return
+     * @throws Exception
+     */
+    ConcurrentMap<String, AtomicInteger> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, boolean includeSensitive, DownloadDetailsDTO dd, boolean checkLimit, ExecutorService parallelQueryExecutor) throws Exception;
 
     /**
      * Write coordinates out to the supplied stream.
@@ -136,16 +150,38 @@ public interface SearchDAO {
      * @param dd
      * @throws Exception
      */
-    void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, OutputStream out, DownloadDetailsDTO dd) throws Exception;
+    void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out, DownloadDetailsDTO dd) throws Exception;
 
     /**
-     * Retrieve a list of the indexed fields.
+     * Write endemic parentQuery.facets()[0] content to supplied output stream that only occur in the subQuery
+     * and not in the parentQuery.
      *
-     * @return
+     * @param subQuery
+     * @param parentQuery
+     * @param includeCount
+     * @param lookupName
+     * @param includeSynonyms
+     * @param out
+     * @throws Exception
+     */
+    void writeEndemicFacetToStream(SpatialSearchRequestParams subQuery, SpatialSearchRequestParams parentQuery, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out) throws Exception;
+
+    /**
+     * Retrieve a Set of the indexed fields.
+     *
+     * @return A Set containing the set of indexed fields made unique using {@link IndexFieldDTO#getDownloadName()}.
      * @throws Exception
      */
     Set<IndexFieldDTO> getIndexedFields() throws Exception;
     
+    /**
+     * Retrieve a map of indexed fields based on {@link IndexFieldDTO#getName()}
+     *
+     * @return A map of indexed fields based on the field name.
+     * @throws Exception
+     */
+    Map<String, IndexFieldDTO> getIndexedFieldsMap() throws Exception;
+
     /**
      * Returns the up to date statistics for the supplied field
      * @param field
@@ -181,11 +217,10 @@ public interface SearchDAO {
      * @param requestParams
      * @param pointType
      * @param colourBy
-     * @param searchType
      * @return
      * @throws Exception
      */
-    List<OccurrencePoint> getOccurrences(SpatialSearchRequestParams requestParams, PointType pointType, String colourBy, int searchType) throws Exception;
+    List<OccurrencePoint> getOccurrences(SpatialSearchRequestParams requestParams, PointType pointType, String colourBy) throws Exception;
 
     /**
      * Get a list of occurrence points for a given lat/long and distance (radius)
@@ -347,4 +382,49 @@ public interface SearchDAO {
      * @throws Exception
      */
     List<FacetPivotResultDTO> searchPivot(SpatialSearchRequestParams searchParams) throws Exception;
+
+    /**
+     * Return statistics for a numerical field.
+     * <p>
+     * Supply an optional facet to return statistics for each value in the facet.
+     *
+     * @param searchParams
+     * @param field
+     * @param facet
+     * @return
+     * @throws Exception
+     */
+    List<FieldStatsItem> searchStat(SpatialSearchRequestParams searchParams, String field, String facet) throws Exception;
+
+    /**
+     * Return legend items for a query and facet.
+     * <p>
+     * Specifying the facet 'grid' will return a generic LegendItem list.
+     * <p>
+     * This will only use the first ColorUtil.colourList.length-1 items only.
+     *
+     * @param request    query
+     * @param colourMode a facet or 'grid'
+     * @return
+     * @throws Exception
+     */
+    List<LegendItem> getColours(SpatialSearchRequestParams request, String colourMode) throws Exception;
+
+    /**
+     * Get maxBooleanClauses value from SOLR
+     */
+    int getMaxBooleanClauses();
+
+    /**
+     * Wait for @PostConstruct to complete
+     */
+    void waitForPostConstruct();
+
+    /**
+     * get bounding box for a query.
+     *
+     * @param requestParams
+     * @return
+     */
+    double[] getBBox(SpatialSearchRequestParams requestParams) throws Exception;
 }

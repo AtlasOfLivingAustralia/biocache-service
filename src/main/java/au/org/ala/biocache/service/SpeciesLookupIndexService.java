@@ -13,6 +13,7 @@ import au.org.ala.names.search.ParentSynonymChildException;
 import au.org.ala.names.search.SearchResultException;
 import com.mockrunner.util.common.StringUtil;
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.log4j.Logger;
 import org.springframework.context.support.AbstractMessageSource;
 
 import javax.inject.Inject;
@@ -22,6 +23,8 @@ import java.util.*;
  * Index based lookup index serice
  */
 public class SpeciesLookupIndexService implements SpeciesLookupService {
+    /** Logger initialisation */
+    private final static Logger logger = Logger.getLogger(SpeciesLookupIndexService.class);
 
     private AbstractMessageSource messageSource; // use for i18n of the headers
 
@@ -29,13 +32,16 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
     protected SpeciesCountsService speciesCountsService;
 
     @Inject
-    protected CommonNameService commonNameService;
-
-    @Inject
     protected SpeciesImageService speciesImageService;
 
     @Inject
     protected ImageMetadataService imageMetadataService;
+
+    @Inject
+    protected ListsService listsService;
+
+    @Inject
+    protected LayersService layersService;
 
     protected String nameIndexLocation;
 
@@ -96,7 +102,7 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
     }
 
     @Override
-    public List<String[]> getSpeciesDetails(List<String> guids, List<Long> counts, boolean includeCounts, boolean includeSynonyms) {
+    public List<String[]> getSpeciesDetails(List<String> guids, List<Long> counts, boolean includeCounts, boolean includeSynonyms, boolean includeLists) {
         List<String[]> results = new ArrayList<String[]>(guids.size());
         int idx = 0;
         for(String guid : guids){
@@ -114,8 +120,12 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
             }
 
             String[] result = null;
+            List<String> lsids = new ArrayList<String>();
             if(nsr != null) {
                 LinnaeanRankClassification classification = nsr.getRankClassification();
+                lsids.add(classification.getGid());
+                lsids.add(classification.getFid());
+                lsids.add(classification.getSid());
                 result = new String[]{
                         classification.getScientificName(),
                         classification.getAuthorship(),
@@ -132,6 +142,7 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
                 //not matched and is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
                 if (guid.startsWith("\"") && guid.endsWith("\"") && guid.length() > 2) guid = guid.substring(1, guid.length() - 1);
                 String [] split = guid.split("\\|", 6);
+                lsids.add(split[1]);
                 result = new String[]{
                         split[0],
                         "",
@@ -160,6 +171,27 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
             }
             if(includeCounts) {
                 result = (String[]) ArrayUtils.add(result, counts.get(idx).toString());
+            }
+            if (includeLists) {
+                List types = listsService.getTypes();
+                String[] row = new String[result.length + types.size()];
+                System.arraycopy(result, 0, row, 0, result.length);
+                Set<String> matches = new HashSet<String>();
+                for (int j = 0; j < types.size(); j++) {
+                    matches.clear();
+                    for (String lsid : lsids) {
+                        Set<String> found = listsService.get(types.get(j).toString(), lsid);
+                        if (found != null) matches.addAll(found);
+                    }
+                    result[result.length - types.size() + j] = "";
+                    for (String match : matches) {
+                        if (result[result.length - types.size() + j].length() > 0) {
+                            result[result.length - types.size() + j] += "|";
+                        }
+                        result[result.length - types.size() + j] += match;
+                    }
+                }
+                result = row;
             }
             results.add(result);
             idx++;
@@ -230,7 +262,12 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
                 long count = counts ? speciesCountsService.getCount(countlist, Long.parseLong(nsr.get("left").toString()), Long.parseLong(nsr.get("right").toString())) : 0;
 
                 if (!speciesCountsService.isEnabled() || count > 0 || includeAll) {
-                    if (counts) nsr.put("count", count);
+                    if (counts) {
+                        nsr.put("count", count);
+                        nsr.put("distributionsCount", layersService.getDistributionsCount(nsr.get("lsid").toString()));
+                        nsr.put("checklistsCount", layersService.getChecklistsCount(nsr.get("lsid").toString()));
+                        nsr.put("tracksCount", layersService.getTracksCount(nsr.get("lsid").toString()));
+                    }
 
                     nsr.put("images", speciesImageService.get(Long.parseLong((String) nsr.get("left")), Long.parseLong((String) nsr.get("right"))));
 
@@ -335,37 +372,42 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         }
         formatted.put("highlight", highlight);
 
-        //hack to fix common name. Only common name matches have a common name so do not return nothing when not found
-        m.put("commonname", commonNameService.translateCommonName((String) m.get("commonname"), false));
         if (m.get("commonname") == null) {
-            m.put("commonname", commonNameService.lookupCommonName((String) m.get("lsid")));
+            m.put("commonname", nameIndex.getCommonNameForLSID((String) m.get("lsid")));
+            m.put("commonnames", nameIndex.getCommonNamesForLSID((String) m.get("lsid"),1000));
         }
         if (m.get("commonname") != null) {
-            formatted.put("commonName", m.get("commonname"));
+            formatted.put("commonName", m.get("commonnames"));
             formatted.put("commonNameSingle", m.get("commonname"));
         }
 
         formatted.put("nameComplete", m.get("name"));
 
         formatted.put("occCount", m.get("count"));
+        formatted.put("distributionsCount", m.get("distributionsCount"));
+        formatted.put("checklistsCount", m.get("checklistsCount"));
+        formatted.put("tracksCount", m.get("tracksCount"));
 
         SpeciesImageDTO speciesImage = (SpeciesImageDTO) m.get("images");
 
         if (speciesImage != null && speciesImage.getImage() != null) {
-            formatted.put("imageSource", speciesImage.getDataResourceUid());
-            //number of occurrences with images
-            formatted.put("imageCount", speciesImage.getCount());
+            try {
+                Map im = Config.mediaStore().getImageFormats(speciesImage.getImage());
+                formatted.put("imageSource", speciesImage.getDataResourceUid());
+                //number of occurrences with images
+                formatted.put("imageCount", speciesImage.getCount());
+                formatted.put("image", im.get("raw"));
+                formatted.put("thumbnail", im.get("thumbnail"));
+                formatted.put("imageUrl", im.get("raw"));
+                formatted.put("smallImageUrl", im.get("small"));
+                formatted.put("largeImageUrl", im.get("large"));
+                formatted.put("thumbnailUrl", im.get("thumbnail"));
 
-            Map im = Config.mediaStore().getImageFormats(speciesImage.getImage());
-
-            formatted.put("image", im.get("raw"));
-            formatted.put("thumbnail", im.get("thumbnail"));
-            formatted.put("imageUrl", im.get("raw"));
-            formatted.put("smallImageUrl", im.get("small"));
-            formatted.put("largeImageUrl", im.get("large"));
-            formatted.put("thumbnailUrl", im.get("thumbnail"));
-
-            formatted.put("imageMetadataUrl", imageMetadataService.getUrlFor(speciesImage.getImage()));
+                formatted.put("imageMetadataUrl", imageMetadataService.getUrlFor(speciesImage.getImage()));
+            } catch (Exception ex) {
+                logger.warn("Unable to get image formats for " + speciesImage.getImage() + ": " + ex.getMessage());
+                formatted.put("imageCount", 0);
+            }
         } else {
             formatted.put("imageCount", 0);
         }

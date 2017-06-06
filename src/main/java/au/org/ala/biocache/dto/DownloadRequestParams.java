@@ -54,6 +54,11 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     @Pattern(regexp="(csv|shp|tsv)")
     protected String fileType="csv";
 
+    /** URL to layersService to include intersections with layers that are not indexed */
+    protected String layersServiceUrl = "";
+    /** Override header names with a CSV with 'requested field','header' pairs */
+    protected String customHeader = "";
+
     /**
      * Custom toString method to produce a String to be used as the request parameters
      * for the Biocache Service webservices
@@ -228,5 +233,21 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
 
     public void setIncludeMisc(Boolean includeMisc) {
         this.includeMisc = includeMisc;
+    }
+
+    public String getLayersServiceUrl() {
+        return layersServiceUrl;
+    }
+
+    public void setLayersServiceUrl(String layersServiceUrl) {
+        this.layersServiceUrl = layersServiceUrl;
+    }
+
+    public String getCustomHeader() {
+        return customHeader;
+    }
+
+    public void setCustomHeader(String customHeader) {
+        this.customHeader = customHeader;
     }
 }

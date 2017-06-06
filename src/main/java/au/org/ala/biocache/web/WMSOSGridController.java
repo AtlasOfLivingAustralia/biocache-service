@@ -2,10 +2,7 @@ package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
-import au.org.ala.biocache.util.GISPoint;
-import au.org.ala.biocache.util.GISUtil;
-import au.org.ala.biocache.util.GridRef;
-import au.org.ala.biocache.util.GridUtil;
+import au.org.ala.biocache.util.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.geotools.geometry.GeneralDirectPosition;
@@ -200,7 +197,10 @@ public class WMSOSGridController {
             }
             return map;
         } catch (Exception e){
-            e.printStackTrace();
+            logger.error("Problem with getFeatureInfo request: " + e.getMessage());
+            if(logger.isDebugEnabled()){
+                logger.debug( e.getMessage(), e);
+            }
             return new HashMap<String, Object>();
         }
     }
@@ -238,7 +238,10 @@ public class WMSOSGridController {
             SearchResultDTO resultDTO = searchDAO.findByFulltextSpatialQuery(requestParams, new HashMap<String, String[]>());
             return resultDTO.getTotalRecords();
         } catch (Exception e){
-            e.printStackTrace();
+            logger.error("Problem with getRecordCountForGridRef request: " + e.getMessage());
+            if(logger.isDebugEnabled()){
+                logger.debug( e.getMessage(), e);
+            }
             return 0;
         }
     }
@@ -286,13 +289,9 @@ public class WMSOSGridController {
             HttpServletResponse response)
             throws Exception {
 
-
-        System.out.println(request.getRequestURI() + "?" + request.getQueryString());
-
         srs = srs.split(",")[0];
 
-
-        WMSEnv wmsEnv = new WMSEnv(env, styles);
+        WmsEnv wmsEnv = new WmsEnv(env, styles);
 
         if(StringUtils.isEmpty(bboxString)){
             return;
@@ -471,7 +470,6 @@ public class WMSOSGridController {
                 outStream.close();
             } catch (Exception e) {
                 logger.debug("Unable to write image", e);
-                e.printStackTrace();
             }
         }
     }
@@ -497,7 +495,7 @@ public class WMSOSGridController {
      * @param oneUnitYInPixels
      */
     private Set<int[]> renderGrid(WMSImg wmsImg, String gridRef, double minx, double miny, double oneUnitXInPixels,
-                                  double oneUnitYInPixels, String targetSrs, int imageWidth, int imageHeight, WMSEnv wmsEnv, List<String> renderedLines){
+                                  double oneUnitYInPixels, String targetSrs, int imageWidth, int imageHeight, WmsEnv wmsEnv, List<String> renderedLines){
 
         if(StringUtils.isEmpty(gridRef)) return new HashSet<int[]>();
 

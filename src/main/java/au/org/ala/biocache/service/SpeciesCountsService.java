@@ -45,6 +45,9 @@ public class SpeciesCountsService {
     @Inject
     protected SearchDAO searchDAO;
 
+    /**
+     * Refresh cache every 30 minutes.
+     */
     @Value("${species.counts.cache.minage:1800000}")
     protected Long cacheMinAge;
 
@@ -136,7 +139,7 @@ public class SpeciesCountsService {
         }
 
         long sum = 0;
-        while (pos < lft.length && lft[pos] < right) {
+        while (pos < lft.length && lft[pos] <= right) {
             sum += count[pos++];
         }
         return sum;

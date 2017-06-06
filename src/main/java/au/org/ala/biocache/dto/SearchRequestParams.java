@@ -21,7 +21,9 @@ import org.apache.log4j.Logger;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Data Transfer Object to represent the request parameters required to search
@@ -35,15 +37,16 @@ public class SearchRequestParams {
     protected Long qId = null;  // "qid:12312321"
     protected String formattedQuery = null;
     protected String q = "*:*";
-    protected String[] fq = {""}; // must not be null
+    protected String[] fq = {}; // must not be null
+    protected String[] formattedFq = {}; // must not be null
     protected String fl = "";
     /**
      * The facets to be included by the search
      * Initialised with the default facets to use
      */
-    protected String[] facets = FacetThemes.allFacetsLimited;
+    protected String[] facets = FacetThemes.getAllFacetsLimited();
     protected Integer start = 0;
-    protected Integer facetsMax = FacetThemes.facetsMax;
+    protected Integer facetsMax = FacetThemes.getFacetsMax();
     /*
      * The limit for the number of facets to return 
      */
@@ -58,13 +61,16 @@ public class SearchRequestParams {
     protected String sort = "score";
     protected String dir = "asc";
     private String displayString;
+
+    protected Boolean includeMultivalues;
+
     /**  The query context to be used for the search.  This will be used to generate extra query filters based on the search technology */
     protected String qc = "";
     /** To disable facets */
-    protected Boolean facet = FacetThemes.facetDefault;
+    protected Boolean facet = FacetThemes.getFacetDefault();
     /** log4 j logger */
     private static final Logger logger = Logger.getLogger(SearchRequestParams.class);
-    
+
     /**
      * Custom toString method to produce a String to be used as the request parameters
      * for the Biocache Service webservices
@@ -93,6 +99,7 @@ public class SearchRequestParams {
      */
     protected String toString(Boolean encodeParams) {
         StringBuilder req = new StringBuilder();
+        boolean isFacet = this.getFacet() == null ? true : this.getFacet();
         req.append("q=").append(conditionalEncode(q, encodeParams));
         if (fq.length > 0) {
             for (String it : fq) {
@@ -104,7 +111,7 @@ public class SearchRequestParams {
         req.append("&sort=").append(sort);
         req.append("&dir=").append(dir);
         req.append("&qc=").append(qc);
-        if (facets.length > 0 && facet) {
+        if (facets != null && facets.length > 0 && isFacet) {
             for (String f : facets) {
                 req.append("&facets=").append(conditionalEncode(f, encodeParams));
             }
@@ -115,8 +122,7 @@ public class SearchRequestParams {
             req.append("&fl=").append(conditionalEncode(fl, encodeParams));
         if(StringUtils.isNotEmpty(formattedQuery))
             req.append("&formattedQuery=").append(conditionalEncode(formattedQuery, encodeParams));
-        if(!facet)
-            req.append("&facet=false");
+        req.append("&facet=" + isFacet);
         if(!"".equals(fsort))
             req.append("&fsort=").append(fsort);
         if(foffset > 0)
@@ -327,8 +333,17 @@ public class SearchRequestParams {
     public void setFacets(String[] facets) {
         if (facets != null && facets.length == 1 && facets[0].contains(",")) facets = facets[0].split(",");
 
-        //limit facets terms
-        this.facets = facets != null && facets.length > facetsMax ? Arrays.copyOfRange(facets, 0, facetsMax) : facets;
+        //remove empty facets
+        List<String> list = new ArrayList<String>();
+        if (facets != null) {
+            for (String f : facets) {
+                //limit facets terms
+                if (StringUtils.isNotEmpty(f) && list.size() < facetsMax) {
+                    list.add(f);
+                }
+            }
+        }
+        this.facets = list.toArray(new String[0]);
     }
 
     public Integer getFlimit() {
@@ -411,6 +426,22 @@ public class SearchRequestParams {
 	public void setFprefix(String fprefix) {
 		this.fprefix = fprefix;
 	}
+
+    public Boolean getIncludeMultivalues() {
+        return includeMultivalues;
+    }
+
+    public void setIncludeMultivalues(Boolean includeMultivalues) {
+        this.includeMultivalues = includeMultivalues;
+    }
+
+    public String[] getFormattedFq() {
+        return formattedFq;
+    }
+
+    public void setFormattedFq(String[] formattedFq) {
+        this.formattedFq = formattedFq;
+    }
 
   /* (non-Javadoc)
    * @see java.lang.Object#hashCode()

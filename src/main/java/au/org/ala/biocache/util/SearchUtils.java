@@ -1,27 +1,26 @@
 package au.org.ala.biocache.util;
 
 import au.org.ala.biocache.Config;
-import au.org.ala.biocache.caches.TaxonProfileDAO;
-import au.org.ala.biocache.model.TaxonProfile;
-import au.org.ala.names.search.ALANameSearcher;
-import au.org.ala.names.model.NameSearchResult;
-import au.org.ala.names.model.RankType;
-import au.org.ala.biocache.dto.Facet;
 import au.org.ala.biocache.dto.OccurrenceSourceDTO;
 import au.org.ala.biocache.dto.SearchRequestParams;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
-import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.SpeciesLookupService;
+import au.org.ala.names.model.NameSearchResult;
+import au.org.ala.names.model.RankType;
+import au.org.ala.names.search.ALANameSearcher;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.support.AbstractMessageSource;
+import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Component;
-import scala.Option;
+import org.springframework.util.AntPathMatcher;
+import org.springframework.util.CollectionUtils;
+import org.springframework.web.servlet.HandlerMapping;
 
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
 import java.net.URLDecoder;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -34,18 +33,24 @@ import java.util.regex.Pattern;
  */
 @Component("searchUtils")
 public class SearchUtils {
+    private static final Pattern DUD_URL_PATTERN = Pattern.compile("([a-z]+:/)([^/].*)");
 
     /** Logger initialisation */
     private final static Logger logger = Logger.getLogger(SearchUtils.class);
     @Inject
     private CollectionsCache collectionCache;
-    @Inject
-    private SpeciesListCache speciesListCache;
-    @Inject
-    private AuthService authService;
+
+    /**
+     * Comma separated list of solr fields that need to have the authService substitute values if they are used in a facet.
+     */
+    @Value("${auth.substitution.fields:}")
+    protected String authServiceFields = "";
+
+    public Set<String> authIndexFields = new HashSet<String>();
+
     //for i18n of display values for facets
     @Inject
-    private AbstractMessageSource messageSource;
+    private MessageSource messageSource;
     @Inject
     private SpeciesLookupService speciesLookupService;
     @Value("${name.index.dir:/data/lucene/namematching}")
@@ -155,7 +160,9 @@ public class SearchUtils {
             else
                 return collectionCache.getDataHubs().get(uid);
         }
-        return messageSource.getMessage(fieldName + "." + StringUtils.remove(uid, "\""), null, uid, null);
+        String value = StringUtils.remove(uid, "\"");
+
+        return messageSource.getMessage(fieldName + "." + value, null, value, null);
     }
 
     /**
@@ -228,6 +235,29 @@ public class SearchUtils {
     }
 
     /**
+     * Get a GUID from a path.
+     * <p>
+     *     This is complicated by the spring framework reducing http://xxx.yyy to http:/xxx.yyy so we have to put it back.
+     * </p>
+     * @param request The request
+     *
+     * @return The guid
+     */
+    public String getGuidFromPath(HttpServletRequest request) {
+        String guid = new AntPathMatcher().extractPathWithinPattern(
+                (String) request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE),
+                request.getServletPath());
+
+        if (guid.endsWith(".json"))
+            guid = guid.substring(0, guid.length() - 5);
+        Matcher duds = DUD_URL_PATTERN.matcher(guid);
+        if (duds.matches())
+            guid = duds.group(1) + "/" + duds.group(2);
+        return guid;
+    }
+
+
+    /**
      * returns the solr field that should be used to search for a particular uid
      *
      * @param uid
@@ -284,8 +314,14 @@ public class SearchUtils {
                     name = collectionCache.getCollections().get(key);
                 else if (key.startsWith("in"))
                     name = collectionCache.getInstitutions().get(key);
+                else if (key.startsWith("drt"))
+                    name = collectionCache.getTempDataResources().get(key);
                 else if (key.startsWith("dr"))
                     name = collectionCache.getDataResources().get(key);
+                else if (key.startsWith("dp"))
+                    name = collectionCache.getDataProviders().get(key);
+                else if (key.startsWith("dh"))
+                    name = collectionCache.getDataHubs().get(key);
                 lsources.add(new OccurrenceSourceDTO(name, key, sources.get(key)));
             }
         } catch (Exception e) {
@@ -329,6 +365,11 @@ public class SearchUtils {
         if (requestParams.getDir() == null || requestParams.getDir().isEmpty()) {
             requestParams.setDir(blankRequestParams.getDir());
         }
+        if (requestParams.getFacet() == null)
+            requestParams.setFacet(blankRequestParams.getFacet());
+
+        if (requestParams.getFacets() == null)
+            requestParams.setFacets(blankRequestParams.getFacets());
     }
     
     public static Map<String, String[]> getExtraParams(Map map){
@@ -350,128 +391,12 @@ public class SearchUtils {
     }
 
     /**
-     * Create a HashMap for the filter queries, using the first SOLR field as the key and subsequent
-     * query string as the value.
-     *
-     * Refactor: now returns a Map<String, ActiveFacet> with an additional field "label" that is used to
-     * provide a human readable version of the filter query.
-     * 
-     * NC 2013-01-11: This method has been moved from hubs-webapp so that all the processing is performed
-     * by the service rather than the client.
-     * This means that the authService will perform the lookup here.
-     *
-     * @param filterQuery
-     * @return
-     */
-    public Map<String, Facet> addFacetMap(String[] filterQuery, String queryContext, Set<String> authIndexFields) {
-        Map<String, Facet> afs = new HashMap<String, Facet>();
-
-        if (filterQuery != null && filterQuery.length > 0) {
-            // iterate over the fq params
-            for (String fq : filterQuery) {
-
-                if (queryContext != null && queryContext.equals(fq)) {
-                    // exclude these from the active map, they should be hidden from user...
-                    continue;
-                }
-
-                if (fq != null && !fq.isEmpty()) {
-                    Boolean isExcludeFilter = false;
-                    String prefix = "", suffix = "";
-                    // remove Boolean braces if present
-                    if (fq.startsWith("(") && fq.endsWith(")")){
-                        fq = StringUtils.remove(fq, "(");
-                        fq = StringUtils.removeEnd(fq, ")");
-                        prefix = "(";
-                        suffix = ")";
-                    } else if (fq.startsWith("-(") && fq.endsWith(")")) {
-                        fq = StringUtils.remove(fq, "-(");
-                        fq = StringUtils.removeEnd(fq, ")");
-                        //fq = "-" + fq;
-                        isExcludeFilter = true;
-                        prefix = "(";
-                        suffix = ")";
-                    }
-
-                    String[] fqBits = StringUtils.split(fq, ":", 2);
-                    // extract key for map
-                    if (fqBits.length  == 2) {
-
-                        Facet f = new Facet();
-                        f.setName(fqBits[0]);
-                        f.setValue(fqBits[1]);
-                        logger.debug("1. fq = " + fqBits[0] + " => " + fqBits[1]);
-                        // if there are internal Boolean operators, iterate over sub queries
-                        String patternStr = "[ ]+(OR)[ ]+";
-                        String[] tokens = fq.split(patternStr, -1);
-                        List<String> labels = new ArrayList<String>(); // store sub-queries in this list
-
-                        for (String token : tokens) {
-                            logger.debug("token: " + token);
-                            String[] tokenBits = StringUtils.split(token, ":", 2);
-                            if (tokenBits.length == 2) {
-                                String fn = tokenBits[0];
-                                String fv = tokenBits[1];
-                                String i18n;
-                                if(isDynamicField(fn)){
-                                    //hack for dynamic facets
-                                    i18n = formatDynamicFieldName(fn);
-                                } else {
-                                    i18n = messageSource.getMessage("facet."+fn, null, fn, null);
-                                }
-
-                                if (StringUtils.equals(fn, "species_guid") || StringUtils.equals(fn, "genus_guid")) {
-                                    fv = substituteLsidsForNames(fv.replaceAll("\"",""));
-                                } else if (StringUtils.equals(fn, "occurrence_year")) {
-                                    fv = substituteYearsForDates(fv);
-                                } else if (StringUtils.equals(fn, "month")) {
-                                    fv = substituteMonthNamesForNums(fv);
-                                } else if (StringUtils.equals(fn, "species_list_uid")) {
-                                    fv = speciesListCache.getDisplayNameForList(fv);
-                                } else if (authIndexFields.contains(fn)) {
-                                    if (authService.getMapOfAllUserNamesById().containsKey(StringUtils.remove(fv, "\""))) 
-                                        fv = authService.getMapOfAllUserNamesById().get(StringUtils.remove(fv, "\""));
-                                    else if (authService.getMapOfAllUserNamesByNumericId().containsKey(StringUtils.remove(fv, "\"")))
-                                        fv = authService.getMapOfAllUserNamesByNumericId().get(StringUtils.remove(fv, "\""));
-                                  
-                                } else if (StringUtils.contains(fv, "@")) {
-                                    //fv = StringUtils.substringBefore(fv, "@"); // hide email addresses
-                                    if (authService.getMapOfAllUserNamesById().containsKey(StringUtils.remove(fv, "\""))) {
-                                        fv = authService.getMapOfAllUserNamesById().get(StringUtils.remove(fv, "\""));
-                                    } else {
-                                        fv = fv.replaceAll("\\@\\w+", "@.."); // hide email addresses
-                                    }
-
-                                } else {
-                                    fv = getUidDisplayString(fn, fv, false);
-                                }
-
-                                labels.add(i18n + ":" + fv);
-                            }
-                        }
-
-                        String label = prefix + StringUtils.join(labels, " OR ") + suffix; // join sub-queries back together
-                        if (isExcludeFilter) {
-                            label = "-" + label;
-                        }
-                        logger.debug("label = " + label);
-                        f.setDisplayName(label);
-
-                        afs.put(StringUtils.removeStart(f.getName(), "-"), f); // add to map
-                    }
-                }
-            }
-        }
-        return afs;
-    }
-
-    /**
      * Lookup a taxon name for a GUID
      *
      * @param fieldValue
      * @return
      */
-    private String substituteLsidsForNames(String fieldValue) {
+    public String substituteLsidsForNames(String fieldValue) {
         String name = fieldValue;
         List<String> guids = new ArrayList<String>();
         guids.add(fieldValue);
@@ -513,9 +438,9 @@ public class SearchUtils {
      * @param fieldValue
      * @return
      */
-    private String substituteYearsForDates(String fieldValue) {
+    public String substituteYearsForDates(String fieldValue) {
         String dateRange = URLDecoder.decode(fieldValue);
-        String formattedDate = StringUtils.replaceChars(dateRange, "[]", "");
+        String formattedDate = StringUtils.replaceChars(dateRange, "[]\\", "");
         String[] dates =  formattedDate.split(" TO ");
         
         if (dates != null && dates.length > 1) {
@@ -534,5 +459,18 @@ public class SearchUtils {
         public static Month get(int i){
             return values()[i];
         }
+    }
+
+    public Set<String> getAuthIndexFields() {
+        if (authIndexFields.size() == 0) {
+            //set up the hash set of the fields that need to have the authentication service substitute
+            if (logger.isDebugEnabled()) {
+                logger.debug("Auth substitution fields to use: " + authServiceFields);
+            }
+            Set set = new java.util.HashSet<String>();
+            CollectionUtils.mergeArrayIntoCollection(authServiceFields.split(","), set);
+            authIndexFields = set;
+        }
+        return authIndexFields;
     }
 }

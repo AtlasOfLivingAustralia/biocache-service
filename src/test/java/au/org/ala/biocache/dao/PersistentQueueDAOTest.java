@@ -3,21 +3,59 @@ package au.org.ala.biocache.dao;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
+import au.org.ala.biocache.dto.FacetThemes;
 import org.apache.commons.io.FileUtils;
+import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.rules.Timeout;
 
 import static org.junit.Assert.assertEquals;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.concurrent.TimeUnit;
+
 public class PersistentQueueDAOTest {
 
-    protected static final JsonPersistentQueueDAOImpl queueDAO = new JsonPersistentQueueDAOImpl();
+    @Rule
+    public Timeout timeout = new Timeout(30, TimeUnit.SECONDS);
+    
+    @Rule
+    public TemporaryFolder tempDir = new TemporaryFolder();
+    
+    private Path testCacheDir;
+    private Path testDownloadDir;
+    
+    private PersistentQueueDAO queueDAO;
     
     @Before
-    public void setup(){
+    public void setUp() throws Exception{
         System.out.println("BEFORE...");
-        FileUtils.deleteQuietly(new java.io.File("/data/cache/downloads"));
+
+        //init FacetThemes
+        new FacetThemes();
+
+        testCacheDir = tempDir.newFolder("persistentqueuedaotest-cache").toPath();
+        testDownloadDir = tempDir.newFolder("persistentqueuedaotest-destination").toPath();        
+        queueDAO = new JsonPersistentQueueDAOImpl() {
+            @Override
+            public void init() {
+                cacheDirectory = testCacheDir.toAbsolutePath().toString();
+                biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
+                super.init();
+            }
+        };
         queueDAO.init();
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        queueDAO.shutdown();
     }
 
     private DownloadRequestParams getParams(String query){
@@ -28,18 +66,8 @@ public class PersistentQueueDAOTest {
         return d;
     }
     
-    private void addQueue(String title){
-        DownloadDetailsDTO dd = new DownloadDetailsDTO(getParams(title), "127.0.0.1", DownloadType.FACET);        
-        queueDAO.addDownloadToQueue(dd);
-        try {
-            Thread.sleep(5);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-    
     @Test
-    public void testAdd(){
+    public void testQueue(){
         System.out.println("test add");
         DownloadDetailsDTO dd = new DownloadDetailsDTO(getParams("test1"), "127.0.0.1", DownloadType.FACET);
         
@@ -52,19 +80,9 @@ public class PersistentQueueDAOTest {
         //now test that they are persisted
         queueDAO.refreshFromPersistent();
         assertEquals(2,queueDAO.getTotalDownloads());
-    }
-    
-    @Test
-    public void testRemove(){
-        //set up some test data so that the remove operation can be tested correctly
-        addQueue("test1");
-        addQueue("test2");
-        DownloadDetailsDTO dd = queueDAO.getNextDownload();
-        assertEquals("?q=test1", dd.getDownloadParams());
-        //all thedownloads should still be on the queue
-        assertEquals(2,queueDAO.getTotalDownloads());
+
         //now remove
-        queueDAO.removeDownloadFromQueue(dd);
+        queueDAO.removeDownloadFromQueue(queueDAO.getNextDownload());
         assertEquals(1,queueDAO.getTotalDownloads());
         //now test that the removal has been persisted
         queueDAO.refreshFromPersistent();

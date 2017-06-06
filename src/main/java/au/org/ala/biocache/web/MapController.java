@@ -14,35 +14,15 @@
  ***************************************************************************/
 package au.org.ala.biocache.web;
 
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.Shape;
-import java.awt.geom.Ellipse2D;
-import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
-import java.io.*;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import org.apache.commons.io.FileUtils;
-
-import javax.imageio.ImageIO;
-import javax.inject.Inject;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.OccurrencePoint;
 import au.org.ala.biocache.dto.PointType;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.heatmap.HeatMap;
 import au.org.ala.biocache.util.ColorUtil;
+import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.SearchUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.log4j.Logger;
@@ -54,6 +34,23 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.context.ServletConfigAware;
+
+import javax.imageio.ImageIO;
+import javax.inject.Inject;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.awt.*;
+import java.awt.geom.Ellipse2D;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.io.*;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * WMS and static map controller. This controller generates static PNG image files
@@ -80,10 +77,15 @@ public class MapController implements ServletConfigAware {
     /** Search Utils helper class */
     @Inject
     protected SearchUtils searchUtils;
+    @Inject
+    protected QueryFormatUtils queryFormatUtils;
     private ServletConfig cfg;
     
     private static final int map_offset = 268435456; // half the Earth's circumference at zoom level 21
-    private static final double map_radius = map_offset / Math.PI;    
+    private static final double map_radius = map_offset / Math.PI;
+
+    @Value("${heatmap.legend.occurrence.label:occurrence}")
+    protected String heatmapLegendOccurrenceLabel;
 
     @Deprecated
     @RequestMapping(value = "/occurrences/wms", method = RequestMethod.GET)
@@ -252,6 +254,16 @@ public class MapController implements ServletConfigAware {
             HttpServletResponse response)
             throws Exception {
 
+        if (requestParams.getLon() == null) {
+            response.sendError(400, "Required Double parameter 'lon' is not present");
+        }
+        if (requestParams.getLat() == null) {
+            response.sendError(400,"Required Double parameter 'lat' is not present");
+        }
+        if (requestParams.getRadius() == null) {
+            response.sendError(400, "Required Double parameter 'radius' is not present");
+        }
+
         if (callback != null && !callback.isEmpty()) {
             response.setContentType("text/javascript");
         } else {
@@ -260,7 +272,7 @@ public class MapController implements ServletConfigAware {
 
         PointType pointType = getPointTypeForZoomLevel(zoomLevel);
 
-        List<OccurrencePoint> points = searchDAO.getOccurrences(requestParams, pointType, "", 1);
+        List<OccurrencePoint> points = searchDAO.getOccurrences(requestParams, pointType, "");
         logger.info("Points search for " + pointType.getLabel() + " - found: " + points.size());
         model.addAttribute("points", points);
         model.addAttribute("count", points.size());
@@ -571,31 +583,29 @@ public class MapController implements ServletConfigAware {
         //heatmap versus points
         if (forcePointsDisplay || points.length == 0 || (points.length / 2) < pointHeatMapThreshold) {
             if (!generateLegend){
-
-                if(colourByFq != null){
-
-                    String[] originalFq = requestParams.getFq();
-
-                    for(int k = 0; k < colourByFq.length; k++){
-                        if(originalFq != null){
-                            requestParams.setFq(ArrayUtils.add(originalFq, colourByFq[k]));
-                        } else {
-                            requestParams.setFq(new String[]{colourByFq[k]});
-                        }
-                        if(forcePointsDisplay && points.length > 0 && (points.length / 2 < pointHeatMapThreshold) ){
-                            pointType = PointType.POINT_01;
-                        }
-
-                        double[] pointsForFacet = retrievePoints(requestParams, pointType);
-                        Color pointColor = ColorUtil.getColor(colours[k], opacity);
-                        hm.generatePoints(pointsForFacet, pointColor);
+                String[] originalFq = requestParams.getFq();
+                for(int k = 0; k < colourByFq.length; k++){
+                    if(originalFq != null){
+                        requestParams.setFq(ArrayUtils.add(originalFq, colourByFq[k]));
+                    } else {
+                        requestParams.setFq(new String[]{colourByFq[k]});
                     }
-                } else {
-                    Color pointColor = ColorUtil.getColor(defaultPointColour, opacity);
-                    hm.generatePoints(points, pointColor);
+                    if(forcePointsDisplay && points.length > 0 && (points.length / 2 < pointHeatMapThreshold) ){
+                        pointType = PointType.POINT_01;
+                    }
+
+                    double[] pointsForFacet = retrievePoints(requestParams, pointType);
+                    Color pointColor = ColorUtil.getColor(colours[k], opacity);
+
+                    String facetDisplayString = queryFormatUtils.formatQueryTerm(colourByFq[k], null)[0];
+                    hm.generatePoints(pointsForFacet, pointColor, facetDisplayString);
                 }
-                hm.drawOutput(baseDir + "/" + outputHMFile, false);
+            } else {
+                Color pointColor = ColorUtil.getColor(defaultPointColour, opacity);
+                hm.generatePoints(points, pointColor, heatmapLegendOccurrenceLabel);
             }
+            hm.drawOutput(baseDir + "/" + outputHMFile, false);
+            hm.drawLegend(baseDir + "/" + outputHMFile);
         } else {
             hm.generateClasses(points); //this will create legend
             if (generateLegend){

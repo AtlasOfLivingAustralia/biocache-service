@@ -5,3 +5,8 @@ out/*
 *.ipr
 *.iws
 
+src/main/resources/git.properties
+target/
+.classpath
+.project
+.settings/

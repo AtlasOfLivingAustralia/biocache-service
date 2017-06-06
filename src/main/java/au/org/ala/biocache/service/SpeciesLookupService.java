@@ -54,7 +54,7 @@ public interface SpeciesLookupService {
      * @param includeSynonyms whether or not whether or not synonyms should be included in the details row
      * @return a list of arrays to use as rows for the CSV species list download
      */
-    List<String[]> getSpeciesDetails(List<String> guids,List<Long> counts, boolean includeCounts, boolean includeSynonyms);
+    List<String[]> getSpeciesDetails(List<String> guids, List<Long> counts, boolean includeCounts, boolean includeSynonyms, boolean includeLists);
 
     /**
      * Returns the header fields to use based on the species lookup service. Different implementations may include different fields.

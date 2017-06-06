@@ -14,13 +14,15 @@
  ***************************************************************************/
 package au.org.ala.biocache.writer;
 
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-
 import au.com.bytecode.opencsv.CSVWriter;
-import au.org.ala.biocache.RecordWriter;
+import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.nio.charset.Charset;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 
@@ -28,19 +30,29 @@ import org.slf4j.LoggerFactory;
  * 
  * @author Natasha Carter
  */
-public class CSVRecordWriter implements RecordWriter {
+public class CSVRecordWriter implements RecordWriterError {
     private final static Logger logger = LoggerFactory.getLogger(CSVRecordWriter.class);
 
     private CSVWriter csvWriter;
+    private OutputStream outputStream;
 
+    private final AtomicBoolean finalised = new AtomicBoolean(false);
+    private final AtomicBoolean finalisedComplete = new AtomicBoolean(false);
+
+    private String[] header;
+    
     public CSVRecordWriter(OutputStream out, String[] header){
-        csvWriter = new CSVWriter(new OutputStreamWriter(out), ',', '"');  
+        outputStream = out;
+        csvWriter = new CSVWriter(new OutputStreamWriter(out, Charset.forName("UTF-8")), ',', '"');  
         csvWriter.writeNext(header);
+        this.header = header;
     }
 
     public CSVRecordWriter(OutputStream out, String[] header, char sep, char esc){
-        csvWriter = new CSVWriter(new OutputStreamWriter(out), sep, '"', esc);
+        outputStream = out;
+        csvWriter = new CSVWriter(new OutputStreamWriter(out, Charset.forName("UTF-8")), sep, '"', esc);
         csvWriter.writeNext(header);
+        this.header = header;
     }
     
     /**
@@ -48,17 +60,46 @@ public class CSVRecordWriter implements RecordWriter {
      */
     @Override
     public void write(String[] record) {
-       csvWriter.writeNext(record);       
+       csvWriter.writeNext(record);
+
+       //mark the end of line
+       if (outputStream instanceof OptionalZipOutputStream) {
+           try {
+               long length = 0;
+               for (String s : record) if (s != null) length += s.getBytes("UTF-8").length;
+               if (((OptionalZipOutputStream) outputStream).isNewFile(csvWriter, length)) {
+                   write(header);
+               }
+           } catch (Exception e) {
+               //ignore
+           }
+       }
     }
 
     @Override
-    public void finalise() {
+    public boolean hasError() {
+        return csvWriter.checkError();
+    }
+
+    @Override
+    public void flush() {
         try {
-            csvWriter.flush();            
+            csvWriter.flush();
         } catch(java.io.IOException e){
             logger.debug(e.getMessage(), e);
         }
     }
 
-    public boolean finalised() { return true; }
+    @Override
+    public void finalise() {
+        if (finalised.compareAndSet(false, true)) {
+            flush();
+            finalisedComplete.set(true);
+        }
+    }
+
+    @Override
+    public boolean finalised() {
+        return finalisedComplete.get();
+    }
 }

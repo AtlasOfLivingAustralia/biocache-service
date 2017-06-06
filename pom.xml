@@ -10,7 +10,7 @@
     <groupId>au.org.ala</groupId>
     <artifactId>biocache-service</artifactId>
     <packaging>war</packaging>
-    <version>1.6.4-SNAPSHOT</version>
+    <version>2.0-SNAPSHOT</version>
     <name>biocache-service</name>
     <url>http://biocache.ala.org.au/ws</url>
     <description>This is a the service layer for the Biocache</description>
@@ -18,8 +18,8 @@
         <!-- This project uses UTF8 for Regular Expressions -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <openrdf.sesame.version>2.2</openrdf.sesame.version>
-        <spring.version>3.0.6.RELEASE</spring.version>
-        <junit.version>4.8.2</junit.version>
+        <spring.version>3.2.17.RELEASE</spring.version>
+        <junit.version>4.12</junit.version>
         <netbeans.hint.deploy.server>Tomcat</netbeans.hint.deploy.server>
     </properties>
     <!-- AN SCM entry that points to the SVN directory that contains the pom file for the project  -->
@@ -42,17 +42,21 @@
             <version>4.3.1.Final</version>
         </dependency>
         <!-- ALA header and tails -->
-        <dependency>
-            <groupId>au.org.ala</groupId>
-            <artifactId>ala-header-and-tails</artifactId>
-            <version>2.0</version>
-        </dependency>
+        <!--<dependency>-->
+        <!--<groupId>au.org.ala</groupId>-->
+        <!--<artifactId>ala-header-and-tails</artifactId>-->
+        <!--<version>2.0</version>-->
+        <!--</dependency>-->
         <!-- ALA logging -->
         <dependency>
             <groupId>au.org.ala</groupId>
             <artifactId>biocache-store</artifactId>
             <version>2.0-SNAPSHOT</version>
             <exclusions>
+                <exclusion>
+                    <artifactId>org.springframework</artifactId>
+                    <groupId>spring-orm</groupId>
+                </exclusion>
                 <exclusion>
                     <artifactId>google-collect</artifactId>
                     <groupId>com.google.code.google-collections</groupId>
@@ -79,11 +83,17 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- Reusing interfaces from layers-store -->
+        <dependency>
+            <groupId>au.org.ala</groupId>
+            <artifactId>layers-store</artifactId>
+            <version>1.2</version>
+        </dependency>
         <!-- ALA logging -->
         <dependency>
             <groupId>au.org.ala</groupId>
             <artifactId>ala-logger</artifactId>
-            <version>1.4-SNAPSHOT</version>
+            <version>1.4</version>
         </dependency>
         <!-- ALA common UI -->
         <dependency>
@@ -95,7 +105,7 @@
         <dependency>
             <groupId>au.org.ala</groupId>
             <artifactId>ala-cas-client</artifactId>
-            <version>2.0</version>
+            <version>2.2</version>
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
@@ -110,6 +120,20 @@
             <groupId>com.googlecode.ehcache-spring-annotations</groupId>
             <artifactId>ehcache-spring-annotations</artifactId>
             <version>1.2.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework</groupId>
+                    <artifactId>spring-aop</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.springframework</groupId>
+                    <artifactId>spring-beans</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.springframework</groupId>
+                    <artifactId>spring-expression</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- LOG4J -->
         <dependency>
@@ -126,20 +150,26 @@
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
-            <version>2.4</version>
+            <version>2.5</version>
         </dependency>
         <dependency>
             <groupId>commons-math</groupId>
             <artifactId>commons-math</artifactId>
             <version>1.1</version>
         </dependency>
-        <!-- Sun's Servlet API -->
+
+        <!-- swagger -->
         <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>servlet-api</artifactId>
-            <version>2.4</version>
-            <scope>provided</scope>
+            <groupId>io.springfox</groupId>
+            <artifactId>springfox-swagger2</artifactId>
+            <version>2.6.0</version>
         </dependency>
+        <dependency>
+            <groupId>io.springfox</groupId>
+            <artifactId>springfox-swagger-ui</artifactId>
+            <version>2.6.0</version>
+        </dependency>
+
         <!-- Sun's JSP API-->
         <dependency>
             <groupId>javax.servlet</groupId>
@@ -171,10 +201,22 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
-        <!-- SPRING 3.0 -->
+        <!-- mockito -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-all</artifactId>
+            <version>1.9.5</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- SPRING 3.2 -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-core</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-orm</artifactId>
             <version>${spring.version}</version>
         </dependency>
         <dependency>
@@ -205,7 +247,7 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-test</artifactId>
-            <version>2.5</version>
+            <version>3.1.0.RELEASE</version>
         </dependency>
         <dependency>
             <groupId>javax.mail</groupId>
@@ -221,6 +263,10 @@
                 <exclusion>
                     <groupId>org.apache.geronimo.specs</groupId>
                     <artifactId>com.springsource.javax.management.j2ee</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>au.org.ala</groupId>
+                    <artifactId>biocache-store</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -321,7 +367,7 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-jdbc</artifactId>
-            <version>3.0.3.RELEASE</version>
+            <version>${spring.version}</version>
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
@@ -423,6 +469,12 @@
                             <webAppConfig>
                                 <contextPath>/biocache-service</contextPath>
                             </webAppConfig>
+                            <connectors>
+                                <connector implementation="org.mortbay.jetty.nio.SelectChannelConnector">
+                                    <port>8085</port>
+                                    <maxIdleTime>60000</maxIdleTime>
+                                </connector>
+                            </connectors>
                             <scanIntervalSeconds>10</scanIntervalSeconds>
                             <stopKey>foo</stopKey>
                             <stopPort>9099</stopPort>
@@ -446,8 +498,8 @@
                         <artifactId>maven-compiler-plugin</artifactId>
                         <version>3.2</version>
                         <configuration>
-                            <source>1.6</source>
-                            <target>1.6</target>
+                            <source>1.7</source>
+                            <target>1.7</target>
                             <encoding>UTF8</encoding>
                         </configuration>
                     </plugin>

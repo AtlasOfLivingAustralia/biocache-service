@@ -14,10 +14,12 @@
  ***************************************************************************/
 package au.org.ala.biocache.writer;
 
-import au.org.ala.biocache.RecordWriter;
+import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.OutputStream;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 
@@ -25,13 +27,20 @@ import java.io.OutputStream;
  * 
  * @author Natasha Carter
  */
-public class TSVRecordWriter implements RecordWriter {
+public class TSVRecordWriter implements RecordWriterError {
     private final static Logger logger = LoggerFactory.getLogger(TSVRecordWriter.class);
 
-    private OutputStream outputStream;
+    private final OutputStream outputStream;
 
+    private final AtomicBoolean finalised = new AtomicBoolean(false);
+    private final AtomicBoolean finalisedComplete = new AtomicBoolean(false);
+
+    private boolean writerError = false;
+    private String[] header;
+    
     public TSVRecordWriter(OutputStream out, String[] header){
         this.outputStream = out;
+        this.header = header;
         write(header);
     }
     
@@ -51,21 +60,45 @@ public class TSVRecordWriter implements RecordWriter {
         line.append("\n");
 
         try {
-            outputStream.write(line.toString().getBytes());
-        } catch (Exception e) {
-            logger.debug(e.getMessage(), e);
+            String str = line.toString();
+            byte [] bytes = str.getBytes("UTF-8");
+            outputStream.write(bytes);
+
+            //mark the end of line
+            if (outputStream instanceof OptionalZipOutputStream) {
+                if (((OptionalZipOutputStream) outputStream).isNewFile(outputStream, bytes.length)) {
+                    write(header);
+                }
+            }
+        } catch (java.io.IOException e) {
+            writerError = true;
         }
     }
 
     @Override
     public void finalise() {
-        try {
-            outputStream.flush();
-        } catch(java.io.IOException e){
-            logger.debug(e.getMessage(), e);
+        if(finalised.compareAndSet(false, true)) {
+            flush();
+            finalisedComplete.set(true);
         }
     }
 
     @Override
-    public boolean finalised() { return true; }
+    public boolean finalised() {
+        return finalisedComplete.get();
+    }
+
+    @Override
+    public boolean hasError() {
+        return writerError;
+    }
+
+    @Override
+    public void flush() {
+        try {
+            outputStream.flush();
+        } catch(java.io.IOException e){
+            writerError = true;
+        }
+    }
 }

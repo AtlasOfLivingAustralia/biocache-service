@@ -40,8 +40,10 @@ public class EmailService {
     private String sender;
     private static final Logger logger = Logger.getLogger(EmailService.class);
     private Properties properties = new Properties();
-    private String host = "localhost";
-    private String port = "25";
+    @Value("${mail.smtp.host:localhost}")
+    private String host;
+    @Value("${mail.smtp.port:25}")
+    private String port;
 
     @PostConstruct
     protected void init(){        

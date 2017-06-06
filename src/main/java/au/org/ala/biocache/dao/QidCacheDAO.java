@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.dao;
 
+import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.model.Qid;
 import au.org.ala.biocache.util.QidMissingException;
 import au.org.ala.biocache.util.QidSizeException;
@@ -41,7 +42,7 @@ public interface QidCacheDAO {
      * @param source       name of app that created this qid
      * @return id to retrieve stored value as long.
      */
-    public String put(String q, String displayQ, String wkt, double[] bbox, String[] fqs, long maxAge, String source) throws QidSizeException;
+    String put(String q, String displayQ, String wkt, double[] bbox, String[] fqs, long maxAge, String source) throws QidSizeException;
 
     /**
      * Retrive search parameter object
@@ -50,7 +51,7 @@ public interface QidCacheDAO {
      * @return search parameter q as String, or null if not in memory
      * or in file storage.
      */
-    public Qid get(String key) throws QidMissingException;
+    Qid get(String key) throws QidMissingException;
 
     /**
      * Retrieves the Qid based on the supplied query string.
@@ -59,24 +60,28 @@ public interface QidCacheDAO {
      * @return
      * @throws Exception
      */
-    public Qid getQidFromQuery(String query) throws QidMissingException;
+    Qid getQidFromQuery(String query) throws QidMissingException;
 
 
     /*
      * cache management. defaults set in qid.properties
      */
 
-    public void setMaxCacheSize(long sizeInBytes);
+    void setMaxCacheSize(long sizeInBytes);
 
-    public long getMaxCacheSize();
+    long getMaxCacheSize();
 
-    public void setMinCacheSize(long sizeInBytes);
+    void setMinCacheSize(long sizeInBytes);
 
-    public long getMinCacheSize();
+    long getMinCacheSize();
 
-    public void setLargestCacheableSize(long sizeInBytes);
+    void setLargestCacheableSize(long sizeInBytes);
 
-    public long getLargestCacheableSize();
+    long getLargestCacheableSize();
 
-    public long getSize();
+    long getSize();
+
+    String[] getFq(SpatialSearchRequestParams requestParams);
+
+    String generateQid(SpatialSearchRequestParams requestParams, String bbox, String title, Long maxage, String source);
 }

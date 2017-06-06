@@ -14,22 +14,20 @@
  ***************************************************************************/
 package au.org.ala.biocache.web;
 
-import java.util.List;
-
 import au.org.ala.biocache.Store;
-
-import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import au.org.ala.biocache.service.AuthService;
+import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.apache.log4j.Logger;
+
+import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.util.List;
 
 /**
  * Provides administration web services for the biocache-service.
@@ -62,7 +60,11 @@ public class AdminController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping(value="/admin/ingest", method = RequestMethod.GET)
-    public void ingestResources(HttpServletRequest request, HttpServletResponse response) throws Exception{
+    public void ingestResources(HttpServletRequest request,
+                                @RequestParam(value = "apiKey", required = true) String apiKey,
+                                HttpServletResponse response) throws Exception{
+        String k = request.getParameter("apiKey");
+
         //performs an asynchronous ingest.
         final String dataResources = request.getParameter("dr");
         final String ingest = dataResources == null ? "all" : dataResources;
@@ -93,8 +95,9 @@ public class AdminController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping(value = "/admin/index/optimise", method = RequestMethod.POST)
-	public void optimiseIndex(HttpServletRequest request, 
-	   HttpServletResponse response) throws Exception {
+	public void optimiseIndex(HttpServletRequest request,
+                              @RequestParam(value = "apiKey", required = true) String apiKey,
+	                          HttpServletResponse response) throws Exception {
         if(shouldPerformOperation(request, response)){
             String message = Store.optimiseIndex();
             response.setStatus(HttpServletResponse.SC_OK);
@@ -112,19 +115,27 @@ public class AdminController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping(value = "/admin/modify*", method = RequestMethod.GET)
-    public @ResponseBody List<String> modifyServer(@RequestParam(value = "ro", required = false) Boolean readOnly,
-            @RequestParam(value = "reopenIndex", required = false,defaultValue="false") Boolean reopenIndex) throws Exception {
-        List<String> actionsPerformed = new java.util.ArrayList<String>(); 
-        if(readOnly != null){
-            Store.setReadOnly(readOnly);
-            actionsPerformed.add("Set readonly = " + readOnly);
-        }
-        if(reopenIndex){
-            Store.reopenIndex();
-            actionsPerformed.add("Reopened the index");
+    public @ResponseBody List<String> modifyServer(HttpServletRequest request,
+                                                   @RequestParam(value = "ro", required = false) Boolean readOnly,
+                                                   @RequestParam(value = "apiKey", required = true) String apiKey,
+            @RequestParam(value = "reopenIndex", required = false,defaultValue="false") Boolean reopenIndex,
+                                                   HttpServletResponse response) throws Exception {
+
+        List<String> actionsPerformed = new java.util.ArrayList<String>();
+        if(shouldPerformOperation(request, response)) {
+
+            if (readOnly != null) {
+                Store.setReadOnly(readOnly);
+                actionsPerformed.add("Set readonly = " + readOnly);
+            }
+            if (reopenIndex) {
+                Store.reopenIndex();
+                actionsPerformed.add("Reopened the index");
+            }
         }
         return actionsPerformed;
     }
+
     /**
      * Reindexes the supplied dr based on modifications since the supplied date.
      * 
@@ -133,7 +144,8 @@ public class AdminController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping(value = "/admin/index/reindex", method = RequestMethod.POST)
-    public void reindex(HttpServletRequest request, 
+    public void reindex(HttpServletRequest request,
+                        @RequestParam(value = "apiKey", required = true) String apiKey,
             HttpServletResponse response)throws Exception{
         if(shouldPerformOperation(request, response)){
             String dataResource = request.getParameter("dataResource");
