@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
+import org.springframework.aop.framework.Advised;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -76,7 +77,12 @@ public class RestartDataService {
                                 if (rc != null && sources.get(rc) != null) {
                                     for (String field : sources.get(rc)) {
                                         try {
-                                            Field f = rc.getClass().getDeclaredField(field);
+                                            Field f;
+                                            if (rc instanceof Advised) {
+                                                f = ((Advised) rc).getTargetSource().getTargetClass().getDeclaredField(field);
+                                            } else {
+                                                f = rc.getClass().getDeclaredField(field);
+                                            }
                                             if (!f.isAccessible()) {
                                                 f.setAccessible(true);
                                             }

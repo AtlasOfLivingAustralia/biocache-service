@@ -385,6 +385,7 @@ public class WMSController {
             cutpoints = new String[s.length - 1];
             System.arraycopy(s, 1, cutpoints, 0, cutpoints.length);
         }
+        requestParams.setFormattedQuery(null);
         List<LegendItem> legend = searchDAO.getLegend(requestParams, s[0], cutpoints);
         if (cutpoints == null) {
             java.util.Collections.sort(legend);
@@ -1909,6 +1910,7 @@ public class WMSController {
                 //There can be performance issues with pivot when too many distinct coordinate_uncertainty values
                 requestParams.setFacets(new String[]{"coordinate_uncertainty", pointType.getLabel()});
                 requestParams.setFlimit(-1);
+                requestParams.setFormattedQuery(null);
                 List<FacetPivotResultDTO> qr = searchDAO.searchPivot(requestParams);
 
                 if (qr != null && qr.size() > 0) {
@@ -1968,6 +1970,7 @@ public class WMSController {
 
         requestParams.setFq(fqs);
         requestParams.setFlimit(-1);
+        requestParams.setFormattedQuery(null);
         FacetField ps = searchDAO.getFacetPointsShort(requestParams, pointType.getLabel());
 
         if (ps != null && ps.getValueCount() > 0) {
@@ -2110,6 +2113,7 @@ public class WMSController {
             //not found, create it
             if (wco == null) {
                 requestParams.setFlimit(-1);
+                requestParams.setFormattedQuery(null);
                 colours = cm.equals("-1") ? null : searchDAO.getColours(requestParams, vars.colourMode);
                 sz = colours == null ? 1 : colours.size() + 1;
 
@@ -2124,6 +2128,7 @@ public class WMSController {
         }
 
         //still need colours when cannot cache
+        requestParams.setFormattedQuery(null);
         if (colours == null && !cm.equals("-1")) colours = searchDAO.getColours(requestParams, vars.colourMode);
 
         //build only once
@@ -2190,6 +2195,7 @@ public class WMSController {
             requestParams.setFacet(true);
             requestParams.setFlimit(0);
             requestParams.setFacets(new String[]{pointType.getLabel()});
+            requestParams.setFormattedQuery(null);
             if (docCount) {
                 SolrDocumentList result = searchDAO.findByFulltext(requestParams);
                 if (result != null) {
@@ -2263,6 +2269,7 @@ public class WMSController {
                     long ms = System.currentTimeMillis();
                     requestParams.setFlimit(-1);
 
+                    requestParams.setFormattedQuery(null);
                     makePointsFromFacet(searchDAO.getFacetPointsShort(requestParams, pointType.getLabel()), pointsArrays, countsArrays);
                     pColour.add(li.getColour() | (vars.alpha << 24));
                     colrmaxtime = (System.currentTimeMillis() - ms);
@@ -2308,6 +2315,7 @@ public class WMSController {
             if (!numericalFacetCategories && docCount <= wmsFacetPivotCutoff && canCache) {
                 requestParams.setFacets(new String[]{vars.colourMode + "," + pointType.getLabel()});
                 requestParams.setFlimit(-1);
+                requestParams.setFormattedQuery(null);
                 //get pivot and drill to colourMode level
                 List<FacetPivotResultDTO> qr = searchDAO.searchPivot(requestParams);
                 if (qr != null && qr.size() > 0) {
@@ -2369,6 +2377,7 @@ public class WMSController {
         //get points for occurrences not in colours.
         if (colours == null || colours.isEmpty() || colours.size() == 1) {
             requestParams.setFlimit(-1);
+            requestParams.setFormattedQuery(null);
             makePointsFromFacet(searchDAO.getFacetPointsShort(requestParams, pointType.getLabel()), pointsArrays, countsArrays);
             if (colours == null || colours.isEmpty()) {
                 pColour.add(vars.colour);
