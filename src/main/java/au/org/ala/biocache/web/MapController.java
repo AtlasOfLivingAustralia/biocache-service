@@ -513,6 +513,7 @@ public class MapController implements ServletConfigAware {
     @RequestMapping(value = "/density/legend", method = RequestMethod.GET)
     public @ResponseBody void speciesDensityLegend(SpatialSearchRequestParams requestParams,
             @RequestParam(value = "forceRefresh", required = false, defaultValue = "false") boolean forceRefresh,
+           @RequestParam(value = "pointHeatMapThreshold", required = false, defaultValue = "500") Integer pointHeatMapThreshold,
             HttpServletRequest request,
            HttpServletResponse response) throws Exception {
 
@@ -527,7 +528,7 @@ public class MapController implements ServletConfigAware {
         if (!f.isFile() || !f.exists() || forceRefresh) {
             //If not, generate
             logger.debug("regenerating heatmap legend");
-            generateStaticHeatmapImages(requestParams, true, false,  0, "0000ff", null, null, 1.0f, request);
+            generateStaticHeatmapImages(requestParams, true, false,  pointHeatMapThreshold, "0000ff", null, null, 1.0f, request);
         } else {
             logger.debug("legend file already exists on disk, sending file back to user");
         }
@@ -582,7 +583,8 @@ public class MapController implements ServletConfigAware {
 
         //heatmap versus points
         if (forcePointsDisplay || points.length == 0 || (points.length / 2) < pointHeatMapThreshold) {
-            if (!generateLegend){
+            hm.setLegendImage(null);
+            if (!generateLegend && colourByFq != null){
                 String[] originalFq = requestParams.getFq();
                 for(int k = 0; k < colourByFq.length; k++){
                     if(originalFq != null){
@@ -605,7 +607,7 @@ public class MapController implements ServletConfigAware {
                 hm.generatePoints(points, pointColor, heatmapLegendOccurrenceLabel);
             }
             hm.drawOutput(baseDir + "/" + outputHMFile, false);
-            hm.drawLegend(baseDir + "/" + outputHMFile);
+            hm.drawLegend(baseDir + "/legend_" + outputHMFile);
         } else {
             hm.generateClasses(points); //this will create legend
             if (generateLegend){
