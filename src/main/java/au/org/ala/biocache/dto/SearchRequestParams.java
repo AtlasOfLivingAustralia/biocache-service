@@ -62,7 +62,7 @@ public class SearchRequestParams {
     protected String dir = "asc";
     private String displayString;
 
-    protected Boolean includeMultivalues;
+    protected Boolean includeMultivalues = false;
 
     /**  The query context to be used for the search.  This will be used to generate extra query filters based on the search technology */
     protected String qc = "";
