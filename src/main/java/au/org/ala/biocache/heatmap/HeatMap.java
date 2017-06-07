@@ -366,20 +366,23 @@ public class HeatMap {
 
         int left = padding * 2 + keyWidth; // padding + width/2;
         int top = padding + (keyHeight / 2);
+        int height;
 
         BufferedImage newLegend;
         if (legendImage == null) {
-            newLegend = new BufferedImage(100, 10 + keyHeight, TYPE_INT_ARGB);
+            newLegend = new BufferedImage(150, 10 + keyHeight, TYPE_INT_ARGB);
+            height = 0;
         } else {
             //add one item
             newLegend = new BufferedImage(legendImage.getWidth(), legendImage.getHeight() + keyHeight,
                     legendImage.getType());
+            height = legendImage.getHeight();
         }
 
         Graphics2D cg = (Graphics2D) newLegend.getGraphics();
 
         //copy current legend
-        cg.drawImage(legendImage, 0, 0, null);
+        cg.drawImage(newLegend, 0, 0, null);
 
         cg.setColor(Color.BLACK);
         //1.2em/1.6em Arial, Helvetica, sans-serif
@@ -392,10 +395,10 @@ public class HeatMap {
         );
         cg.setRenderingHints(rh);
 
-        cg.drawString(label, left, legendImage.getHeight() + padding + (keyHeight / 2));
+        cg.drawString(label, left, height + padding + (keyHeight / 2));
 
         cg.setColor(pointColour);
-        cg.drawRect(padding + 5, padding + legendImage.getHeight() + 5,keyWidth - 10, keyHeight - 10);
+        cg.fillOval(padding + 5, padding + height + 5,keyWidth - 10, keyWidth - 10);
 
         legendImage = newLegend;
     }
@@ -485,5 +488,9 @@ public class HeatMap {
                     + "' Error message: " + ex.getMessage(), ex);
             throw ex;
         }
+    }
+
+    public void setLegendImage(BufferedImage legendImage) {
+        this.legendImage = legendImage;
     }
 }
