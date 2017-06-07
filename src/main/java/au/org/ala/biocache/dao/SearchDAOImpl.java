@@ -1545,18 +1545,24 @@ public class SearchDAOImpl implements SearchDAO {
                 //get all the "single" values from the index
                 for (int j = 0; j < fields.length; j++) {
                     Collection<Object> allValues = sd.getFieldValues(fields[j]);
-                    Iterator it = allValues.iterator();
-                    while (it.hasNext()) {
-                        Object value = it.next();
-                        if (values[j] != null && values[j].length() > 0) values[j] += "|"; //multivalue separator
-                        if (value instanceof Date) {
-                            values[j] = value == null ? "" : org.apache.commons.lang.time.DateFormatUtils.format((Date) value, "yyyy-MM-dd");
-                        } else {
-                            values[j] = value == null ? "" : value.toString();
-                        }
-                        //allow requests to include multiple values when requested
-                        if (!dd.getRequestParams().getIncludeMultivalues()) {
-                            break;
+                    if (allValues == null) {
+                        values[j] = "";
+                    } else {
+                        Iterator it = allValues.iterator();
+                        while (it.hasNext()) {
+                            Object value = it.next();
+                            if (values[j] != null && values[j].length() > 0) values[j] += "|"; //multivalue separator
+                            if (value instanceof Date) {
+                                values[j] = value == null ? "" : org.apache.commons.lang.time.DateFormatUtils.format((Date) value, "yyyy-MM-dd");
+                            } else {
+                                values[j] = value == null ? "" : value.toString();
+                            }
+                            //allow requests to include multiple values when requested
+                            if (dd == null || dd.getRequestParams() == null ||
+                                    dd.getRequestParams().getIncludeMultivalues() == null
+                                    || !dd.getRequestParams().getIncludeMultivalues()) {
+                                break;
+                            }
                         }
                     }
                 }
