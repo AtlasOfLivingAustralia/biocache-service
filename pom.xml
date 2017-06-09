@@ -13,12 +13,14 @@
     <version>2.0-SNAPSHOT</version>
     <name>biocache-service</name>
     <url>http://biocache.ala.org.au/ws</url>
-    <description>This is a the service layer for the Biocache</description>
+    <description>This is a the service layer for the Biocache.
+        The 2.x version of this app supports cassandra 3.x and SOLR Cloud 5.x
+    </description>
     <properties>
         <!-- This project uses UTF8 for Regular Expressions -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <openrdf.sesame.version>2.2</openrdf.sesame.version>
-        <spring.version>3.2.17.RELEASE</spring.version>
+        <spring.version>3.2.18.RELEASE</spring.version>
         <junit.version>4.12</junit.version>
         <netbeans.hint.deploy.server>Tomcat</netbeans.hint.deploy.server>
     </properties>

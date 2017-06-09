@@ -1282,7 +1282,7 @@ public class SearchDAOImpl implements SearchDAO {
                     dd.setHeaderMap(((ShapeFileRecordWriter) rw).getHeaderMappings());
                 }
 
-                //order the query by _docid_ for faster paging
+                //order the query by _docid_ for faster paging - this breaks SOLR Cloud
 //                solrQuery.addSortField("_docid_", ORDER.asc);
 
                 //for each month create a separate query that pages through 500 records per page
@@ -1339,7 +1339,9 @@ public class SearchDAOImpl implements SearchDAO {
                                 fq = org.apache.commons.lang3.ArrayUtils.addAll(fq, splitByFacetQuery.getFilterQueries());
                             }
 
-                            QueryResponse qr = runSolrQueryWithCursorMark(splitByFacetQuery, downloadParams.getFq(), downloadBatchSize, null);
+                            splitByFacetQuery.setFilterQueries(fq);
+
+                            QueryResponse qr = runSolrQueryWithCursorMark(splitByFacetQuery, downloadBatchSize, null);
                             AtomicInteger recordsForThread = new AtomicInteger(0);
                             if (logger.isDebugEnabled()) {
                                 logger.debug(splitByFacetQuery.getQuery() + " - results: " + qr.getResults().size());
@@ -1364,7 +1366,7 @@ public class SearchDAOImpl implements SearchDAO {
                                         // throttle the download by sleeping
                                         Thread.sleep(localThrottle);
                                     }
-                                    qr = runSolrQueryWithCursorMark(splitByFacetQuery, null, downloadBatchSize, qr.getNextCursorMark());
+                                    qr = runSolrQueryWithCursorMark(splitByFacetQuery, downloadBatchSize, qr.getNextCursorMark());
                                 } else {
                                     qr = null;
                                 }
@@ -2195,7 +2197,7 @@ public class SearchDAOImpl implements SearchDAO {
 //        solrQuery.setFacetMinCount(1);
 //        solrQuery.setFacetLimit(MAX_DOWNLOAD_SIZE);  // unlimited = -1
 
-        QueryResponse qr = runSolrQuery(solrQuery, searchParams, null, false);
+        QueryResponse qr = runSolrQuery(solrQuery, searchParams);
         SearchResultDTO searchResults = processSolrResponse(searchParams, qr, solrQuery, OccurrenceIndex.class);
         List<OccurrenceIndex> ocs = searchResults.getOccurrences();
 
@@ -2459,13 +2461,6 @@ public class SearchDAOImpl implements SearchDAO {
         return trDTO;
     }
 
-    private QueryResponse runSolrQueryWithCursorMark(SolrQuery solrQuery, String filterQuery[],
-                                                     Integer pageSize, String cursorMark) throws SolrServerException {
-        SearchRequestParams requestParams = new SearchRequestParams();
-        requestParams.setFq(filterQuery);
-        requestParams.setPageSize(pageSize);
-        return runSolrQuery(solrQuery, requestParams, cursorMark, true);
-    }
 
     /**
      * Convenience method for running solr query
@@ -2490,6 +2485,7 @@ public class SearchDAOImpl implements SearchDAO {
         requestParams.setDir(sortDirection);
         return runSolrQuery(solrQuery, requestParams);
     }
+
     /**
      * Perform SOLR query - takes a SolrQuery and search params
      *
@@ -2499,19 +2495,6 @@ public class SearchDAOImpl implements SearchDAO {
      * @throws SolrServerException
      */
     private QueryResponse runSolrQuery(SolrQuery solrQuery, SearchRequestParams requestParams) throws SolrServerException {
-        return runSolrQuery(solrQuery, requestParams, null, false);
-    }
-
-
-    /**
-     * Perform SOLR query - takes a SolrQuery and search params
-     *
-     * @param solrQuery
-     * @param requestParams
-     * @return
-     * @throws SolrServerException
-     */
-    private QueryResponse runSolrQuery(SolrQuery solrQuery, SearchRequestParams requestParams, String cursorMark, boolean useCursorMark) throws SolrServerException {
 
         if (requestParams.getFormattedFq() != null) {
             for (String fq : requestParams.getFormattedFq()) {
@@ -2524,30 +2507,51 @@ public class SearchDAOImpl implements SearchDAO {
         //include null facets
         solrQuery.setFacetMissing(true);
         solrQuery.setRows(requestParams.getPageSize());
-
-        //if set to true, use the cursor mark - for better deep paging performance
-        if(useCursorMark){
-            if(cursorMark == null){
-                cursorMark = CursorMarkParams.CURSOR_MARK_START;
-            }
-            solrQuery.set(CursorMarkParams.CURSOR_MARK_PARAM, cursorMark);
-        } else {
-            solrQuery.setStart(requestParams.getStart());
-        }
-
-        //if using cursor mark, avoid sorting
-        if(useCursorMark) {
-            solrQuery.setSort("id", SolrQuery.ORDER.desc);
-        } else if(StringUtils.isNotBlank(requestParams.getDir())) {
-            solrQuery.setSort(requestParams.getSort(), ORDER.valueOf(requestParams.getDir()));
-        }
-
+        solrQuery.setStart(requestParams.getStart());
+        solrQuery.setSort(requestParams.getSort(), ORDER.valueOf(requestParams.getDir()));
         if (logger.isDebugEnabled()) {
             logger.debug("runSolrQuery: " + solrQuery.toString());
         }
         QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
         if (logger.isDebugEnabled()) {
             logger.debug("runSolrQuery: " + solrQuery.toString() + " qtime:" + qr.getQTime());
+            if (qr.getResults() == null) {
+                logger.debug("no results");
+            } else {
+                logger.debug("matched records: " + qr.getResults().getNumFound());
+            }
+        }
+        return qr;
+    }
+
+    /**
+     * Perform SOLR query - takes a SolrQuery and search params
+     *
+     * @param solrQuery
+     * @return
+     * @throws SolrServerException
+     */
+    private QueryResponse runSolrQueryWithCursorMark(SolrQuery solrQuery, int pageSize, String cursorMark) throws SolrServerException {
+
+        //include null facets
+        solrQuery.setFacetMissing(true);
+        solrQuery.setRows(pageSize);
+
+        //if set to true, use the cursor mark - for better deep paging performance
+        if(cursorMark == null){
+            cursorMark = CursorMarkParams.CURSOR_MARK_START;
+        }
+        solrQuery.set(CursorMarkParams.CURSOR_MARK_PARAM, cursorMark);
+
+        //if using cursor mark, avoid sorting
+        solrQuery.setSort("id", SolrQuery.ORDER.desc);
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("SOLR query (cursor mark): " + solrQuery.toString());
+        }
+        QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
+        if (logger.isDebugEnabled()) {
+            logger.debug("SOLR query (cursor mark): " + solrQuery.toString() + " qtime:" + qr.getQTime());
             if (qr.getResults() == null) {
                 logger.debug("no results");
             } else {
