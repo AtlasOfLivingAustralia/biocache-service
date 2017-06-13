@@ -2508,7 +2508,10 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFacetMissing(true);
         solrQuery.setRows(requestParams.getPageSize());
         solrQuery.setStart(requestParams.getStart());
-        solrQuery.setSort(requestParams.getSort(), ORDER.valueOf(requestParams.getDir()));
+        if(StringUtils.isNotEmpty(requestParams.getDir())){
+            solrQuery.setSort(requestParams.getSort(), SolrQuery.ORDER.valueOf(requestParams.getDir()));
+        }
+
         if (logger.isDebugEnabled()) {
             logger.debug("runSolrQuery: " + solrQuery.toString());
         }
