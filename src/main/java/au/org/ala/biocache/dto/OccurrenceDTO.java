@@ -32,7 +32,7 @@ public class OccurrenceDTO implements Serializable {
 	private static final long serialVersionUID = 2240957361572672142L;
 	private FullRecord raw;
     private FullRecord processed;
-    private FullRecord consensus;
+//    private FullRecord consensus;
     private Map<String,List<QualityAssertion>> systemAssertions;
     private List<QualityAssertion> userAssertions;
     private List<MediaDTO> sounds;
@@ -48,19 +48,19 @@ public class OccurrenceDTO implements Serializable {
                 raw = record[0];
                 processed = record[1];
             }
-            if(record.length == 3){
-                consensus = record[2];
-            }
+//            if(record.length == 3){
+//                consensus = record[2];
+//            }
         }
     }
 
-    public FullRecord getConsensus() {
-        return consensus;
-    }
-
-    public void setConsensus(FullRecord consensus) {
-        this.consensus = consensus;
-    }
+//    public FullRecord getConsensus() {
+//        return consensus;
+//    }
+//
+//    public void setConsensus(FullRecord consensus) {
+//        this.consensus = consensus;
+//    }
 
     public FullRecord getProcessed() {
         return processed;
