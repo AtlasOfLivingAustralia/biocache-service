@@ -112,8 +112,8 @@ public class AlaLayersService implements LayersService {
                         tmpMap = initDistribution("checklists");
                         if (tmpMap.size() > 0) checklists = tmpMap;
 
-                        //TODO: initialize tracks only when webservices are available
-                        //tracks = initDistribution("tracks");
+                        tmpMap = initDistribution("tracks");
+                        if (tmpMap.size() > 0) tracks = tmpMap;
                     } catch (Exception e) {
                         logger.error("failed to init distribution and checklists", e);
                     }
@@ -217,7 +217,10 @@ public class AlaLayersService implements LayersService {
                 }
             }
         } catch (Exception ex) {
-            logger.error("RestTemplate error for " + url + ": " + ex.getMessage(), ex);
+            //ignore errors for tracks
+            if (!"tracks".equals(type)) {
+                logger.error("RestTemplate error for " + url + ": " + ex.getMessage(), ex);
+            }
         }
 
         return map;

@@ -196,13 +196,23 @@ public class QueryFormatUtils {
         String displayString = query;
         if (query.contains("qid:")) {
             Matcher matcher = qidPattern.matcher(query);
+            int count = 0;
             while (matcher.find()) {
                 String value = matcher.group();
                 try {
                     String qidValue = SearchUtils.stripEscapedQuotes(value.substring(4));
                     Qid qid = qidCacheDao.get(qidValue);
                     if (qid != null) {
-                        q = qid.getQ();
+                        if (count > 0) {
+                            //add qid to fq when >1 qid is already found
+                            addFqs(new String[] { qid.getQ() }, searchParams);
+                        } else if (qid.getQ().contains("qid:")) {
+                            String [] interior = formatQid(qid.getQ(), searchParams);
+                            displayString = interior[0];
+                            q = interior[1];
+                        } else {
+                            q = qid.getQ();
+                        }
 
                         //add the fqs from the params cache
                         addFqs(qid.getFqs(), searchParams);
@@ -216,6 +226,8 @@ public class QueryFormatUtils {
                                 addFqs(new String[]{SpatialUtils.getWKTQuery(spatialField, qid.getWkt(), false)}, searchParams);
                             }
                         }
+
+                        count = count + 1;
                     }
                 } catch (NumberFormatException e) {
                 } catch (QidMissingException e) {
