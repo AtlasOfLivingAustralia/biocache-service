@@ -328,6 +328,7 @@ public class QueryFormatUtils {
      * @param current String [] { displayString, formattedQuery } to update.
      */
     private String [] formatTaxa(String [] current) {
+
         // replace taxa queries with lsid: and text:
         if (current[1].contains("taxa:")) {
             StringBuffer queryString = new StringBuffer();
@@ -353,6 +354,15 @@ public class QueryFormatUtils {
 
             current[1] = queryString.toString();
             current[0] = current[1];
+        } else {
+            //attempt to just match the string to a taxon
+            List<String> taxaQueries = new ArrayList<>();
+            taxaQueries.add(current[1]);
+            List<String> guidsForTaxa = speciesLookupService.getGuidsForTaxa(taxaQueries);
+            if(!guidsForTaxa.isEmpty() && guidsForTaxa.size() == 1){
+                String q = createQueryWithTaxaParam(taxaQueries, guidsForTaxa);
+                current[1] = q;
+            }
         }
         return current;
     }
