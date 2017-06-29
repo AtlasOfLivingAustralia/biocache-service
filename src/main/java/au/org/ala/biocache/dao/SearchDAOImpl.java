@@ -786,7 +786,8 @@ public class SearchDAOImpl implements SearchDAO {
         searchParams.setPageSize(0);
         solrQuery.setFacetLimit(FACET_PAGE_SIZE);
         int offset = 0;
-        boolean shouldLookup = lookupName && (searchParams.getFacets()[0].contains("_guid") || searchParams.getFacets()[0].contains("_lsid"));
+        boolean shouldLookupTaxon = lookupName && (searchParams.getFacets()[0].contains("_guid") || searchParams.getFacets()[0].contains("_lsid"));
+        boolean shouldLookupAttribution = lookupName && searchParams.getFacets()[0].contains("_uid");
 
         QueryResponse qr = runSolrQuery(solrQuery, searchParams);
         if (logger.isDebugEnabled()) {
@@ -799,8 +800,10 @@ public class SearchDAOImpl implements SearchDAO {
             if (ff != null) {
                 String[] header = new String[]{ff.getName()};
                 // out.write(ff.getName().getBytes());
-                if (shouldLookup) {
+                if (shouldLookupTaxon) {
                     header = speciesLookupService.getHeaderDetails(ff.getName(), includeCount, includeSynonyms);
+                } else if (shouldLookupAttribution){
+                    header = (String[]) ArrayUtils.addAll(header, new String[]{"name", "count"});
                 } else if (includeCount) {
                     //out.write(",Count".getBytes());
                     header = (String[]) ArrayUtils.add(header, "count");
@@ -818,10 +821,9 @@ public class SearchDAOImpl implements SearchDAO {
                     //do not continue when null facet is already added and the next facet is only null
                     while (ff.getValueCount() > 1 || !addedNullFacet || (ff.getValueCount() == 1 && ff.getValues().get(0).getName() != null)) {
                         //process the "species_guid_ facet by looking up the list of guids
-                        if (shouldLookup) {
+                        if (shouldLookupTaxon) {
                             List<String> guids = new ArrayList<String>();
                             List<Long> counts = new ArrayList<Long>();
-                            List<String[]> speciesLists = new ArrayList<String[]>();
                             if (logger.isDebugEnabled()) {
                                 logger.debug("Downloading " + ff.getValueCount() + " species guids");
                             }
@@ -854,8 +856,11 @@ public class SearchDAOImpl implements SearchDAO {
                                 if (value.getCount() == 0 || (value.getName() == null && addedNullFacet)) continue;
 
                                 String name = value.getName() != null ? value.getName() : "";
-                                String[] row = includeCount ? new String[]{name, Long.toString(value.getCount())} : new String[]{name};
-                                writer.write(row);
+                                if (shouldLookupAttribution) {
+                                    writer.write(includeCount ? new String[]{name, collectionCache.getNameForCode(name), Long.toString(value.getCount())} : new String[]{name});
+                                } else {
+                                    writer.write(includeCount ? new String[]{name, Long.toString(value.getCount())} : new String[]{name});
+                                }
                             }
                         }
                         offset += FACET_PAGE_SIZE;

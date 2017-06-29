@@ -47,6 +47,9 @@ public class CollectionsCache {
     protected LinkedHashMap<String, String> institutions = RestartDataService.get(this, "institutions", new TypeReference<LinkedHashMap>(){}, LinkedHashMap.class);
     protected LinkedHashMap<String, String> collections = RestartDataService.get(this, "collections", new TypeReference<LinkedHashMap>(){}, LinkedHashMap.class);
     protected LinkedHashMap<String, String> dataHubs = RestartDataService.get(this, "dataHubs", new TypeReference<LinkedHashMap>(){}, LinkedHashMap.class);
+
+    protected LinkedHashMap<String, String> combinedLookup = RestartDataService.get(this, "combinedLookup", new TypeReference<LinkedHashMap>(){}, LinkedHashMap.class);
+
     protected List<String> institution_uid = null;
     protected List<String> collection_uid = null;
     protected List<String> data_resource_uid = null;
@@ -105,6 +108,15 @@ public class CollectionsCache {
     }
 
     /**
+     * Retrieve a name for UID.
+     * @param code
+     * @return
+     */
+    public String getNameForCode(String code){
+        return combinedLookup.get(code);
+    }
+
+    /**
      * Update the entity types (fields)
      */
     @Scheduled(fixedDelay = 3600000L) //every hour
@@ -115,23 +127,25 @@ public class CollectionsCache {
                 if(enabled){
                     logger.info("Updating collectory cache...");
                     LinkedHashMap m;
+                    combinedLookup = new LinkedHashMap<String,String>();
+
                     m = getCodesMap(ResourceType.COLLECTION, collection_uid);
-                    if (m != null && m.size() > 0) collections = m;
+                    if (m != null && m.size() > 0) collections = m; combinedLookup.putAll(m);
 
                     m = getCodesMap(ResourceType.INSTITUTION, institution_uid);
-                    if (m != null && m.size() > 0) institutions = m;
+                    if (m != null && m.size() > 0) institutions = m; combinedLookup.putAll(m);
 
                     m = getCodesMap(ResourceType.DATA_RESOURCE,data_resource_uid);
-                    if (m != null && m.size() > 0) dataResources = m;
+                    if (m != null && m.size() > 0) dataResources = m; combinedLookup.putAll(m);
 
                     m = getCodesMap(ResourceType.DATA_PROVIDER, data_provider_uid);
-                    if (m != null && m.size() > 0) dataProviders = m;
+                    if (m != null && m.size() > 0) dataProviders = m; combinedLookup.putAll(m);
 
                     m = getCodesMap(ResourceType.TEMP_DATA_RESOURCE, null);
-                    if (m != null && m.size() > 0) tempDataResources = m;
+                    if (m != null && m.size() > 0) tempDataResources = m; combinedLookup.putAll(m);
 
-                    m = dataHubs = getCodesMap(ResourceType.DATA_HUB, data_hub_uid);
-                    if (m != null && m.size() > 0) dataHubs = m;
+                    m = getCodesMap(ResourceType.DATA_HUB, data_hub_uid);
+                    if (m != null && m.size() > 0) dataHubs = m; combinedLookup.putAll(m);
 
                     dataResources.putAll(tempDataResources);
                 } else{

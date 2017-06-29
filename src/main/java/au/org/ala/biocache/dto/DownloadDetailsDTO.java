@@ -45,6 +45,7 @@ public class DownloadDetailsDTO {
     private String sensitiveFq = null;
     private AtomicBoolean interrupt = new AtomicBoolean(false);
     private String uniqueId = null;
+    private String processingThreadName = null;
 
     /**
      * Default constructor necessary for Jackson to create an object from the JSON. 
@@ -248,6 +249,14 @@ public class DownloadDetailsDTO {
 
     public AtomicBoolean getInterrupt() {
         return interrupt;
+    }
+
+    public String getProcessingThreadName() {
+        return processingThreadName;
+    }
+
+    public void setProcessingThreadName(String processingThreadName) {
+        this.processingThreadName = processingThreadName;
     }
 
     /**

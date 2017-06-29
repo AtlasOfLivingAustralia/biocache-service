@@ -348,7 +348,7 @@ public class DownloadControlThreadTest {
             }
         };
         ExecutorService parallelQueryExecutor = Executors.newSingleThreadExecutor();
-        testDownloadControlThread = new DownloadControlThread(maxRecords, downloadType, concurrencyLevel, pollDelayMs,
+        testDownloadControlThread = new DownloadControlThread("download-test-thread", maxRecords, downloadType, concurrencyLevel, pollDelayMs,
                 executionDelayMs, threadPriority, currentDownloads, downloadCreator, persistentQueueDAO,
                 parallelQueryExecutor);
 

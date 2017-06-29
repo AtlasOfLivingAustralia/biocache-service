@@ -82,7 +82,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * If there are no thread patterns specified here, a single thread with 10ms poll delay and 0ms execution delay, and normal thread priority (5) will be created and used instead.
      */
     @Value("${concurrent.downloads.json:[{\"label\": \"smallSolr\", \"threads\": 4, \"maxRecords\": 50000, \"type\": \"index\", \"pollDelay\": 10, \"executionDelay\": 10, \"threadPriority\": 5}, {\"label\": \"largeSolr\", \"threads\": 1, \"maxRecords\": 100000000, \"type\": \"index\", \"pollDelay\": 100, \"executionDelay\": 100, \"threadPriority\": 1}, {\"label\": \"smallCassandra\", \"threads\": 1, \"maxRecords\": 50000, \"type\": \"db\", \"pollDelay\": 10, \"executionDelay\": 10, \"threadPriority\": 5}, {\"label\": \"defaultUnrestricted\", \"threads\": 1, \"pollDelay\": 1000, \"executionDelay\": 100, \"threadPriority\": 1}]}")
-    protected String concurrentDownloadsJSON = "[{\"label\": \"smallSolr\", \"threads\": 4, \"maxRecords\": 50000, \"type\": \"index\", \"pollDelay\": 10, \"executionDelay\": 10, \"threadPriority\": 5}, {\"label\": \"largeSolr\", \"threads\": 1, \"maxRecords\": 100000000, \"type\": \"index\", \"pollDelay\": 100, \"executionDelay\": 100, \"threadPriority\": 1}, {\"label\": \"smallCassandra\", \"threads\": 1, \"maxRecords\": 50000, \"type\": \"db\", \"pollDelay\": 10, \"executionDelay\": 10, \"threadPriority\": 5}, {\"label\": \"defaultUnrestricted\", \"threads\": 1, \"pollDelay\": 1000, \"executionDelay\": 100, \"threadPriority\": 1}]";
+    protected String concurrentDownloadsJSON;
     @Inject
     protected PersistentQueueDAO persistentQueueDAO;
     @Inject
@@ -215,13 +215,15 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 if (type != null) {
                                     dt = "index".equals(type) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
                                 }
-                                DownloadControlThread nextRunnable = new DownloadControlThread(maxRecords, dt, threads, pollDelayMs, executionDelayMs, threadPriority, currentDownloads, nextDownloadCreator, persistentQueueDAO, nextParallelExecutor);
-                                Thread nextThread = new Thread(nextRunnable);
+
                                 String nextThreadName = "biocache-download-control-";
                                 nextThreadName += label;
                                 nextThreadName += (maxRecords == null ? "nolimit" : maxRecords.toString()) + "-";
                                 nextThreadName += (dt == null ? "alltypes" : dt.name()) + "-";
                                 nextThreadName += "poolsize-" + threads;
+
+                                DownloadControlThread nextRunnable = new DownloadControlThread(nextThreadName, maxRecords, dt, threads, pollDelayMs, executionDelayMs, threadPriority, currentDownloads, nextDownloadCreator, persistentQueueDAO, nextParallelExecutor);
+                                Thread nextThread = new Thread(nextRunnable);
                                 nextThread.setName(nextThreadName);
                                 // Control threads need to wakeup regularly to check for new downloads
                                 nextThread.setPriority(Thread.NORM_PRIORITY + 1);
@@ -235,14 +237,17 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         // If no threads were created, then add a single default thread
                         if(runningDownloadControllers.isEmpty()) {
                             logger.warn("No offline download threads were created from configuration, creating a single default download thread instead.");
-                            DownloadControlThread nextRunnable = new DownloadControlThread(null, null, 1, 10L, 0L, Thread.NORM_PRIORITY, currentDownloads, nextDownloadCreator, persistentQueueDAO, nextParallelExecutor);
-                            Thread nextThread = new Thread(nextRunnable);
+
                             String nextThreadName = "biocache-download-control-";
                             nextThreadName += "defaultNoConfigFound-";
                             nextThreadName += "nolimit-";
                             nextThreadName += "alltypes-";
                             nextThreadName += "poolsize-1";
+
+                            DownloadControlThread nextRunnable = new DownloadControlThread(nextThreadName, null, null, 1, 10L, 0L, Thread.NORM_PRIORITY, currentDownloads, nextDownloadCreator, persistentQueueDAO, nextParallelExecutor);
+                            Thread nextThread = new Thread(nextRunnable);
                             nextThread.setName(nextThreadName);
+
                             // Control threads need to wakeup regularly to check for new downloads
                             nextThread.setPriority(Thread.NORM_PRIORITY + 1);
                             runningDownloadControllers.add(nextThread);
@@ -617,15 +622,15 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     // i18n of the citation header
                     writer.writeNext(new String[] { messageSource.getMessage("citation.uid", null, "UID", null),
                             messageSource.getMessage("citation.name", null, "Name", null),
+                            messageSource.getMessage("citation.doi", null, "DOI", null),
                             messageSource.getMessage("citation.citation", null, "Citation", null),
                             messageSource.getMessage("citation.rights", null, "Rights", null),
                             messageSource.getMessage("citation.link", null, "More Information", null),
-                            messageSource.getMessage("citation.dataGeneralizations", null, "Data generalisations",
-                                    null),
-                            messageSource.getMessage("citation.informationWithheld", null, "Information withheld",
-                                    null),
+                            messageSource.getMessage("citation.dataGeneralizations", null, "Data generalisations", null),
+                            messageSource.getMessage("citation.informationWithheld", null, "Information withheld", null),
                             messageSource.getMessage("citation.downloadLimit", null, "Download limit", null),
-                            messageSource.getMessage("citation.count", null, "Number of Records in Download", null) });
+                            messageSource.getMessage("citation.count", null, "Number of Records in Download", null)
+                    });
 
                     for (Map<String, Object> record : entities) {
                         StringBuilder sb = new StringBuilder();
@@ -633,9 +638,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         // the "get"s
                         if (record != null) {
                             String count = uidStats.get(record.get("uid")).toString();
-                            String[] row = new String[] { getOrElse(record, "uid", ""), getOrElse(record, "name", ""),
-                                    getOrElse(record, "citation", ""), getOrElse(record, "rights", ""),
-                                    getOrElse(record, "link", ""), getOrElse(record, "dataGeneralizations", ""),
+                            String[] row = new String[] {
+                                    getOrElse(record, "uid", ""),
+                                    getOrElse(record, "name", ""),
+                                    getOrElse(record, "DOI", ""),
+                                    getOrElse(record, "citation", ""),
+                                    getOrElse(record, "rights", ""),
+                                    getOrElse(record, "link", ""),
+                                    getOrElse(record, "dataGeneralizations", ""),
                                     getOrElse(record, "informationWithheld", ""),
                                     getOrElse(record, "downloadLimit", ""), count };
                             writer.writeNext(row);

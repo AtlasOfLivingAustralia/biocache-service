@@ -20,6 +20,7 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
  * @author Peter Ansell
  */
 public class DownloadControlThread implements Runnable {
+    private final String name;
     private final Integer maxRecords;
     private final DownloadType downloadType;
     private final int concurrencyLevel;
@@ -34,7 +35,8 @@ public class DownloadControlThread implements Runnable {
     private final PersistentQueueDAO persistentQueueDAO;
     private final ExecutorService parallelQueryExecutor;
     
-    public DownloadControlThread(Integer maxRecords, 
+    public DownloadControlThread(String name,
+                                Integer maxRecords,
                                 DownloadType downloadType, 
                                 int concurrencyLevel, 
                                 Long pollDelayMs, 
@@ -44,6 +46,7 @@ public class DownloadControlThread implements Runnable {
                                 DownloadCreator downloadCreator, 
                                 PersistentQueueDAO persistentQueueDAO,
                                 ExecutorService parallelQueryExecutor) {
+        this.name = name;
         this.maxRecords = maxRecords;
         this.downloadType = downloadType;
         this.concurrencyLevel = concurrencyLevel > 0 ? concurrencyLevel : 1;
@@ -59,7 +62,7 @@ public class DownloadControlThread implements Runnable {
     }
 
     protected DownloadServiceExecutor createExecutor() {
-        return new DownloadServiceExecutor(this.maxRecords, this.downloadType, 
+        return new DownloadServiceExecutor(this.name, this.maxRecords, this.downloadType,
                                            this.concurrencyLevel, this.executionDelay, 
                                            this.threadPriority, this.downloadCreator);
     }
@@ -85,6 +88,7 @@ public class DownloadControlThread implements Runnable {
                 currentDownload = persistentQueueDAO.getNextDownload(maxRecords, downloadType);
                 if (currentDownload != null) {
                     // The submitted download will return the capacity when it finishes
+                    currentDownload.setProcessingThreadName(this.name);
                     downloadServiceExecutor.submitDownload(currentDownload, parallelQueryExecutor);
                 } else {
                     // We need to return the capacity we reserved because we don't need to use it
@@ -119,7 +123,7 @@ public class DownloadControlThread implements Runnable {
      * @author Peter Ansell
      */
     public class DownloadServiceExecutor {
-    
+        private final String name;
         private final Integer maxRecords;
         private final DownloadType downloadType;
         private final ExecutorService executor;
@@ -128,7 +132,8 @@ public class DownloadControlThread implements Runnable {
         private final DownloadCreator downloadCreator;
         private final Semaphore mySemaphore;
     
-        public DownloadServiceExecutor(Integer maxRecords, DownloadType downloadType, int concurrencyLevel, long executionDelay, int threadPriority, DownloadCreator downloadCreator) {
+        public DownloadServiceExecutor(String name, Integer maxRecords, DownloadType downloadType, int concurrencyLevel, long executionDelay, int threadPriority, DownloadCreator downloadCreator) {
+            this.name = name;
             this.maxRecords = maxRecords;
             this.downloadType = downloadType;
             // Customise the name so they can be identified easily on thread traces in debuggers

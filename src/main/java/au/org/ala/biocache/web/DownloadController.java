@@ -37,6 +37,7 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
+import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.*;
 
@@ -231,8 +232,7 @@ public class DownloadController extends AbstractSecureController {
             File file = new File(biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes()) + File.separator + dd.getStartTime() + File.separator + "tooLarge");
             FileUtils.forceMkdir(file.getParentFile());
             FileUtils.writeStringToFile(file, "", "UTF-8");
-            status.put("downloadUrl", biocacheDownloadUrl);
-            status.put("status", "Skipped. " + downloadOfflineMsg);
+            status.put("status", "skipped");
             status.put("message", downloadOfflineMsg);
         } else {
             persistentQueueDAO.addDownloadToQueue(dd);
@@ -243,6 +243,38 @@ public class DownloadController extends AbstractSecureController {
 
         return status;
     }
+
+    @RequestMapping(value = "occurrences/offline/status", method = RequestMethod.GET)
+    public @ResponseBody Object allOccurrenceDownloadStatus() throws Exception {
+
+        List<Map<String, Object>> allStatus = new ArrayList<Map<String, Object>>();
+
+        //is it in the queue?
+        List<DownloadDetailsDTO> downloads = persistentQueueDAO.getAllDownloads();
+        for (DownloadDetailsDTO dd : downloads) {
+            Map<String, Object> status = new LinkedHashMap<>();
+            String id = dd.getUniqueId();
+            if (dd.getFileLocation() == null) {
+                status.put("status", "inQueue");
+            } else {
+                status.put("status", "running");
+                status.put("records", dd.getRecordsDownloaded());
+            }
+            status.put("id", id);
+            status.put("totalRecords", dd.getTotalRecords());
+            status.put("downloadParams", dd.getDownloadParams());
+            status.put("startDate", dd.getStartDateString());
+            status.put("thread", dd.getProcessingThreadName());
+            status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + id);
+
+            setStatusIfEmpty(id, status);
+
+            allStatus.add(status);
+        }
+
+        return allStatus;
+    }
+
 
     @RequestMapping(value = "occurrences/offline/status/{id}", method = RequestMethod.GET)
     public @ResponseBody Object occurrenceDownloadStatus(@PathVariable("id") String id) throws Exception {
@@ -264,7 +296,11 @@ public class DownloadController extends AbstractSecureController {
                 break;
             }
         }
+        setStatusIfEmpty(id, status);
+        return status;
+    }
 
+    private void setStatusIfEmpty(String id, Map<String, Object> status) throws UnsupportedEncodingException {
         //is it finished?
         if (!status.containsKey("status")) {
             int sep = id.lastIndexOf('-');
@@ -276,7 +312,7 @@ public class DownloadController extends AbstractSecureController {
                         status.put("downloadUrl", biocacheDownloadUrl + File.separator + URLEncoder.encode(file.getPath().replace(biocacheDownloadDir + "/", ""), "UTF-8").replace("%2F", "/").replace("+", "%20"));
                     }
                     if (file.isFile() && "tooLarge".equals(file.getName())) {
-                        status.put("status", "Skipped. " + downloadOfflineMsg);
+                        status.put("status", "skipped");
                         status.put("message", downloadOfflineMsg);
                         status.put("downloadUrl", dowloadOfflineMaxUrl);
                     }
@@ -290,8 +326,6 @@ public class DownloadController extends AbstractSecureController {
         if (!status.containsKey("status")) {
             status.put("status", "invalidId");
         }
-
-        return status;
     }
 
     /**
