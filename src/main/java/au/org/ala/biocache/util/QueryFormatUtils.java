@@ -354,7 +354,7 @@ public class QueryFormatUtils {
 
             current[1] = queryString.toString();
             current[0] = current[1];
-        } else if(!current[1].contains(":")) {
+        } else if(StringUtils.isNotBlank(current[1]) && !current[1].contains(":")) {
             //attempt to just match the string to a taxon
             List<String> taxaQueries = new ArrayList<>();
             taxaQueries.add(current[1]);
