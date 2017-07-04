@@ -78,6 +78,9 @@ public class QueryFormatUtils {
 
     private int maxBooleanClauses = 1024;
 
+    @Value("${solr.circle.segments:18}")
+    int solrCircleSegments = 18;
+
     /**
      * This is appended to the query displayString when SpatialSearchRequestParams.wkt is used.
      */
@@ -946,7 +949,8 @@ public class QueryFormatUtils {
         if (searchParams != null) {
             StringBuilder sb = new StringBuilder();
             if (searchParams.getLat() != null) {
-                sb.append(latLonPart(searchParams));
+                String wkt = createCircleWkt(searchParams.getLon(), searchParams.getLat(), searchParams.getRadius());
+                sb.append(spatialField).append(":\"Intersects(").append(wkt).append(")\"");
             } else if (!StringUtils.isEmpty(searchParams.getWkt())) {
                 //format the wkt
                 sb.append(SpatialUtils.getWKTQuery(spatialField, searchParams.getWkt(), false));
@@ -954,6 +958,69 @@ public class QueryFormatUtils {
             return sb.toString();
         }
         return null;
+    }
+//
+//    protected String buildSpatialQueryString(String fullTextQuery, Float latitude, Float longitude, Float radius) {
+//        String wkt = createCircleWkt(longitude, latitude, radius);
+//
+//        StringBuilder sb= new StringBuilder();
+//        sb.append(spatialField).append(":\"Intersects(").append(wkt).append(")\"");
+//        if(StringUtils.isNotEmpty(fullTextQuery)){
+//            sb.append(" AND (").append(fullTextQuery).append(")");
+//        }
+//        return sb.toString();
+//    }
+
+    /**
+     * Create circle WKT
+     *
+     * @param longitude decimal degrees
+     * @param latitude decimal degrees
+     * @param radius km
+     */
+    private String createCircleWkt(double longitude, double latitude, double radius) {
+        //radius to m
+        radius *= 1000;
+
+        boolean belowMinus180 = false;
+        int step = 360 / solrCircleSegments;
+        double[][] points = new double[360/step][];
+        for (int i = 0; i < 360; i+=step) {
+            points[i/step] = computeOffset(latitude, 0, radius, i);
+            if (points[i/step][0] + longitude < -180) {
+                belowMinus180 = true;
+            }
+        }
+
+        //longitude translation
+        double dist = ((belowMinus180) ? 360 : 0) + longitude;
+
+        StringBuilder s = new StringBuilder();
+        s.append("POLYGON((");
+        for (int i = 0; i < 360; i+=step) {
+            s.append(points[i/step][0] + dist).append(" ").append(points[i/step][1]).append(",");
+        }
+        // append the first point to close the circle
+        s.append(points[0][0] + dist).append(" ").append(points[0][1]);
+        s.append("))");
+
+        return s.toString();
+    }
+
+    private double[] computeOffset(double lat, double lng, double radius, int angle) {
+        double b = radius / 6378137.0;
+        double c = angle * (Math.PI / 180.0);
+        double e = lat * (Math.PI / 180.0);
+        double d = Math.cos(b);
+        b = Math.sin(b);
+        double f = Math.sin(e);
+        e = Math.cos(e);
+        double g = d * f + b * e * Math.cos(c);
+
+        double x = (lng * (Math.PI / 180.0) + Math.atan2(b * e * Math.sin(c), d - f * g)) / (Math.PI / 180.0);
+        double y = Math.asin(g) / (Math.PI / 180.0);
+
+        return new double[]{x, y};
     }
 
     public String latLonPart(SpatialSearchRequestParams searchParams) {
