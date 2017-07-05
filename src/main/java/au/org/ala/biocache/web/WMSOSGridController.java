@@ -383,7 +383,7 @@ public class WMSOSGridController {
 
         String fq = MessageFormat.format(bboxFilterQuery, minX, minY, maxX, maxY);
         String[] fqs = wmsUtils.getFq(requestParams);
-        if(fqs.length==1 && StringUtils.isBlank(fqs[0])){
+        if(fqs ==null || fqs.length==1 && StringUtils.isBlank(fqs[0])){
             fqs = new String[0];
         }
 
