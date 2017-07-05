@@ -65,10 +65,10 @@ public class ChartController extends AbstractSecureController implements Seriali
     @Value("${charts.series.max:5}")
     private Integer maxSeriesFacets;
 
-    @Value("${charts.facets.string.max:10}")
+    @Value("${charts.facets.string.max:50}")
     private Integer maxStringFacets;
 
-    @Value("${charts.facets.number.max:10}")
+    @Value("${charts.facets.number.max:50}")
     private Integer maxNumberFacets;
 
 
@@ -117,6 +117,7 @@ public class ChartController extends AbstractSecureController implements Seriali
               @RequestParam(value = "xother", required = false, defaultValue = "true") Boolean xother,
               @RequestParam(value = "seriesmissing", required = false, defaultValue = "false") Boolean seriesmissing,
               @RequestParam(value = "xmissing", required = false, defaultValue = "true") Boolean xmissing,
+              @RequestParam(value = "fsort", required = false, defaultValue = "index") String fsort,
               HttpServletResponse response) throws Exception {
 
         //construct series subqueries
@@ -148,7 +149,7 @@ public class ChartController extends AbstractSecureController implements Seriali
                 //1. occurrence bar/pie/line chart of field
                 searchParams.setFacet(true);
                 searchParams.setFlimit(maxStringFacets);
-                searchParams.setFsort("count");
+                searchParams.setFsort(fsort);
                 searchParams.setFacets(new String[]{x});
 
                 if (xRanges.length() > 0) appendFq(searchParams, xRanges.toString());
@@ -455,7 +456,7 @@ public class ChartController extends AbstractSecureController implements Seriali
             List list = getSeriesFacets(series, searchParams, maxSeries + 1, includeMissing);
             if (list.size() > maxSeries + (includeMissing ? 1 : 0)) {
                 //get min/max
-                List minMax = (List) chart(searchParams, null, null, series, null, null, false, false, false, false, null).get("data");
+                List minMax = (List) chart(searchParams, null, null, series, null, null, false, false, false, false, "count", null).get("data");
                 if (date) {
                     Long min = ((Date) ((FieldStatsItem) ((List) ((Map) minMax.get(0)).get("data")).get(0)).getMin()).getTime();
                     Long max = ((Date) ((FieldStatsItem) ((List) ((Map) minMax.get(0)).get("data")).get(0)).getMax()).getTime();
