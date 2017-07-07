@@ -3,6 +3,7 @@ package au.org.ala.biocache.web;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.*;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.geotools.geometry.GeneralDirectPosition;
@@ -117,6 +118,7 @@ public class WMSOSGridController {
                     Double.parseDouble(lng)
             );
 
+
             ParsedGridRef osGrid = convertEastingNorthingToOSGrid(eastingNorthing[0], eastingNorthing[1]);
 
             Map<String, Object> map = new HashMap<String, Object>();
@@ -218,10 +220,12 @@ public class WMSOSGridController {
 
         try {
             String fq = getFilterQuery(gridRef, gridSize);
-
+            logger.debug("New filter query to use for record count: " + fq);
             if (replaceLast) {
-                String[] fqs = requestParams.getFq();
-                fqs[fqs.length - 1] = fq;
+                String[] newFqs = new String[requestParams.getFq().length];
+                System.arraycopy(requestParams.getFq(), 0, newFqs, 0, requestParams.getFq().length);
+                newFqs[newFqs.length - 1] = fq;
+                requestParams.setFq(newFqs);
             } else {
                 String[] newFqs = new String[requestParams.getFq().length + 1];
                 System.arraycopy(requestParams.getFq(), 0, newFqs, 0, requestParams.getFq().length);
@@ -231,9 +235,11 @@ public class WMSOSGridController {
 
             requestParams.setLat(null);
             requestParams.setLon(null);
-
-            requestParams.setPageSize(0);
             requestParams.setFacet(false);
+            requestParams.setPageSize(0);
+            requestParams.setFormattedQuery(null);
+
+            logger.debug("FQs for record count: " + Arrays.toString(requestParams.getFq()));
 
             SearchResultDTO resultDTO = searchDAO.findByFulltextSpatialQuery(requestParams, new HashMap<String, String[]>());
             return resultDTO.getTotalRecords();
