@@ -32,6 +32,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyList;
 
+//TODO: update hubs, then remove fqs[0].substring(0, fqs[0].indexOf(':'))
 @RunWith(MockitoJUnitRunner.class)
 public class FilterQueryParserTest {
 
@@ -105,7 +106,7 @@ public class FilterQueryParserTest {
 
     @Test
     public void testAddFacetMap1() {
-        Facet sp = facetMap.get(fqs[0]);
+        Facet sp = facetMap.get(fqs[0].substring(0, fqs[0].indexOf(':')));
         assertNotNull(sp);
         assertTrue(StringUtils.containsIgnoreCase(sp.getValue(), "urn:lsid:biodiversity.org.au:afd.taxon:2482313b-9d1e-4694-8f51-795213c8bb56"));
         assertTrue("got: " + sp.getDisplayName(), StringUtils.containsIgnoreCase(sp.getDisplayName(), "Species:found guid"));
@@ -113,7 +114,7 @@ public class FilterQueryParserTest {
 
     @Test
     public void testAddFacetMap2() {
-        Facet in = facetMap.get(fqs[2]);
+        Facet in = facetMap.get(fqs[2].substring(0, fqs[2].indexOf(':')));
         assertNotNull(in);
         assertTrue(StringUtils.containsIgnoreCase(in.getValue(), "in4 OR institution_uid:in22 OR institution_uid:in16 OR institution_uid:in6"));
         assertTrue("got: " + in.getDisplayName(), StringUtils.containsIgnoreCase(in.getDisplayName(), "<span>Institution: found in4</span> OR <span>Institution: found in22</span> OR <span>Institution: found in16</span> OR <span>Institution: found in6</span>"));
@@ -121,7 +122,7 @@ public class FilterQueryParserTest {
 
     @Test
     public void testAddFacetMap3() {
-        Facet co = facetMap.get(fqs[1]);
+        Facet co = facetMap.get(fqs[1].substring(0, fqs[1].indexOf(':')));
         assertNotNull(co);
         assertTrue(StringUtils.containsIgnoreCase(co.getValue(), "co10"));
         assertTrue("got: " + co.getDisplayName(), StringUtils.containsIgnoreCase(co.getDisplayName(), "<span>Collection: found co10</span>"));
@@ -129,23 +130,23 @@ public class FilterQueryParserTest {
 
     @Test
     public void testAddFacetMap4() {
-        Facet od = facetMap.get(fqs[3]);
+        Facet od = facetMap.get(fqs[3].substring(0, fqs[3].indexOf(':')));
         assertNotNull(od);
         assertTrue(StringUtils.containsIgnoreCase(od.getValue(), "[1940-01-01T00:00:00Z%20TO%201949-12-31T00:00:00Z]"));
-        assertTrue("got: " + od.getDisplayName(), StringUtils.containsIgnoreCase(od.getDisplayName(), "Date (by decade):1940-1949"));
+        assertTrue("got: " + od.getDisplayName(), StringUtils.containsIgnoreCase(od.getDisplayName(), "Date (by decade):[1940-1949]"));
     }
 
     @Test
     public void testAddFacetMap5() {
-        Facet col = facetMap.get(fqs[4]);
+        Facet col = facetMap.get(fqs[4].substring(0, fqs[4].indexOf(':')));
         assertNotNull(col);
         assertTrue("got: " + col.getValue(), StringUtils.containsIgnoreCase(col.getValue(), "Copland, S J\" OR collector:\"Sadlier, R.\" OR collector:\"Mcreaddie, W\" OR collector:\"Rollo, G\" OR collector:\"Harlow, Pete"));
-        assertTrue("got: " + col.getDisplayName(), StringUtils.containsIgnoreCase(col.getDisplayName(), "Collector:Copland, S J OR Collector:Sadlier, R. OR Collector:Mcreaddie, W OR Collector:Rollo, G OR Collector:Harlow, Pete"));
+        assertTrue("got: " + col.getDisplayName(), StringUtils.containsIgnoreCase(col.getDisplayName(), "Collector:\"Copland, S J\" OR Collector:\"Sadlier, R.\" OR Collector:\"Mcreaddie, W\" OR Collector:\"Rollo, G\" OR Collector:\"Harlow, Pete\""));
     }
 
     @Test
     public void testAddFacetMap6() {
-        Facet month = facetMap.get(fqs[5]);
+        Facet month = facetMap.get(fqs[5].substring(0, fqs[5].indexOf(':')));
         assertNotNull(month);
         assertTrue("got: " + month.getValue(), StringUtils.containsIgnoreCase(month.getValue(), "09 OR month:10 OR month:11"));
         assertTrue("got: " + month.getDisplayName(), StringUtils.containsIgnoreCase(month.getDisplayName(), "Month:September OR Month:October OR Month:November"));

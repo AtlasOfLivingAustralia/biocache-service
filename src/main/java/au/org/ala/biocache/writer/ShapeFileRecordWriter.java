@@ -23,12 +23,11 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ArrayUtils;
+import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.data.shapefile.ShapefileDataStoreFactory;
-import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.data.simple.SimpleFeatureStore;
-import org.geotools.feature.FeatureCollections;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.geometry.jts.JTSFactoryFinder;
@@ -68,7 +67,7 @@ public class ShapeFileRecordWriter implements RecordWriterError {
     private OutputStream outputStream;
     private File temporaryShapeFile;
     private int latIdx, longIdx;
-    private SimpleFeatureCollection collection = FeatureCollections.newCollection();
+    private ListFeatureCollection collection = null;
     private Map<String, String> headerMappings = null;
 
     private final AtomicBoolean finalised = new AtomicBoolean(false);
@@ -107,6 +106,8 @@ public class ShapeFileRecordWriter implements RecordWriterError {
 
             simpleFeature = createFeatureType(headerMappings.keySet(), null);
             featureBuilder = new SimpleFeatureBuilder(simpleFeature);
+
+            collection = new ListFeatureCollection(featureBuilder.getFeatureType());
 
             if (latIdx < 0 || longIdx < 0) {
                 logger.error("The invalid header..." + StringUtils.join(header, "|"));
