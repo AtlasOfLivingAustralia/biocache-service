@@ -199,6 +199,12 @@ public class ShapeFileRecordWriter implements RecordWriterError {
             // stream the contents of the file into the supplied outputStream
             //Properties for the shape file construction
             try {
+                
+                //write & clear the current batch
+                if (collection.size() > 0) {
+                    featureStore.addFeatures(collection);
+                    collection.clear();
+                }
 
                 //close csv before writing shapefile zip
                 OptionalZipOutputStream os = null;
