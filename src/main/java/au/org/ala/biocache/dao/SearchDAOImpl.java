@@ -101,7 +101,7 @@ public class SearchDAOImpl implements SearchDAO {
     //sensitive fields and their non-sensitive replacements
     private static final String[] sensitiveCassandraHdr = {"decimalLongitude", "decimalLatitude", "verbatimLocality"};
     private static final String[] sensitiveSOLRHdr = {"sensitive_longitude", "sensitive_latitude", "sensitive_locality"};
-    private static final String[] notSensitiveCassandraHdr = {"decimalLongitude.p", "decimalLatitude.p", "locality"};
+    private static final String[] notSensitiveCassandraHdr = {"decimalLongitude_p", "decimalLatitude_p", "locality"};
     private static final String[] notSensitiveSOLRHdr = {"longitude", "latitude", "locality"};
 
     /**
@@ -999,16 +999,16 @@ public class SearchDAOImpl implements SearchDAO {
 
             if (includeSensitive) {
                 //include raw latitude and longitudes
-                if (dFields.contains("decimalLatitude.p")) {
-                    dFields = dFields.replaceFirst("decimalLatitude.p", "sensitive_latitude,sensitive_longitude,decimalLatitude.p");
+                if (dFields.contains("decimalLatitude_p")) {
+                    dFields = dFields.replaceFirst("decimalLatitude.p", "sensitive_latitude,sensitive_longitude,decimalLatitude_p");
                 } else if (dFields.contains("decimalLatitude")) {
                     dFields = dFields.replaceFirst("decimalLatitude", "sensitive_latitude,sensitive_longitude,decimalLatitude");
                 }
                 if (dFields.contains(",locality,")) {
                     dFields = dFields.replaceFirst(",locality,", ",locality,sensitive_locality,");
                 }
-                if (dFields.contains(",locality.p,")) {
-                    dFields = dFields.replaceFirst(",locality.p,", ",locality.p,sensitive_locality,");
+                if (dFields.contains(",locality_p,")) {
+                    dFields = dFields.replaceFirst(",locality.p,", ",locality_p,sensitive_locality,");
                 }
             }
 

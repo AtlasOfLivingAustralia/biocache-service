@@ -133,7 +133,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.email.body:The download file has been generated on [date] via the search: [searchUrl]. Please download your file from [url]}")
     protected String biocacheDownloadEmailBody = "The download file has been generated on [date] via the search: [searchUrl]. Please download your file from [url]";
 
-    @Value("${download.email.subject:Occurrence Download Failed - [filename]}")
+    @Value("${download.email.subject.failure:Occurrence Download Failed - [filename]}")
     protected String biocacheDownloadEmailSubjectError = "Occurrence Download Failed - [filename]";
 
     @Value("${download.email.body.error:The download has failed.}")

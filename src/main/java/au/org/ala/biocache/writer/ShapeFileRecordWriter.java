@@ -101,8 +101,8 @@ public class ShapeFileRecordWriter implements RecordWriterError {
             latIdx = ArrayUtils.indexOf(header, "latitude");
             longIdx = ArrayUtils.indexOf(header, "longitude");
             if (latIdx < 0 || longIdx < 0) {
-                latIdx = ArrayUtils.indexOf(header, "decimalLatitude.p");
-                longIdx = ArrayUtils.indexOf(header, "decimalLongitude.p");
+                latIdx = ArrayUtils.indexOf(header, "decimalLatitude_p");
+                longIdx = ArrayUtils.indexOf(header, "decimalLongitude_p");
             }
 
             simpleFeature = createFeatureType(headerMappings.keySet(), null);
@@ -114,6 +114,7 @@ public class ShapeFileRecordWriter implements RecordWriterError {
             }
 
         } catch (java.io.IOException e) {
+            logger.error("Unable to create ShapeFile", e);
             writerError = true;
         }
 
@@ -199,6 +200,11 @@ public class ShapeFileRecordWriter implements RecordWriterError {
             //Properties for the shape file construction
             try {
 
+                if (collection.size() > 0) {
+                    featureStore.addFeatures(collection);
+                    collection.clear();
+                }
+
                 //close csv before writing shapefile zip
                 OptionalZipOutputStream os = null;
                 if (outputStream instanceof OptionalZipOutputStream) {
@@ -273,6 +279,7 @@ public class ShapeFileRecordWriter implements RecordWriterError {
                     outputStream.write((latitude + "," + longitude + "\n").getBytes("UTF-8"));
                 }
             } catch (IOException e) {
+                logger.error("Unable to create ShapeFile", e);
                 writerError = true;
             } finally {
                 if (collection.size() > maxCollectionSize) {
@@ -307,6 +314,7 @@ public class ShapeFileRecordWriter implements RecordWriterError {
         try {
             outputStream.flush();
         } catch (Exception e) {
+            logger.error("Unable to create ShapeFile", e);
             writerError = true;
         }
     }
