@@ -3538,7 +3538,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFacetMinCount(1);
         solrQuery.setFacetLimit(-1); //MAX_DOWNLOAD_SIZE);  // unlimited = -1
 
-        QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFormattedFq(), 1, 0, "score", "asc");
+        QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFormattedFq(), 1, 0, null, null);
         return qr.getFacetFields().get(0);
     }
 
@@ -3552,12 +3552,10 @@ public class SearchDAOImpl implements SearchDAO {
             if (facetEntries != null && facetEntries.size() > 0) {
                 for (int i = 0; i < facetEntries.size(); i++) {
                     FacetField.Count fcount = facetEntries.get(i);
-
-                    //get data_provider value
-                    dp[0] = fcount.getAsFilterQuery();
-                    requestParams.setFq(dp);
-                    String dataProviderName = getFacet(requestParams, "data_provider").getValues().get(0).getName();
-                    dataProviderList.add(new DataProviderCountDTO(fcount.getName(), dataProviderName, fcount.getCount()));
+                    String dataProviderName = collectionCache.getNameForCode(fcount.getName());
+                    if(dataProviderName != null){
+                        dataProviderList.add(new DataProviderCountDTO(fcount.getName(), dataProviderName, fcount.getCount()));
+                    }
                 }
             }
         }
