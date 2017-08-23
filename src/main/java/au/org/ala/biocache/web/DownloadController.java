@@ -22,6 +22,9 @@ import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.cas.util.AuthenticationUtils;
+import net.sf.json.JSONArray;
+import net.sf.json.JsonConfig;
+import net.sf.json.util.PropertyFilter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -108,12 +111,26 @@ public class DownloadController extends AbstractSecureController {
      * @return
      */
     @RequestMapping(value = "occurrences/offline/download/stats", method = RequestMethod.GET)
-    public @ResponseBody List<DownloadDetailsDTO> getCurrentDownloads(
+    public @ResponseBody
+    List getCurrentDownloads(
             HttpServletResponse response,
             @RequestParam(value = "apiKey", required = true) String apiKey) throws Exception {
         if (apiKey != null) {
             if (shouldPerformOperation(apiKey, response, false)) {
-                return persistentQueueDAO.getAllDownloads();
+                JsonConfig config = new JsonConfig();
+                config.setJsonPropertyFilter(new PropertyFilter() {
+                    @Override
+                    public boolean apply(Object source, String name, Object value) {
+                        return value == null;
+                    }
+                });
+
+                JSONArray ja = JSONArray.fromObject(persistentQueueDAO.getAllDownloads(), config);
+                for (Object jo : ja) {
+                    String id = (String) ((net.sf.json.JSONObject) jo).get("uniqueId");
+                    ((net.sf.json.JSONObject) jo).put("cancelURL", webservicesRoot + "/occurrences/offline/cancel/" + id + "?apiKey=" + apiKey);
+                }
+                return ja;
             }
         }
         return null;
