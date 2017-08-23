@@ -61,7 +61,7 @@ import java.util.List;
  * </ul>
  */
 @Controller
-public class WMSController {
+public class WMSController extends AbstractSecureController{
 
     /**
      * webportal results limit
@@ -1354,6 +1354,17 @@ public class WMSController {
             colorIdx++;
         }
         return sb.toString();
+    }
+
+    @RequestMapping(value = {"/webportal/wms/clearCache", "/ogc/wms/clearCache", "/mapping/wms/clearCache"}, method = RequestMethod.GET)
+    public void clearWMSCache(HttpServletResponse response,
+                              @RequestParam(value = "apiKey") String apiKey) throws Exception {
+        if (isValidKey(apiKey)) {
+            wmsCache.empty();
+            response.setStatus(200);
+        } else {
+            response.setStatus(401);
+        }
     }
 
     /**

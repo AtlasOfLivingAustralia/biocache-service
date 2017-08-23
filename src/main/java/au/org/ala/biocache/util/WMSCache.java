@@ -244,8 +244,8 @@ public class WMSCache {
         synchronized (counterLock) {
             cacheSize = 0;
             counter = new CountDownLatch(1);
+            cache.clear();
         }
-        cache.clear();
     }
 
     /**
