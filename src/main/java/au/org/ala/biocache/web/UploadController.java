@@ -671,16 +671,17 @@ class UploaderThread implements Runnable {
 
             loadRecords(statusFile, intList, floatList, stringList, dateList, userProvidedTypeList,recordCount);
 
-            status = "SAMPLING";
-            UploadIntersectCallback u = new UploadIntersectCallback(statusFile);
-            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("SAMPLING","Starting",25)));
-            au.org.ala.biocache.Store.sample(tempUid, u);
-
             status = "PROCESSING";
             logger.debug("Processing " + tempUid);
-            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("PROCESSING","Starting",50)));
-            DefaultObserverCallback processingCallback = new DefaultObserverCallback("PROCESSING", recordCount, statusFile, 50, "processed");
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("PROCESSING", "Starting", 25)));
+            DefaultObserverCallback processingCallback = new DefaultObserverCallback("PROCESSING", recordCount, statusFile, 25, "processed");
             au.org.ala.biocache.Store.process(tempUid, threads, processingCallback);
+
+            status = "SAMPLING";
+            UploadIntersectCallback u = new UploadIntersectCallback(statusFile);
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("SAMPLING", "Starting", 50)));
+            au.org.ala.biocache.Store.sample(tempUid, u);
+            au.org.ala.biocache.tool.Sampling.loadSamplingIntoOccurrences(tempUid);
 
             status = "INDEXING";
             Set<String> suffixedCustIndexFields = getSuffixedCustomIndexFields(intList, floatList, dateList, stringList);
