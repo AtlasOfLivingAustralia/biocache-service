@@ -23,6 +23,8 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ArrayUtils;
+import org.geotools.data.DefaultTransaction;
+import org.geotools.data.Transaction;
 import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.data.shapefile.ShapefileDataStoreFactory;
@@ -80,6 +82,8 @@ public class ShapeFileRecordWriter implements RecordWriterError {
     private SimpleFeatureSource featureSource;
     private SimpleFeatureStore featureStore;
 
+    private Transaction transaction = new DefaultTransaction("create");
+
     /**
      * GeometryFactory will be used to create the geometry attribute of each feature (a Point
      * object for the location)
@@ -105,7 +109,8 @@ public class ShapeFileRecordWriter implements RecordWriterError {
             }
 
             simpleFeature = createFeatureType(headerMappings.keySet(), null);
-            featureBuilder = new SimpleFeatureBuilder(simpleFeature);
+            final SimpleFeatureType sf = simpleFeature;
+            featureBuilder = new SimpleFeatureBuilder(sf);
 
             collection = new ListFeatureCollection(featureBuilder.getFeatureType());
 
@@ -136,6 +141,8 @@ public class ShapeFileRecordWriter implements RecordWriterError {
 
             if (featureSource instanceof SimpleFeatureStore) {
                 featureStore = (SimpleFeatureStore) featureSource;
+                transaction = new DefaultTransaction("create");
+                featureStore.setTransaction(transaction);
             } else {
                 writerError = true;
                 logger.error(typeName + " does not support read/write access");
@@ -165,7 +172,7 @@ public class ShapeFileRecordWriter implements RecordWriterError {
         builder.setCRS(DefaultGeographicCRS.WGS84); // <- Coordinate reference system
 
         // add attributes in order
-        builder.add("Location", Point.class);
+        builder.add("the_geom", Point.class);
         int i = 0;
         for (String feature : features) {
             Class type = types != null ? types[i] : String.class;
@@ -175,6 +182,8 @@ public class ShapeFileRecordWriter implements RecordWriterError {
             }
             i++;
         }
+
+        builder.setDefaultGeometry("the_geom");
 
         // build the type
         final SimpleFeatureType LOCATION = builder.buildFeatureType();
@@ -205,6 +214,9 @@ public class ShapeFileRecordWriter implements RecordWriterError {
                     featureStore.addFeatures(collection);
                     collection.clear();
                 }
+
+                transaction.commit();
+                transaction.close();
 
                 //close csv before writing shapefile zip
                 OptionalZipOutputStream os = null;
@@ -273,6 +285,7 @@ public class ShapeFileRecordWriter implements RecordWriterError {
             try {
                 if (collection.size() > maxCollectionSize) {
                     featureStore.addFeatures(collection);
+                    collection.clear();
                 }
 
                 //lat,lng csv entry
@@ -281,10 +294,6 @@ public class ShapeFileRecordWriter implements RecordWriterError {
                 }
             } catch (IOException e) {
                 writerError = true;
-            } finally {
-                if (collection.size() > maxCollectionSize) {
-                    collection.clear();
-                }
             }
 
         } else {
