@@ -4,7 +4,7 @@
     <parent>
         <groupId>au.org.ala</groupId>
         <artifactId>ala-parent-pom</artifactId>
-        <version>1.0</version>
+        <version>5</version>
     </parent>
 
     <groupId>au.org.ala</groupId>
@@ -21,6 +21,9 @@
         <spring.version>3.2.18.RELEASE</spring.version>
         <junit.version>4.12</junit.version>
         <netbeans.hint.deploy.server>Tomcat</netbeans.hint.deploy.server>
+        <targetJdk>1.8</targetJdk>
+        <animal-sniffer-signature.artifact>java18</animal-sniffer-signature.artifact>
+        <animal-sniffer-signature.version>1.0</animal-sniffer-signature.version>
     </properties>
     <!-- AN SCM entry that points to the SVN directory that contains the pom file for the project  -->
     <scm>
@@ -51,7 +54,7 @@
         <dependency>
             <groupId>au.org.ala</groupId>
             <artifactId>biocache-store</artifactId>
-            <version>1.9.1-SNAPSHOT</version>
+            <version>1.9.3-SNAPSHOT</version>
             <exclusions>
                 <exclusion>
                     <artifactId>org.springframework</artifactId>
@@ -204,8 +207,8 @@
         <!-- mockito -->
         <dependency>
             <groupId>org.mockito</groupId>
-            <artifactId>mockito-all</artifactId>
-            <version>1.9.5</version>
+            <artifactId>mockito-core</artifactId>
+            <version>2.8.47</version>
             <scope>test</scope>
         </dependency>
         <!-- SPRING 3.2 -->
@@ -442,17 +445,7 @@
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-compiler-plugin</artifactId>
-                        <version>3.2</version>
-                        <configuration>
-                            <source>1.8</source>
-                            <target>1.8</target>
-                        </configuration>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-war-plugin</artifactId>
-                        <version>2.2</version>
                     </plugin>
                     <plugin>
                         <groupId>org.mortbay.jetty</groupId>
@@ -476,7 +469,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-release-plugin</artifactId>
-                        <version>2.5</version>
                     </plugin>
                 </plugins>
             </build>
@@ -488,18 +480,7 @@
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-compiler-plugin</artifactId>
-                        <version>3.2</version>
-                        <configuration>
-                            <source>1.8</source>
-                            <target>1.8</target>
-                            <encoding>UTF8</encoding>
-                        </configuration>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-war-plugin</artifactId>
-                        <version>2.2</version>
                     </plugin>
                 </plugins>
             </build>
