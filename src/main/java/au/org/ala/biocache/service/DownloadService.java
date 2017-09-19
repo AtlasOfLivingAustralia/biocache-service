@@ -309,23 +309,36 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     nextToCloseRunnable.shutdown();
                 }
 
+                // Give threads a chance to react to the shutdown flag before checking if they are alive
+                try {
+                    Thread.sleep(2000);
+                }
+                catch(InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
                 Thread nextToCloseThread = null;
                 List<Thread> toJoinThreads = new ArrayList<>();
                 while((nextToCloseThread = runningDownloadControllers.poll()) != null) {
                     if(nextToCloseThread.isAlive()) {
-                        // Interrupt any threads that are still alive after the non-blocking shutdown command
-                        nextToCloseThread.interrupt();
                         toJoinThreads.add(nextToCloseThread);
                     }
                 }
 
                 if(!toJoinThreads.isEmpty()) {
-                    // Give remaining download control threads a few seconds to cleanup before returning from this method
+                    // Give remaining download control threads a few seconds to cleanup before interrupting
                     try {
                         Thread.sleep(5000);
                     }
                     catch(InterruptedException e) {
                         Thread.currentThread().interrupt();
+                    }
+
+                    for(final Thread nextToJoinThread : toJoinThreads) {
+                        if(nextToJoinThread.isAlive()) {
+                            // Interrupt any threads that are still alive after the non-blocking shutdown command
+                            nextToJoinThread.interrupt();
+                        }
                     }
                 }
             }

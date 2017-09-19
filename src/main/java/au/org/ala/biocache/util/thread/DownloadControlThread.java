@@ -80,6 +80,9 @@ public class DownloadControlThread implements Runnable {
                     continue;
                 }
                 if(shutdownFlag.get() || Thread.currentThread().isInterrupted()) {
+                    // Returning capacity here may trigger other threads to check the shutdown
+                    // and interrupt status in a more timely manner
+                    downloadServiceExecutor.returnCapacity();
                     break;
                 }
                 currentDownload = persistentQueueDAO.getNextDownload(maxRecords, downloadType);
@@ -145,25 +148,57 @@ public class DownloadControlThread implements Runnable {
             this.mySemaphore = new Semaphore(concurrencyLevel);
         }
     
+        /**
+         * Submits a download to be executed asynchronously. After the asynchronous execution is complete, 
+         * both successfuly and unsuccessfully, the capacity that was reserved with 
+         * {@link #reserveCapacity(long, TimeUnit)} will be returned.
+         * 
+         * @param nextDownload The download to submit
+         * @param parallelQueryExecutor An {@link ExecutorService} instance that will be passed to 
+         *                              {@link DownloadCreator#createCallable(DownloadDetailsDTO, long, Semaphore, ExecutorService)} 
+         * @throws RejectedExecutionException If the download could not be submitted for asynchronous execution
+         */
         public void submitDownload(DownloadDetailsDTO nextDownload, ExecutorService parallelQueryExecutor) throws RejectedExecutionException {
             executor.submit(downloadCreator.createCallable(nextDownload, executionDelay, mySemaphore, parallelQueryExecutor));
         }
     
+        /**
+         * Called to signal that new downloads are not being accepted.
+         * @see ExecutorService#shutdown()
+         */
         public void shutdown() {
             executor.shutdown();
         }
         
+        /**
+         * Called to signal that currently executing downloads must be aborted and the internal operations cease.
+         * @see ExecutorService#shutdownNow()
+         */
         public void shutdownNow() {
             executor.shutdownNow();
         }
         
+        /**
+         * Waits for the given amount of time for currently executing downloads to complete.
+         * 
+         * @param timeout The timeout value
+         * @param unit The timeout units
+         * @throws InterruptedException If we were interrupted while waiting
+         * @see ExecutorService#awaitTermination(long, TimeUnit)
+         */
         public void awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
             executor.awaitTermination(timeout, unit);
         }
         
         /**
          * This method must be called exactly once before each call to {@link #submitDownload(DownloadDetailsDTO)} or {@link #returnCapacity()}.
+         * Waits for the given time before returning false to indicate capacity was not able to be reserved.
+         * 
+         * @param timeout The timeout value
+         * @param unit The timeout units
+         * @return True if capacity was reserved and false if the time elapsed without capacity being reserved
          * @throws InterruptedException If the thread is interrupted while waiting.
+         * @see Semaphore#tryAcquire(long, TimeUnit)
          */
         public boolean reserveCapacity(long timeout, TimeUnit timeUnit) throws InterruptedException {
             return mySemaphore.tryAcquire(timeout, timeUnit);
@@ -172,6 +207,7 @@ public class DownloadControlThread implements Runnable {
         /**
          * This method must be called exactly once after a call to {@link #reserveCapacity()}, 
          * including if the reserved capacity is to be returned without a call to {@link #submitDownload(DownloadDetailsDTO)}.
+         * @see Semaphore#release()
          */
         public void returnCapacity() {
             mySemaphore.release();
