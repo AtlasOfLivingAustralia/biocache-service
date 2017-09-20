@@ -234,7 +234,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         }
                         // If no threads were created, then add a single default thread
                         if(runningDownloadControllers.isEmpty()) {
-                            logger.warn("No offline download threads were created from configuration, creating a single default download thread instead.");
+                            logger.error("No offline download threads were created from configuration, creating a single default download thread instead.");
                             DownloadControlThread nextRunnable = new DownloadControlThread(null, null, 1, 10L, 0L, Thread.NORM_PRIORITY, currentDownloads, nextDownloadCreator, persistentQueueDAO, nextParallelExecutor);
                             Thread nextThread = new Thread(nextRunnable);
                             String nextThreadName = "biocache-download-control-";
