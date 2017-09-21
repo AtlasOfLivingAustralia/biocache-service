@@ -20,9 +20,6 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 
-/**
- * RecordWriters hide exceptions. This is to identify them.
- */
 public class RecordWriterException extends IOException {
     private final static Logger logger = Logger.getLogger(RecordWriterException.class);
 
@@ -34,7 +31,15 @@ public class RecordWriterException extends IOException {
         super("RecordWriter Exception: " + msg);
     }
 
-    public static RecordWriterException newRecordWriterException(DownloadDetailsDTO dd, DownloadRequestParams downloadParams, boolean solr) {
+    public RecordWriterException(Throwable cause) {
+        super("RecordWriter Exception", cause);
+    }
+
+    public RecordWriterException(String msg, Throwable cause) {
+        super("RecordWriter Exception: " + msg, cause);
+    }
+    
+    public static RecordWriterException newRecordWriterException(DownloadDetailsDTO dd, DownloadRequestParams downloadParams, boolean solr, RecordWriterError writer) {
         String msg = "";
         if (dd != null) {
             if (dd.getFileLocation() != null) {
@@ -46,6 +51,6 @@ public class RecordWriterException extends IOException {
         } else if (downloadParams != null) {
             msg += "Online " + (solr?"SOLR":"Cassandra") + "  download request: " + downloadParams.toString();
         }
-        return new RecordWriterException(msg);
+        return new RecordWriterException(msg, writer == null || writer.getErrors().isEmpty() ? null : writer.getErrors().get(0));
     }
 }
