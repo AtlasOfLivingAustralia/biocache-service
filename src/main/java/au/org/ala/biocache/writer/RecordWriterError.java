@@ -14,6 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.writer;
 
+import java.util.List;
+
 import au.org.ala.biocache.RecordWriter;
 
 /**
@@ -25,6 +27,11 @@ public interface RecordWriterError extends RecordWriter {
      * @return true when there is a write error
      */
     boolean hasError();
+
+    /**
+     * @return A list of the errors found or an empty list if there were no errors.
+     */
+    List<Throwable> getErrors();
 
     void flush();
 }

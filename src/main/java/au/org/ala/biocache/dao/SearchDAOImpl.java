@@ -1150,7 +1150,7 @@ public class SearchDAOImpl implements SearchDAO {
             uidStats.put(hdr, new AtomicInteger(-2));
 
             //construct correct RecordWriter based on the supplied fileType
-            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ?
+            final RecordWriterError rw = downloadParams.getFileType().equals("csv") ?
                     new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) :
                     (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, header) :
                             new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
@@ -1249,8 +1249,8 @@ public class SearchDAOImpl implements SearchDAO {
                             rw.write(take);
 
                             //test for errors. This can contain a flush so only test occasionally
-                            if (counter % resultsQueueLength == 0 && ((RecordWriterError) rw).hasError()) {
-                                throw RecordWriterException.newRecordWriterException(dd, downloadParams, true);
+                            if (counter % resultsQueueLength == 0 && rw.hasError()) {
+                                throw RecordWriterException.newRecordWriterException(dd, downloadParams, true, rw);
                             }
 
                         }
@@ -1468,8 +1468,8 @@ public class SearchDAOImpl implements SearchDAO {
                             // This will not block if finalise has been called previously in the current three implementations
                             rw.finalise();
                         } finally {
-                            if (rw != null && ((RecordWriterError) rw).hasError()) {
-                                throw RecordWriterException.newRecordWriterException(dd, downloadParams, true);
+                            if (rw != null && rw.hasError()) {
+                                throw RecordWriterException.newRecordWriterException(dd, downloadParams, true, rw);
                             } else {
                                 // Flush whatever output was still pending for more deterministic debugging
                                 out.flush();
@@ -1708,7 +1708,7 @@ public class SearchDAOImpl implements SearchDAO {
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(org.apache.commons.lang3.ArrayUtils.addAll(titles, qaTitles), analysisHeaders);
             //Create the Writer that will be used to format the records
             //construct correct RecordWriter based on the supplied fileType
-            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ?
+            final RecordWriterError rw = downloadParams.getFileType().equals("csv") ?
                     new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) :
                     (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, header) :
                             new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
@@ -1862,7 +1862,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws Exception
      */
-    private int downloadRecords(DownloadRequestParams downloadParams, au.org.ala.biocache.RecordWriter writer,
+    private int downloadRecords(DownloadRequestParams downloadParams, RecordWriterError writer,
                                 Map<String, Integer> downloadLimit, ConcurrentMap<String, AtomicInteger> uidStats,
                                 String[] fields, String[] qaFields, int resultsCount, String dataResource, boolean includeSensitive,
                                 DownloadDetailsDTO dd, boolean limit, String[] analysisLayers) throws Exception {
@@ -1971,8 +1971,8 @@ public class SearchDAOImpl implements SearchDAO {
                 }
 
                 //test for errors
-                if (((RecordWriterError) writer).hasError()) {
-                    throw RecordWriterException.newRecordWriterException(dd, downloadParams, false);
+                if (writer.hasError()) {
+                    throw RecordWriterException.newRecordWriterException(dd, downloadParams, false, writer);
                 }
 
                 dd.setMiscFields(newMiscFields);
