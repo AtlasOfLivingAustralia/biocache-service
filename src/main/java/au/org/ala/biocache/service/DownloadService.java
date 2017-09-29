@@ -370,8 +370,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     public void unregisterDownload(DownloadDetailsDTO dd) {
         afterInitialisation();
         // remove it from the list
-        currentDownloads.remove(dd);
-        persistentQueueDAO.removeDownloadFromQueue(dd);
+        try {
+            currentDownloads.remove(dd);
+        } finally {
+            persistentQueueDAO.removeDownloadFromQueue(dd);
+        }
     }
 
     /**

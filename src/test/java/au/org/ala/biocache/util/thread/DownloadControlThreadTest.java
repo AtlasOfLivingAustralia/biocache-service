@@ -359,7 +359,7 @@ public class DownloadControlThreadTest {
                     DownloadType.RECORDS_DB);
             nextDownload.setEmail("test@csiro.au.example");
             DownloadRequestParams requestParams = new DownloadRequestParams();
-            requestParams.setFile("my-download-" + i + ".txt");
+            requestParams.setFile("my-download-!@#$%^&*()_+{}|:\"\'\\/" + i + ".txt");
             nextDownload.setRequestParams(requestParams);
             persistentQueueDAO.addDownloadToQueue(nextDownload);
         }

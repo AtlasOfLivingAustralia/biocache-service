@@ -75,7 +75,7 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
         StringBuilder req = new StringBuilder(super.toString());
         req.append("&email=").append(email);
         req.append("&reason=").append(reason);
-        req.append("&file=").append(file);
+        req.append("&file=").append(getFile());
         req.append("&fields=").append(fields);
         req.append("&extra=").append(extra);
         if(reasonTypeId != null) {
@@ -109,14 +109,27 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     }
 
     public String getFile() {
-        return file;
+        // sanitiseFileName can be called multiple times on the same string without changing the string
+        // ... but no requirement to use setFile, so sanitising on each call here also
+        // Given these objects are created using reflection and other methods, best to do it this way
+        return sanitiseFileName(file);
     }
 
     public void setFile(String file) {
-        this.file = file;
+        this.file = sanitiseFileName(file);
     }
 
-    public String getReason() {
+    /**
+     * Subset of valid characters to enable surety that it will work across filesystems.
+     * 
+     * @param nextFile The filename to sanitise
+     * @return A sanitised version of the given filename that can be used to avoid filesystem inconsistencies
+     */
+    private static String sanitiseFileName(String nextFile) {
+        return nextFile.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+	}
+
+	public String getReason() {
         return reason;
     }
 
