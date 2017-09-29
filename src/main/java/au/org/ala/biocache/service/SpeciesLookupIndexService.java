@@ -44,17 +44,23 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
 
     protected String nameIndexLocation;
 
-    private ALANameSearcherExt nameIndex = null;
+    private volatile ALANameSearcherExt nameIndex = null;
 
     private ALANameSearcherExt getNameIndex() throws RuntimeException {
-        if(nameIndex == null){
-            try {
-                nameIndex = new ALANameSearcherExt(nameIndexLocation);
-            } catch (Exception e){
-                throw new RuntimeException(e.getMessage(), e);
+    	ALANameSearcherExt result = nameIndex;
+        if(result == null){
+            synchronized(this) {
+            	result = nameIndex;
+            	if(result == null) {
+                    try {
+                        result = nameIndex = new ALANameSearcherExt(nameIndexLocation);
+                    } catch (Exception e){
+                        throw new RuntimeException(e.getMessage(), e);
+                    }
+                }
             }
         }
-        return nameIndex;
+        return result;
     }
 
     @Override
@@ -372,8 +378,8 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         formatted.put("highlight", highlight);
 
         if (m.get("commonname") == null) {
-            m.put("commonname", nameIndex.getCommonNameForLSID((String) m.get("lsid")));
-            m.put("commonnames", nameIndex.getCommonNamesForLSID((String) m.get("lsid"),1000));
+            m.put("commonname", getNameIndex().getCommonNameForLSID((String) m.get("lsid")));
+            m.put("commonnames", getNameIndex().getCommonNamesForLSID((String) m.get("lsid"),1000));
         }
         if (m.get("commonname") != null) {
             formatted.put("commonName", m.get("commonnames"));

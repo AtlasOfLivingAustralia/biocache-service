@@ -86,6 +86,42 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- ALA Name matching -->
+        <dependency>
+            <groupId>au.org.ala</groupId>
+            <artifactId>ala-name-matching</artifactId>
+            <version>2.4.3-SNAPSHOT</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.gbif</groupId>
+                    <artifactId>dwc-archive</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>jaxen</groupId>
+                    <artifactId>jaxen</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.lucene</groupId>
+                    <artifactId>lucene-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.lucene</groupId>
+                    <artifactId>lucene-analyzers</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.lucene</groupId>
+                    <artifactId>lucene-analyzers-common</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.lucene</groupId>
+                    <artifactId>lucene-queryparser</artifactId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>org.slf4j</artifactId>
+                    <groupId>slf4j-api</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <!-- Reusing interfaces from layers-store -->
         <dependency>
             <groupId>au.org.ala</groupId>

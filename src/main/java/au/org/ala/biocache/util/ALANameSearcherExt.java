@@ -37,49 +37,18 @@ import java.util.Map;
  */
 public class ALANameSearcherExt extends ALANameSearcher {
 
-
-    private IndexSearcher identifierIdxSearcher = null;
-    private IndexSearcher vernIdxSearcher = null;
-
     public ALANameSearcherExt(String path) throws IOException {
         super(path);
     }
 
     private IndexSearcher getIdentifierIdxSearcher() throws IOException {
-        if (identifierIdxSearcher == null) {
-            identifierIdxSearcher = getALANameSearcherSearcher("cbSearcher");
-        }
-        return identifierIdxSearcher;
+    	return cbSearcher;
     }
 
     private IndexSearcher getVernIdxSearcher() throws IOException {
-        if (vernIdxSearcher == null) {
-            vernIdxSearcher = getALANameSearcherSearcher("vernSearcher");
-        }
-        return vernIdxSearcher;
+    	return vernSearcher;
     }
     
-    /**
-     * get IndexSearcher from nameIndex to avoid reloading index
-     *
-     * one of: cbSearcher, vernSercher, idSearcher, irmngSearcher
-     *  
-     * @param searcher
-     * @return
-     */
-    private IndexSearcher getALANameSearcherSearcher(String searcher) {
-        try {
-            Field field = ALANameSearcher.class.getDeclaredField(searcher);
-            field.setAccessible(true);
-            IndexSearcher value = (IndexSearcher) field.get(this);
-            field.setAccessible(false);
-            
-            return value;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     private void appendAutocompleteResults(Map<String, Map> output, TopDocs results, boolean includeSynonyms, boolean commonNameResults) throws IOException {
         ScoreDoc[] scoreDocs = results.scoreDocs;
         int scoreDocsCount = scoreDocs.length;
