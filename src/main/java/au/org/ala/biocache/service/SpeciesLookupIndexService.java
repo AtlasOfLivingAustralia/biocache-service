@@ -1,6 +1,5 @@
 package au.org.ala.biocache.service;
 
-
 import au.org.ala.biocache.Config;
 import au.org.ala.biocache.dto.SpeciesCountDTO;
 import au.org.ala.biocache.dto.SpeciesImageDTO;
@@ -11,8 +10,8 @@ import au.org.ala.names.search.ExcludedNameException;
 import au.org.ala.names.search.MisappliedException;
 import au.org.ala.names.search.ParentSynonymChildException;
 import au.org.ala.names.search.SearchResultException;
-import com.mockrunner.util.common.StringUtil;
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.AbstractMessageSource;
 
@@ -111,7 +110,7 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
                 String lsid = getNameIndex().searchForLsidById(guid);
                 if(lsid != null){
                     nsr = getNameIndex().searchForRecordByLsid(lsid);
-                } else if (guid != null && StringUtil.countMatches(guid, "|") == 4){
+                } else if (guid != null && StringUtils.countMatches(guid, "|") == 4){
                     //is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
                     if (guid.startsWith("\"") && guid.endsWith("\"") && guid.length() > 2) guid = guid.substring(1, guid.length() - 1);
                     lsid = guid.split("\\|", 6)[1];
@@ -138,7 +137,7 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
                         classification.getSpecies(),
                         classification.getSubspecies()
                 };
-            } else if (StringUtil.countMatches(guid, "|") == 4){
+            } else if (StringUtils.countMatches(guid, "|") == 4){
                 //not matched and is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
                 if (guid.startsWith("\"") && guid.endsWith("\"") && guid.length() > 2) guid = guid.substring(1, guid.length() - 1);
                 String [] split = guid.split("\\|", 6);
