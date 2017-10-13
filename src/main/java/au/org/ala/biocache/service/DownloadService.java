@@ -556,10 +556,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             //Application may be shutting down, do not delete the download file
             shuttingDown = true;
             throw e;
-        } finally {
-            if (!shuttingDown) {
-                unregisterDownload(dd);
-            }
         }
     }
 
@@ -1033,7 +1029,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             // incase of server up/down, only remove from queue
                             // after emails are sent
                             if (!shuttingDown && !doRetry) {
-                                persistentQueueDAO.removeDownloadFromQueue(currentDownload);
+                                unregisterDownload(currentDownload);
                             }
                         }
                         return currentDownload;
