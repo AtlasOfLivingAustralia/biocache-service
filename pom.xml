@@ -10,7 +10,7 @@
     <groupId>au.org.ala</groupId>
     <artifactId>biocache-service</artifactId>
     <packaging>war</packaging>
-    <version>1.9-SNAPSHOT</version>
+    <version>1.9.1-SNAPSHOT</version>
     <name>biocache-service</name>
     <url>http://biocache.ala.org.au/ws</url>
     <description>This is a the service layer for the Biocache</description>
@@ -90,11 +90,11 @@
         <dependency>
             <groupId>au.org.ala</groupId>
             <artifactId>ala-name-matching</artifactId>
-            <version>2.4.3-SNAPSHOT</version>
+            <version>2.4.6-SNAPSHOT</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.gbif</groupId>
-                    <artifactId>dwc-archive</artifactId>
+                    <artifactId>dwc-io</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>jaxen</groupId>
