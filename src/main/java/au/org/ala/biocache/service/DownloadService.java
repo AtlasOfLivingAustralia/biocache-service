@@ -39,6 +39,7 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.scale7.cassandra.pelops.exceptions.NoConnectionsAvailableException;
+import org.scale7.cassandra.pelops.exceptions.PelopsException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextClosedEvent;
@@ -979,7 +980,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             throw e;
                         } catch (CancellationException e) {
                             //download cancelled, do not send an email
-                        } catch (NoConnectionsAvailableException e) {
+                        } catch (PelopsException e) {
                             logger.warn("Offline download failed. No connection with Cassandra. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage());
                             //return to queue in 5mins
                             doRetry = true;
