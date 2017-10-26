@@ -78,7 +78,7 @@ public class AssertionUtils {
     public List<QualityAssertion> getUserAssertions(OccurrenceDTO occ) {
         if(occ.getRaw() != null){
             //set the user assertions
-            List<QualityAssertion> userAssertions = Store.getUserAssertions(occ.getRaw().getUuid());
+            List<QualityAssertion> userAssertions = Store.getUserAssertions(occ.getRaw().getRowKey());
             //Legacy integration - fix up the user assertions - legacy - to add replace with CAS IDs....
             for(QualityAssertion ua : userAssertions){
                 if(ua.getUserId().contains("@")){

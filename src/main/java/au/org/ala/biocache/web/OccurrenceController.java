@@ -1306,11 +1306,11 @@ public class OccurrenceController extends AbstractSecureController {
 
             FullRecord occurrence = Store.upsertRecord(dataResourceUid, darwinCore, multimedia, index);
             response.setContentType("application/json");
-            response.setHeader("Location", webservicesRoot + "/occurrence/" + occurrence.getUuid());
+            response.setHeader("Location", webservicesRoot + "/occurrence/" + occurrence.getRowKey());
             response.setStatus(HttpServletResponse.SC_CREATED);
 
             Map<String, Object> map = new HashMap<String, Object>();
-            map.put("occurrenceID", occurrence.getUuid());
+            map.put("occurrenceID", occurrence.getRowKey());
             map.put("images", occurrence.getOccurrence().getImages());
             return map;
 
@@ -1415,7 +1415,7 @@ public class OccurrenceController extends AbstractSecureController {
         }
         
         //assertions are based on the row key not uuid
-        occ.setSystemAssertions(Store.getAllSystemAssertions(occ.getRaw().getUuid()));
+        occ.setSystemAssertions(Store.getAllSystemAssertions(occ.getRaw().getRowKey()));
         
         occ.setUserAssertions(assertionUtils.getUserAssertions(occ));
         
@@ -1520,7 +1520,7 @@ public class OccurrenceController extends AbstractSecureController {
             Map<String, Map> metadata = new HashMap();
             if (lookupImageMetadata) {
                 try {
-                    String uuid = dto.getProcessed().getUuid();
+                    String uuid = dto.getProcessed().getRowKey();
                     List<Map<String, Object>> list = imageMetadataService.getImageMetadataForOccurrences(Arrays.asList(new String[]{uuid})).get(uuid);
                     if (list != null) {
                         for (Map m : list) {
