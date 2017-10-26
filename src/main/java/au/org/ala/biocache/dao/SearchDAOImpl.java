@@ -115,7 +115,7 @@ public class SearchDAOImpl implements SearchDAO {
      * Limit search results - for performance reasons
      */
     @Value("${download.max:500000}")
-    protected Integer MAX_DOWNLOAD_SIZE = 500000;
+    public Integer MAX_DOWNLOAD_SIZE = 500000;
     /**
      * Throttle value used to split up large downloads from Solr.
      * Randomly set to a range of 100% up to 200% of the value given here in each case.
@@ -182,7 +182,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected String tmpShapefileDir;
 
     @Value("${download.unzipped.limit:10000}")
-    protected Integer unzippedLimit;
+    public Integer unzippedLimit;
 
     /**
      * Download properties
@@ -405,6 +405,9 @@ public class SearchDAOImpl implements SearchDAO {
         }
         speciesImageService.resetCache();
         speciesCountsService.resetCache();
+
+        listsService.refreshCache();
+        layersService.refreshCache();
     }
 
     /**
@@ -784,6 +787,10 @@ public class SearchDAOImpl implements SearchDAO {
         int offset = 0;
         boolean shouldLookup = lookupName && (searchParams.getFacets()[0].contains("_guid") || searchParams.getFacets()[0].contains("_lsid"));
 
+        if (dd != null) {
+            dd.resetCounts();
+        }
+
         QueryResponse qr = runSolrQuery(solrQuery, searchParams);
         if (logger.isDebugEnabled()) {
             logger.debug("Retrieved facet results from server...");
@@ -977,6 +984,10 @@ public class SearchDAOImpl implements SearchDAO {
                                                                               boolean checkLimit,
                                                                               final ExecutorService nextExecutor) throws Exception {
         expandRequestedFields(downloadParams, true);
+
+        if (dd != null) {
+            dd.resetCounts();
+        }
 
         long start = System.currentTimeMillis();
         final ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
@@ -1875,6 +1886,10 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setQuery(downloadParams.getFormattedQuery());
         //Only the fields specified below will be included in the results from the SOLR Query
         solrQuery.setFields("row_key", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid");
+
+        if (dd != null) {
+            dd.resetCounts();
+        }
 
         //get coordinates for analysis layer intersection
         if (analysisLayers.length > 0) {

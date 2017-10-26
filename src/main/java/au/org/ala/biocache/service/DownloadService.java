@@ -38,7 +38,6 @@ import org.apache.log4j.Logger;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
-import org.scale7.cassandra.pelops.exceptions.NoConnectionsAvailableException;
 import org.scale7.cassandra.pelops.exceptions.PelopsException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationListener;
@@ -99,16 +98,16 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     // default value is supplied for the property below
     @Value("${webservices.root:http://localhost:8080/biocache-service}")
-    protected String webservicesRoot = "http://localhost:8080/biocache-service";
+    public String webservicesRoot = "http://localhost:8080/biocache-service";
 
     // NC 20131018: Allow citations to be disabled via config (enabled by
     // default)
     @Value("${citations.enabled:true}")
-    protected Boolean citationsEnabled = Boolean.TRUE;
+    public Boolean citationsEnabled = Boolean.TRUE;
 
     // Allow headings information to be disabled via config (enabled by default)
     @Value("${headings.enabled:true}")
-    protected Boolean headingsEnabled = Boolean.TRUE;
+    public Boolean headingsEnabled = Boolean.TRUE;
 
     /** Stores the current list of downloads that are being performed. */
     protected final Queue<DownloadDetailsDTO> currentDownloads = new LinkedBlockingQueue<DownloadDetailsDTO>();
@@ -121,12 +120,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     @Value("${citations.url:http://collections.ala.org.au/ws/citations}")
     protected String citationServiceUrl = "http://collections.ala.org.au/ws/citations";
-
-    @Value("${download.url:http://biocache.ala.org.au/biocache-download}")
-    protected String biocacheDownloadUrl = "http://biocache.ala.org.au/biocache-download";
-
-    @Value("${download.dir:/data/biocache-download}")
-    protected String biocacheDownloadDir = "/data/biocache-download";
 
     @Value("${download.email.subject:ALA Occurrence Download Complete - [filename]}")
     protected String biocacheDownloadEmailSubject = "ALA Occurrence Download Complete - [filename]";
@@ -143,16 +136,57 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.readme.content:When using this download please use the following citation:<br><br><cite>Atlas of Living Australia occurrence download at <a href='[url]'>biocache</a> accessed on [date].</cite><br><br>Data contributed by the following providers:<br><br>[dataProviders]<br><br>More information can be found at <a href='http://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.}")
     protected String biocacheDownloadReadme = "When using this download please use the following citation:<br><br><cite>Atlas of Living Australia occurrence download at <a href='[url]'>biocache</a> accessed on [date].</cite><br><br>Data contributed by the following providers:<br><br>[dataProviders]<br><br>More information can be found at <a href='http://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.";
 
-    @Value("${biocache.ui.url:http://biocache.ala.org.au}")
-    protected String biocacheUiUrl = "http://biocache.ala.org.au";
-
     /** Max number of threads to use in parallel for large offline download queries */
     @Value("${download.offline.parallelquery.maxthreads:30}")
     protected Integer maxOfflineParallelQueryDownloadThreads = 30;
 
     /** restrict the size of files in a zip */
     @Value("${zip.file.size.mb.max:4000}")
-    private Integer maxMB;
+    public Integer maxMB;
+
+    @Value("${download.url:http://biocache.ala.org.au/biocache-download}")
+    public String biocacheDownloadUrl;
+
+    @Value("${download.dir:/data/biocache-download}")
+    public String biocacheDownloadDir;
+
+    @Value("${download.auth.sensitive:false}")
+    public Boolean downloadAuthSensitive;
+
+    @Value("${biocache.ui.url:http://biocache.ala.org.au}")
+    public String biocacheUiUrl = "http://biocache.ala.org.au";
+
+    //TODO: this should be retrieved from SDS
+    @Value("${sensitiveAccessRoles:{\n" +
+            "\n" +
+            "\"ROLE_SDS_ACT\" : \"sensitive:\\\"generalised\\\" AND (cl927:\\\"Australian Captial Territory\\\" OR cl927:\\\"Jervis Bay Territory\\\") AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
+            "\"ROLE_SDS_NSW\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"New South Wales (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_NZ\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr2707 OR data_resource_uid:dr812 OR data_resource_uid:dr814 OR data_resource_uid:dr808 OR data_resource_uid:dr806 OR data_resource_uid:dr815 OR data_resource_uid:dr802 OR data_resource_uid:dr805 OR data_resource_uid:dr813) AND -cl927:* AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_NT\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Northern Territory (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_QLD\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Queensland (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_SA\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"South Australia (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_TAS\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Tasmania (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_VIC\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Victoria (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_WA\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Western Australia (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_BIRDLIFE\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
+            "\n" +
+            "}}")
+    public String sensitiveAccessRoles;
+
+    @Value("${download.offline.max.url:http://downloads.ala.org.au}")
+    public String dowloadOfflineMaxUrl = "http://downloads.ala.org.au";
+
+    /**
+     * By default this is set to a very large value to 'disable' the offline download limit.
+     */
+    @Value("${download.offline.max.size:100000000}")
+    public Integer dowloadOfflineMaxSize = 100000000;
+
+    @Value("${download.offline.msg:Too many records requested. Bulk download files for Lifeforms are available.}")
+    public String downloadOfflineMsg = "Too many records requested. Bulk download files for Lifeforms are available.";
+
+    @Value("${download.offline.msg:This download is unavailable. Run the download again.}")
+    public String downloadOfflineMsgDeleted = "This download is unavailable. Run the download again.";
 
     /**
      * Ensures closure is only attempted once.

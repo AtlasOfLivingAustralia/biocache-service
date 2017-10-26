@@ -20,7 +20,9 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.IndexFieldDTO;
+import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.service.AuthService;
+import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.cas.util.AuthenticationUtils;
 import net.sf.json.JSONArray;
 import net.sf.json.JsonConfig;
@@ -32,7 +34,6 @@ import org.apache.solr.common.SolrDocumentList;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,6 +41,7 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.util.*;
 
@@ -67,44 +69,9 @@ public class DownloadController extends AbstractSecureController {
     @Inject
     protected AuthService authService;
 
-    @Value("${webservices.root:http://localhost:8080/biocache-service}")
-    protected String webservicesRoot;
 
-    @Value("${download.url:http://biocache.ala.org.au/biocache-download}")
-    protected String biocacheDownloadUrl;
-
-    @Value("${download.dir:/data/biocache-download}")
-    protected String biocacheDownloadDir;
-
-    @Value("${download.auth.sensitive:false}")
-    protected Boolean downloadAuthSensitive;
-
-    //TODO: this should be retrieved from SDS
-    @Value("${sensitiveAccessRoles:{\n" +
-            "\n" +
-            "\"ROLE_SDS_ACT\" : \"sensitive:\\\"generalised\\\" AND (cl927:\\\"Australian Captial Territory\\\" OR cl927:\\\"Jervis Bay Territory\\\") AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
-            "\"ROLE_SDS_NSW\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"New South Wales (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_NZ\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr2707 OR data_resource_uid:dr812 OR data_resource_uid:dr814 OR data_resource_uid:dr808 OR data_resource_uid:dr806 OR data_resource_uid:dr815 OR data_resource_uid:dr802 OR data_resource_uid:dr805 OR data_resource_uid:dr813) AND -cl927:* AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_NT\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Northern Territory (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_QLD\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Queensland (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_SA\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"South Australia (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_TAS\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Tasmania (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_VIC\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Victoria (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_WA\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Western Australia (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_BIRDLIFE\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
-            "\n" +
-            "}}")
-    protected String sensitiveAccessRoles;
-
-    @Value("${download.offline.max.url:http://downloads.ala.org.au}")
-    protected String dowloadOfflineMaxUrl = "http://downloads.ala.org.au";
-
-    /** By default this is set to a very large value to 'disable' the offline download limit. */
-    @Value("${download.offline.max.size:100000000}")
-    protected Integer dowloadOfflineMaxSize = 100000000;
-
-    @Value("${download.offline.msg:Too many records requested. Bulk download files for Lifeforms are available.}")
-    protected String downloadOfflineMsg = "Too many records requested. Bulk download files for Lifeforms are available.";
+    @Inject
+    protected DownloadService downloadService;
 
     /**
      * Retrieves all the downloads that are on the queue
@@ -128,7 +95,7 @@ public class DownloadController extends AbstractSecureController {
                 JSONArray ja = JSONArray.fromObject(persistentQueueDAO.getAllDownloads(), config);
                 for (Object jo : ja) {
                     String id = (String) ((net.sf.json.JSONObject) jo).get("uniqueId");
-                    ((net.sf.json.JSONObject) jo).put("cancelURL", webservicesRoot + "/occurrences/offline/cancel/" + id + "?apiKey=" + apiKey);
+                    ((net.sf.json.JSONObject) jo).put("cancelURL", downloadService.webservicesRoot + "/occurrences/offline/cancel/" + id + "?apiKey=" + apiKey);
                 }
                 return ja;
             }
@@ -242,23 +209,35 @@ public class DownloadController extends AbstractSecureController {
             status.put("message", "Already in queue.");
             status.put("status", "inQueue");
             status.put("queueSize", persistentQueueDAO.getTotalDownloads());
-            status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
-        } else if (dd.getTotalRecords() >= dowloadOfflineMaxSize) {
+            status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
+        } else if (dd.getTotalRecords() > downloadService.dowloadOfflineMaxSize) {
             //identify this download as too large
-            File file = new File(biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes()) + File.separator + dd.getStartTime() + File.separator + "tooLarge");
+            File file = new File(downloadService.biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes()) + File.separator + dd.getStartTime() + File.separator + "tooLarge");
             FileUtils.forceMkdir(file.getParentFile());
             FileUtils.writeStringToFile(file, "", "UTF-8");
-            status.put("downloadUrl", biocacheDownloadUrl);
-            status.put("status", "Skipped. " + downloadOfflineMsg);
-            status.put("message", downloadOfflineMsg);
+            status.put("downloadUrl", downloadService.biocacheDownloadUrl);
+            status.put("status", "skipped");
+            status.put("message", downloadService.downloadOfflineMsg);
+            status.put("error", "Requested to many records (" + dd.getTotalRecords() + "). The maximum is (" + downloadService.dowloadOfflineMaxSize + ")");
         } else {
             persistentQueueDAO.addDownloadToQueue(dd);
             status.put("status", "inQueue");
             status.put("queueSize", persistentQueueDAO.getTotalDownloads());
-            status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
+            status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
         }
 
+        status.put("searchUrl", downloadService.biocacheUiUrl + "/occurrences/search" + ((SpatialSearchRequestParams) dd.getRequestParams()).getUrlParams());
+
+        writeStatusFile(dd.getUniqueId(), status);
+
         return status;
+    }
+
+    private void writeStatusFile(String id, Map status) throws IOException {
+        File statusDir = new File(downloadService.biocacheDownloadDir + "/" + id.replaceAll("-(^[-]*$)", "/$1"));
+        statusDir.mkdirs();
+        String json = net.sf.json.JSONObject.fromObject(status).toString();
+        FileUtils.writeStringToFile(new File(statusDir.getPath() + "/status.json"), json, "UTF-8");
     }
 
     @RequestMapping(value = "occurrences/offline/status/{id}", method = RequestMethod.GET)
@@ -277,30 +256,51 @@ public class DownloadController extends AbstractSecureController {
                     status.put("records", dd.getRecordsDownloaded());
                 }
                 status.put("totalRecords", dd.getTotalRecords());
-                status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + id);
+                status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + id);
                 break;
             }
         }
 
         //is it finished?
+        String cleanId = id.replaceAll("^[a-z\\-0-9]", "");
+        cleanId.replaceAll("-(^[-]*$)", "/$1");
         if (!status.containsKey("status")) {
             int sep = id.lastIndexOf('-');
-            File dir = new File(biocacheDownloadDir + File.separator + id.substring(0, sep) + File.separator + id.substring(sep + 1));
+            File dir = new File(downloadService.biocacheDownloadDir + File.separator + cleanId);
             if (dir.isDirectory() && dir.exists()) {
                 for (File file : dir.listFiles()) {
                     if (file.isFile() && file.getPath().endsWith(".zip") && file.length() > 0) {
                         status.put("status", "finished");
-                        status.put("downloadUrl", biocacheDownloadUrl + File.separator + URLEncoder.encode(file.getPath().replace(biocacheDownloadDir + "/", ""), "UTF-8").replace("%2F", "/").replace("+", "%20"));
+                        status.put("downloadUrl", downloadService.biocacheDownloadUrl + File.separator + URLEncoder.encode(file.getPath().replace(downloadService.biocacheDownloadDir + "/", ""), "UTF-8").replace("%2F", "/").replace("+", "%20"));
                     }
                     if (file.isFile() && "tooLarge".equals(file.getName())) {
-                        status.put("status", "Skipped. " + downloadOfflineMsg);
-                        status.put("message", downloadOfflineMsg);
-                        status.put("downloadUrl", dowloadOfflineMaxUrl);
+                        status.put("status", "skipped");
+                        status.put("message", downloadService.downloadOfflineMsg);
+                        status.put("downloadUrl", downloadService.dowloadOfflineMaxUrl);
+                        status.put("error", "requested to many records. The upper limit is (" + downloadService.dowloadOfflineMaxSize + ")");
                     }
                 }
                 if (!status.containsKey("status")) {
                     status.put("status", "failed");
                 }
+            }
+
+            // write final status to a file
+            if (status.containsKey("status")) {
+                writeStatusFile(cleanId, status);
+            }
+        }
+
+        if (!status.containsKey("status")) {
+            //check downloads directory for a status file
+            File file = new File(downloadService.biocacheDownloadDir + File.separator + cleanId + "/status.json");
+            if (file.exists()) {
+                JSONParser jp = new JSONParser();
+                status.putAll((JSONObject) jp.parse(FileUtils.readFileToString(file, "UTF-8")));
+
+                // the status.json is only used when a download request is 'lost'. Use an appropriate status.
+                status.put("status", "unavailable");
+                status.put("message", "This download is unavailable.");
             }
         }
 
@@ -351,13 +351,13 @@ public class DownloadController extends AbstractSecureController {
 
     private String getSensitiveFq(HttpServletRequest request) throws ParseException {
 
-        if (!isValidKey(request.getHeader("apiKey")) || !downloadAuthSensitive) {
+        if (!isValidKey(request.getHeader("apiKey")) || !downloadService.downloadAuthSensitive) {
             return null;
         }
 
         String sensitiveFq = "";
         JSONParser jp = new JSONParser();
-        JSONObject jo = (JSONObject) jp.parse(sensitiveAccessRoles);
+        JSONObject jo = (JSONObject) jp.parse(downloadService.sensitiveAccessRoles);
         List roles = authService.getUserRoles(request.getHeader("X-ALA-userId"));
         for (Object role : jo.keySet()) {
             if (roles.contains(role)) {

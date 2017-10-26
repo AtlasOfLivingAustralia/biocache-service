@@ -40,4 +40,6 @@ public interface LayersService {
     Integer getChecklistsCount(String lsid);
 
     Integer getTracksCount(String lsid);
+
+    void refreshCache();
 }

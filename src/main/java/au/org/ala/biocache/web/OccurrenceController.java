@@ -19,6 +19,7 @@ import au.org.ala.biocache.Config;
 import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dao.QidCacheDAO;
 import au.org.ala.biocache.dao.SearchDAO;
+import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.model.FullRecord;
@@ -126,13 +127,13 @@ public class OccurrenceController extends AbstractSecureController {
     protected String facetConfig;
 
     @Value("${facets.max:4}")
-    protected Integer facetsMax;
+    public Integer facetsMax;
 
     @Value("${facets.defaultmax:0}")
-    protected Integer facetsDefaultMax;
+    public Integer facetsDefaultMax;
 
     @Value("${facet.default:true}")
-    protected Boolean facetDefault;
+    public Boolean facetDefault;
 
     /** Max number of threads available to all online solr download queries */
     @Value("${online.downloadquery.maxthreads:30}")
@@ -410,9 +411,7 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     /**
-     * Returns current index version number.
-     *
-     * Can force the refresh if an apiKey is also provided. e.g. after a known edit.
+     * Returns current maxBooleanClauses
      *
      * @return
      * @throws Exception
@@ -427,6 +426,39 @@ public class OccurrenceController extends AbstractSecureController {
 
         return map;
     }
+
+    /**
+     * Public service that reports limits and other useful config for clients.
+     *
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "config", method = RequestMethod.GET)
+    public @ResponseBody
+    Map getConfig() throws Exception {
+        Map map = new HashMap();
+
+        map.put("maxBooleanClauses", searchDAO.getMaxBooleanClauses());
+
+        map.put("facet.default", facetDefault);
+        map.put("facets.defaultmax", facetsDefaultMax);
+        map.put("facets.max", facetsMax);
+
+        if (searchDAO instanceof SearchDAOImpl) {
+            SearchDAOImpl dao = (SearchDAOImpl) searchDAO;
+            map.put("download.max", dao.MAX_DOWNLOAD_SIZE);
+
+            map.put("download.unzipped.limit", dao.unzippedLimit);
+        }
+
+        map.put("citations.enabled", downloadService.citationsEnabled);
+        map.put("headings.enabled", downloadService.headingsEnabled);
+        map.put("zip.file.size.mb.max", downloadService.maxMB);
+        map.put("download.offline.max.size", downloadService.dowloadOfflineMaxSize);
+
+        return map;
+    }
+
     
     /**
      * Returns a facet list including the number of distinct values for a field

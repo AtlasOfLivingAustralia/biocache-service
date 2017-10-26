@@ -250,6 +250,11 @@ public class DownloadDetailsDTO {
         return interrupt;
     }
 
+    public void resetCounts() {
+        recordsDownloaded.set(0);
+        lastUpdate = new Date();
+    }
+
     /**
      * Encompasses the different types of downloads that can be performed.
      */ 
