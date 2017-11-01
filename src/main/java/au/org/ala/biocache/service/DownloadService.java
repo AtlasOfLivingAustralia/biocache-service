@@ -27,6 +27,7 @@ import au.org.ala.biocache.util.AlaFileUtils;
 import au.org.ala.biocache.util.thread.DownloadControlThread;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.biocache.writer.RecordWriterException;
+import au.org.ala.doi.CreateDoiResponse;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
@@ -95,6 +96,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     protected EmailService emailService;
     @Inject
     protected AbstractMessageSource messageSource;
+
+    @Inject
+    protected DoiService doiService;
 
     // default value is supplied for the property below
     @Value("${webservices.root:http://localhost:8080/biocache-service}")
@@ -1003,6 +1007,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                         .openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()
                                                 + File.separator + "downloadStats.json"));) {
                                     objectMapper.writeValue(statsStream, currentDownload);
+                                }
+
+
+                                CreateDoiResponse doiResponse = doiService.mintDoi(searchUrl, searchUrl, fileLocation);
+                                if(doiResponse != null) {
+                                  logger.debug("DOI minted" + doiResponse.getDoi());
                                 }
 
                                 emailService.sendEmail(currentDownload.getEmail(), subject, body);
