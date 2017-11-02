@@ -20,6 +20,7 @@ import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
+import au.org.ala.biocache.dto.DownloadDoiDTO;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.stream.OptionalZipOutputStream;
@@ -99,6 +100,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     @Inject
     protected DoiService doiService;
+
+    @Inject
+    protected AuthService authService;
 
     // default value is supplied for the property below
     @Value("${webservices.root:http://localhost:8080/biocache-service}")
@@ -438,7 +442,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param includeSensitive
      * @param fromIndex
      * @throws Exception
-     * @deprecated Use {@link #writeQueryToStream(DownloadDetailsDTO, DownloadRequestParams, String, OutputStream, boolean, boolean, boolean, boolean, ExecutorService)} instead.
+     * @deprecated Use {@link #writeQueryToStream(DownloadDetailsDTO, DownloadRequestParams, String, OutputStream, boolean, boolean, boolean, boolean, ExecutorService, List)} instead.
      */
     @Deprecated
     public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
@@ -446,7 +450,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             throws Exception {
         afterInitialisation();
 
-        writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex, limit, zip, getOfflineThreadPoolExecutor());
+        writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex, limit, zip, getOfflineThreadPoolExecutor(), null);
     }
 
     /**
@@ -459,10 +463,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param out
      * @param includeSensitive
      * @param fromIndex
+     * @param datasetMetadata
      * @throws Exception
      */
     public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
-            OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip, ExecutorService parallelExecutor)
+                                   OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip, ExecutorService parallelExecutor, List<Map<String, String>> datasetMetadata)
             throws Exception {
         afterInitialisation();
         String filename = requestParams.getFile();
@@ -509,11 +514,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                 // Add the data citation to the download
                 List<String> citationsForReadme = new ArrayList<String>();
+
                 if (citationsEnabled) {
                     // add the citations for the supplied uids
                     sp.putNextEntry("citation.csv");
                     try {
-                        getCitations(uidStats, sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme);
+                        getCitations(uidStats, sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme, datasetMetadata);
                     } catch (Exception e) {
                         logger.error(e.getMessage(), e);
                     }
@@ -636,7 +642,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
         DownloadDetailsDTO.DownloadType type = fromIndex ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
         DownloadDetailsDTO dd = registerDownload(requestParams, ip, type);
-        writeQueryToStream(dd, requestParams, ip, new CloseShieldOutputStream(out), includeSensitive, fromIndex, true, zip, parallelQueryExecutor);
+        writeQueryToStream(dd, requestParams, ip, new CloseShieldOutputStream(out), includeSensitive, fromIndex, true, zip, parallelQueryExecutor, null);
     }
 
     /**
@@ -645,11 +651,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * 
      * @param uidStats
      * @param out
+     * @param datasetMetadata
      * @throws HttpException
      * @throws IOException
      */
     public void getCitations(ConcurrentMap<String, AtomicInteger> uidStats, OutputStream out, char sep, char esc,
-            List<String> readmeCitations) throws IOException {
+                             List<String> readmeCitations, List<Map<String, String>> datasetMetadata) throws IOException {
         if (citationsEnabled) {
             afterInitialisation();
             if (uidStats == null || uidStats.isEmpty() || out == null) {
@@ -683,6 +690,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         // ensure that the record is not null to prevent NPE on
                         // the "get"s
                         if (record != null) {
+                            final int UID=0;
+                            final int NAME=1;
+                            final int CITATION=2;
+                            final int RIGHTS=3;
+                            final int LINK=4;
+                            final int COUNT=8;
+
+
                             String count = uidStats.get(record.get("uid")).toString();
                             String[] row = new String[] { getOrElse(record, "uid", ""), getOrElse(record, "name", ""),
                                     getOrElse(record, "citation", ""), getOrElse(record, "rights", ""),
@@ -693,7 +708,19 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                             if (readmeCitations != null) {
                                 // used in README.txt
-                                readmeCitations.add(row[2] + " (" + row[3] + "). " + row[4]);
+                                readmeCitations.add(row[CITATION] + " (" + row[RIGHTS] + "). " + row[LINK]);
+                            }
+
+                            if (datasetMetadata != null ) {
+
+                                Map<String,String> dataSet = new HashMap<>();
+
+                                dataSet.put("uid", row[UID]);
+                                dataSet.put("name", row[NAME]);
+                                dataSet.put("licence", row[RIGHTS]);
+                                dataSet.put("count", row[COUNT]);
+
+                                datasetMetadata.add(dataSet);
                             }
 
                         } else {
@@ -976,9 +1003,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     && currentDownload.getRequestParams().getIncludeMisc()) {
                                 currentDownload.getRequestParams().setIncludeMisc(false);
                             }
+
+                            List<Map<String, String>> datasetMetadata = new ArrayList<>();
                             writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
                                     currentDownload.getIpAddress(), new CloseShieldOutputStream(fos), currentDownload.getIncludeSensitive(),
-                                    currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false, true, parallelExecutor);
+                                    currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false, true, parallelExecutor, datasetMetadata);
                             // now that the download is complete email a link to the
                             // recipient.
                             String subject = messageSource.getMessage("offlineEmailSubject", null,
@@ -1009,8 +1038,17 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     objectMapper.writeValue(statsStream, currentDownload);
                                 }
 
+                                String requesterId = authService.getMapOfEmailToId().get(currentDownload.getEmail());
 
-                                CreateDoiResponse doiResponse = doiService.mintDoi(searchUrl, searchUrl, fileLocation);
+                                DownloadDoiDTO doiDetails = new DownloadDoiDTO();
+                                doiDetails.setApplicationUrl(searchUrl);
+                                doiDetails.setFileUrl(fileLocation);
+                                doiDetails.setRequesterId(requesterId);
+                                doiDetails.setRequesterName(authService.getDisplayNameFor(currentDownload.getEmail()));
+                                doiDetails.setDatasetMetadata(datasetMetadata);
+
+                                CreateDoiResponse doiResponse = doiService.mintDoi(doiDetails);
+
                                 if(doiResponse != null) {
                                   logger.debug("DOI minted" + doiResponse.getDoi());
                                 }

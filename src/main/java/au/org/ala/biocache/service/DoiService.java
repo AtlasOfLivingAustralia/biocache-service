@@ -14,6 +14,7 @@
  */
 package au.org.ala.biocache.service;
 
+import au.org.ala.biocache.dto.DownloadDoiDTO;
 import au.org.ala.doi.*;
 import com.google.common.net.UrlEscapers;
 import org.apache.log4j.Logger;
@@ -26,7 +27,9 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Component("doiService")
@@ -34,7 +37,7 @@ public class DoiService {
 
     private static final Logger logger = Logger.getLogger(DoiService.class);
 
-    @Value("${doi.service.url:https://devt.ala.org.au/doi-service/api/}")
+    @Value("${doi.service.userId:https://devt.ala.org.au/doi-service/api/}")
     private String doiServiceUrl;
 
     @Value("${doi.author:Atlas Of Living Australia}")
@@ -99,26 +102,47 @@ public class DoiService {
 
     /**
      * Mint a new DOI
-     * @param request The metadata for the DOI
-     * @return The {@link CreateDoiResponse} instance with the DOI number and additional metadata or null if not found or there was an error reported by the actual DOI service backend
+     *
+     * @param downloadInfo
      * @throws IOException If unable to connect to the DOI service backend
      */
-    public CreateDoiResponse mintDoi(String applicationUrl, String query, String fileUrl) throws IOException {
+    public CreateDoiResponse mintDoi(DownloadDoiDTO downloadInfo) throws IOException {
         CreateDoiRequest request = new CreateDoiRequest();
 
         request.setAuthors(doiAuthor);
         request.setTitle(doiTitle);
-        request.setApplicationUrl(applicationUrl);
-        request.setDescription(query);
+        request.setApplicationUrl(downloadInfo.getApplicationUrl());
+        request.setDescription(doiTitle);
 
         request.setProvider(Provider.ANDS.name());
-        request.setFileUrl(fileUrl);
+        request.setFileUrl(downloadInfo.getFileUrl());
 
         Map providerMetadata = new HashMap<String, String>();
-        providerMetadata.put("authors", doiAuthor);
+        providerMetadata.put("publisher", doiAuthor);
         providerMetadata.put("title", doiTitle);
+        providerMetadata.put("contributor", downloadInfo.getRequesterName());
+
+
+        List<Map<String, String>> creators = new ArrayList<>();
+
+        for(Map<String, String> datasetProvider: downloadInfo.getDatasetMetadata()) {
+            Map<String, String> creator = new HashMap<>();
+            creator.put("name", datasetProvider.get("name"));
+            creator.put("type", "Producer" );
+            creators.add(creator);
+        }
+
+        providerMetadata.put("creator", creators);
 
         request.setProviderMetadata(providerMetadata);
+
+        Map applicationMetadata = new HashMap<String, String>();
+        applicationMetadata.put("searchUrl", downloadInfo.getApplicationUrl());
+        applicationMetadata.put("requesterId", downloadInfo.getRequesterId());
+        applicationMetadata.put("datasets", downloadInfo.getDatasetMetadata());
+
+        request.setApplicationMetadata(applicationMetadata);
+
 
         return mintDoi(request);
     }

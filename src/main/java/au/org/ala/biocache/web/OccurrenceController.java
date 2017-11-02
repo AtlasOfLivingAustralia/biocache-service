@@ -912,7 +912,7 @@ public class OccurrenceController extends AbstractSecureController {
                                         ConcurrentMap<String, AtomicInteger> uidStats = searchDAO.writeResultsFromIndexToStream(params, new CloseShieldOutputStream(output), false, dd,false);
                                         output.flush();
                                         try(FileOutputStream citationOutput = new FileOutputStream(citationFilePath);) {
-                                            downloadService.getCitations(uidStats, citationOutput, params.getSep(), params.getEsc(), null);
+                                            downloadService.getCitations(uidStats, citationOutput, params.getSep(), params.getEsc(), null, null);
                                             citationOutput.flush();
                                         }
                                     }
