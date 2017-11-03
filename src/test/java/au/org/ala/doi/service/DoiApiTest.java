@@ -3,6 +3,7 @@ package au.org.ala.doi.service;
 import au.org.ala.doi.*;
 import com.google.common.net.UrlEscapers;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import retrofit2.Call;
 import retrofit2.Response;
@@ -31,7 +32,7 @@ public class DoiApiTest {
     }
 
     @Test
-//    @Ignore
+    @Ignore
     public void testGetDoi() throws IOException {
 
         String doiStr = UrlEscapers.urlPathSegmentEscaper().escape("10.1000/3056cd6f-6ed4-4fd0-a35b-08dbc032c316");
@@ -46,6 +47,7 @@ public class DoiApiTest {
     }
 
     @Test
+    @Ignore
     public void mintDoi() throws IOException {
 
 
