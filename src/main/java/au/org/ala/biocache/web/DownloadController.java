@@ -234,7 +234,7 @@ public class DownloadController extends AbstractSecureController {
     }
 
     private void writeStatusFile(String id, Map status) throws IOException {
-        File statusDir = new File(downloadService.biocacheDownloadDir + "/" + id.replaceAll("-(^[-]*$)", "/$1"));
+        File statusDir = new File(downloadService.biocacheDownloadDir + "/" + id.replaceAll("-([0-9]*)$", "/$1"));
         statusDir.mkdirs();
         String json = net.sf.json.JSONObject.fromObject(status).toString();
         FileUtils.writeStringToFile(new File(statusDir.getPath() + "/status.json"), json, "UTF-8");
@@ -262,10 +262,9 @@ public class DownloadController extends AbstractSecureController {
         }
 
         //is it finished?
-        String cleanId = id.replaceAll("^[a-z\\-0-9]", "");
-        cleanId.replaceAll("-(^[-]*$)", "/$1");
+        String cleanId = id.replaceAll("[^a-z\\-0-9]", "");
+        cleanId = cleanId.replaceAll("-([0-9]*)$", "/$1");
         if (!status.containsKey("status")) {
-            int sep = id.lastIndexOf('-');
             File dir = new File(downloadService.biocacheDownloadDir + File.separator + cleanId);
             if (dir.isDirectory() && dir.exists()) {
                 for (File file : dir.listFiles()) {
