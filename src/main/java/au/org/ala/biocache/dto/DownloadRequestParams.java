@@ -64,6 +64,12 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     /** Override header names with a CSV with 'requested field','header' pairs */
     protected String customHeader = "";
 
+
+    /**
+     * Request to generate a DOI for the download or not. Default false
+     */
+    protected Boolean mintDoi=false;
+
     /**
      * Custom toString method to produce a String to be used as the request parameters
      * for the Biocache Service webservices
@@ -268,4 +274,13 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     public void setCustomHeader(String customHeader) {
         this.customHeader = customHeader;
     }
+
+    public Boolean getMintDoi() {
+        return mintDoi;
+    }
+
+    public void setMintDoi(Boolean mintDoi) {
+        this.mintDoi = mintDoi;
+    }
+
 }

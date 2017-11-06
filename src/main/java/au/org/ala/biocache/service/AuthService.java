@@ -186,4 +186,18 @@ public class AuthService {
 
         return roles;
     }
+
+    public Map<String,?> getUserDetails(String userId) {
+        Map<String,?> userDetails
+                = new HashMap<>();
+        try {
+            final String jsonUri = userDetailsUrl + userDetailsPath + "?userName=" + userId;
+            logger.info("authCache requesting: " + jsonUri);
+            userDetails = (Map) restTemplate.postForObject(jsonUri, null, Map.class);
+        } catch (Exception ex) {
+            logger.error("RestTemplate error: " + ex.getMessage(), ex);
+        }
+
+        return userDetails;
+    }
 }
