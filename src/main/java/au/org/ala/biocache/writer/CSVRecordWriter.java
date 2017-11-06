@@ -16,7 +16,6 @@ package au.org.ala.biocache.writer;
 
 import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.stream.OptionalZipOutputStream;
-
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,9 +71,10 @@ public class CSVRecordWriter implements RecordWriterError {
        //mark the end of line
        if (outputStream instanceof OptionalZipOutputStream) {
            try {
-               long length = 0;
+               // add record byte length, standard separator byte length and buffer (*2) for occasional record character encoding
+               long length = record.length * "\",\"".getBytes(StandardCharsets.UTF_8).length * 2;
                for (String s : record) if (s != null) length += s.getBytes(StandardCharsets.UTF_8).length;
-               if (((OptionalZipOutputStream) outputStream).isNewFile(csvWriter, length)) {
+               if (((OptionalZipOutputStream) outputStream).isNewFile(this, length)) {
                    write(header);
                }
            } catch (Exception e) {

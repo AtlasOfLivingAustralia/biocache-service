@@ -71,7 +71,7 @@ public class TSVRecordWriter implements RecordWriterError {
 
             //mark the end of line
             if (outputStream instanceof OptionalZipOutputStream) {
-                if (((OptionalZipOutputStream) outputStream).isNewFile(outputStream, bytes.length)) {
+                if (((OptionalZipOutputStream) outputStream).isNewFile(this, bytes.length)) {
                     write(header);
                 }
             }
