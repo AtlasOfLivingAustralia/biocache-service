@@ -3060,20 +3060,24 @@ public class SearchDAOImpl implements SearchDAO {
 
         if (multivalueFields.size() < searchParams.getFacets().length) {
             //now use the supplied facets to add groups to the query
-            query.add("group", "true");
-            query.add("group.ngroups", "true");
-            query.add("group.limit", "0");
 
-            QueryResponse response = runSolrQuery(query, searchParams);
-            GroupResponse groupResponse = response.getGroupResponse();
-
+            // facet totals are slow, so only fetch when foffset == 0 and flimit != -1
             Map<String, Integer> ngroups = new HashMap<String, Integer>();
-            for (GroupCommand gc : groupResponse.getValues()) {
-                ngroups.put(gc.getName(), gc.getNGroups());
+            GroupResponse groupResponse = null;
+            if (searchParams.getFlimit() != -1 && searchParams.getFoffset() == 0) {
+                query.add("group", "true");
+                query.add("group.ngroups", "true");
+                query.add("group.limit", "0");
+
+                QueryResponse response = runSolrQuery(query, searchParams);
+                groupResponse = response.getGroupResponse();
+                for (GroupCommand gc : groupResponse.getValues()) {
+                    ngroups.put(gc.getName(), gc.getNGroups());
+                }
             }
 
-            //include paged facets when flimit > 0
-            if (searchParams.getFlimit() > 0) {
+            //include paged facets when flimit > 0 or flimit == -1
+            if (searchParams.getFlimit() != 0) {
                 searchParams.setFacet(true);
                 SolrQuery facetQuery = initSolrQuery(searchParams, false, null);
                 facetQuery.setQuery(queryString);
@@ -3084,11 +3088,15 @@ public class SearchDAOImpl implements SearchDAO {
                 facetResults = searchResults.getFacetResults();
                 if (facetResults != null) {
                     for (FacetResultDTO fr : facetResults) {
-                        Integer count = ngroups.get(fr.getFieldName());
-                        if (count != null) fr.setCount(count);
+                        if (searchParams.getFlimit() == -1) {
+                            fr.setCount(fr.getFieldResult().size());
+                        } else {
+                            Integer count = ngroups.get(fr.getFieldName());
+                            if (count != null) fr.setCount(count);
+                        }
                     }
                 }
-            } else {
+            } else if (groupResponse != null) {
                 //only return group counts
                 for (GroupCommand gc : groupResponse.getValues()) {
                     facetResults.add(new FacetResultDTO(gc.getName(), null, gc.getNGroups()));
@@ -3559,7 +3567,11 @@ public class SearchDAOImpl implements SearchDAO {
                     FacetField.Count fcount = facetEntries.get(i);
 
                     //get data_provider value
-                    dp[0] = fcount.getAsFilterQuery();
+                    if (fcount.getName() == null) {
+                        dp[0] = "-data_provider:*";
+                    } else {
+                        dp[0] = fcount.getAsFilterQuery();
+                    }
                     requestParams.setFq(dp);
                     String dataProviderName = getFacet(requestParams, "data_provider").getValues().get(0).getName();
                     dataProviderList.add(new DataProviderCountDTO(fcount.getName(), dataProviderName, fcount.getCount()));
