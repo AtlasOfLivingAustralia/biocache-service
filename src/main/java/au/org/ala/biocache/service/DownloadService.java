@@ -29,6 +29,7 @@ import au.org.ala.biocache.util.thread.DownloadControlThread;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.biocache.writer.RecordWriterException;
 import au.org.ala.doi.CreateDoiResponse;
+
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
@@ -149,6 +150,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     @Value("${download.doi.readme.content:When using this dataset please use the following citation:<br><br>Atlas of Living Australia occurrence download at [searchUrl] accessed on [date].<br><br>DOI: [doi] available at [url]<br><br>Data contributed by the following providers:<br>[dataProviders]<br>More information can be found at <a href='https://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.<br><br>}")
     protected String biocacheDownloadDoiReadme = "When using this dataset please use the following citation:<br><br>Atlas of Living Australia occurrence download at [searchUrl] accessed on [date].<br><br>DOI: [doi] available at [url]<br><br>Data contributed by the following providers:<br>[dataProviders]<br>More information can be found at <a href='https://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.<br><br>";
+
+    @Value("${download.doi.licence.intro:Dasets are covered by the following licence(s): }")
+    protected String biocacheDownloadDoiLicenceIntro = "Dasets are covered by the following licence(s): ";
+
+
 
     /** Max number of threads to use in parallel for large offline download queries */
     @Value("${download.offline.parallelquery.maxthreads:30}")
@@ -469,11 +475,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param out
      * @param includeSensitive
      * @param fromIndex
-     * @param datasetMetadata
+     * @param doiResponseList Return the CreateDoiResponse instance as the first element of the list if requestParams.mintDoi was true
      * @throws Exception
      */
     public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
-                                   OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip, ExecutorService parallelExecutor, List<Map<String, String>> datasetMetadata)
+                                   OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip, ExecutorService parallelExecutor, List<CreateDoiResponse> doiResponseList)
             throws Exception {
         afterInitialisation();
         String filename = requestParams.getFile();
@@ -521,7 +527,15 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 // Add the data citation to the download
                 List<String> citationsForReadme = new ArrayList<String>();
 
+                Boolean mintDoi = requestParams.getMintDoi();
+                CreateDoiResponse doiResponse = null;
+                String doi = "";
                 if (citationsEnabled) {
+                    List<Map<String, String>> datasetMetadata = null;
+                    if(mintDoi) {
+                        datasetMetadata = new ArrayList<>();
+                    }
+
                     // add the citations for the supplied uids
                     sp.putNextEntry("citation.csv");
                     try {
@@ -530,6 +544,50 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         logger.error(e.getMessage(), e);
                     }
                     sp.closeEntry();
+
+
+                    if(mintDoi) {
+
+                        Map<String, ?> userDetails = authService.getUserDetails(dd.getEmail());
+
+
+                        //Source requester details
+                        String requesterId = (String) userDetails.get("userId");
+                        String requesterName = userDetails.get("firstName") + " " + userDetails.get("lastName");
+
+                        // Prepare licence
+                        Set<String> datasetLicences = new TreeSet<>();
+                        for(Map<String, String> dataset: datasetMetadata) {
+                            String licence = dataset.get("licence");
+
+                            if(StringUtils.isNotBlank(licence) ) {
+                                datasetLicences.add(licence);
+                            }
+                        }
+                        String licence = "";
+                        if(datasetLicences.size() > 0) {
+                            licence = biocacheDownloadDoiLicenceIntro + datasetLicences.toString();
+                        }
+
+
+                        DownloadDoiDTO doiDetails = new DownloadDoiDTO();
+                        String searchUrl = generateSearchUrl(requestParams);
+                        doiDetails.setApplicationUrl(searchUrl);
+                        doiDetails.setRequesterId(requesterId);
+                        doiDetails.setRequesterName(requesterName);
+                        doiDetails.setDatasetMetadata(datasetMetadata);
+                        doiDetails.setRequestTime(dd.getStartDateString());
+                        doiDetails.setRecordCount(dd.getTotalRecords());
+                        doiDetails.setLicence (licence);
+
+                        doiResponse = doiService.mintDoi(doiDetails);
+
+                        if(doiResponse != null) {
+                            logger.debug("DOI minted" + doiResponse.getDoi());
+                            doiResponseList.add (doiResponse);
+                        }
+                    }
+
                 } else {
                     if (logger.isDebugEnabled()) {
                         logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " + uidStats);
@@ -549,11 +607,24 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 sp.putNextEntry("README.html");
                 String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
 
-                String fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
-                String readmeContent = biocacheDownloadReadme.replace("[url]", fileLocation)
+
+                String readmeTemplate;
+                String fileLocation;
+
+                if(mintDoi && doiResponse != null) {
+                    readmeTemplate = biocacheDownloadDoiReadme;
+                    fileLocation = doiResponse.getDoiServiceLandingPage();
+                    doi = doiResponse.getDoi();
+                } else {
+                    readmeTemplate = biocacheDownloadReadme;
+                    fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
+                }
+
+                String readmeContent = readmeTemplate.replace("[url]", fileLocation)
                         .replace("[date]", dd.getStartDateString())
                         .replace("[searchUrl]", generateSearchUrl(dd.getRequestParams()))
-                        .replace("[dataProviders]", dataProviders);
+                        .replace("[dataProviders]", dataProviders)
+                        .replace("[doi]", doi);
                 if (logger.isDebugEnabled()) {
                     logger.debug(readmeContent);
                 }
@@ -1010,15 +1081,15 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 currentDownload.getRequestParams().setIncludeMisc(false);
                             }
 
-                            List<Map<String, String>> datasetMetadata = null;
+                            List<CreateDoiResponse> doiResponseList = null;
                             Boolean mintDoi = currentDownload.getRequestParams().getMintDoi();
-                            String doi = "Temp DOI";
+
                             if(mintDoi) {
-                                datasetMetadata = new ArrayList<>();
+                                doiResponseList = new ArrayList<>();
                             }
                             writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
                                     currentDownload.getIpAddress(), new CloseShieldOutputStream(fos), currentDownload.getIncludeSensitive(),
-                                    currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false, true, parallelExecutor, datasetMetadata);
+                                    currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false, true, parallelExecutor, doiResponseList);
                             // now that the download is complete email a link to the
                             // recipient.
                             String subject = messageSource.getMessage("offlineEmailSubject", null,
@@ -1034,40 +1105,31 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 new File(currentDownload.getFileLocation()).getParentFile().getParentFile().setExecutable(true, false);
 
 
-                                String fileLocation = biocacheDownloadUrl + File.separator + URLEncoder.encode(currentDownload.getFileLocation().replace(biocacheDownloadDir + "/",""), "UTF-8").replace("%2F", "/").replace("+", "%20");
+                                String archiveFileLocation = biocacheDownloadUrl + File.separator + URLEncoder.encode(currentDownload.getFileLocation().replace(biocacheDownloadDir + "/",""), "UTF-8").replace("%2F", "/").replace("+", "%20");
                                 String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
 
-                                if(mintDoi) {
+                                String doiStr = "";
+                                String emailBody;
+                                String downloadFileLocation;
+                                if(mintDoi && doiResponseList != null && doiResponseList.size() > 0 && doiResponseList.get(0) != null) {
+                                    CreateDoiResponse doiResponse;
+                                    doiResponse = doiResponseList.get(0);
 
-                                    Map<String, ?> userDetails = authService.getUserDetails(currentDownload.getEmail());
-
-                                    String requesterId = (String) userDetails.get("userId");
-                                    String requesterName = userDetails.get("firstName") + " " + userDetails.get("lastName");
-
-                                    DownloadDoiDTO doiDetails = new DownloadDoiDTO();
-                                    doiDetails.setApplicationUrl(searchUrl);
-                                    doiDetails.setFileUrl(fileLocation);
-                                    doiDetails.setRequesterId(requesterId);
-                                    doiDetails.setRequesterName(requesterName);
-                                    doiDetails.setDatasetMetadata(datasetMetadata);
-
-                                    CreateDoiResponse doiResponse = doiService.mintDoi(doiDetails);
-
-                                    if(doiResponse != null) {
-                                        logger.debug("DOI minted" + doiResponse.getDoi());
-                                        doi = doiResponse.getDoi();
-                                        fileLocation = doiResponse.getDoiServiceLandingPage();
-                                    }
+                                    doiService.updateFile(doiResponse.getUuid(), archiveFileLocation);
+                                    doiStr = doiResponse.getDoi();
+                                    emailBody = biocacheDownloadDoiEmailBody;
+                                    downloadFileLocation = doiResponse.getDoiServiceLandingPage();
+                                } else {
+                                    emailBody = biocacheDownloadEmailBody;
+                                    downloadFileLocation = archiveFileLocation;
                                 }
 
-                                String emailBody = mintDoi ? biocacheDownloadDoiEmailBody : biocacheDownloadEmailBody;
-
-                                String emailBodyHtml = emailBody.replace("[url]", fileLocation)
+                                String emailBodyHtml = emailBody.replace("[url]", downloadFileLocation)
                                         .replace("[date]", currentDownload.getStartDateString())
                                         .replace("[searchUrl]", searchUrl)
-                                        .replace("[doi]", doi);
+                                        .replace("[doi]", doiStr);
                                 String body = messageSource.getMessage("offlineEmailBody",
-                                        new Object[]{fileLocation, searchUrl, currentDownload.getStartDateString()},
+                                        new Object[]{archiveFileLocation, searchUrl, currentDownload.getStartDateString()},
                                         emailBodyHtml, null);
 
                                 // save the statistics to the download directory

@@ -20,6 +20,17 @@ public interface DoiApiService {
             @Part MultipartBody.Part file , @Part("json") CreateDoiRequest createDoi );
 
     @Headers("Accept-Version: 1.0")
+    @Multipart
+    @POST("doi/{doi}")
+    Call<Doi> update(@Path(value = "doi", encoded = false) String doi, @Part("json") UpdateDoiRequest updateDoi );
+
+    @Headers("Accept-Version: 1.0")
+    @Multipart
+    @POST("doi/{doi}")
+    Call<Doi> updateMultipart(@Path(value = "doi", encoded = false)  String doi,
+            @Part MultipartBody.Part file, @Part("json") UpdateDoiRequest updateDoi);
+
+    @Headers("Accept-Version: 1.0")
     @GET("doi/{doi}")
     Call<Doi> get(@Path(value = "doi", encoded = false) String doi);
 

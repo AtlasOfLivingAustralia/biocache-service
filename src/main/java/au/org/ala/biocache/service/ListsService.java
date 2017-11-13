@@ -44,7 +44,7 @@ public class ListsService {
     @Value("${list.tool.lookup.enabled:true}")
     private Boolean enabled;
 
-    @Value("${list.tool.url:http://lists.ala.org.au}")
+    @Value("${list.tool.url:https://lists.ala.org.au}")
     private String speciesListUrl;
 
     private Map<String, Map<String, Set<String>>> data = RestartDataService.get(this, "data", new TypeReference<HashMap<String, Map<String, Set<String>>>>(){}, HashMap.class);

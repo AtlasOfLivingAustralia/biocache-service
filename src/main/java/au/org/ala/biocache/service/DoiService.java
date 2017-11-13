@@ -78,7 +78,6 @@ public class DoiService {
         }
     }
 
-
     /**
      * Mint a new DOI
      * @param request The metadata for the DOI
@@ -94,11 +93,10 @@ public class DoiService {
             return response.body();
         } else {
             logger.error("Error creating DOI for request " + request + ":" + response.errorBody().string());
-            return null;
+
+            throw new RuntimeException("Unable to mint DOI for " + request.getApplicationUrl());
         }
-
     }
-
 
     /**
      * Mint a new DOI
@@ -113,6 +111,8 @@ public class DoiService {
         request.setTitle(doiTitle);
         request.setApplicationUrl(downloadInfo.getApplicationUrl());
         request.setDescription(doiTitle);
+        request.setLicence(downloadInfo.getLicence());
+        request.setUserId(downloadInfo.getRequesterId());
 
         request.setProvider(Provider.ANDS.name());
         request.setFileUrl(downloadInfo.getFileUrl());
@@ -121,7 +121,6 @@ public class DoiService {
         providerMetadata.put("publisher", doiAuthor);
         providerMetadata.put("title", doiTitle);
         providerMetadata.put("contributor", downloadInfo.getRequesterName());
-
 
         List<Map<String, String>> creators = new ArrayList<>();
 
@@ -138,13 +137,29 @@ public class DoiService {
 
         Map applicationMetadata = new HashMap<String, String>();
         applicationMetadata.put("searchUrl", downloadInfo.getApplicationUrl());
-        applicationMetadata.put("requesterId", downloadInfo.getRequesterId());
         applicationMetadata.put("datasets", downloadInfo.getDatasetMetadata());
+        applicationMetadata.put("requestedOn", downloadInfo.getRequestTime());
+        applicationMetadata.put("recordCount", Long.toString(downloadInfo.getRecordCount()));
 
         request.setApplicationMetadata(applicationMetadata);
 
-
         return mintDoi(request);
+    }
+
+    public Doi updateFile(String id, String fileUrl) throws IOException {
+        UpdateDoiRequest updateRequest = new UpdateDoiRequest();
+
+        updateRequest.setFileUrl(fileUrl);
+
+        Response<Doi> updateResponse = doiApiService.update(id, updateRequest).execute();
+
+        if(updateResponse.isSuccessful()) {
+            return updateResponse.body();
+        } else {
+            logger.error("Error updating DOI for id " + id + ":" + updateResponse.errorBody().string());
+            throw new RuntimeException("Unable to update file for DOI uuid" + id);
+        }
+
     }
 
 }

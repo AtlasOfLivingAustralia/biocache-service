@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -48,31 +49,59 @@ public class DoiApiTest {
 
     @Test
     @Ignore
-    public void mintDoi() throws IOException {
+    public void mintAndUpdateDoi() throws IOException {
 
+        CreateDoiRequest createRequest = new CreateDoiRequest();
 
-        CreateDoiRequest request = new CreateDoiRequest();
+        createRequest.setAuthors("ALA");
+        createRequest.setTitle("Full Integration Test");
+        createRequest.setApplicationUrl("https://devt.ala.org.au/ala-hub/");
+        createRequest.setDescription("Excercising DOI Service API");
+        createRequest.setLicence("Licence");
+        createRequest.setUserId("UserId");
 
-        request.setAuthors("ALA");
-        request.setTitle("Integration Test");
-        request.setApplicationUrl("https://devt.ala.org.au/ala-hub/");
-        request.setDescription("Excercising DOI Service API");
-
-        request.setProvider(Provider.ANDS.name());
-        request.setFileUrl("https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/homepage-channel-image-lionfish.jpg");
+        createRequest.setProvider(Provider.ANDS.name());
+//        createRequest.setFileUrl("https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/homepage-channel-image-lionfish.jpg");
 
         Map providerMetadata = new HashMap<String, String>();
         providerMetadata.put("authors", "ALA");
         providerMetadata.put("title", "Integration Test");
 
-        request.setProviderMetadata(providerMetadata);
+        createRequest.setProviderMetadata(providerMetadata);
 
-         Response<CreateDoiResponse> response = doiApiService.create(request).execute();
+        Response<CreateDoiResponse> createResponse = doiApiService.create(createRequest).execute();
 
-        assertTrue(response.isSuccessful());
-        assertNotNull(response.body());
-        assertNotNull(response.body().getDoi());
+        assertTrue(createResponse.isSuccessful());
+        assertNotNull(createResponse.body());
+        assertNotNull(createResponse.body().getDoi());
+        String uuid = createResponse.body().getUuid();
+        assertNotNull(uuid);
 
-        System.out.println(response.body());
+        Call<Doi> doiCall = doiApiService.get(uuid);
+        Response<Doi> doiResponse = doiCall.execute();
+
+        assertTrue(doiResponse.isSuccessful());
+        Doi doi = doiResponse.body();
+        assertNotNull(doi);
+        assertNotNull(doi.getDoi());
+
+        UpdateDoiRequest updateRequest = new UpdateDoiRequest();
+
+        updateRequest.setFileUrl("https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/homepage-channel-image-lionfish.jpg");
+
+        Response<Doi> updateResponse = doiApiService.update(uuid, updateRequest).execute();
+        assertTrue(updateResponse.isSuccessful());
+        Doi updateDoi = updateResponse.body();
+        assertNotNull(updateDoi);
+        assertNotNull(doi.getDoi());
+
+        assertEquals("ALA", updateDoi.getAuthors());
+        assertEquals("Full Integration Test", updateDoi.getTitle());
+        assertEquals("https://devt.ala.org.au/ala-hub/", updateDoi.getApplicationUrl());
+        assertEquals("Excercising DOI Service API", updateDoi.getDescription());
+        assertEquals("Licence", updateDoi.getLicence());
+        assertEquals("UserId", updateDoi.getUserId());
+
+        System.out.println(updateDoi);
     }
 }

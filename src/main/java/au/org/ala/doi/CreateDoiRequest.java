@@ -3,15 +3,17 @@ package au.org.ala.doi;
 import java.util.Map;
 
 public class CreateDoiRequest {
-    String provider;
-    Map<String, ?> providerMetadata;
-    String title;
-    String authors;
-    String description;
-    String applicationUrl;
-    String fileUrl;
-    Map<String, ?> applicationMetadata;
-    String customLandingPageUrl;
+    protected String provider;
+    protected Map<String, ?> providerMetadata;
+    protected String title;
+    protected String authors;
+    protected String description;
+    protected String applicationUrl;
+    protected String fileUrl;
+    protected String licence;
+    protected String userId;
+    protected Map<String, ?> applicationMetadata;
+    protected String customLandingPageUrl;
 
     public String getProvider() {
         return provider;
@@ -83,5 +85,21 @@ public class CreateDoiRequest {
 
     public void setCustomLandingPageUrl(String customLandingPageUrl) {
         this.customLandingPageUrl = customLandingPageUrl;
+    }
+
+    public String getLicence() {
+        return licence;
+    }
+
+    public void setLicence(String licence) {
+        this.licence = licence;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 }

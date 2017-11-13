@@ -25,7 +25,27 @@ public class DownloadDoiDTO {
     private String query;
     private String fileUrl;
     private String requesterId;
+    private String licence;
     private String requesterName;
+    private long recordCount;
+    private String requestTime;
+
+    public long getRecordCount() {
+        return recordCount;
+    }
+
+    public void setRecordCount(long recordCount) {
+        this.recordCount = recordCount;
+    }
+
+    public String getRequestTime() {
+        return requestTime;
+    }
+
+    public void setRequestTime(String requestTime) {
+        this.requestTime = requestTime;
+    }
+
     private List<Map<String, String>> datasetMetadata;
 
     public String getApplicationUrl() {
@@ -74,5 +94,13 @@ public class DownloadDoiDTO {
 
     public void setDatasetMetadata(List<Map<String, String>> datasetMetadata) {
         this.datasetMetadata = datasetMetadata;
+    }
+
+    public String getLicence() {
+        return licence;
+    }
+
+    public void setLicence(String licence) {
+        this.licence = licence;
     }
 }

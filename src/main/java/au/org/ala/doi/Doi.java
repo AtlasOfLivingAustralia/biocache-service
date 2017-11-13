@@ -11,6 +11,8 @@ public class Doi {
     private String doi;
     private String title;
     private String authors;
+    private String licence;
+    private String userId;
     private String description;
     private Date dateMinted;
     private Provider provider;
@@ -23,7 +25,6 @@ public class Doi {
     private Long version;
     private Date dateCreated;
     private Date lastUpdated;
-
 
     public Long getId() {
         return id;
@@ -159,5 +160,21 @@ public class Doi {
 
     public void setLastUpdated(Date lastUpdated) {
         this.lastUpdated = lastUpdated;
+    }
+
+    public String getLicence() {
+        return licence;
+    }
+
+    public void setLicence(String licence) {
+        this.licence = licence;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 }
