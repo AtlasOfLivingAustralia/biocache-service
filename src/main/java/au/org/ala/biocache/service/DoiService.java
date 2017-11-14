@@ -37,7 +37,7 @@ public class DoiService {
 
     private static final Logger logger = Logger.getLogger(DoiService.class);
 
-    @Value("${doi.service.userId:https://devt.ala.org.au/doi-service/api/}")
+    @Value("${doi.service.url:https://devt.ala.org.au/doi-service/api/}")
     private String doiServiceUrl;
 
     @Value("${doi.author:Atlas Of Living Australia}")
