@@ -71,7 +71,7 @@ public class DoiApiTest {
     }
 
     @Test
-//    @Ignore
+    @Ignore
     public void mintAndUpdateDoi() throws IOException {
 
         CreateDoiRequest createRequest = new CreateDoiRequest();
