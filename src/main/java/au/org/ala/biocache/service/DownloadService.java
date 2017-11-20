@@ -154,7 +154,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.doi.licence.intro:Dasets are covered by the following licence(s): }")
     protected String biocacheDownloadDoiLicenceIntro = "Dasets are covered by the following licence(s): ";
 
-
+    @Value("${download.doi.landing.page.baseUrl:http://devt.ala.org.au/ala-hub/download/doi?doi=}")
+    protected String biocacheDownloadDoiLandingPage = "http://devt.ala.org.au/ala-hub/download/doi?doi=";
 
     /** Max number of threads to use in parallel for large offline download queries */
     @Value("${download.offline.parallelquery.maxthreads:30}")
@@ -613,8 +614,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                 if(mintDoi && doiResponse != null) {
                     readmeTemplate = biocacheDownloadDoiReadme;
-                    fileLocation = doiResponse.getDoiServiceLandingPage();
                     doi = doiResponse.getDoi();
+                    fileLocation = biocacheDownloadDoiLandingPage+doi;
+
                 } else {
                     readmeTemplate = biocacheDownloadReadme;
                     fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
@@ -1118,7 +1120,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     doiService.updateFile(doiResponse.getUuid(), archiveFileLocation);
                                     doiStr = doiResponse.getDoi();
                                     emailBody = biocacheDownloadDoiEmailBody;
-                                    downloadFileLocation = doiResponse.getDoiServiceLandingPage();
+                                    downloadFileLocation = biocacheDownloadDoiLandingPage+doiStr;
                                 } else {
                                     emailBody = biocacheDownloadEmailBody;
                                     downloadFileLocation = archiveFileLocation;

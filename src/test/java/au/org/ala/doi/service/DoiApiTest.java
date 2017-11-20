@@ -2,6 +2,10 @@ package au.org.ala.doi.service;
 
 import au.org.ala.doi.*;
 import com.google.common.net.UrlEscapers;
+import okhttp3.Interceptor;
+import okhttp3.OkHttpClient;
+
+import okhttp3.Request;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -9,6 +13,7 @@ import retrofit2.Call;
 import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
+
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -24,9 +29,27 @@ public class DoiApiTest {
 
     @Before
     public void setup(){
+
+        OkHttpClient.Builder httpClient = new OkHttpClient.Builder();
+        httpClient.addInterceptor(new Interceptor() {
+            @Override
+            public okhttp3.Response intercept(Interceptor.Chain chain) throws IOException {
+                Request original = chain.request();
+
+                Request request = original.newBuilder()
+                        .header("apiKey", "INSERT YOUR API MEY HERE")
+                        .method(original.method(), original.body())
+                        .build();
+
+                return chain.proceed(request);
+            }
+        });
+
         Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl("https://devt.ala.org.au/doi-service/api/")
+//                .baseUrl("https://devt.ala.org.au/doi-service/api/")
+                .baseUrl("https://doi-test.ala.org.au/api/")
                 .addConverterFactory(GsonConverterFactory.create())
+                .client(httpClient.build())
                 .build();
 
         doiApiService = retrofit.create(DoiApiService.class);
@@ -36,7 +59,7 @@ public class DoiApiTest {
     @Ignore
     public void testGetDoi() throws IOException {
 
-        String doiStr = UrlEscapers.urlPathSegmentEscaper().escape("10.1000/3056cd6f-6ed4-4fd0-a35b-08dbc032c316");
+        String doiStr = UrlEscapers.urlPathSegmentEscaper().escape("INSERT AN EXISTING DOI HERE");
         Call<Doi> doiCall = doiApiService.getEncoded(doiStr);
         Response<Doi> doiResponse = doiCall.execute();
 
@@ -48,7 +71,7 @@ public class DoiApiTest {
     }
 
     @Test
-    @Ignore
+//    @Ignore
     public void mintAndUpdateDoi() throws IOException {
 
         CreateDoiRequest createRequest = new CreateDoiRequest();
