@@ -17,6 +17,9 @@ package au.org.ala.biocache.service;
 import au.org.ala.biocache.dto.DownloadDoiDTO;
 import au.org.ala.doi.*;
 import com.google.common.net.UrlEscapers;
+import okhttp3.Interceptor;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -40,6 +43,9 @@ public class DoiService {
     @Value("${doi.service.url:https://devt.ala.org.au/doi-service/api/}")
     private String doiServiceUrl;
 
+    @Value("${doi.service.apiKey:Provide a valid key}")
+    private String doiServiceApiKey;
+
     @Value("${doi.author:Atlas Of Living Australia}")
     private String doiAuthor;
 
@@ -50,9 +56,27 @@ public class DoiService {
 
     @PostConstruct
     private void init() {
+
+        OkHttpClient.Builder httpClient = new OkHttpClient.Builder();
+        httpClient.addInterceptor(new Interceptor() {
+            @Override
+            public okhttp3.Response intercept(Interceptor.Chain chain) throws IOException {
+                Request original = chain.request();
+
+                Request request = original.newBuilder()
+                        .header("apiKey", doiServiceApiKey)
+                        .method(original.method(), original.body())
+                        .build();
+
+                return chain.proceed(request);
+            }
+        });
+
+
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(doiServiceUrl)
                 .addConverterFactory(GsonConverterFactory.create())
+                .client(httpClient.build())
                 .build();
 
         doiApiService = retrofit.create(DoiApiService.class);
