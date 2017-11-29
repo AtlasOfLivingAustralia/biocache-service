@@ -199,7 +199,7 @@
 									<gmd:onlineResource>
 										<gmd:CI_OnlineResource>
 											<gmd:linkage>
-												<gmd:URL>http://www.ala.org.au/</gmd:URL>
+												<gmd:URL>https://www.ala.org.au</gmd:URL>
 											</gmd:linkage>
 											<gmd:protocol>
 												<gco:CharacterString>WWW:LINK-1.0-http--link</gco:CharacterString>

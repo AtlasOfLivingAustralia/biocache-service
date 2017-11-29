@@ -8,7 +8,7 @@
   <display-name>ALA core</display-name>
   <tlib-version>1.0</tlib-version>
   <short-name>ala</short-name>
-  <uri>http://www.ala.org.au/jsp/core</uri>	
+  <uri>https://www.ala.org.aujsp/core</uri>
 
   <tag>
     <description>Banner Menu Tag</description>

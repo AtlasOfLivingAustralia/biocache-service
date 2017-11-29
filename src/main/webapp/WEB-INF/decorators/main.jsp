@@ -5,38 +5,38 @@
     <title>Occurrence web services | Atlas of Living Australia</title>
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="pingback" href="http://www.ala.org.au/xmlrpc.php" />
+    <link rel="pingback" href="https://www.ala.org.auxmlrpc.php" />
     <title>Occurrence webservices | Atlas of Living Australia</title>
-    <link rel="alternate" type="application/rss+xml" title="Atlas of Living Australia &raquo; Feed" href="http://www.ala.org.au/feed/" />
-    <link rel="alternate" type="application/rss+xml" title="Atlas of Living Australia &raquo; Comments Feed" href="http://www.ala.org.au/comments/feed/" />
-    <link rel="alternate" type="application/rss+xml" title="Atlas of Living Australia &raquo; Blogs &amp; news updates Comments Feed" href="http://www.ala.org.au/blogs-news/feed/" />
+    <link rel="alternate" type="application/rss+xml" title="Atlas of Living Australia &raquo; Feed" href="https://www.ala.org.aufeed/" />
+    <link rel="alternate" type="application/rss+xml" title="Atlas of Living Australia &raquo; Comments Feed" href="https://www.ala.org.aucomments/feed/" />
+    <link rel="alternate" type="application/rss+xml" title="Atlas of Living Australia &raquo; Blogs &amp; news updates Comments Feed" href="https://www.ala.org.aublogs-news/feed/" />
 
-    <link rel='stylesheet' id='bootstrap.css-css'  href='http://www.ala.org.au/wp-content/themes/devdmbootstrap3/css/bootstrap.css?ver=1' type='text/css' media='all' />
-    <link rel='stylesheet' id='parent-style-css'  href='http://www.ala.org.au/wp-content/themes/devdmbootstrap3/style.css?ver=1.5.0' type='text/css' media='all' />
-    <link rel='stylesheet' id='autocompcss-css'  href='http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/css/jquery.autocomplete.css?ver=1.0' type='text/css' media='all' />
-    <link rel='stylesheet' id='ala-style-css'  href='http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/css/ala-styles.css?ver=1.4' type='text/css' media='all' />
+    <link rel='stylesheet' id='bootstrap.css-css'  href='https://www.ala.org.auwp-content/themes/devdmbootstrap3/css/bootstrap.css?ver=1' type='text/css' media='all' />
+    <link rel='stylesheet' id='parent-style-css'  href='https://www.ala.org.auwp-content/themes/devdmbootstrap3/style.css?ver=1.5.0' type='text/css' media='all' />
+    <link rel='stylesheet' id='autocompcss-css'  href='https://www.ala.org.auwp-content/themes/ala-wordpress-theme/css/jquery.autocomplete.css?ver=1.0' type='text/css' media='all' />
+    <link rel='stylesheet' id='ala-style-css'  href='https://www.ala.org.auwp-content/themes/ala-wordpress-theme/css/ala-styles.css?ver=1.4' type='text/css' media='all' />
     <link rel='stylesheet' id='fontawesome-css'  href='//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css?ver=4.3.0' type='text/css' media='all' />
-    <link rel='stylesheet' id='stylesheet-css'  href='http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/style.css?ver=1' type='text/css' media='all' />
-    <script type='text/javascript' src='http://www.ala.org.au/wp-includes/js/jquery/jquery.js?ver=1.11.2'></script>
-    <script type='text/javascript' src='http://www.ala.org.au/wp-includes/js/jquery/jquery-migrate.min.js?ver=1.2.1'></script>
-    <link rel="EditURI" type="application/rsd+xml" title="RSD" href="http://www.ala.org.au/xmlrpc.php?rsd" />
-    <link rel="wlwmanifest" type="application/wlwmanifest+xml" href="http://www.ala.org.au/wp-includes/wlwmanifest.xml" />
+    <link rel='stylesheet' id='stylesheet-css'  href='https://www.ala.org.auwp-content/themes/ala-wordpress-theme/style.css?ver=1' type='text/css' media='all' />
+    <script type='text/javascript' src='https://www.ala.org.auwp-includes/js/jquery/jquery.js?ver=1.11.2'></script>
+    <script type='text/javascript' src='https://www.ala.org.auwp-includes/js/jquery/jquery-migrate.min.js?ver=1.2.1'></script>
+    <link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://www.ala.org.auxmlrpc.php?rsd" />
+    <link rel="wlwmanifest" type="application/wlwmanifest+xml" href="https://www.ala.org.auwp-includes/wlwmanifest.xml" />
     <!-- END GADWP Universal Tracking -->
 
     <!-- Favicon -->
-    <link rel="apple-touch-icon" sizes="57x57" href="http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-57x57.png">
-    <link rel="apple-touch-icon" sizes="60x60" href="http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-60x60.png">
-    <link rel="apple-touch-icon" sizes="72x72" href="http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-72x72.png">
-    <link rel="apple-touch-icon" sizes="76x76" href="http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-76x76.png">
-    <link rel="apple-touch-icon" sizes="114x114" href="http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-114x114.png">
-    <link rel="apple-touch-icon" sizes="120x120" href="http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-120x120.png">
-    <link rel="apple-touch-icon" sizes="144x144" href="http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-144x144.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-180x180.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/android-icon-192x192.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="96x96" href="http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/favicon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="57x57" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/android-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/favicon-16x16.png">
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -53,7 +53,7 @@
         <!-- Brand and toggle get grouped for better mobile display -->
         <div class="navbar-header">
             <a class="navbar-brand" href="/">
-                <img alt="Brand" class="img-responsive" src="http://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/supporting-graphic-element-flat.png">
+                <img alt="Brand" class="img-responsive" src="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/supporting-graphic-element-flat.png">
             </a>
             <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
                 <span class="sr-only">Toggle navigation</span>
@@ -121,7 +121,7 @@
                             <span class="caret"></span>
                         </a>
                         <ul class="dropdown-menu" role="menu">
-                            <li><a href="http://www.ala.org.au/wp-login.php?redirect_to=http%3A%2F%2Fwww.ala.org.au">Log in</a></li>
+                            <li><a href="https://www.ala.org.auwp-login.php?redirect_to=http%3A%2F%2Fwww.ala.org.au">Log in</a></li>
                             <li><a href="https://auth.ala.org.au/userdetails/registration/createAccount">Register</a></li>
                         </ul>
                     </li>
