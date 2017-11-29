@@ -11,32 +11,32 @@
     <link rel="alternate" type="application/rss+xml" title="Atlas of Living Australia &raquo; Comments Feed" href="https://www.ala.org.aucomments/feed/" />
     <link rel="alternate" type="application/rss+xml" title="Atlas of Living Australia &raquo; Blogs &amp; news updates Comments Feed" href="https://www.ala.org.aublogs-news/feed/" />
 
-    <link rel='stylesheet' id='bootstrap.css-css'  href='https://www.ala.org.auwp-content/themes/devdmbootstrap3/css/bootstrap.css?ver=1' type='text/css' media='all' />
-    <link rel='stylesheet' id='parent-style-css'  href='https://www.ala.org.auwp-content/themes/devdmbootstrap3/style.css?ver=1.5.0' type='text/css' media='all' />
-    <link rel='stylesheet' id='autocompcss-css'  href='https://www.ala.org.auwp-content/themes/ala-wordpress-theme/css/jquery.autocomplete.css?ver=1.0' type='text/css' media='all' />
-    <link rel='stylesheet' id='ala-style-css'  href='https://www.ala.org.auwp-content/themes/ala-wordpress-theme/css/ala-styles.css?ver=1.4' type='text/css' media='all' />
+    <link rel='stylesheet' id='bootstrap.css-css'  href='https://www.ala.org.au/wp-content/themes/devdmbootstrap3/css/bootstrap.css?ver=1' type='text/css' media='all' />
+    <link rel='stylesheet' id='parent-style-css'  href='https://www.ala.org.au/wp-content/themes/devdmbootstrap3/style.css?ver=1.5.0' type='text/css' media='all' />
+    <link rel='stylesheet' id='autocompcss-css'  href='https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/css/jquery.autocomplete.css?ver=1.0' type='text/css' media='all' />
+    <link rel='stylesheet' id='ala-style-css'  href='https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/css/ala-styles.css?ver=1.4' type='text/css' media='all' />
     <link rel='stylesheet' id='fontawesome-css'  href='//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css?ver=4.3.0' type='text/css' media='all' />
-    <link rel='stylesheet' id='stylesheet-css'  href='https://www.ala.org.auwp-content/themes/ala-wordpress-theme/style.css?ver=1' type='text/css' media='all' />
-    <script type='text/javascript' src='https://www.ala.org.auwp-includes/js/jquery/jquery.js?ver=1.11.2'></script>
-    <script type='text/javascript' src='https://www.ala.org.auwp-includes/js/jquery/jquery-migrate.min.js?ver=1.2.1'></script>
+    <link rel='stylesheet' id='stylesheet-css'  href='https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/style.css?ver=1' type='text/css' media='all' />
+    <script type='text/javascript' src='https://www.ala.org.au/wp-includes/js/jquery/jquery.js?ver=1.11.2'></script>
+    <script type='text/javascript' src='https://www.ala.org.au/wp-includes/js/jquery/jquery-migrate.min.js?ver=1.2.1'></script>
     <link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://www.ala.org.auxmlrpc.php?rsd" />
-    <link rel="wlwmanifest" type="application/wlwmanifest+xml" href="https://www.ala.org.auwp-includes/wlwmanifest.xml" />
+    <link rel="wlwmanifest" type="application/wlwmanifest+xml" href="https://www.ala.org.au/wp-includes/wlwmanifest.xml" />
     <!-- END GADWP Universal Tracking -->
 
     <!-- Favicon -->
-    <link rel="apple-touch-icon" sizes="57x57" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-57x57.png">
-    <link rel="apple-touch-icon" sizes="60x60" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-60x60.png">
-    <link rel="apple-touch-icon" sizes="72x72" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-72x72.png">
-    <link rel="apple-touch-icon" sizes="76x76" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-76x76.png">
-    <link rel="apple-touch-icon" sizes="114x114" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-114x114.png">
-    <link rel="apple-touch-icon" sizes="120x120" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-120x120.png">
-    <link rel="apple-touch-icon" sizes="144x144" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-144x144.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-180x180.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/android-icon-192x192.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="96x96" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/favicon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/favicon/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="57x57" href="https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/apple-icon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/android-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/favicon/favicon-16x16.png">
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -53,7 +53,7 @@
         <!-- Brand and toggle get grouped for better mobile display -->
         <div class="navbar-header">
             <a class="navbar-brand" href="/">
-                <img alt="Brand" class="img-responsive" src="https://www.ala.org.auwp-content/themes/ala-wordpress-theme/img/supporting-graphic-element-flat.png">
+                <img alt="Brand" class="img-responsive" src="https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/supporting-graphic-element-flat.png">
             </a>
             <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
                 <span class="sr-only">Toggle navigation</span>
@@ -106,7 +106,7 @@
                 </li>
 
             </ul>
-            <form class="navbar-form navbar-left" role="search" action="http://bie.ala.org.au/search" method="get">
+            <form class="navbar-form navbar-left" role="search" action="https://bie.ala.org.au/search" method="get">
                 <div class="form-group">
                     <input id="search" class="autocomplete form-control" title="Search" type="text" name="q" placeholder="Search the Atlas" autocomplete="off">
                 </div>

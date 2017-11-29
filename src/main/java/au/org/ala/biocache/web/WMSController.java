@@ -143,10 +143,10 @@ public class WMSController extends AbstractSecureController{
     @Value("${orgEmail:support@ala.org.au}")
     protected String orgEmail;
 
-    @Value("${service.bie.ws.url:http://bie.ala.org.au/ws}")
+    @Value("${service.bie.ws.url:https://bie.ala.org.au/ws}")
     protected String bieWebService;
 
-    @Value("${service.bie.ui.url:http://bie.ala.org.au}")
+    @Value("${service.bie.ui.url:https://bie.ala.org.au}")
     protected String bieUiUrl;
 
     /**
