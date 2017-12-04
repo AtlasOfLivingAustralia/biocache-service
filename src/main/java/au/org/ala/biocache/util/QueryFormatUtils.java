@@ -105,7 +105,16 @@ public class QueryFormatUtils {
         return formatSearchQuery(searchParams, false);
     }
 
-    @Cacheable(cacheName = "formatSearchQuery")
+
+    /**
+     * Format the search query. Note: Cacheable annotation is deliberately removed as this introduced a bug
+     * for Facet Count queries.
+     *
+     * @param searchParams
+     * @param forceQueryFormat
+     * @return
+     */
+//    @Cacheable(cacheName = "formatSearchQuery")
     public Map<String, Facet> formatSearchQuery(SpatialSearchRequestParams searchParams, boolean forceQueryFormat) {
         Map<String, Facet> activeFacetMap = new HashMap();
         //Only format the query if it doesn't already supply a formattedQuery.
@@ -199,13 +208,23 @@ public class QueryFormatUtils {
         String displayString = query;
         if (query.contains("qid:")) {
             Matcher matcher = qidPattern.matcher(query);
+            int count = 0;
             while (matcher.find()) {
                 String value = matcher.group();
                 try {
                     String qidValue = SearchUtils.stripEscapedQuotes(value.substring(4));
                     Qid qid = qidCacheDao.get(qidValue);
                     if (qid != null) {
-                        q = qid.getQ();
+                        if (count > 0) {
+                            //add qid to fq when >1 qid is already found
+                            addFqs(new String[] { qid.getQ() }, searchParams);
+                        } else if (qid.getQ().contains("qid:")) {
+                            String [] interior = formatQid(qid.getQ(), searchParams);
+                            displayString = interior[0];
+                            q = interior[1];
+                        } else {
+                            q = qid.getQ();
+                        }
 
                         //add the fqs from the params cache
                         addFqs(qid.getFqs(), searchParams);
@@ -219,9 +238,13 @@ public class QueryFormatUtils {
                                 addFqs(new String[]{SpatialUtils.getWKTQuery(spatialField, qid.getWkt(), false)}, searchParams);
                             }
                         }
+
+                        count = count + 1;
                     }
                 } catch (NumberFormatException e) {
+                    logger.error(e.getMessage(), e);
                 } catch (QidMissingException e) {
+                    logger.error(e.getMessage(), e);
                 }
             }
         }
