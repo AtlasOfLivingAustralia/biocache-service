@@ -151,8 +151,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.doi.readme.content:When using this dataset please use the following citation:<br><br>Atlas of Living Australia occurrence download at [searchUrl] accessed on [date].<br><br>DOI: [doi] available at [url]<br><br>Data contributed by the following providers:<br>[dataProviders]<br>More information can be found at <a href='https://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.<br><br>}")
     protected String biocacheDownloadDoiReadme = "When using this dataset please use the following citation:<br><br>Atlas of Living Australia occurrence download at [searchUrl] accessed on [date].<br><br>DOI: [doi] available at [url]<br><br>Data contributed by the following providers:<br>[dataProviders]<br>More information can be found at <a href='https://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.<br><br>";
 
-    @Value("${download.doi.licence.intro:Dasets are covered by the following licence(s): }")
-    protected String biocacheDownloadDoiLicenceIntro = "Dasets are covered by the following licence(s): ";
+    @Value("${download.doi.licence.prefix:Datasets are covered by the following licence(s): }")
+    protected String biocacheDownloadDoiLicencePrefix = "Datasets are covered by the following licence(s): ";
+
+    @Value("${download.doi.title.prefix:Occurrence download }")
+    protected String biocacheDownloadDoiTitlePrefix = "Occurrence download ";
 
     @Value("${download.doi.landing.page.baseUrl:http://devt.ala.org.au/ala-hub/download/doi?doi=}")
     protected String biocacheDownloadDoiLandingPage = "http://devt.ala.org.au/ala-hub/download/doi?doi=";
@@ -567,12 +570,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         }
                         String licence = "";
                         if(datasetLicences.size() > 0) {
-                            licence = biocacheDownloadDoiLicenceIntro + datasetLicences.toString();
+
+                            licence = biocacheDownloadDoiLicencePrefix + String.join("; ", datasetLicences);
                         }
 
 
                         DownloadDoiDTO doiDetails = new DownloadDoiDTO();
                         String searchUrl = generateSearchUrl(requestParams);
+                        doiDetails.setTitle(biocacheDownloadDoiTitlePrefix + filename);
                         doiDetails.setApplicationUrl(searchUrl);
                         doiDetails.setRequesterId(requesterId);
                         doiDetails.setRequesterName(requesterName);
@@ -580,6 +585,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         doiDetails.setRequestTime(dd.getStartDateString());
                         doiDetails.setRecordCount(dd.getTotalRecords());
                         doiDetails.setLicence (licence);
+                        doiDetails.setQueryTitle(requestParams.getDisplayString());
 
                         doiResponse = doiService.mintDoi(doiDetails);
 
@@ -625,6 +631,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 String readmeContent = readmeTemplate.replace("[url]", fileLocation)
                         .replace("[date]", dd.getStartDateString())
                         .replace("[searchUrl]", generateSearchUrl(dd.getRequestParams()))
+                        .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
                         .replace("[dataProviders]", dataProviders)
                         .replace("[doi]", doi);
                 if (logger.isDebugEnabled()) {
@@ -1129,6 +1136,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 String emailBodyHtml = emailBody.replace("[url]", downloadFileLocation)
                                         .replace("[date]", currentDownload.getStartDateString())
                                         .replace("[searchUrl]", searchUrl)
+                                        .replace("[queryTitle]", currentDownload.getRequestParams().getDisplayString())
                                         .replace("[doi]", doiStr);
                                 String body = messageSource.getMessage("offlineEmailBody",
                                         new Object[]{archiveFileLocation, searchUrl, currentDownload.getStartDateString()},

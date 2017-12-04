@@ -21,6 +21,7 @@ import java.util.Map;
  * Encapsulates parameters need it to mint a DOI from the offline download functionality
  */
 public class DownloadDoiDTO {
+    private String title;
     private String applicationUrl;
     private String query;
     private String fileUrl;
@@ -29,6 +30,7 @@ public class DownloadDoiDTO {
     private String requesterName;
     private long recordCount;
     private String requestTime;
+    private String queryTitle;
 
     public long getRecordCount() {
         return recordCount;
@@ -102,5 +104,22 @@ public class DownloadDoiDTO {
 
     public void setLicence(String licence) {
         this.licence = licence;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getQueryTitle() {
+        return queryTitle;
+    }
+
+    public void setQueryTitle(String queryTitle) {
+        this.queryTitle = queryTitle;
+
     }
 }

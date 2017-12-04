@@ -49,8 +49,8 @@ public class DoiService {
     @Value("${doi.author:Atlas Of Living Australia}")
     private String doiAuthor;
 
-    @Value("${doi.title:Biocache Download}")
-    private String doiTitle;
+    @Value("${doi.description:ALA occurrence record download}")
+    private String doiDescription;
 
     private DoiApiService doiApiService;
 
@@ -132,9 +132,9 @@ public class DoiService {
         CreateDoiRequest request = new CreateDoiRequest();
 
         request.setAuthors(doiAuthor);
-        request.setTitle(doiTitle);
+        request.setTitle(downloadInfo.getTitle());
         request.setApplicationUrl(downloadInfo.getApplicationUrl());
-        request.setDescription(doiTitle);
+        request.setDescription(doiDescription);
         request.setLicence(downloadInfo.getLicence());
         request.setUserId(downloadInfo.getRequesterId());
 
@@ -143,7 +143,7 @@ public class DoiService {
 
         Map providerMetadata = new HashMap<String, String>();
         providerMetadata.put("publisher", doiAuthor);
-        providerMetadata.put("title", doiTitle);
+        providerMetadata.put("title", downloadInfo.getTitle());
         providerMetadata.put("contributor", downloadInfo.getRequesterName());
 
         List<Map<String, String>> creators = new ArrayList<>();
@@ -164,6 +164,7 @@ public class DoiService {
         applicationMetadata.put("datasets", downloadInfo.getDatasetMetadata());
         applicationMetadata.put("requestedOn", downloadInfo.getRequestTime());
         applicationMetadata.put("recordCount", Long.toString(downloadInfo.getRecordCount()));
+        applicationMetadata.put("queryTitle", downloadInfo.getQueryTitle());
 
         request.setApplicationMetadata(applicationMetadata);
 
