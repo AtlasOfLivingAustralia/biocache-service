@@ -249,6 +249,7 @@ public class DownloadController extends AbstractSecureController {
 
         List<Map<String, Object>> allStatus = new ArrayList<Map<String, Object>>();
 
+        Map<String,String> userIdLookup = authService.getMapOfEmailToId();
         //is it in the queue?
         List<DownloadDetailsDTO> downloads = persistentQueueDAO.getAllDownloads();
         for (DownloadDetailsDTO dd : downloads) {
@@ -265,6 +266,9 @@ public class DownloadController extends AbstractSecureController {
             status.put("downloadParams", dd.getDownloadParams());
             status.put("startDate", dd.getStartDateString());
             status.put("thread", dd.getProcessingThreadName());
+            if(userIdLookup != null) {
+                status.put("userId", authService.getMapOfEmailToId().get(dd.getEmail()));
+            }
             status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + id);
 
             setStatusIfEmpty(id, status);
@@ -292,6 +296,9 @@ public class DownloadController extends AbstractSecureController {
                     status.put("records", dd.getRecordsDownloaded());
                 }
                 status.put("totalRecords", dd.getTotalRecords());
+                if(authService.getMapOfEmailToId() !=null) {
+                    status.put("userId", authService.getMapOfEmailToId().get(dd.getEmail()));
+                }
                 status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + id);
                 break;
             }
