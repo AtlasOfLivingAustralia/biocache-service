@@ -24,6 +24,7 @@ import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.google.common.html.HtmlEscapers.htmlEscaper;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.StreamSupport.stream;
@@ -379,6 +380,7 @@ public class QueryFormatUtils {
         StringBuffer sb = new StringBuffer();
         Matcher m = speciesListPattern.matcher(current[1]);
         int max = getMaxBooleanClauses();
+        HashSet<String> failedLists = new HashSet<>();
         while (m.find()) {
             String speciesList = m.group(1);
             try {
@@ -400,6 +402,8 @@ public class QueryFormatUtils {
                 m.appendReplacement(sb, q);
             } catch (Exception e) {
                 logger.error("failed to get species list: " + speciesList, e);
+                m.appendReplacement(sb, "(NOT *:*)");
+                failedLists.add(speciesList);
             }
         }
         m.appendTail(sb);
@@ -409,12 +413,17 @@ public class QueryFormatUtils {
         m = speciesListPattern.matcher(current[0]);
         while (m.find()) {
             String speciesList = m.group(1);
-            try {
-                SpeciesListSearchDTO dto = listsService.getListInfo(speciesList);
-                String name = dto.findSpeciesListByDataResourceId(speciesList).map(sl -> sl.listName).orElse("Species list");
-                m.appendReplacement(sb, "<span class='species_list' id='" + speciesList + "'>" + name + "</span>");
-            } catch (Exception e) {
-                logger.error("Couldn't get species list name for " + speciesList, e);
+            if (failedLists.contains(speciesList)) {
+                m.appendReplacement(sb,"<span class=\"species_list failed\" id='" + htmlEscaper().escape(speciesList) + "'>" + htmlEscaper().escape(speciesList) + " (FAILED)</span>");
+            } else {
+                try {
+                    SpeciesListSearchDTO dto = listsService.getListInfo(speciesList);
+                    String name = dto.findSpeciesListByDataResourceId(speciesList).map(sl -> sl.listName).orElse("Species list");
+                    m.appendReplacement(sb, "<span class='species_list' id='" + htmlEscaper().escape(speciesList) + "'>" + htmlEscaper().escape(name) + "</span>");
+                } catch (Exception e) {
+                    logger.error("Couldn't get species list name for " + speciesList, e);
+                    m.appendReplacement(sb, "<span class='species_list' id='" + htmlEscaper().escape(speciesList) + "'>Species list</span>");
+                }
             }
         }
         m.appendTail(sb);

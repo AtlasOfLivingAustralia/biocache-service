@@ -34,8 +34,6 @@ class QueryFormatUtilsSpec extends Specification {
         def current = [currentDisplay, currentQuery] as String[]
         queryFormatUtils.formatSpeciesList(current)
 
-        //println current
-
         then:
         current[0] == resultDisplay
         current[1] == resultQuery
@@ -64,8 +62,9 @@ class QueryFormatUtilsSpec extends Specification {
 
         where:
         currentDisplay        | currentQuery           || resultDisplay        | resultQuery
-        'species_list:dr123'  | 'species_list:dr123'   || 'species_list:dr123' | 'species_list:dr123'
-        'species_list:dr123 species_list:dr456' | 'species_list:dr123 species_list:dr456'   || 'species_list:dr123 species_list:dr456' | 'species_list:dr123 species_list:dr456'
+        'species_list:dr123'  | 'species_list:dr123'   || '<span class="species_list failed" id=\'dr123\'>dr123 (FAILED)</span>' | '(NOT *:*)'
+        'species_list:dr123 species_list:dr456' | 'species_list:dr123 species_list:dr456'   || '<span class="species_list failed" id=\'dr123\'>dr123 (FAILED)</span> <span class="species_list failed" id=\'dr456\'>dr456 (FAILED)</span>' | '(NOT *:*) (NOT *:*)'
+        '<span>before</span> species_list:dr123 <span>between</span> species_list:dr456 <span>after</span>' | 'field:before species_list:dr123 field:between species_list:dr456 field:after'   || '<span>before</span> <span class="species_list failed" id=\'dr123\'>dr123 (FAILED)</span> <span>between</span> <span class="species_list failed" id=\'dr456\'>dr456 (FAILED)</span> <span>after</span>' | 'field:before (NOT *:*) field:between (NOT *:*) field:after'
     }
 
     private static ObjectMapper om = new ObjectMapper()
