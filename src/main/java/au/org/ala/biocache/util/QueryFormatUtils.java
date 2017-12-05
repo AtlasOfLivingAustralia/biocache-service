@@ -5,10 +5,9 @@ import au.org.ala.biocache.dto.Facet;
 import au.org.ala.biocache.dto.SearchRequestParams;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.model.Qid;
-import au.org.ala.biocache.service.AuthService;
-import au.org.ala.biocache.service.LayersService;
-import au.org.ala.biocache.service.ListsService;
-import au.org.ala.biocache.service.SpeciesLookupService;
+import au.org.ala.biocache.service.*;
+import au.org.ala.biocache.service.ListsService.SpeciesListSearchDTO;
+import com.google.common.collect.Iterables;
 import com.googlecode.ehcache.annotations.Cacheable;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
@@ -20,13 +19,14 @@ import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.StreamSupport.stream;
 
 @Component("queryFormatUtils")
 public class QueryFormatUtils {
@@ -64,7 +64,7 @@ public class QueryFormatUtils {
 
     //Patterns that are used to prepare a SOLR query for execution
     protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9/\\.:\\-_]*)\"?");
-    protected Pattern speciesListPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')species_list:\"?(dr[0-9]*)\"?");
+    protected Pattern speciesListPattern = Pattern.compile("species_list:\"?(dr[0-9]*)\"?");
     protected Pattern urnPattern = Pattern.compile("\\burn:[a-zA-Z0-9\\.:-]*");
     protected Pattern httpPattern = Pattern.compile("http:[a-zA-Z0-9/\\.:\\-_]*");
     protected Pattern spacesPattern = Pattern.compile("[^\\s\"\\(\\)\\[\\]{}']+|\"[^\"]*\"|'[^']*'");
@@ -376,63 +376,49 @@ public class QueryFormatUtils {
      */
     private void formatSpeciesList(String [] current) {
         //if the query string contains species_list: replace with the equivalent (lsid: OR lsid: ...etc) before lsid: is parsed
-        if (current[1].contains("species_list:")) {
-            StringBuffer queryString = new StringBuffer();
-            StringBuffer displaySb = new StringBuffer();
-            int last = 0;
-            queryString.setLength(0);
-            Matcher matcher = speciesListPattern.matcher(current[1]);
-            while (matcher.find()) {
-                String speciesList = matcher.group(2);
+        StringBuffer sb = new StringBuffer();
+        Matcher m = speciesListPattern.matcher(current[1]);
+        int max = getMaxBooleanClauses();
+        while (m.find()) {
+            String speciesList = m.group(1);
+            try {
+                List<String> lsids = listsService.getListItems(speciesList);
 
-                if (logger.isDebugEnabled()) {
-                    logger.debug("found speciesList " + speciesList);
+                List<String> strings = lsids.stream()
+                        .map(searchUtils::getTaxonSearch)
+                        .filter(t -> t.length > 1)
+                        .map(t -> t[0])
+                        .collect(toList());
+                Iterable<List<String>> partition = Iterables.partition(strings, max - 10);
+                String q = stream(partition.spliterator(), false)
+                        .map(part -> part.stream()
+                                .collect(joining(" OR ", "(", ")")))
+                        .collect(joining(" OR "));
+                if (q.length() > 1) {
+                    q = "(" + q + ")";
                 }
-
-                try {
-                    List<String> lsids = listsService.getListItems(speciesList);
-
-                    //fetch lsid info
-                    StringBuilder sbgroup = new StringBuilder();
-                    StringBuilder sb = new StringBuilder();
-                    sb.append(matcher.group(1));
-
-                    //build species_list around maxBooleanClauses limit
-                    int max = getMaxBooleanClauses();
-                    int count = 0;
-                    for (String lsid : lsids) {
-                        String [] taxon = searchUtils.getTaxonSearch(lsid);
-                        if (taxon.length > 1) {
-                            if (sbgroup.length() + sb.length() > matcher.group(1).length()) {
-                                sb.append(" OR ");
-                            }
-                            sb.append(taxon[0]);
-                            count++;
-                            if (count % (max-10) == 0) {
-                                if (sbgroup.length() > 0) sbgroup.append(" OR ");
-                                sbgroup.append("(").append(sb.toString()).append(")");
-                                sb = new StringBuilder();
-                            }
-                        }
-                    }
-
-                    matcher.appendReplacement(queryString, matcher.group(1) + "(" + sbgroup.toString() + ")");
-
-                    displaySb.append(current[1].substring(last, matcher.start()));
-                    Map<String, String> list = listsService.getListInfo(speciesList);
-                    String name = list == null ? "Species list" : list.get("listName");
-                    displaySb.append(matcher.group(1)).append("<span class='species_list' id='").append(speciesList).append("'>").append(name).append("</span>");
-                } catch (Exception e) {
-                    logger.error("failed to get species list: " + speciesList);
-                }
-                last = matcher.end();
+                m.appendReplacement(sb, q);
+            } catch (Exception e) {
+                logger.error("failed to get species list: " + speciesList, e);
             }
-
-            matcher.appendTail(queryString);
-
-            current[0] = displaySb.toString();
-            current[1] = queryString.toString();
         }
+        m.appendTail(sb);
+        current[1] = sb.toString();
+
+        sb = new StringBuffer();
+        m = speciesListPattern.matcher(current[0]);
+        while (m.find()) {
+            String speciesList = m.group(1);
+            try {
+                SpeciesListSearchDTO dto = listsService.getListInfo(speciesList);
+                String name = dto.findSpeciesListByDataResourceId(speciesList).map(sl -> sl.listName).orElse("Species list");
+                m.appendReplacement(sb, "<span class='species_list' id='" + speciesList + "'>" + name + "</span>");
+            } catch (Exception e) {
+                logger.error("Couldn't get species list name for " + speciesList, e);
+            }
+        }
+        m.appendTail(sb);
+        current[0] = sb.toString();
     }
 
     /**
