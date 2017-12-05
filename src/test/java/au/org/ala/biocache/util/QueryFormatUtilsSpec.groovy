@@ -45,6 +45,9 @@ class QueryFormatUtilsSpec extends Specification {
         'species_list:dr123 species_list:dr123'  | 'species_list:dr123 species_list:dr123'   || "<span class='species_list' id='dr123'>Species list</span> <span class='species_list' id='dr123'>Species list</span>" | "${getResultQuery('dr123')} ${getResultQuery('dr123')}"
         'species_list:dr123 <span>between</span> species_list:dr123'  | 'species_list:dr123 field:between species_list:dr123'   || "<span class='species_list' id='dr123'>Species list</span> <span>between</span> <span class='species_list' id='dr123'>Species list</span>" | "${getResultQuery('dr123')} field:between ${getResultQuery('dr123')}"
         '<span class="hello">Test</span> species_list:"dr456" <span class="bye">Test</span>' | 'field:hello species_list:dr456 field:bye' || '<span class="hello">Test</span> <span class=\'species_list\' id=\'dr456\'>Test List</span> <span class="bye">Test</span>' | "field:hello ${getResultQuery('dr456')} field:bye"
+        'not_a_species_list:"dr456" OR (species_list:dr123 AND something:else)' | 'not_a_species_list:"dr456" OR (species_list:dr123 AND something:else)' || "not_a_species_list:\"dr456\" OR (<span class='species_list' id='dr123'>Species list</span> AND something:else)" | "not_a_species_list:\"dr456\" OR (${getResultQuery('dr123')} AND something:else)"
+        '-species_list:dr123'  | '-species_list:dr123'   || "-<span class='species_list' id='dr123'>Species list</span>" | "-${getResultQuery('dr123')}"
+        'not_a_species_list:dr456' | 'not_a_species_list:dr456' || 'not_a_species_list:dr456' | 'not_a_species_list:dr456'
     }
 
     def "test spatial_list: error handling"(String currentDisplay, String currentQuery, String resultDisplay, String resultQuery) {

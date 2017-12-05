@@ -64,8 +64,8 @@ public class QueryFormatUtils {
     private String spatialField = "geohash";
 
     //Patterns that are used to prepare a SOLR query for execution
-    protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')lsid:\"?([a-zA-Z0-9/\\.:\\-_]*)\"?");
-    protected Pattern speciesListPattern = Pattern.compile("species_list:\"?(dr[0-9]*)\"?");
+    protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|'|-)lsid:\"?([a-zA-Z0-9/\\.:\\-_]*)\"?");
+    protected Pattern speciesListPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|'|-)species_list:\"?(dr[0-9]*)\"?");
     protected Pattern urnPattern = Pattern.compile("\\burn:[a-zA-Z0-9\\.:-]*");
     protected Pattern httpPattern = Pattern.compile("http:[a-zA-Z0-9/\\.:\\-_]*");
     protected Pattern spacesPattern = Pattern.compile("[^\\s\"\\(\\)\\[\\]{}']+|\"[^\"]*\"|'[^']*'");
@@ -382,7 +382,8 @@ public class QueryFormatUtils {
         int max = getMaxBooleanClauses();
         HashSet<String> failedLists = new HashSet<>();
         while (m.find()) {
-            String speciesList = m.group(1);
+            String speciesList = m.group(2);
+            String prefix = m.group(1);
             try {
                 List<String> lsids = listsService.getListItems(speciesList);
 
@@ -399,10 +400,10 @@ public class QueryFormatUtils {
                 if (q.length() > 1) {
                     q = "(" + q + ")";
                 }
-                m.appendReplacement(sb, q);
+                m.appendReplacement(sb, prefix + q);
             } catch (Exception e) {
                 logger.error("failed to get species list: " + speciesList, e);
-                m.appendReplacement(sb, "(NOT *:*)");
+                m.appendReplacement(sb, prefix + "(NOT *:*)");
                 failedLists.add(speciesList);
             }
         }
@@ -412,17 +413,18 @@ public class QueryFormatUtils {
         sb = new StringBuffer();
         m = speciesListPattern.matcher(current[0]);
         while (m.find()) {
-            String speciesList = m.group(1);
+            String speciesList = m.group(2);
+            String prefix = m.group(1);
             if (failedLists.contains(speciesList)) {
-                m.appendReplacement(sb,"<span class=\"species_list failed\" id='" + htmlEscaper().escape(speciesList) + "'>" + htmlEscaper().escape(speciesList) + " (FAILED)</span>");
+                m.appendReplacement(sb,prefix + "<span class=\"species_list failed\" id='" + htmlEscaper().escape(speciesList) + "'>" + htmlEscaper().escape(speciesList) + " (FAILED)</span>");
             } else {
                 try {
                     SpeciesListSearchDTO dto = listsService.getListInfo(speciesList);
                     String name = dto.findSpeciesListByDataResourceId(speciesList).map(sl -> sl.listName).orElse("Species list");
-                    m.appendReplacement(sb, "<span class='species_list' id='" + htmlEscaper().escape(speciesList) + "'>" + htmlEscaper().escape(name) + "</span>");
+                    m.appendReplacement(sb, prefix + "<span class='species_list' id='" + htmlEscaper().escape(speciesList) + "'>" + htmlEscaper().escape(name) + "</span>");
                 } catch (Exception e) {
                     logger.error("Couldn't get species list name for " + speciesList, e);
-                    m.appendReplacement(sb, "<span class='species_list' id='" + htmlEscaper().escape(speciesList) + "'>Species list</span>");
+                    m.appendReplacement(sb, prefix + "<span class='species_list' id='" + htmlEscaper().escape(speciesList) + "'>Species list</span>");
                 }
             }
         }
