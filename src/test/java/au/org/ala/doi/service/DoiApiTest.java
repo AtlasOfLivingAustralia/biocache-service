@@ -16,7 +16,9 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -46,8 +48,8 @@ public class DoiApiTest {
         });
 
         Retrofit retrofit = new Retrofit.Builder()
-//                .baseUrl("https://devt.ala.org.au/doi-service/api/")
-                .baseUrl("https://doi-test.ala.org.au/api/")
+                .baseUrl("https://devt.ala.org.au/doi-service/api/")
+//                .baseUrl("https://doi-test.ala.org.au/api/")
                 .addConverterFactory(GsonConverterFactory.create())
                 .client(httpClient.build())
                 .build();
@@ -76,10 +78,12 @@ public class DoiApiTest {
 
         CreateDoiRequest createRequest = new CreateDoiRequest();
 
-        createRequest.setAuthors("ALA");
+        final String author = "ALA";
+        createRequest.setAuthors(author);
         createRequest.setTitle("Full Integration Test");
         createRequest.setApplicationUrl("https://devt.ala.org.au/ala-hub/");
-        createRequest.setDescription("Excercising DOI Service API");
+        final String description = "Excercising DOI Service API";
+        createRequest.setDescription(description);
         createRequest.setLicence("Licence");
         createRequest.setUserId("UserId");
 
@@ -87,8 +91,24 @@ public class DoiApiTest {
 //        createRequest.setFileUrl("https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/homepage-channel-image-lionfish.jpg");
 
         Map providerMetadata = new HashMap<String, String>();
-        providerMetadata.put("authors", "ALA");
+
+        List<String> authorsList = new ArrayList<>();
+        authorsList.add(author);
+
+        providerMetadata.put("authors", authorsList);
         providerMetadata.put("title", "Integration Test");
+        providerMetadata.put("resourceType", "Text");
+        providerMetadata.put("resourceText", "Species information");
+        providerMetadata.put("publisher", "Atlas Of Living Australia");
+
+        List<Map> descriptionsList = new ArrayList<>();
+        Map <String, String> descriptionMap = new HashMap<>();
+        descriptionMap.put("text", description);
+        descriptionMap.put("type", "Other");
+
+        descriptionsList.add(descriptionMap);
+        providerMetadata.put("descriptions", descriptionsList);
+
 
         createRequest.setProviderMetadata(providerMetadata);
 

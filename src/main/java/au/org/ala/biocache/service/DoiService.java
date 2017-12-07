@@ -52,6 +52,10 @@ public class DoiService {
     @Value("${doi.description:ALA occurrence record download}")
     private String doiDescription;
 
+    @Value("${doi.resourceText:Species information}")
+    private String doiResourceText;
+
+
     private DoiApiService doiApiService;
 
     @PostConstruct
@@ -141,21 +145,7 @@ public class DoiService {
         request.setProvider(Provider.ANDS.name());
         request.setFileUrl(downloadInfo.getFileUrl());
 
-        Map providerMetadata = new HashMap<String, String>();
-        providerMetadata.put("publisher", doiAuthor);
-        providerMetadata.put("title", downloadInfo.getTitle());
-        providerMetadata.put("contributor", downloadInfo.getRequesterName());
-
-        List<Map<String, String>> creators = new ArrayList<>();
-
-        for(Map<String, String> datasetProvider: downloadInfo.getDatasetMetadata()) {
-            Map<String, String> creator = new HashMap<>();
-            creator.put("name", datasetProvider.get("name"));
-            creator.put("type", "Producer" );
-            creators.add(creator);
-        }
-
-        providerMetadata.put("creator", creators);
+        Map providerMetadata = generateProviderMetadataPayload(downloadInfo);
 
         request.setProviderMetadata(providerMetadata);
 
@@ -169,6 +159,51 @@ public class DoiService {
         request.setApplicationMetadata(applicationMetadata);
 
         return mintDoi(request);
+    }
+
+    private Map generateProviderMetadataPayload(DownloadDoiDTO downloadInfo) {
+        Map providerMetadata = new HashMap<String, String>();
+
+        List<String> authorsList = new ArrayList<>();
+        authorsList.add(doiAuthor);
+
+        providerMetadata.put("authors", authorsList);
+        providerMetadata.put("publisher", doiAuthor);
+        providerMetadata.put("title", downloadInfo.getTitle());
+
+        providerMetadata.put("resourceType", "Text");
+        providerMetadata.put("resourceText", doiResourceText);
+
+        List<Map> contributorsList = new ArrayList<>();
+        Map <String, String> contributorMap = new HashMap<>();
+        contributorMap.put("name", downloadInfo.getRequesterName());
+        contributorMap.put("type", "Distributor");
+
+        contributorsList.add(contributorMap);
+        providerMetadata.put("contributors", contributorsList);
+
+
+        List<Map> descriptionsList = new ArrayList<>();
+        Map <String, String> descriptionMap = new HashMap<>();
+        descriptionMap.put("text", doiDescription);
+        descriptionMap.put("type", "Other");
+
+        descriptionsList.add(descriptionMap);
+        providerMetadata.put("descriptions", descriptionsList);
+
+        List<Map<String, String>> creators = new ArrayList<>();
+
+        for(Map<String, String> datasetProvider: downloadInfo.getDatasetMetadata()) {
+            Map<String, String> creator = new HashMap<>();
+            creator.put("name", datasetProvider.get("name"));
+            creator.put("type", "Producer" );
+            creators.add(creator);
+        }
+
+        providerMetadata.put("creator", creators);
+
+
+        return providerMetadata;
     }
 
     public Doi updateFile(String id, String fileUrl) throws IOException {
