@@ -25,6 +25,7 @@ import org.springframework.web.client.RestOperations;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import javax.validation.constraints.NotNull;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
@@ -157,10 +158,43 @@ public class ListsService {
 
     @Cacheable(cacheName = "speciesListItems", decoratedCacheType = DecoratedCacheType.REFRESHING_SELF_POPULATING_CACHE,
             refreshInterval = 10*60*1000)
-    public Map<String, String> getListInfo(String dr) throws URISyntaxException {
+    public SpeciesListSearchDTO getListInfo(String dr) throws URISyntaxException {
 
-        Map<String, String> speciesList = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/" + dr), Map.class);
+        SpeciesListSearchDTO speciesList = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/" + dr), SpeciesListSearchDTO.class);
 
         return speciesList;
     }
+
+    public static class SpeciesListSearchDTO {
+        public int listCount;
+        public String sort;
+        public String order;
+        public int max;
+        public int offset;
+        public List<SpeciesListDTO> lists = new ArrayList<>();
+
+        public Optional<SpeciesListDTO> findSpeciesListByDataResourceId(@NotNull String drId) {
+            return lists.stream().filter(dto -> drId.equalsIgnoreCase(dto.dataResourceUid)).findFirst();
+        }
+
+        public static class SpeciesListDTO {
+            public String dataResourceUid;
+            public String listName;
+            public String listType;
+            public Date dateCreated;
+            public Date lastUpdated;
+            public String username;
+            public String fullName;
+            public int itemCount;
+            public String region;
+            public String category;
+            public String generalisation;
+            public String authority;
+            public String sdsType;
+            public boolean isAuthoritative;
+            public boolean isInvasive;
+            public boolean isThreatened;
+        }
+    }
 }
+
