@@ -147,7 +147,9 @@ public class DownloadController extends AbstractSecureController {
             HttpServletRequest request) throws Exception {
 
         if (StringUtils.isEmpty(requestParams.getEmail())) {
+            logger.error("Required parameter 'email' is not present");
             response.sendError(400, "Required parameter 'email' is not present");
+            return null;
         }
 
         //download from index when there are no CASSANDRA fields requested
@@ -180,7 +182,9 @@ public class DownloadController extends AbstractSecureController {
                 sensitive = true;
             }
         } else if (StringUtils.isEmpty(requestParams.getEmail())) {
+            logger.error("Unable to perform an offline download without an email address");
             response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
+            return null;
         }
 
         //get the fq that includes only the sensitive data that the userId ROLES permits
