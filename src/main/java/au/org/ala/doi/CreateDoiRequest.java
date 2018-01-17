@@ -14,6 +14,15 @@ public class CreateDoiRequest {
     protected String userId;
     protected Map<String, ?> applicationMetadata;
     protected String customLandingPageUrl;
+    protected Boolean active;
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
+    }
 
     public String getProvider() {
         return provider;

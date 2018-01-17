@@ -158,6 +158,7 @@ public class DoiService {
 
         request.setApplicationMetadata(applicationMetadata);
 
+        request.setActive(false);
         return mintDoi(request);
     }
 
@@ -210,6 +211,7 @@ public class DoiService {
         UpdateDoiRequest updateRequest = new UpdateDoiRequest();
 
         updateRequest.setFileUrl(fileUrl);
+        updateRequest.setActive(true);
 
         Response<Doi> updateResponse = doiApiService.update(id, updateRequest).execute();
 
