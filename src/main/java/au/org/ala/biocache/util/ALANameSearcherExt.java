@@ -143,7 +143,7 @@ public class ALANameSearcherExt extends ALANameSearcher {
     private Query buildAutocompleteQuery(String field, String q, boolean allSearches) {
         //best match
         Query fq1 = new TermQuery(new Term(field,q));  //exact match
-        fq1.setBoost(12f);
+//        fq1.setBoost(12f);
 
         //partial matches
         Query fq5 = new WildcardQuery(new Term(field,q + "*")); //begins with that begins with
@@ -153,14 +153,12 @@ public class ALANameSearcherExt extends ALANameSearcher {
         Query fq7 = new WildcardQuery(new Term(field,"*" + q + "*")); //any match
 
         //join
-        BooleanQuery o = new BooleanQuery();
-        o.add(fq1, BooleanClause.Occur.SHOULD);
-
-        o.add(fq5, BooleanClause.Occur.SHOULD);
-        o.add(fq6, BooleanClause.Occur.SHOULD);
-
-        o.add(fq7, BooleanClause.Occur.SHOULD);
-
+        BooleanQuery o = new BooleanQuery.Builder()
+                .add(new BooleanClause(fq1, BooleanClause.Occur.SHOULD))
+                .add(new BooleanClause(fq5, BooleanClause.Occur.SHOULD))
+                .add(new BooleanClause(fq6, BooleanClause.Occur.SHOULD))
+                .add(new BooleanClause(fq7, BooleanClause.Occur.SHOULD))
+        .build();
         return o;
     }
 
@@ -168,9 +166,9 @@ public class ALANameSearcherExt extends ALANameSearcher {
         Query qGuid = new TermQuery(new Term("guid", taxonConceptGuid));
         Query qOtherGuid = new TermQuery(new Term("otherGuid", taxonConceptGuid));
 
-        BooleanQuery fullQuery = new BooleanQuery(true);
-        fullQuery.add(qGuid, BooleanClause.Occur.SHOULD);
-        fullQuery.add(qOtherGuid, BooleanClause.Occur.SHOULD);
+        BooleanQuery fullQuery = new BooleanQuery.Builder()
+             .add(qGuid, BooleanClause.Occur.SHOULD)
+             .add(qOtherGuid, BooleanClause.Occur.SHOULD).build();
 
         TopDocs topDocs = getIdentifierIdxSearcher().search(fullQuery, 1);
         for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
@@ -372,9 +370,10 @@ public class ALANameSearcherExt extends ALANameSearcher {
 
                 //name search
                 Query fq = buildAutocompleteQuery("name", lq, false);
-                BooleanQuery b = new BooleanQuery();
-                b.add(fq, BooleanClause.Occur.MUST);
-                b.add(new WildcardQuery(new Term("left", "*")), includeSynonyms ? BooleanClause.Occur.SHOULD : BooleanClause.Occur.MUST);
+                BooleanQuery b = new BooleanQuery.Builder()
+                        .add(new BooleanClause(fq, BooleanClause.Occur.MUST))
+                        .add(new WildcardQuery(new Term("left", "*")), includeSynonyms ? BooleanClause.Occur.SHOULD : BooleanClause.Occur.MUST)
+                        .build();
                 TopDocs results = getIdentifierIdxSearcher().search(b, max);
                 appendAutocompleteResults(output, results, includeSynonyms, false);
 

@@ -38,10 +38,10 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.*;
-import org.apache.solr.client.solrj.SolrQuery.ORDER;
 import org.apache.solr.client.solrj.beans.DocumentObjectBinder;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
-import org.apache.solr.client.solrj.impl.HttpSolrServer;
+import org.apache.solr.client.solrj.impl.CloudSolrClient;
+import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.client.solrj.response.FacetField.Count;
 import org.apache.solr.client.solrj.response.RangeFacet.Numeric;
@@ -3719,7 +3719,7 @@ public class SearchDAOImpl implements SearchDAO {
                     //throw all other errors
                     throw e;
                 }
-            } catch (HttpSolrServer.RemoteSolrException e) {
+            } catch (HttpSolrClient.RemoteSolrException e) {
                 //report failed query
                 logger.error("query failed: " + query.toString() + " : " + e.getMessage());
                 throw e;
