@@ -30,6 +30,8 @@ import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.biocache.writer.RecordWriterException;
 import au.org.ala.doi.CreateDoiResponse;
 
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
@@ -133,11 +135,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.email.subject:ALA Occurrence Download Complete - [filename]}")
     protected String biocacheDownloadEmailSubject = "ALA Occurrence Download Complete - [filename]";
 
-    @Value("${download.email.body:The download file has been generated on [date] via the search: [searchUrl]. Please download your file from [url]}")
-    protected String biocacheDownloadEmailBody = "The download file has been generated on [date] via the search: [searchUrl]. Please download your file from [url]";
+    @Value("${download.email.template}")
+    protected String biocacheDownloadEmailTemplate;
 
-    @Value("${download.doi.email.body:Your download can be accessed on the page:<br><br>[url] <br><br>The DOI for this download is [doi] <br><br>The file \"doi.json\" contains the metadata for the DOI. <br><br>When using this dataset please use the following citation: <br><br><cite>Atlas of Living Australia occurrence download at [searchUrl] accessed on [date].</cite> <br><br>Also cite the contributing data providers which are listed in the included \"citation.csv\" file.<br><br>More information can be found at <a href='https://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>}")
-    protected String biocacheDownloadDoiEmailBody = "Your download can be accessed on the page:<br><br>[url] <br><br>The DOI for this download is [doi] <br><br>The file \"doi.json\" contains the metadata for the DOI. <br><br>When using this dataset please use the following citation: <br><br><cite>Atlas of Living Australia occurrence download at [searchUrl] accessed on [date].</cite> <br><br>Also cite the contributing data providers which are listed in the included \"citation.csv\" file.<br><br>More information can be found at <a href='https://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>";
+    @Value("${download.doi.email.template}")
+    protected String biocacheDownloadDoiEmailTemplate;
 
     @Value("${download.email.subject:Occurrence Download Failed - [filename]}")
     protected String biocacheDownloadEmailSubjectError = "Occurrence Download Failed - [filename]";
@@ -145,11 +147,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.email.body.error:The download has failed.}")
     protected String biocacheDownloadEmailBodyError = "The download has failed.";
 
-    @Value("${download.readme.content:When using this download please use the following citation:<br><br><cite>Atlas of Living Australia occurrence download at <a href='[url]'>biocache</a> accessed on [date].</cite><br><br>Data contributed by the following providers:<br><br>[dataProviders]<br><br>More information can be found at <a href='https://www.ala.org.auabout-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.}")
-    protected String biocacheDownloadReadme = "When using this download please use the following citation:<br><br><cite>Atlas of Living Australia occurrence download at <a href='[url]'>biocache</a> accessed on [date].</cite><br><br>Data contributed by the following providers:<br><br>[dataProviders]<br><br>More information can be found at <a href='https://www.ala.org.auabout-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.";
-
-    @Value("${download.doi.readme.content:When using this dataset please use the following citation:<br><br>Atlas of Living Australia occurrence download at [searchUrl] accessed on [date].<br><br>DOI: [doi] available at [url]<br><br>Data contributed by the following providers:<br>[dataProviders]<br>More information can be found at <a href='https://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.<br><br>}")
-    protected String biocacheDownloadDoiReadme = "When using this dataset please use the following citation:<br><br>Atlas of Living Australia occurrence download at [searchUrl] accessed on [date].<br><br>DOI: [doi] available at [url]<br><br>Data contributed by the following providers:<br>[dataProviders]<br>More information can be found at <a href='https://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.<br><br>";
+    @Value("${download.readme.template}")
+    protected String biocacheDownloadReadmeTemplate;
+    
+    @Value("${download.doi.readme.template}")
+    protected String biocacheDownloadDoiReadmeTemplate;
 
     @Value("${download.doi.licence.prefix:Datasets are covered by the following licence(s): }")
     protected String biocacheDownloadDoiLicencePrefix = "Datasets are covered by the following licence(s): ";
@@ -615,18 +617,20 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
 
 
-                String readmeTemplate;
+                String readmeFile;
                 String fileLocation;
 
                 if(mintDoi && doiResponse != null) {
-                    readmeTemplate = biocacheDownloadDoiReadme;
+                    readmeFile = biocacheDownloadDoiReadmeTemplate;
                     doi = doiResponse.getDoi();
                     fileLocation = biocacheDownloadDoiLandingPage+doi;
 
                 } else {
-                    readmeTemplate = biocacheDownloadReadme;
+                    readmeFile = biocacheDownloadReadmeTemplate;
                     fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
                 }
+
+                String readmeTemplate = Files.toString(new File(readmeFile), Charsets.UTF_8);
 
                 String readmeContent = readmeTemplate.replace("[url]", fileLocation)
                         .replace("[date]", dd.getStartDateString())
@@ -1119,6 +1123,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                                 String doiStr = "";
                                 String emailBody;
+                                String emailTemplate;
                                 String downloadFileLocation;
                                 if(mintDoi && doiResponseList != null && doiResponseList.size() > 0 && doiResponseList.get(0) != null) {
                                     CreateDoiResponse doiResponse;
@@ -1126,12 +1131,18 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                                     doiService.updateFile(doiResponse.getUuid(), archiveFileLocation);
                                     doiStr = doiResponse.getDoi();
-                                    emailBody = biocacheDownloadDoiEmailBody;
+//                                    emailBody = biocacheDownloadDoiEmailBody;
+                                    emailTemplate = biocacheDownloadDoiEmailTemplate;
+
                                     downloadFileLocation = biocacheDownloadDoiLandingPage+doiStr;
                                 } else {
-                                    emailBody = biocacheDownloadEmailBody;
+//                                    emailBody = biocacheDownloadEmailBody;
+                                    emailTemplate = biocacheDownloadEmailTemplate;
                                     downloadFileLocation = archiveFileLocation;
                                 }
+
+
+                                emailBody = Files.toString(new File(emailTemplate), Charsets.UTF_8);
 
                                 String emailBodyHtml = emailBody.replace("[url]", downloadFileLocation)
                                         .replace("[date]", currentDownload.getStartDateString())
