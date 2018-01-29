@@ -154,9 +154,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.doi.readme.template}")
     protected String biocacheDownloadDoiReadmeTemplate;
 
-    @Value("${download.doi.licence.prefix:Datasets are covered by the following licence(s): }")
-    protected String biocacheDownloadDoiLicencePrefix = "Datasets are covered by the following licence(s): ";
-
     @Value("${download.doi.title.prefix:Occurrence download }")
     protected String biocacheDownloadDoiTitlePrefix = "Occurrence download ";
 
