@@ -31,6 +31,7 @@ import au.org.ala.biocache.writer.RecordWriterException;
 import au.org.ala.doi.CreateDoiResponse;
 
 import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.ala.client.appender.RestLevel;
@@ -149,7 +150,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     @Value("${download.readme.template}")
     protected String biocacheDownloadReadmeTemplate;
-    
+
     @Value("${download.doi.readme.template}")
     protected String biocacheDownloadDoiReadmeTemplate;
 
@@ -570,12 +571,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 datasetLicences.add(licence);
                             }
                         }
-                        String licence = "";
-                        if(datasetLicences.size() > 0) {
 
-                            licence = biocacheDownloadDoiLicencePrefix + String.join("; ", datasetLicences);
-                        }
-
+                        List<String> licence = Lists.newArrayList(datasetLicences);
 
                         DownloadDoiDTO doiDetails = new DownloadDoiDTO();
                         String searchUrl = generateSearchUrl(requestParams);

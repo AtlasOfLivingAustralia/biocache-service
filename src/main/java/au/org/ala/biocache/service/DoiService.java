@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Component("doiService")
 public class DoiService {
@@ -46,6 +47,12 @@ public class DoiService {
     @Value("${doi.service.apiKey:Provide a valid key}")
     private String doiServiceApiKey;
 
+    @Value("${doi.service.readTimeout:30000}")
+    private long doiServiceReadTimeout;
+
+    @Value("${doi.service.writeTimeout:30000}")
+    private long doiServiceWriteTimeout;
+
     @Value("${doi.author:Atlas Of Living Australia}")
     private String doiAuthor;
 
@@ -54,6 +61,7 @@ public class DoiService {
 
     @Value("${doi.resourceText:Species information}")
     private String doiResourceText;
+
 
 
     private DoiApiService doiApiService;
@@ -80,7 +88,9 @@ public class DoiService {
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(doiServiceUrl)
                 .addConverterFactory(GsonConverterFactory.create())
-                .client(httpClient.build())
+                .client(
+                        httpClient.writeTimeout(doiServiceWriteTimeout, TimeUnit.MILLISECONDS)
+                        .readTimeout(doiServiceReadTimeout, TimeUnit.MILLISECONDS).build())
                 .build();
 
         doiApiService = retrofit.create(DoiApiService.class);

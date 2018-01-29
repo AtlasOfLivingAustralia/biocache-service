@@ -1,5 +1,6 @@
 package au.org.ala.doi;
 
+import java.util.List;
 import java.util.Map;
 
 public class CreateDoiRequest {
@@ -10,7 +11,7 @@ public class CreateDoiRequest {
     protected String description;
     protected String applicationUrl;
     protected String fileUrl;
-    protected String licence;
+    protected List<String> licence;
     protected String userId;
     protected Map<String, ?> applicationMetadata;
     protected String customLandingPageUrl;
@@ -96,11 +97,11 @@ public class CreateDoiRequest {
         this.customLandingPageUrl = customLandingPageUrl;
     }
 
-    public String getLicence() {
+    public List<String> getLicence() {
         return licence;
     }
 
-    public void setLicence(String licence) {
+    public void setLicence(List<String> licence) {
         this.licence = licence;
     }
 

@@ -26,7 +26,7 @@ public class DownloadDoiDTO {
     private String query;
     private String fileUrl;
     private String requesterId;
-    private String licence;
+    private List<String> licence;
     private String requesterName;
     private long recordCount;
     private String requestTime;
@@ -98,11 +98,11 @@ public class DownloadDoiDTO {
         this.datasetMetadata = datasetMetadata;
     }
 
-    public String getLicence() {
+    public List<String> getLicence() {
         return licence;
     }
 
-    public void setLicence(String licence) {
+    public void setLicence(List<String> licence) {
         this.licence = licence;
     }
 

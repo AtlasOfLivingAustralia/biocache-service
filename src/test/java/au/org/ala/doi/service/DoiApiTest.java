@@ -1,6 +1,7 @@
 package au.org.ala.doi.service;
 
 import au.org.ala.doi.*;
+import com.google.common.collect.Lists;
 import com.google.common.net.UrlEscapers;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -51,7 +53,8 @@ public class DoiApiTest {
                 .baseUrl("https://devt.ala.org.au/doi-service/api/")
 //                .baseUrl("https://doi-test.ala.org.au/api/")
                 .addConverterFactory(GsonConverterFactory.create())
-                .client(httpClient.build())
+                .client(httpClient.writeTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS).build())
                 .build();
 
         doiApiService = retrofit.create(DoiApiService.class);
@@ -84,7 +87,8 @@ public class DoiApiTest {
         createRequest.setApplicationUrl("https://devt.ala.org.au/ala-hub/");
         final String description = "Excercising DOI Service API";
         createRequest.setDescription(description);
-        createRequest.setLicence("Licence");
+        List<String> licence = Lists.asList("Licence 1", new String[]{"Licence2"});
+        createRequest.setLicence(licence);
         createRequest.setUserId("UserId");
 
         createRequest.setProvider(Provider.ANDS.name());
@@ -142,7 +146,7 @@ public class DoiApiTest {
         assertEquals("Full Integration Test", updateDoi.getTitle());
         assertEquals("https://devt.ala.org.au/ala-hub/", updateDoi.getApplicationUrl());
         assertEquals("Excercising DOI Service API", updateDoi.getDescription());
-        assertEquals("Licence", updateDoi.getLicence());
+        assertEquals(Lists.asList("Licence 1", new String[]{"Licence2"}), updateDoi.getLicence());
         assertEquals("UserId", updateDoi.getUserId());
 
         System.out.println(updateDoi);

@@ -1,6 +1,7 @@
 package au.org.ala.doi;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 
 public class Doi {
@@ -11,7 +12,7 @@ public class Doi {
     private String doi;
     private String title;
     private String authors;
-    private String licence;
+    private List<String> licence;
     private String userId;
     private String description;
     private Date dateMinted;
@@ -162,11 +163,11 @@ public class Doi {
         this.lastUpdated = lastUpdated;
     }
 
-    public String getLicence() {
+    public List<String> getLicence() {
         return licence;
     }
 
-    public void setLicence(String licence) {
+    public void setLicence(List<String> licence) {
         this.licence = licence;
     }
 
