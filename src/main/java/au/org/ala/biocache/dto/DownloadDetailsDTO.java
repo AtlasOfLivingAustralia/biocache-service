@@ -42,6 +42,9 @@ public class DownloadDetailsDTO {
     private boolean includeSensitive = false;
     private Map<String,String> headerMap = null;
     private String [] miscFields = null;
+    /**
+     * **MUST** be null if the user is not allowed to access sensitive fields.
+     */
     private String sensitiveFq = null;
     private AtomicBoolean interrupt = new AtomicBoolean(false);
     private String uniqueId = null;
@@ -234,10 +237,19 @@ public class DownloadDetailsDTO {
         this.headerMap = headerMap;
     }
 
+    /**
+     * This **MUST** be set to null if the user is not allowed to view sensitive fields. 
+     * <br>
+     * Any non-null value could result in the user getting access to sensitive fields.
+     * @param sensitiveFq Null to disallow the user from getting access to sensitive fields, and a non-null string to give the user access.
+     */
     public void setSensitiveFq(String sensitiveFq) {
         this.sensitiveFq = sensitiveFq;
     }
 
+    /**
+     * @return A non-null string if the user is allowed to view sensitive fields, and null otherwise.
+     */
     public String getSensitiveFq() {
         return sensitiveFq;
     }
