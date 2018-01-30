@@ -15,6 +15,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,10 +37,8 @@ public class ParserController {
     public @ResponseBody
     boolean areDwcTerms(HttpServletRequest request, HttpServletResponse response) throws Exception {
         ObjectMapper om = new ObjectMapper();
-        try {
-            InputStream input = request.getInputStream();
+        try (InputStream input = request.getInputStream();){
             List<String> terms = om.readValue(input, new TypeReference<List<String>>() {});
-            input.close();
             String[] termArray = terms.toArray(new String[]{});
             return AdHocParser.areColumnHeaders(termArray);
         } catch(Exception e) {
@@ -52,10 +51,8 @@ public class ParserController {
     @RequestMapping(value="/parser/matchTerms", method = RequestMethod.POST)
     public @ResponseBody String[] guessFieldTypes(HttpServletRequest request, HttpServletResponse response) throws Exception {
         ObjectMapper om = new ObjectMapper();
-        try {
-            InputStream input = request.getInputStream();
+        try (InputStream input = request.getInputStream();) {
             List<String> terms = om.readValue(input, new TypeReference<List<String>>() {});
-            input.close();
             String[] termArray = terms.toArray(new String[]{});
             return AdHocParser.guessColumnHeadersArray(termArray);
         } catch(Exception e) {
@@ -68,10 +65,8 @@ public class ParserController {
     @RequestMapping(value="/parser/mapTerms", method = RequestMethod.POST)
     public @ResponseBody Map<String,String> guessFieldTypesWithOriginal(HttpServletRequest request, HttpServletResponse response) throws Exception {
         ObjectMapper om = new ObjectMapper();
-        try {
-            InputStream input = request.getInputStream();
+        try (InputStream input = request.getInputStream();) {
             List<String> terms = om.readValue(input, new TypeReference<List<String>>() {});
-            input.close();
             String[] termArray = terms.toArray(new String[]{});
             String[] matchedTerms = AdHocParser.mapColumnHeadersArray(termArray);
             //create a map and return this
@@ -90,13 +85,11 @@ public class ParserController {
     @RequestMapping(value="/process/adhoc", method = RequestMethod.POST)
     public @ResponseBody ParsedRecord processRecord(HttpServletRequest request, HttpServletResponse response) throws Exception {
         ObjectMapper om = new ObjectMapper();
-        try {
-            InputStream input = request.getInputStream();
-            String json = IOUtils.toString(input);
+        try (InputStream input = request.getInputStream();) {
+            String json = IOUtils.toString(input, StandardCharsets.UTF_8);
             logger.debug(json);
-            String utf8String = new String(json.getBytes(), "UTF-8");
+            String utf8String = new String(json.getBytes(StandardCharsets.UTF_8), "UTF-8");
             LinkedHashMap<String,String> record = om.readValue(utf8String, new TypeReference<LinkedHashMap<String,String>>() {});
-            input.close();
             logger.debug("Mapping column headers...");
             String[] headers = AdHocParser.mapOrReturnColumnHeadersArray(record.keySet().toArray(new String[]{}));
             logger.debug("Processing line...");

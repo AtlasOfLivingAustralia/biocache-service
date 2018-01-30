@@ -148,6 +148,9 @@ public class AuthService {
         }
     }
 
+    /**
+     * Asynchronously reloads cached full copies of all translation maps for usernames, ids, and email addresses if auth.user.details.path is set to a non-empty string, and reloads synchronously otherwise.
+     */
     @Scheduled(fixedDelay = 600000) // schedule to run every 10 min
     //@Async NC 2013-07-29: Disabled the Async so that we don't get bombarded with calls.
     public void reloadCaches() {

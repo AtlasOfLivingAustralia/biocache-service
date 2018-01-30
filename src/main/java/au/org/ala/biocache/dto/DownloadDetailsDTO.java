@@ -16,6 +16,7 @@ package au.org.ala.biocache.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
@@ -223,7 +224,7 @@ public class DownloadDetailsDTO {
      * @return unique id constructed from email and start time
      */
     public String getUniqueId() {
-        return uniqueId = UUID.nameUUIDFromBytes(getEmail().getBytes()) + "-" + getStartTime();
+        return uniqueId = UUID.nameUUIDFromBytes(getEmail().getBytes(StandardCharsets.UTF_8)) + "-" + getStartTime();
     }
 
     public void setUniqueId(String uniqueId) {
