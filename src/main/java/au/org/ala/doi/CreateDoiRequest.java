@@ -13,6 +13,7 @@ public class CreateDoiRequest {
     protected String fileUrl;
     protected List<String> licence;
     protected String userId;
+    protected List<String> authorisedRoles;
     protected Map<String, ?> applicationMetadata;
     protected String customLandingPageUrl;
     protected Boolean active;
@@ -112,4 +113,13 @@ public class CreateDoiRequest {
     public void setUserId(String userId) {
         this.userId = userId;
     }
+
+    public List<String> getAuthorisedRoles() {
+        return authorisedRoles;
+    }
+
+    public void setAuthorisedRoles(List<String> authorisedRoles) {
+        this.authorisedRoles = authorisedRoles;
+    }
+
 }

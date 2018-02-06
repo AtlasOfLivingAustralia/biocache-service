@@ -87,9 +87,12 @@ public class DoiApiTest {
         createRequest.setApplicationUrl("https://devt.ala.org.au/ala-hub/");
         final String description = "Excercising DOI Service API";
         createRequest.setDescription(description);
-        List<String> licence = Lists.asList("Licence 1", new String[]{"Licence2"});
+        List<String> licence = Lists.asList("Licence 1", new String[]{"Licence 2"});
         createRequest.setLicence(licence);
         createRequest.setUserId("UserId");
+
+        List<String> authorisedRoles = Lists.asList("ROLE 1", new String[]{"ROLE 2"});
+        createRequest.setAuthorisedRoles(authorisedRoles);
 
         createRequest.setProvider(Provider.ANDS.name());
 //        createRequest.setFileUrl("https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/homepage-channel-image-lionfish.jpg");
@@ -146,7 +149,7 @@ public class DoiApiTest {
         assertEquals("Full Integration Test", updateDoi.getTitle());
         assertEquals("https://devt.ala.org.au/ala-hub/", updateDoi.getApplicationUrl());
         assertEquals("Excercising DOI Service API", updateDoi.getDescription());
-        assertEquals(Lists.asList("Licence 1", new String[]{"Licence2"}), updateDoi.getLicence());
+        assertEquals(Lists.asList("Licence 1", new String[]{"Licence 2"}), updateDoi.getLicence());
         assertEquals("UserId", updateDoi.getUserId());
 
         System.out.println(updateDoi);

@@ -28,6 +28,7 @@ import au.org.ala.biocache.util.AlaFileUtils;
 import au.org.ala.biocache.util.thread.DownloadControlThread;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.biocache.writer.RecordWriterException;
+import au.org.ala.cas.util.AuthenticationUtils;
 import au.org.ala.doi.CreateDoiResponse;
 
 import com.google.common.base.Charsets;
@@ -44,6 +45,7 @@ import org.apache.log4j.Logger;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.scale7.cassandra.pelops.exceptions.PelopsException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationListener;
@@ -54,6 +56,7 @@ import org.springframework.web.client.RestOperations;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.URLEncoder;
@@ -175,7 +178,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     public String biocacheDownloadDir;
 
     @Value("${download.auth.sensitive:false}")
-    public Boolean downloadAuthSensitive;
+    private Boolean downloadAuthSensitive;
 
     @Value("${biocache.ui.url:http://biocache.ala.org.au}")
     public String biocacheUiUrl = "http://biocache.ala.org.au";
@@ -195,7 +198,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             "\"ROLE_SDS_BIRDLIFE\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
             "\n" +
             "}}")
-    public String sensitiveAccessRoles;
+    private String sensitiveAccessRoles;
+
+    private JSONObject sensitiveAccessRolesToSolrFilters;
 
     @Value("${download.offline.max.url:http://downloads.ala.org.au}")
     public String dowloadOfflineMaxUrl = "http://downloads.ala.org.au";
@@ -246,7 +251,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     private volatile ExecutorService offlineParallelQueryExecutor;
 
     @PostConstruct
-    public void init(){
+    public void init() throws ParseException {
+
+        // Simple JSON initialisation, let's follow the default Spring semantics
+        sensitiveAccessRolesToSolrFilters = (JSONObject) new JSONParser().parse(sensitiveAccessRoles);
+
         if(initialised.compareAndSet(false, true)) {
             //init on thread so as to not hold up other PostConstruct that this may depend on
             new Thread() {
@@ -576,6 +585,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         doiDetails.setTitle(biocacheDownloadDoiTitlePrefix + filename);
                         doiDetails.setApplicationUrl(searchUrl);
                         doiDetails.setRequesterId(requesterId);
+                        if(dd.getSensitiveFq() != null) {
+                            doiDetails.setAuthorisedRoles(getSensitiveRolesForUser(requesterId));
+                        }
+
                         doiDetails.setRequesterName(requesterName);
                         doiDetails.setDatasetMetadata(datasetMetadata);
                         doiDetails.setRequestTime(dd.getStartDateString());
@@ -1061,6 +1074,52 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             }
         }
     }
+
+    /**
+     * Generates the Solr filter to query sensitive data for the user sensitive roles
+     * @param userId The user the filter is built for
+     * @return A String with a Solr filter
+     */
+    public String getSensitiveFq(String userId) {
+
+        if (!downloadAuthSensitive) {
+            return null;
+        }
+
+        String sensitiveFq = "";
+
+        for (String sensitiveRole : getSensitiveRolesForUser(userId)) {
+            if (sensitiveFq.length() > 0) {
+                sensitiveFq += " OR ";
+            }
+            sensitiveFq += "(" + sensitiveAccessRolesToSolrFilters.get(sensitiveRole) + ")";
+        }
+
+        if (sensitiveFq.length() == 0) {
+            return null;
+        }
+
+        logger.debug("sensitiveOnly download requested for user: " + userId +
+                ", using fq: " + sensitiveFq);
+
+        return sensitiveFq;
+    }
+
+    /**
+     * List the sensitive roles for a given user
+     * @param userId The user
+     * @return The sensitive roles for the user, the list will be empty if the user has no sensitive roles
+     */
+    public List<String> getSensitiveRolesForUser(String userId) {
+        List<String> userRoles = authService.getUserRoles(userId);
+
+        List<String> result = new ArrayList<>(sensitiveAccessRolesToSolrFilters.keySet());
+
+        result.retainAll(userRoles);
+
+        return result;
+    }
+
 
     private class DownloadCreatorImpl implements DownloadCreator {
         @Override

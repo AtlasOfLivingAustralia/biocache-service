@@ -187,6 +187,11 @@ public class DownloadController extends AbstractSecureController {
             return null;
         }
 
+        //Pre SDS roles the sensitive flag controlled access to sensitive data.
+        // After SDS roles were introduced, sensitiveFq variable drives the logic for sensitive data down the excution flow.
+
+        // In Summary either sensitive is true or sensitiveFq is not null but not both
+
         //get the fq that includes only the sensitive data that the userId ROLES permits
         String sensitiveFq = null;
         if (!sensitive) {
@@ -353,31 +358,10 @@ public class DownloadController extends AbstractSecureController {
     }
 
     private String getSensitiveFq(HttpServletRequest request) throws ParseException {
-
-        if (!isValidKey(request.getHeader("apiKey")) || !downloadService.downloadAuthSensitive) {
+        if (!isValidKey(request.getHeader("apiKey"))) {
             return null;
+        } else {
+            return downloadService.getSensitiveFq(request.getHeader("X-ALA-userId"));
         }
-
-        String sensitiveFq = "";
-        JSONParser jp = new JSONParser();
-        JSONObject jo = (JSONObject) jp.parse(downloadService.sensitiveAccessRoles);
-        List roles = authService.getUserRoles(request.getHeader("X-ALA-userId"));
-        for (Object role : jo.keySet()) {
-            if (roles.contains(role)) {
-                if (sensitiveFq.length() > 0) {
-                    sensitiveFq += " OR ";
-                }
-                sensitiveFq += "(" + jo.get(role) + ")";
-            }
-        }
-
-        if (sensitiveFq.length() == 0) {
-            return null;
-        }
-
-        logger.debug("sensitiveOnly download requested for user: " + AuthenticationUtils.getUserId(request) +
-                ", using fq: " + sensitiveFq);
-
-        return sensitiveFq;
     }
 }

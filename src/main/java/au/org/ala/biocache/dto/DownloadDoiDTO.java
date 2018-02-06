@@ -26,6 +26,7 @@ public class DownloadDoiDTO {
     private String query;
     private String fileUrl;
     private String requesterId;
+    private List<String> authorisedRoles;
     private List<String> licence;
     private String requesterName;
     private long recordCount;
@@ -121,5 +122,13 @@ public class DownloadDoiDTO {
     public void setQueryTitle(String queryTitle) {
         this.queryTitle = queryTitle;
 
+    }
+
+    public List<String> getAuthorisedRoles() {
+        return authorisedRoles;
+    }
+
+    public void setAuthorisedRoles(List<String> authorisedRoles) {
+        this.authorisedRoles = authorisedRoles;
     }
 }

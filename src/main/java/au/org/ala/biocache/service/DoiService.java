@@ -151,6 +151,7 @@ public class DoiService {
         request.setDescription(doiDescription);
         request.setLicence(downloadInfo.getLicence());
         request.setUserId(downloadInfo.getRequesterId());
+        request.setAuthorisedRoles(downloadInfo.getAuthorisedRoles());
 
         request.setProvider(Provider.ANDS.name());
         request.setFileUrl(downloadInfo.getFileUrl());
