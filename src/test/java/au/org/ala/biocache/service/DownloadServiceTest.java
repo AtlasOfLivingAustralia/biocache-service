@@ -80,6 +80,10 @@ public class DownloadServiceTest {
         testLatch = new CountDownLatch(1);
 
         testService = new DownloadService() {
+            {
+                sensitiveAccessRoles = "{}";
+            }
+
             protected DownloadCreator getNewDownloadCreator() {
                 return new DownloadCreator() {
                     @Override

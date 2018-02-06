@@ -198,7 +198,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             "\"ROLE_SDS_BIRDLIFE\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
             "\n" +
             "}}")
-    private String sensitiveAccessRoles;
+    protected String sensitiveAccessRoles;
 
     private JSONObject sensitiveAccessRolesToSolrFilters;
 
