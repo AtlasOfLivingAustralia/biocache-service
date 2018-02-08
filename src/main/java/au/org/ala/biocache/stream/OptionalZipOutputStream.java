@@ -4,6 +4,7 @@ import au.org.ala.biocache.writer.RecordWriterError;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.zip.ZipOutputStream;
 
 /**
@@ -72,8 +73,8 @@ public class OptionalZipOutputStream extends OutputStream {
         if (type == Type.zipped) {
             zop.putNextEntry(new java.util.zip.ZipEntry(name));
         } else {
-            out.write(UNZIPPED_ENTRY_SEPARATOR.getBytes());
-            out.write((name + "\n").getBytes());
+            out.write(UNZIPPED_ENTRY_SEPARATOR.getBytes(StandardCharsets.UTF_8));
+            out.write((name + "\n").getBytes(StandardCharsets.UTF_8));
         }
     }
 
@@ -81,7 +82,7 @@ public class OptionalZipOutputStream extends OutputStream {
         if (type == Type.zipped) {
             zop.closeEntry();
         } else {
-            out.write("\n".getBytes());
+            out.write("\n".getBytes(StandardCharsets.UTF_8));
         }
     }
 

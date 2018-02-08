@@ -26,6 +26,7 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -173,7 +174,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
             for (DownloadDetailsDTO dd : offlineDownloadList) {
                 if (dd.getFileLocation() == null) {
                     //give a place for the downlaod
-                    dd.setFileLocation(biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes()) + File.separator + dd.getStartTime() + File.separator + dd.getRequestParams().getFile() + ".zip");
+                    dd.setFileLocation(biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes(StandardCharsets.UTF_8)) + File.separator + dd.getStartTime() + File.separator + dd.getRequestParams().getFile() + ".zip");
                     return dd;
                 }
             }
@@ -195,7 +196,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
                         (maxRecords == null || dd.getTotalRecords() <= maxRecords) &&
                         (type == null || dd.getDownloadType().equals(type))) {
                     //give a place for the downlaod
-                    UUID emailUUID = UUID.nameUUIDFromBytes(dd.getEmail().getBytes());
+                    UUID emailUUID = UUID.nameUUIDFromBytes(dd.getEmail().getBytes(StandardCharsets.UTF_8));
                     long startTime = dd.getStartTime();
                     DownloadRequestParams requestParams = dd.getRequestParams();
                     String file = requestParams.getFile();

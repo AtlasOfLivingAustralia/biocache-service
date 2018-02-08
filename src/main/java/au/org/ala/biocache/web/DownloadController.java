@@ -43,6 +43,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -176,10 +177,10 @@ public class DownloadController extends AbstractSecureController {
                             HttpServletResponse response, HttpServletRequest request,
                             DownloadType downloadType) throws Exception {
 
-        boolean sensitive = false;
+        boolean includeSensitive = false;
         if (apiKey != null) {
             if (shouldPerformOperation(apiKey, response, false)) {
-                sensitive = true;
+                includeSensitive = true;
             }
         } else if (StringUtils.isEmpty(requestParams.getEmail())) {
             logger.error("Unable to perform an offline download without an email address");
@@ -194,7 +195,7 @@ public class DownloadController extends AbstractSecureController {
 
         //get the fq that includes only the sensitive data that the userId ROLES permits
         String sensitiveFq = null;
-        if (!sensitive) {
+        if (!includeSensitive) {
             sensitiveFq = getSensitiveFq(request);
         }
 
@@ -202,7 +203,7 @@ public class DownloadController extends AbstractSecureController {
 
         //create a new task
         DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, downloadType);
-        dd.setIncludeSensitive(sensitive);
+        dd.setIncludeSensitive(includeSensitive);
         dd.setSensitiveFq(sensitiveFq);
 
         //get query (max) count for queue priority
@@ -221,7 +222,7 @@ public class DownloadController extends AbstractSecureController {
             status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
         } else if (dd.getTotalRecords() > downloadService.dowloadOfflineMaxSize) {
             //identify this download as too large
-            File file = new File(downloadService.biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes()) + File.separator + dd.getStartTime() + File.separator + "tooLarge");
+            File file = new File(downloadService.biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes(StandardCharsets.UTF_8)) + File.separator + dd.getStartTime() + File.separator + "tooLarge");
             FileUtils.forceMkdir(file.getParentFile());
             FileUtils.writeStringToFile(file, "", "UTF-8");
             status.put("downloadUrl", downloadService.biocacheDownloadUrl);
@@ -357,11 +358,23 @@ public class DownloadController extends AbstractSecureController {
         return status;
     }
 
+    /**
+     * IMPORTANT: Must return null if the user does not have access to sensitive data.
+     *
+     * @param request The request to get the "X-ALA-userId" header from to send to the authentication service to see if the user has access to sensitive data
+     * @return Null if the user does not have access to sensitive data, and a Solr query string containing the filters giving the user access to sensitive data based on their assigned role otherwise
+     * @throws ParseException If the sensitiveAccessRoles configuration was not parseable
+     */
     private String getSensitiveFq(HttpServletRequest request) throws ParseException {
         if (!isValidKey(request.getHeader("apiKey"))) {
             return null;
         } else {
-            return downloadService.getSensitiveFq(request.getHeader("X-ALA-userId"));
+            // FIXME: Why are we getting the identification from a header instead of a verified session context?
+            String xAlaUserIdHeader = request.getHeader("X-ALA-userId");
+            if (xAlaUserIdHeader == null) {
+                return null;
+            }
+            return downloadService.getSensitiveFq(xAlaUserIdHeader);
         }
     }
 }

@@ -32,6 +32,7 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.net.HttpURLConnection;
+import java.nio.charset.StandardCharsets;
 
 /**
  * A controller for the submission and lookup of validation rules against occurrence records.
@@ -147,7 +148,7 @@ public class ValidationRuleController extends AbstractSecureController {
     public void addValidationRule(HttpServletRequest request, HttpServletResponse response) throws Exception {
 
         try {
-            String rawValue = org.apache.commons.io.IOUtils.toString(request.getInputStream(), "UTF-8");
+            String rawValue = org.apache.commons.io.IOUtils.toString(request.getInputStream(), StandardCharsets.UTF_8);
             logger.debug("The raw value :" + rawValue);
 
             try {

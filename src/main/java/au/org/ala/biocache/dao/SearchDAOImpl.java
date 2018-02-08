@@ -658,7 +658,7 @@ public class SearchDAOImpl implements SearchDAO {
         writeFacetToStream(requestParams, true, false, false, false, outputStream, null);
         outputStream.flush();
         outputStream.close();
-        String includedValues = outputStream.toString();
+        String includedValues = outputStream.toString("UTF-8");
         includedValues = includedValues == null ? "" : includedValues;
         String[] values = includedValues.split("\n");
         List<FieldResultDTO> list = new ArrayList<FieldResultDTO>();
@@ -801,11 +801,11 @@ public class SearchDAOImpl implements SearchDAO {
             //write the header line
             if (ff != null) {
                 String[] header = new String[]{ff.getName()};
-                // out.write(ff.getName().getBytes());
+                // out.write(ff.getName().getBytes(StandardCharsets.UTF_8));
                 if (shouldLookup) {
                     header = speciesLookupService.getHeaderDetails(ff.getName(), includeCount, includeSynonyms);
                 } else if (includeCount) {
-                    //out.write(",Count".getBytes());
+                    //out.write(",Count".getBytes(StandardCharsets.UTF_8));
                     header = (String[]) ArrayUtils.add(header, "count");
                 }
                 if (includeLists) {
@@ -816,7 +816,7 @@ public class SearchDAOImpl implements SearchDAO {
                 try {
                     boolean addedNullFacet = false;
 
-                    //out.write("\n".getBytes());
+                    //out.write("\n".getBytes(StandardCharsets.UTF_8));
                     //PAGE through the facets until we reach the end.
                     //do not continue when null facet is already added and the next facet is only null
                     while (ff.getValueCount() > 1 || !addedNullFacet || (ff.getValueCount() == 1 && ff.getValues().get(0).getName() != null)) {
@@ -922,13 +922,13 @@ public class SearchDAOImpl implements SearchDAO {
         if (qr.getResults().size() > 0) {
             FacetField ff = qr.getFacetField(searchParams.getFacets()[0]);
             if (ff != null && ff.getValueCount() > 0) {
-                out.write("latitude,longitude\n".getBytes());
+                out.write("latitude,longitude\n".getBytes(StandardCharsets.UTF_8));
                 //write the facets to file
                 for (FacetField.Count value : ff.getValues()) {
                     //String[] slatlon = value.getName().split(",");
                     if (value.getName() != null && value.getCount() > 0) {
-                        out.write(value.getName().getBytes());
-                        out.write("\n".getBytes());
+                        out.write(value.getName().getBytes(StandardCharsets.UTF_8));
+                        out.write("\n".getBytes(StandardCharsets.UTF_8));
                     }
                 }
             }

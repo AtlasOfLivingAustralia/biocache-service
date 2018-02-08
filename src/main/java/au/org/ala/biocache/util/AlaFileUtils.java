@@ -136,7 +136,7 @@ public class AlaFileUtils {
             return name;
         } else{
             //remove the non-leading vowels
-            name = name.replaceAll("(?!^)[aeiou]", "");
+            name = name.replaceAll("(?!^)[aeiou.]", "");
             if(name.length()>requiredLength){
                 name = name.substring(0, requiredLength);
             }
@@ -151,14 +151,15 @@ public class AlaFileUtils {
      */
     public static Map<String,String> generateShapeHeader(String[] headers){
         Map<String,String> headerMap= new LinkedHashMap<String,String>();
-        int i =0;
-        for(String header :headers){
+        int i = 0;
+        for(String header : headers){
+            i++;
             String newHeader = reduceNameByVowels(header, 10);
-            if(headerMap.containsKey(newHeader)){
-                newHeader = reduceNameByVowels(header, 9) +i;
+            while (headerMap.containsKey(newHeader)) {
+                i++;
+                newHeader = reduceNameByVowels(header, 9) + Integer.toString(i);
             }
             headerMap.put(newHeader, header);
-            i++;
         }
         return headerMap;
     }

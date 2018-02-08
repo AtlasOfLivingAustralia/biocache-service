@@ -29,7 +29,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Controllers that need to perform security checks should extend this class and call shouldPerformOperation
+ * Controllers that need to perform security checks should extend this class and call shouldPerformOperation.
+ * 
+ * NOTE: Even though this has "Abstract" in the class name for historical reasons, it is a non-abstract class.
  */
 public class AbstractSecureController {
 
@@ -41,18 +43,22 @@ public class AbstractSecureController {
     @Value("${api.check.enabled:true}")
     protected Boolean apiKeyCheckedEnabled = true;
 
-    /** Local cache of keys */
-    private static Set<String> apiKeys = new HashSet<String>();
+    /** 
+     * Local cache of keys 
+     * 
+     * FIXME: Why is the cache static?
+     **/
+    private static Set<String> apiKeyCache = new HashSet<String>();
     
     public AbstractSecureController(){}
 
     /**
-     * Check that the request has the necessary permissions to perform this request.
+     * Check the validity of the supplied key, returning false if the store is in read only mode.
      *
-     * @param request
-     * @param response
-     * @return
-     * @throws Exception
+     * @param request The request to find the apiKey parameter from
+     * @param response The response to check for {@link HttpServletResponse#isCommitted()} and to send errors on if the operation should not be committed
+     * @return True if the store is not in read-only mode, the API key is valid, and the response has not already been committed, and false otherwise
+     * @throws Exception If the store is in read-only mode, or the API key is invalid.
      */
     public boolean shouldPerformOperation(HttpServletRequest request, HttpServletResponse response) throws Exception {
         String apiKey = request.getParameter("apiKey");
@@ -60,13 +66,14 @@ public class AbstractSecureController {
     }
 
     /**
-     * Check the validity of the supplied key.
+     * Check the validity of the supplied key, returning false if the store is in read only mode.
      *
-     * @param response
-     * @return
-     * @throws Exception
+     * @param apiKey The API key to check
+     * @param response The response to check for {@link HttpServletResponse#isCommitted()} and to send errors on if the operation should not be committed
+     * @return True if the store is not in read-only mode, the API key is valid, and the response has not already been committed, and false otherwise
+     * @throws Exception If the store is in read-only mode, or the API key is invalid.
      */
-    public boolean shouldPerformOperation(String apiKey, HttpServletResponse response) throws Exception{
+    public boolean shouldPerformOperation(String apiKey, HttpServletResponse response) throws Exception {
         return shouldPerformOperation(apiKey, response, true);
     }
     
@@ -74,7 +81,7 @@ public class AbstractSecureController {
      * Use a webservice to validate a key
      * 
      * @param keyToTest
-     * @return
+     * @return True if API key checking is disabled, or the API key is valid, and false otherwise.
      */
     public boolean isValidKey(String keyToTest){
 
@@ -86,42 +93,49 @@ public class AbstractSecureController {
             return false;
         }
 
-    	if(!apiKeys.contains(keyToTest)){
-    		//check via a web service
-    		try {
-    			logger.debug("Checking api key: " + keyToTest);
-	    		String url = apiCheckUrl + keyToTest;
-	    		ObjectMapper om = new ObjectMapper();
-	    		Map<String,Object> response = om.readValue(new URL(url), Map.class);
-	    		logger.debug("Checking api key: " + keyToTest + ", valid: " + response.get("valid"));
-	    		boolean isValid = (Boolean) response.get("valid");
-	    		if(isValid){
-	    			apiKeys.add(keyToTest);
-	    		}
-	    		return isValid; 
-    		} catch (Exception e){
-    			logger.error(e.getMessage(), e);
-    		}
-    	} else {
+    	if(apiKeyCache.contains(keyToTest)){
     		return true;
     	}
+    	
+		//check via a web service
+		try {
+			logger.debug("Checking api key: {}", keyToTest);
+    		String url = apiCheckUrl + keyToTest;
+    		ObjectMapper om = new ObjectMapper();
+    		Map<String,Object> response = om.readValue(new URL(url), Map.class);
+    		boolean isValid = (Boolean) response.get("valid");
+    		logger.debug("Checking api key: {}, valid: {}", keyToTest, isValid);
+    		if(isValid){
+    			apiKeyCache.add(keyToTest);
+    		}
+    		return isValid; 
+		} catch (Exception e){
+			logger.error(e.getMessage(), e);
+		}
+		
     	return false;
     }
 
 	/**
      * Returns true when the operation should be performed.
      *
-     * @param apiKey
-     * @param response
-     * @return
+     * @param apiKey The API key to check for validity, after appending it to the api.check.url property.
+     * @param response The response to either send an error on, or return false if the {@link HttpServletResponse#isCommitted()} returns true.
+     * @param checkReadOnly True to check {@link Store#isReadOnly()}
+     * @return True if the operation is able to be performed
      * @throws Exception
      */
-    public boolean shouldPerformOperation(String apiKey,HttpServletResponse response, boolean checkReadOnly)throws Exception{
+    public boolean shouldPerformOperation(String apiKey,HttpServletResponse response, boolean checkReadOnly) throws Exception {
         if(checkReadOnly && Store.isReadOnly()){
             response.sendError(HttpServletResponse.SC_CONFLICT, "Server is in read only mode.  Try again later.");
+            return false;
         } else if(!isValidKey(apiKey)){
             response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
+            return false;
+        } else if(response.isCommitted()) {
+        	return false;
         }
-        return !response.isCommitted();
+        
+        return true;
     }
 }

@@ -61,6 +61,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -177,6 +178,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.dir:/data/biocache-download}")
     public String biocacheDownloadDir;
 
+    /**
+     * Set to true to enable downloading of sensitive data
+     */
     @Value("${download.auth.sensitive:false}")
     private Boolean downloadAuthSensitive;
 
@@ -198,7 +202,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             "\"ROLE_SDS_BIRDLIFE\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
             "\n" +
             "}}")
-    protected String sensitiveAccessRoles;
+    protected String sensitiveAccessRoles = "{}";;
 
     private JSONObject sensitiveAccessRolesToSolrFilters;
 
@@ -529,12 +533,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     sp.putNextEntry("Shape-README.html");
                     sp.write(
                             ("The name of features is limited to 10 characters. Listed below are the mappings of feature name to download field:")
-                                    .getBytes());
-                    sp.write(("<table><td><b>Feature</b></td><td><b>Download Field<b></td>").getBytes());
+                                    .getBytes(StandardCharsets.UTF_8));
+                    sp.write(("<table><td><b>Feature</b></td><td><b>Download Field<b></td>").getBytes(StandardCharsets.UTF_8));
                     for (String key : dd.getHeaderMap().keySet()) {
-                        sp.write(("<tr><td>" + key + "</td><td>" + dd.getHeaderMap().get(key) + "</td></tr>").getBytes());
+                        sp.write(("<tr><td>" + key + "</td><td>" + dd.getHeaderMap().get(key) + "</td></tr>").getBytes(StandardCharsets.UTF_8));
                     }
-                    sp.write(("</table>").getBytes());
+                    sp.write(("</table>").getBytes(StandardCharsets.UTF_8));
                 }
 
                 // Add the data citation to the download
@@ -648,9 +652,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 if (logger.isDebugEnabled()) {
                     logger.debug(readmeContent);
                 }
-                sp.write((readmeContent).getBytes());
+                sp.write(readmeContent.getBytes(StandardCharsets.UTF_8));
                 sp.write(("For more information about the fields that are being downloaded please consult <a href='"
-                        + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes());
+                        + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes(StandardCharsets.UTF_8));
                 sp.closeEntry();
 
                 // Add headings file, listing information about the headings
@@ -1082,7 +1086,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      */
     public String getSensitiveFq(String userId) {
 
-        if (!downloadAuthSensitive) {
+        if (downloadAuthSensitive == null || !downloadAuthSensitive) {
             return null;
         }
 
@@ -1099,8 +1103,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             return null;
         }
 
-        logger.debug("sensitiveOnly download requested for user: " + userId +
-                ", using fq: " + sensitiveFq);
+        if(logger.isDebugEnabled()) {
+            logger.debug("sensitiveOnly download requested for user: " + userId +
+                    ", using fq: " + sensitiveFq);
+        }
 
         return sensitiveFq;
     }

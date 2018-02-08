@@ -63,8 +63,6 @@ public class AdminController extends AbstractSecureController {
     public void ingestResources(HttpServletRequest request,
                                 @RequestParam(value = "apiKey", required = true) String apiKey,
                                 HttpServletResponse response) throws Exception{
-        String k = request.getParameter("apiKey");
-
         //performs an asynchronous ingest.
         final String dataResources = request.getParameter("dr");
         final String ingest = dataResources == null ? "all" : dataResources;
@@ -166,8 +164,8 @@ public class AdminController extends AbstractSecureController {
     }
 
     /**
-     * Returns true when in service is in readonly mode.
-     * @return
+     * Reloads caches of translation maps between user names, ids, and email addresses 
+     * @return Returns the string "Done". Will perform the reload asynchronously if the auth.user.details.path property is set to a non-empty string
      */
     @RequestMapping(value="/admin/refreshAuth", method=RequestMethod.GET)
     public @ResponseBody String refreshAuth() {

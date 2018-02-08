@@ -145,7 +145,7 @@ public class SearchRequestParams {
 
         if (isEncoded) {
             try {
-                output = URIUtil.encodeWithinQuery(input);
+                output = URIUtil.encodeWithinQuery(input, "UTF-8");
             } catch (URIException e) {
                 logger.warn("URIUtil encoding error: " + e.getMessage(), e);
                 output = input;
