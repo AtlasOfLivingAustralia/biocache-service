@@ -1188,7 +1188,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     CreateDoiResponse doiResponse;
                                     doiResponse = doiResponseList.get(0);
 
-                                    doiService.updateFile(doiResponse.getUuid(), archiveFileLocation);
+                                    doiService.updateFile(doiResponse.getUuid(), currentDownload.getFileLocation());
                                     doiStr = doiResponse.getDoi();
 //                                    emailBody = biocacheDownloadDoiEmailBody;
                                     emailTemplate = biocacheDownloadDoiEmailTemplate;

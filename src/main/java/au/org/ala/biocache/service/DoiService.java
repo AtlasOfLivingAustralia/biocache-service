@@ -17,9 +17,7 @@ package au.org.ala.biocache.service;
 import au.org.ala.biocache.dto.DownloadDoiDTO;
 import au.org.ala.doi.*;
 import com.google.common.net.UrlEscapers;
-import okhttp3.Interceptor;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
+import okhttp3.*;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -27,8 +25,10 @@ import retrofit2.Call;
 import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
+import retrofit2.http.Multipart;
 
 import javax.annotation.PostConstruct;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -224,7 +224,16 @@ public class DoiService {
         updateRequest.setFileUrl(fileUrl);
         updateRequest.setActive(true);
 
-        Response<Doi> updateResponse = doiApiService.update(id, updateRequest).execute();
+        //pass it like this
+        File file = new File(fileUrl);
+        RequestBody requestFile =
+                RequestBody.create(MediaType.parse("multipart/form-data"), file);
+
+        // MultipartBody.Part is used to send also the actual file name
+        MultipartBody.Part body =
+                MultipartBody.Part.createFormData("file", file.getName(), requestFile);
+
+        Response<Doi> updateResponse = doiApiService.updateMultipart(id, body, updateRequest).execute();
 
         if(updateResponse.isSuccessful()) {
             return updateResponse.body();
