@@ -22,6 +22,7 @@ package au.org.ala.biocache.util;
 public class LegendItem implements Comparable<LegendItem> {
 
     String name;
+    String i18nCode;
     long count;
     int colour;
     String fq;
@@ -29,8 +30,10 @@ public class LegendItem implements Comparable<LegendItem> {
     int blue;
     int green;
 
-    public LegendItem(String name, long count, String fq) {
+
+    public LegendItem(String name, String i18nCode, long count, String fq) {
         this.name = name != null ? name : "";
+        this.i18nCode = i18nCode;
         this.count = count;
         this.fq = fq;
     }
@@ -39,6 +42,15 @@ public class LegendItem implements Comparable<LegendItem> {
         red = (colour >> 16) & 0x000000ff;
         green = (colour >> 8) & 0x000000ff;
         blue = colour & 0x000000ff;
+    }
+
+
+    public String getI18nCode() {
+        return i18nCode;
+    }
+
+    public void setI18nCode(String i18nCode) {
+        this.i18nCode = i18nCode;
     }
 
     public String getName() {

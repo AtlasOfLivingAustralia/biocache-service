@@ -670,7 +670,14 @@ public class SearchDAOImpl implements SearchDAO {
             } else {
                 int idx = value.lastIndexOf(",");
                 //handle values enclosed in "
-                list.add(new FieldResultDTO(value.substring(0, idx), Long.parseLong(value.substring(idx + 1).replace("\"", ""))));
+                String name = value.substring(0, idx);
+                list.add(
+                    new FieldResultDTO(
+                        name,
+                        name,
+                        Long.parseLong(value.substring(idx + 1).replace("\"", ""))
+                    )
+                );
             }
         }
         return list;
@@ -2324,13 +2331,12 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.addFacetField("state");
         solrQuery.setFacetMinCount(1);
         QueryResponse qr = runSolrQuery(solrQuery, null, 1, 0, "data_provider", "asc");
-        List<FacetField> facets = qr.getFacetFields();
         FacetField ff = qr.getFacetField("state");
         if (ff != null) {
             for (Count count : ff.getValues()) {
                 //only start adding counts when we hit a decade with some results.
                 if (count.getCount() > 0) {
-                    FieldResultDTO f = new FieldResultDTO(count.getName(), count.getCount());
+                    FieldResultDTO f = new FieldResultDTO(count.getName(), "state" + "." + count.getName(), count.getCount());
                     fDTOs.add(f);
                 }
             }
@@ -2384,7 +2390,7 @@ public class SearchDAOImpl implements SearchDAO {
                         List<FieldResultDTO> fDTOs = new ArrayList<FieldResultDTO>();
                         for (Count count : ff.getValues()) {
                             if (count.getCount() > 0) {
-                                FieldResultDTO f = new FieldResultDTO(count.getName(), count.getCount());
+                                FieldResultDTO f = new FieldResultDTO(count.getName(), count.getFacetField().getName() + "." + count.getName(), count.getCount());
                                 fDTOs.add(f);
                             }
                         }
@@ -2406,7 +2412,7 @@ public class SearchDAOImpl implements SearchDAO {
                             List<FieldResultDTO> fDTOs = new ArrayList<FieldResultDTO>();
                             for (Count count : counts) {
                                 if (count.getCount() > 0) {
-                                    FieldResultDTO f = new FieldResultDTO(count.getName(), count.getCount());
+                                    FieldResultDTO f = new FieldResultDTO(count.getName(), count.getFacetField().getName() + "." + count.getName(), count.getCount());
                                     fDTOs.add(f);
                                 }
                             }
@@ -2453,7 +2459,7 @@ public class SearchDAOImpl implements SearchDAO {
                         if (counts.size() > 0) {
                             List<FieldResultDTO> fDTOs = new ArrayList<FieldResultDTO>();
                             for (Count count : counts) {
-                                FieldResultDTO f = new FieldResultDTO(count.getName(), count.getCount());
+                                FieldResultDTO f = new FieldResultDTO(count.getName(), count.getFacetField().getName() + "." + count.getName(), count.getCount());
                                 fDTOs.add(f);
                             }
                             trDTO.setTaxa(fDTOs);
@@ -2617,7 +2623,7 @@ public class SearchDAOImpl implements SearchDAO {
             List<FieldResultDTO> fqr = new ArrayList<FieldResultDTO>();
             for (String value : facetQueries.keySet()) {
                 if (facetQueries.get(value) > 0)
-                    fqr.add(new FieldResultDTO(rangeMap.get(value), facetQueries.get(value), value));
+                    fqr.add(new FieldResultDTO(rangeMap.get(value), rangeMap.get(value), facetQueries.get(value), value));
             }
             facetResults.add(new FacetResultDTO("uncertainty", fqr));
         }
@@ -2631,16 +2637,19 @@ public class SearchDAOImpl implements SearchDAO {
                     List<RangeFacet.Count> counts = nrfacet.getCounts();
                     //handle the before
                     if (nrfacet.getBefore().intValue() > 0) {
-                        fqr.add(new FieldResultDTO("[* TO " + getUpperRange(nrfacet.getStart().toString(), nrfacet.getGap(), false) + "]",
+                        String name = "[* TO " + getUpperRange(nrfacet.getStart().toString(), nrfacet.getGap(), false) + "]";
+
+                        fqr.add(new FieldResultDTO(name,
+                                name,
                                 nrfacet.getBefore().intValue()));
                     }
                     for (RangeFacet.Count count : counts) {
                         String title = getRangeValue(count.getValue(), nrfacet.getGap());
-                        fqr.add(new FieldResultDTO(title, count.getCount()));
+                        fqr.add(new FieldResultDTO(title, title, count.getCount()));
                     }
                     //handle the after
                     if (nrfacet.getAfter().intValue() > 0) {
-                        fqr.add(new FieldResultDTO("[" + nrfacet.getEnd().toString() + " TO *]", nrfacet.getAfter().intValue()));
+                        fqr.add(new FieldResultDTO("[" + nrfacet.getEnd().toString() + " TO *]", "[" + nrfacet.getEnd().toString() + " TO *]", nrfacet.getAfter().intValue()));
                     }
                     facetResults.add(new FacetResultDTO(nrfacet.getName(), fqr));
                 }
@@ -2677,17 +2686,24 @@ public class SearchDAOImpl implements SearchDAO {
                         //check to see if the facet field is an uid value that needs substitution
                         if (fcount.getCount() == 0) continue;
                         if (fcount.getName() == null) {
-                            r.add(new FieldResultDTO("", fcount.getCount(), "-" + facet.getName() + ":*"));
+
+                            String label = "";
+                            if(messageSource != null){
+                                label = messageSource.getMessage(facet.getName() + ".novalue", null, "", null);
+                            }
+                            r.add(new FieldResultDTO(label, facet.getName() + ".novalue", fcount.getCount(), "-" + facet.getName() + ":*"));
                         } else {
                             if (fcount.getName().equals(DECADE_PRE_1850_LABEL)) {
                                 r.add(0, new FieldResultDTO(
                                         getFacetValueDisplayName(facet.getName(), fcount.getName()),
+                                        facet.getName() + "." + fcount.getName(),
                                         fcount.getCount(),
                                         getFormattedFqQuery(facet.getName(), fcount.getName())
                                 ));
                             } else {
                                 r.add(new FieldResultDTO(
                                         getFacetValueDisplayName(facet.getName(), fcount.getName()),
+                                        facet.getName() + "." + fcount.getName(),
                                         fcount.getCount(),
                                         getFormattedFqQuery(facet.getName(), fcount.getName())
                                 ));
@@ -3487,7 +3503,7 @@ public class SearchDAOImpl implements SearchDAO {
                             if (fcount.getName() == null) {
                                 fq = "-" + facetField + ":[* TO *]";
                             }
-                            legend.add(new LegendItem(fcount.getName(), fcount.getCount(), fq));
+                            legend.add(new LegendItem(getFacetValueDisplayName(facetField, fcount.getName()), facetField + "." + fcount.getName(), fcount.getCount(), fq));
                         }
                     }
                     break;
@@ -3498,7 +3514,7 @@ public class SearchDAOImpl implements SearchDAO {
         Map<String, Integer> facetq = qr.getFacetQuery();
         if (facetq != null && facetq.size() > 0) {
             for (Entry<String, Integer> es : facetq.entrySet()) {
-                legend.add(new LegendItem(es.getKey(), es.getValue(), es.getKey()));
+                legend.add(new LegendItem( getFacetValueDisplayName(facetField, es.getKey()), facetField + "." + es.getKey() , es.getValue(), es.getKey()));
             }
         }
 
@@ -3521,7 +3537,9 @@ public class SearchDAOImpl implements SearchDAO {
                     finishDate = (startYear - 1) + "-12-31T23:59:59Z";
                 }
                 legend.add(
-                        new LegendItem(facetEntry.getName(),
+                        new LegendItem(
+                                getFacetValueDisplayName(facetEntry.getFacetField().getName(), facetEntry.getName()),
+                                facetEntry.getFacetField().getName() + "." + facetEntry.getName(),
                                 facetEntry.getCount(),
                                 "occurrence_year:[" + startDate + " TO " + finishDate + "]")
                 );
@@ -3945,9 +3963,13 @@ public class SearchDAOImpl implements SearchDAO {
             return authService.getDisplayNameFor(value);
         } else {
             if (messageSource != null) {
-                return messageSource.getMessage(facet + "." + value, null, value, null);
+                return messageSource.getMessage(
+                        facet + "." + value,
+                        null,
+                        value,
+                        (Locale) null);
             } else {
-                return null;
+                return value;
             }
         }
     }
@@ -4095,9 +4117,9 @@ public class SearchDAOImpl implements SearchDAO {
             for (int i = 0; i <= 500; i += 100) {
                 LegendItem li;
                 if (i == 0) {
-                    li = new LegendItem(">0", 0, null);
+                    li = new LegendItem(">0", "greaterThanZero",0, null);
                 } else {
-                    li = new LegendItem(String.valueOf(i), 0, null);
+                    li = new LegendItem(String.valueOf(i), String.valueOf(i),0, null);
                 }
                 li.setColour((((500 - i) / 2) << 8) | 0x00FF0000);
                 colours.add(li);
@@ -4132,7 +4154,10 @@ public class SearchDAOImpl implements SearchDAO {
                 int i = 0;
                 int offset = 0;
                 for (i = 0; i < legend.size() && i < ColorUtil.colourList.length - 1; i++) {
-                    colours.add(new LegendItem(legend.get(i).getName(), legend.get(i).getCount(), legend.get(i).getFq()));
+
+                    LegendItem li = legend.get(i);
+
+                    colours.add(new LegendItem(li.getName(), li.getName(), li.getCount(), li.getFq()));
                     int colour = DEFAULT_COLOUR;
                     if (cutpoints == null) {
                         colour = ColorUtil.colourList[i];

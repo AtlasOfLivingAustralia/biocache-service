@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
  */
 public class FieldResultDTO implements Comparable<FieldResultDTO>{
     String label;
+    String i18nCode;
     Long count;
     String fq;//the value to use for the FQ if it is different to the label
 
@@ -33,10 +34,11 @@ public class FieldResultDTO implements Comparable<FieldResultDTO>{
      * @param count
      * @param fq 
      */
-    public FieldResultDTO(String fieldValue, long count, String fq) {
-        this(fieldValue,count);
+    public FieldResultDTO(String fieldValue, String i18nCode, long count, String fq) {
+        this(fieldValue, i18nCode, count);
         this.fq = fq;
     }
+
 
     /**
      * Constructor
@@ -44,8 +46,10 @@ public class FieldResultDTO implements Comparable<FieldResultDTO>{
      * @param fieldValue
      * @param count 
      */
-    public FieldResultDTO(String fieldValue, long count) {
+    public FieldResultDTO(String fieldValue, String i18nCode, long count) {
         this.label = fieldValue != null ? fieldValue : "";
+        this.i18nCode = i18nCode;
+
         this.count = count;
     }
     
@@ -79,7 +83,14 @@ public class FieldResultDTO implements Comparable<FieldResultDTO>{
     public void setLabel(String label) {
         this.label = label;
     }
-    
+
+    public String getI18nCode() {
+        return i18nCode;
+    }
+
+    public void setI18nCode(String i18nCode) {
+        this.i18nCode = i18nCode;
+    }
 
     /**
      * @return the fq

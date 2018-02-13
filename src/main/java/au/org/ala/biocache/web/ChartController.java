@@ -172,7 +172,7 @@ public class ChartController extends AbstractSecureController implements Seriali
                     appendFq(searchParams, inverseXranges.toString());
                     SearchResultDTO sr = searchDAO.findByFulltextSpatialQuery(searchParams, null);
                     if (sr != null) {
-                        data.add(new FieldResultDTO("Other", sr.getTotalRecords()));
+                        data.add(new FieldResultDTO("Other", "Other", sr.getTotalRecords()));
                     }
                 }
             } else if (xranges == null && stats != null) {
@@ -216,7 +216,8 @@ public class ChartController extends AbstractSecureController implements Seriali
 
                     SearchResultDTO l = searchDAO.findByFulltextSpatialQuery(searchParams, null);
                     if (l != null) {
-                        FieldResultDTO fr = new FieldResultDTO(m.get("label").toString(), l.getTotalRecords(), m.get("fq").toString());
+                        String label = m.get("label").toString();
+                        FieldResultDTO fr = new FieldResultDTO(label, label, l.getTotalRecords(), m.get("fq").toString());
 
                         output.add(fr);
                     }
@@ -307,7 +308,7 @@ public class ChartController extends AbstractSecureController implements Seriali
                     if (fieldStatsItem) {
                         data.add(new FieldStatsItem(new FieldStatsInfo(new NamedList<>(m), c)));
                     } else {
-                        data.add(new FieldResultDTO(c, 0));
+                        data.add(new FieldResultDTO(c, c, 0));
                     }
                 }
                 //sort
