@@ -236,8 +236,7 @@ public class DownloadController extends AbstractSecureController {
             status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
         }
 
-        status.put("searchUrl", downloadService.biocacheUiUrl + "/occurrences/search" + ((SpatialSearchRequestParams) dd.getRequestParams()).getUrlParams());
-
+        status.put("searchUrl", downloadService.generateSearchUrl(dd.getRequestParams()));
         writeStatusFile(dd.getUniqueId(), status);
 
         return status;

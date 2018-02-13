@@ -71,6 +71,22 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     protected Boolean mintDoi=false;
 
     /**
+     * What is the search in the UI that generates this occurrence download.
+     */
+    protected String searchUrl;
+
+    /**
+     * What is the DOI landing page that will be used to display individual DOIs
+     */
+    protected String doiDisplayUrl;
+
+    /**
+     * The name of the hub issuing the download request.
+     * This will be used in e-mails, and zip content
+     */
+    protected String hubName;
+
+    /**
      * Custom toString method to produce a String to be used as the request parameters
      * for the Biocache Service webservices
      *
@@ -283,4 +299,27 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
         this.mintDoi = mintDoi;
     }
 
+    public String getSearchUrl() {
+        return searchUrl;
+    }
+
+    public void setSearchUrl(String searchUrl) {
+        this.searchUrl = searchUrl;
+    }
+
+    public String getDoiDisplayUrl() {
+        return doiDisplayUrl;
+    }
+
+    public void setDoiDisplayUrl(String doiDisplayUrl) {
+        this.doiDisplayUrl = doiDisplayUrl;
+    }
+
+    public String getHubName() {
+        return hubName;
+    }
+
+    public void setHubName(String hubName) {
+        this.hubName = hubName;
+    }
 }

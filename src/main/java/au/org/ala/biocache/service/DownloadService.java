@@ -185,7 +185,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     private Boolean downloadAuthSensitive;
 
     @Value("${biocache.ui.url:http://biocache.ala.org.au}")
-    public String biocacheUiUrl = "http://biocache.ala.org.au";
+    protected String biocacheUiUrl = "http://biocache.ala.org.au";
 
     //TODO: this should be retrieved from SDS
     @Value("${sensitiveAccessRoles:{\n" +
@@ -547,6 +547,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 Boolean mintDoi = requestParams.getMintDoi();
                 CreateDoiResponse doiResponse = null;
                 String doi = "";
+
+                final String searchUrl = generateSearchUrl(requestParams);
+
                 if (citationsEnabled) {
                     List<Map<String, String>> datasetMetadata = null;
                     if(mintDoi) {
@@ -585,7 +588,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         List<String> licence = Lists.newArrayList(datasetLicences);
 
                         DownloadDoiDTO doiDetails = new DownloadDoiDTO();
-                        String searchUrl = generateSearchUrl(requestParams);
+
                         doiDetails.setTitle(biocacheDownloadDoiTitlePrefix + filename);
                         doiDetails.setApplicationUrl(searchUrl);
                         doiDetails.setRequesterId(requesterId);
@@ -620,7 +623,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     dd.setRequestParams(requestParams);
                 }
                 if (dd.getFileLocation() == null) {
-                    dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
+                    dd.setFileLocation(searchUrl);
                 }
 
                 // add the Readme for the data field descriptions
@@ -634,7 +637,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 if(mintDoi && doiResponse != null) {
                     readmeFile = biocacheDownloadDoiReadmeTemplate;
                     doi = doiResponse.getDoi();
-                    fileLocation = biocacheDownloadDoiLandingPage+doi;
+                    final String doiLandingPage = requestParams.getDoiDisplayUrl() != null ? requestParams.getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
+                    fileLocation = doiLandingPage + doi;
 
                 } else {
                     readmeFile = biocacheDownloadReadmeTemplate;
@@ -645,7 +649,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                 String readmeContent = readmeTemplate.replace("[url]", fileLocation)
                         .replace("[date]", dd.getStartDateString())
-                        .replace("[searchUrl]", generateSearchUrl(dd.getRequestParams()))
+                        .replace("[searchUrl]", searchUrl)
                         .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
                         .replace("[dataProviders]", dataProviders)
                         .replace("[doi]", doi);
@@ -946,60 +950,64 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param params
      * @return url
      */
-    private String generateSearchUrl(DownloadRequestParams params) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(biocacheUiUrl + "/occurrences/search?");
+    public String generateSearchUrl(DownloadRequestParams params) {
+        if (params.getSearchUrl() != null) {
+            return params.getSearchUrl();
+        } else {
+            StringBuilder sb = new StringBuilder();
+            sb.append(biocacheUiUrl + "/occurrences/search?");
 
-        if (params.getQId() != null) {
-            try {
-                sb.append("qid=").append(URLEncoder.encode("" + params.getQId(), "UTF-8"));
-            } catch (UnsupportedEncodingException e) {
+            if (params.getQId() != null) {
+                try {
+                    sb.append("qid=").append(URLEncoder.encode("" + params.getQId(), "UTF-8"));
+                } catch (UnsupportedEncodingException e) {
 
+                }
             }
-        }
-        if (params.getQ() != null) {
-            try {
-                sb.append("&q=").append(URLEncoder.encode(params.getQ(), "UTF-8"));
-            } catch (UnsupportedEncodingException e) {
+            if (params.getQ() != null) {
+                try {
+                    sb.append("&q=").append(URLEncoder.encode(params.getQ(), "UTF-8"));
+                } catch (UnsupportedEncodingException e) {
 
+                }
             }
-        }
 
-        if (params.getFq().length > 0) {
-            for (String fq : params.getFq()) {
-                if (StringUtils.isNotEmpty(fq)) {
-                    try {
-                        sb.append("&fq=").append(URLEncoder.encode(fq, "UTF-8"));
-                    } catch (UnsupportedEncodingException e) {
+            if (params.getFq().length > 0) {
+                for (String fq : params.getFq()) {
+                    if (StringUtils.isNotEmpty(fq)) {
+                        try {
+                            sb.append("&fq=").append(URLEncoder.encode(fq, "UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
 
+                        }
                     }
                 }
             }
-        }
 
-        if (StringUtils.isNotEmpty(params.getQc())) {
-            try {
-                sb.append("&qc=").append(URLEncoder.encode(params.getQc(), "UTF-8"));
-            } catch (UnsupportedEncodingException e) {
+            if (StringUtils.isNotEmpty(params.getQc())) {
+                try {
+                    sb.append("&qc=").append(URLEncoder.encode(params.getQc(), "UTF-8"));
+                } catch (UnsupportedEncodingException e) {
 
+                }
             }
-        }
 
-        if (StringUtils.isNotEmpty(params.getWkt())) {
-            try {
-                sb.append("&wkt=").append(URLEncoder.encode(params.getWkt(), "UTF-8"));
-            } catch (UnsupportedEncodingException e) {
+            if (StringUtils.isNotEmpty(params.getWkt())) {
+                try {
+                    sb.append("&wkt=").append(URLEncoder.encode(params.getWkt(), "UTF-8"));
+                } catch (UnsupportedEncodingException e) {
 
+                }
             }
-        }
 
-        if (params.getLat() != null && params.getLon() != null && params.getRadius() != null) {
-            sb.append("&lat=").append(params.getLat());
-            sb.append("&lon=").append(params.getLon());
-            sb.append("&radius=").append(params.getRadius());
-        }
+            if (params.getLat() != null && params.getLon() != null && params.getRadius() != null) {
+                sb.append("&lat=").append(params.getLat());
+                sb.append("&lon=").append(params.getLon());
+                sb.append("&radius=").append(params.getRadius());
+            }
 
-        return sb.toString();
+            return sb.toString();
+        }
     }
 
     private void insertMiscHeader(DownloadDetailsDTO download) {
@@ -1164,9 +1172,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false, true, parallelExecutor, doiResponseList);
                             // now that the download is complete email a link to the
                             // recipient.
+                            final String hubName = currentDownload.getRequestParams().getHubName() != null ? currentDownload.getRequestParams().getHubName() : "ALA";
                             String subject = messageSource.getMessage("offlineEmailSubject", null,
                                     biocacheDownloadEmailSubject.replace("[filename]",
-                                            currentDownload.getRequestParams().getFile()),
+                                            currentDownload.getRequestParams().getFile())
+                                    .replace("[hubName]",hubName),
                                     null);
 
                             if (currentDownload != null && currentDownload.getFileLocation() != null) {
@@ -1178,7 +1188,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
 
                                 String archiveFileLocation = biocacheDownloadUrl + File.separator + URLEncoder.encode(currentDownload.getFileLocation().replace(biocacheDownloadDir + "/",""), "UTF-8").replace("%2F", "/").replace("+", "%20");
-                                String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
 
                                 String doiStr = "";
                                 String emailBody;
@@ -1190,19 +1199,18 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                                     doiService.updateFile(doiResponse.getUuid(), currentDownload.getFileLocation());
                                     doiStr = doiResponse.getDoi();
-//                                    emailBody = biocacheDownloadDoiEmailBody;
                                     emailTemplate = biocacheDownloadDoiEmailTemplate;
 
-                                    downloadFileLocation = biocacheDownloadDoiLandingPage+doiStr;
+                                    final String doiLandingPage = currentDownload.getRequestParams().getDoiDisplayUrl() != null ? currentDownload.getRequestParams().getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
+                                    downloadFileLocation = doiLandingPage + doiStr;
                                 } else {
-//                                    emailBody = biocacheDownloadEmailBody;
                                     emailTemplate = biocacheDownloadEmailTemplate;
                                     downloadFileLocation = archiveFileLocation;
                                 }
 
-
                                 emailBody = Files.toString(new File(emailTemplate), Charsets.UTF_8);
 
+                                final String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
                                 String emailBodyHtml = emailBody.replace("[url]", downloadFileLocation)
                                         .replace("[date]", currentDownload.getStartDateString())
                                         .replace("[searchUrl]", searchUrl)
@@ -1215,7 +1223,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 // save the statistics to the download directory
                                 try (FileOutputStream statsStream = FileUtils
                                         .openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()
-                                                + File.separator + "downloadStats.json"));) {
+                                                + File.separator + "downloadStats.json"))) {
                                     objectMapper.writeValue(statsStream, currentDownload);
                                 }
 
