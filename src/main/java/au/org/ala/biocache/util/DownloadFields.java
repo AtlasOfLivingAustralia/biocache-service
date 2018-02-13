@@ -65,16 +65,17 @@ public class DownloadFields {
             updateThread = new Thread() {
                 public void run() {
                     Properties newDownloadProperties = new Properties();
-
                     try {
-                        Map<String, String> fields = new LayersStore(Config.layersServiceUrl()).getFieldIdsAndDisplayNames();
-                        for (String fieldId : fields.keySet()) {
-                            newDownloadProperties.put(fieldId, fields.get(fieldId));
-                        }
+                        if(StringUtils.isNotEmpty(Config.layersServiceUrl())) {
+                            Map<String, String> fields = new LayersStore(Config.layersServiceUrl()).getFieldIdsAndDisplayNames();
+                            for (String fieldId : fields.keySet()) {
+                                newDownloadProperties.put(fieldId, fields.get(fieldId));
+                            }
 
-                        //something might have gone wrong if empty
-                        if (newDownloadProperties.size() > 0) {
-                            layerProperties = newDownloadProperties;
+                            //something might have gone wrong if empty
+                            if (newDownloadProperties.size() > 0) {
+                                layerProperties = newDownloadProperties;
+                            }
                         }
                     } catch (Exception e) {
                         logger.error("failed to update layer names from url: " + Config.layersServiceUrl() + " " + e.getMessage(), e);
