@@ -411,9 +411,6 @@ public class ChartController extends AbstractSecureController implements Seriali
         for (IndexFieldDTO f : searchDAO.getIndexedFields()) {
             if (f.getName().equalsIgnoreCase(field) && f.getDataType().equalsIgnoreCase("tdate")) return true;
         }
-
-        if(field.equalsIgnoreCase("month") || field.equalsIgnoreCase("year") ) return true;
-
         return false;
     }
 
