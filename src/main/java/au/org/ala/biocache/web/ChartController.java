@@ -117,8 +117,7 @@ public class ChartController extends AbstractSecureController implements Seriali
               @RequestParam(value = "xother", required = false, defaultValue = "true") Boolean xother,
               @RequestParam(value = "seriesmissing", required = false, defaultValue = "false") Boolean seriesmissing,
               @RequestParam(value = "xmissing", required = false, defaultValue = "true") Boolean xmissing,
-              @RequestParam(value = "fsort", required = false, defaultValue = "index") String fsort,
-              HttpServletResponse response) throws Exception {
+              @RequestParam(value = "fsort", required = false, defaultValue = "index") String fsort) throws Exception {
 
         //construct series subqueries
         List<Map> seriesFqs = produceSeriesFqs(searchParams, x, series, seriesranges, seriesother, seriesmissing);
@@ -131,7 +130,6 @@ public class ChartController extends AbstractSecureController implements Seriali
             xRanges = new StringBuilder();
             inverseXranges = new StringBuilder();
         }
-
 
         boolean date = isDate(x);
 
@@ -413,6 +411,9 @@ public class ChartController extends AbstractSecureController implements Seriali
         for (IndexFieldDTO f : searchDAO.getIndexedFields()) {
             if (f.getName().equalsIgnoreCase(field) && f.getDataType().equalsIgnoreCase("tdate")) return true;
         }
+
+        if(field.equalsIgnoreCase("month") || field.equalsIgnoreCase("year") ) return true;
+
         return false;
     }
 
@@ -423,7 +424,7 @@ public class ChartController extends AbstractSecureController implements Seriali
         return field;
     }
 
-    private List getSeriesFacets(String series, SpatialSearchRequestParams searchParams, Integer _maxFacets, Boolean incudeMissing) throws Exception {
+    private List getSeriesFacets(String series, SpatialSearchRequestParams searchParams, Integer _maxFacets, Boolean includeMissing) throws Exception {
         List seriesFqs = new ArrayList();
 
         searchParams.setFacet(true);
@@ -435,7 +436,7 @@ public class ChartController extends AbstractSecureController implements Seriali
         Collection<FacetResultDTO> l = searchDAO.findByFulltextSpatialQuery(searchParams, null).getFacetResults();
         if (l.size() > 0) {
             for (FieldResultDTO f : l.iterator().next().getFieldResult()) {
-                if (!incudeMissing && StringUtils.isEmpty(f.getLabel())) continue;
+                if (!includeMissing && StringUtils.isEmpty(f.getLabel())) continue;
 
                 Map sm = new HashMap();
                 sm.put("fq", f.getFq());
@@ -457,7 +458,7 @@ public class ChartController extends AbstractSecureController implements Seriali
             List list = getSeriesFacets(series, searchParams, maxSeries + 1, includeMissing);
             if (list.size() > maxSeries + (includeMissing ? 1 : 0)) {
                 //get min/max
-                List minMax = (List) chart(searchParams, null, null, series, null, null, false, false, false, false, "count", null).get("data");
+                List minMax = (List) chart(searchParams, null, null, series, null, null, false, false, false, false, "count").get("data");
                 if (date) {
                     Long min = ((Date) ((FieldStatsItem) ((List) ((Map) minMax.get(0)).get("data")).get(0)).getMin()).getTime();
                     Long max = ((Date) ((FieldStatsItem) ((List) ((Map) minMax.get(0)).get("data")).get(0)).getMax()).getTime();
