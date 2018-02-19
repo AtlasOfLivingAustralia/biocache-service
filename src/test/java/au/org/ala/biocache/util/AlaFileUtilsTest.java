@@ -40,10 +40,23 @@ class AlaFileUtilsTest {
 	 */
 	@Test
 	final void testGenerateShapeHeader() {
-		Map<String, String> shapeHeader = AlaFileUtils.generateShapeHeader(new String[]{ "scientificName.p" });
-		assertEquals(1, shapeHeader.size());
-		assertTrue(shapeHeader.containsKey("scntfcNmp"));
+		Map<String, String> shapeHeader = AlaFileUtils.generateShapeHeader(new String[]{ "scientificName.p", "order.p", "test-field.p" });
+		assertEquals(3, shapeHeader.size());
+		assertTrue(shapeHeader.containsKey("scntfcNmp"), () -> shapeHeader.keySet().toString());
 		assertEquals("scientificName.p", shapeHeader.get("scntfcNmp"));
+		assertTrue(shapeHeader.containsKey("orderp"), () -> shapeHeader.keySet().toString());
+		assertEquals("order.p", shapeHeader.get("orderp"));
+		assertTrue(shapeHeader.containsKey("testfieldp"), () -> shapeHeader.keySet().toString());
+		assertEquals("test-field.p", shapeHeader.get("testfieldp"));
 	}
 
+	/**
+	 * Test method for {@link au.org.ala.biocache.util.AlaFileUtils#removeNonAlphanumeric(String)}.
+	 */
+	@Test
+	final void testRemoveNonAlphanumeric() {
+		assertEquals("scientificNamep", AlaFileUtils.removeNonAlphanumeric("scientificName.p"));
+		assertEquals("orderp", AlaFileUtils.removeNonAlphanumeric("order.p"));
+		assertEquals("testfieldp", AlaFileUtils.removeNonAlphanumeric("test-field.p"));
+	}
 }

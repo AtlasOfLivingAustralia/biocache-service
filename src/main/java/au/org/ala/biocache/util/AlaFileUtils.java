@@ -16,6 +16,7 @@ package au.org.ala.biocache.util;
 
 import java.io.*;
 import java.util.*;
+import java.util.regex.Pattern;
 
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
@@ -33,7 +34,9 @@ import org.apache.commons.io.IOUtils;
  */
 public class AlaFileUtils {
 
-    /**
+    private static final Pattern LATIN_ALPHA_NUMERIC = Pattern.compile("[^a-zA-Z0-9]+");
+
+	/**
      * Creates a zip file at the specified path with the contents of the specified directory.
      * NB:
      *
@@ -154,7 +157,8 @@ public class AlaFileUtils {
         int i = 0;
         for(String header : headers){
             i++;
-            String newHeader = reduceNameByVowels(header, 10);
+            String newHeader = removeNonAlphanumeric(header);
+            newHeader = reduceNameByVowels(newHeader, 10);
             while (headerMap.containsKey(newHeader)) {
                 i++;
                 newHeader = reduceNameByVowels(header, 9) + Integer.toString(i);
@@ -163,4 +167,15 @@ public class AlaFileUtils {
         }
         return headerMap;
     }
+
+    /**
+     * Removes non-alphanumeric characters, if any exist.
+     * 
+     * @param name The input string
+     * @return The input string if it only contained alphanumeric characters, or a replaced string otherwise.
+     */
+    public static String removeNonAlphanumeric(String name){
+        return LATIN_ALPHA_NUMERIC.matcher(name).replaceAll("");
+    }
+
 }
