@@ -33,6 +33,7 @@ class AlaFileUtilsTest {
 	@Test
 	final void testReduceNameByVowels() {
 		assertEquals("scntfcNmp", AlaFileUtils.reduceNameByVowels("scientificName.p", 10));
+		assertEquals("uoieaeioua", AlaFileUtils.reduceNameByVowels("uoieaeiouaeiou", 10));
 	}
 
 	/**
@@ -40,14 +41,27 @@ class AlaFileUtilsTest {
 	 */
 	@Test
 	final void testGenerateShapeHeader() {
-		Map<String, String> shapeHeader = AlaFileUtils.generateShapeHeader(new String[]{ "scientificName.p", "order.p", "test-field.p" });
-		assertEquals(3, shapeHeader.size());
+		Map<String, String> shapeHeader = AlaFileUtils.generateShapeHeader(new String[]{ "scientificName.p", "order.p", "test-field.p", "uoieaeiouaeiou", "uoieaeiouaeiou", "uoiea", "uoiea", "uoieaeiouaeiou", "uoieaeiouaeiou"});
+		assertEquals(9, shapeHeader.size());
 		assertTrue(shapeHeader.containsKey("scntfcNmp"), () -> shapeHeader.keySet().toString());
 		assertEquals("scientificName.p", shapeHeader.get("scntfcNmp"));
 		assertTrue(shapeHeader.containsKey("orderp"), () -> shapeHeader.keySet().toString());
 		assertEquals("order.p", shapeHeader.get("orderp"));
 		assertTrue(shapeHeader.containsKey("testfieldp"), () -> shapeHeader.keySet().toString());
 		assertEquals("test-field.p", shapeHeader.get("testfieldp"));
+		assertTrue(shapeHeader.containsKey("uoieaeioua"), () -> shapeHeader.keySet().toString());
+		assertEquals("uoieaeiouaeiou", shapeHeader.get("uoieaeioua"));
+		assertTrue(shapeHeader.containsKey("uoieaeiou6"), () -> shapeHeader.keySet().toString());
+		assertEquals("uoieaeiouaeiou", shapeHeader.get("uoieaeiou6"));
+		assertTrue(shapeHeader.containsKey("uoiea"), () -> shapeHeader.keySet().toString());
+		assertEquals("uoiea", shapeHeader.get("uoiea"));
+		assertTrue(shapeHeader.containsKey("uoiea9"), () -> shapeHeader.keySet().toString());
+		assertEquals("uoiea", shapeHeader.get("uoiea9"));
+		assertTrue(shapeHeader.containsKey("uoieaeio11"), () -> shapeHeader.keySet().toString());
+		assertEquals("uoieaeiouaeiou", shapeHeader.get("uoieaeio11"));
+		assertTrue(shapeHeader.containsKey("uoieaeio13"), () -> shapeHeader.keySet().toString());
+		assertEquals("uoieaeiouaeiou", shapeHeader.get("uoieaeio13"));
+
 	}
 
 	/**
@@ -58,5 +72,6 @@ class AlaFileUtilsTest {
 		assertEquals("scientificNamep", AlaFileUtils.removeNonAlphanumeric("scientificName.p"));
 		assertEquals("orderp", AlaFileUtils.removeNonAlphanumeric("order.p"));
 		assertEquals("testfieldp", AlaFileUtils.removeNonAlphanumeric("test-field.p"));
+		assertEquals("uoieaeiouaeiou", AlaFileUtils.removeNonAlphanumeric("uoieaeiouaeiou"));
 	}
 }

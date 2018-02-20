@@ -134,16 +134,21 @@ public class AlaFileUtils {
      * @param requiredLength
      * @return
      */
-    public static String reduceNameByVowels(String name, int requiredLength){
-        if(name.length()<= requiredLength){
-            return name;
+    public static String reduceNameByVowels(final String name, final int requiredLength){
+        String result = name;
+        if(result.length()<= requiredLength){
+            return result;
         } else{
             //remove the non-leading vowels
-            name = name.replaceAll("(?!^)[aeiou.]", "");
-            if(name.length()>requiredLength){
-                name = name.substring(0, requiredLength);
+            result = result.replaceAll("(?!^)[aeiou.]", "");
+            if(result.length()>requiredLength){
+                result = result.substring(0, requiredLength);
             }
-            return name;
+            // If the name was composed entirely of vowels, do a simple substring
+            if(result.length() <= 1) {
+                result = name.substring(0, requiredLength);
+            }
+            return result;
         }
     }
     
@@ -161,7 +166,9 @@ public class AlaFileUtils {
             newHeader = reduceNameByVowels(newHeader, 10);
             while (headerMap.containsKey(newHeader)) {
                 i++;
-                newHeader = reduceNameByVowels(header, 9) + Integer.toString(i);
+                // Need to ensure that nextIndex won't unintentionally increase the size past the string 10 limit
+                String nextIndex = Integer.toString(i);
+                newHeader = reduceNameByVowels(header, (10-nextIndex.length())) + nextIndex;
             }
             headerMap.put(newHeader, header);
         }
