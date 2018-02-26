@@ -197,7 +197,7 @@ public class WMSCache {
     void cleanCache() {
         updateTriggerCleanSize();
                 
-        List<Entry<String, WMSTile>> entries = new ArrayList(cache.entrySet());
+        List<Entry<String, WMSTile>> entries = new ArrayList<>(cache.entrySet());
 
         //sort ascending by last use time
         Collections.sort(entries, new Comparator<Entry<String, WMSTile>>() {

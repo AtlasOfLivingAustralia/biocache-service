@@ -260,7 +260,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
             return;
         }
 
-        List<Entry<String, Qid>> entries = new ArrayList(cache.entrySet());
+        List<Entry<String, Qid>> entries = new ArrayList<>(cache.entrySet());
 
         //sort ascending by last use time
         Collections.sort(entries, new Comparator<Entry<String, Qid>>() {
@@ -427,8 +427,9 @@ public class QidCacheDAOImpl implements QidCacheDAO {
             }
 
             //store the title if necessary
-            if (title == null)
+            if (title == null) {
                 title = requestParams.getDisplayString();
+            }
             String[] fqs = requestParams.getFq();
             if (fqs != null && (fqs.length == 0 || (fqs.length == 1 && fqs[0].length() == 0))) {
                 fqs = null;

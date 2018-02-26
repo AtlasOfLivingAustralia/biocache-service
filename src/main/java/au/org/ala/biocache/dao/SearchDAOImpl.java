@@ -381,6 +381,7 @@ public class SearchDAOImpl implements SearchDAO {
                 initServer();
             }
         }.start();
+        // FIXME: Why is this called here instead of after initServer completes in the independent thread?
         postConstructFinished.countDown();
     }
 
