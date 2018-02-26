@@ -2310,11 +2310,13 @@ public class WMSController extends AbstractSecureController{
                         LegendItem li = colours.get(i);
 
                         int j = 0;
-                        while (j < piv.size() && piv.size() > 0) {
+                        while (!piv.isEmpty() && j < piv.size()) {
                             FacetPivotResultDTO p = piv.get(j);
                             if ((StringUtils.isEmpty(li.getName()) && StringUtils.isEmpty(p.getValue()))
                                     || (StringUtils.isNotEmpty(li.getName()) && li.getName().equals(p.getValue()))) {
-                                makePointsFromPivot(p.getPivotResult(), pointsArrays, countsArrays);
+                            	// TODO: What to do when this is null?
+                                List<FacetPivotResultDTO> pivotResult = p.getPivotResult();
+								makePointsFromPivot(pivotResult, pointsArrays, countsArrays);
                                 pColour.add(li.getColour() | (vars.alpha << 24));
                                 piv.remove(j);
                                 break;
@@ -2325,8 +2327,10 @@ public class WMSController extends AbstractSecureController{
                     }
 
                     // ensure all point/colour pairs are added
-                    while (piv.size() > 0) {
-                        makePointsFromPivot(piv.get(0).getPivotResult(), pointsArrays, countsArrays);
+                    while (!piv.isEmpty()) {
+                    	// TODO: What to do when this is null?
+                        List<FacetPivotResultDTO> pivotResult = piv.get(0).getPivotResult();
+						makePointsFromPivot(pivotResult, pointsArrays, countsArrays);
                         pColour.add(lastColour);
                         piv.remove(0);
                     }
@@ -2368,7 +2372,8 @@ public class WMSController extends AbstractSecureController{
         }
     }
 
-    private void makePointsFromPivot(List<FacetPivotResultDTO> pivotResult, List gPoints, List gCount) {
+    private void makePointsFromPivot(List<FacetPivotResultDTO> pivotResult, List<float[]> gPoints, List<int[]> gCount) {
+    	Objects.requireNonNull(pivotResult, "Pivot result was null");
         float[] points = new float[2 * pivotResult.size()];
         int[] count = new int[pivotResult.size()];
         int i = 0;
