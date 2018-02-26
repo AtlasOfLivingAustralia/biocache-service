@@ -25,7 +25,6 @@ import retrofit2.Call;
 import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
-import retrofit2.http.Multipart;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
@@ -62,12 +61,10 @@ public class DoiService {
     @Value("${doi.resourceText:Species information}")
     private String doiResourceText;
 
-
-
     private DoiApiService doiApiService;
 
     @PostConstruct
-    private void init() {
+    public void init() {
 
         OkHttpClient.Builder httpClient = new OkHttpClient.Builder();
         httpClient.addInterceptor(new Interceptor() {
@@ -83,7 +80,6 @@ public class DoiService {
                 return chain.proceed(request);
             }
         });
-
 
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(doiServiceUrl)
@@ -156,11 +152,11 @@ public class DoiService {
         request.setProvider(Provider.ANDS.name());
         request.setFileUrl(downloadInfo.getFileUrl());
 
-        Map providerMetadata = generateProviderMetadataPayload(downloadInfo);
+        Map<String, Object> providerMetadata = generateProviderMetadataPayload(downloadInfo);
 
         request.setProviderMetadata(providerMetadata);
 
-        Map applicationMetadata = new HashMap<String, String>();
+        Map<String, Object> applicationMetadata = new HashMap<>();
         applicationMetadata.put("searchUrl", downloadInfo.getApplicationUrl());
         applicationMetadata.put("datasets", downloadInfo.getDatasetMetadata());
         applicationMetadata.put("requestedOn", downloadInfo.getRequestTime());
@@ -173,8 +169,8 @@ public class DoiService {
         return mintDoi(request);
     }
 
-    private Map generateProviderMetadataPayload(DownloadDoiDTO downloadInfo) {
-        Map providerMetadata = new HashMap<String, String>();
+    private Map<String, Object> generateProviderMetadataPayload(DownloadDoiDTO downloadInfo) {
+        Map<String, Object> providerMetadata = new HashMap<>();
 
         List<String> authorsList = new ArrayList<>();
         authorsList.add(doiAuthor);
@@ -186,17 +182,16 @@ public class DoiService {
         providerMetadata.put("resourceType", "Text");
         providerMetadata.put("resourceText", doiResourceText);
 
-        List<Map> contributorsList = new ArrayList<>();
-        Map <String, String> contributorMap = new HashMap<>();
+        List<Map<String, Object>> contributorsList = new ArrayList<>();
+        Map<String, Object> contributorMap = new HashMap<>();
         contributorMap.put("name", downloadInfo.getRequesterName());
         contributorMap.put("type", "Distributor");
 
         contributorsList.add(contributorMap);
         providerMetadata.put("contributors", contributorsList);
 
-
-        List<Map> descriptionsList = new ArrayList<>();
-        Map <String, String> descriptionMap = new HashMap<>();
+        List<Map<String, Object>> descriptionsList = new ArrayList<>();
+        Map<String, Object> descriptionMap = new HashMap<>();
         descriptionMap.put("text", doiDescription);
         descriptionMap.put("type", "Other");
 
@@ -213,7 +208,6 @@ public class DoiService {
         }
 
         providerMetadata.put("creator", creators);
-
 
         return providerMetadata;
     }
