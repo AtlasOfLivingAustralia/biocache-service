@@ -15,7 +15,7 @@
 package au.org.ala.biocache.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -135,6 +135,7 @@ public class AlaLayersService implements LayersService {
     }
 
     public String findAnalysisLayerName(String analysisLayer, String layersServiceUrl) {
+
         String url = this.layersServiceUrl;
         if (StringUtils.isNotEmpty(layersServiceUrl)) url = layersServiceUrl;
 
@@ -147,18 +148,20 @@ public class AlaLayersService implements LayersService {
         }
 
         String found = null;
-        String intersectUrl = null;
-        try {
-            //get analysis layer display name
-            intersectUrl = url + "/intersect/" + URLEncoder.encode(analysisLayer, "UTF-8") + "/1/1";
-            List json = restTemplate.getForObject(intersectUrl, List.class);
-            if (json != null && json.size() > 0) {
-                found = (String) ((Map) json.get(0)).get("layername");
-            }
+        if(StringUtils.isNotBlank(url)) {
+            String intersectUrl = null;
+            try {
+                //get analysis layer display name
+                intersectUrl = url + "/intersect/" + URLEncoder.encode(analysisLayer, "UTF-8") + "/1/1";
+                List json = restTemplate.getForObject(intersectUrl, List.class);
+                if (json != null && json.size() > 0) {
+                    found = (String) ((Map) json.get(0)).get("layername");
+                }
 
-            extraLayers.put(analysisLayer, found);
-        } catch (Exception ex) {
-            logger.error("RestTemplate error for " + url + ": " + ex.getMessage(), ex);
+                extraLayers.put(analysisLayer, found);
+            } catch (Exception ex) {
+                logger.error("RestTemplate error for " + url + ": " + ex.getMessage(), ex);
+            }
         }
 
         return found;
@@ -201,23 +204,25 @@ public class AlaLayersService implements LayersService {
         Map<String, Integer> map = new HashMap<String, Integer>();
 
         String url = null;
-        try {
-            //get distributions
-            url = layersServiceUrl + "/" + type;
-            List json = restTemplate.getForObject(url, List.class);
-            if (json != null) {
-                for (int i=0;i<json.size();i++) {
-                    String s = (String) ((Map) json.get(i)).get("lsid");
-                    if (StringUtils.isNotEmpty(s)) {
-                        Integer count = map.get(s);
-                        if (count == null) count = 0;
-                        count = count + 1;
-                        map.put(s, count);
+        if(StringUtils.isNotBlank(url)) {
+            try {
+                //get distributions
+                url = layersServiceUrl + "/" + type;
+                List json = restTemplate.getForObject(url, List.class);
+                if (json != null) {
+                    for (int i = 0; i < json.size(); i++) {
+                        String s = (String) ((Map) json.get(i)).get("lsid");
+                        if (StringUtils.isNotEmpty(s)) {
+                            Integer count = map.get(s);
+                            if (count == null) count = 0;
+                            count = count + 1;
+                            map.put(s, count);
+                        }
                     }
                 }
+            } catch (Exception ex) {
+                logger.error("RestTemplate error for " + url + ": " + ex.getMessage(), ex);
             }
-        } catch (Exception ex) {
-            logger.error("RestTemplate error for " + url + ": " + ex.getMessage(), ex);
         }
 
         return map;

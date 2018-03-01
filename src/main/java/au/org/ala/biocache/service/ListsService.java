@@ -17,6 +17,7 @@ package au.org.ala.biocache.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.googlecode.ehcache.annotations.Cacheable;
 import com.googlecode.ehcache.annotations.DecoratedCacheType;
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -76,23 +77,25 @@ public class ListsService {
             new Thread() {
                 @Override
                 public void run() {
-                    try {
-                        HashMap map = new HashMap();
+                    if(StringUtils.isNotBlank(speciesListUrl)) {
+                        try {
+                            HashMap map = new HashMap();
 
-                        Map threatened = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/?isThreatened=eq:true&isAuthoritative=eq:true"), Map.class);
-                        Map invasive = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/?isInvasive=eq:true&isAuthoritative=eq:true"), Map.class);
+                            Map threatened = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/?isThreatened=eq:true&isAuthoritative=eq:true"), Map.class);
+                            Map invasive = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/?isInvasive=eq:true&isAuthoritative=eq:true"), Map.class);
 
-                        if ((threatened != null && threatened.size() > 0) ||
-                                (invasive != null && invasive.size() > 0)) {
-                            map.put("Conservation", getItemsMap(threatened));
-                            map.put("Invasive", getItemsMap(invasive));
+                            if ((threatened != null && threatened.size() > 0) ||
+                                    (invasive != null && invasive.size() > 0)) {
+                                map.put("Conservation", getItemsMap(threatened));
+                                map.put("Invasive", getItemsMap(invasive));
 
-                            data = map;
+                                data = map;
+                            }
+                        } catch (Exception e) {
+                            logger.error("failed to get species lists for threatened or invasive species", e);
                         }
-                    } catch (Exception e) {
-                        logger.error("failed to get species lists for threatened or invasive species", e);
+                        wait.countDown();
                     }
-                    wait.countDown();
                 }
             }.start();
         } else {
