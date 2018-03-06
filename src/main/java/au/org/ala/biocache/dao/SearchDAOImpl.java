@@ -307,7 +307,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * Default set of download fields to use.
      */
-    @Value("${default.download.fields:uuid,catalogNumber,taxonConceptID.p,scientificName,vernacularName,scientificName.p,taxonRank.p,vernacularName.p,kingdom.p,phylum.p,classs.p,order.p,family.p,genus.p,species.p,subspecies.p,institutionCode,collectionCode,locality,decimalLatitude,decimalLongitude,geodeticDatum,decimalLatitude.p,decimalLongitude.p,coordinatePrecision,coordinateUncertaintyInMeters.p,country.p,stateProvince.p,minimumElevationInMeters,maximumElevationInMeters,minimumDepthInMeters,maximumDepthInMeters,individualCount,recordedBy,year.p,month.p,day.p,eventDate.p,eventTime.p,basisOfRecord,basisOfRecord.p,sex,preparations,informationWithheld.p,dataGeneralizations.p,speciesHabitats.p,outlierForLayers.p,taxonomicIssue.p,geospatiallyKosher,license.p}")
+    @Value("${default.download.fields:id,catalogNumber,taxonConceptID.p,scientificName,vernacularName,scientificName.p,taxonRank.p,vernacularName.p,kingdom.p,phylum.p,classs.p,order.p,family.p,genus.p,species.p,subspecies.p,institutionCode,collectionCode,locality,decimalLatitude,decimalLongitude,geodeticDatum,decimalLatitude.p,decimalLongitude.p,coordinatePrecision,coordinateUncertaintyInMeters.p,country.p,stateProvince.p,minimumElevationInMeters,maximumElevationInMeters,minimumDepthInMeters,maximumDepthInMeters,individualCount,recordedBy,year.p,month.p,day.p,eventDate.p,eventTime.p,basisOfRecord,basisOfRecord.p,sex,preparations,informationWithheld.p,dataGeneralizations.p,speciesHabitats.p,outlierForLayers.p,taxonomicIssue.p,geospatiallyKosher,license.p}")
     protected String defaultDownloadFields;
 
     private CountDownLatch postConstructFinished = new CountDownLatch(1);
