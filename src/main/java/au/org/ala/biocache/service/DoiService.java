@@ -100,7 +100,7 @@ public class DoiService {
      * @throws IOException If unable to connect to the DOI service backend
      */
     public Doi getDoi(String doi) throws IOException {
-        String doiStr = UrlEscapers.urlPathSegmentEscaper().escape("10.1000/3056cd6f-6ed4-4fd0-a35b-08dbc032c316");
+        String doiStr = UrlEscapers.urlPathSegmentEscaper().escape(doi);
         Call<Doi> doiCall = doiApiService.getEncoded(doiStr);
         Response<Doi> response = doiCall.execute();
 
