@@ -306,9 +306,13 @@ public class OccurrenceController extends AbstractSecureController {
                                         HttpServletRequest request,
                                         HttpServletResponse response) throws Exception {
         afterInitialisation();
+
+        response.setHeader("Content-Type", "text/plain; charset=UTF-8");
+        response.setCharacterEncoding("UTF-8");
+
         qualifier = (StringUtils.isNotEmpty(qualifier)) ? qualifier : ".properties";
         logger.debug("qualifier = " + qualifier);
-        
+
         //default to external messages.properties
         File f = new File("/data/biocache/config/messages" + qualifier);
         InputStream is;
@@ -1021,7 +1025,7 @@ public class OccurrenceController extends AbstractSecureController {
             return VALIDATION_ERROR;//result.toString();
         }
         
-        ip = ip == null?getIPAddress(request):ip;//request.getRemoteAddr():ip;
+        ip = ip == null ? getIPAddress(request) : ip;//request.getRemoteAddr():ip;
         //search params must have a query or formatted query for the downlaod to work
         if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
             return null;
