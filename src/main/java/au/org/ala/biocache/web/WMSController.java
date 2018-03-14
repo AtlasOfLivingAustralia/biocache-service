@@ -61,7 +61,7 @@ import java.util.List;
  * </ul>
  */
 @Controller
-public class WMSController {
+public class WMSController extends AbstractSecureController{
 
     /**
      * webportal results limit
@@ -146,10 +146,10 @@ public class WMSController {
     @Value("${orgEmail:support@ala.org.au}")
     protected String orgEmail;
 
-    @Value("${service.bie.ws.url:http://bie.ala.org.au/ws}")
+    @Value("${service.bie.ws.url:https://bie.ala.org.au/ws}")
     protected String bieWebService;
 
-    @Value("${service.bie.ui.url:http://bie.ala.org.au}")
+    @Value("${service.bie.ui.url:https://bie.ala.org.au}")
     protected String bieUiUrl;
 
     @Value("${wms.capabilities.focus:latitude:[-90 TO 90] AND longitude:[-180 TO 180]}")
@@ -1358,6 +1358,17 @@ public class WMSController {
         return sb.toString();
     }
 
+    @RequestMapping(value = {"/webportal/wms/clearCache", "/ogc/wms/clearCache", "/mapping/wms/clearCache"}, method = RequestMethod.GET)
+    public void clearWMSCache(HttpServletResponse response,
+                              @RequestParam(value = "apiKey") String apiKey) throws Exception {
+        if (isValidKey(apiKey)) {
+            wmsCache.empty();
+            response.setStatus(200);
+        } else {
+            response.setStatus(401);
+        }
+    }
+
     /**
      * WMS service for webportal.
      *
@@ -2329,11 +2340,13 @@ public class WMSController {
                         LegendItem li = colours.get(i);
 
                         int j = 0;
-                        while (j < piv.size() && piv.size() > 0) {
+                        while (!piv.isEmpty() && j < piv.size()) {
                             FacetPivotResultDTO p = piv.get(j);
                             if ((StringUtils.isEmpty(li.getName()) && StringUtils.isEmpty(p.getValue()))
                                     || (StringUtils.isNotEmpty(li.getName()) && li.getName().equals(p.getValue()))) {
-                                makePointsFromPivot(p.getPivotResult(), pointsArrays, countsArrays);
+                            	// TODO: What to do when this is null?
+                                List<FacetPivotResultDTO> pivotResult = p.getPivotResult();
+								makePointsFromPivot(pivotResult, pointsArrays, countsArrays);
                                 pColour.add(li.getColour() | (vars.alpha << 24));
                                 piv.remove(j);
                                 break;
@@ -2344,8 +2357,10 @@ public class WMSController {
                     }
 
                     // ensure all point/colour pairs are added
-                    while (piv.size() > 0) {
-                        makePointsFromPivot(piv.get(0).getPivotResult(), pointsArrays, countsArrays);
+                    while (!piv.isEmpty()) {
+                    	// TODO: What to do when this is null?
+                        List<FacetPivotResultDTO> pivotResult = piv.get(0).getPivotResult();
+						makePointsFromPivot(pivotResult, pointsArrays, countsArrays);
                         pColour.add(lastColour);
                         piv.remove(0);
                     }
@@ -2387,7 +2402,8 @@ public class WMSController {
         }
     }
 
-    private void makePointsFromPivot(List<FacetPivotResultDTO> pivotResult, List gPoints, List gCount) {
+    private void makePointsFromPivot(List<FacetPivotResultDTO> pivotResult, List<float[]> gPoints, List<int[]> gCount) {
+    	Objects.requireNonNull(pivotResult, "Pivot result was null");
         float[] points = new float[2 * pivotResult.size()];
         int[] count = new int[pivotResult.size()];
         int i = 0;

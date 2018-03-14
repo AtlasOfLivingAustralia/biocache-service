@@ -16,6 +16,7 @@ package au.org.ala.biocache.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
@@ -42,6 +43,9 @@ public class DownloadDetailsDTO {
     private boolean includeSensitive = false;
     private Map<String,String> headerMap = null;
     private String [] miscFields = null;
+    /**
+     * **MUST** be null if the user is not allowed to access sensitive fields.
+     */
     private String sensitiveFq = null;
     private AtomicBoolean interrupt = new AtomicBoolean(false);
     private String uniqueId = null;
@@ -221,7 +225,7 @@ public class DownloadDetailsDTO {
      * @return unique id constructed from email and start time
      */
     public String getUniqueId() {
-        return uniqueId = UUID.nameUUIDFromBytes(getEmail().getBytes()) + "-" + getStartTime();
+        return uniqueId = UUID.nameUUIDFromBytes(getEmail().getBytes(StandardCharsets.UTF_8)) + "-" + getStartTime();
     }
 
     public void setUniqueId(String uniqueId) {
@@ -235,10 +239,19 @@ public class DownloadDetailsDTO {
         this.headerMap = headerMap;
     }
 
+    /**
+     * This **MUST** be set to null if the user is not allowed to view sensitive fields.
+     * <br>
+     * Any non-null value could result in the user getting access to sensitive fields.
+     * @param sensitiveFq Null to disallow the user from getting access to sensitive fields, and a non-null string to give the user access.
+     */
     public void setSensitiveFq(String sensitiveFq) {
         this.sensitiveFq = sensitiveFq;
     }
 
+    /**
+     * @return A non-null string if the user is allowed to view sensitive fields, and null otherwise.
+     */
     public String getSensitiveFq() {
         return sensitiveFq;
     }
@@ -257,6 +270,11 @@ public class DownloadDetailsDTO {
 
     public void setProcessingThreadName(String processingThreadName) {
         this.processingThreadName = processingThreadName;
+    }
+
+    public void resetCounts() {
+        recordsDownloaded.set(0);
+        lastUpdate = new Date();
     }
 
     /**

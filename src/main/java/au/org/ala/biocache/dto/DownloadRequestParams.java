@@ -59,6 +59,28 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     /** Override header names with a CSV with 'requested field','header' pairs */
     protected String customHeader = "";
 
+
+    /**
+     * Request to generate a DOI for the download or not. Default false
+     */
+    protected Boolean mintDoi=false;
+
+    /**
+     * What is the search in the UI that generates this occurrence download.
+     */
+    protected String searchUrl;
+
+    /**
+     * What is the DOI landing page that will be used to display individual DOIs
+     */
+    protected String doiDisplayUrl;
+
+    /**
+     * The name of the hub issuing the download request.
+     * This will be used in e-mails, and zip content
+     */
+    protected String hubName;
+
     /**
      * Custom toString method to produce a String to be used as the request parameters
      * for the Biocache Service webservices
@@ -70,7 +92,7 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
         StringBuilder req = new StringBuilder(super.toString());
         req.append("&email=").append(email);
         req.append("&reason=").append(reason);
-        req.append("&file=").append(file);
+        req.append("&file=").append(getFile());
         req.append("&fields=").append(fields);
         req.append("&extra=").append(extra);
         if(reasonTypeId != null) {
@@ -104,14 +126,27 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     }
 
     public String getFile() {
-        return file;
+        // sanitiseFileName can be called multiple times on the same string without changing the string
+        // ... but no requirement to use setFile, so sanitising on each call here also
+        // Given these objects are created using reflection and other methods, best to do it this way
+        return sanitiseFileName(file);
     }
 
     public void setFile(String file) {
-        this.file = file;
+        this.file = sanitiseFileName(file);
     }
 
-    public String getReason() {
+    /**
+     * Subset of valid characters to enable surety that it will work across filesystems.
+     * 
+     * @param nextFile The filename to sanitise
+     * @return A sanitised version of the given filename that can be used to avoid filesystem inconsistencies
+     */
+    private static String sanitiseFileName(String nextFile) {
+        return nextFile.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+	}
+
+	public String getReason() {
         return reason;
     }
 
@@ -249,5 +284,37 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
 
     public void setCustomHeader(String customHeader) {
         this.customHeader = customHeader;
+    }
+
+    public Boolean getMintDoi() {
+        return mintDoi;
+    }
+
+    public void setMintDoi(Boolean mintDoi) {
+        this.mintDoi = mintDoi;
+    }
+
+    public String getSearchUrl() {
+        return searchUrl;
+    }
+
+    public void setSearchUrl(String searchUrl) {
+        this.searchUrl = searchUrl;
+    }
+
+    public String getDoiDisplayUrl() {
+        return doiDisplayUrl;
+    }
+
+    public void setDoiDisplayUrl(String doiDisplayUrl) {
+        this.doiDisplayUrl = doiDisplayUrl;
+    }
+
+    public String getHubName() {
+        return hubName;
+    }
+
+    public void setHubName(String hubName) {
+        this.hubName = hubName;
     }
 }

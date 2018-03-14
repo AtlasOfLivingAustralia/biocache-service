@@ -1,11 +1,12 @@
 sudo: false
 language: java
 jdk:
-- oraclejdk8
+  - oraclejdk8
 branches:
   only:
     - master
     - 2.x
+    - doi
 before_install:
   - mkdir -p ~/.m2; wget -q -O ~/.m2/settings.xml https://raw.githubusercontent.com/AtlasOfLivingAustralia/travis-build-configuration/master/travis_maven_settings.xml
 script:

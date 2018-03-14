@@ -14,9 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
-import com.mockrunner.util.common.StringUtil;
-import org.apache.commons.lang.ArrayUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.web.client.RestOperations;
@@ -70,9 +69,12 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                 jsonUri = bieUriPrefix + "/species/" + URLEncoder.encode(name, "UTF-8");
                 logger.debug("Requesting: " + jsonUri);
                 Map<String, Object> json = restTemplate.getForObject(jsonUri, Map.class);
-                Map<String, String> tc = (Map<String, String>) json.get("taxonConcept");
-                if (tc != null)
-                    guid = tc.get("guid");
+                if(json.containsKey("taxonConcept")) {
+	                Map<String, String> tc = (Map<String, String>) json.get("taxonConcept");
+	                if (tc != null && tc.containsKey("guid")) {
+	                    guid = tc.get("guid");
+	                }
+                }
             } catch (Exception ex) {
                 logger.error("RestTemplate error for " + jsonUri + ": " + ex.getMessage(), ex);
             }
@@ -129,11 +131,14 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                     if (results != null && !results.isEmpty()) {
                         names = new ArrayList<String>(results.size());
                         for (Object nm: results) {
-                            Map<String, String> nmm = (Map<String, String>) nm;
-                            if (nmm.containsKey("scientificName"))
-                                names.add(nmm.get("scientificName"));
-                            else if (nmm.containsKey("name"))
-                                names.add(nmm.get("name"));
+                            if(nm != null && nm instanceof Map) {
+                                Map<String, String> nmm = (Map<String, String>) nm;
+	                            if (nmm.containsKey("scientificName")) {
+                                    names.add(nmm.get("scientificName"));
+                                } else if (nmm.containsKey("name")) {
+                                    names.add(nmm.get("name"));
+                                }
+                            }
                         }
                     }
                 }
@@ -145,14 +150,15 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
     }
 
     private List<Map<String, String>> getNameDetailsForGuids(List<String> guids) {
-        List<Map<String,String>> results =null;
+        List<Map<String,String>> results = null;
         if(enabled){
             final String url = bieUriPrefix + "/species/guids/bulklookup.json";
             try{
                 //String jsonString="";
                 Map searchDTOList = restTemplate.postForObject(url, guids, Map.class);
-                //System.out.println(test);
-                results = (List<Map<String,String>>)searchDTOList.get("searchDTOList");
+                if(searchDTOList.containsKey("searchDTOList")) {
+                    results = (List<Map<String,String>>)searchDTOList.get("searchDTOList");
+                }
             } catch (Exception ex) {
                 logger.error("Requested URI: " + url);
                 logger.error("With POST body: guid=" + StringUtils.join(guids, "&guid="));
@@ -192,7 +198,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
         //case names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
         //rebuild values using taxonConceptIds
         if ((values == null || values.get(0) == null)
-                && guids.size() > 0 && StringUtil.countMatches(guids.get(0), "|") == 4) {
+                && guids.size() > 0 && StringUtils.countMatches(guids.get(0), "|") == 4) {
             List<String> taxonConceptIds =   new ArrayList(guids.size());
             for(String s : guids) {
                 if (s != null) {
@@ -236,7 +242,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                     row[8]=map.get("family");
                     row[9]=map.get("genus");
                     row[10]=map.get("commonNameSingle");
-                } else if (StringUtil.countMatches(guid, "|") == 4){
+                } else if (StringUtils.countMatches(guid, "|") == 4){
                     //not matched and is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
                     if (guid.startsWith("\"") && guid.endsWith("\"") && guid.length() > 2) guid = guid.substring(1, guid.length() - 1);
                     String [] split = guid.split("\\|", 6);

@@ -80,6 +80,10 @@ public class DownloadServiceTest {
         testLatch = new CountDownLatch(1);
 
         testService = new DownloadService() {
+            {
+                sensitiveAccessRoles = "{}";
+            }
+
             protected DownloadCreator getNewDownloadCreator() {
                 return new DownloadCreator() {
                     @Override
@@ -317,7 +321,7 @@ public class DownloadServiceTest {
 
     /**
      * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#getCitations(java.util.concurrent.ConcurrentMap, java.io.OutputStream, char, char, java.util.List)}.
+     * {@link DownloadService#getCitations(java.util.concurrent.ConcurrentMap, java.io.OutputStream, char, char, List, List)}.
      */
     @Ignore("TODO: Implement me")
     @Test

@@ -15,7 +15,7 @@
 package au.org.ala.biocache.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -112,8 +112,8 @@ public class AlaLayersService implements LayersService {
                         tmpMap = initDistribution("checklists");
                         if (tmpMap.size() > 0) checklists = tmpMap;
 
-                        //TODO: initialize tracks only when webservices are available
-                        //tracks = initDistribution("tracks");
+                        tmpMap = initDistribution("tracks");
+                        if (tmpMap.size() > 0) tracks = tmpMap;
                     } catch (Exception e) {
                         logger.error("failed to init distribution and checklists", e);
                     }
@@ -204,8 +204,8 @@ public class AlaLayersService implements LayersService {
         Map<String, Integer> map = new HashMap<String, Integer>();
 
         String url = null;
-        if(StringUtils.isNotBlank(url)) {
-            try {
+        try {
+            if(org.apache.commons.lang.StringUtils.isNotBlank(url)) {
                 //get distributions
                 url = layersServiceUrl + "/" + type;
                 List json = restTemplate.getForObject(url, List.class);
@@ -220,7 +220,10 @@ public class AlaLayersService implements LayersService {
                         }
                     }
                 }
-            } catch (Exception ex) {
+            }
+        } catch (Exception ex) {
+            //ignore errors for tracks
+            if (!"tracks".equals(type)) {
                 logger.error("RestTemplate error for " + url + ": " + ex.getMessage(), ex);
             }
         }

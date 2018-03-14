@@ -5,13 +5,14 @@ import au.org.ala.biocache.dao.QidCacheDAOImpl;
 import au.org.ala.biocache.dao.QidDAO;
 import au.org.ala.biocache.model.Qid;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 import org.springframework.test.context.ContextConfiguration;
 
@@ -22,13 +23,14 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 
 /**
  * This test isnt written in a fashion that can be executed as part of a build.
  */
+@Ignore("Requires external environment to be setup")
 @RunWith(MockitoJUnitRunner.class)
 @ContextConfiguration(locations = {"classpath:springTest.xml"})
 public class QidCacheTest {
@@ -61,7 +63,7 @@ public class QidCacheTest {
                 q.setRowKey(String.valueOf(counter.incrementAndGet()));
                 return map.put(q.getRowKey(), q);
             }
-        }).when(qidDao).put((Qid) anyObject());
+        }).when(qidDao).put((Qid) any());
 
         //setup
         qidCacheDao.setMaxCacheSize(10000);

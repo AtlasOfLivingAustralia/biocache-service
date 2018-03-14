@@ -17,11 +17,13 @@ package au.org.ala.biocache.web;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
-import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.service.AuthService;
-import au.org.ala.cas.util.AuthenticationUtils;
+import au.org.ala.biocache.service.DownloadService;
+import net.sf.json.JSONArray;
+import net.sf.json.JsonConfig;
+import net.sf.json.util.PropertyFilter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -29,7 +31,6 @@ import org.apache.solr.common.SolrDocumentList;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,8 +38,10 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -65,56 +68,35 @@ public class DownloadController extends AbstractSecureController {
     @Inject
     protected AuthService authService;
 
-    @Value("${webservices.root:http://localhost:8080/biocache-service}")
-    protected String webservicesRoot;
 
-    @Value("${download.url:http://biocache.ala.org.au/biocache-download}")
-    protected String biocacheDownloadUrl;
-
-    @Value("${download.dir:/data/biocache-download}")
-    protected String biocacheDownloadDir;
-
-    @Value("${download.auth.sensitive:false}")
-    protected Boolean downloadAuthSensitive;
-
-    //TODO: this should be retrieved from SDS
-    @Value("${sensitiveAccessRoles:{\n" +
-            "\n" +
-            "\"ROLE_SDS_ACT\" : \"sensitive:\\\"generalised\\\" AND (cl927:\\\"Australian Captial Territory\\\" OR cl927:\\\"Jervis Bay Territory\\\") AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
-            "\"ROLE_SDS_NSW\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"New South Wales (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_NZ\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr2707 OR data_resource_uid:dr812 OR data_resource_uid:dr814 OR data_resource_uid:dr808 OR data_resource_uid:dr806 OR data_resource_uid:dr815 OR data_resource_uid:dr802 OR data_resource_uid:dr805 OR data_resource_uid:dr813) AND -cl927:* AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_NT\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Northern Territory (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_QLD\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Queensland (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_SA\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"South Australia (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_TAS\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Tasmania (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_VIC\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Victoria (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_WA\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Western Australia (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_BIRDLIFE\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
-            "\n" +
-            "}}")
-    protected String sensitiveAccessRoles;
-
-    @Value("${download.offline.max.url:http://downloads.ala.org.au}")
-    protected String dowloadOfflineMaxUrl = "http://downloads.ala.org.au";
-
-    /** By default this is set to a very large value to 'disable' the offline download limit. */
-    @Value("${download.offline.max.size:100000000}")
-    protected Integer dowloadOfflineMaxSize = 100000000;
-
-    @Value("${download.offline.msg:Too many records requested. Bulk download files for Lifeforms are available.}")
-    protected String downloadOfflineMsg = "Too many records requested. Bulk download files for Lifeforms are available.";
+    @Inject
+    protected DownloadService downloadService;
 
     /**
      * Retrieves all the downloads that are on the queue
      * @return
      */
     @RequestMapping(value = "occurrences/offline/download/stats", method = RequestMethod.GET)
-    public @ResponseBody List<DownloadDetailsDTO> getCurrentDownloads(
+    public @ResponseBody
+    List getCurrentDownloads(
             HttpServletResponse response,
             @RequestParam(value = "apiKey", required = true) String apiKey) throws Exception {
         if (apiKey != null) {
             if (shouldPerformOperation(apiKey, response, false)) {
-                return persistentQueueDAO.getAllDownloads();
+                JsonConfig config = new JsonConfig();
+                config.setJsonPropertyFilter(new PropertyFilter() {
+                    @Override
+                    public boolean apply(Object source, String name, Object value) {
+                        return value == null;
+                    }
+                });
+
+                JSONArray ja = JSONArray.fromObject(persistentQueueDAO.getAllDownloads(), config);
+                for (Object jo : ja) {
+                    String id = (String) ((net.sf.json.JSONObject) jo).get("uniqueId");
+                    ((net.sf.json.JSONObject) jo).put("cancelURL", downloadService.webservicesRoot + "/occurrences/offline/cancel/" + id + "?apiKey=" + apiKey);
+                }
+                return ja;
             }
         }
         return null;
@@ -140,7 +122,7 @@ public class DownloadController extends AbstractSecureController {
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
 
-        DownloadType downloadType = "index".equals(type.toLowerCase()) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
+        DownloadDetailsDTO.DownloadType downloadType = "index".equals(type.toLowerCase()) ? DownloadDetailsDTO.DownloadType.RECORDS_INDEX : DownloadDetailsDTO.DownloadType.RECORDS_DB;
 
         return download(requestParams, ip, apiKey, response, request, downloadType);
     }
@@ -164,7 +146,9 @@ public class DownloadController extends AbstractSecureController {
             HttpServletRequest request) throws Exception {
 
         if (StringUtils.isEmpty(requestParams.getEmail())) {
+            logger.error("Required parameter 'email' is not present");
             response.sendError(400, "Required parameter 'email' is not present");
+            return null;
         }
 
         //download from index when there are no CASSANDRA fields requested
@@ -182,27 +166,35 @@ public class DownloadController extends AbstractSecureController {
                 if (hasDBColumn) break;
             }
         }
-        DownloadType downloadType = hasDBColumn ? DownloadType.RECORDS_DB : DownloadType.RECORDS_INDEX;
+
+        DownloadDetailsDTO.DownloadType downloadType = hasDBColumn ? DownloadDetailsDTO.DownloadType.RECORDS_DB : DownloadDetailsDTO.DownloadType.RECORDS_INDEX;
 
         return download(requestParams, ip, apiKey, response, request, downloadType);
     }
 
     private Object download(DownloadRequestParams requestParams, String ip, String apiKey,
                             HttpServletResponse response, HttpServletRequest request,
-                            DownloadType downloadType) throws Exception {
+                            DownloadDetailsDTO.DownloadType downloadType) throws Exception {
 
-        boolean sensitive = false;
+        boolean includeSensitive = false;
         if (apiKey != null) {
             if (shouldPerformOperation(apiKey, response, false)) {
-                sensitive = true;
+                includeSensitive = true;
             }
         } else if (StringUtils.isEmpty(requestParams.getEmail())) {
+            logger.error("Unable to perform an offline download without an email address");
             response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
+            return null;
         }
+
+        //Pre SDS roles the sensitive flag controlled access to sensitive data.
+        // After SDS roles were introduced, sensitiveFq variable drives the logic for sensitive data down the excution flow.
+
+        // In Summary either sensitive is true or sensitiveFq is not null but not both
 
         //get the fq that includes only the sensitive data that the userId ROLES permits
         String sensitiveFq = null;
-        if (!sensitive) {
+        if (!includeSensitive) {
             sensitiveFq = getSensitiveFq(request);
         }
 
@@ -210,7 +202,7 @@ public class DownloadController extends AbstractSecureController {
 
         //create a new task
         DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, downloadType);
-        dd.setIncludeSensitive(sensitive);
+        dd.setIncludeSensitive(includeSensitive);
         dd.setSensitiveFq(sensitiveFq);
 
         //get query (max) count for queue priority
@@ -226,20 +218,25 @@ public class DownloadController extends AbstractSecureController {
             status.put("message", "Already in queue.");
             status.put("status", "inQueue");
             status.put("queueSize", persistentQueueDAO.getTotalDownloads());
-            status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
-        } else if (dd.getTotalRecords() >= dowloadOfflineMaxSize) {
+            status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
+        } else if (dd.getTotalRecords() > downloadService.dowloadOfflineMaxSize) {
             //identify this download as too large
-            File file = new File(biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes()) + File.separator + dd.getStartTime() + File.separator + "tooLarge");
+            File file = new File(downloadService.biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes(StandardCharsets.UTF_8)) + File.separator + dd.getStartTime() + File.separator + "tooLarge");
             FileUtils.forceMkdir(file.getParentFile());
             FileUtils.writeStringToFile(file, "", "UTF-8");
+            status.put("downloadUrl", downloadService.biocacheDownloadUrl);
             status.put("status", "skipped");
-            status.put("message", downloadOfflineMsg);
+            status.put("message", downloadService.downloadOfflineMsg);
+            status.put("error", "Requested to many records (" + dd.getTotalRecords() + "). The maximum is (" + downloadService.dowloadOfflineMaxSize + ")");
         } else {
             persistentQueueDAO.addDownloadToQueue(dd);
             status.put("status", "inQueue");
             status.put("queueSize", persistentQueueDAO.getTotalDownloads());
-            status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
+            status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
         }
+
+        status.put("searchUrl", downloadService.generateSearchUrl(dd.getRequestParams()));
+        writeStatusFile(dd.getUniqueId(), status);
 
         return status;
     }
@@ -269,7 +266,7 @@ public class DownloadController extends AbstractSecureController {
             if(userIdLookup != null) {
                 status.put("userId", authService.getMapOfEmailToId().get(dd.getEmail()));
             }
-            status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + id);
+            status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + id);
 
             setStatusIfEmpty(id, status);
 
@@ -279,6 +276,40 @@ public class DownloadController extends AbstractSecureController {
         return allStatus;
     }
 
+    private void setStatusIfEmpty(String id, Map<String, Object> status) throws UnsupportedEncodingException {
+        //is it finished?
+        if (!status.containsKey("status")) {
+            int sep = id.lastIndexOf('-');
+            File dir = new File(downloadService.biocacheDownloadDir + File.separator + id.substring(0, sep) + File.separator + id.substring(sep + 1));
+            if (dir.isDirectory() && dir.exists()) {
+                for (File file : dir.listFiles()) {
+                    if (file.isFile() && file.getPath().endsWith(".zip") && file.length() > 0) {
+                        status.put("status", "finished");
+                        status.put("downloadUrl", downloadService.biocacheDownloadUrl + File.separator + URLEncoder.encode(file.getPath().replace(downloadService.biocacheDownloadDir + "/", ""), "UTF-8").replace("%2F", "/").replace("+", "%20"));
+                    }
+                    if (file.isFile() && "tooLarge".equals(file.getName())) {
+                        status.put("status", "skipped");
+                        status.put("message", downloadService.downloadOfflineMsg);
+                        status.put("downloadUrl", downloadService.dowloadOfflineMaxUrl);
+                    }
+                }
+                if (!status.containsKey("status")) {
+                    status.put("status", "failed");
+                }
+            }
+        }
+
+        if (!status.containsKey("status")) {
+            status.put("status", "invalidId");
+        }
+    }
+
+    private void writeStatusFile(String id, Map status) throws IOException {
+        File statusDir = new File(downloadService.biocacheDownloadDir + "/" + id.replaceAll("-([0-9]*)$", "/$1"));
+        statusDir.mkdirs();
+        String json = net.sf.json.JSONObject.fromObject(status).toString();
+        FileUtils.writeStringToFile(new File(statusDir.getPath() + "/status.json"), json, "UTF-8");
+    }
 
     @RequestMapping(value = "occurrences/offline/status/{id}", method = RequestMethod.GET)
     public @ResponseBody Object occurrenceDownloadStatus(@PathVariable("id") String id) throws Exception {
@@ -296,43 +327,60 @@ public class DownloadController extends AbstractSecureController {
                     status.put("records", dd.getRecordsDownloaded());
                 }
                 status.put("totalRecords", dd.getTotalRecords());
+                status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + id);
                 if(authService.getMapOfEmailToId() !=null) {
                     status.put("userId", authService.getMapOfEmailToId().get(dd.getEmail()));
                 }
-                status.put("statusUrl", webservicesRoot + "/occurrences/offline/status/" + id);
                 break;
             }
         }
-        setStatusIfEmpty(id, status);
-        return status;
-    }
 
-    private void setStatusIfEmpty(String id, Map<String, Object> status) throws UnsupportedEncodingException {
         //is it finished?
+        String cleanId = id.replaceAll("[^a-z\\-0-9]", "");
+        cleanId = cleanId.replaceAll("-([0-9]*)$", "/$1");
         if (!status.containsKey("status")) {
-            int sep = id.lastIndexOf('-');
-            File dir = new File(biocacheDownloadDir + File.separator + id.substring(0, sep) + File.separator + id.substring(sep + 1));
+            File dir = new File(downloadService.biocacheDownloadDir + File.separator + cleanId);
             if (dir.isDirectory() && dir.exists()) {
                 for (File file : dir.listFiles()) {
                     if (file.isFile() && file.getPath().endsWith(".zip") && file.length() > 0) {
                         status.put("status", "finished");
-                        status.put("downloadUrl", biocacheDownloadUrl + File.separator + URLEncoder.encode(file.getPath().replace(biocacheDownloadDir + "/", ""), "UTF-8").replace("%2F", "/").replace("+", "%20"));
+                        status.put("downloadUrl", downloadService.biocacheDownloadUrl + File.separator + URLEncoder.encode(file.getPath().replace(downloadService.biocacheDownloadDir + "/", ""), "UTF-8").replace("%2F", "/").replace("+", "%20"));
                     }
                     if (file.isFile() && "tooLarge".equals(file.getName())) {
                         status.put("status", "skipped");
-                        status.put("message", downloadOfflineMsg);
-                        status.put("downloadUrl", dowloadOfflineMaxUrl);
+                        status.put("message", downloadService.downloadOfflineMsg);
+                        status.put("downloadUrl", downloadService.dowloadOfflineMaxUrl);
+                        status.put("error", "requested to many records. The upper limit is (" + downloadService.dowloadOfflineMaxSize + ")");
                     }
                 }
                 if (!status.containsKey("status")) {
                     status.put("status", "failed");
                 }
             }
+
+            // write final status to a file
+            if (status.containsKey("status")) {
+                writeStatusFile(cleanId, status);
+            }
+        }
+
+        if (!status.containsKey("status")) {
+            //check downloads directory for a status file
+            File file = new File(downloadService.biocacheDownloadDir + File.separator + cleanId + "/status.json");
+            if (file.exists()) {
+                JSONParser jp = new JSONParser();
+                status.putAll((JSONObject) jp.parse(FileUtils.readFileToString(file, "UTF-8")));
+
+                // the status.json is only used when a download request is 'lost'. Use an appropriate status.
+                status.put("status", "unavailable");
+                status.put("message", "This download is unavailable.");
+            }
         }
 
         if (!status.containsKey("status")) {
             status.put("status", "invalidId");
         }
+        return status;
     }
 
     /**
@@ -373,32 +421,23 @@ public class DownloadController extends AbstractSecureController {
         return status;
     }
 
+    /**
+     * IMPORTANT: Must return null if the user does not have access to sensitive data.
+     *
+     * @param request The request to get the "X-ALA-userId" header from to send to the authentication service to see if the user has access to sensitive data
+     * @return Null if the user does not have access to sensitive data, and a Solr query string containing the filters giving the user access to sensitive data based on their assigned role otherwise
+     * @throws ParseException If the sensitiveAccessRoles configuration was not parseable
+     */
     private String getSensitiveFq(HttpServletRequest request) throws ParseException {
-
-        if (!isValidKey(request.getHeader("apiKey")) || !downloadAuthSensitive) {
+        if (!isValidKey(request.getHeader("apiKey"))) {
             return null;
-        }
-
-        String sensitiveFq = "";
-        JSONParser jp = new JSONParser();
-        JSONObject jo = (JSONObject) jp.parse(sensitiveAccessRoles);
-        List roles = authService.getUserRoles(request.getHeader("X-ALA-userId"));
-        for (Object role : jo.keySet()) {
-            if (roles.contains(role)) {
-                if (sensitiveFq.length() > 0) {
-                    sensitiveFq += " OR ";
-                }
-                sensitiveFq += "(" + jo.get(role) + ")";
+        } else {
+            // FIXME: Why are we getting the identification from a header instead of a verified session context?
+            String xAlaUserIdHeader = request.getHeader("X-ALA-userId");
+            if (xAlaUserIdHeader == null) {
+                return null;
             }
+            return downloadService.getSensitiveFq(xAlaUserIdHeader);
         }
-
-        if (sensitiveFq.length() == 0) {
-            return null;
-        }
-
-        logger.debug("sensitiveOnly download requested for user: " + AuthenticationUtils.getUserId(request) +
-                ", using fq: " + sensitiveFq);
-
-        return sensitiveFq;
     }
 }

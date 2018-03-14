@@ -18,6 +18,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
@@ -178,19 +179,26 @@ public class AuthService {
         } else {
             thread.run();
         }
+
     }
 
-    public List getUserRoles(String userId) {
-        List roles = new ArrayList();
+    public List<String> getUserRoles(String userId) {
+        List<String> roles = new ArrayList<>();
         if(StringUtils.isNotBlank(userDetailsUrl)) {
-            try {
-                final String jsonUri = userDetailsUrl + userDetailsPath + "?userName=" + userId;
-                logger.info("authCache requesting: " + jsonUri);
-                roles = (List) restTemplate.postForObject(jsonUri, null, Map.class).get("roles");
-            } catch (Exception ex) {
-                logger.error("RestTemplate error: " + ex.getMessage(), ex);
-            }
+            final String jsonUri = userDetailsUrl + userDetailsPath + "?userName=" + userId;
+            logger.info("authCache requesting: " + jsonUri);
+            roles = (List) restTemplate.postForObject(jsonUri, null, Map.class).get("roles");
         }
         return roles;
+    }
+
+    public Map<String,?> getUserDetails(String userId) {
+        Map<String,?> userDetails
+                = new HashMap<>();
+            final String jsonUri = userDetailsUrl + userDetailsPath + "?userName=" + userId;
+            logger.info("authCache requesting: " + jsonUri);
+            userDetails = (Map) restTemplate.postForObject(jsonUri, null, Map.class);
+
+        return userDetails;
     }
 }

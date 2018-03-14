@@ -1,19 +1,15 @@
 package au.org.ala.biocache.service;
 
-
 import au.org.ala.biocache.Config;
 import au.org.ala.biocache.dto.SpeciesCountDTO;
 import au.org.ala.biocache.dto.SpeciesImageDTO;
-import au.org.ala.biocache.util.ALANameSearcherExt;
 import au.org.ala.names.model.LinnaeanRankClassification;
 import au.org.ala.names.model.NameSearchResult;
-import au.org.ala.names.search.ExcludedNameException;
-import au.org.ala.names.search.MisappliedException;
-import au.org.ala.names.search.ParentSynonymChildException;
-import au.org.ala.names.search.SearchResultException;
-import com.mockrunner.util.common.StringUtil;
-import org.apache.commons.lang.ArrayUtils;
+import au.org.ala.names.search.*;
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
+import org.apache.solr.client.solrj.util.ClientUtils;
 import org.springframework.context.support.AbstractMessageSource;
 
 import javax.inject.Inject;
@@ -45,17 +41,23 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
 
     protected String nameIndexLocation;
 
-    private ALANameSearcherExt nameIndex = null;
+    private volatile ALANameSearcher nameIndex = null;
 
-    private ALANameSearcherExt getNameIndex() throws RuntimeException {
-        if(nameIndex == null){
-            try {
-                nameIndex = new ALANameSearcherExt(nameIndexLocation);
-            } catch (Exception e){
-                throw new RuntimeException(e.getMessage(), e);
+    private ALANameSearcher getNameIndex() throws RuntimeException {
+        ALANameSearcher result = nameIndex;
+        if(result == null){
+            synchronized(this) {
+            	result = nameIndex;
+            	if(result == null) {
+                    try {
+                        result = nameIndex = new ALANameSearcher(nameIndexLocation);
+                    } catch (Exception e){
+                        throw new RuntimeException(e.getMessage(), e);
+                    }
+                }
             }
         }
-        return nameIndex;
+        return result;
     }
 
     @Override
@@ -111,7 +113,7 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
                 String lsid = getNameIndex().searchForLsidById(guid);
                 if(lsid != null){
                     nsr = getNameIndex().searchForRecordByLsid(lsid);
-                } else if (guid != null && StringUtil.countMatches(guid, "|") == 4){
+                } else if (guid != null && StringUtils.countMatches(guid, "|") == 4){
                     //is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
                     if (guid.startsWith("\"") && guid.endsWith("\"") && guid.length() > 2) guid = guid.substring(1, guid.length() - 1);
                     lsid = guid.split("\\|", 6)[1];
@@ -138,7 +140,7 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
                         classification.getSpecies(),
                         classification.getSubspecies()
                 };
-            } else if (StringUtil.countMatches(guid, "|") == 4){
+            } else if (StringUtils.countMatches(guid, "|") == 4){
                 //not matched and is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
                 if (guid.startsWith("\"") && guid.endsWith("\"") && guid.length() > 2) guid = guid.substring(1, guid.length() - 1);
                 String [] split = guid.split("\\|", 6);
@@ -237,7 +239,7 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         // TODO: better method of dealing with records with 0 occurrences being removed. 
         int maxFind = includeAll ? max : max + 1000;
         
-        List<Map> results = getNameIndex().autocomplete(query, maxFind, includeSynonyms);
+        List<Map> results = getNameIndex().autocomplete(ClientUtils.escapeQueryChars(query), maxFind, includeSynonyms);
 
         List<Map> output = new ArrayList();
 
@@ -373,8 +375,8 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         formatted.put("highlight", highlight);
 
         if (m.get("commonname") == null) {
-            m.put("commonname", nameIndex.getCommonNameForLSID((String) m.get("lsid")));
-            m.put("commonnames", nameIndex.getCommonNamesForLSID((String) m.get("lsid"),1000));
+            m.put("commonname", getNameIndex().getCommonNameForLSID((String) m.get("lsid")));
+            m.put("commonnames", getNameIndex().getCommonNamesForLSID((String) m.get("lsid"),1000));
         }
         if (m.get("commonname") != null) {
             formatted.put("commonName", m.get("commonnames"));

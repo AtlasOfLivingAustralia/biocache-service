@@ -1,4 +1,4 @@
-<%@ page import="org.apache.solr.common.SolrException"%><%@page contentType="application/json" pageEncoding="UTF-8"%>{
+<%@ page session="false" import="org.apache.solr.common.SolrException"%><%@ page contentType="application/json" pageEncoding="UTF-8"%>{
 <%
     try {
 

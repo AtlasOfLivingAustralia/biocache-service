@@ -23,13 +23,13 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ArrayUtils;
+import org.geotools.data.DefaultTransaction;
+import org.geotools.data.Transaction;
+import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.data.shapefile.ShapefileDataStoreFactory;
-import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.data.simple.SimpleFeatureStore;
-import org.geotools.feature.DefaultFeatureCollection;
-import org.geotools.feature.FeatureCollections;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.geometry.jts.JTSFactoryFinder;
@@ -41,9 +41,15 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -62,31 +68,38 @@ public class ShapeFileRecordWriter implements RecordWriterError {
     /** limit memory usage */
     private final int maxCollectionSize = 10000;
 
-    private String tmpDownloadDirectory;
-    private ShapefileDataStoreFactory dataStoreFactory = new ShapefileDataStoreFactory();
-    private SimpleFeatureBuilder featureBuilder;
-    private SimpleFeatureType simpleFeature;
-    private OutputStream outputStream;
-    private File temporaryShapeFile;
-    private int latIdx, longIdx;
-    private DefaultFeatureCollection collection = new DefaultFeatureCollection(null,null);
-    private Map<String, String> headerMappings = null;
-
-    private final AtomicBoolean finalised = new AtomicBoolean(false);
-    private final AtomicBoolean finalisedComplete = new AtomicBoolean(false);
-
-    private boolean writerError = false;
-
-    private ShapefileDataStore newDataStore;
-    private String typeName;
-    private SimpleFeatureSource featureSource;
-    private SimpleFeatureStore featureStore;
-
     /**
      * GeometryFactory will be used to create the geometry attribute of each feature (a Point
      * object for the location)
      */
-    GeometryFactory geometryFactory = JTSFactoryFinder.getGeometryFactory(null);
+    private final GeometryFactory geometryFactory = JTSFactoryFinder.getGeometryFactory(null);
+
+    private final ShapefileDataStoreFactory dataStoreFactory = new ShapefileDataStoreFactory();
+    private final Transaction transaction = new DefaultTransaction("create");
+
+    private final String tmpDownloadDirectory;
+    private final SimpleFeatureBuilder featureBuilder;
+    private final SimpleFeatureType simpleFeature;
+    private final OutputStream outputStream;
+    private final ListFeatureCollection collection;
+    private final Map<String, String> headerMappings;
+
+    private final AtomicBoolean finalised = new AtomicBoolean(false);
+    private final AtomicBoolean finalisedComplete = new AtomicBoolean(false);
+
+    private final AtomicBoolean writerError = new AtomicBoolean(false);
+    private final List<Throwable> errors = new ArrayList<>();
+
+    private final int latIdx, longIdx;
+
+    /*
+     * The following are variables that may not be initialised after the constructor completes if there was an error during initialisation
+     */
+    private File temporaryShapeFile;
+    private ShapefileDataStore newDataStore;
+    private String typeName;
+    private SimpleFeatureSource featureSource;
+    private SimpleFeatureStore featureStore;
 
     public ShapeFileRecordWriter(String tmpdir, String filename, OutputStream out, String[] header) {
         tmpDownloadDirectory = tmpdir;
@@ -94,38 +107,29 @@ public class ShapeFileRecordWriter implements RecordWriterError {
         headerMappings = AlaFileUtils.generateShapeHeader(header);
         //set the outputStream
         outputStream = out;
-        //initialise a temporary file that can used to write the shape file
-        temporaryShapeFile = new File(tmpDownloadDirectory + File.separator + System.currentTimeMillis() + File.separator + filename + File.separator + filename + ".shp");
-        try {
-            FileUtils.forceMkdir(temporaryShapeFile.getParentFile());
-            //get the indices for the lat and long
+        //get the indices for the lat and long
+        if (ArrayUtils.indexOf(header, "latitude") < 0 || ArrayUtils.indexOf(header, "longitude") < 0) {
+            latIdx = ArrayUtils.indexOf(header, "decimalLatitude.p");
+            longIdx = ArrayUtils.indexOf(header, "decimalLongitude.p");
+        } else {
             latIdx = ArrayUtils.indexOf(header, "latitude");
             longIdx = ArrayUtils.indexOf(header, "longitude");
-            if (latIdx < 0 || longIdx < 0) {
-                latIdx = ArrayUtils.indexOf(header, "decimalLatitude_p");
-                longIdx = ArrayUtils.indexOf(header, "decimalLongitude_p");
-            }
-
-            simpleFeature = createFeatureType(headerMappings.keySet(), null);
-            featureBuilder = new SimpleFeatureBuilder(simpleFeature);
-
-            if (latIdx < 0 || longIdx < 0) {
-                logger.error("The invalid header..." + StringUtils.join(header, "|"));
-                throw new IllegalArgumentException("A Shape File Export needs to include latitude and longitude in the headers.");
-            }
-
-        } catch (java.io.IOException e) {
-            logger.error("Unable to create ShapeFile", e);
-            writerError = true;
         }
 
-        initShapefile();
-    }
+        simpleFeature = createFeatureType(headerMappings.keySet(), null);
+        featureBuilder = new SimpleFeatureBuilder(simpleFeature);
 
-    private void initShapefile() {
-        // stream the contents of the file into the supplied outputStream
-        //Properties for the shape file construction
+        collection = new ListFeatureCollection(featureBuilder.getFeatureType());
+
+        if (latIdx < 0 || longIdx < 0) {
+            logger.error("The invalid header..." + StringUtils.join(header, "|"));
+            throw new IllegalArgumentException("A Shape File Export needs to include latitude and longitude in the headers.");
+        }
+
         try {
+            //initialise a temporary file that can used to write the shape file
+            temporaryShapeFile = new File(tmpDownloadDirectory + File.separator + System.currentTimeMillis() + File.separator + filename + File.separator + filename + ".shp");
+                FileUtils.forceMkdir(temporaryShapeFile.getParentFile());
             Map<String, Serializable> params = new HashMap<String, Serializable>();
             params.put("url", temporaryShapeFile.toURI().toURL());
             params.put("create spatial index", Boolean.TRUE);
@@ -137,19 +141,21 @@ public class ShapeFileRecordWriter implements RecordWriterError {
 
             if (featureSource instanceof SimpleFeatureStore) {
                 featureStore = (SimpleFeatureStore) featureSource;
+                featureStore.setTransaction(transaction);
             } else {
-                writerError = true;
-                logger.error(typeName + " does not support read/write access");
+                writerError.set(true);
+                logger.error(typeName + " is not currently supported for read/write access");
             }
 
             //lat,lng csv header
             if (outputStream instanceof OptionalZipOutputStream) {
-                outputStream.write(("latitude,longitude\n").getBytes("UTF-8"));
+                outputStream.write(("latitude,longitude\n").getBytes(StandardCharsets.UTF_8));
             }
 
         } catch (java.io.IOException e) {
             logger.error("Unable to create ShapeFile", e);
-            writerError = true;
+            writerError.set(true);
+            errors.add(e);
         }
     }
 
@@ -166,7 +172,7 @@ public class ShapeFileRecordWriter implements RecordWriterError {
         builder.setCRS(DefaultGeographicCRS.WGS84); // <- Coordinate reference system
 
         // add attributes in order
-        builder.add("Location", Point.class);
+        builder.add("the_geom", Point.class);
         int i = 0;
         for (String feature : features) {
             Class type = types != null ? types[i] : String.class;
@@ -177,6 +183,8 @@ public class ShapeFileRecordWriter implements RecordWriterError {
             i++;
         }
 
+        builder.setDefaultGeometry("the_geom");
+
         // build the type
         final SimpleFeatureType LOCATION = builder.buildFeatureType();
         if (logger.isDebugEnabled()) {
@@ -186,10 +194,6 @@ public class ShapeFileRecordWriter implements RecordWriterError {
         return LOCATION;
     }
 
-    public ShapeFileRecordWriter() {
-        super();
-    }
-
     /**
      * Indicates that the download has completed and the shape file should be generated and
      * written to the supplied output stream.
@@ -197,45 +201,80 @@ public class ShapeFileRecordWriter implements RecordWriterError {
     @Override
     public void finalise() {
         if (finalised.compareAndSet(false, true)) {
-            // stream the contents of the file into the supplied outputStream
-            //Properties for the shape file construction
             try {
-
-                if (collection.size() > 0) {
-                    featureStore.addFeatures(collection);
-                    collection.clear();
-                }
-
-                //close csv before writing shapefile zip
-                OptionalZipOutputStream os = null;
-                if (outputStream instanceof OptionalZipOutputStream) {
-                    //filename
-                    os = (OptionalZipOutputStream) outputStream;
-                    String name = os.getCurrentEntry();
-                    if (name.contains(".")) {
-                        name = name.substring(0, name.lastIndexOf('.'));
+                try {
+                    //write & clear the current batch
+                    if (!collection.isEmpty()) {
+                        if (featureStore != null) {
+                            featureStore.addFeatures(collection);
+                        }
+                        collection.clear();
                     }
-                    os = (OptionalZipOutputStream) outputStream;
-                    outputStream.flush();
-                    os.closeEntry();
-                    os.putNextEntry(name + ".zip");
-                }
+                } finally {
+                    try {
+                        transaction.commit();
+                    } finally {
+                        try {
+                            transaction.close();
+                        } finally {
+                            try {
+                                if(newDataStore != null) {
+                                    newDataStore.dispose();
+                                }
+                            } finally {
+                                try {
+                                    // Allow for future cases where this isn't equivalent to the statements above
+                                    if (featureStore != null) {
+                                        featureStore.getDataStore().dispose();
+                                    }
+                                } finally {
+                                    try {
+                                        // Allow for future cases where this isn't equivalent to the statements above
+                                        if (featureSource != null) {
+                                            featureSource.getDataStore().dispose();
+                                        }
+                                    } finally {
+                                        try {
+                                            //close csv before writing shapefile zip
+                                            if (outputStream instanceof OptionalZipOutputStream) {
+                                                //filename
+                                                OptionalZipOutputStream os = (OptionalZipOutputStream) outputStream;
+                                                String name = os.getCurrentEntry();
+                                                if (name.contains(".")) {
+                                                    name = name.substring(0, name.lastIndexOf('.'));
+                                                }
+                                                os.closeEntry();
+                                                outputStream.flush();
+                                                os.putNextEntry(name + ".zip");
+                                            }
 
-                //zip the parent directory
-                String targetZipFile = temporaryShapeFile.getParentFile().getParent() + File.separator + temporaryShapeFile.getName().replace(".shp", ".zip");
-                AlaFileUtils.createZip(temporaryShapeFile.getParent(), targetZipFile);
-                try (java.io.FileInputStream inputStream = new java.io.FileInputStream(targetZipFile);) {
-                    //write the shapefile to the supplied output stream
-                    logger.info("Copying Shape zip file to outputstream");
-                    IOUtils.copy(inputStream, outputStream);
-                    //now remove the temporary directory
-                    FileUtils.deleteDirectory(temporaryShapeFile.getParentFile().getParentFile());
+                                            if (temporaryShapeFile != null) {
+                                                //zip the parent directory
+                                                String targetZipFile = temporaryShapeFile.getParentFile().getParent() + File.separator + temporaryShapeFile.getName().replace(".shp", ".zip");
+                                                AlaFileUtils.createZip(temporaryShapeFile.getParent(), targetZipFile);
+                                                //write the shapefile to the supplied output stream
+                                                logger.info("Copying Shape zip file to outputstream");
+                                                try (final InputStream inputStream = Files.newInputStream(Paths.get(targetZipFile));) {
+                                                    IOUtils.copy(inputStream, outputStream);
+                                                    outputStream.flush();
+                                                }
+                                            }
+                                        } finally {
+                                            if (temporaryShapeFile != null) {
+                                                //now remove the temporary directory
+                                                FileUtils.deleteDirectory(temporaryShapeFile.getParentFile().getParentFile());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-
-                outputStream.flush();
             } catch (java.io.IOException e) {
                 logger.error("Unable to create ShapeFile", e);
-                writerError = true;
+                writerError.set(true);
+                errors.add(e);
             } finally {
                 finalisedComplete.set(true);
             }
@@ -272,24 +311,26 @@ public class ShapeFileRecordWriter implements RecordWriterError {
 
             try {
                 if (collection.size() > maxCollectionSize) {
-                    featureStore.addFeatures(collection);
+                    if (featureStore != null) {
+                        featureStore.addFeatures(collection);
+                    }
+                    collection.clear();
                 }
 
                 //lat,lng csv entry
                 if (outputStream instanceof OptionalZipOutputStream) {
                     outputStream.write((latitude + "," + longitude + "\n").getBytes("UTF-8"));
                 }
-            } catch (IOException e) {
-                logger.error("Unable to create ShapeFile", e);
-                writerError = true;
-            } finally {
-                if (collection.size() > maxCollectionSize) {
-                    collection.clear();
-                }
+                // ArrayIndexOutOfBoundsException is sometimes thrown by AbstractFeatureStore.addFeatures, 
+                // so handle it as if it is a writer error
+            } catch (ArrayIndexOutOfBoundsException | IOException e) {
+                logger.error("Unable to write an entry to Shapefile", e);
+                errors.add(e);
+                writerError.set(true);
             }
 
         } else {
-            logger.debug("Not adding record with missing lat/long: " + record[0]);
+            logger.debug("Not adding record with missing lat/long: {}", record[0]);
         }
     }
 
@@ -307,7 +348,12 @@ public class ShapeFileRecordWriter implements RecordWriterError {
 
     @Override
     public boolean hasError() {
-        return writerError;
+        return writerError.get();
+    }
+
+    @Override
+    public List<Throwable> getErrors() {
+        return errors;
     }
 
     @Override
@@ -315,8 +361,8 @@ public class ShapeFileRecordWriter implements RecordWriterError {
         try {
             outputStream.flush();
         } catch (Exception e) {
-            logger.error("Unable to create ShapeFile", e);
-            writerError = true;
+            writerError.set(true);
+            errors.add(e);
         }
     }
 }

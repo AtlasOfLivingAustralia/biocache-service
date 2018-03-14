@@ -19,6 +19,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -37,6 +40,8 @@ public class TSVRecordWriter implements RecordWriterError {
 
     private boolean writerError = false;
     private String[] header;
+
+    private final List<Throwable> errors = new ArrayList<>();
     
     public TSVRecordWriter(OutputStream out, String[] header){
         this.outputStream = out;
@@ -61,16 +66,18 @@ public class TSVRecordWriter implements RecordWriterError {
 
         try {
             String str = line.toString();
-            byte [] bytes = str.getBytes("UTF-8");
+            byte [] bytes = str.getBytes(StandardCharsets.UTF_8);
             outputStream.write(bytes);
 
             //mark the end of line
             if (outputStream instanceof OptionalZipOutputStream) {
-                if (((OptionalZipOutputStream) outputStream).isNewFile(outputStream, bytes.length)) {
+                if (((OptionalZipOutputStream) outputStream).isNewFile(this, bytes.length)) {
                     write(header);
                 }
             }
         } catch (java.io.IOException e) {
+            logger.error("Found error writing to TSV file", e);
+            errors.add(e);
             writerError = true;
         }
     }
@@ -78,8 +85,11 @@ public class TSVRecordWriter implements RecordWriterError {
     @Override
     public void finalise() {
         if(finalised.compareAndSet(false, true)) {
-            flush();
-            finalisedComplete.set(true);
+            try {
+                flush();
+            } finally {
+                finalisedComplete.set(true);
+            }
         }
     }
 
@@ -94,10 +104,16 @@ public class TSVRecordWriter implements RecordWriterError {
     }
 
     @Override
+    public List<Throwable> getErrors() {
+        return errors;
+    }
+
+    @Override
     public void flush() {
         try {
             outputStream.flush();
-        } catch(java.io.IOException e){
+        } catch(java.io.IOException e) {
+            errors.add(e);
             writerError = true;
         }
     }

@@ -34,7 +34,7 @@ public class AppConfig {
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
 
     /** URI prefix for bie-service - may be overridden in properties file */
-    @Value("${service.bie.ws.url:http://bie.ala.org.au/ws}")
+    @Value("${service.bie.ws.url:https://bie.ala.org.au/ws}")
     protected String bieUriPrefix;
 
     //NC 20131018: Allow service to be disabled via config (enabled by default)

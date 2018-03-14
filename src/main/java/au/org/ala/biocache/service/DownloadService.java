@@ -20,6 +20,7 @@ import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
+import au.org.ala.biocache.dto.DownloadDoiDTO;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.stream.OptionalZipOutputStream;
@@ -27,6 +28,12 @@ import au.org.ala.biocache.util.AlaFileUtils;
 import au.org.ala.biocache.util.thread.DownloadControlThread;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.biocache.writer.RecordWriterException;
+import au.org.ala.cas.util.AuthenticationUtils;
+import au.org.ala.doi.CreateDoiResponse;
+
+import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
+import com.google.common.io.Files;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
@@ -38,8 +45,8 @@ import org.apache.log4j.Logger;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
-import org.scale7.cassandra.pelops.exceptions.NoConnectionsAvailableException;
 import org.springframework.beans.factory.annotation.Value;
+import org.json.simple.parser.ParseException;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.support.AbstractMessageSource;
@@ -48,10 +55,12 @@ import org.springframework.web.client.RestOperations;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -96,18 +105,24 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Inject
     protected AbstractMessageSource messageSource;
 
+    @Inject
+    protected DoiService doiService;
+
+    @Inject
+    protected AuthService authService;
+
     // default value is supplied for the property below
     @Value("${webservices.root:http://localhost:8080/biocache-service}")
-    protected String webservicesRoot = "http://localhost:8080/biocache-service";
+    public String webservicesRoot = "http://localhost:8080/biocache-service";
 
     // NC 20131018: Allow citations to be disabled via config (enabled by
     // default)
     @Value("${citations.enabled:true}")
-    protected Boolean citationsEnabled = Boolean.TRUE;
+    public Boolean citationsEnabled = Boolean.TRUE;
 
     // Allow headings information to be disabled via config (enabled by default)
     @Value("${headings.enabled:true}")
-    protected Boolean headingsEnabled = Boolean.TRUE;
+    public Boolean headingsEnabled = Boolean.TRUE;
 
     /** Stores the current list of downloads that are being performed. */
     protected final Queue<DownloadDetailsDTO> currentDownloads = new LinkedBlockingQueue<DownloadDetailsDTO>();
@@ -121,17 +136,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${citations.url:http://collections.ala.org.au/ws/citations}")
     protected String citationServiceUrl = "http://collections.ala.org.au/ws/citations";
 
-    @Value("${download.url:http://biocache.ala.org.au/biocache-download}")
-    protected String biocacheDownloadUrl = "http://biocache.ala.org.au/biocache-download";
-
-    @Value("${download.dir:/data/biocache-download}")
-    protected String biocacheDownloadDir = "/data/biocache-download";
-
     @Value("${download.email.subject:ALA Occurrence Download Complete - [filename]}")
     protected String biocacheDownloadEmailSubject = "ALA Occurrence Download Complete - [filename]";
 
-    @Value("${download.email.body:The download file has been generated on [date] via the search: [searchUrl]. Please download your file from [url]}")
-    protected String biocacheDownloadEmailBody = "The download file has been generated on [date] via the search: [searchUrl]. Please download your file from [url]";
+    @Value("${download.email.template}")
+    protected String biocacheDownloadEmailTemplate;
+
+    @Value("${download.doi.email.template}")
+    protected String biocacheDownloadDoiEmailTemplate;
 
     @Value("${download.email.subject.failure:Occurrence Download Failed - [filename]}")
     protected String biocacheDownloadEmailSubjectError = "Occurrence Download Failed - [filename]";
@@ -139,11 +151,17 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.email.body.error:The download has failed.}")
     protected String biocacheDownloadEmailBodyError = "The download has failed.";
 
-    @Value("${download.readme.content:When using this download please use the following citation:<br><br><cite>Atlas of Living Australia occurrence download at <a href='[url]'>biocache</a> accessed on [date].</cite><br><br>Data contributed by the following providers:<br><br>[dataProviders]<br><br>More information can be found at <a href='http://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.}")
-    protected String biocacheDownloadReadme = "When using this download please use the following citation:<br><br><cite>Atlas of Living Australia occurrence download at <a href='[url]'>biocache</a> accessed on [date].</cite><br><br>Data contributed by the following providers:<br><br>[dataProviders]<br><br>More information can be found at <a href='http://www.ala.org.au/about-the-atlas/terms-of-use/citing-the-atlas/'>citing the ALA</a>.";
+    @Value("${download.readme.template}")
+    protected String biocacheDownloadReadmeTemplate;
 
-    @Value("${biocache.ui.url:http://biocache.ala.org.au}")
-    protected String biocacheUiUrl = "http://biocache.ala.org.au";
+    @Value("${download.doi.readme.template}")
+    protected String biocacheDownloadDoiReadmeTemplate;
+
+    @Value("${download.doi.title.prefix:Occurrence download }")
+    protected String biocacheDownloadDoiTitlePrefix = "Occurrence download ";
+
+    @Value("${download.doi.landing.page.baseUrl:http://devt.ala.org.au/ala-hub/download/doi?doi=}")
+    protected String biocacheDownloadDoiLandingPage = "http://devt.ala.org.au/ala-hub/download/doi?doi=";
 
     /** Max number of threads to use in parallel for large offline download queries */
     @Value("${download.offline.parallelquery.maxthreads:30}")
@@ -151,7 +169,56 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     /** restrict the size of files in a zip */
     @Value("${zip.file.size.mb.max:4000}")
-    private Integer maxMB;
+    public Integer maxMB;
+
+    @Value("${download.url:http://biocache.ala.org.au/biocache-download}")
+    public String biocacheDownloadUrl;
+
+    @Value("${download.dir:/data/biocache-download}")
+    public String biocacheDownloadDir;
+
+    /**
+     * Set to true to enable downloading of sensitive data
+     */
+    @Value("${download.auth.sensitive:false}")
+    private Boolean downloadAuthSensitive;
+
+    @Value("${biocache.ui.url:http://biocache.ala.org.au}")
+    protected String biocacheUiUrl = "http://biocache.ala.org.au";
+
+    //TODO: this should be retrieved from SDS
+    @Value("${sensitiveAccessRoles:{\n" +
+            "\n" +
+            "\"ROLE_SDS_ACT\" : \"sensitive:\\\"generalised\\\" AND (cl927:\\\"Australian Captial Territory\\\" OR cl927:\\\"Jervis Bay Territory\\\") AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
+            "\"ROLE_SDS_NSW\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"New South Wales (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_NZ\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr2707 OR data_resource_uid:dr812 OR data_resource_uid:dr814 OR data_resource_uid:dr808 OR data_resource_uid:dr806 OR data_resource_uid:dr815 OR data_resource_uid:dr802 OR data_resource_uid:dr805 OR data_resource_uid:dr813) AND -cl927:* AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_NT\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Northern Territory (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_QLD\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Queensland (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_SA\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"South Australia (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_TAS\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Tasmania (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_VIC\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Victoria (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_WA\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Western Australia (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
+            "\"ROLE_SDS_BIRDLIFE\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
+            "\n" +
+            "}}")
+    protected String sensitiveAccessRoles = "{}";;
+
+    private JSONObject sensitiveAccessRolesToSolrFilters;
+
+    @Value("${download.offline.max.url:http://downloads.ala.org.au}")
+    public String dowloadOfflineMaxUrl = "http://downloads.ala.org.au";
+
+    /**
+     * By default this is set to a very large value to 'disable' the offline download limit.
+     */
+    @Value("${download.offline.max.size:100000000}")
+    public Integer dowloadOfflineMaxSize = 100000000;
+
+    @Value("${download.offline.msg:Too many records requested. Bulk download files for Lifeforms are available.}")
+    public String downloadOfflineMsg = "Too many records requested. Bulk download files for Lifeforms are available.";
+
+    @Value("${download.offline.msg:This download is unavailable. Run the download again.}")
+    public String downloadOfflineMsgDeleted = "This download is unavailable. Run the download again.";
 
     /**
      * Ensures closure is only attempted once.
@@ -187,7 +254,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     private volatile ExecutorService offlineParallelQueryExecutor;
 
     @PostConstruct
-    public void init(){
+    public void init() throws ParseException {
+
+        // Simple JSON initialisation, let's follow the default Spring semantics
+        sensitiveAccessRolesToSolrFilters = (JSONObject) new JSONParser().parse(sensitiveAccessRoles);
+
         if(initialised.compareAndSet(false, true)) {
             //init on thread so as to not hold up other PostConstruct that this may depend on
             new Thread() {
@@ -236,18 +307,27 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         }
                         // If no threads were created, then add a single default thread
                         if(runningDownloadControllers.isEmpty()) {
-                            logger.warn("No offline download threads were created from configuration, creating a single default download thread instead.");
-
+                            logger.error("No offline download threads were created from configuration, creating a single default download thread instead.");
+                            DownloadControlThread nextRunnable = new DownloadControlThread(
+                                    null,
+                                    null,
+                                    DownloadType.RECORDS_INDEX,
+                                    1,
+                                    0L,
+                                    0L,
+                                    Thread.NORM_PRIORITY,
+                                    currentDownloads,
+                                    nextDownloadCreator,
+                                    persistentQueueDAO,
+                                    nextParallelExecutor
+                            );
+                            Thread nextThread = new Thread(nextRunnable);
                             String nextThreadName = "biocache-download-control-";
                             nextThreadName += "defaultNoConfigFound-";
                             nextThreadName += "nolimit-";
                             nextThreadName += "alltypes-";
                             nextThreadName += "poolsize-1";
-
-                            DownloadControlThread nextRunnable = new DownloadControlThread(nextThreadName, null, null, 1, 10L, 0L, Thread.NORM_PRIORITY, currentDownloads, nextDownloadCreator, persistentQueueDAO, nextParallelExecutor);
-                            Thread nextThread = new Thread(nextRunnable);
                             nextThread.setName(nextThreadName);
-
                             // Control threads need to wakeup regularly to check for new downloads
                             nextThread.setPriority(Thread.NORM_PRIORITY + 1);
                             runningDownloadControllers.add(nextThread);
@@ -314,23 +394,36 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     nextToCloseRunnable.shutdown();
                 }
 
+                // Give threads a chance to react to the shutdown flag before checking if they are alive
+                try {
+                    Thread.sleep(2000);
+                }
+                catch(InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
                 Thread nextToCloseThread = null;
                 List<Thread> toJoinThreads = new ArrayList<>();
                 while((nextToCloseThread = runningDownloadControllers.poll()) != null) {
                     if(nextToCloseThread.isAlive()) {
-                        // Interrupt any threads that are still alive after the non-blocking shutdown command
-                        nextToCloseThread.interrupt();
                         toJoinThreads.add(nextToCloseThread);
                     }
                 }
 
                 if(!toJoinThreads.isEmpty()) {
-                    // Give remaining download control threads a few seconds to cleanup before returning from this method
+                    // Give remaining download control threads a few seconds to cleanup before interrupting
                     try {
                         Thread.sleep(5000);
                     }
                     catch(InterruptedException e) {
                         Thread.currentThread().interrupt();
+                    }
+
+                    for(final Thread nextToJoinThread : toJoinThreads) {
+                        if(nextToJoinThread.isAlive()) {
+                            // Interrupt any threads that are still alive after the non-blocking shutdown command
+                            nextToJoinThread.interrupt();
+                        }
                     }
                 }
             }
@@ -362,8 +455,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     public void unregisterDownload(DownloadDetailsDTO dd) {
         afterInitialisation();
         // remove it from the list
-        currentDownloads.remove(dd);
-        persistentQueueDAO.removeDownloadFromQueue(dd);
+        try {
+            currentDownloads.remove(dd);
+        } finally {
+            persistentQueueDAO.removeDownloadFromQueue(dd);
+        }
     }
 
     /**
@@ -388,7 +484,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param includeSensitive
      * @param fromIndex
      * @throws Exception
-     * @deprecated Use {@link #writeQueryToStream(DownloadDetailsDTO, DownloadRequestParams, String, OutputStream, boolean, boolean, boolean, boolean, ExecutorService)} instead.
+     * @deprecated Use {@link #writeQueryToStream(DownloadDetailsDTO, DownloadRequestParams, String, OutputStream, boolean, boolean, boolean, boolean, ExecutorService, List)} instead.
      */
     @Deprecated
     public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
@@ -396,7 +492,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             throws Exception {
         afterInitialisation();
 
-        writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex, limit, zip, getOfflineThreadPoolExecutor());
+        writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex, limit, zip, getOfflineThreadPoolExecutor(), null);
     }
 
     /**
@@ -409,10 +505,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param out
      * @param includeSensitive
      * @param fromIndex
+     * @param doiResponseList Return the CreateDoiResponse instance as the first element of the list if requestParams.mintDoi was true
      * @throws Exception
      */
     public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
-            OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip, ExecutorService parallelExecutor)
+                                   OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip, ExecutorService parallelExecutor, List<CreateDoiResponse> doiResponseList)
             throws Exception {
         afterInitialisation();
         String filename = requestParams.getFile();
@@ -449,25 +546,84 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     sp.putNextEntry("Shape-README.html");
                     sp.write(
                             ("The name of features is limited to 10 characters. Listed below are the mappings of feature name to download field:")
-                                    .getBytes());
-                    sp.write(("<table><td><b>Feature</b></td><td><b>Download Field<b></td>").getBytes());
+                                    .getBytes(StandardCharsets.UTF_8));
+                    sp.write(("<table><td><b>Feature</b></td><td><b>Download Field<b></td>").getBytes(StandardCharsets.UTF_8));
                     for (String key : dd.getHeaderMap().keySet()) {
-                        sp.write(("<tr><td>" + key + "</td><td>" + dd.getHeaderMap().get(key) + "</td></tr>").getBytes());
+                        sp.write(("<tr><td>" + key + "</td><td>" + dd.getHeaderMap().get(key) + "</td></tr>").getBytes(StandardCharsets.UTF_8));
                     }
-                    sp.write(("</table>").getBytes());
+                    sp.write(("</table>").getBytes(StandardCharsets.UTF_8));
                 }
 
                 // Add the data citation to the download
                 List<String> citationsForReadme = new ArrayList<String>();
+
+                Boolean mintDoi = requestParams.getMintDoi();
+                CreateDoiResponse doiResponse = null;
+                String doi = "";
+
+                final String searchUrl = generateSearchUrl(requestParams);
+
                 if (citationsEnabled) {
+                    List<Map<String, String>> datasetMetadata = null;
+                    if(mintDoi) {
+                        datasetMetadata = new ArrayList<>();
+                    }
+
                     // add the citations for the supplied uids
                     sp.putNextEntry("citation.csv");
                     try {
-                        getCitations(uidStats, sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme);
+                        getCitations(uidStats, sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme, datasetMetadata);
                     } catch (Exception e) {
                         logger.error(e.getMessage(), e);
                     }
                     sp.closeEntry();
+
+
+                    if(mintDoi) {
+
+                        Map<String, ?> userDetails = authService.getUserDetails(dd.getEmail());
+
+
+                        //Source requester details
+                        String requesterId = (String) userDetails.get("userId");
+                        String requesterName = userDetails.get("firstName") + " " + userDetails.get("lastName");
+
+                        // Prepare licence
+                        Set<String> datasetLicences = new TreeSet<>();
+                        for(Map<String, String> dataset: datasetMetadata) {
+                            String licence = dataset.get("licence");
+
+                            if(StringUtils.isNotBlank(licence) ) {
+                                datasetLicences.add(licence);
+                            }
+                        }
+
+                        List<String> licence = Lists.newArrayList(datasetLicences);
+
+                        DownloadDoiDTO doiDetails = new DownloadDoiDTO();
+
+                        doiDetails.setTitle(biocacheDownloadDoiTitlePrefix + filename);
+                        doiDetails.setApplicationUrl(searchUrl);
+                        doiDetails.setRequesterId(requesterId);
+                        if(dd.getSensitiveFq() != null) {
+                            doiDetails.setAuthorisedRoles(getSensitiveRolesForUser(requesterId));
+                        }
+
+                        doiDetails.setRequesterName(requesterName);
+                        doiDetails.setDatasetMetadata(datasetMetadata);
+                        doiDetails.setRequestTime(dd.getStartDateString());
+                        doiDetails.setRecordCount(dd.getTotalRecords());
+                        doiDetails.setLicence (licence);
+                        doiDetails.setQueryTitle(requestParams.getDisplayString());
+
+                        doiResponse = doiService.mintDoi(doiDetails);
+
+                        if(doiResponse != null) {
+                            logger.debug("DOI minted" + doiResponse.getDoi());
+                            doiResponseList.add (doiResponse);
+                        }
+                    }
+
                 } else {
                     if (logger.isDebugEnabled()) {
                         logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " + uidStats);
@@ -480,24 +636,42 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     dd.setRequestParams(requestParams);
                 }
                 if (dd.getFileLocation() == null) {
-                    dd.setFileLocation(generateSearchUrl(dd.getRequestParams()));
+                    dd.setFileLocation(searchUrl);
                 }
 
                 // add the Readme for the data field descriptions
                 sp.putNextEntry("README.html");
                 String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
 
-                String fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
-                String readmeContent = biocacheDownloadReadme.replace("[url]", fileLocation)
+
+                String readmeFile;
+                String fileLocation;
+
+                if(mintDoi && doiResponse != null) {
+                    readmeFile = biocacheDownloadDoiReadmeTemplate;
+                    doi = doiResponse.getDoi();
+                    final String doiLandingPage = requestParams.getDoiDisplayUrl() != null ? requestParams.getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
+                    fileLocation = doiLandingPage + doi;
+
+                } else {
+                    readmeFile = biocacheDownloadReadmeTemplate;
+                    fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
+                }
+
+                String readmeTemplate = Files.toString(new File(readmeFile), Charsets.UTF_8);
+
+                String readmeContent = readmeTemplate.replace("[url]", fileLocation)
                         .replace("[date]", dd.getStartDateString())
-                        .replace("[searchUrl]", generateSearchUrl(dd.getRequestParams()))
-                        .replace("[dataProviders]", dataProviders);
+                        .replace("[searchUrl]", searchUrl)
+                        .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
+                        .replace("[dataProviders]", dataProviders)
+                        .replace("[doi]", doi);
                 if (logger.isDebugEnabled()) {
                     logger.debug(readmeContent);
                 }
-                sp.write((readmeContent).getBytes());
+                sp.write(readmeContent.getBytes(StandardCharsets.UTF_8));
                 sp.write(("For more information about the fields that are being downloaded please consult <a href='"
-                        + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes());
+                        + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes(StandardCharsets.UTF_8));
                 sp.closeEntry();
 
                 // Add headings file, listing information about the headings
@@ -545,10 +719,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             //Application may be shutting down, do not delete the download file
             shuttingDown = true;
             throw e;
-        } finally {
-            if (!shuttingDown) {
-                unregisterDownload(dd);
-            }
         }
     }
 
@@ -590,7 +760,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
         DownloadDetailsDTO.DownloadType type = fromIndex ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
         DownloadDetailsDTO dd = registerDownload(requestParams, ip, type);
-        writeQueryToStream(dd, requestParams, ip, new CloseShieldOutputStream(out), includeSensitive, fromIndex, true, zip, parallelQueryExecutor);
+        writeQueryToStream(dd, requestParams, ip, new CloseShieldOutputStream(out), includeSensitive, fromIndex, true, zip, parallelQueryExecutor, null);
     }
 
     /**
@@ -599,11 +769,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * 
      * @param uidStats
      * @param out
+     * @param datasetMetadata
      * @throws HttpException
      * @throws IOException
      */
     public void getCitations(ConcurrentMap<String, AtomicInteger> uidStats, OutputStream out, char sep, char esc,
-            List<String> readmeCitations) throws IOException {
+                             List<String> readmeCitations, List<Map<String, String>> datasetMetadata) throws IOException {
         if (citationsEnabled) {
             afterInitialisation();
             if (uidStats == null || uidStats.isEmpty() || out == null) {
@@ -637,6 +808,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         // ensure that the record is not null to prevent NPE on
                         // the "get"s
                         if (record != null) {
+                            final int UID=0;
+                            final int NAME=1;
+                            final int CITATION=2;
+                            final int RIGHTS=3;
+                            final int LINK=4;
+                            final int COUNT=8;
+
+
                             String count = uidStats.get(record.get("uid")).toString();
                             String[] row = new String[] {
                                     getOrElse(record, "uid", ""),
@@ -652,7 +831,19 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                             if (readmeCitations != null) {
                                 // used in README.txt
-                                readmeCitations.add(row[2] + " (" + row[3] + "). " + row[4]);
+                                readmeCitations.add(row[CITATION] + " (" + row[RIGHTS] + "). " + row[LINK]);
+                            }
+
+                            if (datasetMetadata != null ) {
+
+                                Map<String,String> dataSet = new HashMap<>();
+
+                                dataSet.put("uid", row[UID]);
+                                dataSet.put("name", row[NAME]);
+                                dataSet.put("licence", row[RIGHTS]);
+                                dataSet.put("count", row[COUNT]);
+
+                                datasetMetadata.add(dataSet);
                             }
 
                         } else {
@@ -685,7 +876,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 return;
             }
 
-            try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(out), Charset.forName("UTF-8")), params.getSep(), '"',
+            try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(out), StandardCharsets.UTF_8), params.getSep(), '"',
                     params.getEsc());) {
                 // Object[] citations =
                 // restfulClient.restPost(citationServiceUrl, "text/json",
@@ -777,60 +968,64 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param params
      * @return url
      */
-    private String generateSearchUrl(DownloadRequestParams params) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(biocacheUiUrl + "/occurrences/search?");
+    public String generateSearchUrl(DownloadRequestParams params) {
+        if (params.getSearchUrl() != null) {
+            return params.getSearchUrl();
+        } else {
+            StringBuilder sb = new StringBuilder();
+            sb.append(biocacheUiUrl + "/occurrences/search?");
 
-        if (params.getQId() != null) {
-            try {
-                sb.append("qid=").append(URLEncoder.encode("" + params.getQId(), "UTF-8"));
-            } catch (UnsupportedEncodingException e) {
+            if (params.getQId() != null) {
+                try {
+                    sb.append("qid=").append(URLEncoder.encode("" + params.getQId(), "UTF-8"));
+                } catch (UnsupportedEncodingException e) {
 
+                }
             }
-        }
-        if (params.getQ() != null) {
-            try {
-                sb.append("&q=").append(URLEncoder.encode(params.getQ(), "UTF-8"));
-            } catch (UnsupportedEncodingException e) {
+            if (params.getQ() != null) {
+                try {
+                    sb.append("&q=").append(URLEncoder.encode(params.getQ(), "UTF-8"));
+                } catch (UnsupportedEncodingException e) {
 
+                }
             }
-        }
 
-        if (params.getFq().length > 0) {
-            for (String fq : params.getFq()) {
-                if (StringUtils.isNotEmpty(fq)) {
-                    try {
-                        sb.append("&fq=").append(URLEncoder.encode(fq, "UTF-8"));
-                    } catch (UnsupportedEncodingException e) {
+            if (params.getFq().length > 0) {
+                for (String fq : params.getFq()) {
+                    if (StringUtils.isNotEmpty(fq)) {
+                        try {
+                            sb.append("&fq=").append(URLEncoder.encode(fq, "UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
 
+                        }
                     }
                 }
             }
-        }
 
-        if (StringUtils.isNotEmpty(params.getQc())) {
-            try {
-                sb.append("&qc=").append(URLEncoder.encode(params.getQc(), "UTF-8"));
-            } catch (UnsupportedEncodingException e) {
+            if (StringUtils.isNotEmpty(params.getQc())) {
+                try {
+                    sb.append("&qc=").append(URLEncoder.encode(params.getQc(), "UTF-8"));
+                } catch (UnsupportedEncodingException e) {
 
+                }
             }
-        }
 
-        if (StringUtils.isNotEmpty(params.getWkt())) {
-            try {
-                sb.append("&wkt=").append(URLEncoder.encode(params.getWkt(), "UTF-8"));
-            } catch (UnsupportedEncodingException e) {
+            if (StringUtils.isNotEmpty(params.getWkt())) {
+                try {
+                    sb.append("&wkt=").append(URLEncoder.encode(params.getWkt(), "UTF-8"));
+                } catch (UnsupportedEncodingException e) {
 
+                }
             }
-        }
 
-        if (params.getLat() != null && params.getLon() != null && params.getRadius() != null) {
-            sb.append("&lat=").append(params.getLat());
-            sb.append("&lon=").append(params.getLon());
-            sb.append("&radius=").append(params.getRadius());
-        }
+            if (params.getLat() != null && params.getLon() != null && params.getRadius() != null) {
+                sb.append("&lat=").append(params.getLat());
+                sb.append("&lon=").append(params.getLon());
+                sb.append("&radius=").append(params.getRadius());
+            }
 
-        return sb.toString();
+            return sb.toString();
+        }
     }
 
     private void insertMiscHeader(DownloadDetailsDTO download) {
@@ -910,6 +1105,54 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         }
     }
 
+    /**
+     * Generates the Solr filter to query sensitive data for the user sensitive roles
+     * @param userId The user the filter is built for
+     * @return A String with a Solr filter
+     */
+    public String getSensitiveFq(String userId) {
+
+        if (downloadAuthSensitive == null || !downloadAuthSensitive) {
+            return null;
+        }
+
+        String sensitiveFq = "";
+
+        for (String sensitiveRole : getSensitiveRolesForUser(userId)) {
+            if (sensitiveFq.length() > 0) {
+                sensitiveFq += " OR ";
+            }
+            sensitiveFq += "(" + sensitiveAccessRolesToSolrFilters.get(sensitiveRole) + ")";
+        }
+
+        if (sensitiveFq.length() == 0) {
+            return null;
+        }
+
+        if(logger.isDebugEnabled()) {
+            logger.debug("sensitiveOnly download requested for user: " + userId +
+                    ", using fq: " + sensitiveFq);
+        }
+
+        return sensitiveFq;
+    }
+
+    /**
+     * List the sensitive roles for a given user
+     * @param userId The user
+     * @return The sensitive roles for the user, the list will be empty if the user has no sensitive roles
+     */
+    public List<String> getSensitiveRolesForUser(String userId) {
+        List<String> userRoles = authService.getUserRoles(userId);
+
+        List<String> result = new ArrayList<>(sensitiveAccessRolesToSolrFilters.keySet());
+
+        result.retainAll(userRoles);
+
+        return result;
+    }
+
+
     private class DownloadCreatorImpl implements DownloadCreator {
         @Override
         public Callable<DownloadDetailsDTO> createCallable(final DownloadDetailsDTO currentDownload, final long executionDelay, final Semaphore capacitySemaphore, final ExecutorService parallelExecutor) {
@@ -935,14 +1178,23 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     && currentDownload.getRequestParams().getIncludeMisc()) {
                                 currentDownload.getRequestParams().setIncludeMisc(false);
                             }
+
+                            List<CreateDoiResponse> doiResponseList = null;
+                            Boolean mintDoi = currentDownload.getRequestParams().getMintDoi();
+
+                            if(mintDoi) {
+                                doiResponseList = new ArrayList<>();
+                            }
                             writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
                                     currentDownload.getIpAddress(), new CloseShieldOutputStream(fos), currentDownload.getIncludeSensitive(),
-                                    currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false, true, parallelExecutor);
+                                    currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false, true, parallelExecutor, doiResponseList);
                             // now that the download is complete email a link to the
                             // recipient.
+                            final String hubName = currentDownload.getRequestParams().getHubName() != null ? currentDownload.getRequestParams().getHubName() : "ALA";
                             String subject = messageSource.getMessage("offlineEmailSubject", null,
                                     biocacheDownloadEmailSubject.replace("[filename]",
-                                            currentDownload.getRequestParams().getFile()),
+                                            currentDownload.getRequestParams().getFile())
+                                    .replace("[hubName]",hubName),
                                     null);
 
                             if (currentDownload != null && currentDownload.getFileLocation() != null) {
@@ -952,19 +1204,44 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 new File(currentDownload.getFileLocation()).getParentFile().setExecutable(true, false);
                                 new File(currentDownload.getFileLocation()).getParentFile().getParentFile().setExecutable(true, false);
 
-                                String fileLocation = biocacheDownloadUrl + File.separator + URLEncoder.encode(currentDownload.getFileLocation().replace(biocacheDownloadDir + "/",""), "UTF-8").replace("%2F", "/").replace("+", "%20");
-                                String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
-                                String emailBodyHtml = biocacheDownloadEmailBody.replace("[url]", fileLocation)
+
+                                String archiveFileLocation = biocacheDownloadUrl + File.separator + URLEncoder.encode(currentDownload.getFileLocation().replace(biocacheDownloadDir + "/",""), "UTF-8").replace("%2F", "/").replace("+", "%20");
+
+                                String doiStr = "";
+                                String emailBody;
+                                String emailTemplate;
+                                String downloadFileLocation;
+                                if(mintDoi && doiResponseList != null && doiResponseList.size() > 0 && doiResponseList.get(0) != null) {
+                                    CreateDoiResponse doiResponse;
+                                    doiResponse = doiResponseList.get(0);
+
+                                    doiService.updateFile(doiResponse.getUuid(), currentDownload.getFileLocation());
+                                    doiStr = doiResponse.getDoi();
+                                    emailTemplate = biocacheDownloadDoiEmailTemplate;
+
+                                    final String doiLandingPage = currentDownload.getRequestParams().getDoiDisplayUrl() != null ? currentDownload.getRequestParams().getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
+                                    downloadFileLocation = doiLandingPage + doiStr;
+                                } else {
+                                    emailTemplate = biocacheDownloadEmailTemplate;
+                                    downloadFileLocation = archiveFileLocation;
+                                }
+
+                                emailBody = Files.toString(new File(emailTemplate), Charsets.UTF_8);
+
+                                final String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
+                                String emailBodyHtml = emailBody.replace("[url]", downloadFileLocation)
                                         .replace("[date]", currentDownload.getStartDateString())
-                                        .replace("[searchUrl]", searchUrl);
+                                        .replace("[searchUrl]", searchUrl)
+                                        .replace("[queryTitle]", currentDownload.getRequestParams().getDisplayString())
+                                        .replace("[doi]", doiStr);
                                 String body = messageSource.getMessage("offlineEmailBody",
-                                        new Object[]{fileLocation, searchUrl, currentDownload.getStartDateString()},
+                                        new Object[]{archiveFileLocation, searchUrl, currentDownload.getStartDateString()},
                                         emailBodyHtml, null);
 
                                 // save the statistics to the download directory
                                 try (FileOutputStream statsStream = FileUtils
                                         .openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()
-                                                + File.separator + "downloadStats.json"));) {
+                                                + File.separator + "downloadStats.json"))) {
                                     objectMapper.writeValue(statsStream, currentDownload);
                                 }
 
@@ -977,7 +1254,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             throw e;
                         } catch (CancellationException e) {
                             //download cancelled, do not send an email
-                        } catch (NoConnectionsAvailableException e) {
+                        } catch (com.datastax.driver.core.exceptions.DriverException e) {
                             logger.warn("Offline download failed. No connection with Cassandra. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage());
                             //return to queue in 5mins
                             doRetry = true;
@@ -1024,10 +1301,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                         + currentDownload.getFileLocation(), ex);
                             }
                         } finally {
-                            // incase of server up/down, only remove from queue
+                            // in case of server up/down, only remove from queue
                             // after emails are sent
                             if (!shuttingDown && !doRetry) {
-                                persistentQueueDAO.removeDownloadFromQueue(currentDownload);
+                                unregisterDownload(currentDownload);
                             }
                         }
                         return currentDownload;

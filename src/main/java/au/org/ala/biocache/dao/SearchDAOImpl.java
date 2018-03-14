@@ -113,7 +113,7 @@ public class SearchDAOImpl implements SearchDAO {
      * Limit search results - for performance reasons
      */
     @Value("${download.max:500000}")
-    protected Integer MAX_DOWNLOAD_SIZE = 500000;
+    public Integer MAX_DOWNLOAD_SIZE = 500000;
     /**
      * Throttle value used to split up large downloads from Solr.
      * Randomly set to a range of 100% up to 200% of the value given here in each case.
@@ -180,7 +180,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected String tmpShapefileDir;
 
     @Value("${download.unzipped.limit:10000}")
-    protected Integer unzippedLimit;
+    public Integer unzippedLimit;
 
     /**
      * Download properties
@@ -304,12 +304,6 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${max.boolean.clauses:1024}")
     private int maxBooleanClauses;
 
-    /**
-     * Default set of download fields to use.
-     */
-    @Value("${default.download.fields:id,catalogNumber,taxonConceptID.p,scientificName,vernacularName,scientificName.p,taxonRank.p,vernacularName.p,kingdom.p,phylum.p,classs.p,order.p,family.p,genus.p,species.p,subspecies.p,institutionCode,collectionCode,locality,decimalLatitude,decimalLongitude,geodeticDatum,decimalLatitude.p,decimalLongitude.p,coordinatePrecision,coordinateUncertaintyInMeters.p,country.p,stateProvince.p,minimumElevationInMeters,maximumElevationInMeters,minimumDepthInMeters,maximumDepthInMeters,individualCount,recordedBy,year.p,month.p,day.p,eventDate.p,eventTime.p,basisOfRecord,basisOfRecord.p,sex,preparations,informationWithheld.p,dataGeneralizations.p,speciesHabitats.p,outlierForLayers.p,taxonomicIssue.p,geospatiallyKosher,license.p}")
-    protected String defaultDownloadFields;
-
     private CountDownLatch postConstructFinished = new CountDownLatch(1);
 
     /**
@@ -385,6 +379,7 @@ public class SearchDAOImpl implements SearchDAO {
                 initServer();
             }
         }.start();
+        // FIXME: Why is this called here instead of after initServer completes in the independent thread?
         postConstructFinished.countDown();
     }
 
@@ -409,6 +404,9 @@ public class SearchDAOImpl implements SearchDAO {
         }
         speciesImageService.resetCache();
         speciesCountsService.resetCache();
+
+        listsService.refreshCache();
+        layersService.refreshCache();
     }
 
     /**
@@ -659,7 +657,7 @@ public class SearchDAOImpl implements SearchDAO {
         writeFacetToStream(requestParams, true, false, false, false, outputStream, null);
         outputStream.flush();
         outputStream.close();
-        String includedValues = outputStream.toString();
+        String includedValues = outputStream.toString("UTF-8");
         includedValues = includedValues == null ? "" : includedValues;
         String[] values = includedValues.split("\n");
         List<FieldResultDTO> list = new ArrayList<FieldResultDTO>();
@@ -796,6 +794,10 @@ public class SearchDAOImpl implements SearchDAO {
         boolean shouldLookupTaxon = lookupName && (searchParams.getFacets()[0].contains("_guid") || searchParams.getFacets()[0].contains("_lsid"));
         boolean shouldLookupAttribution = lookupName && searchParams.getFacets()[0].contains("_uid");
 
+        if (dd != null) {
+            dd.resetCounts();
+        }
+
         QueryResponse qr = runSolrQuery(solrQuery, searchParams);
         if (logger.isDebugEnabled()) {
             logger.debug("Retrieved facet results from server...");
@@ -806,13 +808,11 @@ public class SearchDAOImpl implements SearchDAO {
             //write the header line
             if (ff != null) {
                 String[] header = new String[]{ff.getName()};
-                // out.write(ff.getName().getBytes());
                 if (shouldLookupTaxon) {
                     header = speciesLookupService.getHeaderDetails(ff.getName(), includeCount, includeSynonyms);
                 } else if (shouldLookupAttribution){
                     header = (String[]) ArrayUtils.addAll(header, new String[]{"name", "count"});
                 } else if (includeCount) {
-                    //out.write(",Count".getBytes());
                     header = (String[]) ArrayUtils.add(header, "count");
                 }
                 if (includeLists) {
@@ -823,7 +823,6 @@ public class SearchDAOImpl implements SearchDAO {
                 try {
                     boolean addedNullFacet = false;
 
-                    //out.write("\n".getBytes());
                     //PAGE through the facets until we reach the end.
                     //do not continue when null facet is already added and the next facet is only null
                     while (ff.getValueCount() > 1 || !addedNullFacet || (ff.getValueCount() == 1 && ff.getValues().get(0).getName() != null)) {
@@ -931,13 +930,13 @@ public class SearchDAOImpl implements SearchDAO {
         if (qr.getResults().size() > 0) {
             FacetField ff = qr.getFacetField(searchParams.getFacets()[0]);
             if (ff != null && ff.getValueCount() > 0) {
-                out.write("latitude,longitude\n".getBytes());
+                out.write("latitude,longitude\n".getBytes(StandardCharsets.UTF_8));
                 //write the facets to file
                 for (FacetField.Count value : ff.getValues()) {
                     //String[] slatlon = value.getName().split(",");
                     if (value.getName() != null && value.getCount() > 0) {
-                        out.write(value.getName().getBytes());
-                        out.write("\n".getBytes());
+                        out.write(value.getName().getBytes(StandardCharsets.UTF_8));
+                        out.write("\n".getBytes(StandardCharsets.UTF_8));
                     }
                 }
             }
@@ -1002,7 +1001,7 @@ public class SearchDAOImpl implements SearchDAO {
             SolrQuery solrQuery = new SolrQuery();
             queryFormatUtils.formatSearchQuery(downloadParams);
 
-            String dFields = getDownloadFields(downloadParams);
+            String dFields = downloadParams.getFields();
 
             if (includeSensitive) {
                 //include raw latitude and longitudes
@@ -1166,7 +1165,7 @@ public class SearchDAOImpl implements SearchDAO {
             uidStats.put(hdr, new AtomicInteger(-2));
 
             //construct correct RecordWriter based on the supplied fileType
-            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ?
+            final RecordWriterError rw = downloadParams.getFileType().equals("csv") ?
                     new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) :
                     (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, header) :
                             new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
@@ -1264,16 +1263,16 @@ public class SearchDAOImpl implements SearchDAO {
                             // Otherwise write to the wrapped record writer
                             rw.write(take);
 
-//                            test for errors. This can contain a flush so only test occasionally
-//                            if (counter % resultsQueueLength == 0 && rw.hasError()) {
-//                                throw RecordWriterException.newRecordWriterException(dd, downloadParams, true, rw);
-//                            }
+                            //test for errors. This can contain a flush so only test occasionally
+                            if (counter % resultsQueueLength == 0 && rw.hasError()) {
+                                throw RecordWriterException.newRecordWriterException(dd, downloadParams, true, rw);
+                            }
 
                         }
-//                    } catch (RecordWriterException e) {
-//                        no trace information is available to print for these errors
-//                        logger.error(e.getMessage());
-//                        interruptFound.set(true);
+                    } catch (RecordWriterException e) {
+                        //no trace information is available to print for these errors
+                        logger.error(e.getMessage());
+                        interruptFound.set(true);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         interruptFound.set(true);
@@ -1485,8 +1484,8 @@ public class SearchDAOImpl implements SearchDAO {
                             // This will not block if finalise has been called previously in the current three implementations
                             rw.finalise();
                         } finally {
-                            if (rw != null && ((RecordWriterError) rw).hasError()) {
-                                throw RecordWriterException.newRecordWriterException(dd, downloadParams, true);
+                            if (rw != null && rw.hasError()) {
+                                throw RecordWriterException.newRecordWriterException(dd, downloadParams, true, rw);
                             } else {
                                 // Flush whatever output was still pending for more deterministic debugging
                                 out.flush();
@@ -1725,7 +1724,7 @@ public class SearchDAOImpl implements SearchDAO {
             String[] header = org.apache.commons.lang3.ArrayUtils.addAll(org.apache.commons.lang3.ArrayUtils.addAll(titles, qaTitles), analysisHeaders);
             //Create the Writer that will be used to format the records
             //construct correct RecordWriter based on the supplied fileType
-            final au.org.ala.biocache.RecordWriter rw = downloadParams.getFileType().equals("csv") ?
+            final RecordWriterError rw = downloadParams.getFileType().equals("csv") ?
                     new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) :
                     (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, header) :
                             new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
@@ -1879,7 +1878,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws Exception
      */
-    private int downloadRecords(DownloadRequestParams downloadParams, au.org.ala.biocache.RecordWriter writer,
+    private int downloadRecords(DownloadRequestParams downloadParams, RecordWriterError writer,
                                 Map<String, Integer> downloadLimit, ConcurrentMap<String, AtomicInteger> uidStats,
                                 String[] fields, String[] qaFields, int resultsCount, String dataResource, boolean includeSensitive,
                                 DownloadDetailsDTO dd, boolean limit, String[] analysisLayers) throws Exception {
@@ -1892,6 +1891,10 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setQuery(downloadParams.getFormattedQuery());
         //Only the fields specified below will be included in the results from the SOLR Query
         solrQuery.setFields("id", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid");
+
+        if (dd != null) {
+            dd.resetCounts();
+        }
 
         //get coordinates for analysis layer intersection
         if (analysisLayers.length > 0) {
@@ -1988,8 +1991,8 @@ public class SearchDAOImpl implements SearchDAO {
                 }
 
                 //test for errors
-                if (((RecordWriterError) writer).hasError()) {
-                    throw RecordWriterException.newRecordWriterException(dd, downloadParams, false);
+                if (writer.hasError()) {
+                    throw RecordWriterException.newRecordWriterException(dd, downloadParams, false, writer);
                 }
 
                 dd.setMiscFields(newMiscFields);
@@ -2471,7 +2474,6 @@ public class SearchDAOImpl implements SearchDAO {
         }
         return trDTO;
     }
-
 
     /**
      * Convenience method for running solr query
@@ -3116,62 +3118,6 @@ public class SearchDAOImpl implements SearchDAO {
         return facetResults;
     }
 
-//    private List<FacetResultDTO> getMultivalueFacetCounts(SolrQuery query, SpatialSearchRequestParams searchParams, List<String> facet) throws Exception {
-//        for (String s : facet) {
-//            query.addFacetField(s);
-//        }
-//
-//        int flimit = searchParams.getFlimit();
-//        query.setFacetLimit(-1);
-//
-//        QueryResponse response = runSolrQuery(query, searchParams);
-//        SearchResultDTO searchResults = processSolrResponse(searchParams, response, query, OccurrenceIndex.class);
-//
-//        //include paged facets when flimit > 0
-//        Collection<FacetResultDTO> facetResults = new ArrayList<FacetResultDTO>();
-//        if (searchParams.getFlimit() > 0) {
-//
-//            facetResults = searchResults.getFacetResults();
-//            if (facetResults != null) {
-//                for (FacetResultDTO fr : facetResults) {
-//                    if (fr.getFieldResult() != null && fr.getFieldResult().size() > 0) {
-//                        for (FacetField ff : response.getFacetFields()) {
-//                            fr.setCount(0);
-//                            if (ff != null && StringUtils.equals(ff.getName(), fr.getFieldName())) {
-//                                fr.setCount(ff.getValueCount());
-//                            }
-//                        }
-//                        //sort and apply limit and offset
-//                        Collections.sort(fr.getFieldResult(), new Comparator<FieldResultDTO>() {
-//                            @Override
-//                            public int compare(FieldResultDTO o1, FieldResultDTO o2) {
-//                                long result = o1.getCount() - o2.getCount();
-//                                if (result == 0) {
-//                                    return o1.getLabel() != null ? o1.getLabel().compareTo(o2.getLabel()) :
-//                                            (o2.getLabel() == null ? 0 : 1);
-//                                } else {
-//                                    return result > 0 ? -1 : 1;
-//                                }
-//                            }
-//                        });
-//                        int from = Math.min(fr.getFieldResult().size() - 1, searchParams.getFoffset());
-//                        int to = Math.min(fr.getFieldResult().size(), searchParams.getFoffset() + searchParams.getFlimit());
-//                        fr.setFieldResult(new ArrayList(fr.getFieldResult().subList(from, to)));
-//                    }
-//                }
-//            }
-//        } else {
-//            //only return totals counts
-//            for (FacetField ff :response.getFacetFields()) {
-//                facetResults.add(new FacetResultDTO(ff.getName(), null, ff.getValueCount()));
-//            }
-//        }
-//
-//        query.setFacetLimit(flimit);
-//
-//        return new ArrayList<FacetResultDTO>(facetResults);
-//    }
-
     @Override
     public Set<IndexFieldDTO> getIndexedFields() throws Exception {
         return getIndexedFields(false);
@@ -3576,10 +3522,16 @@ public class SearchDAOImpl implements SearchDAO {
             if (facetEntries != null && facetEntries.size() > 0) {
                 for (int i = 0; i < facetEntries.size(); i++) {
                     FacetField.Count fcount = facetEntries.get(i);
-                    String dataProviderName = collectionCache.getNameForCode(fcount.getName());
-                    if(dataProviderName != null){
-                        dataProviderList.add(new DataProviderCountDTO(fcount.getName(), dataProviderName, fcount.getCount()));
+
+                    //get data_provider value
+                    if (fcount.getName() == null) {
+                        dp[0] = "-data_provider:*";
+                    } else {
+                        dp[0] = fcount.getAsFilterQuery();
                     }
+                    requestParams.setFq(dp);
+                    String dataProviderName = getFacet(requestParams, "data_provider").getValues().get(0).getName();
+                    dataProviderList.add(new DataProviderCountDTO(fcount.getName(), dataProviderName, fcount.getCount()));
                 }
             }
         }
@@ -4117,9 +4069,9 @@ public class SearchDAOImpl implements SearchDAO {
             for (int i = 0; i <= 500; i += 100) {
                 LegendItem li;
                 if (i == 0) {
-                    li = new LegendItem(">0", "greaterThanZero",0, null);
+                    li = new LegendItem(">0", "",0, null);
                 } else {
-                    li = new LegendItem(String.valueOf(i), String.valueOf(i),0, null);
+                    li = new LegendItem(String.valueOf(i),  "",0, null);
                 }
                 li.setColour((((500 - i) / 2) << 8) | 0x00FF0000);
                 colours.add(li);
@@ -4211,13 +4163,5 @@ public class SearchDAOImpl implements SearchDAO {
             }
         }
         return bbox;
-    }
-
-    private String getDownloadFields(DownloadRequestParams downloadParams) {
-        String dFields = downloadParams.getFields();
-        if(StringUtils.isEmpty(dFields)){
-            dFields = defaultDownloadFields;
-        }
-        return dFields;
     }
 }
