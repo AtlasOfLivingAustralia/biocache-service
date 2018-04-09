@@ -216,7 +216,7 @@ public class FacetThemes {
                 new FacetDTO("type_status","index",null,null,null),
                 new FacetDTO("multimedia","count",null,null,null),
                 new FacetDTO("collector","index",null,null,null),
-                new FacetDTO("occurrence_status_s","index",null,null,null))
+                new FacetDTO("occurrence_status","index",null,null,null))
         );
 
         allThemes.add(new FacetTheme("Attribution",
