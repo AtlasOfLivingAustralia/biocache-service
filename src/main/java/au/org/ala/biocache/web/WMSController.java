@@ -1630,11 +1630,11 @@ public class WMSController extends AbstractSecureController{
         String q = request.getParameter("q");
         String[] fqs = request.getParameterValues("fq");
         if(!StringUtils.isEmpty(q)){
-            speciesAddress = speciesAddress + "&q=" + q;
+            speciesAddress = speciesAddress + "&q=" + URLEncoder.encode(q, "UTF-8");
         }
         if(fqs != null && fqs.length != 0){
            for(String fq: fqs){
-               speciesAddress = speciesAddress + "&fq=" + fq;
+               speciesAddress = speciesAddress + "&fq=" + URLEncoder.encode(fq, "UTF-8");
            }
         }
 
