@@ -234,7 +234,7 @@ public class WMSController extends AbstractSecureController{
 
         //move lat/lon/radius to fq
         if (requestParams.getLat() != null) {
-            String fq = queryFormatUtils.latLonPart(requestParams);
+            String fq = queryFormatUtils.buildSpatialQueryString(requestParams);
             queryFormatUtils.addFqs(new String[]{fq}, requestParams);
             requestParams.setLat(null);
             requestParams.setLon(null);

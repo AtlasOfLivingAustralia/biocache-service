@@ -965,7 +965,7 @@ public class QueryFormatUtils {
         return query.toString();
     }
 
-    protected String buildSpatialQueryString(SpatialSearchRequestParams searchParams) {
+    public String buildSpatialQueryString(SpatialSearchRequestParams searchParams) {
         if (searchParams != null) {
             StringBuilder sb = new StringBuilder();
             if (searchParams.getLat() != null) {
@@ -979,17 +979,6 @@ public class QueryFormatUtils {
         }
         return null;
     }
-//
-//    protected String buildSpatialQueryString(String fullTextQuery, Float latitude, Float longitude, Float radius) {
-//        String wkt = createCircleWkt(longitude, latitude, radius);
-//
-//        StringBuilder sb= new StringBuilder();
-//        sb.append(spatialField).append(":\"Intersects(").append(wkt).append(")\"");
-//        if(StringUtils.isNotEmpty(fullTextQuery)){
-//            sb.append(" AND (").append(fullTextQuery).append(")");
-//        }
-//        return sb.toString();
-//    }
 
     /**
      * Create circle WKT
@@ -1041,18 +1030,5 @@ public class QueryFormatUtils {
         double y = Math.asin(g) / (Math.PI / 180.0);
 
         return new double[]{x, y};
-    }
-
-    public String latLonPart(SpatialSearchRequestParams searchParams) {
-        StringBuilder sb = new StringBuilder();
-
-        if (searchParams.getLat() != null) {
-            sb.append(spatialField).append(":\"Intersects(Circle(");
-            sb.append(searchParams.getLon().toString()).append(" ").append(searchParams.getLat().toString());
-            sb.append(" d=").append(SpatialUtils.convertToDegrees(searchParams.getRadius()).toString());
-            sb.append("))\"");
-        }
-
-        return sb.toString();
     }
 }
