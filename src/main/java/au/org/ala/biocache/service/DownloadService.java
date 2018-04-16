@@ -139,10 +139,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.email.subject:ALA Occurrence Download Complete - [filename]}")
     protected String biocacheDownloadEmailSubject = "ALA Occurrence Download Complete - [filename]";
 
-    @Value("${download.email.template}")
+    @Value("${download.email.template:}")
     protected String biocacheDownloadEmailTemplate;
 
-    @Value("${download.doi.email.template}")
+    @Value("${download.doi.email.template:}")
     protected String biocacheDownloadDoiEmailTemplate;
 
     @Value("${download.email.subject.failure:Occurrence Download Failed - [filename]}")
@@ -151,10 +151,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.email.body.error:The download has failed.}")
     protected String biocacheDownloadEmailBodyError = "The download has failed.";
 
-    @Value("${download.readme.template}")
+    @Value("${download.readme.template:}")
     protected String biocacheDownloadReadmeTemplate;
 
-    @Value("${download.doi.readme.template}")
+    @Value("${download.doi.readme.template:}")
     protected String biocacheDownloadDoiReadmeTemplate;
 
     @Value("${download.doi.title.prefix:Occurrence download }")
