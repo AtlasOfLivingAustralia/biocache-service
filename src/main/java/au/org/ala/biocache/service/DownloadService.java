@@ -45,6 +45,7 @@ import org.apache.log4j.Logger;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.scale7.cassandra.pelops.exceptions.PelopsException;
 import org.springframework.beans.factory.annotation.Value;
 import org.json.simple.parser.ParseException;
 import org.springframework.context.ApplicationListener;
@@ -139,10 +140,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.email.subject:ALA Occurrence Download Complete - [filename]}")
     protected String biocacheDownloadEmailSubject = "ALA Occurrence Download Complete - [filename]";
 
-    @Value("${download.email.template}")
+    @Value("${download.email.template:}")
     protected String biocacheDownloadEmailTemplate;
 
-    @Value("${download.doi.email.template}")
+    @Value("${download.doi.email.template:}")
     protected String biocacheDownloadDoiEmailTemplate;
 
     @Value("${download.email.subject.failure:Occurrence Download Failed - [filename]}")
@@ -151,10 +152,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.email.body.error:The download has failed.}")
     protected String biocacheDownloadEmailBodyError = "The download has failed.";
 
-    @Value("${download.readme.template}")
+    @Value("${download.readme.template:}")
     protected String biocacheDownloadReadmeTemplate;
 
-    @Value("${download.doi.readme.template}")
+    @Value("${download.doi.readme.template:}")
     protected String biocacheDownloadDoiReadmeTemplate;
 
     @Value("${download.doi.title.prefix:Occurrence download }")
@@ -1255,26 +1256,17 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         } catch (CancellationException e) {
                             //download cancelled, do not send an email
                         } catch (com.datastax.driver.core.exceptions.DriverException e) {
-                            logger.warn("Offline download failed. Cassandra driver error. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation(), e);
+                            logger.warn("Offline download failed. Cassandra driver error. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage());
+                            logger.debug(e.getMessage(), e);
                             //return to queue in 5mins
                             doRetry = true;
-                            new Thread() {
-                                @Override
-                                public void run() {
-                                    try {
-                                        Thread.sleep(5*60*1000);
-                                        try {
-                                            FileUtils.deleteDirectory(new File(currentDownload.getFileLocation()).getParentFile());
-                                        } catch (IOException e) {
-                                            logger.error("Exception when attempting to delete failed download " +
-                                                    "directory before retrying: " + new File(currentDownload.getFileLocation()).getParent(), e);
-                                        }
-                                        currentDownload.setFileLocation(null);
-
-                                    } catch (InterruptedException e1) {
-                                    }
-                                }
-                            }.start();
+                            newRetryThread(currentDownload).start();
+                        } catch (PelopsException e) {
+                            logger.warn("Offline download failed. Cassandra error. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage());
+                            logger.debug(e.getMessage(), e);
+                            //return to queue in 5mins
+                            doRetry = true;
+                            newRetryThread(currentDownload).start();
                         } catch (Exception e) {
                             logger.error("Error in offline download, sending email. download path: "
                                     + currentDownload.getFileLocation(), e);
@@ -1313,5 +1305,26 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 }
             };
         }
+    }
+
+    private Thread newRetryThread(final DownloadDetailsDTO currentDownload) {
+        return new Thread() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(5*60*1000);
+                    try {
+                        FileUtils.deleteDirectory(new File(currentDownload.getFileLocation()).getParentFile());
+                    } catch (IOException e) {
+                        logger.error("Exception when attempting to delete failed download " +
+                                "directory before retrying: " + new File(currentDownload.getFileLocation()).getParent() +
+                                ", " + e.getMessage(), e);
+                    }
+                    currentDownload.setFileLocation(null);
+
+                } catch (InterruptedException e1) {
+                }
+            }
+        };
     }
 }

@@ -203,11 +203,10 @@ public class AlaLayersService implements LayersService {
     private Map initDistribution(String type) {
         Map<String, Integer> map = new HashMap<String, Integer>();
 
-        String url = null;
+        String url = layersServiceUrl + "/" + type;
         try {
-            if(org.apache.commons.lang.StringUtils.isNotBlank(url)) {
+            if(org.apache.commons.lang.StringUtils.isNotBlank(layersServiceUrl)) {
                 //get distributions
-                url = layersServiceUrl + "/" + type;
                 List json = restTemplate.getForObject(url, List.class);
                 if (json != null) {
                     for (int i = 0; i < json.size(); i++) {
