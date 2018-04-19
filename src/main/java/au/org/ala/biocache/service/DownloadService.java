@@ -45,6 +45,7 @@ import org.apache.log4j.Logger;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.scale7.cassandra.pelops.exceptions.PelopsException;
 import org.springframework.beans.factory.annotation.Value;
 import org.json.simple.parser.ParseException;
 import org.springframework.context.ApplicationListener;
@@ -1258,24 +1259,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             logger.warn("Offline download failed. No connection with Cassandra. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage());
                             //return to queue in 5mins
                             doRetry = true;
-                            new Thread() {
-                                @Override
-                                public void run() {
-                                    try {
-                                        Thread.sleep(5*60*1000);
-                                        try {
-                                            FileUtils.deleteDirectory(new File(currentDownload.getFileLocation()).getParentFile());
-                                        } catch (IOException e) {
-                                            logger.error("Exception when attempting to delete failed download " +
-                                                    "directory before retrying: " + new File(currentDownload.getFileLocation()).getParent() +
-                                                    ", " + e.getMessage(), e);
-                                        }
-                                        currentDownload.setFileLocation(null);
-
-                                    } catch (InterruptedException e1) {
-                                    }
-                                }
-                            }.start();
+                            newRetryThread(currentDownload).start();
+                        } catch (PelopsException e) {
+                            logger.warn("Offline download failed. No connection with Cassandra. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage());
+                            //return to queue in 5mins
+                            doRetry = true;
+                            newRetryThread(currentDownload).start();
                         } catch (Exception e) {
                             logger.error("Error in offline download, sending email. download path: "
                                     + currentDownload.getFileLocation(), e);
@@ -1314,5 +1303,26 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 }
             };
         }
+    }
+
+    private Thread newRetryThread(final DownloadDetailsDTO currentDownload) {
+        return new Thread() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(5*60*1000);
+                    try {
+                        FileUtils.deleteDirectory(new File(currentDownload.getFileLocation()).getParentFile());
+                    } catch (IOException e) {
+                        logger.error("Exception when attempting to delete failed download " +
+                                "directory before retrying: " + new File(currentDownload.getFileLocation()).getParent() +
+                                ", " + e.getMessage(), e);
+                    }
+                    currentDownload.setFileLocation(null);
+
+                } catch (InterruptedException e1) {
+                }
+            }
+        };
     }
 }
