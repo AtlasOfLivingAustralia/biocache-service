@@ -224,7 +224,9 @@ public class AlaLayersService implements LayersService {
         } catch (Exception ex) {
             //ignore errors for tracks
             if (!"tracks".equals(type)) {
-                logger.error("RestTemplate error for " + url + ": " + ex.getMessage(), ex);
+                logger.error("RestTemplate error for " + url, ex);
+            } else {
+                logger.warn("RestTemplate warning for " + url + ". This is not fatal", ex);
             }
         }
 
