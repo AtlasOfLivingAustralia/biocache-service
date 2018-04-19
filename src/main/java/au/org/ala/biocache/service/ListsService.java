@@ -73,30 +73,28 @@ public class ListsService {
             wait.countDown();
         }
 
-        if (enabled) {
+        if (enabled && StringUtils.isNotBlank(speciesListUrl)) {
 
             new Thread() {
                 @Override
                 public void run() {
-                    if(StringUtils.isNotBlank(speciesListUrl)) {
-                        try {
-                            HashMap map = new HashMap();
+                    try {
+                        HashMap map = new HashMap();
 
-                            Map threatened = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/?isThreatened=eq:true&isAuthoritative=eq:true"), Map.class);
-                            Map invasive = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/?isInvasive=eq:true&isAuthoritative=eq:true"), Map.class);
+                        Map threatened = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/?isThreatened=eq:true&isAuthoritative=eq:true"), Map.class);
+                        Map invasive = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/?isInvasive=eq:true&isAuthoritative=eq:true"), Map.class);
 
-                            if ((threatened != null && threatened.size() > 0) ||
-                                    (invasive != null && invasive.size() > 0)) {
-                                map.put("Conservation", getItemsMap(threatened));
-                                map.put("Invasive", getItemsMap(invasive));
+                        if ((threatened != null && threatened.size() > 0) ||
+                                (invasive != null && invasive.size() > 0)) {
+                            map.put("Conservation", getItemsMap(threatened));
+                            map.put("Invasive", getItemsMap(invasive));
 
-                                data = map;
-                            }
-                        } catch (Exception e) {
-                            logger.error("failed to get species lists for threatened or invasive species", e);
+                            data = map;
                         }
-                        wait.countDown();
+                    } catch (Exception e) {
+                        logger.error("failed to get species lists for threatened or invasive species", e);
                     }
+                    wait.countDown();
                 }
             }.start();
         } else {
