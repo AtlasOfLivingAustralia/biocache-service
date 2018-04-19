@@ -17,6 +17,7 @@ package au.org.ala.biocache.web;
 import au.org.ala.biocache.Store;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
+import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,7 +49,7 @@ public class AbstractSecureController {
      * 
      * FIXME: Why is the cache static?
      **/
-    private static Set<String> apiKeyCache = new HashSet<String>();
+    private static Set<String> apiKeyCache = new ConcurrentHashSet<>();
     
     public AbstractSecureController(){}
 
