@@ -3527,15 +3527,10 @@ public class SearchDAOImpl implements SearchDAO {
                 for (int i = 0; i < facetEntries.size(); i++) {
                     FacetField.Count fcount = facetEntries.get(i);
 
-                    //get data_provider value
-                    if (fcount.getName() == null) {
-                        dp[0] = "-data_provider:*";
-                    } else {
-                        dp[0] = fcount.getAsFilterQuery();
+                    String dataProviderName = collectionCache.getNameForCode(fcount.getName());
+                    if (StringUtils.isNotEmpty(dataProviderName)) {
+                        dataProviderList.add(new DataProviderCountDTO(fcount.getName(), dataProviderName, fcount.getCount()));
                     }
-                    requestParams.setFq(dp);
-                    String dataProviderName = getFacet(requestParams, "data_provider").getValues().get(0).getName();
-                    dataProviderList.add(new DataProviderCountDTO(fcount.getName(), dataProviderName, fcount.getCount()));
                 }
             }
         }
