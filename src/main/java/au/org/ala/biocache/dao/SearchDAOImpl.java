@@ -993,6 +993,10 @@ public class SearchDAOImpl implements SearchDAO {
                                                                               final ExecutorService nextExecutor) throws Exception {
         expandRequestedFields(downloadParams, true);
 
+        if (dd != null) {
+            dd.resetCounts();
+        }
+
         long start = System.currentTimeMillis();
         final ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
         getServer();
