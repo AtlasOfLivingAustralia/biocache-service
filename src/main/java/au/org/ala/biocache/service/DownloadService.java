@@ -1260,12 +1260,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         } catch (CancellationException e) {
                             //download cancelled, do not send an email
                         } catch (com.datastax.driver.core.exceptions.DriverException e) {
-                            logger.warn("Offline download failed. No connection with Cassandra. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage());
+                            logger.warn("Offline download failed. Cassandra driver error. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage());
+                            logger.debug(e.getMessage(), e);
                             //return to queue in 5mins
                             doRetry = true;
                             newRetryThread(currentDownload).start();
                         } catch (PelopsException e) {
-                            logger.warn("Offline download failed. No connection with Cassandra. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage());
+                            logger.warn("Offline download failed. Cassandra error. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage());
+                            logger.debug(e.getMessage(), e);
                             //return to queue in 5mins
                             doRetry = true;
                             newRetryThread(currentDownload).start();
