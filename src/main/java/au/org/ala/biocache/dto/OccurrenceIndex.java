@@ -19,6 +19,7 @@ import org.apache.commons.lang.time.DateFormatUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.beans.Field;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.gbif.dwca.record.DarwinCoreRecord;
 
 import java.util.Date;
 import java.util.HashMap;

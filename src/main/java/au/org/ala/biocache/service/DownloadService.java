@@ -112,6 +112,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Inject
     protected AuthService authService;
 
+    // when everything is indexed in SOLR, there will be no cassandra download unless requested
+    @Value("${download.solr.only:true}")
+    public Boolean downloadSolrOnly = Boolean.TRUE;
+
     // default value is supplied for the property below
     @Value("${webservices.root:http://localhost:8080/biocache-service}")
     public String webservicesRoot = "http://localhost:8080/biocache-service";

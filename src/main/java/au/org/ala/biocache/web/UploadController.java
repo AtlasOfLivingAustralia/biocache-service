@@ -852,7 +852,7 @@ class UploaderThread implements Runnable {
             map.put("userId", alaId);
         }
         if(!map.isEmpty()){
-            au.org.ala.biocache.Store.loadRecord(tempUid, map, false);
+            au.org.ala.biocache.Store.loadRecord(tempUid, map, true);
         }
     }
 

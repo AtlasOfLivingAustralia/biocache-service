@@ -52,6 +52,10 @@ import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
+import org.eclipse.jetty.util.ConcurrentHashSet;
+import org.gbif.dwc.terms.DcTerm;
+import org.gbif.dwc.terms.DwcTerm;
+import org.gbif.dwc.terms.Term;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
@@ -77,6 +81,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static com.google.common.base.CaseFormat.LOWER_CAMEL;
+import static com.google.common.base.CaseFormat.LOWER_HYPHEN;
+import static com.google.common.base.CaseFormat.LOWER_UNDERSCORE;
+import static org.apache.commons.lang3.StringUtils.capitalize;
+import static org.apache.commons.lang3.StringUtils.uncapitalize;
 
 /**
  * SOLR implementation of SearchDao. Uses embedded SOLR server (can be a memory hog).
@@ -223,6 +233,9 @@ public class SearchDAOImpl implements SearchDAO {
     @Inject
     protected ListsService listsService;
 
+    @Inject
+    protected DownloadService downloadService;
+
     @Value("${media.store.local:true}")
     protected Boolean usingLocalMediaRepo = true;
 
@@ -275,7 +288,7 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${media.dir:/data/biocache-media/}")
     public String biocacheMediaDir = "/data/biocache-media/";
 
-    private volatile Set<IndexFieldDTO> indexFields = RestartDataService.get(this, "indexFields", new TypeReference<TreeSet<IndexFieldDTO>>(){}, TreeSet.class);
+    private volatile Set<IndexFieldDTO> indexFields = new ConcurrentHashSet<IndexFieldDTO>(); //RestartDataService.get(this, "indexFields", new TypeReference<TreeSet<IndexFieldDTO>>(){}, TreeSet.class);
     private volatile Map<String, IndexFieldDTO> indexFieldMap = RestartDataService.get(this, "indexFieldMap", new TypeReference<HashMap<String, IndexFieldDTO>>(){}, HashMap.class);
     private final Map<String, StatsIndexFieldDTO> rangeFieldCache = new HashMap<String, StatsIndexFieldDTO>();
 
@@ -305,6 +318,9 @@ public class SearchDAOImpl implements SearchDAO {
     private int maxBooleanClauses;
 
     private CountDownLatch postConstructFinished = new CountDownLatch(1);
+
+    @Value("${layers.service.url:http://spatial.ala.org.au/ws}")
+    protected String layersServiceUrl;
 
     /**
      * Initialise the SOLR server instance
@@ -657,7 +673,7 @@ public class SearchDAOImpl implements SearchDAO {
         writeFacetToStream(requestParams, true, false, false, false, outputStream, null);
         outputStream.flush();
         outputStream.close();
-        String includedValues = outputStream.toString("UTF-8");
+        String includedValues = outputStream.toString(StandardCharsets.UTF_8);
         includedValues = includedValues == null ? "" : includedValues;
         String[] values = includedValues.split("\n");
         List<FieldResultDTO> list = new ArrayList<FieldResultDTO>();
@@ -3193,28 +3209,33 @@ public class SearchDAOImpl implements SearchDAO {
             if (fieldStr != null && !"".equals(fieldStr)) {
                 String[] fields = includeCounts ? fieldStr.split("\\}\\},") : fieldStr.split("\\},");
 
+                //sort fields for later use of indexOf
+                Arrays.sort(fields);
+
                 for (String field : fields) {
-                    formatIndexField(field, null, fieldList, typePattern, schemaPattern, indexToJsonMap, distinctPattern);
+                    formatIndexField(field, null, fieldList, typePattern, schemaPattern, indexToJsonMap, distinctPattern, fields);
                 }
             }
         }
 
         //add CASSANDRA fields that are not indexed
-        for (String cassandraField : Store.getStorageFieldMap().keySet()) {
-            boolean found = false;
-            //ignore fields with multiple items
-            if (cassandraField != null && !cassandraField.contains(",")) {
-                for (IndexFieldDTO field : fieldList) {
-                    if (field.isIndexed() || field.isStored()) {
-                        if (field.getDownloadName() != null && field.getDownloadName().equals(cassandraField)) {
+        if (!downloadService.downloadSolrOnly) {
+            for (String cassandraField : Store.getStorageFieldMap().keySet()) {
+                boolean found = false;
+                //ignore fields with multiple items
+                if (cassandraField != null && !cassandraField.contains(",")) {
+                    for (IndexFieldDTO field : fieldList) {
+                        if (field.isIndexed() || field.isStored()) {
+                            if (field.getDownloadName() != null && field.getDownloadName().equals(cassandraField)) {
 
-                            found = true;
-                            break;
+                                found = true;
+                                break;
+                            }
                         }
                     }
-                }
-                if (!found) {
-                    formatIndexField(cassandraField, cassandraField, fieldList, typePattern, schemaPattern, indexToJsonMap, distinctPattern);
+                    if (!found) {
+                        formatIndexField(cassandraField, cassandraField, fieldList, typePattern, schemaPattern, indexToJsonMap, distinctPattern, null);
+                    }
                 }
             }
         }
@@ -3222,7 +3243,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     private void formatIndexField(String indexField, String cassandraField, Set<IndexFieldDTO> fieldList, Pattern typePattern,
-                                  Pattern schemaPattern, Map indexToJsonMap, Pattern distinctPattern) {
+                                  Pattern schemaPattern, Map indexToJsonMap, Pattern distinctPattern, String[] sortedFieldNames) {
 
         if (indexField != null && !"".equals(indexField)) {
             IndexFieldDTO f = new IndexFieldDTO();
@@ -3241,7 +3262,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
 
             //don't allow the sensitive coordinates to be exposed via ws and don't allow index fields without schema
-            if (fieldName != null && !fieldName.startsWith("sensitive_") && (cassandraField != null || schema != null)) {
+            if (StringUtils.isNotEmpty(fieldName) && !fieldName.startsWith("sensitive_") && (cassandraField != null || schema != null)) {
 
                 f.setName(fieldName);
                 if (type != null) f.setDataType(type);
@@ -3267,26 +3288,35 @@ public class SearchDAOImpl implements SearchDAO {
                 //   translated using facetName.value= in /facets/i18n
                 //8. class value for this field
                 if (layersPattern.matcher(fieldName).matches()) {
+                    f.setDownloadName(fieldName);
                     String description = layersService.getLayerNameMap().get(fieldName);
                     f.setDescription(description);
+                    f.setDownloadDescription(description);
+                    f.setInfo(layersServiceUrl + "/layers/view/more/" + fieldName);
                 } else {
                     //(5) check as a downloadField
-                    String downloadField = cassandraField != null ? cassandraField : Store.getIndexFieldMap().get(fieldName);
-                    //exclude compound fields
-                    if (downloadField != null && downloadField.contains(",")) downloadField = null;
+                    String downloadField = fieldName;
+                    if (cassandraField != null) {
+                        downloadField = cassandraField;
+                    } else if (!downloadService.downloadSolrOnly) {
+                        downloadField = Store.getIndexFieldMap().get(fieldName);
+                        //exclude compound fields
+                        if (downloadField != null && downloadField.contains(",")) downloadField = null;
+                    }
                     if (downloadField != null) {
                         f.setDownloadName(downloadField);
+                    }
 
-                        //(6) downloadField description
-                        String downloadFieldDescription = messageSource.getMessage(downloadField, null, "", Locale.getDefault());
-                        if (downloadFieldDescription.length() > 0) {
-                            f.setDownloadDescription(downloadFieldDescription);
-                        }
+                    //(6) downloadField description
+                    String downloadFieldDescription = messageSource.getMessage(downloadField, null, "", Locale.getDefault());
+                    if (downloadFieldDescription.length() > 0) {
+                        f.setDownloadDescription(downloadFieldDescription);
+                        f.setDescription(downloadFieldDescription); //(1)
                     }
 
                     //(1) check as a field name
                     String description = messageSource.getMessage("facet." + fieldName, null, "", Locale.getDefault());
-                    if (description.length() > 0 && downloadField == null) {
+                    if (description.length() > 0 && (downloadField == null || downloadService.downloadSolrOnly)) {
                         f.setDescription(description);
                     } else if (downloadField != null) {
                         description = messageSource.getMessage(downloadField, null, "", Locale.getDefault());
@@ -3297,7 +3327,7 @@ public class SearchDAOImpl implements SearchDAO {
 
                     //(2) check as a description
                     String info = messageSource.getMessage("description." + fieldName, null, "", Locale.getDefault());
-                    if (info.length() > 0 && downloadField == null) {
+                    if (info.length() > 0 && (downloadField == null || downloadService.downloadSolrOnly)) {
                         f.setInfo(info);
                     } else if (downloadField != null) {
                         info = messageSource.getMessage("description." + downloadField, null, "", Locale.getDefault());
@@ -3307,20 +3337,62 @@ public class SearchDAOImpl implements SearchDAO {
                     }
 
                     //(3) check as a dwcTerm
-                    String dwcTerm = messageSource.getMessage("dwc." + fieldName, null, "", Locale.getDefault());
-                    if (dwcTerm.length() > 0 && downloadField == null) {
-                        f.setDwcTerm(dwcTerm);
-                    } else if (downloadField != null) {
-                        dwcTerm = messageSource.getMessage("dwc." + downloadField, null, "", Locale.getDefault());
+                    String camelCase;
+                    boolean isRaw;
+                    if (fieldName.startsWith("raw_")) {
+                        camelCase = LOWER_UNDERSCORE.to(LOWER_CAMEL, fieldName.replace("raw_",""));
+                        isRaw = true;
+                    } else {
+                        camelCase = LOWER_UNDERSCORE.to(LOWER_CAMEL, fieldName);
+                        isRaw = false;
+                    }
+                    Term term = null;
+                    try {
+                        //find matching Darwin core term
+                        term = DwcTerm.valueOf(camelCase);
+                    } catch (IllegalArgumentException e) {
+                        //enum not found
+                    }
+                    boolean dcterm = false;
+                    try {
+                        //find matching Dublin core terms that are not in miscProperties
+                        // include case fix for rightsHolder
+                        term = DcTerm.valueOf(camelCase.replaceAll("rightsholder", "rightsHolder"));
+                        dcterm = true;
+                    } catch (IllegalArgumentException e) {
+                        //enum not found
+                    }
+                    if (term == null) {
+                        //look in message properties. This is for irregular fieldName to DwcTerm matches
+                        String dwcTerm = messageSource.getMessage("dwc." + fieldName, null, "", Locale.getDefault());
+                        if (downloadField != null) {
+                            dwcTerm = messageSource.getMessage("dwc." + downloadField, null, "", Locale.getDefault());
+                        }
                         if (dwcTerm.length() > 0) {
                             f.setDwcTerm(dwcTerm);
+                        }
+                    } else {
+                        boolean isRawAndHasProcessed = isRaw &&
+                                Arrays.binarySearch(sortedFieldNames, fieldName.replace("raw_","")) >= 0;
+
+                        // Only add _raw to the DwcTerm name when there is also a processed field.
+                        if (isRawAndHasProcessed) {
+                            f.setDwcTerm(term.simpleName() + "_raw");
+                        } else {
+                            f.setDwcTerm(term.simpleName());
+                        }
+
+                        if (term instanceof DwcTerm) {
+                            f.setClasss(((DwcTerm) term).getGroup()); //(8)
+                        } else {
+                            f.setClasss(DwcTerm.GROUP_RECORD); // Assign dcterms to the Record group.
                         }
                     }
 
                     //append dwc url to info
-                    if (!dwcTerm.isEmpty() && StringUtils.isNotEmpty(dwcUrl)) {
+                    if (!dcterm && f.getDwcTerm() != null && !f.getDwcTerm().isEmpty() && StringUtils.isNotEmpty(dwcUrl)) {
                         if (info.length() > 0) info += " ";
-                        f.setInfo(info + dwcUrl + dwcTerm.replace("_raw", ""));
+                        f.setInfo(info + dwcUrl + f.getDwcTerm().replace("_raw", ""));
                     }
 
                     //(4) check as json name
@@ -3335,15 +3407,13 @@ public class SearchDAOImpl implements SearchDAO {
                         f.setI18nValues("true".equalsIgnoreCase(i18nValues));
                     }
 
-                    //(8) get class
+                    //(8) get class. This will override any DwcTerm.group
                     String classs = messageSource.getMessage("class." + fieldName, null, "", Locale.getDefault());
-                    if (classs.length() > 0 && downloadField == null) {
-                        f.setClasss(classs);
-                    } else if (downloadField != null) {
+                    if (downloadField != null && !downloadService.downloadSolrOnly) {
                         classs = messageSource.getMessage("class." + downloadField, null, "", Locale.getDefault());
-                        if (classs.length() > 0) {
-                            f.setClasss(classs);
-                        }
+                    }
+                    if (classs.length() > 0) {
+                        f.setClasss(classs);
                     }
                 }
                 fieldList.add(f);
@@ -4162,5 +4232,45 @@ public class SearchDAOImpl implements SearchDAO {
             }
         }
         return bbox;
+    }
+
+    @Override
+    public List<String> listFacets(SpatialSearchRequestParams searchParams) throws Exception {
+        queryFormatUtils.formatSearchQuery(searchParams);
+        searchParams.setFacet(true);
+        searchParams.setFacets(new String[]{});
+
+        String queryString = searchParams.getFormattedQuery();
+        SolrQuery solrQuery = initSolrQuery(searchParams, false, null); // general search settings
+        solrQuery.setQuery(queryString);
+        solrQuery.setFacetLimit(-1);
+        solrQuery.setRows(0);
+
+        if (searchParams.getFormattedFq() != null) {
+            for (String fq : searchParams.getFormattedFq()) {
+                if (StringUtils.isNotEmpty(fq)) {
+                    solrQuery.addFilterQuery(fq);
+                }
+            }
+        }
+
+        ArrayList<String> found = new ArrayList<>();
+
+        for (IndexFieldDTO s : indexFields) {
+            // this only works for non-tri fields
+            if (!s.getDataType().startsWith("t")) {
+                solrQuery.set("facet.field", "{!facet.method=enum facet.exists=true}" + s.getName());
+
+                QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
+
+                for (FacetField f : qr.getFacetFields()) {
+                    if (!f.getValues().isEmpty()) {
+                        found.add(f.getName());
+                    }
+                }
+            }
+        }
+
+        return found;
     }
 }

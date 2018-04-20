@@ -427,4 +427,12 @@ public interface SearchDAO {
      * @return
      */
     double[] getBBox(SpatialSearchRequestParams requestParams) throws Exception;
+
+    /**
+     * list facets available to the search query
+     *
+     * @param searchParams
+     * @return
+     */
+    List<String> listFacets(SpatialSearchRequestParams searchParams) throws Exception;
 }

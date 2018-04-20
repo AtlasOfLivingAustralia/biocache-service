@@ -146,24 +146,24 @@ public class DownloadController extends AbstractSecureController {
             HttpServletRequest request) throws Exception {
 
         if (StringUtils.isEmpty(requestParams.getEmail())) {
-            logger.error("Required parameter 'email' is not present");
             response.sendError(400, "Required parameter 'email' is not present");
-            return null;
         }
 
-        //download from index when there are no CASSANDRA fields requested
-        boolean hasDBColumn = requestParams.getIncludeMisc();
-        String fields = requestParams.getFields() + "," + requestParams.getExtra();
-        if (fields.length() > 1) {
-            Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
-            for (String column : fields.split(",")) {
-                for (IndexFieldDTO field : indexedFields) {
-                    if (!field.isStored() && field.getDownloadName() != null && field.getDownloadName().equals(column)) {
-                        hasDBColumn = true;
-                        break;
+        //download from index only when there are no CASSANDRA fields requested and not everything is in SOLR
+        boolean hasDBColumn = !downloadService.downloadSolrOnly && requestParams.getIncludeMisc();
+        if (!downloadService.downloadSolrOnly) {
+            String fields = requestParams.getFields() + "," + requestParams.getExtra();
+            if (fields.length() > 1) {
+                Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
+                for (String column : fields.split(",")) {
+                    for (IndexFieldDTO field : indexedFields) {
+                        if (!field.isStored() && field.getDownloadName() != null && field.getDownloadName().equals(column)) {
+                            hasDBColumn = true;
+                            break;
+                        }
                     }
+                    if (hasDBColumn) break;
                 }
-                if (hasDBColumn) break;
             }
         }
 
@@ -182,9 +182,7 @@ public class DownloadController extends AbstractSecureController {
                 includeSensitive = true;
             }
         } else if (StringUtils.isEmpty(requestParams.getEmail())) {
-            logger.error("Unable to perform an offline download without an email address");
             response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
-            return null;
         }
 
         //Pre SDS roles the sensitive flag controlled access to sensitive data.
