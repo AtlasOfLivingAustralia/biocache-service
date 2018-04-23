@@ -24,6 +24,7 @@ import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.springframework.stereotype.Component;
 
+import javax.inject.Inject;
 import java.io.Writer;
 import java.net.URLEncoder;
 import java.util.ArrayList;
@@ -36,20 +37,10 @@ public class TaxonDAOImpl implements TaxonDAO {
     protected SolrClient server;
 
     /**
-     * Initialise the SOLR server instance
+     * SOLR client instance
      */
-    public TaxonDAOImpl() {
-        if (this.server == null) {
-            try {
-                //use the solr server that has been in the biocache-store...
-                SolrIndexDAO dao = (SolrIndexDAO) au.org.ala.biocache.Config.getInstance(IndexDAO.class);
-                dao.init();
-                server = dao.solrServer();
-            } catch (Exception ex) {
-                logger.error("Error initialising embedded SOLR server: " + ex.getMessage(), ex);
-            }
-        }
-    }
+    @Inject
+    private SolrClient solrClient;
 
     public void extractBySpeciesGroups(String metadataUrl, String q, String[] fq, Writer writer) throws Exception{
 
@@ -183,7 +174,7 @@ public class TaxonDAOImpl implements TaxonDAO {
         if(filterQueries != null){
             for(String fq: filterQueries) query.addFilterQuery(fq);
         }
-        QueryResponse response = server.query(query);
+        QueryResponse response = solrClient.query(query);
         List<FacetField.Count> fc = response.getFacetField(facetName).getValues();
         if(fc == null){
             fc = new ArrayList<FacetField.Count>();

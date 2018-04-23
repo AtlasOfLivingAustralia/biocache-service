@@ -145,67 +145,39 @@ public class OccurrenceController extends AbstractSecureController {
     protected Integer maxOnlineDownloadThreads = 30;
 
     private ExecutorService executor;
+
     
-    private final AtomicBoolean initialised = new AtomicBoolean(false);
-    
-    private final CountDownLatch initialisationLatch = new CountDownLatch(1);
+//    private final CountDownLatch initialisationLatch = new CountDownLatch(1);
     
     @PostConstruct
-    public void init() {
-        // Avoid starting multiple copies of the initialisation thread by repeat calls to this method
-        if(initialised.compareAndSet(false, true)) {
-            String nameFormat = "occurrencecontroller-pool-%d";
-            executor = Executors.newFixedThreadPool(maxOnlineDownloadThreads,
-                    new ThreadFactoryBuilder().setNameFormat(nameFormat).setPriority(Thread.MIN_PRIORITY).build());
-            
-            //init on a thread because SOLR may not yet be up and waiting can prevent SOLR from starting
-            Thread initialisationThread = new Thread() {
-                @Override
-                public void run() {
-                    try {
-                        while (true) {
-                            try {
-                                Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
-        
-                                if (indexedFields != null) {
-                                    //init FacetThemes static values
-                                    new FacetThemes(facetConfig, indexedFields, facetsMax, facetsDefaultMax, facetDefault);
-        
-                                    //successful
-                                    break;
-                                }
-                            } catch (Exception e) {
-                                logger.error("Failed to update indexedFields. Retrying...", e);
-                            }
-                            try {
-                                //wait before trying again
-                                Thread.sleep(10000);
-                            } catch (InterruptedException e) {
-                                break;
-                            }
-                        }
-                    } finally {
-                        initialisationLatch.countDown();
-                    }
-                }
-            };
-            // Have been having issues with initialisation, set to maximum priority to test if it has benefit
-            initialisationThread.setPriority(Thread.MAX_PRIORITY);
-            initialisationThread.setName("biocache-occurrencecontroller-initialisation");
-            initialisationThread.start();
+    public void init() throws Exception {
+
+        logger.debug("Initialising OccurrenceController");
+
+        String nameFormat = "occurrencecontroller-pool-%d";
+        executor = Executors.newFixedThreadPool(maxOnlineDownloadThreads,
+                new ThreadFactoryBuilder().setNameFormat(nameFormat).setPriority(Thread.MIN_PRIORITY).build());
+
+        Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
+
+        if (indexedFields != null) {
+            //init FacetThemes static values
+            new FacetThemes(facetConfig, indexedFields, facetsMax, facetsDefaultMax, facetDefault);
         }
     }
 
     /**
      * Call this method at the start of web service calls that require initialisation to be complete before continuing.
      * This blocks until it is either interrupted or the initialisation thread from {@link #init()} is finished (successful or not).
+     * @Deprecated No longer support embbeded Solr server, this will help to get rid of our own multithreaded initialisation and use full Spring DI instead
      */
+    @Deprecated
     private final void afterInitialisation() {
-        try {
-            initialisationLatch.await();
-        } catch(InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+//        try {
+//            initialisationLatch.await();
+//        } catch(InterruptedException e) {
+//            Thread.currentThread().interrupt();
+//        }
     }
     
     public Pattern getTaxonIDPattern(){

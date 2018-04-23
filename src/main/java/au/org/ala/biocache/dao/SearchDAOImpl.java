@@ -20,8 +20,6 @@ import au.org.ala.biocache.Config;
 import au.org.ala.biocache.RecordWriter;
 import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dto.*;
-import au.org.ala.biocache.index.IndexDAO;
-import au.org.ala.biocache.index.SolrIndexDAO;
 import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import au.org.ala.biocache.util.*;
@@ -40,7 +38,6 @@ import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.*;
 import org.apache.solr.client.solrj.beans.DocumentObjectBinder;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
-import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.client.solrj.response.FacetField.Count;
@@ -83,13 +80,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static com.google.common.base.CaseFormat.LOWER_CAMEL;
-import static com.google.common.base.CaseFormat.LOWER_HYPHEN;
 import static com.google.common.base.CaseFormat.LOWER_UNDERSCORE;
-import static org.apache.commons.lang3.StringUtils.capitalize;
-import static org.apache.commons.lang3.StringUtils.uncapitalize;
 
 /**
- * SOLR implementation of SearchDao. Uses embedded SOLR server (can be a memory hog).
+ * SOLR implementation of SearchDao.
  *
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  * @see au.org.ala.biocache.dao.SearchDAO
@@ -99,7 +93,7 @@ import static org.apache.commons.lang3.StringUtils.uncapitalize;
 public class SearchDAOImpl implements SearchDAO {
 
     /**
-     * log4 j logger
+     * log4j logger
      */
     private static final Logger logger = Logger.getLogger(SearchDAOImpl.class);
 
@@ -115,9 +109,11 @@ public class SearchDAOImpl implements SearchDAO {
     private static final String[] notSensitiveSOLRHdr = {"longitude", "latitude", "locality"};
 
     /**
-     * SOLR server instance
+     * SOLR client instance
      */
-    protected volatile SolrClient server;
+    @Inject
+    protected SolrClient solrClient;
+
     protected SolrRequest.METHOD queryMethod;
     /**
      * Limit search results - for performance reasons
@@ -317,8 +313,6 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${max.boolean.clauses:1024}")
     private int maxBooleanClauses;
 
-    private CountDownLatch postConstructFinished = new CountDownLatch(1);
-
     @Value("${layers.service.url:http://spatial.ala.org.au/ws}")
     protected String layersServiceUrl;
 
@@ -328,86 +322,33 @@ public class SearchDAOImpl implements SearchDAO {
     public SearchDAOImpl() {
     }
 
-    private SolrClient getServer() {
-        SolrClient result = server;
-        if (result == null) {
-            synchronized (this) {
-                result = server;
-                if (result == null) {
-                    int retry = 0;
-                    while (result == null && retry < maxRetries) {
-                        retry++;
-                        if (retryWait > 0) {
-                            try {
-                                Thread.sleep(retryWait);
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                            }
-                        }
-                        result = server = initServer();
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
-    private SolrClient initServer() {
-        SolrClient result = server;
-        if (result == null) {
-            synchronized (this) {
-                result = server;
-                if (result == null) {
-                    try {
-                        // use the solr server that has been in the biocache-store...
-                        SolrIndexDAO dao = (SolrIndexDAO) au.org.ala.biocache.Config
-                                .getInstance(IndexDAO.class);
-                        dao.init();
-                        result = server = dao.solrServer();
-                        queryMethod = result instanceof EmbeddedSolrServer ? SolrRequest.METHOD.GET : SolrRequest.METHOD.POST;
-                        if (logger.isDebugEnabled()) {
-                            logger.debug("The server " + result.getClass());
-                        }
-                        // TODO: There was a note about possible issues with the following two lines
-                        Set<IndexFieldDTO> indexedFields = getIndexedFields();
-                        if (downloadFields == null) {
-                            downloadFields = new DownloadFields(indexedFields, messageSource, layersService);
-                        } else {
-                            downloadFields.update(indexedFields);
-                        }
-
-                        getMaxBooleanClauses();
-                    } catch (Exception ex) {
-                        logger.error("Error initialising embedded SOLR server: " + ex.getMessage(), ex);
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
     @PostConstruct
-    public void init() {
-        //avoid locking if SOLR is not up
-        new Thread() {
-            @Override
-            public void run() {
-                initServer();
-            }
-        }.start();
-        // FIXME: Why is this called here instead of after initServer completes in the independent thread?
-        postConstructFinished.countDown();
+    public void init() throws Exception {
+
+        logger.debug("Initialising SearchDAOImpl");
+
+        queryMethod = solrClient instanceof EmbeddedSolrServer ? SolrRequest.METHOD.GET : SolrRequest.METHOD.POST;
+
+        // TODO: There was a note about possible issues with the following two lines
+        Set<IndexFieldDTO> indexedFields = getIndexedFields();
+        if (downloadFields == null) {
+            downloadFields = new DownloadFields(indexedFields, messageSource, layersService);
+        } else {
+            downloadFields.update(indexedFields);
+        }
+
+        getMaxBooleanClauses();
+
     }
 
-    public void waitForPostConstruct() {
-        try {
-            postConstructFinished.await();
-        } catch (InterruptedException e) {
-        }
-    }
 
     public void refreshCaches() {
-        initServer();
+
+        try {
+            init(); // In the past the call internally logged the exception but the caller was unaware of any issues
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
         collectionCache.updateCache();
         //empties the range cache to allow the settings to be recalculated.
@@ -1015,7 +956,6 @@ public class SearchDAOImpl implements SearchDAO {
 
         long start = System.currentTimeMillis();
         final ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
-        getServer();
 
         try {
             SolrQuery solrQuery = new SolrQuery();
@@ -3741,7 +3681,7 @@ public class SearchDAOImpl implements SearchDAO {
                     logger.debug("SOLR query:" + query.toString());
                 }
 
-                qr = getServer().query(query, queryMethod == null ? this.queryMethod : queryMethod); // can throw exception
+                qr = solrClient.query(query, queryMethod == null ? this.queryMethod : queryMethod); // can throw exception
             } catch (SolrServerException e) {
                 //want to retry IOException and Proxy Error
                 if (retry < maxRetries && (e.getMessage().contains("IOException") || e.getMessage().contains("Proxy Error"))) {

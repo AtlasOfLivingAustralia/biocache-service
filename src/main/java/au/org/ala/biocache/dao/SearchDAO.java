@@ -416,11 +416,6 @@ public interface SearchDAO {
     int getMaxBooleanClauses();
 
     /**
-     * Wait for @PostConstruct to complete
-     */
-    void waitForPostConstruct();
-
-    /**
      * get bounding box for a query.
      *
      * @param requestParams

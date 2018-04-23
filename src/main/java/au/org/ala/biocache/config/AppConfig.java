@@ -1,10 +1,14 @@
 package au.org.ala.biocache.config;
 
+import au.org.ala.biocache.index.IndexDAO;
+import au.org.ala.biocache.index.SolrIndexDAO;
 import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.service.SpeciesLookupIndexService;
 import au.org.ala.biocache.service.SpeciesLookupRestService;
 import au.org.ala.biocache.service.SpeciesLookupService;
+import io.netty.util.internal.InternalThreadLocalMap;
 import org.apache.log4j.Logger;
+import org.apache.solr.client.solrj.SolrClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -105,5 +109,23 @@ public class AppConfig {
         } else {
             return null;
         }
+    }
+
+    public @Bean(name = "solrClient")
+    SolrClient solrClientBean() {
+
+        SolrClient result;
+
+        SolrIndexDAO dao = (SolrIndexDAO) au.org.ala.biocache.Config
+                .getInstance(IndexDAO.class);
+        dao.init();
+        result = dao.solrServer();
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("solrClient initialised, Type: " + result.getClass());
+        }
+
+        return result;
+
     }
 }
