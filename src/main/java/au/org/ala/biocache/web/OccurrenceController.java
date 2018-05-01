@@ -363,9 +363,11 @@ public class OccurrenceController extends AbstractSecureController {
                         (dataType == null || dataTypes.contains(i.getDataType())) &&
                         (classs == null || classss.contains(i.getClasss())) &&
                         (isMisc || !i.getName().startsWith("_")) &&
-                        ( (isDwc == null || isDwc == StringUtils.isNotEmpty(i.getDwcTerm())) &&
-                                // Only allow fields with Dwc if the download attribute is also present
-                                ((StringUtils.isEmpty(i.getDwcTerm())) || StringUtils.isNotEmpty(i.getDwcTerm()) && StringUtils.isNotEmpty(i.getDownloadName())))){
+                        (isDwc == null || isDwc == StringUtils.isNotEmpty(i.getDwcTerm())))
+//                                &&
+//                                // Only allow fields with Dwc if the download attribute is also present
+//                                ((StringUtils.isEmpty(i.getDwcTerm())) || StringUtils.isNotEmpty(i.getDwcTerm()) && StringUtils.isNotEmpty(i.getDownloadName()))))
+                {
                     filtered.add(i);
                 }
             }
