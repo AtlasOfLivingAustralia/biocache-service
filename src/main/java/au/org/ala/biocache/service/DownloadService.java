@@ -671,9 +671,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
                         .replace("[dataProviders]", dataProviders)
                         .replace("[doi]", doi);
-                if (logger.isDebugEnabled()) {
-                    logger.debug(readmeContent);
-                }
+//                if (logger.isDebugEnabled()) {
+//                    logger.debug(readmeContent);
+//                }
                 sp.write(readmeContent.getBytes(StandardCharsets.UTF_8));
                 sp.write(("For more information about the fields that are being downloaded please consult <a href='"
                         + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes(StandardCharsets.UTF_8));
@@ -815,10 +815,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         if (record != null) {
                             final int UID=0;
                             final int NAME=1;
-                            final int CITATION=2;
-                            final int RIGHTS=3;
-                            final int LINK=4;
-                            final int COUNT=8;
+                            final int CITATION=3;
+                            final int RIGHTS=4;
+                            final int LINK=5;
+                            final int COUNT=9;
 
 
                             String count = uidStats.get(record.get("uid")).toString();
@@ -831,7 +831,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     getOrElse(record, "link", ""),
                                     getOrElse(record, "dataGeneralizations", ""),
                                     getOrElse(record, "informationWithheld", ""),
-                                    getOrElse(record, "downloadLimit", ""), count };
+                                    getOrElse(record, "downloadLimit", ""),
+                                    count };
                             writer.writeNext(row);
 
                             if (readmeCitations != null) {
