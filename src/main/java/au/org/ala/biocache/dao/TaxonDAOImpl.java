@@ -14,8 +14,6 @@
  ***************************************************************************/
 package au.org.ala.biocache.dao;
 
-import au.org.ala.biocache.index.IndexDAO;
-import au.org.ala.biocache.index.SolrIndexDAO;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrClient;
