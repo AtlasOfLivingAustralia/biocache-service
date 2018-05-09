@@ -1314,6 +1314,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         return new Thread() {
             @Override
             public void run() {
+            	boolean showErrorMessage = true;
                 try {
                     Thread.sleep(5*60*1000);
                     try {
@@ -1324,11 +1325,16 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 ", " + e.getMessage(), e);
                     }
                     currentDownload.setFileLocation(null);
-
+                    // If we get successfully to this line, do not log an error message
+                    showErrorMessage = false;
                 } catch (InterruptedException e1) {
                     Thread.currentThread().interrupt();
-                    logger.warn("Interrupted while waiting to delete failed download: directory before retrying: " + new File(currentDownload.getFileLocation()).getParent() +
+                    logger.error("Interrupted while waiting to delete failed download: directory before retrying: " + new File(currentDownload.getFileLocation()).getParent() +
                                 ", " + e1.getMessage(), e1);
+                } finally {
+                	if (showErrorMessage) {
+                        logger.error("Did not successfully wait for retry download timeout: " + new File(currentDownload.getFileLocation()).getParent());
+                	}
                 }
             }
         };
