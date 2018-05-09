@@ -545,20 +545,20 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
             sp.closeEntry();
 
-            if (uidStats != null && !uidStats.isEmpty()) {
-                // add the readme for the Shape file header mappings if necessary
-                if (dd.getHeaderMap() != null) {
-                    sp.putNextEntry("Shape-README.html");
-                    sp.write(
-                            ("The name of features is limited to 10 characters. Listed below are the mappings of feature name to download field:")
-                                    .getBytes(StandardCharsets.UTF_8));
-                    sp.write(("<table><td><b>Feature</b></td><td><b>Download Field<b></td>").getBytes(StandardCharsets.UTF_8));
-                    for (String key : dd.getHeaderMap().keySet()) {
-                        sp.write(("<tr><td>" + key + "</td><td>" + dd.getHeaderMap().get(key) + "</td></tr>").getBytes(StandardCharsets.UTF_8));
-                    }
-                    sp.write(("</table>").getBytes(StandardCharsets.UTF_8));
+            // add the readme for the Shape file header mappings if necessary
+            if (dd.getHeaderMap() != null) {
+                sp.putNextEntry("Shape-README.html");
+                sp.write(
+                        ("The name of features is limited to 10 characters. Listed below are the mappings of feature name to download field:")
+                                .getBytes(StandardCharsets.UTF_8));
+                sp.write(("<table><td><b>Feature</b></td><td><b>Download Field<b></td>").getBytes(StandardCharsets.UTF_8));
+                for (String key : dd.getHeaderMap().keySet()) {
+                    sp.write(("<tr><td>" + key + "</td><td>" + dd.getHeaderMap().get(key) + "</td></tr>").getBytes(StandardCharsets.UTF_8));
                 }
+                sp.write(("</table>").getBytes(StandardCharsets.UTF_8));
+            }
 
+            if (uidStats != null) {
                 // Add the data citation to the download
                 List<String> citationsForReadme = new ArrayList<String>();
 
@@ -578,7 +578,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     sp.putNextEntry("citation.csv");
                     try {
                         getCitations(uidStats, sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme, datasetMetadata);
-                    } catch (Exception e) {
+                    } catch (IOException e) {
                         logger.error(e.getMessage(), e);
                     }
                     sp.closeEntry();
@@ -587,7 +587,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     if(mintDoi) {
 
                         Map<String, ?> userDetails = authService.getUserDetails(dd.getEmail());
-
 
                         //Source requester details
                         String requesterId = (String) userDetails.get("userId");
@@ -648,7 +647,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 sp.putNextEntry("README.html");
                 String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
 
-
                 String readmeFile;
                 String fileLocation;
 
@@ -663,7 +661,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
                 }
 
-                String readmeTemplate = Files.toString(new File(readmeFile), Charsets.UTF_8);
+                String readmeTemplate = Files.asCharSource(new File(readmeFile), StandardCharsets.UTF_8).read();
 
                 String readmeContent = readmeTemplate.replace("[url]", fileLocation)
                         .replace("[date]", dd.getStartDateString())
@@ -718,10 +716,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 logger.log(RestLevel.REMOTE, vo);
             }
         } catch (RecordWriterException e) {
-            //there is no useful stack trace for RecordWriterExceptions
-            logger.error(e.getMessage());
+            logger.error(e.getMessage(), e);
         } catch (InterruptedException e) {
-            //Application may be shutting down, do not delete the download file
+            Thread.currentThread().interrupt();
+            // sApplication may be shutting down, do not delete the download file
+            // FIXME: This is a local variable that is never accessed
             shuttingDown = true;
             throw e;
         }
@@ -782,80 +781,84 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                              List<String> readmeCitations, List<Map<String, String>> datasetMetadata) throws IOException {
         if (citationsEnabled) {
             afterInitialisation();
-            if (uidStats == null || uidStats.isEmpty() || out == null) {
-                // throw new NullPointerException("keys and/or out is null!!");
-                logger.error("Unable to generate citations: keys and/or out is null!!");
+
+            if (uidStats == null) {
+                logger.error("Unable to generate citations: logger statistics was null", new Exception().fillInStackTrace());
+                return;
+            } else if (out == null) {
+                logger.error("Unable to generate citations: output stream was null", new Exception().fillInStackTrace());
                 return;
             }
 
-            try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(out), Charset.forName("UTF-8")), sep, '"', esc);) {
-                // Object[] citations =
-                // restfulClient.restPost(citationServiceUrl, "text/json",
-                // uidStats.keySet());
-                List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl,
-                        uidStats.keySet(), List.class);
-                if (entities.size() > 0) {
-                    // i18n of the citation header
-                    writer.writeNext(new String[] { messageSource.getMessage("citation.uid", null, "UID", null),
-                            messageSource.getMessage("citation.name", null, "Name", null),
-                            messageSource.getMessage("citation.doi", null, "DOI", null),
-                            messageSource.getMessage("citation.citation", null, "Citation", null),
-                            messageSource.getMessage("citation.rights", null, "Rights", null),
-                            messageSource.getMessage("citation.link", null, "More Information", null),
-                            messageSource.getMessage("citation.dataGeneralizations", null, "Data generalisations", null),
-                            messageSource.getMessage("citation.informationWithheld", null, "Information withheld", null),
-                            messageSource.getMessage("citation.downloadLimit", null, "Download limit", null),
-                            messageSource.getMessage("citation.count", null, "Number of Records in Download", null)
-                    });
+            try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(out), StandardCharsets.UTF_8), sep, '"', esc);) {
+                // Always write something to the citations.csv file so that users can distinguish between cases themselves when reporting issues
+                // i18n of the citation header
+                writer.writeNext(new String[] { messageSource.getMessage("citation.uid", null, "UID", null),
+                        messageSource.getMessage("citation.name", null, "Name", null),
+                        messageSource.getMessage("citation.doi", null, "DOI", null),
+                        messageSource.getMessage("citation.citation", null, "Citation", null),
+                        messageSource.getMessage("citation.rights", null, "Rights", null),
+                        messageSource.getMessage("citation.link", null, "More Information", null),
+                        messageSource.getMessage("citation.dataGeneralizations", null, "Data generalisations", null),
+                        messageSource.getMessage("citation.informationWithheld", null, "Information withheld", null),
+                        messageSource.getMessage("citation.downloadLimit", null, "Download limit", null),
+                        messageSource.getMessage("citation.count", null, "Number of Records in Download", null)
+                });
 
-                    for (Map<String, Object> record : entities) {
-                        StringBuilder sb = new StringBuilder();
-                        // ensure that the record is not null to prevent NPE on
-                        // the "get"s
-                        if (record != null) {
-                            final int UID=0;
-                            final int NAME=1;
-                            final int CITATION=3;
-                            final int RIGHTS=4;
-                            final int LINK=5;
-                            final int COUNT=9;
+                if (!uidStats.isEmpty()) {
+	                List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl,
+	                        uidStats.keySet(), List.class);
+                    final int UID=0;
+                    final int NAME=1;
+                    final int CITATION=3;
+                    final int RIGHTS=4;
+                    final int LINK=5;
+                    final int COUNT=9;
+	                for (Map<String, Object> record : entities) {
+	                    // ensure that the record is not null to prevent NPE on
+	                    // the "get"s
+	                    if (record != null) {
+                            Object value = record.get("uid");
+                            if(value != null) {
+							    AtomicInteger uidRecordCount = uidStats.get(value);
+		                        String count = Optional.ofNullable(uidRecordCount).orElseGet(() -> new AtomicInteger(0)).toString();
+		                        String[] row = new String[] {
+		                                getOrElse(record, "uid", ""),
+		                                getOrElse(record, "name", ""),
+		                                getOrElse(record, "DOI", ""),
+		                                getOrElse(record, "citation", ""),
+		                                getOrElse(record, "rights", ""),
+		                                getOrElse(record, "link", ""),
+		                                getOrElse(record, "dataGeneralizations", ""),
+		                                getOrElse(record, "informationWithheld", ""),
+		                                getOrElse(record, "downloadLimit", ""),
+		                                count };
+		                        writer.writeNext(row);
 
+		                        if (readmeCitations != null) {
+		                            // used in README.txt
+		                            readmeCitations.add(row[CITATION] + " (" + row[RIGHTS] + "). " + row[LINK]);
+		                        }
 
-                            String count = uidStats.get(record.get("uid")).toString();
-                            String[] row = new String[] {
-                                    getOrElse(record, "uid", ""),
-                                    getOrElse(record, "name", ""),
-                                    getOrElse(record, "DOI", ""),
-                                    getOrElse(record, "citation", ""),
-                                    getOrElse(record, "rights", ""),
-                                    getOrElse(record, "link", ""),
-                                    getOrElse(record, "dataGeneralizations", ""),
-                                    getOrElse(record, "informationWithheld", ""),
-                                    getOrElse(record, "downloadLimit", ""),
-                                    count };
-                            writer.writeNext(row);
+		                        if (datasetMetadata != null ) {
+		                            Map<String,String> dataSet = new HashMap<>();
 
-                            if (readmeCitations != null) {
-                                // used in README.txt
-                                readmeCitations.add(row[CITATION] + " (" + row[RIGHTS] + "). " + row[LINK]);
+		                            dataSet.put("uid", row[UID]);
+		                            dataSet.put("name", row[NAME]);
+		                            dataSet.put("licence", row[RIGHTS]);
+		                            dataSet.put("count", row[COUNT]);
+
+		                            datasetMetadata.add(dataSet);
+		                        }
+                            } else {
+                                logger.error("Record did not have a uid attribute: " + record);
                             }
-
-                            if (datasetMetadata != null ) {
-
-                                Map<String,String> dataSet = new HashMap<>();
-
-                                dataSet.put("uid", row[UID]);
-                                dataSet.put("name", row[NAME]);
-                                dataSet.put("licence", row[RIGHTS]);
-                                dataSet.put("count", row[COUNT]);
-
-                                datasetMetadata.add(dataSet);
-                            }
-
-                        } else {
-                            logger.warn("A null record was returned from the collectory citation service: " + entities);
-                        }
-                    }
+	                    } else {
+	                        logger.error("A null record was returned from the collectory citation service: " + entities + ", collected stats were: " + uidStats);
+	                    }
+	                }
+                } else {
+                    logger.warn("No collected stats for a download");
                 }
                 writer.flush();
             }
@@ -876,9 +879,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             DownloadRequestParams params, String[] miscHeaders) throws Exception {
         if (headingsEnabled) {
             afterInitialisation();
+
             if (out == null) {
-                // throw new NullPointerException("keys and/or out is null!!");
-                logger.error("Unable to generate headings info: out is null!!");
+                logger.error("Unable to generate headings info: output stream was null", new Exception().fillInStackTrace());
                 return;
             }
 
@@ -959,12 +962,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         }
     }
 
-    private String getOrElse(Map<String, Object> map, String key, String value) {
-        if (map.containsKey(key)) {
-            return map.get(key).toString();
-        } else {
-            return value;
-        }
+    private String getOrElse(Map<String, Object> map, String key, String defaultValue) {
+        return map.getOrDefault(key, defaultValue).toString();
     }
 
     /**
@@ -1232,7 +1231,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     downloadFileLocation = archiveFileLocation;
                                 }
 
-                                emailBody = Files.toString(new File(emailTemplate), Charsets.UTF_8);
+                                emailBody = Files.asCharSource(new File(emailTemplate), StandardCharsets.UTF_8).read();
 
                                 final String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
                                 String emailBodyHtml = emailBody.replace("[url]", downloadFileLocation)
@@ -1255,21 +1254,20 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             }
 
                         } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
                             //shutting down
                             shuttingDown = true;
                             throw e;
                         } catch (CancellationException e) {
                             //download cancelled, do not send an email
                         } catch (com.datastax.driver.core.exceptions.DriverException e) {
-                            logger.warn("Offline download failed. Cassandra driver error. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage());
-                            logger.debug(e.getMessage(), e);
-                            //return to queue in 5mins
+                            logger.warn("Offline download failed. Cassandra driver error. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage(), e);
+                            //return to queue in 5mins as long as the VM is not restarted during that time, in which case it could be permanently stuck in a broken state
                             doRetry = true;
                             newRetryThread(currentDownload).start();
                         } catch (PelopsException e) {
-                            logger.warn("Offline download failed. Cassandra error. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage());
-                            logger.debug(e.getMessage(), e);
-                            //return to queue in 5mins
+                            logger.warn("Offline download failed. Cassandra error. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage(), e);
+                            //return to queue in 5mins as long as the VM is not restarted during that time, in which case it could be permanently stuck in a broken state
                             doRetry = true;
                             newRetryThread(currentDownload).start();
                         } catch (Exception e) {
@@ -1328,6 +1326,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     currentDownload.setFileLocation(null);
 
                 } catch (InterruptedException e1) {
+                    Thread.currentThread().interrupt();
+                    logger.warn("Interrupted while waiting to delete failed download: directory before retrying: " + new File(currentDownload.getFileLocation()).getParent() +
+                                ", " + e1.getMessage(), e1);
                 }
             }
         };
