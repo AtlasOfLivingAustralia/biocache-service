@@ -109,8 +109,8 @@ public class ShapeFileRecordWriter implements RecordWriterError {
         outputStream = out;
         //get the indices for the lat and long
         if (ArrayUtils.indexOf(header, "latitude") < 0 || ArrayUtils.indexOf(header, "longitude") < 0) {
-            latIdx = ArrayUtils.indexOf(header, "decimalLatitude.p");
-            longIdx = ArrayUtils.indexOf(header, "decimalLongitude.p");
+            latIdx = ArrayUtils.indexOf(header, "decimalLatitude_p");
+            longIdx = ArrayUtils.indexOf(header, "decimalLongitude_p");
         } else {
             latIdx = ArrayUtils.indexOf(header, "latitude");
             longIdx = ArrayUtils.indexOf(header, "longitude");
