@@ -75,7 +75,6 @@ public class ShapeFileRecordWriter implements RecordWriterError {
     private final GeometryFactory geometryFactory = JTSFactoryFinder.getGeometryFactory(null);
 
     private final ShapefileDataStoreFactory dataStoreFactory = new ShapefileDataStoreFactory();
-    private final Transaction transaction = new DefaultTransaction("create");
 
     private final String tmpDownloadDirectory;
     private final SimpleFeatureBuilder featureBuilder;
@@ -92,10 +91,9 @@ public class ShapeFileRecordWriter implements RecordWriterError {
 
     private final int latIdx, longIdx;
 
-    /*
-     * The following are variables that may not be initialised after the constructor completes if there was an error during initialisation
-     */
+    private Transaction transaction;
     private File temporaryShapeFile;
+    private String tmpFilename;
     private ShapefileDataStore newDataStore;
     private String typeName;
     private SimpleFeatureSource featureSource;
@@ -103,6 +101,7 @@ public class ShapeFileRecordWriter implements RecordWriterError {
 
     public ShapeFileRecordWriter(String tmpdir, String filename, OutputStream out, String[] header) {
         tmpDownloadDirectory = tmpdir;
+        tmpFilename = filename;
         //perform the header mappings so that features are only 10 characters long.
         headerMappings = AlaFileUtils.generateShapeHeader(header);
         //set the outputStream
@@ -123,40 +122,9 @@ public class ShapeFileRecordWriter implements RecordWriterError {
 
         if (latIdx < 0 || longIdx < 0) {
             logger.error("The invalid header..." + StringUtils.join(header, "|"));
-            throw new IllegalArgumentException("A Shape File Export needs to include latitude and longitude in the headers.");
+            throw new IllegalArgumentException("A Shape File Export needs to include latitude and longitude in the headers: " + StringUtils.join(header, "|"));
         }
 
-        try {
-            //initialise a temporary file that can used to write the shape file
-            temporaryShapeFile = new File(tmpDownloadDirectory + File.separator + System.currentTimeMillis() + File.separator + filename + File.separator + filename + ".shp");
-                FileUtils.forceMkdir(temporaryShapeFile.getParentFile());
-            Map<String, Serializable> params = new HashMap<String, Serializable>();
-            params.put("url", temporaryShapeFile.toURI().toURL());
-            params.put("create spatial index", Boolean.TRUE);
-
-            newDataStore = (ShapefileDataStore) dataStoreFactory.createNewDataStore(params);
-            newDataStore.createSchema(simpleFeature);
-            typeName = newDataStore.getTypeNames()[0];
-            featureSource = newDataStore.getFeatureSource(typeName);
-
-            if (featureSource instanceof SimpleFeatureStore) {
-                featureStore = (SimpleFeatureStore) featureSource;
-                featureStore.setTransaction(transaction);
-            } else {
-                writerError.set(true);
-                logger.error(typeName + " is not currently supported for read/write access");
-            }
-
-            //lat,lng csv header
-            if (outputStream instanceof OptionalZipOutputStream) {
-                outputStream.write(("latitude,longitude\n").getBytes(StandardCharsets.UTF_8));
-            }
-
-        } catch (java.io.IOException e) {
-            logger.error("Unable to create ShapeFile", e);
-            writerError.set(true);
-            errors.add(e);
-        }
     }
 
     /**
@@ -194,6 +162,42 @@ public class ShapeFileRecordWriter implements RecordWriterError {
         return LOCATION;
     }
 
+	@Override
+	public void initialise() {
+        try {
+            //initialise a temporary file that can used to write the shape file
+            temporaryShapeFile = new File(tmpDownloadDirectory + File.separator + System.currentTimeMillis() + File.separator + tmpFilename + File.separator + tmpFilename + ".shp");
+                FileUtils.forceMkdir(temporaryShapeFile.getParentFile());
+            Map<String, Serializable> params = new HashMap<String, Serializable>();
+            params.put("url", temporaryShapeFile.toURI().toURL());
+            params.put("create spatial index", Boolean.TRUE);
+
+            transaction = new DefaultTransaction("create");
+            newDataStore = (ShapefileDataStore) dataStoreFactory.createNewDataStore(params);
+            newDataStore.createSchema(simpleFeature);
+            typeName = newDataStore.getTypeNames()[0];
+            featureSource = newDataStore.getFeatureSource(typeName);
+
+            if (featureSource instanceof SimpleFeatureStore) {
+                featureStore = (SimpleFeatureStore) featureSource;
+                featureStore.setTransaction(transaction);
+            } else {
+                writerError.set(true);
+                logger.error(typeName + " is not currently supported for read/write access");
+            }
+
+            //lat,lng csv header
+            if (outputStream instanceof OptionalZipOutputStream) {
+                outputStream.write(("latitude,longitude\n").getBytes(StandardCharsets.UTF_8));
+            }
+
+        } catch (java.io.IOException e) {
+            logger.error("Unable to create ShapeFile", e);
+            writerError.set(true);
+            errors.add(e);
+        }
+	}
+	
     /**
      * Indicates that the download has completed and the shape file should be generated and
      * written to the supplied output stream.
@@ -365,4 +369,5 @@ public class ShapeFileRecordWriter implements RecordWriterError {
             errors.add(e);
         }
     }
+
 }
