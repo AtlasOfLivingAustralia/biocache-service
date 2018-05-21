@@ -535,8 +535,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             } else {
                 requestParams.setFacets(new String[] { "data_resource_uid" });
             }
-            ConcurrentMap<String, AtomicInteger> uidStats = null;
-
+            
+            final ConcurrentMap<String, AtomicInteger> uidStats;
             if (fromIndex) {
                 uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, sp, includeSensitive, dd, limit, parallelExecutor);
             } else {

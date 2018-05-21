@@ -18,6 +18,7 @@ import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -34,19 +35,19 @@ public class TSVRecordWriter implements RecordWriterError {
     private final static Logger logger = LoggerFactory.getLogger(TSVRecordWriter.class);
 
     private final OutputStream outputStream;
+    private final String[] header;
 
+    private final AtomicBoolean initialised = new AtomicBoolean(false);
     private final AtomicBoolean finalised = new AtomicBoolean(false);
     private final AtomicBoolean finalisedComplete = new AtomicBoolean(false);
 
-    private boolean writerError = false;
-    private String[] header;
+    private final AtomicBoolean writerError = new AtomicBoolean(false);
 
     private final List<Throwable> errors = new ArrayList<>();
     
     public TSVRecordWriter(OutputStream out, String[] header){
         this.outputStream = out;
         this.header = header;
-        write(header);
     }
     
     /**
@@ -54,7 +55,10 @@ public class TSVRecordWriter implements RecordWriterError {
      */
     @Override
     public void write(String[] record) {
-        StringBuilder line = new StringBuilder();
+        if (!initialised.get()) {
+        	throw new IllegalStateException("Must call initialise method before calling write.");
+        }
+        StringBuilder line = new StringBuilder(256);
 
         //assume correct column count
         for (int i = 0; i < record.length; i++) {
@@ -78,9 +82,16 @@ public class TSVRecordWriter implements RecordWriterError {
         } catch (java.io.IOException e) {
             logger.error("Found error writing to TSV file", e);
             errors.add(e);
-            writerError = true;
+            writerError.set(true);
         }
     }
+
+	@Override
+	public void initialise() {
+		if (initialised.compareAndSet(false, true)) {
+			write(header);
+		}
+	}
 
     @Override
     public void finalise() {
@@ -100,7 +111,7 @@ public class TSVRecordWriter implements RecordWriterError {
 
     @Override
     public boolean hasError() {
-        return writerError;
+        return writerError.get();
     }
 
     @Override
@@ -114,7 +125,13 @@ public class TSVRecordWriter implements RecordWriterError {
             outputStream.flush();
         } catch(java.io.IOException e) {
             errors.add(e);
-            writerError = true;
+            writerError.set(true);
         }
     }
+
+    @Override
+	public void close() throws IOException {
+		finalise();
+	}
+
 }

@@ -76,6 +76,7 @@ public class ShapeFileRecordWriter implements RecordWriterError {
 
     private final ShapefileDataStoreFactory dataStoreFactory = new ShapefileDataStoreFactory();
 
+    private final String tmpFilename;
     private final String tmpDownloadDirectory;
     private final SimpleFeatureBuilder featureBuilder;
     private final SimpleFeatureType simpleFeature;
@@ -83,6 +84,7 @@ public class ShapeFileRecordWriter implements RecordWriterError {
     private final ListFeatureCollection collection;
     private final Map<String, String> headerMappings;
 
+    private final AtomicBoolean initialised = new AtomicBoolean(false);
     private final AtomicBoolean finalised = new AtomicBoolean(false);
     private final AtomicBoolean finalisedComplete = new AtomicBoolean(false);
 
@@ -91,13 +93,13 @@ public class ShapeFileRecordWriter implements RecordWriterError {
 
     private final int latIdx, longIdx;
 
-    private Transaction transaction;
-    private File temporaryShapeFile;
-    private String tmpFilename;
-    private ShapefileDataStore newDataStore;
-    private String typeName;
-    private SimpleFeatureSource featureSource;
-    private SimpleFeatureStore featureStore;
+    // Resources that are created during initialise because they may cause Exception's
+    private volatile Transaction transaction;
+    private volatile File temporaryShapeFile;
+    private volatile ShapefileDataStore newDataStore;
+    private volatile String typeName;
+    private volatile SimpleFeatureSource featureSource;
+    private volatile SimpleFeatureStore featureStore;
 
     public ShapeFileRecordWriter(String tmpdir, String filename, OutputStream out, String[] header) {
         tmpDownloadDirectory = tmpdir;
@@ -133,7 +135,7 @@ public class ShapeFileRecordWriter implements RecordWriterError {
      * @param features
      * @return
      */
-    private SimpleFeatureType createFeatureType(Set<String> features, Class[] types) {
+    private SimpleFeatureType createFeatureType(Set<String> features, Class<?>[] types) {
 
         SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
         builder.setName("Occurrence");
@@ -143,7 +145,7 @@ public class ShapeFileRecordWriter implements RecordWriterError {
         builder.add("the_geom", Point.class);
         int i = 0;
         for (String feature : features) {
-            Class type = types != null ? types[i] : String.class;
+            Class<?> type = types != null ? types[i] : String.class;
 
             if (i != longIdx && i != latIdx) {
                 builder.add(feature, type);
@@ -164,38 +166,41 @@ public class ShapeFileRecordWriter implements RecordWriterError {
 
 	@Override
 	public void initialise() {
-        try {
-            //initialise a temporary file that can used to write the shape file
-            temporaryShapeFile = new File(tmpDownloadDirectory + File.separator + System.currentTimeMillis() + File.separator + tmpFilename + File.separator + tmpFilename + ".shp");
-                FileUtils.forceMkdir(temporaryShapeFile.getParentFile());
-            Map<String, Serializable> params = new HashMap<String, Serializable>();
-            params.put("url", temporaryShapeFile.toURI().toURL());
-            params.put("create spatial index", Boolean.TRUE);
-
-            transaction = new DefaultTransaction("create");
-            newDataStore = (ShapefileDataStore) dataStoreFactory.createNewDataStore(params);
-            newDataStore.createSchema(simpleFeature);
-            typeName = newDataStore.getTypeNames()[0];
-            featureSource = newDataStore.getFeatureSource(typeName);
-
-            if (featureSource instanceof SimpleFeatureStore) {
-                featureStore = (SimpleFeatureStore) featureSource;
-                featureStore.setTransaction(transaction);
-            } else {
-                writerError.set(true);
-                logger.error(typeName + " is not currently supported for read/write access");
-            }
-
-            //lat,lng csv header
-            if (outputStream instanceof OptionalZipOutputStream) {
-                outputStream.write(("latitude,longitude\n").getBytes(StandardCharsets.UTF_8));
-            }
-
-        } catch (java.io.IOException e) {
-            logger.error("Unable to create ShapeFile", e);
-            writerError.set(true);
-            errors.add(e);
-        }
+		if(initialised.compareAndSet(false, true)) {
+	        try {
+	            //initialise a temporary file that can used to write the shape file
+	            temporaryShapeFile = new File(tmpDownloadDirectory + File.separator + System.currentTimeMillis() + File.separator + tmpFilename + File.separator + tmpFilename + ".shp");
+	                FileUtils.forceMkdir(temporaryShapeFile.getParentFile());
+	            Map<String, Serializable> params = new HashMap<String, Serializable>();
+	            params.put("url", temporaryShapeFile.toURI().toURL());
+	            params.put("create spatial index", Boolean.TRUE);
+	
+	            transaction = new DefaultTransaction("create");
+	            newDataStore = (ShapefileDataStore) dataStoreFactory.createNewDataStore(params);
+	            newDataStore.createSchema(simpleFeature);
+	            typeName = newDataStore.getTypeNames()[0];
+	            featureSource = newDataStore.getFeatureSource(typeName);
+	
+	            if (featureSource instanceof SimpleFeatureStore) {
+	                featureStore = (SimpleFeatureStore) featureSource;
+	                featureStore.setTransaction(transaction);
+	            } else {
+	                writerError.set(true);
+	                logger.error(typeName + " is not currently supported for read/write access");
+	            }
+	
+	            //lat,lng csv header
+	            // FIXME: What relevant does OptionalZipOutputStream have to whether the CSV header line is written?
+	            if (outputStream instanceof OptionalZipOutputStream) {
+	                outputStream.write(("latitude,longitude\n").getBytes(StandardCharsets.UTF_8));
+	            }
+	
+	        } catch (java.io.IOException e) {
+	            logger.error("Unable to create ShapeFile", e);
+	            writerError.set(true);
+	            errors.add(e);
+	        }
+		}
 	}
 	
     /**
@@ -209,33 +214,44 @@ public class ShapeFileRecordWriter implements RecordWriterError {
                 try {
                     //write & clear the current batch
                     if (!collection.isEmpty()) {
-                        if (featureStore != null) {
-                            featureStore.addFeatures(collection);
+                        SimpleFeatureStore toAddFeatureStore = featureStore;
+						if (toAddFeatureStore != null) {
+                            toAddFeatureStore.addFeatures(collection);
                         }
                         collection.clear();
                     }
                 } finally {
                     try {
-                        transaction.commit();
+                    	// Dereference the non-final field to ensure we don't have another thread setting it between the null check and the commit call
+                    	Transaction toCommitTransaction = transaction;
+                    	if (toCommitTransaction != null) {
+                    		toCommitTransaction.commit();
+                    	}
                     } finally {
                         try {
-                            transaction.close();
+                        	Transaction toCloseTransaction = transaction;
+                        	if (toCloseTransaction != null) {
+                        		toCloseTransaction.close();
+                        	}
                         } finally {
                             try {
-                                if(newDataStore != null) {
-                                    newDataStore.dispose();
+                                ShapefileDataStore toCloseDataStore = newDataStore;
+								if(toCloseDataStore != null) {
+                                    toCloseDataStore.dispose();
                                 }
                             } finally {
                                 try {
                                     // Allow for future cases where this isn't equivalent to the statements above
-                                    if (featureStore != null) {
-                                        featureStore.getDataStore().dispose();
+                                    SimpleFeatureStore toDisposeFeatureStore = featureStore;
+									if (toDisposeFeatureStore != null) {
+                                        toDisposeFeatureStore.getDataStore().dispose();
                                     }
                                 } finally {
                                     try {
                                         // Allow for future cases where this isn't equivalent to the statements above
-                                        if (featureSource != null) {
-                                            featureSource.getDataStore().dispose();
+                                        SimpleFeatureSource toDisposeFeatureSource = featureSource;
+										if (toDisposeFeatureSource != null) {
+                                            toDisposeFeatureSource.getDataStore().dispose();
                                         }
                                     } finally {
                                         try {
@@ -252,10 +268,11 @@ public class ShapeFileRecordWriter implements RecordWriterError {
                                                 os.putNextEntry(name + ".zip");
                                             }
 
-                                            if (temporaryShapeFile != null) {
+                                            File toCopyTemporaryShapeFile = temporaryShapeFile;
+											if (toCopyTemporaryShapeFile != null) {
                                                 //zip the parent directory
-                                                String targetZipFile = temporaryShapeFile.getParentFile().getParent() + File.separator + temporaryShapeFile.getName().replace(".shp", ".zip");
-                                                AlaFileUtils.createZip(temporaryShapeFile.getParent(), targetZipFile);
+                                                String targetZipFile = toCopyTemporaryShapeFile.getParentFile().getParent() + File.separator + toCopyTemporaryShapeFile.getName().replace(".shp", ".zip");
+                                                AlaFileUtils.createZip(toCopyTemporaryShapeFile.getParent(), targetZipFile);
                                                 //write the shapefile to the supplied output stream
                                                 logger.info("Copying Shape zip file to outputstream");
                                                 try (final InputStream inputStream = Files.newInputStream(Paths.get(targetZipFile));) {
@@ -264,9 +281,10 @@ public class ShapeFileRecordWriter implements RecordWriterError {
                                                 }
                                             }
                                         } finally {
-                                            if (temporaryShapeFile != null) {
+                                            File toDeleteTemporaryShapeFile = temporaryShapeFile;
+											if (toDeleteTemporaryShapeFile != null) {
                                                 //now remove the temporary directory
-                                                FileUtils.deleteDirectory(temporaryShapeFile.getParentFile().getParentFile());
+                                                FileUtils.deleteDirectory(toDeleteTemporaryShapeFile.getParentFile().getParentFile());
                                             }
                                         }
                                     }
@@ -290,6 +308,9 @@ public class ShapeFileRecordWriter implements RecordWriterError {
      */
     @Override
     public void write(String[] record) {
+        if (!initialised.get()) {
+        	throw new IllegalStateException("Must call initialise method before calling write.");
+        }
         //check to see if there are values for latitudes and longitudes
         if (StringUtils.isNotBlank(record[longIdx]) && StringUtils.isNotBlank(record[latIdx])) {
             double longitude = Double.parseDouble(record[longIdx]);
@@ -369,5 +390,10 @@ public class ShapeFileRecordWriter implements RecordWriterError {
             errors.add(e);
         }
     }
+
+	@Override
+	public void close() throws IOException {
+		finalise();
+	}
 
 }

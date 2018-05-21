@@ -248,7 +248,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected Integer maxSolrDownloadThreads = 30;
 
     /**
-     * The time (ms) to wait for the blocking queue to have new capacity before timing out.
+     * The time (ms) to wait for the blocking queue to have new capacity between thread interruption checks.
      */
     @Value("${solr.downloadquery.writertimeout:60000}")
     protected Long writerTimeoutWaitMillis = 60000L;
@@ -564,46 +564,49 @@ public class SearchDAOImpl implements SearchDAO {
             header = (String[]) ArrayUtils.addAll(header, listsService.getTypes().toArray(new String[]{}));
         }
         CSVRecordWriter writer = new CSVRecordWriter(out, header);
-
-        boolean addedNullFacet = false;
-
-        List<String> guids = new ArrayList<String>();
-        List<Long> counts = new ArrayList<Long>();
-
-        for (FieldResultDTO ff : list) {
-            //only add null facet once
-            if (ff.getLabel() == null) addedNullFacet = true;
-            if (ff.getCount() == 0 || (ff.getLabel() == null && addedNullFacet)) continue;
-
-            //process the "species_guid_ facet by looking up the list of guids
-            if (shouldLookup) {
-                guids.add(ff.getLabel());
-                if (includeCount) {
-                    counts.add(ff.getCount());
-                }
-
-                //Only want to send a sub set of the list so that the URI is not too long for BIE
-                if (guids.size() == 30) {
-                    //now get the list of species from the web service TODO may need to move this code
-                    //handle null values being returned from the service...
-                    writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, includeLists, writer);
-                    guids.clear();
-                    counts.clear();
-                }
-            } else {
-                //default processing of facets
-                String name = ff.getLabel() != null ? ff.getLabel() : "";
-                String[] row = includeCount ? new String[]{name, Long.toString(ff.getCount())} : new String[]{name};
-                writer.write(row);
-            }
+        try {
+	        writer.initialise();
+	
+	        boolean addedNullFacet = false;
+	
+	        List<String> guids = new ArrayList<String>();
+	        List<Long> counts = new ArrayList<Long>();
+	
+	        for (FieldResultDTO ff : list) {
+	            //only add null facet once
+	            if (ff.getLabel() == null) addedNullFacet = true;
+	            if (ff.getCount() == 0 || (ff.getLabel() == null && addedNullFacet)) continue;
+	
+	            //process the "species_guid_ facet by looking up the list of guids
+	            if (shouldLookup) {
+	                guids.add(ff.getLabel());
+	                if (includeCount) {
+	                    counts.add(ff.getCount());
+	                }
+	
+	                //Only want to send a sub set of the list so that the URI is not too long for BIE
+	                if (guids.size() == 30) {
+	                    //now get the list of species from the web service TODO may need to move this code
+	                    //handle null values being returned from the service...
+	                    writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, includeLists, writer);
+	                    guids.clear();
+	                    counts.clear();
+	                }
+	            } else {
+	                //default processing of facets
+	                String name = ff.getLabel() != null ? ff.getLabel() : "";
+	                String[] row = includeCount ? new String[]{name, Long.toString(ff.getCount())} : new String[]{name};
+	                writer.write(row);
+	            }
+	        }
+	
+	        if (shouldLookup) {
+	            //now write any guids that remain at the end of the looping
+	            writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, includeLists, writer);
+	        }
+        } finally {
+        	writer.finalise();
         }
-
-        if (shouldLookup) {
-            //now write any guids that remain at the end of the looping
-            writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, includeLists, writer);
-        }
-
-        writer.finalise();
     }
 
     /**
@@ -778,6 +781,7 @@ public class SearchDAOImpl implements SearchDAO {
 
                 CSVRecordWriter writer = new CSVRecordWriter(new CloseShieldOutputStream(out), header);
                 try {
+                	writer.initialise();
                     boolean addedNullFacet = false;
 
                     //PAGE through the facets until we reach the end.
@@ -1129,7 +1133,7 @@ public class SearchDAOImpl implements SearchDAO {
                     new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) :
                     (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, header) :
                             new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
-
+            
             // Requirement to be able to propagate interruptions to all other threads for this execution
             // Doing this via this variable
             final AtomicBoolean interruptFound = dd != null ? dd.getInterrupt() : new AtomicBoolean(false);
@@ -1142,8 +1146,8 @@ public class SearchDAOImpl implements SearchDAO {
             final String[] sentinel = new String[0];
             // An implementation of RecordWriter that adds to an in-memory queue
             final RecordWriter concurrentWrapper = new RecordWriter() {
-                private AtomicBoolean finalised = new AtomicBoolean(false);
-                private AtomicBoolean finalisedComplete = new AtomicBoolean(false);
+                private final AtomicBoolean finalised = new AtomicBoolean(false);
+                private final AtomicBoolean finalisedComplete = new AtomicBoolean(false);
 
                 @Override
                 public void write(String[] nextLine) {
@@ -1195,11 +1199,15 @@ public class SearchDAOImpl implements SearchDAO {
                     }
                 }
 
+				@Override
+				public void initialise() {
+					// No resources to create
+				}
+
                 @Override
                 public boolean finalised() {
                     return finalisedComplete.get();
                 }
-
             };
 
             // A single thread that consumes elements put onto the queue until it sees the sentinel, finalising after the sentinel or an interrupt
@@ -1246,9 +1254,10 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             };
             Thread writerThread = new Thread(writerRunnable);
-            writerThread.start();
 
             try {
+            	rw.initialise();
+                writerThread.start();
                 if (rw instanceof ShapeFileRecordWriter) {
                     dd.setHeaderMap(((ShapeFileRecordWriter) rw).getHeaderMappings());
                 }
@@ -1373,6 +1382,7 @@ public class SearchDAOImpl implements SearchDAO {
                     }
                     // Don't trigger the timeout interrupt if we don't have to wait again as we are already done at this point
                     if (waitAgain && (System.currentTimeMillis() - start) > downloadMaxTime) {
+                    	logger.error("Download max time was exceeded: downloadMaxTime=" + downloadMaxTime + " duration=" + (System.currentTimeMillis() - start));
                         interruptFound.set(true);
                         break;
                     }
@@ -1425,31 +1435,36 @@ public class SearchDAOImpl implements SearchDAO {
                     } finally {
                         try {
                             // Attempt all actions that could trigger the writer thread to finalise, as by this stage we are in hard shutdown mode
-
-                            // Signal that we are in hard shutdown mode
+                            // First signal that we are in hard shutdown mode
                             interruptFound.set(true);
-
-                            // Add the sentinel or clear the queue and try again until it gets onto the queue
-                            // We are in hard shutdown mode, so only priority is that the queue either
-                            // gets the sentinel or the thread is interrupted to clean up resources
-                            while (!queue.offer(sentinel)) {
-                                queue.clear();
-                            }
-
-                            // Interrupt the single writer thread
-                            writerThread.interrupt();
-
-                            // Explicitly call finalise on the RecordWriter as a backup
-                            // In normal circumstances it is called via the sentinel or the interrupt
-                            // This will not block if finalise has been called previously in the current three implementations
-                            rw.finalise();
                         } finally {
-                            if (rw != null && rw.hasError()) {
-                                throw RecordWriterException.newRecordWriterException(dd, downloadParams, true, rw);
-                            } else {
-                                // Flush whatever output was still pending for more deterministic debugging
-                                out.flush();
-                            }
+                        	try {
+	                            // Add the sentinel or clear the queue and try again until it gets onto the queue
+	                            // We are in hard shutdown mode, so only priority is that the queue either
+	                            // gets the sentinel or the thread is interrupted to clean up resources
+	                            while (!queue.offer(sentinel)) {
+	                                queue.clear();
+	                            }
+                        	} finally {
+                        		try {
+                                    // Interrupt the single writer thread
+                                    writerThread.interrupt();
+                        		} finally {
+                        			try {
+		                                // Explicitly call finalise on the RecordWriter as a backup
+		                                // In normal circumstances it is called via the sentinel or the interrupt
+		                                // This will not block if finalise has been called previously in the current three implementations
+		                                rw.finalise();
+                        			} finally {	
+		                                if (rw != null && rw.hasError()) {
+		                                    throw RecordWriterException.newRecordWriterException(dd, downloadParams, true, rw);
+		                                } else {
+		                                    // Flush whatever output was still pending for more deterministic debugging
+		                                    out.flush();
+		                                }
+                        			}
+                        		}
+                        	}
                         }
                     }
                 }
@@ -1690,6 +1705,7 @@ public class SearchDAOImpl implements SearchDAO {
                             new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
 
             try {
+            	rw.initialise();
                 if (rw instanceof ShapeFileRecordWriter) {
                     dd.setHeaderMap(((ShapeFileRecordWriter) rw).getHeaderMappings());
                 }
