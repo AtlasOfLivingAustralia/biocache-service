@@ -50,7 +50,7 @@ public class CSVRecordWriter implements RecordWriterError {
 
     private final List<Throwable> errors = new ArrayList<>();
     
-    // Resources that are created during initialise because they may cause Exception's
+    // Resources that are created during initialise because their creation sequence may include Exception's
     private CSVWriter csvWriter;
     
     public CSVRecordWriter(OutputStream out, String[] header){
@@ -75,7 +75,10 @@ public class CSVRecordWriter implements RecordWriterError {
     @Override
     public void write(String[] record) {
         if (!initialised.get()) {
-        	throw new IllegalStateException("Must call initialise method before calling write.");
+            throw new IllegalStateException("Must call initialise method before calling write.");
+        }
+        if (csvWriter == null) {
+            throw new IllegalStateException("The initialise method did not create a CSVWriter instance.");
         }
         csvWriter.writeNext(record);
 
@@ -118,14 +121,14 @@ public class CSVRecordWriter implements RecordWriterError {
         }
     }
 
-	@Override
-	public void initialise() {
-		if (initialised.compareAndSet(false, true)) {
-	        csvWriter = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(outputStream), StandardCharsets.UTF_8), separatorChar, quoteChar, escapeChar);
-			csvWriter.writeNext(header);
-		}
-	}
-	
+    @Override
+    public void initialise() {
+        if (initialised.compareAndSet(false, true)) {
+            csvWriter = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(outputStream), StandardCharsets.UTF_8), separatorChar, quoteChar, escapeChar);
+            csvWriter.writeNext(header);
+        }
+    }
+    
     @Override
     public void finalise() {
         if (finalised.compareAndSet(false, true)) {
@@ -134,12 +137,12 @@ public class CSVRecordWriter implements RecordWriterError {
             } finally {
                 try {
                     CSVWriter toCloseCsvWriter = csvWriter;
-					if(toCloseCsvWriter != null) {
-						toCloseCsvWriter.close();
-					}
+                    if(toCloseCsvWriter != null) {
+                        toCloseCsvWriter.close();
+                    }
                 } catch (IOException e) {
                     errors.add(e);
-		        } finally {
+                } finally {
                     finalisedComplete.set(true);
                 }
             }
@@ -151,9 +154,9 @@ public class CSVRecordWriter implements RecordWriterError {
         return finalisedComplete.get();
     }
 
-	@Override
-	public void close() throws IOException {
-		finalise();
-	}
+    @Override
+    public void close() throws IOException {
+        finalise();
+    }
 
 }

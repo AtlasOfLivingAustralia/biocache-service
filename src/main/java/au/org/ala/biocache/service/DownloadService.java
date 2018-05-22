@@ -806,57 +806,57 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 });
 
                 if (!uidStats.isEmpty()) {
-	                List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl,
-	                        uidStats.keySet(), List.class);
+                    List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl,
+                            uidStats.keySet(), List.class);
                     final int UID=0;
                     final int NAME=1;
                     final int CITATION=3;
                     final int RIGHTS=4;
                     final int LINK=5;
                     final int COUNT=9;
-	                for (Map<String, Object> record : entities) {
-	                    // ensure that the record is not null to prevent NPE on
-	                    // the "get"s
-	                    if (record != null) {
+                    for (Map<String, Object> record : entities) {
+                        // ensure that the record is not null to prevent NPE on
+                        // the "get"s
+                        if (record != null) {
                             Object value = record.get("uid");
                             if(value != null) {
-							    AtomicInteger uidRecordCount = uidStats.get(value);
-		                        String count = Optional.ofNullable(uidRecordCount).orElseGet(() -> new AtomicInteger(0)).toString();
-		                        String[] row = new String[] {
-		                                getOrElse(record, "uid", ""),
-		                                getOrElse(record, "name", ""),
-		                                getOrElse(record, "DOI", ""),
-		                                getOrElse(record, "citation", ""),
-		                                getOrElse(record, "rights", ""),
-		                                getOrElse(record, "link", ""),
-		                                getOrElse(record, "dataGeneralizations", ""),
-		                                getOrElse(record, "informationWithheld", ""),
-		                                getOrElse(record, "downloadLimit", ""),
-		                                count };
-		                        writer.writeNext(row);
+                                AtomicInteger uidRecordCount = uidStats.get(value);
+                                String count = Optional.ofNullable(uidRecordCount).orElseGet(() -> new AtomicInteger(0)).toString();
+                                String[] row = new String[] {
+                                        getOrElse(record, "uid", ""),
+                                        getOrElse(record, "name", ""),
+                                        getOrElse(record, "DOI", ""),
+                                        getOrElse(record, "citation", ""),
+                                        getOrElse(record, "rights", ""),
+                                        getOrElse(record, "link", ""),
+                                        getOrElse(record, "dataGeneralizations", ""),
+                                        getOrElse(record, "informationWithheld", ""),
+                                        getOrElse(record, "downloadLimit", ""),
+                                        count };
+                                writer.writeNext(row);
 
-		                        if (readmeCitations != null) {
-		                            // used in README.txt
-		                            readmeCitations.add(row[CITATION] + " (" + row[RIGHTS] + "). " + row[LINK]);
-		                        }
+                                if (readmeCitations != null) {
+                                    // used in README.txt
+                                    readmeCitations.add(row[CITATION] + " (" + row[RIGHTS] + "). " + row[LINK]);
+                                }
 
-		                        if (datasetMetadata != null ) {
-		                            Map<String,String> dataSet = new HashMap<>();
+                                if (datasetMetadata != null ) {
+                                    Map<String,String> dataSet = new HashMap<>();
 
-		                            dataSet.put("uid", row[UID]);
-		                            dataSet.put("name", row[NAME]);
-		                            dataSet.put("licence", row[RIGHTS]);
-		                            dataSet.put("count", row[COUNT]);
+                                    dataSet.put("uid", row[UID]);
+                                    dataSet.put("name", row[NAME]);
+                                    dataSet.put("licence", row[RIGHTS]);
+                                    dataSet.put("count", row[COUNT]);
 
-		                            datasetMetadata.add(dataSet);
-		                        }
+                                    datasetMetadata.add(dataSet);
+                                }
                             } else {
                                 logger.error("Record did not have a uid attribute: " + record);
                             }
-	                    } else {
-	                        logger.error("A null record was returned from the collectory citation service: " + entities + ", collected stats were: " + uidStats);
-	                    }
-	                }
+                        } else {
+                            logger.error("A null record was returned from the collectory citation service: " + entities + ", collected stats were: " + uidStats);
+                        }
+                    }
                 } else {
                     logger.warn("No collected stats for a download");
                 }
@@ -1314,7 +1314,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         return new Thread() {
             @Override
             public void run() {
-            	boolean showErrorMessage = true;
+                boolean showErrorMessage = true;
                 try {
                     Thread.sleep(5*60*1000);
                     try {
@@ -1332,9 +1332,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     logger.error("Interrupted while waiting to delete failed download: directory before retrying: " + new File(currentDownload.getFileLocation()).getParent() +
                                 ", " + e1.getMessage(), e1);
                 } finally {
-                	if (showErrorMessage) {
+                    if (showErrorMessage) {
                         logger.error("Did not successfully wait for retry download timeout: " + new File(currentDownload.getFileLocation()).getParent());
-                	}
+                    }
                 }
             }
         };

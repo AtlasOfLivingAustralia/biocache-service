@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 
- * A Writer that outputs a record in CSV format
+ * A Writer that outputs a record in TSV format
  * 
  * @author Natasha Carter
  */
@@ -56,7 +56,7 @@ public class TSVRecordWriter implements RecordWriterError {
     @Override
     public void write(String[] record) {
         if (!initialised.get()) {
-        	throw new IllegalStateException("Must call initialise method before calling write.");
+            throw new IllegalStateException("Must call initialise method before calling write.");
         }
         StringBuilder line = new StringBuilder(256);
 
@@ -86,12 +86,12 @@ public class TSVRecordWriter implements RecordWriterError {
         }
     }
 
-	@Override
-	public void initialise() {
-		if (initialised.compareAndSet(false, true)) {
-			write(header);
-		}
-	}
+    @Override
+    public void initialise() {
+        if (initialised.compareAndSet(false, true)) {
+            write(header);
+        }
+    }
 
     @Override
     public void finalise() {
@@ -130,8 +130,8 @@ public class TSVRecordWriter implements RecordWriterError {
     }
 
     @Override
-	public void close() throws IOException {
-		finalise();
-	}
+    public void close() throws IOException {
+        finalise();
+    }
 
 }
