@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.writer;
 
+import java.io.Closeable;
 import java.util.List;
 
 import au.org.ala.biocache.RecordWriter;
@@ -21,7 +22,7 @@ import au.org.ala.biocache.RecordWriter;
 /**
  * Method for catching RecordWriter errors
  */
-public interface RecordWriterError extends RecordWriter {
+public interface RecordWriterError extends RecordWriter, Closeable {
 
     /**
      * @return true when there is a write error

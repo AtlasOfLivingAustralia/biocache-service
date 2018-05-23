@@ -37,9 +37,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class CSVRecordWriter implements RecordWriterError {
     private final static Logger logger = LoggerFactory.getLogger(CSVRecordWriter.class);
 
-    private final CSVWriter csvWriter;
     private final OutputStream outputStream;
-
+    private final char separatorChar;
+    private final char quoteChar;
+    private final char escapeChar;
+    
+    private final AtomicBoolean initialised = new AtomicBoolean(false);
     private final AtomicBoolean finalised = new AtomicBoolean(false);
     private final AtomicBoolean finalisedComplete = new AtomicBoolean(false);
 
@@ -47,17 +50,22 @@ public class CSVRecordWriter implements RecordWriterError {
 
     private final List<Throwable> errors = new ArrayList<>();
     
+    // Resources that are created during initialise because their creation sequence may include Exception's
+    private CSVWriter csvWriter;
+    
     public CSVRecordWriter(OutputStream out, String[] header){
         outputStream = out;
-        csvWriter = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(out), StandardCharsets.UTF_8), ',', '"');  
-        csvWriter.writeNext(header);
+        separatorChar = ',';
+        quoteChar = '"';
+        escapeChar = CSVWriter.DEFAULT_ESCAPE_CHARACTER;
         this.header = header;
     }
 
     public CSVRecordWriter(OutputStream out, String[] header, char sep, char esc){
         outputStream = out;
-        csvWriter = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(out), StandardCharsets.UTF_8), sep, '"', esc);
-        csvWriter.writeNext(header);
+        separatorChar = sep;
+        quoteChar = '"';
+        escapeChar = esc;
         this.header = header;
     }
     
@@ -66,26 +74,33 @@ public class CSVRecordWriter implements RecordWriterError {
      */
     @Override
     public void write(String[] record) {
-       csvWriter.writeNext(record);
+        if (!initialised.get()) {
+            throw new IllegalStateException("Must call initialise method before calling write.");
+        }
+        if (csvWriter == null) {
+            throw new IllegalStateException("The initialise method did not create a CSVWriter instance.");
+        }
+        csvWriter.writeNext(record);
 
-       //mark the end of line
-       if (outputStream instanceof OptionalZipOutputStream) {
-           try {
-               // add record byte length, standard separator byte length and buffer (*2) for occasional record character encoding
-               long length = record.length * "\",\"".getBytes(StandardCharsets.UTF_8).length * 2;
-               for (String s : record) if (s != null) length += s.getBytes(StandardCharsets.UTF_8).length;
-               if (((OptionalZipOutputStream) outputStream).isNewFile(this, length)) {
-                   write(header);
-               }
-           } catch (Exception e) {
-               errors.add(e);
-           }
-       }
+        //mark the end of line
+        if (outputStream instanceof OptionalZipOutputStream) {
+            try {
+                // add record byte length, standard separator byte length and buffer (*2) for occasional record character encoding
+                long length = record.length * "\",\"".getBytes(StandardCharsets.UTF_8).length * 2;
+                for (String s : record) if (s != null) length += s.getBytes(StandardCharsets.UTF_8).length;
+                if (((OptionalZipOutputStream) outputStream).isNewFile(this, length)) {
+                    write(header);
+                }
+            } catch (Exception e) {
+                errors.add(e);
+            }
+        }
     }
 
     @Override
     public boolean hasError() {
-        return csvWriter.checkError();
+        CSVWriter toCheckCsvWriter = csvWriter;
+        return (toCheckCsvWriter != null && toCheckCsvWriter.checkError()) || !errors.isEmpty();
     }
 
     @Override
@@ -96,7 +111,10 @@ public class CSVRecordWriter implements RecordWriterError {
     @Override
     public void flush() {
         try {
-            csvWriter.flush();
+            CSVWriter toFlushCsvWriter = csvWriter;
+            if(toFlushCsvWriter != null) {
+                toFlushCsvWriter.flush();
+            }
         } catch(java.io.IOException e){
             logger.debug(e.getMessage(), e);
             errors.add(e);
@@ -104,16 +122,27 @@ public class CSVRecordWriter implements RecordWriterError {
     }
 
     @Override
+    public void initialise() {
+        if (initialised.compareAndSet(false, true)) {
+            csvWriter = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(outputStream), StandardCharsets.UTF_8), separatorChar, quoteChar, escapeChar);
+            csvWriter.writeNext(header);
+        }
+    }
+    
+    @Override
     public void finalise() {
         if (finalised.compareAndSet(false, true)) {
             try {
                 flush();
             } finally {
                 try {
-                    csvWriter.close();
+                    CSVWriter toCloseCsvWriter = csvWriter;
+                    if(toCloseCsvWriter != null) {
+                        toCloseCsvWriter.close();
+                    }
                 } catch (IOException e) {
                     errors.add(e);
-		        } finally {
+                } finally {
                     finalisedComplete.set(true);
                 }
             }
@@ -124,4 +153,10 @@ public class CSVRecordWriter implements RecordWriterError {
     public boolean finalised() {
         return finalisedComplete.get();
     }
+
+    @Override
+    public void close() throws IOException {
+        finalise();
+    }
+
 }
