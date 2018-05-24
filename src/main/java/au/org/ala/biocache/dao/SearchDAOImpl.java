@@ -2502,15 +2502,15 @@ public class SearchDAOImpl implements SearchDAO {
         }
 
         if (logger.isDebugEnabled()) {
-            logger.debug("runSolrQuery: " + solrQuery.toString());
+            logger.debug("Solr query: " + solrQuery.toString());
         }
         QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
         if (logger.isDebugEnabled()) {
-            logger.debug("runSolrQuery: " + solrQuery.toString() + " qtime:" + qr.getQTime());
+            logger.debug("qtime:" + qr.getQTime());
             if (qr.getResults() == null) {
                 logger.debug("no results");
             } else {
-                logger.debug("matched records: " + qr.getResults().getNumFound());
+                logger.debug("Matched records: " + qr.getResults().getNumFound());
             }
         }
         return qr;
