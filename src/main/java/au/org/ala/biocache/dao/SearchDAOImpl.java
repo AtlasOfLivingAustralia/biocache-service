@@ -682,7 +682,7 @@ public class SearchDAOImpl implements SearchDAO {
                 logger.info("spatial search query: " + queryString);
             }
         } catch (Exception ex) {
-            logger.error("Error executing query with requestParams: " + searchParams.toString() + " EXCEPTION: " + ex.getMessage(), ex);
+            logger.error("Error executing query with requestParams: " + searchParams.toString(), ex);
             searchResults.setStatus("ERROR"); // TODO also set a message field on this bean with the error message(?)
             searchResults.setErrorMessage(ex.getMessage());
         }
