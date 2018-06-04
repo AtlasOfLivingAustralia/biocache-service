@@ -50,22 +50,34 @@ public class AssertionUtils {
 
     public ValidationRule[] getQueryAssertions(String recordUuid) {
         FullRecord[] fr = OccurrenceUtils.getAllVersionsByUuid(recordUuid, false);
-        OccurrenceDTO occ = new OccurrenceDTO(fr);
-        Map<String,String> queryAssertionMap = occ.getProcessed().getQueryAssertions();
-        ValidationRule[] aqs = Store.getValidationRules(queryAssertionMap.keySet().toArray(new String[0]));
-        //Legacy integration - fix up the user assertions - legacy - to add replace with CAS IDs....
-        for(ValidationRule ua : aqs){
-            if(ua.getUserId() == null && ua.getUserName().contains("@")){
-                String email = ua.getUserName();
-                String userId = authService.getMapOfEmailToId().get(ua.getUserName());
-                ua.setUserEmail(email);
-                ua.setUserId(userId);
-            }
 
-            String userName = authService.getMapOfAllUserNamesByNumericId().get(ua.getUserId());
-            ua.setUserName(userName);
+        if(fr == null) {
+            return null;
+        } else {
+            final OccurrenceDTO occ = new OccurrenceDTO(fr);
+            final FullRecord processed = occ.getProcessed();
+            if(processed == null) {
+                return new ValidationRule[0];
+            } else {
+                Map<String,String> queryAssertionMap = processed.getQueryAssertions();
+
+
+                ValidationRule[] aqs = Store.getValidationRules(queryAssertionMap.keySet().toArray(new String[0]));
+                //Legacy integration - fix up the user assertions - legacy - to add replace with CAS IDs....
+                for(ValidationRule ua : aqs){
+                    if(ua.getUserId() == null && ua.getUserName().contains("@")){
+                        String email = ua.getUserName();
+                        String userId = authService.getMapOfEmailToId().get(ua.getUserName());
+                        ua.setUserEmail(email);
+                        ua.setUserId(userId);
+                    }
+
+                    String userName = authService.getMapOfAllUserNamesByNumericId().get(ua.getUserId());
+                    ua.setUserName(userName);
+                }
+                return aqs;
+            }
         }
-        return aqs;
     }
 
     /**

@@ -234,12 +234,24 @@ public class ValidationRuleController extends AbstractSecureController {
      *
      * @param recordUuid
      * @return
-     * @throws Exception
      */
     @RequestMapping(value = {"/occurrences/{recordUuid}/validationRules", "/occurrences/{recordUuid}/validationRules/", "/occurrences/{recordUuid}/assertionQueries", "/occurrences/{recordUuid}/assertionQueries/"}, method = RequestMethod.GET)
     public @ResponseBody ValidationRule[] getValidationRules(
-            @PathVariable(value="recordUuid") String recordUuid) throws Exception {
-        return assertionUtils.getQueryAssertions(recordUuid);
+            @PathVariable(value="recordUuid") String recordUuid,
+            HttpServletResponse response) {
+        ValidationRule[] result = null;
+        try {
+            result = assertionUtils.getQueryAssertions(recordUuid);
+            if(result == null) {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND, "No record found for " + recordUuid);
+            }
+        } catch (Exception e) {
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error requesting query assertions for record" + recordUuid);
+            logger.error("Error requesting query assertions for  record" + recordUuid, e);
+        }
+        finally {
+            return result;
+        }
     }
 
     public void setAssertionUtils(AssertionUtils assertionUtils) {
