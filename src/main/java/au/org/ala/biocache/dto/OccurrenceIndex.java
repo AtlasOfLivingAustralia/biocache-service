@@ -69,7 +69,7 @@ public class OccurrenceIndex {
     @Field("latitude") Double decimalLatitude;
     @Field("longitude") Double decimalLongitude;
     @Field("coordinate_uncertainty") Double coordinateUncertaintyInMeters;
-    @Field("year") String year;
+    @Field("year") Integer year;
     @Field("month") String month;
     @Field("basis_of_record") String basisOfRecord;
     @Field("type_status") String typeStatus;
@@ -242,7 +242,7 @@ public class OccurrenceIndex {
         addToMapIfNotNull(map, "state", stateProvince); 
         addToMapIfNotNull(map, "latitude", safeDblToString(decimalLatitude));
         addToMapIfNotNull(map, "longitude", safeDblToString(decimalLongitude)); 
-        addToMapIfNotNull(map, "year", year); 
+        addToMapIfNotNull(map, "year", safeIntToString(year));
         addToMapIfNotNull(map, "month", month); 
         addToMapIfNotNull(map, "basis_of_record", basisOfRecord);
         addToMapIfNotNull(map, "type_status", typeStatus); 
@@ -655,11 +655,11 @@ public class OccurrenceIndex {
         this.coordinateUncertaintyInMeters = coordinateUncertaintyInMeters;
     }
 
-    public String getYear() {
+    public Integer getYear() {
         return year;
     }
 
-    public void setYear(String year) {
+    public void setYear(Integer year) {
         this.year = year;
     }
 
