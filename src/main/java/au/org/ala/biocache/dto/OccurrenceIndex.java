@@ -107,6 +107,7 @@ public class OccurrenceIndex {
     @Field("point-0.0001") String point00001;
     @Field("names_and_lsid") String namesLsid;
     @Field("multimedia") String[] multimedia;
+    @Field("license") String license;
     //conservation status field
     @Field("aust_conservation") String austConservation;
     @Field("state_conservation") String stateConservation;
@@ -280,6 +281,8 @@ public class OccurrenceIndex {
         addToMapIfNotNull(map, "occurrence_details", occurrenceDetails);
         addToMapIfNotNull(map, "rights", rights);
         addToMapIfNotNull(map, "photographer_s", photographer);
+        addToMapIfNotNull(map, "license", license);
+        addToMapIfNotNull(map, "grid_ref", gridReference);
         return map;
     }
 
@@ -359,6 +362,8 @@ public class OccurrenceIndex {
         map.put("occurrence_details", "occurrenceDetails");
         map.put("rights", "rights");
         map.put("photographer_s", "photographer");
+        map.put("license", "license");
+        map.put("grid_ref", "gridReference");
         return map;
     }
 
@@ -1076,5 +1081,13 @@ public class OccurrenceIndex {
 
     public void setMiscDateProperties(Map<String, Object> miscDateProperties) {
         this.miscDateProperties = miscDateProperties;
+    }
+
+    public String getLicense() {
+        return license;
+    }
+
+    public void setLicense(String license) {
+        this.license = license;
     }
 }
