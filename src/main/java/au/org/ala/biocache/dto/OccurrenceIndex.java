@@ -108,6 +108,7 @@ public class OccurrenceIndex {
     @Field("names_and_lsid") String namesLsid;
     @Field("multimedia") String[] multimedia;
     @Field("license") String license;
+    @Field("identification_verification_status") String identificationVerificationStatus;
     //conservation status field
     @Field("aust_conservation") String austConservation;
     @Field("state_conservation") String stateConservation;
@@ -283,6 +284,7 @@ public class OccurrenceIndex {
         addToMapIfNotNull(map, "photographer_s", photographer);
         addToMapIfNotNull(map, "license", license);
         addToMapIfNotNull(map, "grid_ref", gridReference);
+        addToMapIfNotNull(map, "identification_verification_status", identificationVerificationStatus);
         return map;
     }
 
@@ -364,6 +366,7 @@ public class OccurrenceIndex {
         map.put("photographer_s", "photographer");
         map.put("license", "license");
         map.put("grid_ref", "gridReference");
+        map.put("identification_verification_status", "identificationVerificationStatus");
         return map;
     }
 
@@ -1090,4 +1093,13 @@ public class OccurrenceIndex {
     public void setLicense(String license) {
         this.license = license;
     }
+    
+    public String getIdentificationVerificationStatus() { 
+        return identificationVerificationStatus; 
+    }
+
+    public void setIdentificationVerificationStatus(String identificationVerificationStatus) { 
+        this.identificationVerificationStatus = identificationVerificationStatus; 
+    }
+
 }
