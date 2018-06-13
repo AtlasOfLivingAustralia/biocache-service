@@ -127,7 +127,6 @@ public class DoiService {
             return response.body();
         } else {
             logger.error("Error creating DOI for request " + request + ":" + response.errorBody().string());
-
             throw new RuntimeException("Unable to mint DOI for " + request.getApplicationUrl());
         }
     }
@@ -233,7 +232,7 @@ public class DoiService {
             return updateResponse.body();
         } else {
             logger.error("Error updating DOI for id " + id + ":" + updateResponse.errorBody().string());
-            throw new RuntimeException("Unable to update file for DOI uuid" + id);
+            throw new RuntimeException("Unable to update file for DOI uuid: " + id +", with URL: " + fileUrl);
         }
 
     }

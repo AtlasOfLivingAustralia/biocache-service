@@ -520,8 +520,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         String filename = requestParams.getFile();
         String originalParams = requestParams.toString();
 
-        boolean shuttingDown = false;
-
         // Use a zip output stream to include the data and citation together in
         // the download.
         // Note: When producing a shp the output will stream a csv followed by a zip.
@@ -623,7 +621,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         doiResponse = doiService.mintDoi(doiDetails);
 
                         if(doiResponse != null) {
-                            logger.debug("DOI minted" + doiResponse.getDoi());
+                            logger.debug("DOI minted: " + doiResponse.getDoi());
                             doiResponseList.add (doiResponse);
                         }
                     }
@@ -669,9 +667,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
                         .replace("[dataProviders]", dataProviders)
                         .replace("[doi]", doi);
-//                if (logger.isDebugEnabled()) {
-//                    logger.debug(readmeContent);
-//                }
+
                 sp.write(readmeContent.getBytes(StandardCharsets.UTF_8));
                 sp.write(("For more information about the fields that are being downloaded please consult <a href='"
                         + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes(StandardCharsets.UTF_8));
@@ -720,8 +716,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             // sApplication may be shutting down, do not delete the download file
-            // FIXME: This is a local variable that is never accessed
-            shuttingDown = true;
             throw e;
         }
     }

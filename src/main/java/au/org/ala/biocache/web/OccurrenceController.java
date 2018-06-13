@@ -15,6 +15,7 @@
 package au.org.ala.biocache.web;
 
 import au.com.bytecode.opencsv.CSVReader;
+import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.Config;
 import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dao.QidCacheDAO;
@@ -334,7 +335,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping(value = "index/fields", method = RequestMethod.GET)
-    public @ResponseBody Set<IndexFieldDTO> getIndexedFields(
+    public @ResponseBody Collection<IndexFieldDTO> getIndexedFields(
             @RequestParam(value="fl", required=false) String fields,
             @RequestParam(value="indexed", required=false) Boolean indexed,
             @RequestParam(value="stored", required=false) Boolean stored,
@@ -344,7 +345,6 @@ public class OccurrenceController extends AbstractSecureController {
             @RequestParam(value="isMisc", required=false, defaultValue = "false") Boolean isMisc,
             @RequestParam(value="isDwc", required=false) Boolean isDwc) throws Exception {
 
-        afterInitialisation();
         Set<IndexFieldDTO> result;
         if(fields == null) {
             result = searchDAO.getIndexedFields();
@@ -357,16 +357,14 @@ public class OccurrenceController extends AbstractSecureController {
             Set<String> dataTypes = dataType == null ? null : new HashSet(Arrays.asList(dataType.split(",")));
             Set<String> classss = classs == null ? null : new HashSet(Arrays.asList(classs.split(",")));
             for (IndexFieldDTO i : result) {
-                if ((indexed == null || i.isIndexed() == indexed) &&
-                        (stored == null || i.isStored() == stored) &&
+                if (
+                        (indexed == null    || i.isIndexed() == indexed) &&
+                        (stored == null     || i.isStored() == stored) &&
                         (multivalue == null || i.isMultivalue() == multivalue) &&
-                        (dataType == null || dataTypes.contains(i.getDataType())) &&
-                        (classs == null || classss.contains(i.getClasss())) &&
-                        (isMisc || !i.getName().startsWith("_")) &&
-                        (isDwc == null || isDwc == StringUtils.isNotEmpty(i.getDwcTerm())))
-//                                &&
-//                                // Only allow fields with Dwc if the download attribute is also present
-//                                ((StringUtils.isEmpty(i.getDwcTerm())) || StringUtils.isNotEmpty(i.getDwcTerm()) && StringUtils.isNotEmpty(i.getDownloadName()))))
+                        (dataType == null   || dataTypes.contains(i.getDataType())) &&
+                        (classs == null     || classss.contains(i.getClasss())) &&
+                        (isMisc             || !i.getName().startsWith("_")) &&
+                        (isDwc == null      || isDwc == StringUtils.isNotEmpty(i.getDwcTerm())))
                 {
                     filtered.add(i);
                 }
@@ -374,7 +372,86 @@ public class OccurrenceController extends AbstractSecureController {
             result = filtered;
         }
 
-        return result;
+
+        List myList = new ArrayList(result);
+        Collections.sort(myList, new Comparator<IndexFieldDTO>() {
+            @Override
+            public int compare(IndexFieldDTO o1, IndexFieldDTO o2) {
+                return o1.getName().compareTo(o2.getName());
+            }
+        });
+
+        return myList;
+    }
+
+    /**
+     * Returns a list with the details of the index field
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "index/fields.csv", method = RequestMethod.GET)
+    public void getIndexedFields(
+            @RequestParam(value="fl", required=false) String fields,
+            @RequestParam(value="indexed", required=false) Boolean indexed,
+            @RequestParam(value="stored", required=false) Boolean stored,
+            @RequestParam(value="multivalue", required=false) Boolean multivalue,
+            @RequestParam(value="dataType", required=false) String dataType,
+            @RequestParam(value="classs", required=false) String classs,
+            @RequestParam(value="isMisc", required=false, defaultValue = "false") Boolean isMisc,
+            @RequestParam(value="isDwc", required=false) Boolean isDwc,
+            HttpServletResponse response
+            ) throws Exception {
+
+        Collection<IndexFieldDTO> indexedFields =  getIndexedFields(fields,
+                indexed,
+                stored,
+                multivalue,
+                dataType,
+                classs,
+                isMisc,
+                isDwc);
+
+        response.setHeader("Cache-Control", "must-revalidate");
+        response.setHeader("Pragma", "must-revalidate");
+        response.setHeader("Content-Disposition", "attachment;filename=index-fields.csv");
+        response.setContentType("text/csv");
+
+        CSVWriter csvWriter = new CSVWriter(new OutputStreamWriter(response.getOutputStream()));
+
+        csvWriter.writeNext(new String[]{
+                "name",
+                "dwc term",
+                "info",
+                "dataType",
+                "description",
+                "download name",
+                "download description",
+                "json name",
+                "stored",
+                "indexed",
+                "multivalue"
+        });
+
+        Iterator<IndexFieldDTO> iter = indexedFields.iterator();
+        while(iter.hasNext()){
+            IndexFieldDTO indexField = iter.next();
+            csvWriter.writeNext(new String[]{
+                    indexField.getName(),
+                    indexField.getDwcTerm(),
+                    indexField.getInfo(),
+                    indexField.getDataType(),
+                    indexField.getDescription(),
+                    indexField.getDownloadName(),
+                    indexField.getDownloadDescription(),
+                    indexField.getJsonName(),
+                    Boolean.toString(indexField.isStored()),
+                    Boolean.toString(indexField.isIndexed()),
+                    Boolean.toString(indexField.isMultivalue())
+            });
+        }
+
+        csvWriter.flush();
+        csvWriter.close();
     }
 
     /**
@@ -873,7 +950,7 @@ public class OccurrenceController extends AbstractSecureController {
         final File file = new File(filepath);
         
         final SpeciesLookupService mySpeciesLookupService = this.speciesLookupService;
-        ip = ip == null?getIPAddress(request):ip;
+        ip = ip == null ? getIPAddress(request) : ip;
         final DownloadDetailsDTO dd = downloadService.registerDownload(params, ip, DownloadType.RECORDS_INDEX);
         
         if(file.exists()){

@@ -48,7 +48,6 @@ public class DownloadDetailsDTO {
      */
     private String sensitiveFq = null;
     private AtomicBoolean interrupt = new AtomicBoolean(false);
-    private String uniqueId = null;
     private String processingThreadName = null;
 
     /**
@@ -225,11 +224,7 @@ public class DownloadDetailsDTO {
      * @return unique id constructed from email and start time
      */
     public String getUniqueId() {
-        return uniqueId = UUID.nameUUIDFromBytes(getEmail().getBytes(StandardCharsets.UTF_8)) + "-" + getStartTime();
-    }
-
-    public void setUniqueId(String uniqueId) {
-        this.uniqueId = uniqueId;
+        return UUID.nameUUIDFromBytes(getEmail().getBytes(StandardCharsets.UTF_8)) + "-" + getStartTime();
     }
 
     /**

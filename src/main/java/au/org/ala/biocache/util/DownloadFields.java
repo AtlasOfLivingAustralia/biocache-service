@@ -118,9 +118,9 @@ public class DownloadFields {
      */
     private String generateTitle(String value, boolean useSuffix){
         String suffix = "";
-        if(value.endsWith(".p")){
+        if(value.endsWith("_p")){
             suffix = " - Processed";
-            value = value.replaceAll("\\.p", "");
+            value = value.replaceAll("_p", "");
         }
         value = StringUtils.join(StringUtils.splitByCharacterTypeCamelCase(value), " ");
         if(useSuffix) {

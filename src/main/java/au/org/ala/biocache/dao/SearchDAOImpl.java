@@ -284,6 +284,9 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${media.dir:/data/biocache-media/}")
     public String biocacheMediaDir = "/data/biocache-media/";
 
+    @Value("${default.download.fields:id,data_resource_uid,data_resource,license,catalogue_number,taxon_concept_lsid,raw_taxon_name,raw_common_name,taxon_name,rank,common_name,kingdom,phylum,class,order,family,genus,species,subspecies,institution_code,collection_code,locality,raw_latitude,raw_longitude,raw_datum,latitude,longitude,coordinate_precision,coordinate_uncertainty,country,state,cl959,min_elevation_d,max_elevation_d,min_depth_d,max_depth_d,individual_count,recorded_by,year,month,day,verbatim_event_date,basis_of_record,raw_basis_of_record,sex,preparations,information_withheld,data_generalizations,outlier_layer,taxonomic_kosher,geospatial_kosher}")
+    protected String defaultDownloadFields;
+
     private volatile Set<IndexFieldDTO> indexFields = new ConcurrentHashSet<IndexFieldDTO>(); //RestartDataService.get(this, "indexFields", new TypeReference<TreeSet<IndexFieldDTO>>(){}, TreeSet.class);
     private volatile Map<String, IndexFieldDTO> indexFieldMap = RestartDataService.get(this, "indexFieldMap", new TypeReference<HashMap<String, IndexFieldDTO>>(){}, HashMap.class);
     private final Map<String, StatsIndexFieldDTO> rangeFieldCache = new HashMap<String, StatsIndexFieldDTO>();
@@ -965,29 +968,29 @@ public class SearchDAOImpl implements SearchDAO {
             SolrQuery solrQuery = new SolrQuery();
             queryFormatUtils.formatSearchQuery(downloadParams);
 
-            String dFields = downloadParams.getFields();
+            String requestedFieldsParam = getDownloadFields(downloadParams);
 
             if (includeSensitive) {
                 //include raw latitude and longitudes
-                if (dFields.contains("decimalLatitude_p")) {
-                    dFields = dFields.replaceFirst("decimalLatitude_p", "sensitive_latitude,sensitive_longitude,decimalLatitude_p");
-                } else if (dFields.contains("decimalLatitude")) {
-                    dFields = dFields.replaceFirst("decimalLatitude", "sensitive_latitude,sensitive_longitude,decimalLatitude");
+                if (requestedFieldsParam.contains("decimalLatitude_p")) {
+                    requestedFieldsParam = requestedFieldsParam.replaceFirst("decimalLatitude_p", "sensitive_latitude,sensitive_longitude,decimalLatitude_p");
+                } else if (requestedFieldsParam.contains("decimalLatitude")) {
+                    requestedFieldsParam = requestedFieldsParam.replaceFirst("decimalLatitude", "sensitive_latitude,sensitive_longitude,decimalLatitude");
                 }
-                if (dFields.contains(",locality,")) {
-                    dFields = dFields.replaceFirst(",locality,", ",locality,sensitive_locality,");
+                if (requestedFieldsParam.contains(",locality,")) {
+                    requestedFieldsParam = requestedFieldsParam.replaceFirst(",locality,", ",locality,sensitive_locality,");
                 }
-                if (dFields.contains(",locality_p,")) {
-                    dFields = dFields.replaceFirst(",locality_p,", ",locality_p,sensitive_locality,");
+                if (requestedFieldsParam.contains(",locality_p,")) {
+                    requestedFieldsParam = requestedFieldsParam.replaceFirst(",locality_p,", ",locality_p,sensitive_locality,");
                 }
             }
 
-            StringBuilder sb = new StringBuilder(dFields);
+            StringBuilder dbFieldsBuilder = new StringBuilder(requestedFieldsParam);
             if (!downloadParams.getExtra().isEmpty()) {
-                sb.append(",").append(downloadParams.getExtra());
+                dbFieldsBuilder.append(",").append(downloadParams.getExtra());
             }
 
-            String[] requestedFields = sb.toString().split(",");
+            String[] requestedFields = dbFieldsBuilder.toString().split(",");
             List<String>[] indexedFields;
             if (downloadFields == null) {
                 //default to include everything
@@ -1622,7 +1625,7 @@ public class SearchDAOImpl implements SearchDAO {
             //Only the fields specified below will be included in the results from the SOLR Query
             solrQuery.setFields("id", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid");
 
-            String dFields = downloadParams.getFields();
+            String dFields = getDownloadFields(downloadParams);
 
             if (includeSensitive) {
                 //include raw latitude and longitudes
@@ -1656,7 +1659,7 @@ public class SearchDAOImpl implements SearchDAO {
             //Write the header line
             String qas = qasb.toString();
 
-            List<String>[] indexedFields = downloadFields.getIndexFields(downloadParams.getFields().split(","), false, downloadParams.getLayersServiceUrl());
+            List<String>[] indexedFields = downloadFields.getIndexFields(getDownloadFields(downloadParams).split(","), false, downloadParams.getLayersServiceUrl());
 
             String[] fields = sb.toString().split(",");
 
@@ -1771,7 +1774,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @param downloadParams
      */
     private void expandRequestedFields(DownloadRequestParams downloadParams, boolean isSolr) {
-        String fields = downloadParams.getFields();
+        String fields = getDownloadFields(downloadParams);
 
         try {
             Matcher matcher = clpField.matcher(fields);
@@ -1839,6 +1842,14 @@ public class SearchDAOImpl implements SearchDAO {
         return qasb.toString();
     }
 
+    private String getDownloadFields(DownloadRequestParams downloadParams) {
+        String dFields = downloadParams.getFields();
+        if(StringUtils.isEmpty(dFields)){
+            dFields = defaultDownloadFields;
+        }
+        return dFields;
+    }
+
     /**
      * Downloads the records for the supplied query. Used to break up the download into components
      * 1) 1 call for each data resource that has a download limit (supply the data resource uid as the argument dataResource)
@@ -1883,7 +1894,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
 
         int pageSize = downloadBatchSize;
-        StringBuilder sb = new StringBuilder(downloadParams.getFields());
+        StringBuilder sb = new StringBuilder(getDownloadFields(downloadParams));
         if (downloadParams.getExtra().length() > 0) {
             sb.append(",").append(downloadParams.getExtra());
         }
@@ -3293,15 +3304,8 @@ public class SearchDAOImpl implements SearchDAO {
                     }
 
                     //(3) check as a dwcTerm
-                    String camelCase;
-                    boolean isRaw;
-                    if (fieldName.startsWith("raw_")) {
-                        camelCase = LOWER_UNDERSCORE.to(LOWER_CAMEL, fieldName.replace("raw_",""));
-                        isRaw = true;
-                    } else {
-                        camelCase = LOWER_UNDERSCORE.to(LOWER_CAMEL, fieldName);
-                        isRaw = false;
-                    }
+                    String camelCase = LOWER_UNDERSCORE.to(LOWER_CAMEL, fieldName);
+
                     Term term = null;
                     try {
                         //find matching Darwin core term
@@ -3328,16 +3332,8 @@ public class SearchDAOImpl implements SearchDAO {
                             f.setDwcTerm(dwcTerm);
                         }
                     } else {
-                        boolean isRawAndHasProcessed = isRaw &&
-                                Arrays.binarySearch(sortedFieldNames, fieldName.replace("raw_","")) >= 0;
 
-                        // Only add _raw to the DwcTerm name when there is also a processed field.
-                        if (isRawAndHasProcessed) {
-                            f.setDwcTerm(term.simpleName() + "_raw");
-                        } else {
-                            f.setDwcTerm(term.simpleName());
-                        }
-
+                        f.setDwcTerm(term.simpleName());
                         if (term instanceof DwcTerm) {
                             f.setClasss(((DwcTerm) term).getGroup()); //(8)
                         } else {
@@ -3348,7 +3344,7 @@ public class SearchDAOImpl implements SearchDAO {
                     //append dwc url to info
                     if (!dcterm && f.getDwcTerm() != null && !f.getDwcTerm().isEmpty() && StringUtils.isNotEmpty(dwcUrl)) {
                         if (info.length() > 0) info += " ";
-                        f.setInfo(info + dwcUrl + f.getDwcTerm().replace("_raw", ""));
+                        f.setInfo(info + dwcUrl + f.getDwcTerm());
                     }
 
                     //(4) check as json name
