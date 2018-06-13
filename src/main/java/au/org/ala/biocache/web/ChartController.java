@@ -337,7 +337,7 @@ public class ChartController extends AbstractSecureController implements Seriali
             List fqs = makeSeriesFacets(x, searchParams, null, xmissing);
 
             boolean date = isDate(x);
-            if (fqs.size() > 0 && (isNumber(x) || date)) {
+            if (fqs.size() > 0 && !"year".equalsIgnoreCase(x) && (isNumber(x) || date)) {
                 //build xranges
                 String newXRanges = "";
                 for (int i = 0; i < fqs.size(); i++) {
