@@ -207,7 +207,7 @@ public class QueryFormatUtils {
     private String [] formatQid(String query, SpatialSearchRequestParams searchParams) {
         String q = query;
         String displayString = query;
-        if (query.contains("qid:")) {
+        if (query != null && query.contains("qid:")) {
             Matcher matcher = qidPattern.matcher(query);
             int count = 0;
             while (matcher.find()) {
@@ -259,7 +259,7 @@ public class QueryFormatUtils {
      */
     private String [] formatTerms(String [] current) {
         // look for field:term sub queries and catch fields: matched_name & matched_name_children
-        if (current[1].contains(":")) {
+        if (current != null && current.length >=2 && current[1] != null && current[1].contains(":")) {
             StringBuffer queryString = new StringBuffer();
 
             // will match foo:bar, foo:"bar bash" & foo:bar\ bash
@@ -357,7 +357,7 @@ public class QueryFormatUtils {
     private String [] formatTaxa(String [] current) {
 
         // replace taxa queries with lsid: and text:
-        if (current[1].contains("taxa:")) {
+        if (current != null && current.length >=2 && current[1] != null && current[1].contains("taxa:")) {
             StringBuffer queryString = new StringBuffer();
             Matcher matcher = taxaPattern.matcher(current[1]);
             queryString.setLength(0);
@@ -400,6 +400,10 @@ public class QueryFormatUtils {
      * @param current String [] { displayString, formattedQuery } to update.
      */
     private void formatSpeciesList(String [] current) {
+        if(current == null || current.length < 2 || current[1] == null){
+            return;
+        }
+
         //if the query string contains species_list: replace with the equivalent (lsid: OR lsid: ...etc) before lsid: is parsed
         StringBuffer sb = new StringBuffer();
         Matcher m = speciesListPattern.matcher(current[1]);
@@ -462,6 +466,10 @@ public class QueryFormatUtils {
      * @param current String [] { displayString, formattedQuery } to update.
      */
     private void formatLsid(String [] current) {
+        if(current == null || current.length < 2 || current[1] == null){
+            return;
+        }
+
         //if the query string contains lsid: we will need to replace it with the corresponding lft range
         if (current[1].contains("lsid:")) {
             StringBuffer queryString = new StringBuffer();
@@ -519,6 +527,10 @@ public class QueryFormatUtils {
      * @param current String [] { displayString, formattedQuery } to update.
      */
     private void formatUrn(String [] current) {
+        if(current == null || current.length < 2 || current[1] == null){
+            return;
+        }
+
         StringBuffer queryString = new StringBuffer();
         if (current[1].contains("urn")) {
             //escape the URN strings before escaping the rest this avoids the issue with attempting to search on a urn field
@@ -530,7 +542,6 @@ public class QueryFormatUtils {
                     logger.debug("escaping lsid urns  " + value);
                 }
                 matcher.appendReplacement(queryString, prepareSolrStringForReplacement(value, true));
-
                 //this lsid->name replacement is too slow
 //                String name = searchUtils.substituteLsidsForNames(value);
 //                if (name != null) {
@@ -548,6 +559,10 @@ public class QueryFormatUtils {
      * @param current String [] { displayString, formattedQuery } to update.
      */
     private void formatHttp(String [] current) {
+        if(current == null || current.length < 2 || current[1] == null){
+            return;
+        }
+
         StringBuffer queryString = new StringBuffer();
         if (current[1].contains("http")) {
             //escape the HTTP strings before escaping the rest this avoids the issue with attempting to search on a urn field
@@ -583,6 +598,10 @@ public class QueryFormatUtils {
      * @return true iff this is a spatial query.
      */
     private boolean formatSpatial(String [] current) {
+        if(current == null || current.length < 2 || current[1] == null){
+            return false;
+        }
+
         if (current[1].contains("Intersects")) {
             StringBuffer queryString = new StringBuffer();
             StringBuilder displaySb = new StringBuilder();
@@ -640,6 +659,10 @@ public class QueryFormatUtils {
      * @param searchParams The search parameters
      */
     private void formatGeneral(String [] current, SpatialSearchRequestParams searchParams) {
+        if(current == null || current.length < 2 || current[1] == null){
+            return;
+        }
+
         current[1] = formatString(current[1], true);
 
         Matcher matcher;
@@ -675,6 +698,10 @@ public class QueryFormatUtils {
      * @param current String [] { displayString, formattedQuery } to update.
      */
     private void formatTitleMap(String [] current) {
+        if(current == null || current.length < 2 || current[1] == null){
+            return;
+        }
+
         String[] parts = current[1].split(":", 2);
         //check to see if the first part is a range based query and update if necessary
         Map<String, String> titleMap = rangeBasedFacets.getTitleMap(parts[0]);

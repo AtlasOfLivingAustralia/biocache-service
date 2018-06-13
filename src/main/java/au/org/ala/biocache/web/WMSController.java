@@ -1028,7 +1028,7 @@ public class WMSController extends AbstractSecureController{
         }
 
         model.addAttribute("uriUrl", baseUiUrl + "/occurrences/search?q=" +
-                URLEncoder.encode(q, "UTF-8")
+                URLEncoder.encode(q == null ? "" : q, "UTF-8")
                 + "&fq=" + URLEncoder.encode(fqs[0], "UTF-8")
                 + "&fq=" + URLEncoder.encode(fqs[1], "UTF-8")
         );
