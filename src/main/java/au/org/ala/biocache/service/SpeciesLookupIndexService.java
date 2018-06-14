@@ -77,6 +77,7 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
             if (e.getMisappliedResult() != null)
                 lsid = e.getMatchedResult().getLsid();
         } catch (SearchResultException e) {
+            logger.debug("Error searching for name: " + name +" -  " + e.getMessage(), e);
         }
 
         return lsid;
@@ -272,11 +273,11 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
                     }
 
                     nsr.put("images", speciesImageService.get(Long.parseLong((String) nsr.get("left")), Long.parseLong((String) nsr.get("right"))));
-
                     output.add(nsr);
                 }
-            } catch (Exception e) {
 
+            } catch (Exception e) {
+                logger.debug("Error thrown in autocomplete: " + e.getMessage(), e);
             }
         }
 

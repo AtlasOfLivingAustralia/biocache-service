@@ -191,7 +191,11 @@ class UpdateThread extends Thread {
                 for (FacetResultDTO fr : qr.getFacetResults()) {
                     for (FieldResultDTO r : fr.getFieldResult()) {
                         if (StringUtils.isNotEmpty(r.getLabel())) {
-                            map.put(Long.parseLong(r.getLabel()), r.getCount());
+                            try {
+                                map.put(Long.parseLong(r.getLabel()), r.getCount());
+                            } catch (NumberFormatException e){
+                                // this happens for the empty value
+                            }
                         }
                     }
                 }
@@ -218,7 +222,7 @@ class UpdateThread extends Thread {
                 }
 
             } catch (Exception e) {
-                logger.error("failed to update species counts for : " + params.toString());
+                logger.error("Failed to update species counts for : " + params.toString() + " " + e.getMessage(), e);
             }
         }
         //remove this from the update list
