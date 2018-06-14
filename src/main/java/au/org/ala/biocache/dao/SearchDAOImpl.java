@@ -2678,7 +2678,7 @@ public class SearchDAOImpl implements SearchDAO {
 
                             String label = "";
                             if(messageSource != null){
-                                label = messageSource.getMessage(facet.getName() + ".novalue", null, "", null);
+                                label = messageSource.getMessage(facet.getName() + ".novalue", null, "Not supplied", null);
                             }
                             r.add(new FieldResultDTO(label, facet.getName() + ".novalue", fcount.getCount(), "-" + facet.getName() + ":*"));
                         } else {
@@ -3475,7 +3475,15 @@ public class SearchDAOImpl implements SearchDAO {
                             if (fcount.getName() == null) {
                                 fq = "-" + facetField + ":[* TO *]";
                             }
-                            legend.add(new LegendItem(getFacetValueDisplayName(facetField, fcount.getName()), facetField + "." + fcount.getName(), fcount.getCount(), fq));
+
+                            String i18nCode = null;
+                            if(StringUtils.isNotBlank(fcount.getName())){
+                                i18nCode = facetField + "." + fcount.getName();
+                            } else {
+                                i18nCode = facetField + ".novalue";
+                            }
+
+                            legend.add(new LegendItem(getFacetValueDisplayName(facetField, fcount.getName()), i18nCode, fcount.getCount(), fq));
                         }
                     }
                     break;
@@ -3936,11 +3944,20 @@ public class SearchDAOImpl implements SearchDAO {
             return authService.getDisplayNameFor(value);
         } else {
             if (messageSource != null) {
-                return messageSource.getMessage(
-                        facet + "." + value,
-                        null,
-                        value,
-                        (Locale) null);
+
+                if(StringUtils.isNotBlank(value)) {
+                    return messageSource.getMessage(
+                            facet + "." + value,
+                            null,
+                            value,
+                            (Locale) null);
+                } else {
+                    return messageSource.getMessage(
+                            facet + ".novalue",
+                            null,
+                            "Not supplied",
+                            (Locale) null);
+                }
             } else {
                 return value;
             }
