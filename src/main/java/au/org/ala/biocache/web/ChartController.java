@@ -337,16 +337,30 @@ public class ChartController extends AbstractSecureController implements Seriali
             List fqs = makeSeriesFacets(x, searchParams, null, xmissing);
 
             boolean date = isDate(x);
-            if (fqs.size() > 0 && !"year".equalsIgnoreCase(x) && (isNumber(x) || date)) {
+            if (fqs.size() > 0 && (isNumber(x) || date)) {
                 //build xranges
                 String newXRanges = "";
                 for (int i = 0; i < fqs.size(); i++) {
-                    if (i > 0) newXRanges += ",";
+                    if (i > 0) {
+                        newXRanges += ",";
+                    }
+
                     newXRanges += ((Map) fqs.get(i)).get("label").toString().split(" - ")[0];
-                    if (date) newXRanges += "T00:00:00Z";
+
+                    if (date) {
+                        newXRanges += "T00:00:00Z";
+                    }
                 }
-                newXRanges += "," + ((Map) fqs.get(fqs.size() - 1)).get("label").toString().split(" - ")[1];
-                if (date) newXRanges += "T00:00:00Z";
+
+                String[] lastElement = ((Map) fqs.get(fqs.size() - 1)).get("label").toString().split(" - ");
+
+                if(lastElement !=null && lastElement.length > 1){
+                    newXRanges += "," + ((Map) fqs.get(fqs.size() - 1)).get("label").toString().split(" - ")[1];
+                }
+
+                if (date) {
+                    newXRanges += "T00:00:00Z";
+                }
 
                 //use fqs as xranges
                 xranges = newXRanges;
