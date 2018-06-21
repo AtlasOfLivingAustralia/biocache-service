@@ -182,13 +182,15 @@ public class WMSController extends AbstractSecureController{
      * The public or private value to use in the Cache-Control HTTP header for WMS tiles. Defaults to public
      */
     @Value("${wms.cache.cachecontrol.publicorprivate:public}")
-    private String wmsTileCacheControlHeaderPublicOrPrivate;
+    private String wmsCacheControlHeaderPublicOrPrivate;
 
     /**
      * The max-age value to use in the Cache-Control HTTP header for WMS tiles. Defaults to 86400, equivalent to 1 day
      */
     @Value("${wms.cache.cachecontrol.maxage:86400}")
-    private String wmsTileCacheControlHeaderMaxAge;
+    private String wmsCacheControlHeaderMaxAge;
+
+    private final AtomicReference<String> wmsETag = new AtomicReference<String>(UUID.randomUUID().toString());
 
     @Inject
     protected WMSUtils wmsUtils;
@@ -199,8 +201,6 @@ public class WMSController extends AbstractSecureController{
 
     @Inject
     protected WMSOSGridController wmsosGridController;
-
-    private final AtomicReference<String> wmsTileETag = new AtomicReference<String>(UUID.randomUUID().toString());
 
     static {
         byte[] b = null;
@@ -357,6 +357,9 @@ public class WMSController extends AbstractSecureController{
             }
         }
 
+        response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
+        response.setHeader("ETag", wmsETag.get());
+        
         writeBytes(response, sb.toString().getBytes("UTF-8"));
     }
 
@@ -433,6 +436,9 @@ public class WMSController extends AbstractSecureController{
             }
         }
 
+        response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
+        response.setHeader("ETag", wmsETag.get());
+        
         //now generate the JSON if necessary
         if (returnType.equals("application/json")) {
             return legend;
@@ -471,6 +477,9 @@ public class WMSController extends AbstractSecureController{
             HttpServletResponse response)
             throws Exception {
 
+        response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
+        response.setHeader("ETag", wmsETag.get());
+        
         double[] bbox = null;
 
         if (bbox == null) {
@@ -497,6 +506,9 @@ public class WMSController extends AbstractSecureController{
             HttpServletResponse response)
             throws Exception {
 
+        response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
+        response.setHeader("ETag", wmsETag.get());
+        
         double[] bbox = null;
 
         String q = requestParams.getQ();
@@ -527,16 +539,18 @@ public class WMSController extends AbstractSecureController{
     @ResponseBody
     public SearchResultDTO occurrences(
             SpatialSearchRequestParams requestParams,
-            Model model) throws Exception {
-
-        SearchResultDTO searchResult = new SearchResultDTO();
+            Model model,
+            HttpServletResponse response) throws Exception {
 
         if (StringUtils.isEmpty(requestParams.getQ())) {
-            return searchResult;
+            return new SearchResultDTO();
         }
 
+        response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
+        response.setHeader("ETag", wmsETag.get());
+        
         //searchUtils.updateSpatial(requestParams);
-        searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, null);
+        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, null);
         model.addAttribute("searchResult", searchResult);
 
         if (logger.isDebugEnabled()) {
@@ -559,6 +573,8 @@ public class WMSController extends AbstractSecureController{
             HttpServletResponse response)
             throws Exception {
 
+        response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
+        response.setHeader("ETag", wmsETag.get());
         response.setContentType("text/plain");
         response.setCharacterEncoding("gzip");
 
@@ -1390,7 +1406,7 @@ public class WMSController extends AbstractSecureController{
         if (isValidKey(apiKey)) {
             wmsCache.empty();
             response.setStatus(200);
-            regenerateWMSTileETag();
+            regenerateWMSETag();
         } else {
             response.setStatus(401);
         }
@@ -1399,8 +1415,8 @@ public class WMSController extends AbstractSecureController{
     /**
      * Regenerate the ETag after clearing the WMS cache so that cached responses are identified as out of date
      */
-    private void regenerateWMSTileETag() {
-        wmsTileETag.set(UUID.randomUUID().toString());
+    private void regenerateWMSETag() {
+        wmsETag.set(UUID.randomUUID().toString());
     }
 
 	/**
@@ -1463,8 +1479,8 @@ public class WMSController extends AbstractSecureController{
             logger.debug("WMS tile: " + request.getQueryString());
         }
 
-        response.setHeader("Cache-Control", wmsTileCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsTileCacheControlHeaderMaxAge);
-        response.setHeader("ETag", wmsTileETag.get());
+        response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
+        response.setHeader("ETag", wmsETag.get());
         response.setContentType("image/png"); //only png images generated
 
         boolean is4326 = false;

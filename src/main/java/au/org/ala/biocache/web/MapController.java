@@ -51,6 +51,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * WMS and static map controller. This controller generates static PNG image files
@@ -87,6 +89,21 @@ public class MapController implements ServletConfigAware {
     @Value("${heatmap.legend.occurrence.label:occurrence}")
     protected String heatmapLegendOccurrenceLabel;
 
+
+    /**
+     * The public or private value to use in the Cache-Control HTTP header for WMS tiles. Defaults to public
+     */
+    @Value("${heatmap.legend.cache.cachecontrol.publicorprivate:public}")
+    private String mapCacheControlHeaderPublicOrPrivate;
+
+    /**
+     * The max-age value to use in the Cache-Control HTTP header for WMS tiles. Defaults to 86400, equivalent to 1 day
+     */
+    @Value("${heatmap.legend.cache.cachecontrol.maxage:86400}")
+    private String mapCacheControlHeaderMaxAge;
+
+    private final AtomicReference<String> mapETag = new AtomicReference<String>(UUID.randomUUID().toString());
+    
     @Deprecated
     @RequestMapping(value = "/occurrences/wms", method = RequestMethod.GET)
     public void pointsWmsImage(SpatialSearchRequestParams requestParams,
@@ -264,6 +281,8 @@ public class MapController implements ServletConfigAware {
             response.sendError(400, "Required Double parameter 'radius' is not present");
         }
 
+        response.setHeader("Cache-Control", mapCacheControlHeaderPublicOrPrivate + ", max-age=" + mapCacheControlHeaderMaxAge);
+        response.setHeader("ETag", mapETag.get());
         if (callback != null && !callback.isEmpty()) {
             response.setContentType("text/javascript");
         } else {
@@ -328,6 +347,8 @@ public class MapController implements ServletConfigAware {
 
             g.dispose();
 
+            response.setHeader("Cache-Control", mapCacheControlHeaderPublicOrPrivate + ", max-age=" + mapCacheControlHeaderMaxAge);
+            response.setHeader("ETag", mapETag.get());
             response.setContentType("image/png");
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             ImageIO.write(img, "png", outputStream);
@@ -517,6 +538,8 @@ public class MapController implements ServletConfigAware {
             HttpServletRequest request,
            HttpServletResponse response) throws Exception {
 
+        response.setHeader("Cache-Control", mapCacheControlHeaderPublicOrPrivate + ", max-age=" + mapCacheControlHeaderMaxAge);
+        response.setHeader("ETag", mapETag.get());
         response.setContentType("image/png");
         File baseDir = new File(heatmapOutputDir);
 
