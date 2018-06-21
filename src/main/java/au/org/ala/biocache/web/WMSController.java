@@ -49,6 +49,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * This controller provides mapping services which include WMS services. Includes support for:
@@ -177,26 +178,37 @@ public class WMSController extends AbstractSecureController{
     @Value("${wms.facetPivotCutoff:2000}")
     private int wmsFacetPivotCutoff;
 
+    /**
+     * The public or private value to use in the Cache-Control HTTP header for WMS tiles. Defaults to public
+     */
+    @Value("${wms.cache.cachecontrol.publicorprivate:public}")
+    private String wmsTileCacheControlHeaderPublicOrPrivate;
+
+    /**
+     * The max-age value to use in the Cache-Control HTTP header for WMS tiles. Defaults to 86400, equivalent to 1 day
+     */
+    @Value("${wms.cache.cachecontrol.maxage:86400}")
+    private String wmsTileCacheControlHeaderMaxAge;
+
     @Inject
     protected WMSUtils wmsUtils;
 
     //Stores query hashes + occurrence counts, and, query hashes + pointType + point counts
     private LRUMap countsCache = new LRUMap(10000);
-    private Object countLock = new Object();
+    private final Object countLock = new Object();
 
     @Inject
     protected WMSOSGridController wmsosGridController;
 
+    private final AtomicReference<String> wmsTileETag = new AtomicReference<String>(UUID.randomUUID().toString());
 
     static {
         byte[] b = null;
-        try {
-            RandomAccessFile raf = new RandomAccessFile(WMSController.class.getResource("/blank.png").getFile(), "r");
+        try (RandomAccessFile raf = new RandomAccessFile(WMSController.class.getResource("/blank.png").getFile(), "r");) {
             b = new byte[(int) raf.length()];
             raf.read(b);
-            raf.close();
         } catch (Exception e) {
-            logger.error("Unable to open blank image file");
+            logger.error("Unable to open blank image file", e);
         }
         blankImageBytes = b;
     }
@@ -913,20 +925,26 @@ public class WMSController extends AbstractSecureController{
             JsonNode leftNode = tc.get("left");
             JsonNode rightNode = tc.get("right");
             newQuery = leftNode != null && rightNode != null ? "lft:[" + leftNode.asText() + " TO " + rightNode.asText() + "]" : "taxon_concept_lsid:" + guid;
-            logger.debug("The new query : " + newQuery);
+            if (logger.isDebugEnabled()) {
+                logger.debug("The new query : " + newQuery);
+            }
 
             //common name
             JsonNode commonNameNode = tc.get("commonNameSingle");
             if (commonNameNode != null) {
                 model.addAttribute("commonName", commonNameNode.asText());
-                logger.debug("retrieved name: " + commonNameNode.asText());
+                if (logger.isDebugEnabled()) {
+                    logger.debug("retrieved name: " + commonNameNode.asText());
+                }
             }
 
             //name
             JsonNode nameNode = tc.get("nameComplete");
             if (nameNode != null) {
                 model.addAttribute("name", nameNode.asText());
-                logger.debug("retrieved name: " + nameNode.asText());
+                if (logger.isDebugEnabled()) {
+                    logger.debug("retrieved name: " + nameNode.asText());
+                }
             }
 
             //authorship
@@ -975,7 +993,9 @@ public class WMSController extends AbstractSecureController{
             HttpServletResponse response,
             Model model) throws Exception {
 
-        logger.debug("WMS - GetFeatureInfo requested for: " + queryLayers);
+        if (logger.isDebugEnabled()) {
+            logger.debug("WMS - GetFeatureInfo requested for: " + queryLayers);
+        }
 
         if ("EPSG:4326".equals(srs))
             bboxString = convertBBox4326To900913(bboxString);    // to work around a UDIG bug
@@ -1010,7 +1030,9 @@ public class WMSController extends AbstractSecureController{
         SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
         String q = WMSUtils.convertLayersParamToQ(queryLayers);
         requestParams.setQ(WMSUtils.convertLayersParamToQ(queryLayers));  //need to derive this from the layer name
-        logger.debug("WMS GetFeatureInfo for " + queryLayers + ", longitude:[" + minLng + " TO " + maxLng + "],  latitude:[" + minLat + " TO " + maxLat + "]");
+        if (logger.isDebugEnabled()) {
+            logger.debug("WMS GetFeatureInfo for " + queryLayers + ", longitude:[" + minLng + " TO " + maxLng + "],  latitude:[" + minLat + " TO " + maxLat + "]");
+        }
 
         String[] fqs = new String[]{"longitude:[" + minLng + " TO " + maxLng + "]", "latitude:[" + minLat + " TO " + maxLat + "]"};
         requestParams.setFq(fqs);
@@ -1067,11 +1089,13 @@ public class WMSController extends AbstractSecureController{
             Paint fill = new Color(wmsEnv.colour | wmsEnv.alpha << 24);
             g.setPaint(fill);
             g.fillOval(0, 0, size, size);
-            OutputStream out = response.getOutputStream();
-            logger.debug("WMS - GetLegendGraphic requested : " + request.getQueryString());
-            response.setContentType("image/png");
-            ImageIO.write(img, "png", out);
-            out.close();
+            if (logger.isDebugEnabled()) {
+                logger.debug("WMS - GetLegendGraphic requested : " + request.getQueryString());
+            }
+            try(OutputStream out = response.getOutputStream();) {
+                response.setContentType("image/png");
+                ImageIO.write(img, "png", out);
+            }
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         }
@@ -1313,7 +1337,9 @@ public class WMSController extends AbstractSecureController{
             }
 
             query = searchUtils.convertRankAndName(query);
-            logger.debug("GetCapabilities query in use: " + query);
+            if (logger.isDebugEnabled()) {
+                logger.debug("GetCapabilities query in use: " + query);
+            }
 
             if (useSpeciesGroups) {
                 taxonDAO.extractBySpeciesGroups(baseWsUrl + "/ogc/getMetadata", query, filterQueries, writer);
@@ -1364,12 +1390,20 @@ public class WMSController extends AbstractSecureController{
         if (isValidKey(apiKey)) {
             wmsCache.empty();
             response.setStatus(200);
+            regenerateWMSTileETag();
         } else {
             response.setStatus(401);
         }
     }
 
     /**
+     * Regenerate the ETag after clearing the WMS cache so that cached responses are identified as out of date
+     */
+    private void regenerateWMSTileETag() {
+        wmsTileETag.set(UUID.randomUUID().toString());
+    }
+
+	/**
      * WMS service for webportal.
      *
      * @param cql_filter q value.
@@ -1425,9 +1459,12 @@ public class WMSController extends AbstractSecureController{
             }
         }
 
-        logger.debug("WMS tile: " + request.getQueryString());
+        if (logger.isDebugEnabled()) {
+            logger.debug("WMS tile: " + request.getQueryString());
+        }
 
-        response.setHeader("Cache-Control", "max-age=86400"); //age == 1 day
+        response.setHeader("Cache-Control", wmsTileCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsTileCacheControlHeaderMaxAge);
+        response.setHeader("ETag", wmsTileETag.get());
         response.setContentType("image/png"); //only png images generated
 
         boolean is4326 = false;
@@ -1452,7 +1489,9 @@ public class WMSController extends AbstractSecureController{
         }
 
         PointType pointType = getPointTypeForDegreesPerPixel(resolution);
-        logger.debug("Rendering: " + pointType.name());
+        if (logger.isDebugEnabled()) {
+            logger.debug("Rendering: " + pointType.name());
+        }
 
         String q = "";
 
@@ -1514,11 +1553,9 @@ public class WMSController extends AbstractSecureController{
 
         if (imgObj != null && imgObj.g != null) {
             imgObj.g.dispose();
-            try {
-                ServletOutputStream outStream = response.getOutputStream();
+            try (ServletOutputStream outStream = response.getOutputStream();){
                 ImageIO.write(imgObj.img, "png", outStream);
                 outStream.flush();
-                outStream.close();
             } catch (Exception e) {
                 logger.debug("Unable to write image", e);
             }
@@ -2566,8 +2603,8 @@ public class WMSController extends AbstractSecureController{
 
 class ImgObj {
 
-    Graphics2D g;
-    BufferedImage img;
+    final Graphics2D g;
+    final BufferedImage img;
 
     public static ImgObj create(int width, int height) {
         BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
