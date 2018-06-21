@@ -459,14 +459,7 @@ public class WMSOSGridController {
             //grid lines are rendered after cell fills
             renderGridLines(wmsImg, linesToRender, outlineColour);
         }
-
-//        if(tileOutline){
-//            //for debugging
-//            Paint debugBorder = new Color(0x5500FF00, true);
-//            wmsImg.g.setPaint(debugBorder);
-//            wmsImg.g.drawRect(0,0, width, height); //debugging border
-//        }
-
+        
         if (wmsImg != null && wmsImg.g != null) {
             wmsImg.g.dispose();
             try {
@@ -475,7 +468,7 @@ public class WMSOSGridController {
                 outStream.flush();
                 outStream.close();
             } catch (Exception e) {
-                logger.debug("Unable to write image", e);
+                logger.error("Unable to write image", e);
             }
         }
     }
