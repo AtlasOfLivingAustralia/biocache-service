@@ -46,7 +46,9 @@ public class DoiService {
     @Value("${doi.service.apiKey:Provide a valid key}")
     private String doiServiceApiKey;
 
-    @Value("${doi.service.readTimeout:30000}")
+    // By default wait 15 min before hearing any response from the server
+    // (Useful for long file uploads)
+    @Value("${doi.service.readTimeout:900000}")
     private long doiServiceReadTimeout;
 
     @Value("${doi.service.writeTimeout:30000}")
