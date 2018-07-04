@@ -25,42 +25,56 @@ public class SensitiveOccurrenceIndex extends OccurrenceIndex {
     @Field("sensitive_latitude")  Double sensitiveDecimalLatitude;
     @Field("sensitive_longitude")  Double sensitiveDecimalLongitude;
     @Field("sensitive_coordinate_uncertainty") Double sensitiveCoordinateUncertaintyInMeters;
+    @Field("sensitive_event_date") String sensitiveEventDate;
+    @Field("sensitive_event_date_end") String sensitiveEventDateEnd;
+    @Field("sensitive_grid_reference") String sensitiveGridReference;
     
-    /**
-     * @return the sensitiveDecimalLatitude
-     */
     public  Double getSensitiveDecimalLatitude() {
         return sensitiveDecimalLatitude;
     }
-    /**
-     * @param sensitiveDecimalLatitude the sensitiveDecimalLatitude to set
-     */
+
     public void setSensitiveDecimalLatitude( Double sensitiveDecimalLatitude) {
         this.sensitiveDecimalLatitude = sensitiveDecimalLatitude;
     }
-    /**
-     * @return the sensitiveDecimalLongitude
-     */
+
     public  Double getSensitiveDecimalLongitude() {
         return sensitiveDecimalLongitude;
     }
-    /**
-     * @param sensitiveDecimalLongitude the sensitiveDecimalLongitude to set
-     */
+
     public void setSensitiveDecimalLongitude( Double sensitiveDecimalLongitude) {
         this.sensitiveDecimalLongitude = sensitiveDecimalLongitude;
     }
-    /**
-     * @return the sensitiveCoordinateUncertaintyInMeters
-     */
+
     public Double getSensitiveCoordinateUncertaintyInMeters() {
       return sensitiveCoordinateUncertaintyInMeters;
     }
-    /**
-     * @param sensitiveCoordinateUncertaintyInMeters the sensitiveCoordinateUncertaintyInMeters to set
-     */
+
     public void setSensitiveCoordinateUncertaintyInMeters(
         Double sensitiveCoordinateUncertaintyInMeters) {
       this.sensitiveCoordinateUncertaintyInMeters = sensitiveCoordinateUncertaintyInMeters;
+    }
+
+    public String getSensitiveEventDate() {
+        return sensitiveEventDate;
+    }
+
+    public void setSensitiveEventDate(String sensitiveEventDate) {
+        this.sensitiveEventDate = sensitiveEventDate;
+    }
+
+    public String getSensitiveEventDateEnd() {
+        return sensitiveEventDateEnd;
+    }
+
+    public void setSensitiveEventDateEnd(String sensitiveEventDateEnd) {
+        this.sensitiveEventDateEnd = sensitiveEventDateEnd;
+    }
+
+    public String getSensitiveGridReference() {
+        return sensitiveGridReference;
+    }
+
+    public void setSensitiveGridReference(String sensitiveGridReference) {
+        this.sensitiveGridReference = sensitiveGridReference;
     }
 }

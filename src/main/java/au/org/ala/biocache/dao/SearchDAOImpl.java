@@ -104,7 +104,7 @@ public class SearchDAOImpl implements SearchDAO {
 
     //sensitive fields and their non-sensitive replacements
     private static final String[] sensitiveCassandraHdr = {"decimalLongitude", "decimalLatitude", "verbatimLocality"};
-    private static final String[] sensitiveSOLRHdr = {"sensitive_longitude", "sensitive_latitude", "sensitive_locality"};
+    private static final String[] sensitiveSOLRHdr = {"sensitive_longitude", "sensitive_latitude", "sensitive_locality", "sensitive_event_date", "sensitive_event_date_end", "sensitive_grid_reference"};
     private static final String[] notSensitiveCassandraHdr = {"decimalLongitude_p", "decimalLatitude_p", "locality"};
     private static final String[] notSensitiveSOLRHdr = {"longitude", "latitude", "locality"};
 
