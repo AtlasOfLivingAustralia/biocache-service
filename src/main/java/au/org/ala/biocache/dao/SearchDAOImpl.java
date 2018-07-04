@@ -666,7 +666,7 @@ public class SearchDAOImpl implements SearchDAO {
         SpatialSearchRequestParams original = new SpatialSearchRequestParams();
         BeanUtils.copyProperties(searchParams, original);
         try {
-            Map<String, Facet> activeFacetMap = queryFormatUtils.formatSearchQuery(searchParams);
+            Map<String, Facet> activeFacetMap = queryFormatUtils.formatSearchQuery(searchParams, true);
             String queryString = searchParams.getFormattedQuery();
             SolrQuery solrQuery = initSolrQuery(searchParams, true, extraParams); // general search settings
             solrQuery.setQuery(queryString);
@@ -2641,6 +2641,13 @@ public class SearchDAOImpl implements SearchDAO {
                         fqr.add(new FieldResultDTO("[" + nrfacet.getEnd().toString() + " TO *]", "[" + nrfacet.getEnd().toString() + " TO *]", nrfacet.getAfter().intValue()));
                     }
                     facetResults.add(new FacetResultDTO(nrfacet.getName(), fqr));
+                } else {
+                    // Looks like date facets are no longer coming from qr.getFacetDates() but as Range facets instead
+                    List<RangeFacet.Count> facetEntries = rfacet.getCounts();
+                    final String facetName = rfacet.getName();
+
+                    addFacetResultsFromSolrFacets(facetResults, facetEntries, facetName);
+
                 }
             }
         }
@@ -2668,46 +2675,79 @@ public class SearchDAOImpl implements SearchDAO {
         // populate SOLR facet results
         if (facets != null) {
             for (FacetField facet : facets) {
-                List<Count> facetEntries = facet.getValues();
-                if ((facetEntries != null) && (facetEntries.size() > 0)) {
-                    ArrayList<FieldResultDTO> r = new ArrayList<FieldResultDTO>();
-                    for (Count fcount : facetEntries) {
-                        //check to see if the facet field is an uid value that needs substitution
-                        if (fcount.getCount() == 0) continue;
-                        if (fcount.getName() == null) {
+                List<?> facetEntries = facet.getValues();
+                final String facetName = facet.getName();
 
-                            String label = "";
-                            if(messageSource != null){
-                                label = messageSource.getMessage(facet.getName() + ".novalue", null, "Not supplied", null);
-                            }
-                            r.add(new FieldResultDTO(label, facet.getName() + ".novalue", fcount.getCount(), "-" + facet.getName() + ":*"));
-                        } else {
-                            if (fcount.getName().equals(DECADE_PRE_1850_LABEL)) {
-                                r.add(0, new FieldResultDTO(
-                                        getFacetValueDisplayName(facet.getName(), fcount.getName()),
-                                        facet.getName() + "." + fcount.getName(),
-                                        fcount.getCount(),
-                                        getFormattedFqQuery(facet.getName(), fcount.getName())
-                                ));
-                            } else {
-                                r.add(new FieldResultDTO(
-                                        getFacetValueDisplayName(facet.getName(), fcount.getName()),
-                                        facet.getName() + "." + fcount.getName(),
-                                        fcount.getCount(),
-                                        getFormattedFqQuery(facet.getName(), fcount.getName())
-                                ));
-                            }
-                        }
-                    }
-                    // only add facets if there are more than one facet result
-                    if (r.size() > 0) {
-                        FacetResultDTO fr = new FacetResultDTO(facet.getName(), r);
-                        facetResults.add(fr);
-                    }
-                }
+                addFacetResultsFromSolrFacets(facetResults, facetEntries, facetName);
             }
         }
         return facetResults;
+    }
+
+
+    /**
+     * Add {@link FacetResultDTO} instances to facetResults from facetEntries either coming from Solr facet  or facet ranges entries
+     * @param facetResults A non null list where FacetResultDTO instances will be added.
+     * @param facetEntries The solr facet entries
+     * @param facetName The name of the facet
+     * @throws IllegalArgumentException if facetEntries is not a List containing either {@link FacetField.Count} or @{@link RangeFacet.Count} instances
+     *
+     */
+    private void addFacetResultsFromSolrFacets(List<FacetResultDTO> facetResults, List<?> facetEntries, String facetName) {
+        if ((facetEntries != null) && (facetEntries.size() > 0)) {
+            ArrayList<FieldResultDTO> r = new ArrayList<FieldResultDTO>();
+
+            long entryCount;
+            String countEntryName;
+
+            for (Object  facetCountEntryObject : facetEntries) {
+                if(facetCountEntryObject instanceof Count) {
+                    Count facetCountEntry = (Count) facetCountEntryObject;
+                    entryCount = facetCountEntry.getCount();
+                    countEntryName = facetCountEntry.getName();
+                } else if(facetCountEntryObject instanceof RangeFacet.Count)  {
+                    RangeFacet.Count raengeFacetCountEntry = (RangeFacet.Count) facetCountEntryObject;
+                    entryCount = raengeFacetCountEntry.getCount();
+                    countEntryName = raengeFacetCountEntry.getValue();
+
+                } else {
+                    throw new IllegalArgumentException("facetCountEntry is not an instance of FacetField.Count nor RangeFacet.Count: "+ facetCountEntryObject.getClass());
+                }
+
+                //check to see if the facet field is an uid value that needs substitution
+                if (entryCount == 0) continue;
+
+                if (countEntryName == null) {
+
+                    String label = "";
+                    if(messageSource != null){
+                        label = messageSource.getMessage(facetName + ".novalue", null, "Not supplied", null);
+                    }
+                    r.add(new FieldResultDTO(label, facetName + ".novalue", entryCount, "-" + facetName + ":*"));
+                } else {
+                    if (countEntryName.equals(DECADE_PRE_1850_LABEL)) {
+                        r.add(0, new FieldResultDTO(
+                                getFacetValueDisplayName(facetName, countEntryName),
+                                facetName + "." + countEntryName,
+                                entryCount,
+                                getFormattedFqQuery(facetName, countEntryName)
+                        ));
+                    } else {
+                        r.add(new FieldResultDTO(
+                                getFacetValueDisplayName(facetName, countEntryName),
+                                facetName + "." + countEntryName,
+                                entryCount,
+                                getFormattedFqQuery(facetName, countEntryName)
+                        ));
+                    }
+                }
+            }
+            // only add facets if there are more than one facet result
+            if (r.size() > 0) {
+                FacetResultDTO fr = new FacetResultDTO(facetName, r);
+                facetResults.add(fr);
+            }
+        }
     }
 
     private void updateImageUrls(OccurrenceIndex oi) {
@@ -2763,12 +2803,13 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     protected void initDecadeBasedFacet(SolrQuery solrQuery, String field) {
-        solrQuery.add("facet.date", field);
-        solrQuery.add("facet.date.start", DECADE_FACET_START_DATE); // facet date range starts from 1850
-        solrQuery.add("facet.date.end", "NOW/DAY"); // facet date range ends for current date (gap period)
-        solrQuery.add("facet.date.gap", "+10YEAR"); // gap interval of 10 years
-        solrQuery.add("facet.date.other", DECADE_PRE_1850_LABEL); // include counts before the facet start date ("before" label)
-        solrQuery.add("facet.date.include", "lower"); // counts will be included for dates on the starting date but not ending date
+        //Solr 6.x don't use facet.date but facef.range instead
+        solrQuery.add("facet.range", field);
+        solrQuery.add("facet.range.start", DECADE_FACET_START_DATE); // facet date range starts from 1850
+        solrQuery.add("facet.range.end", "NOW/DAY"); // facet date range ends for current date (gap period)
+        solrQuery.add("facet.range.gap", "+10YEAR"); // gap interval of 10 years
+        solrQuery.add("facet.range.other", DECADE_PRE_1850_LABEL); // include counts before the facet start date ("before" label)
+        solrQuery.add("facet.range.include", "lower"); // counts will be included for dates on the starting date but not ending date
     }
 
     /**
