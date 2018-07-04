@@ -121,10 +121,10 @@ public class WMSController extends AbstractSecureController{
      */
     final static byte[] blankImageBytes;
 
-    @Value("${webservices.root:http://biocache.ala.org.au/ws}")
+    @Value("${webservices.root:https://biocache.ala.org.au/ws}")
     protected String baseWsUrl;
 
-    @Value("${biocache.ui.url:http://bicoache.ala.org.au}")
+    @Value("${biocache.ui.url:https://biocache.ala.org.au}")
     protected String baseUiUrl;
 
     @Value("${geoserver.url:http://spatial.ala.org.au/geoserver}")
