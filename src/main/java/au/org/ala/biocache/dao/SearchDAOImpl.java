@@ -287,6 +287,12 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${default.download.fields:id,data_resource_uid,data_resource,license,catalogue_number,taxon_concept_lsid,raw_taxon_name,raw_common_name,taxon_name,rank,common_name,kingdom,phylum,class,order,family,genus,species,subspecies,institution_code,collection_code,locality,raw_latitude,raw_longitude,raw_datum,latitude,longitude,coordinate_precision,coordinate_uncertainty,country,state,cl959,min_elevation_d,max_elevation_d,min_depth_d,max_depth_d,individual_count,recorded_by,year,month,day,verbatim_event_date,basis_of_record,raw_basis_of_record,sex,preparations,information_withheld,data_generalizations,outlier_layer,taxonomic_kosher,geospatial_kosher}")
     protected String defaultDownloadFields;
 
+    /**
+     * A list of fields that are left in the index for legacy reasons, but are removed from the public API to avoid confusion.
+     */
+    @Value("${index.fields.tohide:collector_text,collectors,default_values_used,generalisation_to_apply_in_metres,geohash,ibra_subregion,identifier_by,occurrence_details,text,photo_page_url,photographer,places,portal_id,quad,rem_text,occurrence_status_s}")
+    protected String indexFieldsToHide;
+
     private volatile Set<IndexFieldDTO> indexFields = new ConcurrentHashSet<IndexFieldDTO>(); //RestartDataService.get(this, "indexFields", new TypeReference<TreeSet<IndexFieldDTO>>(){}, TreeSet.class);
     private volatile Map<String, IndexFieldDTO> indexFieldMap = RestartDataService.get(this, "indexFieldMap", new TypeReference<HashMap<String, IndexFieldDTO>>(){}, HashMap.class);
     private final Map<String, StatsIndexFieldDTO> rangeFieldCache = new HashMap<String, StatsIndexFieldDTO>();
@@ -341,9 +347,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
 
         getMaxBooleanClauses();
-
     }
-
 
     public void refreshCaches() {
 
@@ -3213,8 +3217,9 @@ public class SearchDAOImpl implements SearchDAO {
 
         Map<String, String> indexToJsonMap = new OccurrenceIndex().indexToJsonMap();
 
+
         for (String fieldStr : fieldsStr) {
-            if (fieldStr != null && !"".equals(fieldStr)) {
+            if (fieldStr != null && !"".equals(fieldStr) ) {
                 String[] fields = includeCounts ? fieldStr.split("\\}\\},") : fieldStr.split("\\},");
 
                 //sort fields for later use of indexOf
@@ -3226,13 +3231,12 @@ public class SearchDAOImpl implements SearchDAO {
             }
         }
 
-
         //add CASSANDRA fields that are not indexed
         if (!downloadService.downloadSolrOnly) {
             for (String cassandraField : Store.getStorageFieldMap().keySet()) {
                 boolean found = false;
                 //ignore fields with multiple items
-                if (cassandraField != null && !cassandraField.contains(",")) {
+                if (cassandraField != null && !cassandraField.contains(",") ) {
                     for (IndexFieldDTO field : fieldList) {
                         if (field.isIndexed() || field.isStored()) {
                             if (field.getDownloadName() != null && field.getDownloadName().equals(cassandraField)) {
@@ -3248,7 +3252,20 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             }
         }
-        return fieldList;
+
+        //filter fields, to hide deprecated terms
+        List<String> toIgnore = new ArrayList<String>();
+        Set<IndexFieldDTO> filteredFieldList = new HashSet<IndexFieldDTO>();
+        if(indexFieldsToHide != null){
+            toIgnore = Arrays.asList(indexFieldsToHide.split(","));
+        }
+        for(IndexFieldDTO indexedField: fieldList){
+            if(!toIgnore.contains(indexedField.getName())){
+                filteredFieldList.add(indexedField);
+            }
+        }
+
+        return filteredFieldList;
     }
 
     private void formatIndexField(String indexField, String cassandraField, Set<IndexFieldDTO> fieldList, Pattern typePattern,
@@ -3302,6 +3319,11 @@ public class SearchDAOImpl implements SearchDAO {
                     f.setDescription(description);
                     f.setDownloadDescription(description);
                     f.setInfo(layersServiceUrl + "/layers/view/more/" + fieldName);
+                    if(fieldName.startsWith("el")){
+                        f.setClasss("Environmental");
+                    } else {
+                        f.setClasss("Contextual");
+                    }
                 } else {
                     //(5) check as a downloadField
                     String downloadField = fieldName;
@@ -3430,6 +3452,8 @@ public class SearchDAOImpl implements SearchDAO {
                         f.setClasss(classs);
                     }
                 }
+
+
                 fieldList.add(f);
             }
 
