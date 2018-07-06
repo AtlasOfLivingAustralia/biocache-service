@@ -3221,10 +3221,11 @@ public class SearchDAOImpl implements SearchDAO {
                 Arrays.sort(fields);
 
                 for (String field : fields) {
-                    formatIndexField(field, null, fieldList, typePattern, schemaPattern, indexToJsonMap, distinctPattern, fields);
+                    formatIndexField(field, null, fieldList, typePattern, schemaPattern, indexToJsonMap, distinctPattern);
                 }
             }
         }
+
 
         //add CASSANDRA fields that are not indexed
         if (!downloadService.downloadSolrOnly) {
@@ -3242,7 +3243,7 @@ public class SearchDAOImpl implements SearchDAO {
                         }
                     }
                     if (!found) {
-                        formatIndexField(cassandraField, cassandraField, fieldList, typePattern, schemaPattern, indexToJsonMap, distinctPattern, null);
+                        formatIndexField(cassandraField, cassandraField, fieldList, typePattern, schemaPattern, indexToJsonMap, distinctPattern);
                     }
                 }
             }
@@ -3251,7 +3252,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     private void formatIndexField(String indexField, String cassandraField, Set<IndexFieldDTO> fieldList, Pattern typePattern,
-                                  Pattern schemaPattern, Map indexToJsonMap, Pattern distinctPattern, String[] sortedFieldNames) {
+                                  Pattern schemaPattern, Map indexToJsonMap, Pattern distinctPattern) {
 
         if (indexField != null && !"".equals(indexField)) {
             IndexFieldDTO f = new IndexFieldDTO();
@@ -3369,6 +3370,7 @@ public class SearchDAOImpl implements SearchDAO {
                         if (downloadField != null) {
                             dwcTerm = messageSource.getMessage("dwc." + downloadField, null, "", Locale.getDefault());
                         }
+
                         if (dwcTerm.length() > 0) {
                             f.setDwcTerm(dwcTerm);
 
@@ -3377,6 +3379,10 @@ public class SearchDAOImpl implements SearchDAO {
                                 term = DwcTerm.valueOf(dwcTerm);
                                 if(term != null){
                                     f.setClasss(((DwcTerm) term).getGroup()); //(8)
+                                }
+                                DwcTermDetails dwcTermDetails = DwCTerms.getInstance().getDwCTermDetails(term.simpleName());
+                                if(dwcTermDetails !=null){
+                                    f.setDescription(dwcTermDetails.comment);
                                 }
                             } catch (IllegalArgumentException e) {
                                 //enum not found
@@ -3389,6 +3395,11 @@ public class SearchDAOImpl implements SearchDAO {
                             f.setClasss(((DwcTerm) term).getGroup()); //(8)
                         } else {
                             f.setClasss(DwcTerm.GROUP_RECORD); // Assign dcterms to the Record group.
+                        }
+
+                        DwcTermDetails dwcTermDetails = DwCTerms.getInstance().getDwCTermDetails(term.simpleName());
+                        if(dwcTermDetails != null){
+                            f.setDescription(dwcTermDetails.comment);
                         }
                     }
 
