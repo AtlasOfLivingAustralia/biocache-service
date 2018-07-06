@@ -3371,6 +3371,16 @@ public class SearchDAOImpl implements SearchDAO {
                         }
                         if (dwcTerm.length() > 0) {
                             f.setDwcTerm(dwcTerm);
+
+                            try {
+                                //find the term now
+                                term = DwcTerm.valueOf(dwcTerm);
+                                if(term != null){
+                                    f.setClasss(((DwcTerm) term).getGroup()); //(8)
+                                }
+                            } catch (IllegalArgumentException e) {
+                                //enum not found
+                            }
                         }
                     } else {
 
