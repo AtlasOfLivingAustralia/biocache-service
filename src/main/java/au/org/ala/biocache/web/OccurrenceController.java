@@ -421,6 +421,7 @@ public class OccurrenceController extends AbstractSecureController {
         csvWriter.writeNext(new String[]{
                 "name",
                 "dwc term",
+                "dwc category",
                 "info",
                 "dataType",
                 "description",
@@ -438,6 +439,7 @@ public class OccurrenceController extends AbstractSecureController {
             csvWriter.writeNext(new String[]{
                     indexField.getName(),
                     indexField.getDwcTerm(),
+                    indexField.getClasss(),
                     indexField.getInfo(),
                     indexField.getDataType(),
                     indexField.getDescription(),
