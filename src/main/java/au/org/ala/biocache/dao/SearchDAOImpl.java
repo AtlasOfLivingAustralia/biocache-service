@@ -290,7 +290,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * A list of fields that are left in the index for legacy reasons, but are removed from the public API to avoid confusion.
      */
-    @Value("${index.fields.tohide:collector_text,location_determined,collectors,default_values_used,generalisation_to_apply_in_metres,geohash,ibra_subregion,identifier_by,occurrence_details,text,photo_page_url,photographer,places,portal_id,quad,rem_text,occurrence_status_s,identification_qualifier_s}")
+    @Value("${index.fields.tohide:collector_text,location_determined,row_key,matched_name,decimal_latitudelatitude,collectors,default_values_used,generalisation_to_apply_in_metres,geohash,ibra_subregion,identifier_by,occurrence_details,text,photo_page_url,photographer,places,portal_id,quad,rem_text,occurrence_status_s,identification_qualifier_s}")
     protected String indexFieldsToHide;
 
     private volatile Set<IndexFieldDTO> indexFields = new ConcurrentHashSet<IndexFieldDTO>(); //RestartDataService.get(this, "indexFields", new TypeReference<TreeSet<IndexFieldDTO>>(){}, TreeSet.class);
