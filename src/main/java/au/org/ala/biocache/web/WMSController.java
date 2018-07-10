@@ -1953,8 +1953,13 @@ public class WMSController extends AbstractSecureController{
             String[] uncertaintyFqs = {"coordinate_uncertainty:[" + min_uncertainty + " TO " + MAX_UNCERTAINTY + "] AND -assertions:uncertaintyNotSpecified", "assertions:uncertaintyNotSpecified", "coordinate_uncertainty:[" + MAX_UNCERTAINTY + " TO *]"};
             double[] uncertaintyR = {-1, MAX_UNCERTAINTY, MAX_UNCERTAINTY};
 
-            String[] fqs = new String[originalFqs.length + 3];
-            System.arraycopy(originalFqs, 0, fqs, 3, originalFqs.length);
+            int originalFqsLength = originalFqs != null ? originalFqs.length : 0;
+
+            String[] fqs = new String[originalFqsLength + 3];
+
+            if(originalFqsLength > 0) {
+                System.arraycopy(originalFqs, 0, fqs, 3, originalFqsLength);
+            }
 
             //expand bounding box to cover MAX_UNCERTAINTY radius (m to degrees)
             fqs[1] = "longitude:[" + (bbox[0] - MAX_UNCERTAINTY / 100000.0) + " TO " + (bbox[2] + MAX_UNCERTAINTY / 100000.0) + "]";
