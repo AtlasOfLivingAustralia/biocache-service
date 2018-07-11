@@ -4011,7 +4011,7 @@ public class SearchDAOImpl implements SearchDAO {
     String getFacetValueDisplayName(String facet, String value) {
         if (facet.endsWith("_uid")) {
             return searchUtils.getUidDisplayString(facet, value, false);
-        } else if (facet.equals("occurrence_year")) {
+        } else if ("occurrence_year".equals(facet) && value != null) {
             try {
                 if (DECADE_PRE_1850_LABEL.equals(value)) {
                     return messageSource.getMessage("decade.pre.start", null, "pre 1850", null); // "pre 1850";
