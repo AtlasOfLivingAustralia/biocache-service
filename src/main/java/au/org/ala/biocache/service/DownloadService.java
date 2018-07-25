@@ -162,6 +162,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.doi.readme.template:}")
     protected String biocacheDownloadDoiReadmeTemplate;
 
+    @Value("${download.doi.failure.message:}")
+    protected String biocacheDownloadDoiFailureMessage;
+
     @Value("${download.doi.title.prefix:Occurrence download }")
     protected String biocacheDownloadDoiTitlePrefix = "Occurrence download ";
 
@@ -602,30 +605,37 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                         List<String> licence = Lists.newArrayList(datasetLicences);
 
-                        DownloadDoiDTO doiDetails = new DownloadDoiDTO();
+                        try {
 
-                        doiDetails.setTitle(biocacheDownloadDoiTitlePrefix + filename);
-                        doiDetails.setApplicationUrl(searchUrl);
-                        doiDetails.setRequesterId(requesterId);
-                        if(dd.getSensitiveFq() != null) {
-                            doiDetails.setAuthorisedRoles(getSensitiveRolesForUser(requesterId));
+
+                            DownloadDoiDTO doiDetails = new DownloadDoiDTO();
+
+                            doiDetails.setTitle(biocacheDownloadDoiTitlePrefix + filename);
+                            doiDetails.setApplicationUrl(searchUrl);
+                            doiDetails.setRequesterId(requesterId);
+                            if (dd.getSensitiveFq() != null) {
+                                doiDetails.setAuthorisedRoles(getSensitiveRolesForUser(requesterId));
+                            }
+
+                            doiDetails.setRequesterName(requesterName);
+                            doiDetails.setDatasetMetadata(datasetMetadata);
+                            doiDetails.setRequestTime(dd.getStartDateString());
+                            doiDetails.setRecordCount(dd.getTotalRecords());
+                            doiDetails.setLicence(licence);
+                            doiDetails.setQueryTitle(requestParams.getDisplayString());
+
+                            doiResponse = doiService.mintDoi(doiDetails);
+
+                        } catch (Exception e) {
+                            logger.error("DOI minting failed", e);
                         }
-
-                        doiDetails.setRequesterName(requesterName);
-                        doiDetails.setDatasetMetadata(datasetMetadata);
-                        doiDetails.setRequestTime(dd.getStartDateString());
-                        doiDetails.setRecordCount(dd.getTotalRecords());
-                        doiDetails.setLicence (licence);
-                        doiDetails.setQueryTitle(requestParams.getDisplayString());
-
-                        doiResponse = doiService.mintDoi(doiDetails);
-
                         if(doiResponse != null) {
                             logger.debug("DOI minted: " + doiResponse.getDoi());
                             doiResponseList.add (doiResponse);
+                        } else {
+                            logger.error("DOI minting failed for path " + dd.getFileLocation());
                         }
                     }
-
                 } else {
                     if (logger.isDebugEnabled()) {
                         logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " + uidStats);
@@ -1181,12 +1191,20 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             List<CreateDoiResponse> doiResponseList = null;
                             Boolean mintDoi = currentDownload.getRequestParams().getMintDoi();
 
+                            String doiFailureMessage = "";
                             if(mintDoi) {
                                 doiResponseList = new ArrayList<>();
                             }
                             writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
                                     currentDownload.getIpAddress(), new CloseShieldOutputStream(fos), currentDownload.getIncludeSensitive(),
                                     currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false, true, parallelExecutor, doiResponseList);
+
+                            if(mintDoi && doiResponseList.size() <= 0) {
+                                //DOI Minting failed
+                                doiFailureMessage = biocacheDownloadDoiFailureMessage;
+                                mintDoi = false; //Prevent any updates
+                            }
+
                             // now that the download is complete email a link to the
                             // recipient.
                             final String hubName = currentDownload.getRequestParams().getHubName() != null ? currentDownload.getRequestParams().getHubName() : "ALA";
@@ -1211,15 +1229,24 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 String emailTemplate;
                                 String downloadFileLocation;
                                 if(mintDoi && doiResponseList != null && doiResponseList.size() > 0 && doiResponseList.get(0) != null) {
+
                                     CreateDoiResponse doiResponse;
                                     doiResponse = doiResponseList.get(0);
+                                    try {
+                                        doiService.updateFile(doiResponse.getUuid(), currentDownload.getFileLocation());
+                                        doiStr = doiResponse.getDoi();
+                                        emailTemplate = biocacheDownloadDoiEmailTemplate;
 
-                                    doiService.updateFile(doiResponse.getUuid(), currentDownload.getFileLocation());
-                                    doiStr = doiResponse.getDoi();
-                                    emailTemplate = biocacheDownloadDoiEmailTemplate;
-
-                                    final String doiLandingPage = currentDownload.getRequestParams().getDoiDisplayUrl() != null ? currentDownload.getRequestParams().getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
-                                    downloadFileLocation = doiLandingPage + doiStr;
+                                        final String doiLandingPage = currentDownload.getRequestParams().getDoiDisplayUrl() != null ? currentDownload.getRequestParams().getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
+                                        downloadFileLocation = doiLandingPage + doiStr;
+                                    }
+                                    catch (Exception ex) {
+                                        logger.error("DOI update failed for DOI uuid " + doiResponse.getUuid() +
+                                                " and path " + currentDownload.getFileLocation(), ex);
+                                        doiFailureMessage = biocacheDownloadDoiFailureMessage;
+                                        emailTemplate = biocacheDownloadEmailTemplate;
+                                        downloadFileLocation = archiveFileLocation;
+                                    }
                                 } else {
                                     emailTemplate = biocacheDownloadEmailTemplate;
                                     downloadFileLocation = archiveFileLocation;
@@ -1232,7 +1259,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                         .replace("[date]", currentDownload.getStartDateString())
                                         .replace("[searchUrl]", searchUrl)
                                         .replace("[queryTitle]", currentDownload.getRequestParams().getDisplayString())
-                                        .replace("[doi]", doiStr);
+                                        .replace("[doi]", doiStr)
+                                        .replace("[doiFailureMessage]", doiFailureMessage);
                                 String body = messageSource.getMessage("offlineEmailBody",
                                         new Object[]{archiveFileLocation, searchUrl, currentDownload.getStartDateString()},
                                         emailBodyHtml, null);
@@ -1269,9 +1297,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     + currentDownload.getFileLocation(), e);
 
                             try {
+                                final String hubName = currentDownload.getRequestParams().getHubName() != null ? currentDownload.getRequestParams().getHubName() : "ALA";
                                 String subject = messageSource.getMessage("offlineEmailSubjectError", null,
                                         biocacheDownloadEmailSubjectError.replace("[filename]",
-                                                currentDownload.getRequestParams().getFile()),
+                                                currentDownload.getRequestParams().getFile())
+                                                .replace("[hubName]",hubName),
                                         null);
 
                                 String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir,
