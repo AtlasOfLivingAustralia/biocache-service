@@ -130,6 +130,19 @@ public class DownloadFields {
     }
 
     /**
+     * This is a backwards compatibility field mapping, for external services using old API and old index field names.
+     *
+     * @param fieldName
+     * @return
+     */
+    public String cleanRequestFieldName(String fieldName){
+        if(fieldName != null && fieldName.endsWith(".p")){
+            return fieldName.substring(0, fieldName.length() - 2) + "_p";
+        }
+        return fieldName;
+    }
+
+    /**
      * Returns the index fields that are used for the supplied values.
      *
      * @param values
@@ -146,22 +159,30 @@ public class DownloadFields {
         java.util.List<String> analysisLayers = new java.util.LinkedList<String>();
         java.util.Map<String, String> storageFieldMap = Store.getStorageFieldMap();
         for(String value : values){
-            //check to see if it is the the
-            String indexName = storageFieldMap.containsKey(value) ? storageFieldMap.get(value) : value;
+
+            String cleanedValue = cleanRequestFieldName(value);
+
+            //check to see if it is field is stored in the index
+            String indexName = storageFieldMap.containsKey(cleanedValue) ? storageFieldMap.get(cleanedValue) : cleanedValue;
+
             //now check to see if this index field is stored
             IndexFieldDTO field = indexFieldMaps.get(indexName);
             if((field != null && field.isStored()) || value.startsWith("sensitive")) {
                 mappedNames.add(indexName);
                 //only dwcHeader lookup is permitted when dwcHeaders == true or it is a cl or el field
-                String v = dwcHeaders && field != null && field.isStored() && !isSpatialField(field.getName()) ?
-                        value :
-                        layerProperties.getProperty(value, messageSource.getMessage(value, null, generateTitle(value, true), Locale.getDefault()));
-                String dwc = dwcHeaders ? messageSource.getMessage("dwc." + value, null, "", Locale.getDefault()) : null;
-                headers.add(dwc != null && dwc.length() > 0 ? dwc : v);
-                originalName.add(value);
-            } else if (field == null && layersService.findAnalysisLayerName(value, layersServiceUrl) != null) {
-                analysisLayers.add(value);
-                analysisHeaders.add(layersService.findAnalysisLayerName(value, layersServiceUrl));
+                String header = dwcHeaders && field != null && field.isStored() && !isSpatialField(field.getName()) ?
+                        cleanedValue :
+                        layerProperties.getProperty(cleanedValue, messageSource.getMessage(cleanedValue, null, generateTitle(cleanedValue, true), Locale.getDefault()));
+
+                String dwcHeader = dwcHeaders ? messageSource.getMessage("dwc." + cleanedValue, null, "", Locale.getDefault()) : null;
+
+                headers.add(dwcHeader != null && dwcHeader.length() > 0 ? dwcHeader : header);
+
+                originalName.add(cleanedValue);
+
+            } else if (field == null && layersService.findAnalysisLayerName(cleanedValue, layersServiceUrl) != null) {
+                analysisLayers.add(cleanedValue);
+                analysisHeaders.add(layersService.findAnalysisLayerName(cleanedValue, layersServiceUrl));
             } else {
                 unmappedNames.add(indexName);
             }

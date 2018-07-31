@@ -3668,7 +3668,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
         List<String> fqList = new ArrayList<String>();
         //only add the FQ's if they are not the default values
-        if (requestParams.getFormattedFq().length > 0) {
+        if (requestParams.getFormattedFq() != null && requestParams.getFormattedFq().length > 0) {
             org.apache.commons.collections.CollectionUtils.addAll(fqList, requestParams.getFormattedFq());
         }
 
