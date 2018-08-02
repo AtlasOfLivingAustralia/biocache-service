@@ -42,7 +42,10 @@ public class DownloadFields {
     private LayersService layersService;
     
     private Properties layerProperties = RestartDataService.get(this, "layerProperties", new TypeReference<Properties>(){}, Properties.class);
-    private Map<String,IndexFieldDTO> indexFieldMaps;
+
+    private Map<String, IndexFieldDTO> indexFieldMaps;
+
+    private Map<String, IndexFieldDTO> indexByDwcMaps;
 
     public DownloadFields(Set<IndexFieldDTO> indexFields, AbstractMessageSource messageSource, LayersService layersService){
         this.messageSource = messageSource;
@@ -136,8 +139,8 @@ public class DownloadFields {
      * @return
      */
     public String cleanRequestFieldName(String fieldName){
-        if(fieldName != null && fieldName.endsWith(".p")){
-            return fieldName.substring(0, fieldName.length() - 2) + "_p";
+        if(fieldName != null && (fieldName.endsWith(".p") || fieldName.endsWith("_p"))){
+            return fieldName.substring(0, fieldName.length() - 2);
         }
         return fieldName;
     }
@@ -157,32 +160,38 @@ public class DownloadFields {
         java.util.List<String> originalName = new java.util.LinkedList<String>();
         java.util.List<String> analysisHeaders = new java.util.LinkedList<String>();
         java.util.List<String> analysisLayers = new java.util.LinkedList<String>();
-        java.util.Map<String, String> storageFieldMap = Store.getStorageFieldMap();
+
         for(String value : values){
 
-            String cleanedValue = cleanRequestFieldName(value);
-
-            //check to see if it is field is stored in the index
-            String indexName = storageFieldMap.containsKey(cleanedValue) ? storageFieldMap.get(cleanedValue) : cleanedValue;
+            String indexName = cleanRequestFieldName(value);
 
             //now check to see if this index field is stored
             IndexFieldDTO field = indexFieldMaps.get(indexName);
+            if(field == null){
+                field = indexByDwcMaps.get(indexName);
+            }
+
             if((field != null && field.isStored()) || value.startsWith("sensitive")) {
-                mappedNames.add(indexName);
+
+                mappedNames.add(field.getName());
                 //only dwcHeader lookup is permitted when dwcHeaders == true or it is a cl or el field
                 String header = dwcHeaders && field != null && field.isStored() && !isSpatialField(field.getName()) ?
-                        cleanedValue :
-                        layerProperties.getProperty(cleanedValue, messageSource.getMessage(cleanedValue, null, generateTitle(cleanedValue, true), Locale.getDefault()));
+                        field.getName() :
+                        layerProperties.getProperty(
+                                field.getName(),
+                                messageSource.getMessage(field.getName(), null, generateTitle(field.getName(), true),
+                                        Locale.getDefault())
+                        );
 
-                String dwcHeader = dwcHeaders ? messageSource.getMessage("dwc." + cleanedValue, null, "", Locale.getDefault()) : null;
+                String dwcHeader = dwcHeaders ? messageSource.getMessage("dwc." + field.getName(), null, "", Locale.getDefault()) : null;
 
                 headers.add(dwcHeader != null && dwcHeader.length() > 0 ? dwcHeader : header);
 
-                originalName.add(cleanedValue);
+                originalName.add(field.getName());
 
-            } else if (field == null && layersService.findAnalysisLayerName(cleanedValue, layersServiceUrl) != null) {
-                analysisLayers.add(cleanedValue);
-                analysisHeaders.add(layersService.findAnalysisLayerName(cleanedValue, layersServiceUrl));
+            } else if (field == null && layersService.findAnalysisLayerName(indexName, layersServiceUrl) != null) {
+                analysisLayers.add(indexName);
+                analysisHeaders.add(layersService.findAnalysisLayerName(indexName, layersServiceUrl));
             } else {
                 unmappedNames.add(indexName);
             }
@@ -197,11 +206,16 @@ public class DownloadFields {
     public void update(Set<IndexFieldDTO> indexedFields) {
         //initialise the properties
         try {
-            Map<String,IndexFieldDTO> map = new TreeMap<String,IndexFieldDTO>();
+            Map<String, IndexFieldDTO> map = new TreeMap<String,IndexFieldDTO>();
+            Map<String, IndexFieldDTO> mapByDwC = new TreeMap<String,IndexFieldDTO>();
             for(IndexFieldDTO field: indexedFields){
                 map.put(field.getName(), field);
+                if(field.getDwcTerm() != null) {
+                    mapByDwC.put(field.getDwcTerm(), field);
+                }
             }
             indexFieldMaps = map;
+            indexByDwcMaps = mapByDwC;
 
             updateLayerNames();
         } catch(Exception e) {
