@@ -15,7 +15,6 @@
 package au.org.ala.biocache.util;
 
 import au.org.ala.biocache.Config;
-import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.service.LayersService;
 import au.org.ala.biocache.service.RestartDataService;
@@ -28,7 +27,7 @@ import org.springframework.context.support.AbstractMessageSource;
 import java.util.*;
 
 /**
- * Stores the download fields whose values can be overridden in
+ * Stores the download fields whose fieldNames can be overridden in
  * a properties file.  Sourced from layers-service and message.properties
  *
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
@@ -146,12 +145,12 @@ public class DownloadFields {
     }
 
     /**
-     * Returns the index fields that are used for the supplied values.
+     * Returns the index fields that are used for the supplied fieldNames.
      *
-     * @param values
+     * @param fieldNames
      * @return
      */
-    public List<String>[] getIndexFields(String[] values, boolean dwcHeaders, String layersServiceUrl){
+    public List<String>[] getIndexFields(String[] fieldNames, boolean dwcHeaders, String layersServiceUrl){
         updateLayerNames();
 
         java.util.List<String> mappedNames = new java.util.LinkedList<String>();
@@ -161,33 +160,35 @@ public class DownloadFields {
         java.util.List<String> analysisHeaders = new java.util.LinkedList<String>();
         java.util.List<String> analysisLayers = new java.util.LinkedList<String>();
 
-        for(String value : values){
+        for(String fieldName : fieldNames){
 
-            String indexName = cleanRequestFieldName(value);
+            String indexName = cleanRequestFieldName(fieldName);
 
             //now check to see if this index field is stored
             IndexFieldDTO field = indexFieldMaps.get(indexName);
-            if(field == null){
+            if (field == null){
                 field = indexByDwcMaps.get(indexName);
             }
 
-            if((field != null && field.isStored()) || value.startsWith("sensitive")) {
+            if ((field != null && field.isStored()) || fieldName.startsWith("sensitive")) {
 
-                mappedNames.add(field.getName());
+                String fieldNameToUse = field != null ? field.getName() : fieldName;
+
+                mappedNames.add(fieldNameToUse);
                 //only dwcHeader lookup is permitted when dwcHeaders == true or it is a cl or el field
                 String header = dwcHeaders && field != null && field.isStored() && !isSpatialField(field.getName()) ?
                         field.getName() :
                         layerProperties.getProperty(
-                                field.getName(),
-                                messageSource.getMessage(field.getName(), null, generateTitle(field.getName(), true),
+                                fieldNameToUse,
+                                messageSource.getMessage(fieldNameToUse, null, generateTitle(fieldNameToUse, true),
                                         Locale.getDefault())
                         );
 
-                String dwcHeader = dwcHeaders ? messageSource.getMessage("dwc." + field.getName(), null, "", Locale.getDefault()) : null;
+                String dwcHeader = dwcHeaders ? messageSource.getMessage("dwc." + fieldNameToUse, null, "", Locale.getDefault()) : null;
 
                 headers.add(dwcHeader != null && dwcHeader.length() > 0 ? dwcHeader : header);
 
-                originalName.add(field.getName());
+                originalName.add(fieldNameToUse);
 
             } else if (field == null && layersService.findAnalysisLayerName(indexName, layersServiceUrl) != null) {
                 analysisLayers.add(indexName);
