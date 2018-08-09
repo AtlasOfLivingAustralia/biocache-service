@@ -3417,6 +3417,8 @@ public class SearchDAOImpl implements SearchDAO {
                             f.setClasss(((DwcTerm) term).getGroup()); //(8)
                         } else {
                             f.setClasss(DwcTerm.GROUP_RECORD); // Assign dcterms to the Record group.
+                            //apply dcterm: prefix
+                            f.setDwcTerm("dcterms:" + term.simpleName());
                         }
 
                         DwcTermDetails dwcTermDetails = DwCTerms.getInstance().getDwCTermDetails(term.simpleName());
