@@ -35,7 +35,10 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
-import org.apache.solr.client.solrj.*;
+import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrRequest;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.beans.DocumentObjectBinder;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
@@ -1073,6 +1076,19 @@ public class SearchDAOImpl implements SearchDAO {
                 checkLimit = false;
             }
 
+            // include all misc fields if required
+            if (dd.getRequestParams() != null ? dd.getRequestParams().getIncludeMisc() : false) {
+                for (IndexFieldDTO f : indexFields) {
+                    // identify misc fields that are in the index
+                    if (f.isStored() && f.getName() != null && f.getName().startsWith("_"))
+                        solrQuery.addField(f.getName());
+                }
+                // include record sensitive flag
+                if (!solrQuery.getFields().contains(",sensitive,")) {
+                    solrQuery.addField("sensitive");
+                }
+            }
+
             //get the month facets to add them to the download fields get the assertion facets.
             List<Count> splitByFacet = null;
 
@@ -1269,9 +1285,6 @@ public class SearchDAOImpl implements SearchDAO {
                     dd.setHeaderMap(((ShapeFileRecordWriter) rw).getHeaderMappings());
                 }
 
-                //order the query by _docid_ for faster paging - this breaks SOLR Cloud
-//                solrQuery.addSortField("_docid_", ORDER.asc);
-
                 //for each month create a separate query that pages through 500 records per page
                 List<SolrQuery> queries = new ArrayList<SolrQuery>();
                 if (splitByFacet != null) {
@@ -1303,9 +1316,9 @@ public class SearchDAOImpl implements SearchDAO {
                     sensitiveQ.addAll(splitQueries(queries, dd.getSensitiveFq(), sensitiveSOLRHdr, notSensitiveSOLRHdr));
                 }
 
-                //Set<Future<Integer>> futures = new HashSet<Future<Integer>>();
                 final AtomicInteger resultsCount = new AtomicInteger(0);
                 final boolean threadCheckLimit = checkLimit;
+                final ArrayList<String> miscFields = new ArrayList<String>(0);
 
                 List<Callable<Integer>> solrCallables = new ArrayList<>(queries.size());
                 // execute each query, writing the results to stream
@@ -1340,10 +1353,10 @@ public class SearchDAOImpl implements SearchDAO {
                                 }
                                 int count = 0;
                                 if (sensitiveQ.contains(splitByFacetQuery)) {
-                                    count = processQueryResults(uidStats, sensitiveFields, qaFields, concurrentWrapper, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize, analysisFields);
+                                    count = processQueryResults(uidStats, sensitiveFields, qaFields, concurrentWrapper, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize, analysisFields, miscFields, true);
                                 } else {
                                     // write non-sensitive values into sensitive fields when not authorised for their sensitive values
-                                    count = processQueryResults(uidStats, notSensitiveFields, qaFields, concurrentWrapper, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize, analysisFields);
+                                    count = processQueryResults(uidStats, notSensitiveFields, qaFields, concurrentWrapper, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize, analysisFields, miscFields, false);
                                 }
                                 recordsForThread.addAndGet(count);
                                 // we have already set the Filter query the first time the query was constructed
@@ -1414,6 +1427,13 @@ public class SearchDAOImpl implements SearchDAO {
                 if (timeTakenInSecs <= 0) timeTakenInSecs = 1;
                 if (logger.isInfoEnabled()) {
                     logger.info("Download of " + resultsCount + " records in " + timeTakenInSecs + " seconds. Record/sec: " + resultsCount.intValue() / timeTakenInSecs);
+                }
+
+                // this will trigger DownloadService to add the discovered, non-empty miscFields to the output header and fields description file.
+                if (dd != null && miscFields.size() > 0) {
+                    String[] newMiscFields = new String[miscFields.size()];
+                    miscFields.toArray(newMiscFields);
+                    dd.setMiscFields(newMiscFields);
                 }
 
             } finally {
@@ -1521,7 +1541,10 @@ public class SearchDAOImpl implements SearchDAO {
         return intersection;
     }
 
-    private int processQueryResults(ConcurrentMap<String, AtomicInteger> uidStats, String[] fields, String[] qaFields, RecordWriter rw, QueryResponse qr, DownloadDetailsDTO dd, boolean checkLimit, AtomicInteger resultsCount, long maxDownloadSize, String[] analysisLayers) {
+    private int processQueryResults(ConcurrentMap<String, AtomicInteger> uidStats, String[] fields, String[] qaFields,
+                                    RecordWriter rw, QueryResponse qr, DownloadDetailsDTO dd, boolean checkLimit,
+                                    AtomicInteger resultsCount, long maxDownloadSize, String[] analysisLayers,
+                                    List<String> miscFields, Boolean sensitiveDataAllowed) {
         //handle analysis layer intersections
         List<String[]> intersection = intersectResults(dd.getRequestParams().getLayersServiceUrl(), analysisLayers, qr.getResults());
 
@@ -1547,11 +1570,8 @@ public class SearchDAOImpl implements SearchDAO {
                         while (it.hasNext()) {
                             Object value = it.next();
                             if (values[j] != null && values[j].length() > 0) values[j] += "|"; //multivalue separator
-                            if (value instanceof Date) {
-                                values[j] = value == null ? "" : org.apache.commons.lang.time.DateFormatUtils.format((Date) value, "yyyy-MM-dd");
-                            } else {
-                                values[j] = value == null ? "" : value.toString();
-                            }
+                            values[j] = formatValue(value);
+
                             //allow requests to include multiple values when requested
                             if (dd == null || dd.getRequestParams() == null ||
                                     dd.getRequestParams().getIncludeMultivalues() == null
@@ -1584,6 +1604,45 @@ public class SearchDAOImpl implements SearchDAO {
                     values[fields.length + k] = Boolean.toString(assertions.contains(qaFields[k]));
                 }
 
+                // append previous and new non-empty misc fields
+                // do not include misc fields if this is a sensitive record and sensitive data is not permitted
+                if (dd != null && dd.getRequestParams() != null && dd.getRequestParams().getIncludeMisc() &&
+                        (sensitiveDataAllowed || "Not sensitive".equals(formatValue(sd.getFieldValue("sensitive"))) ||
+                                "".equals(formatValue(sd.getFieldValue("sensitive"))))) {
+
+                    // append miscValues for columns found
+                    List<String> miscValues = new ArrayList<String>(miscFields.size());  // TODO: reuse
+
+                    // maintain miscFields order using synchronized
+                    synchronized (miscFields) {
+                        for (String f : miscFields) {
+                            miscValues.add(formatValue(sd.getFieldValue(f)));
+                            //clear field to avoid repeating the value when looking for new miscValues
+                            sd.setField(f, null);
+                        }
+                        // find and append new miscValues
+                        for (String key : sd.getFieldNames()) {
+                            if (key != null && key.startsWith("_")) {
+                                String value = formatValue(sd.getFieldValue(key));
+                                if (StringUtils.isNotEmpty(value)) {
+                                    miscValues.add(value);
+                                    miscFields.add(key);
+                                }
+                            }
+                        }
+                    }
+
+                    // append miscValues to values
+                    if (miscValues.size() > 0) {
+                        String[] newValues = new String[miscValues.size() + values.length];
+                        System.arraycopy(values, 0, newValues, 0, values.length);
+                        for (int i = 0; i < miscValues.size(); i++) {
+                            newValues[values.length + i] = miscValues.get(i);
+                        }
+                        values = newValues;
+                    }
+                }
+
                 rw.write(values);
 
                 //increment the counters....
@@ -1597,6 +1656,14 @@ public class SearchDAOImpl implements SearchDAO {
         }
         dd.updateCounts(count);
         return count;
+    }
+
+    private String formatValue(Object value) {
+        if (value instanceof Date) {
+            return value == null ? "" : org.apache.commons.lang.time.DateFormatUtils.format((Date) value, "yyyy-MM-dd");
+        } else {
+            return value == null ? "" : value.toString();
+        }
     }
 
     /**

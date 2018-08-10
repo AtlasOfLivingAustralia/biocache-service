@@ -1081,7 +1081,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                                 writer.writeNext(newHeader);
                                             }
 
-                                            line = sw.toString();
+                                            // remove the newline character at the end of this line
+                                            line = sw.toString().trim();
                                         } else {
                                             for (int i = 0; i < miscHeader.length; i++) {
                                                 line += '\t';
