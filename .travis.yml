@@ -10,7 +10,7 @@ branches:
 before_install:
   - mkdir -p ~/.m2; wget -q -O ~/.m2/settings.xml https://raw.githubusercontent.com/AtlasOfLivingAustralia/travis-build-configuration/master/travis_maven_settings.xml
 script:
-  - "[ \"${TRAVIS_PULL_REQUEST}\" = \"false\" ] && mvn -X -P travis clean install deploy -DskipTests || mvn -X -P travis clean install -DskipTests"
+  - "[ \"${TRAVIS_PULL_REQUEST}\" = \"false\" ] && mvn -P travis clean install deploy -DskipTests || mvn -P travis clean install -DskipTests"
 env:
   global:
   - secure: Cz3CJDjuIm52LplBphLsQwNv055US4oxG51PgpJE6IYdta8KJxv04QwK+ytgb3eDNA6ec7XpGPuCaMnDXhpTTdMiluN0ATZY4dEkCIVTnHWGW0Fr0ydlwutkYx/kFUYIJwu9FueEPJYMYgPZ2LTxa6rrUATJ2U13N7R2ul3A5kQ=
