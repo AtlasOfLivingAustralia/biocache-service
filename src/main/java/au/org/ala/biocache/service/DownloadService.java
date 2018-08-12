@@ -77,6 +77,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Component("downloadService")
 public class DownloadService implements ApplicationListener<ContextClosedEvent> {
 
+    public static final String OFFICIAL_DOI_RESOLVER = "https://doi.org/";
+
     protected static final Logger logger = Logger.getLogger(DownloadService.class);
     /**
      * Download threads for matching subsets of offline downloads.
@@ -661,8 +663,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 if(mintDoi && doiResponse != null) {
                     readmeFile = biocacheDownloadDoiReadmeTemplate;
                     doi = doiResponse.getDoi();
-                    final String doiLandingPage = requestParams.getDoiDisplayUrl() != null ? requestParams.getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
-                    fileLocation = doiLandingPage + doi;
+                    // TODO: The downloads-plugin has issues with unencoded user queries 
+                    // Working around that by hardcoding the official DOI resolution service as the landing page
+                    // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
+                    // final String doiLandingPage = requestParams.getDoiDisplayUrl() != null ? requestParams.getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
+                    // fileLocation = doiLandingPage + doi;
+                    fileLocation = OFFICIAL_DOI_RESOLVER + doi;
 
                 } else {
                     readmeFile = biocacheDownloadReadmeTemplate;
