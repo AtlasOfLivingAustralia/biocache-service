@@ -1244,8 +1244,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                         doiStr = doiResponse.getDoi();
                                         emailTemplate = biocacheDownloadDoiEmailTemplate;
 
-                                        final String doiLandingPage = currentDownload.getRequestParams().getDoiDisplayUrl() != null ? currentDownload.getRequestParams().getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
-                                        downloadFileLocation = doiLandingPage + doiStr;
+                                        // TODO: The downloads-plugin has issues with unencoded user queries 
+                                        // Working around that by hardcoding the official DOI resolution service as the landing page
+                                        // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
+                                        //final String doiLandingPage = currentDownload.getRequestParams().getDoiDisplayUrl() != null ? currentDownload.getRequestParams().getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
+                                        //downloadFileLocation = doiLandingPage + doiStr;
+                                        downloadFileLocation = OFFICIAL_DOI_RESOLVER + doiStr;
                                     }
                                     catch (Exception ex) {
                                         logger.error("DOI update failed for DOI uuid " + doiResponse.getUuid() +
