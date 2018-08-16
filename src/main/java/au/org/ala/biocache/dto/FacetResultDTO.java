@@ -14,7 +14,6 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -67,7 +66,7 @@ public class FacetResultDTO {
         return fieldResult;
     }
 
-    public void setFieldResult(ArrayList<FieldResultDTO> fieldResult) {
+    public void setFieldResult(List<FieldResultDTO> fieldResult) {
         this.fieldResult = fieldResult;
     }
 

@@ -3175,6 +3175,8 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * Returns the count of distinct values for the facets.
      * This is an altered implementation that is SOLRCloud friendly (ngroups are not SOLR Cloud compatible)
+     *
+     * The group count is only accurate when foffset == 0
      */
     public List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception {
 
@@ -3209,8 +3211,9 @@ public class SearchDAOImpl implements SearchDAO {
                     fr.setCount(fr.getFieldResult().size());
                 }
                 //reduce the number of facets returned...
-                if(searchParams.getFlimit() != null && searchParams.getFlimit() < fr.getFieldResult().size()){
-                    fr.getFieldResult().subList(0, searchParams.getFlimit());
+                if (searchParams.getFlimit() != null && searchParams.getFlimit() < fr.getFieldResult().size() &&
+                        searchParams.getFlimit() >= 0) {
+                    fr.setFieldResult(fr.getFieldResult().subList(0, searchParams.getFlimit()));
                 }
             }
         }
