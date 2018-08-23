@@ -135,9 +135,6 @@ public class MapController implements ServletConfigAware {
             return;
         }
 
-        // let's force it to PNG's for now 
-        response.setContentType("image/png");
-
         // Convert array to list so we append more values onto it
         ArrayList<String> fqList = null;
         if (filterQuery != null) {
@@ -250,6 +247,10 @@ public class MapController implements ServletConfigAware {
 
         g.dispose();
 
+        // let's force it to PNG's for now 
+        response.setContentType("image/png");
+        response.setHeader("Cache-Control", mapCacheControlHeaderPublicOrPrivate + ", max-age=" + mapCacheControlHeaderMaxAge);
+        response.setHeader("ETag", mapETag.get());
         try {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             ImageIO.write(img, "png", outputStream);
@@ -301,6 +302,7 @@ public class MapController implements ServletConfigAware {
 
     private void displayBlankImage(int width, int height, boolean useBase, HttpServletResponse response) {
         try {
+            // Do not cache blank image as it is also used in error conditions when solr fails to respond
             response.setContentType("image/png");
 
             BufferedImage baseImage = null;
@@ -467,7 +469,6 @@ public class MapController implements ServletConfigAware {
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
 
-        response.setContentType("image/png");
         File outputDir = new File(heatmapOutputDir);
         if(!outputDir.exists()){
             FileUtils.forceMkdir(outputDir);
@@ -497,6 +498,9 @@ public class MapController implements ServletConfigAware {
             logger.debug("Heatmap file already exists on disk, sending file back to user");
         }
 
+        response.setContentType("image/png");
+        response.setHeader("Cache-Control", mapCacheControlHeaderPublicOrPrivate + ", max-age=" + mapCacheControlHeaderMaxAge);
+        response.setHeader("ETag", mapETag.get());
         try {
             //read file off disk and send back to user
             File file = new File(outputDir + "/" + outputHMFile);
@@ -538,9 +542,6 @@ public class MapController implements ServletConfigAware {
             HttpServletRequest request,
            HttpServletResponse response) throws Exception {
 
-        response.setHeader("Cache-Control", mapCacheControlHeaderPublicOrPrivate + ", max-age=" + mapCacheControlHeaderMaxAge);
-        response.setHeader("ETag", mapETag.get());
-        response.setContentType("image/png");
         File baseDir = new File(heatmapOutputDir);
 
         String outputHMFile = getOutputFile(request);
@@ -556,6 +557,9 @@ public class MapController implements ServletConfigAware {
             logger.debug("legend file already exists on disk, sending file back to user");
         }
 
+        response.setContentType("image/png");
+        response.setHeader("Cache-Control", mapCacheControlHeaderPublicOrPrivate + ", max-age=" + mapCacheControlHeaderMaxAge);
+        response.setHeader("ETag", mapETag.get());
         //read file off disk and send back to user
         try {
             File file = new File(baseDir + "/" + "legend_" + outputHMFile);
