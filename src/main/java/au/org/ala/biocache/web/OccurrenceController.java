@@ -67,6 +67,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
 /**
@@ -145,8 +146,21 @@ public class OccurrenceController extends AbstractSecureController {
     @Value("${online.downloadquery.maxthreads:30}")
     protected Integer maxOnlineDownloadThreads = 30;
 
-    private ExecutorService executor;
+    /**
+     * The public or private value to use in the Cache-Control HTTP header for aggregated results. Defaults to public
+     */
+    @Value("${occurrence.cache.cachecontrol.publicorprivate:public}")
+    private String occurrenceCacheControlHeaderPublicOrPrivate;
 
+    /**
+     * The max-age value to use in the Cache-Control HTTP header for aggregated results. Defaults to 86400, equivalent to 1 day
+     */
+    @Value("${occurrence.cache.cachecontrol.maxage:86400}")
+    private String occurrenceCacheControlHeaderMaxAge;
+
+    private final AtomicReference<String> occurrenceETag = new AtomicReference<String>(UUID.randomUUID().toString());
+
+    private ExecutorService executor;
     
 //    private final CountDownLatch initialisationLatch = new CountDownLatch(1);
     
@@ -288,6 +302,8 @@ public class OccurrenceController extends AbstractSecureController {
 
         response.setHeader("Content-Type", "text/plain; charset=UTF-8");
         response.setCharacterEncoding("UTF-8");
+        response.setHeader("Cache-Control", occurrenceCacheControlHeaderPublicOrPrivate + ", max-age=" + occurrenceCacheControlHeaderMaxAge);
+        response.setHeader("ETag", occurrenceETag.get());
 
         qualifier = (StringUtils.isNotEmpty(qualifier)) ? qualifier : ".properties";
         logger.debug("qualifier = " + qualifier);
@@ -853,9 +869,18 @@ public class OccurrenceController extends AbstractSecureController {
         new FacetThemes(facetConfig, searchDAO.getIndexedFields(), facetsMax, facetsDefaultMax, facetDefault);
 
         cacheManager.clearAll();
+
+        regenerateETag();
         return null;
     }
     
+    /**
+     * Regenerate the ETag after clearing the cache so that cached responses are identified as out of date
+     */
+    private void regenerateETag() {
+        occurrenceETag.set(UUID.randomUUID().toString());
+    }
+
     /**
      * Downloads the complete list of values in the supplied facet
      *
@@ -1089,6 +1114,9 @@ public class OccurrenceController extends AbstractSecureController {
             if(normalised != null)
                 guids.add(normalised);
         }
+        response.setHeader("Cache-Control", occurrenceCacheControlHeaderPublicOrPrivate + ", max-age=" + occurrenceCacheControlHeaderMaxAge);
+        response.setHeader("ETag", occurrenceETag.get());
+
         return searchDAO.getOccurrenceCountsForTaxa(guids, filterQueries);
     }
     
