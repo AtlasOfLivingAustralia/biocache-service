@@ -546,9 +546,6 @@ public class WMSController extends AbstractSecureController{
             return new SearchResultDTO();
         }
 
-        response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
-        response.setHeader("ETag", wmsETag.get());
-        
         //searchUtils.updateSpatial(requestParams);
         SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, null);
         model.addAttribute("searchResult", searchResult);
@@ -573,8 +570,6 @@ public class WMSController extends AbstractSecureController{
             HttpServletResponse response)
             throws Exception {
 
-        response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
-        response.setHeader("ETag", wmsETag.get());
         response.setContentType("text/plain");
         response.setCharacterEncoding("gzip");
 
@@ -1110,6 +1105,8 @@ public class WMSController extends AbstractSecureController{
             }
             try(OutputStream out = response.getOutputStream();) {
                 response.setContentType("image/png");
+                response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
+                response.setHeader("ETag", wmsETag.get());
                 ImageIO.write(img, "png", out);
             }
         } catch (Exception e) {
@@ -1738,6 +1735,8 @@ public class WMSController extends AbstractSecureController{
         } else {
             response.setContentType("image/jpeg");
         }
+        response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
+        response.setHeader("ETag", wmsETag.get());
 
         try {
             if (format.equalsIgnoreCase("png")) {
