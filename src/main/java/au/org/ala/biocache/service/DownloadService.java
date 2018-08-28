@@ -173,6 +173,21 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.doi.landing.page.baseUrl:http://devt.ala.org.au/ala-hub/download/doi?doi=}")
     protected String biocacheDownloadDoiLandingPage = "http://devt.ala.org.au/ala-hub/download/doi?doi=";
 
+    /**
+     * A delay (in milliseconds) between minting the DOI, and sending emails containing 
+     * the DOI to allow for the DOI registration to propagate to upstream DOI providers.
+     * 
+     * Users have commented that the DOI is not resolvable when they receive the email 
+     * and this is the configuration setting to tweak to improve that behaviour.
+     * 
+     * Note that this delay starts after the chosen DOI provider has confirmed that 
+     * they have successfully minted the DOI. Hence, there are no issues with setting 
+     * it to zero if the DOI provider is known not to be propagating the registration 
+     * to another upstream DOI provider before it is resolvable.
+     */
+    @Value("${download.doi.propagation.delay:60000}")
+    protected long doiPropagationDelay;
+
     /** Max number of threads to use in parallel for large offline download queries */
     @Value("${download.offline.parallelquery.maxthreads:30}")
     protected Integer maxOfflineParallelQueryDownloadThreads = 30;
@@ -1235,7 +1250,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 String emailBody;
                                 String emailTemplate;
                                 String downloadFileLocation;
-                                if(mintDoi && doiResponseList != null && doiResponseList.size() > 0 && doiResponseList.get(0) != null) {
+                                if(mintDoi && doiResponseList != null && !doiResponseList.isEmpty() && doiResponseList.get(0) != null) {
 
                                     CreateDoiResponse doiResponse;
                                     doiResponse = doiResponseList.get(0);
@@ -1283,6 +1298,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     objectMapper.writeValue(statsStream, currentDownload);
                                 }
 
+                                if(mintDoi && doiResponseList != null && !doiResponseList.isEmpty() && doiResponseList.get(0) != null) {
+                                    // Delay sending the email to allow the DOI to propagate through to upstream DOI providers
+                                    Thread.sleep(doiPropagationDelay);
+                                }
                                 emailService.sendEmail(currentDownload.getEmail(), subject, body);
                             }
 
