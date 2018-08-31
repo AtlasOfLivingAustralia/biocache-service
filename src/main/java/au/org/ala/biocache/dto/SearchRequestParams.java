@@ -164,24 +164,19 @@ public class SearchRequestParams {
     public String getUrlParams(){
         StringBuilder req = new StringBuilder();
         if(qId != null){
-            req.append("?q=qid:").append(qId);
+            req.append("?q=qid:").append(conditionalEncode(qId.toString(), true));
         } else {
-            try{
-                req.append("?q=").append(URLEncoder.encode(q, "UTF-8"));
-            } catch(UnsupportedEncodingException e){}
+            req.append("?q=").append(conditionalEncode(q, true));
         }
 
         for(String f : fq){
             //only add the fq if it is not the query context
-          if(f.length()>0 && !f.equals(qc))
-            try{
-                req.append("&fq=").append(URLEncoder.encode(f, "UTF-8"));
-            } catch(UnsupportedEncodingException e){}
+          if(f.length()>0 && !f.equals(qc)) {
+              req.append("&fq=").append(conditionalEncode(f, true));
+          }
         }
-//        if(fq.length>0 && !fq[0].equals(""))
-//            req.append("&fq=").append(StringUtils.join(fq, "&fq="));
         if(qc != ""){
-            req.append("&qc=").append(qc);
+            req.append("&qc=").append(conditionalEncode(qc, true));
         }
         return req.toString();
     }

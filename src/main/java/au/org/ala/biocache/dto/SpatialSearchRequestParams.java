@@ -78,12 +78,12 @@ public class SpatialSearchRequestParams extends SearchRequestParams {
     public String getUrlParams(){
         StringBuilder req = new StringBuilder(super.getUrlParams());
         if (lat != null && lon != null && radius != null) {
-            req.append("&lat=").append(lat);
-            req.append("&lon=").append(lon);
-            req.append("&radius=").append(radius);
+            req.append("&lat=").append(conditionalEncode(lat.toString(), true));
+            req.append("&lon=").append(conditionalEncode(lon.toString(), true));
+            req.append("&radius=").append(conditionalEncode(radius.toString(), true));
         }
         if(wkt != null && wkt.length() >0)
-            req.append("&wkt=").append(wkt);
+            req.append("&wkt=").append(conditionalEncode(wkt, true));
         return req.toString();
     }
 
