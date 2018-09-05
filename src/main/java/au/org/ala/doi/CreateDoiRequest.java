@@ -18,6 +18,16 @@ public class CreateDoiRequest {
     protected String customLandingPageUrl;
     protected Boolean active;
 
+    protected String displayTemplate;
+
+    public String getDisplayTemplate() {
+        return displayTemplate;
+    }
+
+    public void setDisplayTemplate(String displayTemplate) {
+        this.displayTemplate = displayTemplate;
+    }
+
     public Boolean getActive() {
         return active;
     }
