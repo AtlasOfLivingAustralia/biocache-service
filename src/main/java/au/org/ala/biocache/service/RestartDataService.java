@@ -47,10 +47,10 @@ public class RestartDataService {
     //dir is set by AppConfig so it has a value before any get() calls.
     public static String dir;
 
-    @Value("${restart.data.enabled:true}")
+    @Value("${restart.data.enabled:false}")
     public Boolean enabled;
 
-    @Value("${restart.data.frequency:10000}")
+    @Value("${restart.data.frequency:60000}")
     public Integer frequency;
 
     private Thread loop;
