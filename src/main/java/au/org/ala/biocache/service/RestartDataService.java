@@ -115,35 +115,33 @@ public class RestartDataService {
     }
 
     private static Object loadFromDisk(String key, TypeReference type) {
-        if (enabled) {
-            String path = dir + File.separator + key;
-            try {
-                synchronized (jsonMapper) {
-                    //get value
-                    File file = new File(path);
-                    Object diskValue = null;
-                    if (file.exists()) {
-                        jsonMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-                        jsonMapper.getTypeFactory().constructType(type);
+        String path = dir + File.separator + key;
+        try {
+            synchronized (jsonMapper) {
+                //get value
+                File file = new File(path);
+                Object diskValue = null;
+                if (file.exists()) {
+                    jsonMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+                    jsonMapper.getTypeFactory().constructType(type);
 
-                        try {
+                    try {
+                        diskValue = jsonMapper.readValue(file, type);
+                    } catch (Exception e) {}
+
+                    if (diskValue == null) {
+                        //try backup
+                        file = new File(path + ".backup");
+                        if (file.exists()) {
                             diskValue = jsonMapper.readValue(file, type);
-                        } catch (Exception e) {}
-
-                        if (diskValue == null) {
-                            //try backup
-                            file = new File(path + ".backup");
-                            if (file.exists()) {
-                                diskValue = jsonMapper.readValue(file, type);
-                            }
                         }
-
-                        return diskValue;
                     }
+
+                    return diskValue;
                 }
-            } catch (Exception e) {
-                logger.error("failed to read: " + path + " into type:" + (type != null ? type.toString() : "null"), e);
             }
+        } catch (Exception e) {
+            logger.error("failed to read: " + path + " into type:" + (type != null ? type.toString() : "null"), e);
         }
 
         return null;
@@ -174,31 +172,29 @@ public class RestartDataService {
 
     public static <T> T get(Object parent, String name, TypeReference typeRef, Class<T> defaultValue) {
         T value = null;
-        if (enabled) {
-            if (typeRef == null) {
-                logger.error("defaultValue cannot be null: " + parent.toString() + " " + name);
-            }
-            if (sources.containsKey(parent)) {
-                sources.get(parent).add(name);
+        if (typeRef == null) {
+            logger.error("defaultValue cannot be null: " + parent.toString() + " " + name);
+        }
+        if (sources.containsKey(parent)) {
+            sources.get(parent).add(name);
+        } else {
+            List<String> list = new ArrayList<>();
+            list.add(name);
+            sources.put(parent, list);
+        }
+
+        String key = parent.getClass().getCanonicalName() + "." + name;
+
+        try {
+            value = (T) loadFromDisk(key, typeRef);
+            if (value == null) {
+                value = defaultValue.newInstance();
             } else {
-                List list = new ArrayList<String>();
-                list.add(name);
-                sources.put(parent, list);
+                logger.debug("reading " + parent.getClass().toString() + " " + name + " from disk cache");
             }
-
-            String key = parent.getClass().getCanonicalName() + "." + name;
-
-            try {
-                value = (T) loadFromDisk(key, typeRef);
-                if (value == null) {
-                    value = defaultValue.newInstance();
-                } else {
-                    logger.debug("reading " + parent.getClass().toString() + " " + name + " from disk cache");
-                }
-                values.put(key, value);
-            } catch (Exception e) {
-                logger.error("failed to instantiate: " + defaultValue != null ? defaultValue.toString() : "null", e);
-            }
+            values.put(key, value);
+        } catch (Exception e) {
+            logger.error("failed to instantiate: " + defaultValue != null ? defaultValue.toString() : "null", e);
         }
 
         return value;
