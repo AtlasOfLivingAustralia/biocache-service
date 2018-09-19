@@ -271,13 +271,12 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
                         nsr.put("checklistsCount", layersService.getChecklistsCount(nsr.get("lsid").toString()));
                         nsr.put("tracksCount", layersService.getTracksCount(nsr.get("lsid").toString()));
                     }
-
                     nsr.put("images", speciesImageService.get(Long.parseLong((String) nsr.get("left")), Long.parseLong((String) nsr.get("right"))));
-                    output.add(nsr);
                 }
+                output.add(nsr);
 
             } catch (Exception e) {
-                logger.debug("Error thrown in autocomplete: " + e.getMessage(), e);
+                logger.error("Error thrown in autocomplete: " + e.getMessage(), e);
             }
         }
 
