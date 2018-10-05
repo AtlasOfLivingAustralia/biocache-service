@@ -1,6 +1,7 @@
 package au.org.ala.biocache.web;
 
 import au.com.bytecode.opencsv.CSVReader;
+import au.org.ala.biocache.Config;
 import au.org.ala.biocache.ObserverCallback;
 import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dto.Facet;
@@ -669,7 +670,7 @@ class UploaderThread implements Runnable {
                 recordCount--;
             }
 
-            loadRecords(statusFile, intList, floatList, stringList, dateList, userProvidedTypeList,recordCount);
+            loadRecords(statusFile, intList, floatList, stringList, dateList, userProvidedTypeList, recordCount);
 
             status = "PROCESSING";
             logger.debug("Processing " + tempUid);
@@ -774,17 +775,21 @@ class UploaderThread implements Runnable {
             // We need to check all fields to see if they contain a date.
             CollectionUtils.addAll(dateList, automaticFieldList.iterator());
 
+
+            FileWriter rowkeyFile = new java.io.FileWriter(Config.tmpWorkDir() + "/row_key_" + tempUid + ".csv", true);
+
             //if the first line is data, add a record, else discard
             if(firstLineIsData){
-                addRecord(tempUid, datasetName, currentLine, headers, intList, floatList, stringList, dateList);
+                addRecord(tempUid, datasetName, currentLine, headers, intList, floatList, stringList, dateList, rowkeyFile);
             }
 
             //write the data to DB
             Integer percentComplete  = 0;
+
             while((currentLine = csvData.readNext()) != null){
                 //System.out.println("######## loading line: " + counter);
                 counter++;
-                addRecord(tempUid, datasetName, currentLine, headers, intList, floatList, stringList, dateList);
+                addRecord(tempUid, datasetName, currentLine, headers, intList, floatList, stringList, dateList, rowkeyFile);
                 if(counter % 100 == 0){
                     Integer percentageComplete = 0;
                     if(counter != 0){
@@ -795,6 +800,11 @@ class UploaderThread implements Runnable {
                             om.writeValueAsString(new UploadStatus("LOADING", String.format("%d of %d records loaded.", counter, recordCount), percentageComplete)));
                 }
             }
+
+            rowkeyFile.flush();
+            rowkeyFile.close();
+
+
         } catch(Exception e) {
             logger.error(e.getMessage(),e);
             throw e;
@@ -803,7 +813,7 @@ class UploaderThread implements Runnable {
         }
     }
 
-    private void addRecord(String tempUid, String datasetName, String[] currentLine, String[] headers, Set<String> intList, Set<String> floatList, Set<String> stringList, Set<String> dateList) {
+    private void addRecord(String tempUid, String datasetName, String[] currentLine, String[] headers, Set<String> intList, Set<String> floatList, Set<String> stringList, Set<String> dateList, FileWriter rowkeyWriter) throws IOException {
         Map<String,String> map = new HashMap<String, String>();
         for(int i = 0; i < headers.length && i < currentLine.length; i++){
             if(currentLine[i] != null) {
@@ -852,8 +862,11 @@ class UploaderThread implements Runnable {
             map.put("userId", alaId);
         }
         if(!map.isEmpty()){
-            au.org.ala.biocache.Store.loadRecord(tempUid, map, true);
+            String rowKey = au.org.ala.biocache.Store.loadRecord(tempUid, map, true);
+            rowkeyWriter.write(rowKey);
+            rowkeyWriter.write("\n");
         }
+        rowkeyWriter.flush();
     }
 
     public class DefaultObserverCallback implements ObserverCallback {
