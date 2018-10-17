@@ -170,8 +170,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.doi.title.prefix:Occurrence download }")
     protected String biocacheDownloadDoiTitlePrefix = "Occurrence download ";
 
-    @Value("${download.doi.landing.page.baseUrl:https://doi-test.ala.org.au/doi?doi=}")
-    protected String biocacheDownloadDoiLandingPage = "https://doi-test.ala.org.au/doi?doi=";
+    @Value("${download.doi.landing.page.baseUrl:https://doi-test.ala.org.au/doi/}")
+    protected String biocacheDownloadDoiLandingPage = "https://doi-test.ala.org.au/doi/";
 
     /**
      * A delay (in milliseconds) between minting the DOI, and sending emails containing 
