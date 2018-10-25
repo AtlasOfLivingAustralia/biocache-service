@@ -344,7 +344,7 @@ public class SearchDAOImpl implements SearchDAO {
         // TODO: There was a note about possible issues with the following two lines
         Set<IndexFieldDTO> indexedFields = getIndexedFields();
         if (downloadFields == null) {
-            downloadFields = new DownloadFields(indexedFields, messageSource, layersService);
+            downloadFields = new DownloadFields(indexedFields, messageSource, layersService, listsService);
         } else {
             downloadFields.update(indexedFields);
         }
@@ -1028,6 +1028,8 @@ public class SearchDAOImpl implements SearchDAO {
                 logger.debug("The headers in downloads: " + indexedFields[2]);
                 logger.debug("Analysis headers: " + indexedFields[4]);
                 logger.debug("Analysis fields: " + indexedFields[5]);
+                logger.debug("Species List headers: " + indexedFields[6]);
+                logger.debug("Species List fields: " + indexedFields[7]);
             }
 
             //set the fields to the ones that are available in the index
@@ -1045,6 +1047,16 @@ public class SearchDAOImpl implements SearchDAO {
                     .addField("collection_uid")
                     .addField("data_resource_uid")
                     .addField("data_provider_uid");
+
+            // 'lft' and 'rgt' is mandatory when there are species list fields (indexedFields[7])
+            if (indexedFields[7].size() > 0) {
+                if (!solrQuery.getFields().matches("($lft,|,lft,|,lft^)")) {
+                    solrQuery.addField("lft");
+                }
+                if (!solrQuery.getFields().matches("($rgt,|,rgt,|,rgt^)")) {
+                    solrQuery.addField("rgt");
+                }
+            }
 
             solrQuery.setQuery(downloadParams.getFormattedQuery());
             solrQuery.setFacetMinCount(1);
@@ -1131,6 +1143,10 @@ public class SearchDAOImpl implements SearchDAO {
             indexedFields[2].addAll(indexedFields[4]);
             final String[] analysisFields = indexedFields[5].toArray(new String[0]);
 
+            //add species list headers
+            indexedFields[2].addAll(indexedFields[6]);
+            final String[] speciesListFields = indexedFields[7].toArray(new String[0]);
+
             final String[] qaFields = qas.equals("") ? new String[]{} : qas.split(",");
             String[] qaTitles = downloadFields.getHeader(qaFields, false, false);
 
@@ -1139,6 +1155,8 @@ public class SearchDAOImpl implements SearchDAO {
             //retain output header fields and field names for inclusion of header info in the download
             StringBuilder infoFields = new StringBuilder("infoFields");
             for (String h : indexedFields[3]) infoFields.append(",").append(h);
+            for (String h : analysisFields) infoFields.append(",").append(h);
+            for (String h : speciesListFields) infoFields.append(",").append(h);
             for (String h : qaFields) infoFields.append(",").append(h);
 
             StringBuilder infoHeader = new StringBuilder("infoHeaders");
@@ -1353,10 +1371,10 @@ public class SearchDAOImpl implements SearchDAO {
                                 }
                                 int count = 0;
                                 if (sensitiveQ.contains(splitByFacetQuery)) {
-                                    count = processQueryResults(uidStats, sensitiveFields, qaFields, concurrentWrapper, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize, analysisFields, miscFields, true);
+                                    count = processQueryResults(uidStats, sensitiveFields, qaFields, concurrentWrapper, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize, analysisFields, speciesListFields, miscFields, true);
                                 } else {
                                     // write non-sensitive values into sensitive fields when not authorised for their sensitive values
-                                    count = processQueryResults(uidStats, notSensitiveFields, qaFields, concurrentWrapper, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize, analysisFields, miscFields, false);
+                                    count = processQueryResults(uidStats, notSensitiveFields, qaFields, concurrentWrapper, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize, analysisFields, speciesListFields, miscFields, false);
                                 }
                                 recordsForThread.addAndGet(count);
                                 // we have already set the Filter query the first time the query was constructed
@@ -1544,6 +1562,7 @@ public class SearchDAOImpl implements SearchDAO {
     private int processQueryResults(ConcurrentMap<String, AtomicInteger> uidStats, String[] fields, String[] qaFields,
                                     RecordWriter rw, QueryResponse qr, DownloadDetailsDTO dd, boolean checkLimit,
                                     AtomicInteger resultsCount, long maxDownloadSize, String[] analysisLayers,
+                                    String[] speciesListFields,
                                     List<String> miscFields, Boolean sensitiveDataAllowed) {
         //handle analysis layer intersections
         List<String[]> intersection = intersectResults(dd.getRequestParams().getLayersServiceUrl(), analysisLayers, qr.getResults());
@@ -1558,7 +1577,7 @@ public class SearchDAOImpl implements SearchDAO {
                 resultsCount.incrementAndGet();
 
                 //add the record
-                String[] values = new String[fields.length + analysisLayers.length + qaFields.length];
+                String[] values = new String[fields.length + analysisLayers.length + speciesListFields.length + qaFields.length];
 
                 //get all the "single" values from the index
                 for (int j = 0; j < fields.length; j++) {
@@ -1592,6 +1611,32 @@ public class SearchDAOImpl implements SearchDAO {
                     }
                 }
 
+                // add species list fields
+                if (speciesListFields.length > 0) {
+                    String lftString = String.valueOf(sd.getFieldValue("lft"));
+                    String rgtString = String.valueOf(sd.getFieldValue("rgt"));
+                    if (StringUtils.isNumeric(lftString)) {
+                        long lft = Long.parseLong(lftString);
+                        long rgt = Long.parseLong(rgtString);
+                        Kvp lftrgt = new Kvp(lft, rgt);
+
+                        String drDot = ".";
+                        String dr = "";
+                        int fieldIdx = 0;
+                        for (int i = 0; i < speciesListFields.length; i++) {
+                            if (speciesListFields[i].startsWith(drDot)) {
+                                fieldIdx++;
+                            } else {
+                                dr = speciesListFields[i].split("\\.", 2)[0];
+                                drDot = dr + ".";
+                                fieldIdx = 0;
+                            }
+
+                            values[analysisLayers.length + fields.length + i] = listsService.getKvpValue(fieldIdx, listsService.getKvp(dr), lftrgt);
+                        }
+                    }
+                }
+
                 //now handle the assertions
                 java.util.Collection<Object> assertions = sd.getFieldValues("assertions");
 
@@ -1601,7 +1646,7 @@ public class SearchDAOImpl implements SearchDAO {
                 }
 
                 for (int k = 0; k < qaFields.length; k++) {
-                    values[fields.length + k] = Boolean.toString(assertions.contains(qaFields[k]));
+                    values[fields.length + analysisLayers.length + speciesListFields.length + k] = Boolean.toString(assertions.contains(qaFields[k]));
                 }
 
                 // append previous and new non-empty misc fields
@@ -1734,14 +1779,18 @@ public class SearchDAOImpl implements SearchDAO {
 
             String[] fields = sb.toString().split(",");
 
-            //avoid analysis field duplicates
+            //avoid analysis field and species list duplicates
             for (String s : indexedFields[5]) fields = (String[]) ArrayUtils.removeElement(fields, s);
+            for (String s : indexedFields[7])
+                fields = (String[]) ArrayUtils.removeElement(fields, s.split("\\.", 2)[0]);
 
             String[] qaFields = qas.equals("") ? new String[]{} : qas.split(",");
             String[] qaTitles = downloadFields.getHeader(qaFields, false, false);
             String[] titles = downloadFields.getHeader(fields, true, downloadParams.getDwcHeaders());
             String[] analysisHeaders = indexedFields[4].toArray(new String[0]);
             String[] analysisFields = indexedFields[5].toArray(new String[0]);
+            String[] speciesListHeaders = indexedFields[6].toArray(new String[0]);
+            String[] speciesListFields = indexedFields[7].toArray(new String[0]);
 
             //apply custom header
             String[] customHeader = dd.getRequestParams().getCustomHeader().split(",");
@@ -1770,7 +1819,10 @@ public class SearchDAOImpl implements SearchDAO {
 
                 titles = org.apache.commons.lang3.ArrayUtils.addAll(titles, sensitiveHdr[2].toArray(new String[]{}));
             }
-            String[] header = org.apache.commons.lang3.ArrayUtils.addAll(org.apache.commons.lang3.ArrayUtils.addAll(titles, qaTitles), analysisHeaders);
+            String[] header = org.apache.commons.lang3.ArrayUtils.addAll(titles, analysisHeaders);
+            header = org.apache.commons.lang3.ArrayUtils.addAll(header, speciesListHeaders);
+            header = org.apache.commons.lang3.ArrayUtils.addAll(header, qaTitles);
+
             //Create the Writer that will be used to format the records
             //construct correct RecordWriter based on the supplied fileType
             final RecordWriterError rw = downloadParams.getFileType().equals("csv") ?
@@ -1788,6 +1840,7 @@ public class SearchDAOImpl implements SearchDAO {
                 StringBuilder infoFields = new StringBuilder("infoFields,");
                 for (String h : fields) infoFields.append(",").append(h);
                 for (String h : analysisFields) infoFields.append(",").append(h);
+                for (String h : speciesListFields) infoFields.append(",").append(h);
                 for (String h : qaFields) infoFields.append(",").append(h);
 
                 StringBuilder infoHeader = new StringBuilder("infoHeaders,");
@@ -1808,7 +1861,7 @@ public class SearchDAOImpl implements SearchDAO {
                         //add another fq to the search for data_resource_uid
                         downloadParams.setFq((String[]) ArrayUtils.add(originalFq, "data_resource_uid:" + dr));
                         resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields,
-                                resultsCount, dr, includeSensitive, dd, limit, analysisFields);
+                                resultsCount, dr, includeSensitive, dd, limit, analysisFields, speciesListFields);
                         if (fqBuilder.length() > 2) {
                             fqBuilder.append(" OR ");
                         }
@@ -1819,11 +1872,11 @@ public class SearchDAOImpl implements SearchDAO {
                     //add extra fq for the remaining records
                     downloadParams.setFq((String[]) ArrayUtils.add(originalFq, fqBuilder.toString()));
                     resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields,
-                            resultsCount, null, includeSensitive, dd, limit, analysisFields);
+                            resultsCount, null, includeSensitive, dd, limit, analysisFields, speciesListFields);
                 } else {
                     //download all at once
                     downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields, resultsCount,
-                            null, includeSensitive, dd, limit, analysisFields);
+                            null, includeSensitive, dd, limit, analysisFields, speciesListFields);
                 }
             } finally {
                 rw.finalise();
@@ -1939,7 +1992,7 @@ public class SearchDAOImpl implements SearchDAO {
     private int downloadRecords(DownloadRequestParams downloadParams, RecordWriterError writer,
                                 Map<String, Integer> downloadLimit, ConcurrentMap<String, AtomicInteger> uidStats,
                                 String[] fields, String[] qaFields, int resultsCount, String dataResource, boolean includeSensitive,
-                                DownloadDetailsDTO dd, boolean limit, String[] analysisLayers) throws Exception {
+                                DownloadDetailsDTO dd, boolean limit, String[] analysisLayers, String[] speciesListFields) throws Exception {
         if (logger.isInfoEnabled()) {
             logger.info("download query: " + downloadParams.getQ());
         }
@@ -1948,7 +2001,7 @@ public class SearchDAOImpl implements SearchDAO {
         queryFormatUtils.formatSearchQuery(downloadParams);
         solrQuery.setQuery(downloadParams.getFormattedQuery());
         //Only the fields specified below will be included in the results from the SOLR Query
-        solrQuery.setFields("id", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid");
+        solrQuery.setFields("id", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid", "lft", "rgt");
 
         if (dd != null) {
             dd.resetCounts();
@@ -2025,11 +2078,58 @@ public class SearchDAOImpl implements SearchDAO {
                         String druid = sd.getFieldValue("data_resource_uid").toString();
                         if (shouldDownload(druid, downloadLimit, true) && (!limit || resultsCount < MAX_DOWNLOAD_SIZE)) {
                             resultsCount++;
-                            uuids.add(sd.getFieldValue("id").toString());
+                            String uuid = sd.getFieldValue("id").toString();
+                            uuids.add(uuid);
 
                             //include analysis layer intersections
-                            if (intersectionAll.size() > row + 1)
-                                dataToInsert.put(sd.getFieldValue("id").toString(), (String[]) ArrayUtils.subarray(intersectionAll.get(row + 1), 2, intersectionAll.get(row + 1).length));
+                            String[] extra = null;
+                            if (intersectionAll.size() > row + 1) {
+                                extra = (String[]) ArrayUtils.subarray(intersectionAll.get(row + 1), 2, intersectionAll.get(row + 1).length);
+                                dataToInsert.put(uuid, extra);
+                            }
+
+                            // add species list fields
+                            if (sd.containsKey("lft") && sd.containsKey("rgt") && speciesListFields.length > 0) {
+                                String lftString = String.valueOf(sd.getFieldValue("lft"));
+                                String rgtString = String.valueOf(sd.getFieldValue("rgt"));
+                                if (StringUtils.isNumeric(lftString)) {
+                                    long lft = Long.parseLong(lftString);
+                                    long rgt = Long.parseLong(rgtString);
+                                    Kvp lftrgt = new Kvp(lft, rgt);
+
+                                    int extraOffset = 0;
+
+                                    // expand 'extra' array for speciesListField values
+                                    if (extra == null) {
+                                        extra = new String[speciesListFields.length];
+                                    } else {
+                                        extraOffset = extra.length;
+
+                                        String[] tmp = new String[extra.length + speciesListFields.length];
+                                        System.arraycopy(extra, 0, tmp, 0, extra.length);
+                                        extra = tmp;
+                                    }
+                                    dataToInsert.put(uuid, extra);
+
+                                    // add species list fields
+                                    if (speciesListFields.length > 0) {
+                                        String drDot = ".";
+                                        String dr = "";
+                                        int fieldIdx = 0;
+                                        for (int i = 0; i < speciesListFields.length; i++) {
+                                            if (speciesListFields[i].startsWith(drDot)) {
+                                                fieldIdx++;
+                                            } else {
+                                                dr = speciesListFields[i].split("\\.", 2)[0];
+                                                drDot = dr + ".";
+                                                fieldIdx = 0;
+                                            }
+
+                                            extra[extraOffset + i] = listsService.getKvpValue(fieldIdx, listsService.getKvp(dr), lftrgt);
+                                        }
+                                    }
+                                }
+                            }
 
                             //increment the counters....
                             incrementCount(uidStats, sd.getFieldValue("institution_uid"));

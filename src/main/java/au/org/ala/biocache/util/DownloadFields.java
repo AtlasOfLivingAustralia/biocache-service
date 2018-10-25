@@ -17,6 +17,7 @@ package au.org.ala.biocache.util;
 import au.org.ala.biocache.Config;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.service.LayersService;
+import au.org.ala.biocache.service.ListsService;
 import au.org.ala.biocache.service.RestartDataService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang.StringUtils;
@@ -39,6 +40,8 @@ public class DownloadFields {
     private AbstractMessageSource messageSource;
 
     private LayersService layersService;
+
+    private ListsService listsService;
     
     private Properties layerProperties = RestartDataService.get(this, "layerProperties", new TypeReference<Properties>(){}, Properties.class);
 
@@ -46,10 +49,12 @@ public class DownloadFields {
 
     private Map<String, IndexFieldDTO> indexByDwcMaps;
 
-    public DownloadFields(Set<IndexFieldDTO> indexFields, AbstractMessageSource messageSource, LayersService layersService){
+    public DownloadFields(Set<IndexFieldDTO> indexFields, AbstractMessageSource messageSource, LayersService layersService, ListsService listsService) {
         this.messageSource = messageSource;
 
         this.layersService = layersService;
+
+        this.listsService = listsService;
         
         update(indexFields);
     }
@@ -159,6 +164,8 @@ public class DownloadFields {
         java.util.List<String> originalName = new java.util.LinkedList<String>();
         java.util.List<String> analysisHeaders = new java.util.LinkedList<String>();
         java.util.List<String> analysisLayers = new java.util.LinkedList<String>();
+        java.util.List<String> listHeaders = new java.util.LinkedList<String>();
+        java.util.List<String> listFields = new java.util.LinkedList<String>();
 
         for(String fieldName : fieldNames){
 
@@ -191,13 +198,18 @@ public class DownloadFields {
                 originalName.add(fieldNameToUse);
 
             } else if (field == null && layersService.findAnalysisLayerName(indexName, layersServiceUrl) != null) {
+                // indexName is a valid layer at layersServiceUrl
                 analysisLayers.add(indexName);
                 analysisHeaders.add(layersService.findAnalysisLayerName(indexName, layersServiceUrl));
+            } else if (field == null && listsService.getKvp(indexName) != null) {
+                // indexName is a valid species list at the listsService
+                listHeaders.addAll(listsService.getKvpNames(indexName, listsService.getKvp(indexName)));
+                listFields.addAll(listsService.getKvpFields(indexName, listsService.getKvp(indexName)));
             } else {
                 unmappedNames.add(indexName);
             }
         }
-        return new List[]{mappedNames,unmappedNames,headers,originalName, analysisHeaders, analysisLayers};
+        return new List[]{mappedNames, unmappedNames, headers, originalName, analysisHeaders, analysisLayers, listHeaders, listFields};
     }
 
     private boolean isSpatialField(String name) {

@@ -14,6 +14,10 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import au.org.ala.biocache.dto.Kvp;
+import au.org.ala.biocache.service.ListsService.SpeciesListItemDTO.KvpDTO;
+import au.org.ala.biocache.service.ListsService.SpeciesListSearchDTO.SpeciesListDTO;
+import au.org.ala.biocache.util.SearchUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.googlecode.ehcache.annotations.Cacheable;
 import com.googlecode.ehcache.annotations.DecoratedCacheType;
@@ -42,6 +46,9 @@ public class ListsService {
 
     @Inject
     protected RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
+
+    @Inject
+    protected SearchUtils searchUtils;
 
     @Value("${list.tool.lookup.enabled:true}")
     private Boolean enabled;
@@ -127,17 +134,66 @@ public class ListsService {
     public List<String> getListItems(String dataResourceUid) throws Exception {
         List<String> list = new ArrayList();
 
-        List speciesListItems = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesListItems/" + dataResourceUid), List.class);
+        List<SpeciesListItemDTO> speciesListItems = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesListItems/" + dataResourceUid), SpeciesListItemsDTO.class);
 
-        for (Object s : speciesListItems) {
-            Map m = (Map) s;
-
-            if (m.containsKey("lsid") && m.get("lsid") != null) {
-                list.add(m.get("lsid").toString());
+        for (SpeciesListItemDTO s : speciesListItems) {
+            if (s.lsid != null) {
+                list.add(s.lsid);
             }
         }
 
         return list;
+    }
+
+    /**
+     * Get species list KVP data object.
+     * <p>
+     * This is used as input into other ListsService functions.
+     *
+     * @param dataResourceUid
+     * @return species list KVP data for use in other ListsService functions.
+     */
+    @Cacheable(cacheName = "speciesKvp", decoratedCacheType = DecoratedCacheType.REFRESHING_SELF_POPULATING_CACHE,
+            refreshInterval = 10 * 60 * 1000)
+    public List<Kvp> getKvp(String dataResourceUid) {
+        List<Kvp> list = new ArrayList();
+
+        try {
+            SpeciesListItemsDTO speciesListItems = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesListItems/" + dataResourceUid + "?includeKVP=true"), SpeciesListItemsDTO.class);
+
+            for (SpeciesListItemDTO item : speciesListItems) {
+                if (item.lsid != null) {
+                    // ignore species list item when there are no lft rgt values for the LSID
+                    String fq = searchUtils.getTaxonSearch(item.lsid)[0];
+                    if (fq.startsWith("lft:[")) {
+                        List<String> keys = new ArrayList<>();
+                        List<String> values = new ArrayList<>();
+
+                        for (KvpDTO kvp : item.kvpValues) {
+                            keys.add(kvp.key);
+                            values.add(kvp.value);
+                        }
+
+                        long lft = Long.parseLong(fq.replaceAll("(.*\\[| TO.*)", ""));
+                        ;
+                        long rgt = Long.parseLong(fq.replaceAll("(.*TO |\\].*)", ""));
+                        Kvp kvp = new Kvp(lft, rgt, keys, values);
+
+                        list.add(kvp);
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            logger.error("failed to get species list kvp for list: " + dataResourceUid, e);
+        }
+
+        if (list.size() > 0) {
+            list.sort(Kvp.KvpComparator);
+            return list;
+        } else {
+            return null;
+        }
     }
 
     public List<String> getTypes() {
@@ -159,11 +215,101 @@ public class ListsService {
 
     @Cacheable(cacheName = "speciesListItems", decoratedCacheType = DecoratedCacheType.REFRESHING_SELF_POPULATING_CACHE,
             refreshInterval = 10*60*1000)
-    public SpeciesListSearchDTO getListInfo(String dr) throws URISyntaxException {
+    public SpeciesListDTO getListInfo(String dr) throws URISyntaxException {
 
-        SpeciesListSearchDTO speciesList = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/" + dr), SpeciesListSearchDTO.class);
+        SpeciesListDTO speciesList = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/" + dr), SpeciesListDTO.class);
 
         return speciesList;
+    }
+
+    /**
+     * Get list of field names for a species list dr's additional fields that are stored as kvps.
+     * <p>
+     * The identifer is "dr name - key name".
+     *
+     * @param dr   species list data resource uid
+     * @param kvps KVP data returned by getKvp(dr)
+     * @return list of kvp field identifiers
+     */
+    public List<String> getKvpNames(String dr, List<Kvp> kvps) {
+
+        List<String> names = new ArrayList();
+
+        try {
+            SpeciesListDTO listInfo = getListInfo(dr);
+
+            if (kvps != null && kvps.size() > 0) {
+                for (String key : kvps.get(0).keys) {
+                    names.add(listInfo.listName + " - " + key);
+                }
+            }
+        } catch (Exception e) {
+
+        }
+
+        return names;
+    }
+
+    /**
+     * Get list of identifiers for a species list dr's additional fields that are stored as kvps.
+     * <p>
+     * The identifer is "dr.idx" where idx is n'th kvp value.
+     *
+     * @param dr   species list data resource uid
+     * @param kvps KVP data returned by getKvp(dr)
+     * @return list of kvp field identifiers
+     */
+    public List<String> getKvpFields(String dr, List<Kvp> kvps) {
+        List<String> fields = new ArrayList();
+
+        if (kvps != null && kvps.size() > 0) {
+            int keyIdx = 0;
+            for (String key : kvps.get(0).keys) {
+                fields.add(dr + "." + keyIdx);
+                keyIdx++;
+            }
+        }
+
+        return fields;
+    }
+
+    /**
+     * Get value for a lsid's lft rgt values from a species list dr's additional fields that are stored as kvps.
+     *
+     * @param idx    integer to specify which kvp value
+     * @param kvps   KVP data returned by getKvp(dr)
+     * @param lftrgt lsid's lftrgt values as Kvp
+     * @return this lsid and n'th kvp value as String
+     */
+    public String getKvpValue(int idx, List<Kvp> kvps, Kvp lftrgt) {
+        String value = "";
+
+        if (kvps != null && kvps.size() > idx) {
+            Kvp kvp = find(kvps, lftrgt);
+            if (kvp != null) {
+                value = kvp.values.get(idx);
+            }
+        }
+
+        return value;
+    }
+
+    public Kvp find(List<Kvp> kvps, Kvp lftrgt) {
+        int idx = Collections.binarySearch(kvps, lftrgt, Kvp.KvpComparator);
+        if (idx >= 0) {
+            return kvps.get(idx);
+        } else {
+            // reverse through kvps until a match is found
+            idx = idx * -1;
+            while (idx >= 0) {
+                if (kvps.get(idx).contains(lftrgt)) {
+                    return kvps.get(idx);
+                }
+                idx--;
+            }
+
+            return null;
+        }
     }
 
     public static class SpeciesListSearchDTO {
@@ -196,6 +342,25 @@ public class ListsService {
             public boolean isInvasive;
             public boolean isThreatened;
         }
+    }
+
+    public static class SpeciesListItemDTO {
+        public long id;
+        public String name;
+        public String commonName;
+        public String scientificName;
+        public String lsid;
+        public String dataResourceUid;
+        public List<KvpDTO> kvpValues;
+
+        public static class KvpDTO {
+            public String key;
+            public String value;
+        }
+    }
+
+    public static class SpeciesListItemsDTO extends ArrayList<SpeciesListItemDTO> {
+
     }
 }
 
