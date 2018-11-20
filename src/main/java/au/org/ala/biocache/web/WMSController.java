@@ -192,9 +192,6 @@ public class WMSController extends AbstractSecureController{
 
     private final AtomicReference<String> wmsETag = new AtomicReference<String>(UUID.randomUUID().toString());
 
-    @Inject
-    protected WMSUtils wmsUtils;
-
     //Stores query hashes + occurrence counts, and, query hashes + pointType + point counts
     private LRUMap countsCache = new LRUMap(10000);
     private final Object countLock = new Object();
@@ -255,7 +252,11 @@ public class WMSController extends AbstractSecureController{
 
         String qid = qidCacheDAO.generateQid(requestParams, bbox, title, maxage, source);
         if (qid == null) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "WKT provided has more than " + maxWktPoints + " points and failed to be simplified.");
+            if(StringUtils.isEmpty(requestParams.getWkt())){
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unable to generate QID for query");
+            } else {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "WKT provided has more than " + maxWktPoints + " points and failed to be simplified.");
+            }
         } else {
             response.setContentType("text/plain");
             writeBytes(response, qid.getBytes());
@@ -270,6 +271,16 @@ public class WMSController extends AbstractSecureController{
     @ResponseBody
     Boolean storeParams(@PathVariable("id") Long id) throws Exception {
         return qidCacheDAO.get(String.valueOf(id)) != null;
+    }
+
+    /**
+     * Test presence of query params {id} in params store.
+     */
+    @RequestMapping(value = {"/qid/{id}", "/mapping/qid/{id}"}, method = RequestMethod.GET)
+    public
+    @ResponseBody
+    Qid showQid(@PathVariable("id") Long id) throws Exception {
+        return qidCacheDAO.get(String.valueOf(id));
     }
 
     /**
@@ -727,19 +738,26 @@ public class WMSController extends AbstractSecureController{
         }
     }
 
+    private double getBBoxes(String srs, String bboxString, int width, int height, int size, double[] mbbox, double[] bbox, double[] pbbox, double[] tilebbox){
+        if ("EPSG:4326".equals(srs)) {
+            return getBBoxes4326(bboxString, width, height, size, mbbox, bbox, pbbox, tilebbox);
+        } else {
+            return getBBoxes(bboxString, width, height, size, mbbox, bbox, pbbox, tilebbox);
+        }
+    }
+
     /**
-     * @param bboxString
-     * @param width
-     * @param height
-     * @param size
-     * @param uncertainty
+     * @param bboxString bounding box string in "minlat, minlong, maxlat, maxlng" comma separated format
+     * @param width the image width
+     * @param height the image height
+     * @param size the point size, required to allocate a buffer for overlaps
      * @param mbbox       the mbbox to initialise
      * @param bbox        the bbox to initialise
      * @param pbbox       the pbbox to initialise
      * @param tilebbox    the tilebbox to initialise
      * @return
      */
-    private double getBBoxes(String bboxString, int width, int height, int size, boolean uncertainty, double[] mbbox, double[] bbox, double[] pbbox, double[] tilebbox) {
+    private double getBBoxes(String bboxString, int width, int height, int size, double[] mbbox, double[] bbox, double[] pbbox, double[] tilebbox) {
         String[] splitBBox = bboxString.split(",");
         for (int i = 0; i < 4; i++) {
             boolean errorInThisPosition = false;
@@ -797,13 +815,12 @@ public class WMSController extends AbstractSecureController{
      * @param width
      * @param height
      * @param size
-     * @param uncertainty
      * @param mbbox       the mbbox to initialise
      * @param bbox        the bbox to initialise
      * @param pbbox       the pbbox to initialise
      * @return
      */
-    private double getBBoxes4326(String bboxString, int width, int height, int size, boolean uncertainty, double[] mbbox, double[] bbox, double[] pbbox, double[] tilebbox) {
+    private double getBBoxes4326(String bboxString, int width, int height, int size, double[] mbbox, double[] bbox, double[] pbbox, double[] tilebbox) {
         int i = 0;
         for (String s : bboxString.split(",")) {
             try {
@@ -990,7 +1007,6 @@ public class WMSController extends AbstractSecureController{
 
     @RequestMapping(value = {"/ogc/getFeatureInfo"}, method = RequestMethod.GET)
     public String getFeatureInfo(
-            @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
             @RequestParam(value = "BBOX", required = true, defaultValue = "0,-90,180,0") String bboxString,
             @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
@@ -1000,16 +1016,11 @@ public class WMSController extends AbstractSecureController{
             @RequestParam(value = "QUERY_LAYERS", required = false, defaultValue = "") String queryLayers,
             @RequestParam(value = "X", required = true, defaultValue = "0") Double x,
             @RequestParam(value = "Y", required = true, defaultValue = "0") Double y,
-            HttpServletRequest request,
-            HttpServletResponse response,
             Model model) throws Exception {
 
         if (logger.isDebugEnabled()) {
             logger.debug("WMS - GetFeatureInfo requested for: " + queryLayers);
         }
-
-        if ("EPSG:4326".equals(srs))
-            bboxString = convertBBox4326To900913(bboxString);    // to work around a UDIG bug
 
         WmsEnv vars = new WmsEnv(env, styles);
         double[] mbbox = new double[4];
@@ -1018,18 +1029,19 @@ public class WMSController extends AbstractSecureController{
         double[] tilebbox = new double[4];
         int size = vars.size + (vars.highlight != null ? HIGHLIGHT_RADIUS * 2 + (int) (vars.size * 0.2) : 0) + 5;  //bounding box buffer
 
-        //what is the size of the dot in degrees
-        double resolution = getBBoxes(bboxString, width, height, size, vars.uncertainty, mbbox, bbox, pbbox, tilebbox);
+        double resolution = getBBoxes(srs, bboxString, width, height, size, mbbox, bbox, pbbox, tilebbox);
 
         //resolution should be a value < 1
         PointType pointType = getPointTypeForDegreesPerPixel(resolution);
 
-        double longitude = bbox[0] + (((bbox[2] - bbox[0]) / width) * x);
-        double latitude = bbox[3] - (((bbox[3] - bbox[1]) / height) * y);
+        double longitude = bbox[0] + (((bbox[2] - bbox[0]) / width.doubleValue()) * x);
+        double latitude = bbox[3] - (((bbox[3] - bbox[1]) / height.doubleValue()) * y);
 
         //round to the correct point size
-        double roundedLongitude = pointType.roundToPointType(longitude);
-        double roundedLatitude = pointType.roundToPointType(latitude);
+//        double roundedLongitude = pointType.roundToPointType(longitude);
+//        double roundedLatitude = pointType.roundToPointType(latitude);
+        double roundedLongitude =longitude;
+        double roundedLatitude =latitude;
 
         //get the pixel size of the circles
         double minLng = pointType.roundDownToPointType(roundedLongitude - (pointType.getValue() * 2 * (size + 3)));
@@ -1205,7 +1217,6 @@ public class WMSController extends AbstractSecureController{
 
         if ("GetFeatureInfo".equalsIgnoreCase(requestString)) {
             getFeatureInfo(
-                    cql_filter,
                     env,
                     bboxString,
                     width,
@@ -1215,8 +1226,6 @@ public class WMSController extends AbstractSecureController{
                     layers,
                     x,
                     y,
-                    request,
-                    response,
                     model);
             return;
         }
@@ -1491,15 +1500,7 @@ public class WMSController extends AbstractSecureController{
         int steppedSize = (int) (Math.ceil(vars.size / 20.0) * 20);
         int size = steppedSize + (vars.highlight != null ? HIGHLIGHT_RADIUS * 2 + (int) (steppedSize * 0.2) : 0) + 5;  //bounding box buffer
 
-        double resolution;
-        if ("EPSG:4326".equals(srs)) {
-            is4326 = true;
-            //bboxString = convertBBox4326To900913(bboxString);    // to work around a UDIG bug
-
-            resolution = getBBoxes4326(bboxString, width, height, size, vars.uncertainty, mbbox, bbox, pbbox, tilebbox);
-        } else {
-            resolution = getBBoxes(bboxString, width, height, size, vars.uncertainty, mbbox, bbox, pbbox, tilebbox);
-        }
+        double resolution =  getBBoxes(srs, bboxString, width, height, size, mbbox, bbox, pbbox, tilebbox);
 
         PointType pointType = getPointTypeForDegreesPerPixel(resolution);
         if (logger.isDebugEnabled()) {
