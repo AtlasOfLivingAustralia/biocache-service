@@ -33,6 +33,7 @@ import org.springframework.cache.ehcache.EhCacheManagerFactoryBean;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.ModelAndView;
 
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
@@ -1059,13 +1060,12 @@ public class WMSController extends AbstractSecureController{
 
         String[] fqs = new String[]{"longitude:[" + minLng + " TO " + maxLng + "]", "latitude:[" + minLat + " TO " + maxLat + "]"};
         requestParams.setFq(fqs);
-        //requestParams.setFq(new String[]{"point-"+pointType.getValue()+":"+roundedLatitude+","+roundedLongitude});
         requestParams.setFacet(false);
 
         //TODO: paging
         SolrDocumentList sdl = searchDAO.findByFulltext(requestParams);
+
         //send back the results.
-        String body = "";
         if (sdl != null && sdl.size() > 0) {
             SolrDocument doc = sdl.get(0);
             model.addAttribute("record", doc.getFieldValueMap());
@@ -1088,8 +1088,6 @@ public class WMSController extends AbstractSecureController{
 
         return "metadata/getFeatureInfo";
     }
-
-
 
     @RequestMapping(value = {"/ogc/legendGraphic"}, method = RequestMethod.GET)
     public void getLegendGraphic(
@@ -1115,7 +1113,7 @@ public class WMSController extends AbstractSecureController{
             if (logger.isDebugEnabled()) {
                 logger.debug("WMS - GetLegendGraphic requested : " + request.getQueryString());
             }
-            try(OutputStream out = response.getOutputStream();) {
+            try (OutputStream out = response.getOutputStream();) {
                 response.setContentType("image/png");
                 response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
                 response.setHeader("ETag", wmsETag.get());
@@ -1439,7 +1437,7 @@ public class WMSController extends AbstractSecureController{
      * @throws Exception
      */
     @RequestMapping(value = {"/webportal/wms/reflect", "/ogc/wms/reflect", "/mapping/wms/reflect"}, method = RequestMethod.GET)
-    public void generateWmsTile(
+    public ModelAndView generateWmsTile(
             SpatialSearchRequestParams requestParams,
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
@@ -1462,7 +1460,7 @@ public class WMSController extends AbstractSecureController{
         //for OS Grids, hand over to WMS OS controller
         if(env != null && env.contains("osgrid")){
             wmsosGridController.generateWmsTile(requestParams, cql_filter, env, srs, styles, bboxString, layers, width, height, outlinePoints, outlineColour, request, response);
-            return;
+            return null;
         }
 
         //correct cache value
@@ -1471,7 +1469,12 @@ public class WMSController extends AbstractSecureController{
         //Some WMS clients are ignoring sections of the GetCapabilities....
         if ("GetLegendGraphic".equalsIgnoreCase(requestString)) {
             getLegendGraphic(env, styles, 30, 20, request, response);
-            return;
+            return null;
+        }
+
+        if (StringUtils.isBlank(bboxString)){
+            return sendWmsError(response, 400, "MissingOrInvalidParameter",
+                    "Missing valid BBOX parameter");
         }
 
         Set<Integer> hq = new HashSet<Integer>();
@@ -1539,7 +1542,7 @@ public class WMSController extends AbstractSecureController{
             if (queryBBox != null && (queryBBox[0] > bbox[2] || queryBBox[2] < bbox[0]
                     || queryBBox[1] > bbox[3] || queryBBox[3] < bbox[1])) {
                 displayBlankImage(response);
-                return;
+                return null;
             }
         }
 
@@ -1576,6 +1579,15 @@ public class WMSController extends AbstractSecureController{
         } else {
             displayBlankImage(response);
         }
+        return null;
+    }
+
+    private ModelAndView sendWmsError(HttpServletResponse response, int status, String errorType, String errorDescription) {
+        response.setStatus(status);
+        Map<String,String> model = new HashMap<String,String>();
+        model.put("errorType", errorType);
+        model.put("errorDescription", errorDescription);
+        return new ModelAndView("wms/error", model);
     }
 
     /**
