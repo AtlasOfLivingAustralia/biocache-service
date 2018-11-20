@@ -80,7 +80,7 @@ class QueryFormatUtilsSpec extends Specification {
         om.readValue(Resources.getResource("au/org/ala/biocache/util/${uid}_items.json"), ArrayList)
     }
 
-    private static ListsService.SpeciesListSearchDTO getTestList(String uid) {
-        om.readValue(Resources.getResource("au/org/ala/biocache/util/${uid}_lists.json"), ListsService.SpeciesListSearchDTO)
+    private static ListsService.SpeciesListSearchDTO.SpeciesListDTO getTestList(String uid) {
+        om.readValue(Resources.getResource("au/org/ala/biocache/util/${uid}_lists.json"), ListsService.SpeciesListSearchDTO.SpeciesListDTO)
     }
 }

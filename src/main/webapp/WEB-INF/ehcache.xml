@@ -7,6 +7,7 @@
     <cache name="getColours" maxElementsInMemory="2000" eternal="false" overflowToDisk="false"/>
     <cache name="fixWkt" maxElementsInMemory="100" eternal="false" overflowToDisk="false"/>
     <cache name="speciesListItems" maxElementsInMemory="1000" eternal="false" overflowToDisk="false"/>
+    <cache name="speciesKvp" maxElementsInMemory="1000" eternal="false" overflowToDisk="false"/>
     <cache name="qidGeneration" maxElementsInMemory="1000" eternal="false" overflowToDisk="false" />
     <cache name="formatSearchQuery" maxElementsInMemory="1000" eternal="false" overflowToDisk="false" />
 </ehcache>

@@ -5,10 +5,12 @@ import au.org.ala.biocache.dto.Facet;
 import au.org.ala.biocache.dto.SearchRequestParams;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.model.Qid;
-import au.org.ala.biocache.service.*;
+import au.org.ala.biocache.service.AuthService;
+import au.org.ala.biocache.service.LayersService;
+import au.org.ala.biocache.service.ListsService;
 import au.org.ala.biocache.service.ListsService.SpeciesListSearchDTO;
+import au.org.ala.biocache.service.SpeciesLookupService;
 import com.google.common.collect.Iterables;
-import com.googlecode.ehcache.annotations.Cacheable;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -468,8 +470,8 @@ public class QueryFormatUtils {
                 m.appendReplacement(sb,prefix + "<span class=\"species_list failed\" id='" + htmlEscaper().escape(speciesList) + "'>" + htmlEscaper().escape(speciesList) + " (FAILED)</span>");
             } else {
                 try {
-                    SpeciesListSearchDTO dto = listsService.getListInfo(speciesList);
-                    String name = dto.findSpeciesListByDataResourceId(speciesList).map(sl -> sl.listName).orElse("Species list");
+                    SpeciesListSearchDTO.SpeciesListDTO dto = listsService.getListInfo(speciesList);
+                    String name = dto.listName;
                     m.appendReplacement(sb, prefix + "<span class='species_list' id='" + htmlEscaper().escape(speciesList) + "'>" + htmlEscaper().escape(name) + "</span>");
                 } catch (Exception e) {
                     logger.error("Couldn't get species list name for " + speciesList, e);

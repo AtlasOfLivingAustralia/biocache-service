@@ -28,10 +28,7 @@ import au.org.ala.biocache.util.AlaFileUtils;
 import au.org.ala.biocache.util.thread.DownloadControlThread;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.biocache.writer.RecordWriterException;
-import au.org.ala.cas.util.AuthenticationUtils;
 import au.org.ala.doi.CreateDoiResponse;
-
-import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -45,9 +42,9 @@ import org.apache.log4j.Logger;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.scale7.cassandra.pelops.exceptions.PelopsException;
 import org.springframework.beans.factory.annotation.Value;
-import org.json.simple.parser.ParseException;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.support.AbstractMessageSource;
@@ -56,11 +53,9 @@ import org.springframework.web.client.RestOperations;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.URLEncoder;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
@@ -690,7 +685,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
                 }
 
-                String readmeTemplate = Files.asCharSource(new File(readmeFile), StandardCharsets.UTF_8).read();
+                String readmeTemplate = "";
+                if (new File(readmeFile).exists()) {
+                    readmeTemplate = Files.asCharSource(new File(readmeFile), StandardCharsets.UTF_8).read();
+                }
 
                 String readmeContent = readmeTemplate.replace("[url]", fileLocation)
                         .replace("[date]", dd.getStartDateString())
