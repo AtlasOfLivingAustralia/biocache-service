@@ -434,7 +434,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
 
             return qid;
         } catch (Exception e) {
-            logger.error("error generating QID", e);
+            logger.error("Error generating QID for q = " + requestParams.getQ() + ", fq = " + requestParams.getFq(), e);
         }
         return null;
     }
