@@ -6,8 +6,10 @@ import au.org.ala.biocache.ObserverCallback;
 import au.org.ala.biocache.Store;
 import au.org.ala.biocache.dto.Facet;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.model.Qid;
 import au.org.ala.biocache.parser.AdHocParser;
 import au.org.ala.biocache.parser.DateParser;
+import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.layers.dao.IntersectCallback;
 import au.org.ala.layers.dto.IntersectionFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.ServletRequestUtils;
 import org.springframework.web.bind.annotation.*;
 
+import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
@@ -60,6 +63,9 @@ public class UploadController extends AbstractSecureController {
     @Value("${registry.api.key:ABAABABABABABABABAABABABBABA}")
     protected String apiKey;
 
+    @Inject
+    protected QueryFormatUtils queryFormatUtils;
+
     private Pattern dataResourceUidP = Pattern.compile("data_resource_uid:([\\\"]{0,1}[a-z]{2,3}[0-9]{1,}[\\\"]{0,1})");
     //TODO move to config
     protected static List<String> alreadyIndexedFields = Arrays.asList(new String[]{
@@ -89,6 +95,8 @@ public class UploadController extends AbstractSecureController {
         "decimalLatitude",
         "decimalLongitude"
     });
+
+
 
     /**
      * Upload a dataset using a POST, returning a UID for this data
@@ -192,14 +200,29 @@ public class UploadController extends AbstractSecureController {
      * @param queryExpression
      * @return
      */
-    List<String> getDrs(String queryExpression){
+    List<String> getDrsFromQuery(String queryExpression){
+
         List<String> drs = new ArrayList<String>();
-        if(queryExpression != null){
-            Matcher m = dataResourceUidP.matcher(queryExpression);
-            while(m.find()){
-                for(int x = 0; x < m.groupCount(); x++){
-                    drs.add(m.group(x).replaceAll("data_resource_uid:", "").replaceAll("\\\"",""));
-                }
+        if (queryExpression.contains("qid:")){
+            Qid qid = queryFormatUtils.extractQid(queryExpression);
+            drs.addAll(extractDrsFromExpression(qid.getQ()));
+            if(qid.getFqs() != null){
+                for (String fq : qid.getFqs())
+                    drs.addAll(extractDrsFromExpression(fq));
+            }
+
+        } else if (queryExpression != null){
+            drs.addAll(extractDrsFromExpression(queryExpression));
+        }
+        return drs;
+    }
+
+    List<String> extractDrsFromExpression(String queryExpression) {
+        List<String> drs = new ArrayList<String>();
+        Matcher m = dataResourceUidP.matcher(queryExpression);
+        while (m.find()) {
+            for (int x = 0; x < m.groupCount(); x++) {
+                drs.add(m.group(x).replaceAll("data_resource_uid:", "").replaceAll("\\\"", ""));
             }
         }
         return drs;
@@ -216,10 +239,10 @@ public class UploadController extends AbstractSecureController {
             HttpServletResponse response) throws Exception {
 
         List<String> drs = new ArrayList<String>();
-        drs.addAll(getDrs(requestParams.getQ()));
-        drs.addAll(getDrs(requestParams.getQc()));
+        drs.addAll(getDrsFromQuery(requestParams.getQ()));
+        drs.addAll(getDrsFromQuery(requestParams.getQc()));
         for(String fq : requestParams.getFq()){
-            drs.addAll(getDrs(fq));
+            drs.addAll(getDrsFromQuery(fq));
         }
 
         response.setContentType("application/json");
@@ -360,6 +383,7 @@ public class UploadController extends AbstractSecureController {
         final String datasetName = request.getParameter("datasetName");
         final String alaId = request.getParameter("alaId"); // the account user ID
         final String uiUrl = request.getParameter("uiUrl"); // this is the URL to UI for record display
+        final String colheaders = request.getParameter("headers");
 
         if(StringUtils.isEmpty(urlToZippedData) && StringUtils.isEmpty(csvDataAsString)){
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Must supply 'csvZippedUrl' or 'csvData'");
@@ -368,6 +392,11 @@ public class UploadController extends AbstractSecureController {
 
         if(StringUtils.isEmpty(datasetName) && StringUtils.isEmpty(dataResourceUid)){
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Must supply 'datasetName' or a 'dataResourceUid'");
+            return null;
+        }
+
+        if(StringUtils.isEmpty(colheaders)){
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Must supply column headers in 'headers' request param");
             return null;
         }
 
@@ -384,7 +413,7 @@ public class UploadController extends AbstractSecureController {
 
             CSVReader csvData = null;
 
-            if(urlToZippedData != null) {
+            if (urlToZippedData != null) {
 
                 //download to local directory....
                 File csvFile = downloadCSV(urlToZippedData);
@@ -643,7 +672,6 @@ class UploaderThread implements Runnable {
     @Override
     public void run(){
 
-        File statusDir = null;
         File statusFile = null;
         // List of custom fields separated by type (either user provided or to infer)
         Set<String> userProvidedTypeList = new HashSet<>();
@@ -656,15 +684,15 @@ class UploaderThread implements Runnable {
 
         try {
 
-            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("STARTING", "Starting...", 0)));
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("STARTING", "Starting...", 0)), "UTF-8");
 
             if(reload){
-                FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("DELETING_EXISTING", "Deleting existing data...", 0)));
+                FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("DELETING_EXISTING", "Deleting existing data...", 0)),"UTF-8");
                 au.org.ala.biocache.Store.deleteRecords(tempUid, null, true, true);
             }
 
             //count the lines
-            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("LOADING", "Loading...", 0)));
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("LOADING", "Loading...", 0)),"UTF-8");
             Integer recordCount = lineCount;
             if(!firstLineIsData){
                 recordCount--;
@@ -674,31 +702,30 @@ class UploaderThread implements Runnable {
 
             status = "PROCESSING";
             logger.debug("Processing " + tempUid);
-            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("PROCESSING", "Starting", 25)));
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("PROCESSING", "Starting", 25)),"UTF-8");
             DefaultObserverCallback processingCallback = new DefaultObserverCallback("PROCESSING", recordCount, statusFile, 25, "processed");
             au.org.ala.biocache.Store.process(tempUid, threads, processingCallback);
 
             status = "SAMPLING";
             UploadIntersectCallback u = new UploadIntersectCallback(statusFile);
-            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("SAMPLING", "Starting", 50)));
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("SAMPLING", "Starting environmental and contextual sampling", 50)),"UTF-8");
             au.org.ala.biocache.Store.sample(tempUid, u);
-            au.org.ala.biocache.tool.Sampling.loadSamplingIntoOccurrences(tempUid);
 
             status = "INDEXING";
             Set<String> suffixedCustIndexFields = getSuffixedCustomIndexFields(intList, floatList, dateList, stringList);
             logger.debug("Indexing " + tempUid + " " + suffixedCustIndexFields);
-            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("INDEXING","Starting",75)));
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus("INDEXING","Starting",75)),"UTF-8");
             DefaultObserverCallback indexingCallback = new DefaultObserverCallback("INDEXING", recordCount, statusFile, 75, "indexed");
             au.org.ala.biocache.Store.index(tempUid, suffixedCustIndexFields.toArray(new String[0]),
                     userProvidedTypeList.toArray(new String[0]), indexingCallback);
 
             status = "COMPLETE";
-            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,"Loading complete",100)));
+            FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,"Loading complete",100)),"UTF-8");
 
         } catch (Exception ex) {
             try {
                 status = "FAILED";
-                FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,"The system was unable to load this data.",0)));
+                FileUtils.writeStringToFile(statusFile, om.writeValueAsString(new UploadStatus(status,"The system was unable to load this data.",0)),"UTF-8");
             } catch (IOException ioe) {
                 logger.error("Loading failed and failed to update the status: " + ex.getMessage(), ex);
             }
@@ -947,7 +974,7 @@ class UploaderThread implements Runnable {
                     FileUtils.writeStringToFile(theFile, om.writeValueAsString(new UploadStatus("SAMPLING",
                         String.format("%d of %d layers sampled. Currently sampling %s.",
                                 currentLayerIdx+1, intersectionFiles.length,
-                                intersectionFile.getLayerName()), 25 + percentageComplete)));
+                                intersectionFile.getLayerName()), 25 + percentageComplete)), "UTF-8");
                 }
             } catch(Exception e){
                 logger.debug(e.getMessage(),e);

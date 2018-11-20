@@ -195,6 +195,27 @@ public class QueryFormatUtils {
         }
     }
 
+    public Qid extractQid(String query){
+
+        if (query == null){
+            return null;
+        }
+
+        Qid qid = null;
+        Matcher matcher = qidPattern.matcher(query);
+        while (matcher.find()) {
+            String value = matcher.group();
+            try {
+                String qidValue = SearchUtils.stripEscapedQuotes(value.substring(4));
+                qid = qidCacheDao.get(qidValue);
+            } catch (Exception e){
+                logger.error("Unable to retrieve QID from query " + query, e);
+            }
+        }
+
+        return qid;
+    }
+
     /**
      * Replace query qid value with actual query.
      *
@@ -499,15 +520,22 @@ public class QueryFormatUtils {
                         logger.debug("lsid = " + lsid);
                     }
                     String[] values = searchUtils.getTaxonSearch(lsid);
-                    String lsidHeader = matcher.groupCount() > 1 && matcher.group(1).length() > 0 ? matcher.group(1) : "";
-                    matcher.appendReplacement(queryString, lsidHeader + values[0]);
-                    displaySb.append(current[0].substring(last, matcher.start()));
-                    if (!values[1].startsWith("taxon_concept_lsid:")) {
-                        displaySb.append(lsidHeader).append("<span class='lsid' id='").append(lsid).append("'>").append(values[1]).append("</span>");
+
+                    if( value != null && values.length > 0) {
+
+                        String lsidHeader = matcher.groupCount() > 1 && matcher.group(1).length() > 0 ? matcher.group(1) : "";
+                        matcher.appendReplacement(queryString, lsidHeader + values[0]);
+
+                        displaySb.append(current[0].substring(last, matcher.start()));
+                        if (!values[1].startsWith("taxon_concept_lsid:")) {
+                            displaySb.append(lsidHeader).append("<span class='lsid' id='").append(lsid).append("'>").append(values[1]).append("</span>");
+                        } else {
+                            displaySb.append(lsidHeader).append(values[1]);
+                        }
+                        last = matcher.end();
                     } else {
-                        displaySb.append(lsidHeader).append(values[1]);
+                        logger.error("Unable to match LSID for query expansion : " + lsid);
                     }
-                    last = matcher.end();
                 }
             }
 
