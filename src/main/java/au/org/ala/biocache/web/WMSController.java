@@ -371,7 +371,7 @@ public class WMSController extends AbstractSecureController{
 
         response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
         response.setHeader("ETag", wmsETag.get());
-        
+
         writeBytes(response, sb.toString().getBytes("UTF-8"));
     }
 
@@ -450,7 +450,7 @@ public class WMSController extends AbstractSecureController{
 
         response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
         response.setHeader("ETag", wmsETag.get());
-        
+
         //now generate the JSON if necessary
         if (returnType.equals("application/json")) {
             return legend;
@@ -491,7 +491,7 @@ public class WMSController extends AbstractSecureController{
 
         response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
         response.setHeader("ETag", wmsETag.get());
-        
+
         double[] bbox = null;
 
         if (bbox == null) {
@@ -520,7 +520,7 @@ public class WMSController extends AbstractSecureController{
 
         response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
         response.setHeader("ETag", wmsETag.get());
-        
+
         double[] bbox = null;
 
         String q = requestParams.getQ();
@@ -2043,8 +2043,12 @@ public class WMSController extends AbstractSecureController{
                          int width, int height, double[] pbbox, double width_mult,
                          double height_mult, ImgObj imgObj, String[] originalFqs, String[] boundingBoxFqs,
                          boolean is4326, double[] tilebbox) throws Exception {
-        String[] fqs = new String[originalFqs.length + 3];
-        System.arraycopy(originalFqs, 0, fqs, 3, originalFqs.length);
+        String[] fqs = new String[3 + (originalFqs != null ? originalFqs.length : 0)];
+
+        if (originalFqs != null) {
+            System.arraycopy(originalFqs, 0, fqs, 3, originalFqs.length);
+        }
+
         fqs[0] = vars.highlight;
         fqs[1] = boundingBoxFqs[0];
         fqs[2] = boundingBoxFqs[1];
