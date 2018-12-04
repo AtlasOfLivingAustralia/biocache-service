@@ -733,12 +733,15 @@ public class QueryFormatUtils {
         }
 
         String[] parts = current[1].split(":", 2);
-        //check to see if the first part is a range based query and update if necessary
-        Map<String, String> titleMap = rangeBasedFacets.getTitleMap(parts[0]);
-        if (titleMap != null && titleMap.size() > 0) {
-            String q = titleMap.get(parts[1]);
-            if (StringUtils.isNotEmpty(q)) {
-                current[1] = q;
+
+        if(rangeBasedFacets != null && parts != null && parts.length > 0) {
+            //check to see if the first part is a range based query and update if necessary
+            Map<String, String> titleMap = rangeBasedFacets.getTitleMap(parts[0]);
+            if (titleMap != null && titleMap.size() > 0) {
+                String q = titleMap.get(parts[1]);
+                if (StringUtils.isNotEmpty(q)) {
+                    current[1] = q;
+                }
             }
         }
     }
