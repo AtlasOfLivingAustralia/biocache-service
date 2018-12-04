@@ -806,10 +806,13 @@ public class OccurrenceController extends AbstractSecureController {
         // handle empty param values, e.g. &sort=&dir=
         SearchUtils.setDefaultParams(requestParams);
         Map<String,String[]> map = request != null ? SearchUtils.getExtraParams(request.getParameterMap()) : null;
-        if(map != null){
+        if (map != null){
             map.remove("apiKey");
         }
-        logger.debug("occurrence search params = " + requestParams + " extra params = " + map);
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("occurrence search params = " + requestParams + " extra params = " + map);
+        }
         
         SearchResultDTO srtdto = null;
         if(apiKey == null){
@@ -818,7 +821,7 @@ public class OccurrenceController extends AbstractSecureController {
             srtdto = occurrenceSearchSensitive(requestParams, apiKey, request, response);
         }
 
-        if(srtdto.getTotalRecords() > 0 && lookupImageMetadata){
+        if (srtdto.getTotalRecords() > 0 && lookupImageMetadata){
             //use the image service API & grab the list of IDs
             List<String> occurrenceIDs = new ArrayList<String>();
             for(OccurrenceIndex oi : srtdto.getOccurrences()){
@@ -827,7 +830,7 @@ public class OccurrenceController extends AbstractSecureController {
             
             Map<String, List<Map<String, Object>>> imageMap = imageMetadataService.getImageMetadataForOccurrences(occurrenceIDs);
             
-            for(OccurrenceIndex oi : srtdto.getOccurrences()){
+            for (OccurrenceIndex oi : srtdto.getOccurrences()){
                 //lookup metadata
                 List<Map<String, Object>> imageMetadata = imageMap.get(oi.getUuid());
                 oi.setImageMetadata(imageMetadata);
