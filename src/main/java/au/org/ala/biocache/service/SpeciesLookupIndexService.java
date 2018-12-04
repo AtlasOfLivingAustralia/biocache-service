@@ -267,8 +267,10 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
             }
         });
 
+        int resultsTotal = 0;
+
         //add counter and filter output
-        for (int i = 0; i < results.size() && output.size() < max; i++) {
+        for (int i = 0; i < results.size(); i++) {
             Map nsr = results.get(i);
             try {
                 long count = includeCounts ? speciesCountsService.getCount(countlist, Long.parseLong(nsr.get("left").toString()), Long.parseLong(nsr.get("right").toString())) : 0;
@@ -282,9 +284,15 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
                             nsr.put("tracksCount", layersService.getTracksCount(nsr.get("lsid").toString()));
                         }
                         nsr.put("images", speciesImageService.get(Long.parseLong((String) nsr.get("left")), Long.parseLong((String) nsr.get("right"))));
-                        output.add(nsr);
+
+                        if (output.size() <= max) {
+                            output.add(nsr);
+                        }
+
+                        resultsTotal += 1;
                     }
                 } else {
+                    resultsTotal += 1;
                     output.add(nsr);
                 }
 
@@ -301,7 +309,7 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         Map wrapper = new HashMap();
         wrapper.put("pageSize", max);
         wrapper.put("startIndex", 0);
-        wrapper.put("totalRecords", results.size());
+        wrapper.put("totalRecords", resultsTotal);
         wrapper.put("sort", "score");
         wrapper.put("dir", "desc");
         wrapper.put("status", "OK");
