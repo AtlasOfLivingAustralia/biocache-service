@@ -35,15 +35,16 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SpeciesCountsService {
 
     /**
-     * log4 j logger
-     */
-    private static final Logger logger = Logger.getLogger(SpeciesCountsService.class);
-
-    /**
      * Fulltext search DAO
      */
     @Inject
     protected SearchDAO searchDAO;
+
+    /**
+     * Refresh cache every 30 minutes.
+     */
+    @Value("${species.counts.async.updates:false}")
+    protected Boolean asyncUpdates;
 
     /**
      * Refresh cache every 30 minutes.
@@ -113,8 +114,16 @@ public class SpeciesCountsService {
 
                 if (updating == null) {
                     updatingList.put(hashCode, true);
-                    Thread updateThread = new UpdateThread(this, hashCode, params);
-                    updateThread.start();
+
+                    if (asyncUpdates){
+                        Thread updateThread = new UpdateThread(this, hashCode, params);
+                        updateThread.start();
+                    } else {
+                        //run synchronously...
+                        UpdateThread updateThread = new UpdateThread(this, hashCode, params);
+                        updateThread.update();
+                        counts = (SpeciesCountDTO) cache.get(hashCode);
+                    }
                 }
             }
         }
@@ -169,6 +178,10 @@ class UpdateThread extends Thread {
 
     @Override
     public void run() {
+        update();
+    }
+
+    public void update() {
         synchronized (speciesCountsService.updatelock) {
             //check if another has already updated this query
             synchronized (speciesCountsService.cacheLock) {
@@ -194,7 +207,7 @@ class UpdateThread extends Thread {
                             try {
                                 map.put(Long.parseLong(r.getLabel()), r.getCount());
                             } catch (NumberFormatException e){
-                                // this happens for the empty value
+                                //for non numeric
                             }
                         }
                     }

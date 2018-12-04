@@ -236,25 +236,34 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         this.nameIndexLocation = nameIndexLocation;
     }
     
-    public Map search(String query, String [] filterQuery, int max, boolean includeSynonyms, boolean includeAll, boolean counts) {
+    public Map search(String query, String[] filterQuery, int max, boolean includeSynonyms, boolean includeAll, boolean includeCounts) {
         // TODO: better method of dealing with records with 0 occurrences being removed. 
         int maxFind = includeAll ? max : max + 1000;
-        
+
         List<Map> results = getNameIndex().autocomplete(ClientUtils.escapeQueryChars(query), maxFind, includeSynonyms);
 
         List<Map> output = new ArrayList();
 
-        SpeciesCountDTO countlist = counts ? speciesCountsService.getCounts(filterQuery) : null;
+        SpeciesCountDTO countlist = includeCounts ? speciesCountsService.getCounts(filterQuery) : null;
 
         //sort by rank, then score, then name
         Collections.sort(results, new Comparator<Map>() {
             @Override
             public int compare(Map o1, Map o2) {
                 //exact match is above everything, hopefully
+                int sort = new Float(
+                            (
+                                (Float) o2.get("score") * (10000 - (Integer) o2.get("rankId"))
+                            )
+                        ).compareTo(
+                                (Float) o1.get("score") * (10000 - (Integer) o1.get("rankId")
+                        )
+                );
 
-                int sort = new Float(((Float) o2.get("score") * (10000 - (Integer) o2.get("rankId")))).compareTo((Float) o1.get("score") * (10000 - (Integer) o1.get("rankId")));
-                if (sort == 0) return ((String) o1.get("name")).compareTo((String) o2.get("name"));
-                else return sort;
+                if (sort == 0)
+                    return ((String) o1.get("name")).compareTo((String) o2.get("name"));
+                else
+                    return sort;
             }
         });
 
@@ -262,18 +271,22 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         for (int i = 0; i < results.size() && output.size() < max; i++) {
             Map nsr = results.get(i);
             try {
-                long count = counts ? speciesCountsService.getCount(countlist, Long.parseLong(nsr.get("left").toString()), Long.parseLong(nsr.get("right").toString())) : 0;
+                long count = includeCounts ? speciesCountsService.getCount(countlist, Long.parseLong(nsr.get("left").toString()), Long.parseLong(nsr.get("right").toString())) : 0;
 
-                if (!speciesCountsService.isEnabled() || count > 0 || includeAll) {
-                    if (counts) {
-                        nsr.put("count", count);
-                        nsr.put("distributionsCount", layersService.getDistributionsCount(nsr.get("lsid").toString()));
-                        nsr.put("checklistsCount", layersService.getChecklistsCount(nsr.get("lsid").toString()));
-                        nsr.put("tracksCount", layersService.getTracksCount(nsr.get("lsid").toString()));
+                if (speciesCountsService.isEnabled() && includeCounts) {
+                    if(count > 0 || includeAll) {
+                        if (includeCounts) {
+                            nsr.put("count", count);
+                            nsr.put("distributionsCount", layersService.getDistributionsCount(nsr.get("lsid").toString()));
+                            nsr.put("checklistsCount", layersService.getChecklistsCount(nsr.get("lsid").toString()));
+                            nsr.put("tracksCount", layersService.getTracksCount(nsr.get("lsid").toString()));
+                        }
+                        nsr.put("images", speciesImageService.get(Long.parseLong((String) nsr.get("left")), Long.parseLong((String) nsr.get("right"))));
+                        output.add(nsr);
                     }
-                    nsr.put("images", speciesImageService.get(Long.parseLong((String) nsr.get("left")), Long.parseLong((String) nsr.get("right"))));
+                } else {
+                    output.add(nsr);
                 }
-                output.add(nsr);
 
             } catch (Exception e) {
                 logger.error("Error thrown in autocomplete: " + e.getMessage(), e);
