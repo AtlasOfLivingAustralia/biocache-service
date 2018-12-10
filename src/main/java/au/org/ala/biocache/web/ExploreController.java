@@ -1,12 +1,12 @@
 /**************************************************************************
  *  Copyright (C) 2010 Atlas of Living Australia
  *  All Rights Reserved.
- * 
+ *
  *  The contents of this file are subject to the Mozilla Public
  *  License Version 1.1 (the "License"); you may not use this file
  *  except in compliance with the License. You may obtain a copy of
  *  the License at http://www.mozilla.org/MPL/
- * 
+ *
  *  Software distributed under the License is distributed on an "AS
  *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  *  implied. See the License for the specific language governing
@@ -20,7 +20,6 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.model.Qid;
-import au.org.ala.layers.dto.Field;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -199,7 +198,7 @@ public class ExploreController {
             if(oldName!= null && sg.parent()!= null && sg.parent().equals(kingdom)) {
                 level = 2;
             }
-            
+
             oldName = sg.name();
             if(sg.parent() == null){
                 level = 1;
@@ -216,10 +215,10 @@ public class ExploreController {
         }
         return speciesGroups;
 	}
-    
+
     /**
      * Returns the number of records and distinct species in a particular species group
-     * 
+     *
      * @param requestParams
      * @param group
      * @return
@@ -244,7 +243,7 @@ public class ExploreController {
             }
             speciesCount = count;
         }
-        
+
         return new Integer[]{(int) results.getTotalRecords(), speciesCount};
     }
 
@@ -300,7 +299,7 @@ public class ExploreController {
         model.addAttribute("points", points);
         return POINTS_GEOJSON;
     }
-    
+
     /**
      * Map a zoom level to a coordinate accuracy level
      *
@@ -333,7 +332,7 @@ public class ExploreController {
         }
         return pointType;
     }
- 
+
     private void applyFacetForCounts(SpatialSearchRequestParams requestParams, boolean useCommonName){
     	if(useCommonName)
     		requestParams.setFacets(new String[]{SearchDAOImpl.COMMON_NAME_AND_LSID});
@@ -354,13 +353,13 @@ public class ExploreController {
             @RequestParam(value="common", required=false, defaultValue="false") boolean common,
             HttpServletResponse response)
             throws Exception {
-	    String filename = requestParams.getFile() != null ? requestParams.getFile():"data"; 
+	    String filename = requestParams.getFile() != null ? requestParams.getFile():"data";
         logger.debug("Downloading the species in your area... ");
         response.setHeader("Cache-Control", "must-revalidate");
         response.setHeader("Pragma", "must-revalidate");
         response.setHeader("Content-Disposition", "attachment;filename="+filename);
         response.setContentType("application/vnd.ms-excel");
-       
+
         addGroupFilterToQuery(requestParams, group);
         applyFacetForCounts(requestParams, common);
 
@@ -371,12 +370,12 @@ public class ExploreController {
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         }
-        
+
 	}
 
     /**
      * JSON web service that returns a list of species and record counts for a given location search
-     * and a higher taxa with rank. 
+     * and a higher taxa with rank.
      *
      * @param model
      * @throws Exception
@@ -385,13 +384,13 @@ public class ExploreController {
 	public @ResponseBody List<TaxaCountDTO> listSpeciesForHigherTaxa(
             SpatialSearchRequestParams requestParams,
             @PathVariable(value="group") String group,
-            @RequestParam(value="common", required=false, defaultValue="false") boolean common,           
+            @RequestParam(value="common", required=false, defaultValue="false") boolean common,
             Model model) throws Exception {
 
-       
+
         addGroupFilterToQuery(requestParams, group);
         applyFacetForCounts(requestParams, common);
-        
+
         return searchDao.findAllSpeciesByCircleAreaAndHigherTaxa(requestParams, group);
     }
 	// The Endemism Web Services - Move these if they get too large...
@@ -403,22 +402,22 @@ public class ExploreController {
 	 * @throws Exception
 	 */
 	@RequestMapping(value = "/explore/counts/endemic*", method = RequestMethod.GET)
-	public @ResponseBody int getSpeciesCountOnlyInWKT(SpatialSearchRequestParams requestParams, 
-	          HttpServletResponse response) 
-	          throws Exception{  
+	public @ResponseBody int getSpeciesCountOnlyInWKT(SpatialSearchRequestParams requestParams,
+	          HttpServletResponse response)
+	          throws Exception{
 	    List list = getSpeciesOnlyInWKT(requestParams,response);
 	    if(list != null)
 	        return list.size();
 	    return 0;
 	}
-		
+
 	/**
 	 * Returns the species that only have occurrences in the supplied WKT.
 	 * @return
 	 */
 	@RequestMapping(value = "/explore/endemic/species*", method = RequestMethod.GET)
 	public @ResponseBody List<FieldResultDTO> getSpeciesOnlyInWKT(SpatialSearchRequestParams requestParams,
-	          HttpServletResponse response) 
+	          HttpServletResponse response)
 	              throws Exception{
 	    Qid qid = qidCacheDao.getQidFromQuery(requestParams.getQ());
 	    String wkt =StringUtils.isNotBlank(requestParams.getWkt())?requestParams.getWkt():qid.getWkt();
@@ -427,7 +426,7 @@ public class ExploreController {
 	        requestParams.setWkt(qid.getWkt());
             requestParams.setFq(qid.getFqs());
 	    }
-	    
+
 	    if(StringUtils.isNotBlank(wkt) ){
 	        if(requestParams.getFacets() != null && requestParams.getFacets().length ==1){
                 return searchDao.getEndemicSpecies(requestParams);
@@ -452,14 +451,11 @@ public class ExploreController {
      */
     @RequestMapping(value = "/explore/endemic/species/{subQueryQid}*", method = RequestMethod.GET)
     public @ResponseBody List<FieldResultDTO> getSpeciesOnlyInOneQuery(SpatialSearchRequestParams parentQuery,
-                                                                  @PathVariable(value="subQueryQid") Long subQueryQid,
-                                                                  HttpServletResponse response)
-            throws Exception{
-        Qid qid = qidCacheDao.getQidFromQuery("qid:" + subQueryQid);
+                                                  @PathVariable(value = "subQueryQid") Long subQueryQid,
+                                                  HttpServletResponse response)
+            throws Exception {
         SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
-        subQuery.setQ(qid.getQ());
-        subQuery.setFacets(qid.getFqs());
-        subQuery.setWkt(qid.getWkt());
+        subQuery.setQ("qid:" + subQueryQid);
 
         if (parentQuery.getQ() == null) {
             parentQuery.setQ("geospatial_kosher:*");
@@ -468,8 +464,8 @@ public class ExploreController {
             parentQuery.setFacets(new String[]{SearchDAOImpl.NAMES_AND_LSID});
         }
 
-        if(subQuery != null ){
-            if(parentQuery.getFacets() != null && parentQuery.getFacets().length ==1){
+        if (subQuery != null) {
+            if (parentQuery.getFacets() != null && parentQuery.getFacets().length == 1) {
                 return searchDao.getSubquerySpeciesOnly(subQuery, parentQuery);
             } else {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply only one facet.");
@@ -545,19 +541,16 @@ public class ExploreController {
      */
     @RequestMapping(value = "/explore/endemic/species/{subQueryQid}.csv", method = RequestMethod.GET)
     public void getSpeciesOnlyInOneQueryCSV(SpatialSearchRequestParams parentQuery,
-                                            @PathVariable(value="subQueryQid") Long subQueryQid,
-                                            @RequestParam(value="count", required=false, defaultValue="false") boolean includeCount,
-                                            @RequestParam(value="lookup" ,required=false, defaultValue="false") boolean lookupName,
-                                            @RequestParam(value="synonym", required=false, defaultValue="false") boolean includeSynonyms,
+                                            @PathVariable(value = "subQueryQid") Long subQueryQid,
+                                            @RequestParam(value = "count", required = false, defaultValue = "false") boolean includeCount,
+                                            @RequestParam(value = "lookup", required = false, defaultValue = "false") boolean lookupName,
+                                            @RequestParam(value = "synonym", required = false, defaultValue = "false") boolean includeSynonyms,
                                             @RequestParam(value = "lists", required = false, defaultValue = "false") boolean includeLists,
                                             @RequestParam(value = "file", required = false, defaultValue = "") String file,
                                             HttpServletResponse response)
-            throws Exception{
-        Qid qid = qidCacheDao.getQidFromQuery("qid:" + subQueryQid);
+            throws Exception {
         SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
-        subQuery.setQ(qid.getQ());
-        subQuery.setFacets(qid.getFqs());
-        subQuery.setWkt(qid.getWkt());
+        subQuery.setQ("qid:" + subQueryQid);
 
         if (parentQuery.getQ() == null) {
             parentQuery.setQ("geospatial_kosher:*");
@@ -566,12 +559,12 @@ public class ExploreController {
             parentQuery.setFacets(new String[]{SearchDAOImpl.NAMES_AND_LSID});
         }
 
-        if(subQuery != null ){
-            if(parentQuery.getFacets() != null && parentQuery.getFacets().length == 1){
-                String filename = StringUtils.isNotEmpty(file) ? file:parentQuery.getFacets()[0];
+        if (subQuery != null) {
+            if (parentQuery.getFacets() != null && parentQuery.getFacets().length == 1) {
+                String filename = StringUtils.isNotEmpty(file) ? file : parentQuery.getFacets()[0];
                 response.setHeader("Cache-Control", "must-revalidate");
                 response.setHeader("Pragma", "must-revalidate");
-                response.setHeader("Content-Disposition", "attachment;filename=" + filename +".csv");
+                response.setHeader("Content-Disposition", "attachment;filename=" + filename + ".csv");
                 response.setContentType("text/csv");
 
                 try {

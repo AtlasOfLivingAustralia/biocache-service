@@ -65,10 +65,7 @@ import org.springframework.util.CollectionUtils;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Reader;
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -627,23 +624,20 @@ public class SearchDAOImpl implements SearchDAO {
         writeFacetToStream(requestParams, true, false, false, false, outputStream, null);
         outputStream.flush();
         outputStream.close();
-        String includedValues = outputStream.toString(StandardCharsets.UTF_8);
-        includedValues = includedValues == null ? "" : includedValues;
-        String[] values = includedValues.split("\n");
+        CSVReader csvReader = new CSVReader(new StringReader(outputStream.toString(StandardCharsets.UTF_8)));
         List<FieldResultDTO> list = new ArrayList<FieldResultDTO>();
         boolean first = true;
-        for (String value : values) {
+        String [] line;
+        while ((line = csvReader.readNext()) != null) {
             if (first) {
                 first = false;
-            } else {
-                int idx = value.lastIndexOf(",");
-                //handle values enclosed in "
-                String name = value.substring(0, idx);
+            } else if (line.length == 2) {
+                String name = line[0];
                 list.add(
                     new FieldResultDTO(
                         name,
                         name,
-                        Long.parseLong(value.substring(idx + 1).replace("\"", ""))
+                        Long.parseLong(line[1])
                     )
                 );
             }
@@ -3959,7 +3953,10 @@ public class SearchDAOImpl implements SearchDAO {
                     logger.debug("SOLR query:" + query.toString());
                 }
 
-                qr = solrClient.query(query, queryMethod == null ? this.queryMethod : queryMethod); // can throw exception
+                // this.queryMethod is not always set by init() before query() is called
+                SolrRequest.METHOD defaultMethod = solrClient instanceof EmbeddedSolrServer ? SolrRequest.METHOD.GET : SolrRequest.METHOD.POST;
+
+                qr = solrClient.query(query, queryMethod == null ? (this.queryMethod == null ? defaultMethod : this.queryMethod) : queryMethod); // can throw exception
             } catch (SolrServerException e) {
                 //want to retry IOException and Proxy Error
                 if (retry < maxRetries && (e.getMessage().contains("IOException") || e.getMessage().contains("Proxy Error"))) {
@@ -4117,6 +4114,10 @@ public class SearchDAOImpl implements SearchDAO {
         for (String facet : searchParams.getFacets()) {
             query.add("group.field", facet);
         }
+
+        // need a workaround for runSolrQuery replacing query.rows with searchParams.pageSize
+        searchParams.setPageSize(searchParams.getFlimit());
+
         QueryResponse response = runSolrQuery(query, searchParams);
         GroupResponse groupResponse = response.getGroupResponse();
 
