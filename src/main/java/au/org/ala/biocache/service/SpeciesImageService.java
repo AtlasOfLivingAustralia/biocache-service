@@ -65,7 +65,7 @@ public class SpeciesImageService {
                 params.setPageSize(1);
                 params.setFacet(true);
                 params.setFacets(new String[]{"lft"});
-                params.setFlimit(-1);
+                params.setFlimit(99999999);
                 params.setFl("data_resource_uid,image_url");
                 params.setQ("image_url:*");
 
