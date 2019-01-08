@@ -166,9 +166,6 @@ public class WMSController extends AbstractSecureController{
     @Value("${wms.capabilities.focus:latitude:[-90 TO 90] AND longitude:[-180 TO 180]}")
     protected String limitToFocusValue;
 
-    @Value("${default.srs:900913}")
-    protected String defaultSRS;
-
     /**
      * Limit WKT complexity to reduce index query time for qids.
      */
@@ -930,7 +927,7 @@ public class WMSController extends AbstractSecureController{
             @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
             @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
             @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
-            @RequestParam(value = "SRS", required = false, defaultValue = "") String srs,
+            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs,
             @RequestParam(value = "QUERY_LAYERS", required = false, defaultValue = "") String queryLayers,
             @RequestParam(value = "X", required = true, defaultValue = "0") Double x,
             @RequestParam(value = "Y", required = true, defaultValue = "0") Double y,
@@ -1085,7 +1082,7 @@ public class WMSController extends AbstractSecureController{
             SpatialSearchRequestParams requestParams,
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
-            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:900913") String srs, //default to google mercator
+            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs, //default to google mercator
             @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
             @RequestParam(value = "STYLE", required = false, defaultValue = "") String style,
             @RequestParam(value = "BBOX", required = false, defaultValue = "") String bboxString,
@@ -1370,7 +1367,7 @@ public class WMSController extends AbstractSecureController{
             SpatialSearchRequestParams requestParams,
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
-            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:900913") String srs, //default to google mercator
+            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs, //default to google mercator
             @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
             @RequestParam(value = "BBOX", required = true, defaultValue = "") String bboxString,
             @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
