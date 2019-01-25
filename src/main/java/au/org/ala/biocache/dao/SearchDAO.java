@@ -331,6 +331,25 @@ public interface SearchDAO {
     List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facet, String [] cutpoints) throws Exception;
 
     /**
+     * Get legend items for a query and specified facet.
+     * <p>
+     * Continuous variable cut-points can be specified.  Includes the minimum
+     * and maximum values.
+     * <p>
+     * Includes the option to skipI18n facet value replacement
+     * <p>
+     * Returns an empty list if no valid values are found.
+     *
+     * @param searchParams
+     * @param facet
+     * @param cutpoints
+     * @param skipI18n
+     * @return
+     * @throws Exception
+     */
+    List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facet, String[] cutpoints, boolean skipI18n) throws Exception;
+
+    /**
      * Get a data provider list for a query.
      *
      * @param requestParams

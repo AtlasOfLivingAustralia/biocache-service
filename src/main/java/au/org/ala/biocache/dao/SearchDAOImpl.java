@@ -3679,8 +3679,12 @@ public class SearchDAOImpl implements SearchDAO {
         return null;
     }
 
-    @Cacheable(cacheName = "legendCache")
     public List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facetField, String[] cutpoints) throws Exception {
+        return getLegend(searchParams, facetField, cutpoints, false);
+    }
+
+    @Cacheable(cacheName = "legendCache")
+    public List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facetField, String[] cutpoints, boolean skipI18n) throws Exception {
         List<LegendItem> legend = new ArrayList<LegendItem>();
 
         queryFormatUtils.formatSearchQuery(searchParams);
@@ -3728,14 +3732,18 @@ public class SearchDAOImpl implements SearchDAO {
                                 fq = "-" + facetField + ":[* TO *]";
                             }
 
-                            String i18nCode = null;
-                            if(StringUtils.isNotBlank(fcount.getName())){
-                                i18nCode = facetField + "." + fcount.getName();
+                            if (skipI18n) {
+                                legend.add(new LegendItem(fcount.getName(), null, fcount.getCount(), fq));
                             } else {
-                                i18nCode = facetField + ".novalue";
-                            }
+                                String i18nCode = null;
+                                if (StringUtils.isNotBlank(fcount.getName())) {
+                                    i18nCode = facetField + "." + fcount.getName();
+                                } else {
+                                    i18nCode = facetField + ".novalue";
+                                }
 
-                            legend.add(new LegendItem(getFacetValueDisplayName(facetField, fcount.getName()), i18nCode, fcount.getCount(), fq));
+                                legend.add(new LegendItem(getFacetValueDisplayName(facetField, fcount.getName()), i18nCode, fcount.getCount(), fq));
+                            }
                         }
                     }
                     break;
@@ -4395,7 +4403,7 @@ public class SearchDAOImpl implements SearchDAO {
             if (s[0].equals("-1") || s[0].equals("grid")) {
                 return null;
             } else {
-                List<LegendItem> legend = getLegend(requestParams, s[0], cutpoints);
+                List<LegendItem> legend = getLegend(requestParams, s[0], cutpoints, true);
 
                 if (cutpoints == null) {     //do not sort if cutpoints are provided
                     java.util.Collections.sort(legend);

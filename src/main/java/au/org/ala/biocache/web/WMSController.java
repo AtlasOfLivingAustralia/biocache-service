@@ -2177,7 +2177,11 @@ public class WMSController extends AbstractSecureController{
 
         //still need colours when cannot cache
         requestParams.setFormattedQuery(null);
-        if (colours == null && !cm.equals("-1")) colours = searchDAO.getColours(requestParams, vars.colourMode);
+        if (colours == null && !cm.equals("-1")) {
+            requestParams.setFlimit(-1);
+            colours = searchDAO.getColours(requestParams, vars.colourMode);
+            sz = colours == null ? 1 : colours.size() + 1;
+        }
 
         //build only once
         synchronized (wco) {
