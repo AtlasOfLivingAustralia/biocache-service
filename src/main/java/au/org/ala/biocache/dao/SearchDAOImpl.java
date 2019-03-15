@@ -41,13 +41,14 @@ import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.beans.DocumentObjectBinder;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
-import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.client.solrj.response.FacetField.Count;
 import org.apache.solr.client.solrj.response.RangeFacet.Numeric;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
+import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
@@ -3981,10 +3982,43 @@ public class SearchDAOImpl implements SearchDAO {
                     //throw all other errors
                     throw e;
                 }
-            } catch (HttpSolrClient.RemoteSolrException e) {
-                //report failed query
-                logger.error("query failed: " + query.toString() + " : " + e.getMessage());
-                throw e;
+            } catch (SolrException e) {
+                // Fix zk disconnects, maybe
+                if (solrClient instanceof CloudSolrClient && e.getMessage().contains("Could not load collection")) {
+                    logger.error("query failed, attempting to reconnect: " + query.toString() + " : " + e.getMessage());
+
+                    // zk reconnect
+                    try {
+                        ((CloudSolrClient) solrClient).getClusterStateProvider().close();
+                    } catch (IOException io) {
+                    }
+                    ((CloudSolrClient) solrClient).getClusterStateProvider().connect();
+
+                    // solr reconnect
+                    try {
+                        solrClient.close();
+                    } catch (IOException io) {
+                    }
+                    ((CloudSolrClient) solrClient).connect();
+
+                    if (retry < maxRetries) {
+                        if (retryWait > 0) {
+                            try {
+                                Thread.sleep(retryWait);
+                            } catch (InterruptedException ex) {
+                                // If the Thread sleep is interrupted, we shouldn't attempt to continue
+                                Thread.currentThread().interrupt();
+                                throw e;
+                            }
+                        }
+                    } else {
+                        throw e;
+                    }
+                } else {
+                    logger.error("query failed: " + query.toString() + " : " + e.getMessage());
+                    throw e;
+                }
+
             } catch (IOException ioe) {
                 //report failed query
                 logger.error("query failed: " + query.toString() + " : " + ioe.getMessage());
