@@ -385,7 +385,7 @@ public class QueryFormatUtils {
             Matcher matcher = taxaPattern.matcher(current[1]);
             queryString.setLength(0);
             while (matcher.find()) {
-                String value = matcher.group();
+                String field = matcher.group(1);
                 String taxa = matcher.group(2);
 
                 if (logger.isDebugEnabled()) {
@@ -397,7 +397,7 @@ public class QueryFormatUtils {
                 List<String> guidsForTaxa = speciesLookupService.getGuidsForTaxa(taxaQueries);
                 String q = createQueryWithTaxaParam(taxaQueries, guidsForTaxa);
 
-                matcher.appendReplacement(queryString, q);
+                matcher.appendReplacement(queryString, field + q);
             }
 
             matcher.appendTail(queryString);
@@ -508,6 +508,7 @@ public class QueryFormatUtils {
                     if (logger.isDebugEnabled()) {
                         logger.debug("pre-processing " + value);
                     }
+                    String lsidHeader = matcher.group(1);
                     String lsid = matcher.group(2);
                     if (lsid.contains("\"")) {
                         //remove surrounding quotes, if present
@@ -525,7 +526,6 @@ public class QueryFormatUtils {
 
                     if( value != null && values.length > 0) {
 
-                        String lsidHeader = matcher.groupCount() > 1 && matcher.group(1).length() > 0 ? matcher.group(1) : "";
                         matcher.appendReplacement(queryString, lsidHeader + values[0]);
 
                         displaySb.append(current[0].substring(last, matcher.start()));
