@@ -64,6 +64,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
 import java.io.*;
@@ -348,6 +349,15 @@ public class SearchDAOImpl implements SearchDAO {
         }
 
         getMaxBooleanClauses();
+    }
+
+    @PreDestroy
+    public void destroy() throws Exception {
+        // close SOLR connection
+        solrClient.close();
+
+        // close Cassandra connection
+        Config.persistenceManager().shutdown();
     }
 
     public void refreshCaches() {
