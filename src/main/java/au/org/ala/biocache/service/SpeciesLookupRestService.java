@@ -52,6 +52,9 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
     private String[] synonymHeader;
     private String[] countSynonymHeader;
 
+
+    private Map<String, String> guidForNameCache = new HashMap();
+
     /**
      * @see SpeciesLookupService#getGuidForName(String)
      *
@@ -60,20 +63,21 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
      */
     @Override
     public String getGuidForName(String name) {
-        String jsonUri = null;
-        String guid = null;
-        if (enabled) {
+        String guid = guidForNameCache.get(name);
 
+        String jsonUri = null;
+        if (enabled && guid == null) {
             try {
                 // Use link identifier to see if we can get a unqique name
                 jsonUri = bieUriPrefix + "/species/" + URLEncoder.encode(name, "UTF-8");
                 logger.debug("Requesting: " + jsonUri);
                 Map<String, Object> json = restTemplate.getForObject(jsonUri, Map.class);
                 if(json.containsKey("taxonConcept")) {
-	                Map<String, String> tc = (Map<String, String>) json.get("taxonConcept");
-	                if (tc != null && tc.containsKey("guid")) {
-	                    guid = tc.get("guid");
-	                }
+                    Map<String, String> tc = (Map<String, String>) json.get("taxonConcept");
+                    if (tc != null && tc.containsKey("guid")) {
+                        guid = tc.get("guid");
+                        guidForNameCache.put(name, guid);
+                    }
                 }
             } catch (Exception ex) {
                 logger.error("RestTemplate error for " + jsonUri + ": " + ex.getMessage(), ex);
@@ -82,6 +86,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
         return guid;
     }
 
+    private Map<String, String> acceptedNameForGuidCache = new HashMap();
     /**
      * Lookup the accepted name for a GUID
      *
@@ -94,15 +99,17 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
             guid = guid.replace("//", "////");
         }
 
+        String acceptedName = acceptedNameForGuidCache.get(guid);
+
         final String jsonUri = bieUriPrefix + "/species/shortProfile/" + guid + ".json";
-        String acceptedName = "";
-        if(enabled){
+        if (enabled && acceptedName == null) {
             try {
                 logger.info("Requesting: " + jsonUri);
                 Map<String, String> jsonMap = restTemplate.getForObject(jsonUri, Map.class);
 
                 if (jsonMap.containsKey("scientificName")) {
                     acceptedName = jsonMap.get("scientificName");
+                    acceptedNameForGuidCache.put(guid, acceptedName);
                 }
 
             } catch (Exception ex) {
@@ -114,6 +121,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
     }
 
 
+    private Map<String, String> namesForGuidsCache = new HashMap();
     /**
      *
      * @param guids
@@ -121,43 +129,88 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
      */
     @Override
     public List<String> getNamesForGuids(List<String> guids) {
+
+        // look in cache first
+        List<String> names = new ArrayList(guids.size());
+        List<String> unknown = new ArrayList(guids.size());
+        for (int i = 0; i < guids.size(); i++) {
+            String guid = guids.get(i);
+            String data = namesForGuidsCache.get(guid);
+            names.add(data);
+            if (data == null) {
+                unknown.add(guid);
+            }
+        }
+
         final String jsonUri = bieUriPrefix + "/species/guids/bulklookup.json";
-        List<String> names = null;
         if(enabled){
             try {
-                Map<String, Object> result = restTemplate.postForObject(jsonUri, guids, Map.class);
-                if (result.containsKey("searchDTOList")) {
-                    List<Object> results = (List<Object>) result.get("searchDTOList");
-                    if (results != null && !results.isEmpty()) {
-                        names = new ArrayList<String>(results.size());
-                        for (Object nm: results) {
-                            if(nm != null && nm instanceof Map) {
-                                Map<String, String> nmm = (Map<String, String>) nm;
-	                            if (nmm.containsKey("scientificName")) {
-                                    names.add(nmm.get("scientificName"));
-                                } else if (nmm.containsKey("name")) {
-                                    names.add(nmm.get("name"));
+                Map<String, Object> response = restTemplate.postForObject(jsonUri, unknown, Map.class);
+                if (response.containsKey("searchDTOList")) {
+                    List<Object> unknownResults = (List<Object>) response.get("searchDTOList");
+                    if (unknownResults != null && !unknownResults.isEmpty()) {
+
+                        // merge with results from cache
+                        int namesPos = 0;
+                        int unknownPos = 0;
+                        while (namesPos < guids.size() && unknownPos < unknown.size()) {
+                            if (names.get(namesPos) == null) {
+                                Object nm = unknownResults.get(unknownPos);
+                                String name = "";
+                                if (nm != null && nm instanceof Map) {
+                                    Map<String, String> nmm = (Map<String, String>) nm;
+                                    if (nmm.containsKey("scientificName")) {
+                                        name = nmm.get("scientificName");
+                                    } else if (nmm.containsKey("name")) {
+                                        name = nmm.get("name");
+                                    }
                                 }
+                                namesForGuidsCache.put(unknown.get(unknownPos), name);
+                                names.set(namesPos, name);
+                                unknownPos++;
                             }
+                            namesPos++;
                         }
                     }
                 }
             } catch (Exception ex) {
                 logger.error("RestTemplate error for " + jsonUri + " and guids " + guids + ": " + ex.getMessage(), ex);
-             }
+            }
         }
         return names;
     }
 
+    private Map<String, Map<String, String>> nameDetailsForGuidsCache = new HashMap();
     private List<Map<String, String>> getNameDetailsForGuids(List<String> guids) {
-        List<Map<String,String>> results = null;
+        // look in cache first
+        List<Map<String, String>> results = new ArrayList(guids.size());
+        List<String> unknown = new ArrayList<>(guids.size());
+        for (int i = 0; i < guids.size(); i++) {
+            String guid = guids.get(i);
+            Map<String, String> data = nameDetailsForGuidsCache.get(guid);
+            results.add(data);
+            if (data == null) {
+                unknown.add(guid);
+            }
+        }
+
         if(enabled){
             final String url = bieUriPrefix + "/species/guids/bulklookup.json";
             try{
                 //String jsonString="";
-                Map searchDTOList = restTemplate.postForObject(url, guids, Map.class);
+                Map searchDTOList = restTemplate.postForObject(url, unknown, Map.class);
                 if(searchDTOList.containsKey("searchDTOList")) {
-                    results = (List<Map<String,String>>)searchDTOList.get("searchDTOList");
+                    List<Map<String, String>> unknownResults = (List<Map<String, String>>) searchDTOList.get("searchDTOList");
+                    // merge with results from cache
+                    int resultsPos = 0;
+                    int unknownPos = 0;
+                    while (resultsPos < guids.size() && unknownPos < unknown.size()) {
+                        if (results.get(resultsPos) == null) {
+                            nameDetailsForGuidsCache.put(unknown.get(unknownPos), unknownResults.get(unknownPos));
+                            results.set(resultsPos, unknownResults.get(unknownPos++));
+                        }
+                        resultsPos++;
+                    }
                 }
             } catch (Exception ex) {
                 logger.error("Requested URI: " + url);
