@@ -1853,8 +1853,8 @@ public class WMSController extends AbstractSecureController{
                             try {
                                 GeneralDirectPosition sourceCoords = new GeneralDirectPosition(lng, lat);
                                 DirectPosition targetCoords = transformFrom4326.getMathTransform().transform(sourceCoords, null);
-                                x = scaleLongitudeForImage(targetCoords.getOrdinate(0), left, right, width);
-                                y = scaleLatitudeForImage(targetCoords.getOrdinate(1), top, bottom, height);
+                                x = scaleLongitudeForImage(targetCoords.getOrdinate(0), left, right, divs);
+                                y = scaleLatitudeForImage(targetCoords.getOrdinate(1), top, bottom, divs);
 
                                 if (x >= 0 && x < divs && y >= 0 && y < divs) {
                                     gridCounts[x][y] += count[i / 2];
