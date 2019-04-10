@@ -271,4 +271,31 @@ public class SpatialUtils {
         return smallerGeometry == null ? null : smallerGeometry.toText();
     }
 
+    public static int scaleLatitudeForImage(double lat, double top, double bottom, int pixelHeight) {
+        return (int) (((lat - top) / (bottom - top)) * pixelHeight);
+    }
+
+    public static int scaleLongitudeForImage(double lng, double left, double right, int pixelWidth) {
+        return (int) (((lng - left) / (right - left)) * pixelWidth);
+    }
+
+    public static double convertMetersToLng(double meters) {
+        return meters / 20037508.342789244 * 180;
+    }
+
+    //    //http://mapsforge.googlecode.com/svn-history/r1841/trunk/mapsforge-map-writer/src/main/java/org/mapsforge/map/writer/model/MercatorProjection.java
+    public static double convertLngToMeters(double lng) {
+        return 6378137.0 * Math.PI / 180 * lng;
+    }
+
+    //
+    //    public static final double WGS_84_EQUATORIALRADIUS = 6378137.0;
+    public static double convertLatToMeters(double lat) {
+        return 6378137.0 * Math.log(Math.tan(Math.PI / 180 * (45 + lat / 2.0)));
+    }
+
+    public static double convertMetersToLat(double meters) {
+        return 180.0 / Math.PI * (2 * Math.atan(Math.exp(meters / 20037508.342789244 * Math.PI)) - Math.PI / 2.0);
+    }
+
 }

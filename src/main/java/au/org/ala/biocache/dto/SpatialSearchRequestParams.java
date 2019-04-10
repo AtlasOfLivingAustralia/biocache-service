@@ -30,7 +30,11 @@ public class SpatialSearchRequestParams extends SearchRequestParams {
 
     protected Float radius = null;
     protected Float lat = null;
+
+    // lon == lng
     protected Float lon = null;
+    protected Float lng = null;
+
     protected String wkt = "";
     protected Boolean gk = false;   //include only the geospatially kosher records
 
@@ -101,6 +105,16 @@ public class SpatialSearchRequestParams extends SearchRequestParams {
 
     public void setLon(Float lon) {
         this.lon = lon;
+        this.lng = lon;
+    }
+
+    public Float getLng() {
+        return lng;
+    }
+
+    public void setLng(Float lng) {
+        this.lon = lng;
+        this.lng = lng;
     }
 
     public Float getRadius() {
