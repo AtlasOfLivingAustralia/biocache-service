@@ -33,7 +33,6 @@ import au.org.ala.biocache.util.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.sf.ehcache.CacheManager;
-import net.sf.json.JSON;
 import net.sf.json.JSONArray;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventType;
@@ -64,8 +63,10 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
@@ -934,20 +935,26 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping(value = "/occurrences/batchSearch", method = RequestMethod.POST, params="action=Download")
     public void batchDownload(
-                              HttpServletResponse response,
-                              HttpServletRequest request,
-                              @RequestParam(value="queries", required = true, defaultValue = "") String queries,
-                              @RequestParam(value="field", required = true, defaultValue = "") String field,
-                              @RequestParam(value="separator", defaultValue = "\n") String separator,
-                              @RequestParam(value="title", required=false) String title) throws Exception {
+            HttpServletResponse response,
+            HttpServletRequest request,
+            DownloadRequestParams downloadRequestParams,
+            @RequestParam(value="queries", required = true, defaultValue = "") String queries,
+            @RequestParam(value="field", required = true, defaultValue = "") String field,
+            @RequestParam(value="separator", defaultValue = "\n") String separator,
+            @RequestParam(value="title", required=false) String title) throws Exception {
         afterInitialisation();
         
         logger.info("/occurrences/batchSearch with action=Download Records");
         Long qid = getQidForBatchSearch(queries, field, separator, title);
-        
+
         if (qid != null) {
+            if ("*:*".equals(downloadRequestParams.getQ())) {
+                downloadRequestParams.setQ("qid:" + qid);
+            } else {
+                downloadRequestParams.setQ("(" + downloadRequestParams.getQ() + ") AND qid:" + qid);
+            }
             String webservicesRoot = request.getSession().getServletContext().getInitParameter("webservicesRoot");
-            response.sendRedirect(webservicesRoot + "/occurrences/download?q=qid:"+qid);
+            response.sendRedirect(webservicesRoot + "/occurrences/download?" + downloadRequestParams.getEncodedParams());
         } else {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST);
         }
@@ -1076,19 +1083,39 @@ public class OccurrenceController extends AbstractSecureController {
     private Long getQidForBatchSearch(String listOfNames, String field, String separator, String title) throws IOException, QidSizeException {
         String[] rawParts = listOfNames.split(separator);
         List<String> parts = new ArrayList<String>();
-        
+
+        StringBuilder sb = new StringBuilder();
+        int terms = 0;
+
         for (String part: rawParts) {
             String normalised = StringUtils.trimToNull(part);
             if (normalised != null){
-                parts.add(field + ":\"" + normalised + "\"");
+                if (terms == 0) {
+                    if (sb.length() > 0) {
+                        sb.append(" OR ");
+                    }
+                    sb.append("(");
+                } else {
+                    sb.append(" OR ");
+                }
+                sb.append(field + ":\"" + normalised + "\"");
+                terms++;
+
+                if (terms >= searchDAO.getMaxBooleanClauses()) {
+                    sb.append(")");
+                    terms = 0;
+                }
             }
+        }
+        if (terms > 0) {
+            sb.append(")");
         }
         
         if (parts.isEmpty()){
             return null;
         }
-        
-        String q = StringUtils.join(parts.toArray(new String[0]), " OR ");
+
+        String q = sb.toString();
         title = title == null?q : title;
         String qid = qidCacheDao.put(q, title, null, null, null, -1, null);
         logger.info("batchSearch: qid = " + qid);

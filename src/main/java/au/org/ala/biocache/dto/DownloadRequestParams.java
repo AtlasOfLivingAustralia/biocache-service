@@ -89,12 +89,25 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
      */
     @Override
     public String toString() {
-        StringBuilder req = new StringBuilder(super.toString());
-        req.append("&email=").append(email);
-        req.append("&reason=").append(reason);
-        req.append("&file=").append(getFile());
-        req.append("&fields=").append(fields);
-        req.append("&extra=").append(extra);
+        return addParams(super.toString(), false);
+    }
+
+    /**
+     * Produce a URI encoded query string for use in java.util.URI, etc
+     *
+     * @return
+     */
+    public String getEncodedParams() {
+        return addParams(super.getEncodedParams(), true);
+    }
+
+    protected String addParams(String paramString, Boolean encodeParams) {
+        StringBuilder req = new StringBuilder(paramString);
+        req.append("&email=").append(super.conditionalEncode(email, encodeParams));
+        req.append("&reason=").append(super.conditionalEncode(reason, encodeParams));
+        req.append("&file=").append(super.conditionalEncode(getFile(), encodeParams));
+        req.append("&fields=").append(super.conditionalEncode(fields, encodeParams));
+        req.append("&extra=").append(super.conditionalEncode(extra, encodeParams));
         if(reasonTypeId != null) {
             req.append("&reasonTypeId=").append(reasonTypeId);
         }
@@ -102,10 +115,10 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
             req.append("&sourceTypeId=").append(sourceTypeId);
         } 
         if(!"csv".equals(fileType)){
-            req.append("&fileType=").append(fileType);
+            req.append("&fileType=").append(super.conditionalEncode(fileType, encodeParams));
         }
         if(!"all".equals(qa)){
-            req.append("&qa=").append(qa);
+            req.append("&qa=").append(super.conditionalEncode(qa, encodeParams));
         }
         if (dwcHeaders) {
             req.append("&dwcHeaders=true");
