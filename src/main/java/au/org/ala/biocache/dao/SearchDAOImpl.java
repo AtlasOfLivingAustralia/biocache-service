@@ -3579,7 +3579,8 @@ public class SearchDAOImpl implements SearchDAO {
                                 }
                                 DwcTermDetails dwcTermDetails = DwCTerms.getInstance().getDwCTermDetails(term.simpleName());
                                 if(dwcTermDetails !=null){
-                                    f.setDescription(dwcTermDetails.comment);
+                                    if (f.getInfo() == null) f.setInfo(dwcTermDetails.comment);
+                                    if (f.getDescription() == null) f.setDescription(dwcTermDetails.label);
                                 }
                             } catch (IllegalArgumentException e) {
                                 //enum not found
@@ -3598,7 +3599,8 @@ public class SearchDAOImpl implements SearchDAO {
 
                         DwcTermDetails dwcTermDetails = DwCTerms.getInstance().getDwCTermDetails(term.simpleName());
                         if(dwcTermDetails != null){
-                            f.setDescription(dwcTermDetails.comment);
+                            if (f.getInfo() == null) f.setInfo(dwcTermDetails.comment);
+                            if (f.getDescription() == null) f.setDescription(dwcTermDetails.label);
                         }
                     }
 
