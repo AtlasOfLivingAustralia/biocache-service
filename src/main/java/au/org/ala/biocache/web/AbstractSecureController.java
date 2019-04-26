@@ -15,19 +15,25 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.Store;
+import au.org.ala.biocache.service.AuthService;
+
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
+
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 
+import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.net.URL;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Controllers that need to perform security checks should extend this class and call shouldPerformOperation.
@@ -45,13 +51,20 @@ public class AbstractSecureController {
     protected Boolean apiKeyCheckedEnabled = true;
 
     /** 
-     * Local cache of keys 
-     * 
-     * FIXME: Why is the cache static?
+     * Temporary local cache of keys 
      **/
-    private static Set<String> apiKeyCache = new ConcurrentHashSet<>();
+    private final LoadingCache<String, Boolean> apiKeyCache;
+
+    @Inject
+    protected WebUtils webUtils;
     
-    public AbstractSecureController(){}
+    public AbstractSecureController(){
+    	apiKeyCache = Caffeine.newBuilder()
+    			.maximumSize(1000)
+    			.expireAfterWrite(5, TimeUnit.MINUTES)
+    			.refreshAfterWrite(5, TimeUnit.MINUTES)
+    			.build(key -> checkKey(key, apiCheckUrl, webUtils));
+    }
 
     /**
      * Check the validity of the supplied key, returning false if the store is in read only mode.
@@ -85,38 +98,43 @@ public class AbstractSecureController {
      * @return True if API key checking is disabled, or the API key is valid, and false otherwise.
      */
     public boolean isValidKey(String keyToTest){
-
         if(!apiKeyCheckedEnabled){
+        	logger.debug("API key checking is disabled");
             return true;
         }
+
+        Boolean cacheResult = apiKeyCache.get(keyToTest);
+        if(cacheResult != null) {
+        	logger.debug("API key check result: apikey={} checkResult={}", keyToTest, cacheResult);
+    		return cacheResult;
+    	}
+        
+    	logger.debug("API key not found: apikey={}", keyToTest);
+        return false;
+    }
+
+    private static boolean checkKey(String keyToTest, String serviceUrl, WebUtils webUtils) {
 
         if(StringUtils.isBlank(keyToTest)){
             return false;
         }
 
-    	if(apiKeyCache.contains(keyToTest)){
-    		return true;
-    	}
-    	
+        String trimmedKey = keyToTest.trim();
+        
 		//check via a web service
 		try {
-			logger.debug("Checking api key: {}", keyToTest);
-    		String url = apiCheckUrl + keyToTest;
-    		ObjectMapper om = new ObjectMapper();
-    		Map<String,Object> response = om.readValue(new URL(url), Map.class);
+			logger.debug("Checking api key: {}", trimmedKey);
+    		String url = serviceUrl + trimmedKey;
+    		Map<String, Object> response = webUtils.getJson(url);
     		boolean isValid = (Boolean) response.get("valid");
-    		logger.debug("Checking api key: {}, valid: {}", keyToTest, isValid);
-    		if(isValid){
-    			apiKeyCache.add(keyToTest);
-    		}
-    		return isValid; 
+    		logger.debug("Checking api key: {}, valid: {}", trimmedKey, isValid);
+    		return isValid;
 		} catch (Exception e){
-			logger.error(e.getMessage(), e);
+			logger.error("Error checking api key", e);
+	    	return false;
 		}
-		
-    	return false;
     }
-
+    
 	/**
      * Returns true when the operation should be performed.
      *
