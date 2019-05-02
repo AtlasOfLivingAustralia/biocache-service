@@ -2,7 +2,7 @@ package au.org.ala.biocache.web;
 
 public class UserUpload {
     String name = "my test dataset";
-    String api_key ="Venezuela";
+    String api_key = "";  //API key taken from /apikey
     String user= "Sandbox upload services";
     String email = "";
     String firstName = "";

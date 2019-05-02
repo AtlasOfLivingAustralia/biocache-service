@@ -570,6 +570,7 @@ public class UploadController extends AbstractSecureController {
         uu.setAlaId(alaId);
         uu.setWebserviceUrl(webservicesRoot);
         uu.setUiUrl(uiUrl);
+        uu.setApi_key(apiKey);
 
         String json = mapper.writeValueAsString(uu);
         PostMethod post = new PostMethod(registryUrl + "/tempDataResource");
@@ -602,6 +603,7 @@ public class UploadController extends AbstractSecureController {
         uu.setAlaId(alaId);
         uu.setWebserviceUrl(webservicesRoot);
         uu.setUiUrl(uiUrl);
+        uu.setApi_key(apiKey);
 
         String json = mapper.writeValueAsString(uu);
         PostMethod post = new PostMethod(registryUrl + "/tempDataResource/" + uid);
