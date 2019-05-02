@@ -6,8 +6,6 @@ import org.apache.commons.lang.StringUtils;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Component("wmsUtils")
 public class WMSUtils {
@@ -50,12 +48,17 @@ public class WMSUtils {
 
     public static String getQ(String cql_filter) {
         String q = cql_filter;
-        Pattern pattern = Pattern.compile("qid:[0-9]{13}");
-        Matcher match = pattern.matcher(q);
-        if (match.matches()) {
-            q = match.group(0);
+        int p1 = cql_filter.indexOf("qid:");
+        if (p1 >= 0) {
+            int p2 = cql_filter.indexOf('&', p1 + 1);
+            if (p2 < 0) {
+                p2 = cql_filter.indexOf(';', p1 + 1);
+            }
+            if (p2 < 0) {
+                p2 = cql_filter.length();
+            }
+            q = cql_filter.substring(p1, p2);
         }
-
         return q;
     }
 

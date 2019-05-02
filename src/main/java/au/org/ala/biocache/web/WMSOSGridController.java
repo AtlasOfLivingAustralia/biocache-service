@@ -2,10 +2,8 @@ package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
-import au.org.ala.biocache.util.GISPoint;
-import au.org.ala.biocache.util.GISUtil;
-import au.org.ala.biocache.util.GridRef;
-import au.org.ala.biocache.util.GridUtil;
+import au.org.ala.biocache.util.*;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.geotools.geometry.GeneralDirectPosition;
@@ -111,10 +109,13 @@ public class WMSOSGridController {
                 requestParams.setQc(null);
             }
 
+            String lat = request.getParameter("lat");
+            String lng = request.getParameter("lng") != null ? request.getParameter("lng") : request.getParameter("lon");
+
             //determine the zoom level
             double[] eastingNorthing = convertWGS84ToEastingNorthing(
-                    requestParams.getLat().doubleValue(),
-                    requestParams.getLon().doubleValue()
+                    Double.parseDouble(lat),
+                    Double.parseDouble(lng)
             );
 
 
@@ -280,24 +281,37 @@ public class WMSOSGridController {
     @RequestMapping(value = {"/osgrid/wms/reflect"}, method = RequestMethod.GET)
     public void generateWmsTile(
             SpatialSearchRequestParams requestParams,
-            WmsTileParams wmsTileParams,
-            WmsQueryParams wmsQueryParams,
-            WmsBbox wmsBbox,
-            WmsDimensions wmsDimensions,
-            WmsStyle wmsStyle,
-            WmsSrs wmsSrs,
+            @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
+            @RequestParam(value = "ENV", required = true, defaultValue = "") String env,
+            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:900913") String srs, //default to google mercator
+            @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
+            @RequestParam(value = "BBOX", required = true, defaultValue = "") String bboxString,
+            @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
+            @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
+            @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
+            @RequestParam(value = "OUTLINE", required = true, defaultValue = "true") boolean outlineGrids,
+            @RequestParam(value = "OUTLINECOLOUR", required = true, defaultValue = "0xff000000") String outlineColour,
             HttpServletRequest request,
             HttpServletResponse response)
             throws Exception {
-        wmsDimensions.setDefaults(256, 256);
 
-        wmsSrs.setSrs(wmsSrs.getSrs().split(",")[0]);
+        srs = srs.split(",")[0];
+
+        WmsEnv wmsEnv = new WmsEnv(env, styles);
+
+        if(StringUtils.isEmpty(bboxString)){
+            return;
+        }
 
         //CQL Filter takes precedence of the layer
-        requestParams.setQ(wmsQueryParams.getFinalQuery());
+        if (org.apache.commons.lang.StringUtils.trimToNull(cql_filter) != null) {
+            requestParams.setQ(wmsUtils.getQ(cql_filter));
+        } else if (org.apache.commons.lang.StringUtils.trimToNull(layers) != null && !"ALA:Occurrences".equalsIgnoreCase(layers)) {
+            requestParams.setQ(wmsUtils.convertLayersParamToQ(layers));
+        }
 
         //get the requested extent for this tile
-        String[] bbox = wmsBbox.getBbox().split(",");
+        String[] bbox = bboxString.split(",");
         double minx = Double.parseDouble(bbox[0]);
         double miny = Double.parseDouble(bbox[1]);
         double maxx = Double.parseDouble(bbox[2]);
@@ -310,7 +324,7 @@ public class WMSOSGridController {
         String[] additionalFqs = new String[0];
         logger.info("Rendering at " + boundingBoxSizeInKm);
 
-        if ("singlegrid".equals(wmsStyle.getGridres())) {
+        if ("singlegrid".equals(wmsEnv.gridres)){
             if(boundingBoxSizeInKm >= 1000 ) {
                 facets = new String[]{"grid_ref_100000"};
                 buff = 1.0;
@@ -327,7 +341,7 @@ public class WMSOSGridController {
                 facets = new String[]{"grid_ref_100"};
                 buff = 0.05;
             }
-        } else if ("10kgrid".equals(wmsStyle.getGridres())) {
+        } else if ("10kgrid".equals(wmsEnv.gridres)){
             facets = new String[]{"grid_ref_10000"};
             buff = 0.75; //no problems with buff 1.0
         } else {
@@ -347,12 +361,12 @@ public class WMSOSGridController {
             }
         }
 
-        double oneUnitInRequestedProjXInPixels = (double) wmsDimensions.getWidth() / (double) (maxx - minx);
-        double oneUnitInRequestedProjYInPixels = (double) wmsDimensions.getHeight() / (double) (maxy - miny);
+        double oneUnitInRequestedProjXInPixels = (double) width / (double)(maxx - minx);
+        double oneUnitInRequestedProjYInPixels = (double) height / (double)(maxy - miny);
 
         //get a bounding box in WGS84 decimal latitude/longitude
-        double[] minLatLng = convertProjectionToWGS84(minx, miny, wmsSrs.getSrs());
-        double[] maxLatLng = convertProjectionToWGS84(maxx, maxy, wmsSrs.getSrs());
+        double[] minLatLng = convertProjectionToWGS84(minx, miny, srs);
+        double[] maxLatLng = convertProjectionToWGS84(maxx, maxy, srs);
 
         String bboxFilterQuery = "(longitude:[{0} TO {2}] AND latitude:[{1} TO {3}])";
 
@@ -390,7 +404,7 @@ public class WMSOSGridController {
         requestParams.setFlimit(-1);
         requestParams.setFacets(facets);
 
-        WMSImg wmsImg = WMSImg.create(wmsDimensions.getWidth(), wmsDimensions.getHeight());
+        WMSImg wmsImg = WMSImg.create(width, height);
 
         requestParams.setFq(newFqs);
         requestParams.setPageSize(0);
@@ -431,19 +445,19 @@ public class WMSOSGridController {
                     miny,
                     oneUnitInRequestedProjXInPixels,
                     oneUnitInRequestedProjYInPixels,
-                    wmsSrs.getSrs(),
-                    wmsDimensions.getWidth(),
-                    wmsDimensions.getHeight(),
-                    wmsStyle,
+                    srs,
+                    width,
+                    height,
+                    wmsEnv,
                     renderedLinesCache
             );
 
             linesToRender.addAll(renderedLines);
         }
 
-        if (wmsStyle.getOutline()) {
+        if(outlineGrids) {
             //grid lines are rendered after cell fills
-            renderGridLines(wmsImg, linesToRender, wmsStyle.getOutlineColour());
+            renderGridLines(wmsImg, linesToRender, outlineColour);
         }
         
         if (wmsImg != null && wmsImg.g != null) {
@@ -480,7 +494,7 @@ public class WMSOSGridController {
      * @param oneUnitYInPixels
      */
     private Set<int[]> renderGrid(WMSImg wmsImg, String gridRef, double minx, double miny, double oneUnitXInPixels,
-                                  double oneUnitYInPixels, String targetSrs, int imageWidth, int imageHeight, WmsStyle wmsStyle, List<String> renderedLines) {
+                                  double oneUnitYInPixels, String targetSrs, int imageWidth, int imageHeight, WmsEnv wmsEnv, List<String> renderedLines){
 
         if(StringUtils.isEmpty(gridRef)) return new HashSet<int[]>();
 
@@ -517,9 +531,9 @@ public class WMSOSGridController {
                 oneUnitXInPixels, oneUnitYInPixels, imageWidth, imageHeight);
 
         int color;
-        if (!StringUtils.isEmpty(wmsStyle.getGridres()) && !"variablegrid".equals(wmsStyle.getGridres())) {
+        if(!StringUtils.isEmpty(wmsEnv.gridres) && !"variablegrid".equals(wmsEnv.gridres)){
             //retrieve the supplied colour
-            color = wmsStyle.getColour();
+            color = wmsEnv.colour;
         } else {
             if(gridSize == 100000){
                 color = 0xFFFFFF00; //1km grids yellow
@@ -587,7 +601,7 @@ public class WMSOSGridController {
             linesToRender.add(new int[]{coordinatesForImages[3][0], coordinatesForImages[3][1], coordinatesForImages[0][0], coordinatesForImages[0][1]});
         }
 
-        if (wmsStyle.getGridlabels()) {
+        if(wmsEnv.gridlabels) {
             Paint textColor = new Color(0xFF000000, true);
             wmsImg.g.setPaint(textColor);
             wmsImg.g.setFont(new Font("Ofliant", Font.PLAIN, 11));
