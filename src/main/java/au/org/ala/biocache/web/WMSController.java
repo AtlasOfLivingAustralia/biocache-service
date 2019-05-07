@@ -131,7 +131,7 @@ public class WMSController extends AbstractSecureController{
      */
     final static byte[] blankImageBytes;
 
-    @Value("${webservices.root:https://biocache.ala.org.au/ws}")
+    @Value("${webservices.root:https://biocache-ws.ala.org.au/ws}")
     protected String baseWsUrl;
 
     @Value("${biocache.ui.url:https://biocache.ala.org.au}")
@@ -157,7 +157,7 @@ public class WMSController extends AbstractSecureController{
     @Value("${orgEmail:support@ala.org.au}")
     protected String orgEmail;
 
-    @Value("${service.bie.ws.url:https://bie.ala.org.au/ws}")
+    @Value("${service.bie.ws.url:https://bie-ws.ala.org.au/ws}")
     protected String bieWebService;
 
     @Value("${service.bie.ui.url:https://bie.ala.org.au}")
@@ -1637,7 +1637,7 @@ public class WMSController extends AbstractSecureController{
             rendering = "ENV=" + env;
         }
 
-        //"http://biocache.ala.org.au/ws/webportal/wms/reflect?
+        //"https://biocache-ws.ala.org.au/ws/webportal/wms/reflect?
         //q=macropus&ENV=color%3Aff0000%3Bname%3Acircle%3Bsize%3A3%3Bopacity%3A1
         //&BBOX=12523443.0512,-2504688.2032,15028131.5936,0.33920000120997&WIDTH=256&HEIGHT=256");
         String speciesAddress = baseWsUrl

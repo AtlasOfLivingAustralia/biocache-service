@@ -57,7 +57,7 @@ public class UploadController extends AbstractSecureController {
     @Value("${upload.threads:4}")
     protected Integer uploadThreads;
 
-    @Value("${webservices.root:http://biocache.ala.org.au/ws}")
+    @Value("${webservices.root:https://biocache-ws.ala.org.au/ws}")
     protected String webservicesRoot;
 
     @Value("${registry.api.key:ABAABABABABABABABAABABABBABA}")
