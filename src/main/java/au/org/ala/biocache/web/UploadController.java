@@ -45,7 +45,7 @@ public class UploadController extends AbstractSecureController {
 
     private final static Logger logger = Logger.getLogger(UploadController.class);
 
-    @Value("${registry.url:http://collections.ala.org.au/ws}")
+    @Value("${registry.url:https://collections.ala.org.au/ws}")
     protected String registryUrl;
 
     @Value("${upload.status:/data/biocache-upload/status}")

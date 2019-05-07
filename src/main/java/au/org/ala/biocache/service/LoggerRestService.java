@@ -49,7 +49,7 @@ public class LoggerRestService implements LoggerService {
     //Used to wait for reloadCache() to complete
     private CountDownLatch initialised = new CountDownLatch(1);
 
-    @Value("${logger.service.url:http://logger.ala.org.au/service/logger/}")
+    @Value("${logger.service.url:https://logger.ala.org.au/service/logger/}")
     protected String loggerUriPrefix;
     //NC 20131018: Allow cache to be disabled via config (enabled by default)
     @Value("${caches.log.enabled:true}")

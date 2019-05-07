@@ -53,8 +53,8 @@ public class AssertionController extends AbstractSecureController {
     private final static Logger logger = Logger.getLogger(AssertionController.class);
     @Inject
     protected AssertionUtils assertionUtils;
-    @Value("${registry.url:http://collections.ala.org.au}")
-    protected String registryUrl = "http://collections.ala.org.au";
+    @Value("${registry.url:https://collections.ala.org.au}")
+    protected String registryUrl = "https://collections.ala.org.au";
     @Inject
     protected AuthService authService;
     @Inject

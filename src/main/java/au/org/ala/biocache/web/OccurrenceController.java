@@ -128,7 +128,7 @@ public class OccurrenceController extends AbstractSecureController {
     /** Compiled pattern for taxon IDs */
     protected Pattern taxonIDPattern;
 
-    @Value("${media.url:http://biocache.ala.org.au/biocache-media/}")
+    @Value("${media.url:https://biocache.ala.org.au/biocache-media/}")
     protected String biocacheMediaUrl;
 
     @Value("${facet.config:/data/biocache/config/facets.json}")

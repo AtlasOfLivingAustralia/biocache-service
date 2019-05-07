@@ -137,7 +137,7 @@ public class WMSController extends AbstractSecureController{
     @Value("${biocache.ui.url:https://biocache.ala.org.au}")
     protected String baseUiUrl;
 
-    @Value("${geoserver.url:http://spatial.ala.org.au/geoserver}")
+    @Value("${geoserver.url:https://spatial.ala.org.au/geoserver}")
     protected String geoserverUrl;
 
     @Value("${organizationName:Atlas of Living Australia}")
@@ -1167,7 +1167,7 @@ public class WMSController extends AbstractSecureController{
             }
 
             writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-                    "<!DOCTYPE WMT_MS_Capabilities SYSTEM \"http://spatial.ala.org.au/geoserver/schemas/wms/1.1.1/WMS_MS_Capabilities.dtd\">\n" +
+                    "<!DOCTYPE WMT_MS_Capabilities SYSTEM \"https://spatial.ala.org.au/geoserver/schemas/wms/1.1.1/WMS_MS_Capabilities.dtd\">\n" +
                     "<WMT_MS_Capabilities version=\"1.1.1\" updateSequence=\"28862\">\n" +
                     "  <Service>\n" +
                     "    <Name>OGC:WMS</Name>\n" +
@@ -1654,7 +1654,7 @@ public class WMSController extends AbstractSecureController{
         URL speciesURL = new URL(speciesAddress);
         BufferedImage speciesImage = ImageIO.read(speciesURL);
 
-        //"http://spatial.ala.org.au/geoserver/wms/reflect?
+        //"https://spatial.ala.org.au/geoserver/wms/reflect?
         //LAYERS=ALA%3Aworld&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&STYLES=
         //&FORMAT=image%2Fjpeg&SRS=EPSG%3A900913&BBOX=12523443.0512,-1252343.932,13775787.3224,0.33920000004582&WIDTH=256&HEIGHT=256"
         String layout = "";

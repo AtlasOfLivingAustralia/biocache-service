@@ -35,9 +35,9 @@ public class ContactUtils {
 
     private final static Logger logger = LoggerFactory.getLogger(ContactUtils.class);
 
-    @Value("${registry.url:http://collections.ala.org.au}")
+    @Value("${registry.url:https://collections.ala.org.au}")
     protected String registryUrl;
-    @Value("${contacts.url:http://collections.ala.org.au/ws/collection}")
+    @Value("${contacts.url:https://collections.ala.org.au/ws/collection}")
     protected String collectionContactsUrl;
 
     @Inject

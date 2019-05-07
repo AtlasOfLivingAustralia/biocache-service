@@ -72,7 +72,7 @@
 					<gmd:onlineResource>
 						<gmd:CI_OnlineResource>
 							<gmd:linkage>
-								<gmd:URL>http://www.ala.org.au</gmd:URL>
+								<gmd:URL>https://www.ala.org.au</gmd:URL>
 							</gmd:linkage>
 							<gmd:protocol>
 								<gco:CharacterString>WWW:LINK-1.0-http--link</gco:CharacterString>
@@ -472,7 +472,7 @@
 						<gmd:CI_OnlineResource>
 							<gmd:linkage xmlns:gmx="http://www.isotc211.org/2005/gmx"
 								xmlns:xlink="http://www.w3.org/1999/xlink">
-								<gmd:URL>http://biocache.ala.org.au/occurrences/search?q=${query}</gmd:URL>
+								<gmd:URL>https://biocache.ala.org.au/occurrences/search?q=${query}</gmd:URL>
 							</gmd:linkage>
 							<gmd:protocol xmlns:gmx="http://www.isotc211.org/2005/gmx"
 								xmlns:xlink="http://www.w3.org/1999/xlink">

@@ -41,7 +41,7 @@ Basis of record: <c:if test="${empty record.basis_of_record}">Not supplied</c:if
 
 
 <p style="background-color: #515863; padding:5px;">
-    <a href="http://www.ala.org.au">
+    <a href="https://www.ala.org.au">
         <img src="${initParam.webservicesRoot}/static/images/logo.png" alt="logo"/>
     </a>
 </p>

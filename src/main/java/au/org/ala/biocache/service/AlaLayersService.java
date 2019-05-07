@@ -51,13 +51,13 @@ public class AlaLayersService implements LayersService {
     @Value("${caches.layers.enabled:true}")
     protected Boolean enabled = null;
     
-    @Value("${spatial.layers.url:http://spatial.ala.org.au/ws/fields}")
+    @Value("${spatial.layers.url:https://spatial.ala.org.au/ws/fields}")
     protected String spatialUrl;
 
     @Value("${layers.service.download.sample:true}")
     protected Boolean layersServiceAnalysisLayers;
 
-    @Value("${layers.service.url:http://spatial.ala.org.au/ws}")
+    @Value("${layers.service.url:https://spatial.ala.org.au/ws}")
     protected String layersServiceUrl;
 
     protected Map<String, Integer> distributions = RestartDataService.get(this, "distributions", new TypeReference<HashMap<String, Integer>>(){}, HashMap.class);
@@ -90,7 +90,7 @@ public class AlaLayersService implements LayersService {
             wait.countDown();
         }
 
-        //initialise the cache based on the values at http://spatial.ala.org.au/ws/fields
+        //initialise the cache based on the values at https://spatial.ala.org.au/ws/fields
         if(enabled){
             new Thread() {
                 @Override

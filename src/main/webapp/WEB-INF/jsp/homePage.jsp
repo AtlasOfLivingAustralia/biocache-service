@@ -29,7 +29,7 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
         <h1>Occurrence web services</h1>
         <p>
             For the API reference including examples, please see:
-            <a href="http://api.ala.org.au/">http://api.ala.org.au</a>
+            <a href="https://api.ala.org.au/">https://api.ala.org.au</a>
             <br/>
             Please send any bug reports, suggestions for improvements or new services to:
             <strong>support 'AT' ala.org.au</strong>

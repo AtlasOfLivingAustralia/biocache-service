@@ -56,7 +56,7 @@ public class CollectionsCache {
     protected List<String> data_provider_uid = null;
     protected List<String> data_hub_uid = null;
 
-    @Value("${registry.url:http://collections.ala.org.au/ws}")
+    @Value("${registry.url:https://collections.ala.org.au/ws}")
     protected String registryUrl;
 
     //NC 20131018: Allow cache to be disabled via config (enabled by default)

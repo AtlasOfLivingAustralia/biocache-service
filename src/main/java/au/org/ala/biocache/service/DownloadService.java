@@ -132,11 +132,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${data.description.url:headings.csv}")
     protected String dataFieldDescriptionURL = "headings.csv";
 
-    @Value("${registry.url:http://collections.ala.org.au/ws}")
-    protected String registryUrl = "http://collections.ala.org.au/ws";
+    @Value("${registry.url:https://collections.ala.org.au/ws}")
+    protected String registryUrl = "https://collections.ala.org.au/ws";
 
-    @Value("${citations.url:http://collections.ala.org.au/ws/citations}")
-    protected String citationServiceUrl = "http://collections.ala.org.au/ws/citations";
+    @Value("${citations.url:https://collections.ala.org.au/ws/citations}")
+    protected String citationServiceUrl = "https://collections.ala.org.au/ws/citations";
 
     @Value("${download.email.subject:ALA Occurrence Download Complete - [filename]}")
     protected String biocacheDownloadEmailSubject = "ALA Occurrence Download Complete - [filename]";
@@ -191,7 +191,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${zip.file.size.mb.max:4000}")
     public Integer maxMB;
 
-    @Value("${download.url:http://biocache.ala.org.au/biocache-download}")
+    @Value("${download.url:https://biocache.ala.org.au/biocache-download}")
     public String biocacheDownloadUrl;
 
     @Value("${download.dir:/data/biocache-download}")
@@ -203,8 +203,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.auth.sensitive:false}")
     private Boolean downloadAuthSensitive;
 
-    @Value("${biocache.ui.url:http://biocache.ala.org.au}")
-    protected String biocacheUiUrl = "http://biocache.ala.org.au";
+    @Value("${biocache.ui.url:https://biocache.ala.org.au}")
+    protected String biocacheUiUrl = "https://biocache.ala.org.au";
 
     //TODO: this should be retrieved from SDS
     @Value("${sensitiveAccessRoles:{\n" +
@@ -225,8 +225,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     private JSONObject sensitiveAccessRolesToSolrFilters;
 
-    @Value("${download.offline.max.url:http://downloads.ala.org.au}")
-    public String dowloadOfflineMaxUrl = "http://downloads.ala.org.au";
+    @Value("${download.offline.max.url:https://downloads.ala.org.au}")
+    public String dowloadOfflineMaxUrl = "https://downloads.ala.org.au";
 
     /**
      * By default this is set to a very large value to 'disable' the offline download limit.

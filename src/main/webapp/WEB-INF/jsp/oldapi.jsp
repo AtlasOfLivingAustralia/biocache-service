@@ -126,7 +126,7 @@
             <li><strong>file</strong> - the name to use for the fileto download</li>
             <li><strong>fields</strong> - a CSV list of fields to include in the download (contains a list of default)</li>
             <li><strong>extra</strong> - a CSV list of fields in include in addition to the "fields"</li>
-            <li><strong>reasonTypeId</strong> - a mandatory value that indicates the reason for the download. See <a href="http://logger.ala.org.au/service/logger/reasons">reasons</a> for valid id's
+            <li><strong>reasonTypeId</strong> - a mandatory value that indicates the reason for the download. See <a href="https://logger.ala.org.au/service/logger/reasons">reasons</a> for valid id's
             <li><strong>fileType</strong> - the file format for the download. Valid values are csv and shp. If no value is supplied csv is assumed.
             <li><strong>qa</strong> - A CSV list of record issues to include in the download. See <a href="${webservicesRoot}/occurrences/search?q=*:*&facets=assertions&pageSize=0&flimit=500">assertions</a> for possible values to include.  By default it will include all applicable issues. To include no issue supply none as the value (eg &qa=none)
         </ul>
@@ -183,7 +183,7 @@
         <ul class="paramList">
             <li><a href="${webservicesRoot}/occurrences/spatial?lat=-35.27&lon=149.15&radius=10">/occurrences/spatial?lat=-35.27&lon=149.15&radius=10</a></li>
             <li><a href="${webservicesRoot}/occurrences/spatial?wkt=POLYGON((140:-37,151:-37,151:-26,140.1310:-26,140:-37))">/occurrences/spatial?wkt=POLYGON((140:-37,151:-37,151:-26,140.1310:-26,140:-37))</a></li>
-            <li><a href="${webservicesRoot}/occurrences/spatial?url=http://spatial.ala.org.au/gazetteer/lga/Acton_(Australian_Capital_Territory).xml">/occurrences/spatial?url=http://spatial.ala.org.au/gazetteer/lga/Acton_(Australian_Capital_Territory).xml</a></li>
+            <li><a href="${webservicesRoot}/occurrences/spatial?url=https://spatial.ala.org.au/gazetteer/lga/Acton_(Australian_Capital_Territory).xml">/occurrences/spatial?url=https://spatial.ala.org.au/gazetteer/lga/Acton_(Australian_Capital_Territory).xml</a></li>
         </ul>
     </li>
     <li><strong>Static Species Density Heatmap </strong> - returns heatmap image
@@ -311,7 +311,7 @@ The remaining services in the section only support POST. All services must suppl
     <li><strong>Optimise Index: </strong>/admin/index/optimise - This service will place the biocache-service in read only
         mode until the optimise has been completed.
         <br>Example:<br>
-        curl --data "apiKey=KEY" http://biocache.ala.org.au${webservicesRoot}/admin/index/optimise
+        curl --data "apiKey=KEY" https://biocache.ala.org.au${webservicesRoot}/admin/index/optimise
     </li>
     <li><strong>Reindex Data Resource: </strong>/admin/index/reindex - reindexes occurrences
         modified after startDate for the supplied dataResource<br>Extra Mandatory Parameters: <br>
@@ -320,7 +320,7 @@ The remaining services in the section only support POST. All services must suppl
             <li>startDate - The earliest modification date to reindex.</li>
         </ul>
         <br>Example:</br>
-        curl --data "apiKey=KEY&dataResource=dr343&startDate=2011-07-01" http://biocache.ala.org.au${webservicesRoot}/admin/index/reindex
+        curl --data "apiKey=KEY&dataResource=dr343&startDate=2011-07-01" https://biocache.ala.org.au${webservicesRoot}/admin/index/reindex
     </li>
 </ul>
 
@@ -418,7 +418,7 @@ The remaining services in the section only support POST. All services must suppl
 <a href="#wmsServices" name="wmsServices" id="wmsServices"><h3>WMS Services</h3></a>
 
 <p>These services are suitable for use with a OGC client or an OGC friendly API like <a href="http://openlayers.org/">openlayers</a>.
-    Examples of use are available <a href="http://spatial.ala.org.au/ws/examples/">here</a>
+    Examples of use are available <a href="https://spatial.ala.org.au/ws/examples/">here</a>
 </p>
 
 <ul class="webserviceList">
@@ -506,7 +506,7 @@ The remaining services in the section only support POST. All services must suppl
             <li><strong>popacity</strong> - (optional) species point opacity 0 - 1.</li>
             <li><strong>format</strong> - (optional) output format, png or jpg</li>
             <li><strong>scale</strong> - (optional) show scale line on the image.  Not suitable for large DPI values.  e.g. &scale=on</li>
-            <li><strong>baselayer</strong> - (optional) ALA: base layer to use from http://spatial.ala.org.au/geoserver  E.g. &baselayer=aus1</li>
+            <li><strong>baselayer</strong> - (optional) ALA: base layer to use from https://spatial.ala.org.au/geoserver  E.g. &baselayer=aus1</li>
             <li><strong>fileName</strong> - (optional) the name of the file to pass back in content headers</li>
         </ul>
     </li>

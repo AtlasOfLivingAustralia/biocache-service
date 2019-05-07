@@ -18,7 +18,7 @@ public class SpeciesListCache {
     /** Log4J logger */
     private final static Logger logger = Logger.getLogger(SpeciesListCache.class);
 
-    @Value("${list.tool.url:http://lists.ala.org.au}")
+    @Value("${list.tool.url:https://lists.ala.org.au}")
     protected String listToolUrl = null;
 
     /** Spring injected RestTemplate object */

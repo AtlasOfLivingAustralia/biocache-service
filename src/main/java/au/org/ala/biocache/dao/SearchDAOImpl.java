@@ -280,8 +280,8 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${term.query.limit:1000}")
     protected Integer termQueryLimit = 1000;
 
-    @Value("${media.url:http://biocache.ala.org.au/biocache-media/}")
-    public String biocacheMediaUrl = "http://biocache.ala.org.au/biocache-media/";
+    @Value("${media.url:https://biocache.ala.org.au/biocache-media/}")
+    public String biocacheMediaUrl = "https://biocache.ala.org.au/biocache-media/";
 
     @Value("${media.dir:/data/biocache-media/}")
     public String biocacheMediaDir = "/data/biocache-media/";
@@ -324,7 +324,7 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${max.boolean.clauses:1024}")
     private int maxBooleanClauses;
 
-    @Value("${layers.service.url:http://spatial.ala.org.au/ws}")
+    @Value("${layers.service.url:https://spatial.ala.org.au/ws}")
     protected String layersServiceUrl;
 
     /**
