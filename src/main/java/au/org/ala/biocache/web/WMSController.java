@@ -1648,8 +1648,14 @@ public class WMSController extends AbstractSecureController{
                 + "&WIDTH=" + width + "&HEIGHT=" + height
                 + "&OUTLINE=" + outlinePoints + "&OUTLINECOLOUR=" + outlineColour;
 
-        //get query parameters
-        speciesAddress += requestParams.toString();
+        String serialisedQueryParameters = requestParams.toString();
+
+        if (!serialisedQueryParameters.isEmpty()) {
+            speciesAddress += "&";
+        }
+
+        // add query parameters
+        speciesAddress += serialisedQueryParameters;
 
         URL speciesURL = new URL(speciesAddress);
         BufferedImage speciesImage = ImageIO.read(speciesURL);
