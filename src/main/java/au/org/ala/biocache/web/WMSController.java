@@ -1648,7 +1648,7 @@ public class WMSController extends AbstractSecureController{
                 + "&WIDTH=" + width + "&HEIGHT=" + height
                 + "&OUTLINE=" + outlinePoints + "&OUTLINECOLOUR=" + outlineColour;
 
-        String serialisedQueryParameters = requestParams.toString();
+        String serialisedQueryParameters = requestParams.getEncodedParams();
 
         if (!serialisedQueryParameters.isEmpty()) {
             speciesAddress += "&";
