@@ -32,6 +32,10 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     private boolean stored;
     /** True when the field is a multivalue field */
     private boolean multivalue;
+    /**
+     * True when the field is a docvalue field
+     */
+    private boolean docvalue;
     /** Stores the number of distinct values that are in the field */
     private Integer numberDistinctValues;
     /** the i18n string to used for the field. */
@@ -246,5 +250,13 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
 
     public boolean isMultivalue() {
         return multivalue;
+    }
+
+    public boolean isDocvalue() {
+        return docvalue;
+    }
+
+    public void setDocvalue(boolean docvalue) {
+        this.docvalue = docvalue;
     }
 }

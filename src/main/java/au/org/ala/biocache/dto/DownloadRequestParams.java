@@ -15,6 +15,7 @@
 
 package au.org.ala.biocache.dto;
 
+import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.validate.LogType;
 
 import javax.validation.constraints.NotNull;
@@ -178,6 +179,7 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
      * @param fields the fields to set
      */
     public void setFields(String fields) {
+        QueryFormatUtils.assertNoSensitiveValues(DownloadRequestParams.class, "fields", fields);
         this.fields = fields;
     }
 
@@ -192,6 +194,7 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
      * @param extra the extra to set
      */
     public void setExtra(String extra) {
+        QueryFormatUtils.assertNoSensitiveValues(DownloadRequestParams.class, "extra", extra);
         this.extra = extra;
     }
 

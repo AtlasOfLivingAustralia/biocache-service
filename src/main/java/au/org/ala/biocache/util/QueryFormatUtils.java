@@ -1,6 +1,7 @@
 package au.org.ala.biocache.util;
 
 import au.org.ala.biocache.dao.QidCacheDAO;
+import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.Facet;
 import au.org.ala.biocache.dto.SearchRequestParams;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
@@ -15,6 +16,7 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.util.ClientUtils;
+import org.springframework.beans.InvalidPropertyException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
@@ -1090,5 +1092,22 @@ public class QueryFormatUtils {
         double y = Math.asin(g) / (Math.PI / 180.0);
 
         return new double[]{x, y};
+    }
+
+    public static void assertNoSensitiveValues(Class c, String property, String input) {
+        if (input != null && input.matches(SearchDAOImpl.CONTAINS_SENSITIVE_PATTERN)) {
+            InvalidPropertyException e = new InvalidPropertyException(c, property, "Input cannot contain any of: " + org.apache.commons.lang3.StringUtils.join(SearchDAOImpl.sensitiveSOLRHdr, ", "));
+            logger.error("Input matches a sensitive field", e);
+            throw e;
+        }
+
+    }
+
+    public static void assertNoSensitiveValues(Class c, String property, String[] inputs) {
+        if (inputs != null) {
+            for (String input : inputs) {
+                assertNoSensitiveValues(c, property, input);
+            }
+        }
     }
 }

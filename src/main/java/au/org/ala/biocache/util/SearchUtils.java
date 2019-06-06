@@ -12,6 +12,7 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.util.ClientUtils;
+import org.apache.solr.common.util.SimpleOrderedMap;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Component;
@@ -70,6 +71,78 @@ public class SearchUtils {
     private  final List<String> ranks = (List<String>) org.springframework.util.CollectionUtils
       .arrayToList(new String[]{"kingdom", "phylum", "class", "order",
               "family", "genus", "species"});
+
+    /**
+     * Util to filter SimpleOrderedMap output from a SOLR json.facet query and return the result of
+     * SimpleOrderedMap.getVal.
+     *
+     * @param input   SimpleOrderedMap or List<SimpleOrderedMap> that is the output from a SOLR json.facet query.
+     * @param filters List of traversal instructions. A String for Map, Integer for List, ending with Integer for
+     *                use in getVal or ending with String for use in get.
+     * @return
+     */
+    public static Object getVal(Object input, Object... filters) {
+        Object item = getItem(input, ArrayUtils.subarray(filters, 0, filters.length - 1));
+        Object lastFilter = filters[filters.length - 1];
+        if (item == null) {
+            return item;
+        } else if (lastFilter instanceof Integer) {
+            return ((SimpleOrderedMap) item).getVal((Integer) lastFilter);
+        } else {
+            return ((SimpleOrderedMap) item).get((String) lastFilter);
+        }
+    }
+
+    /**
+     * Util to filter SimpleOrderedMap output from a SOLR json.facet query and return the result of
+     * SimpleOrderedMap.getVal.
+     *
+     * @param input   SimpleOrderedMap or List<SimpleOrderedMap> that is the output from a SOLR json.facet query.
+     * @param filters List of traversal instructions. A String for Map, Integer for List. The last filtered item must
+     *                be of the type List<SimpleOrderedMap>
+     * @return
+     */
+    public static List<SimpleOrderedMap> getList(Object input, Object... filters) {
+        Object list = getItem(input, filters);
+        if (list == null) {
+            list = new ArrayList();
+        }
+        return (List<SimpleOrderedMap>) list;
+    }
+
+    /**
+     * Util to filter SimpleOrderedMap output from a SOLR json.facet query and return the result of
+     * SimpleOrderedMap.getVal.
+     *
+     * @param input   SimpleOrderedMap or List<SimpleOrderedMap> that is the output from a SOLR json.facet query.
+     * @param filters List of traversal instructions. A String for Map, Integer for List. The last filtered item must
+     *                be of the type SimpleOrderedMap
+     * @return
+     */
+    public static SimpleOrderedMap getMap(Object input, Object... filters) {
+        return (SimpleOrderedMap) getItem(input, filters);
+    }
+
+    /**
+     * Util to filter SimpleOrderedMap output from a SOLR json.facet query and return the result of
+     * SimpleOrderedMap.getVal.
+     *
+     * @param input   SimpleOrderedMap or List<SimpleOrderedMap> that is the output from a SOLR json.facet query.
+     * @param filters List of traversal instructions. A String for Map, Integer for List.
+     * @return
+     */
+    public static Object getItem(Object input, Object... filters) {
+        Object item = input;
+        for (int i = 0; item != null && i < filters.length; i++) {
+            Object filter = filters[i];
+            if (filter instanceof String) {
+                item = ((SimpleOrderedMap) item).get((String) filter);
+            } else if (filter instanceof Number) {
+                item = ((List<SimpleOrderedMap>) item).get((Integer) filter);
+            }
+        }
+        return item;
+    }
 
     /**
     * Returns an array that contains the search string to use for a collection
@@ -472,5 +545,13 @@ public class SearchUtils {
             authIndexFields = set;
         }
         return authIndexFields;
+    }
+
+    public static String formatValue(Object value) {
+        if (value instanceof Date) {
+            return value == null ? "" : org.apache.commons.lang.time.DateFormatUtils.format((Date) value, "yyyy-MM-dd");
+        } else {
+            return value == null ? "" : value.toString();
+        }
     }
 }

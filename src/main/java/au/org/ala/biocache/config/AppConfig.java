@@ -6,7 +6,6 @@ import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.service.SpeciesLookupIndexService;
 import au.org.ala.biocache.service.SpeciesLookupRestService;
 import au.org.ala.biocache.service.SpeciesLookupService;
-import io.netty.util.internal.InternalThreadLocalMap;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrClient;
 import org.springframework.beans.factory.annotation.Qualifier;

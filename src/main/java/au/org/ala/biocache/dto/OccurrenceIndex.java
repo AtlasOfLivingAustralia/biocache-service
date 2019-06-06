@@ -196,7 +196,10 @@ public class OccurrenceIndex {
             }
         }catch(Exception e){}
         return null;
-    }    
+    }
+
+    @JsonIgnore
+    public static String defaultFields = org.apache.commons.lang3.StringUtils.join(new OccurrenceIndex().indexToJsonMap().keySet(), ",");
     
     @JsonIgnore
     public Map<String,String> toMap() {
@@ -209,163 +212,38 @@ public class OccurrenceIndex {
             sdate = DateFormatUtils.format(eventDateEnd, "yyyy-MM-dd");
         }
         Map<String,String> map = new HashMap<String,String>();
-        addToMapIfNotNull(map, "id", uuid);
-        addToMapIfNotNull(map, "occurrence_id",occurrenceID);
-        addToMapIfNotNull(map, "data_hub_uid",arrToString(dataHubUid));
-        addToMapIfNotNull(map, "data_hub" ,dataHub);
-        addToMapIfNotNull(map, "institution_uid", institutionUid);
-        addToMapIfNotNull(map, "institution_code", raw_institutionCode);
-        addToMapIfNotNull(map, "institution_name", institutionName);
-        addToMapIfNotNull(map, "collection_uid", collectionUid);
-        addToMapIfNotNull(map, "collection_code", raw_collectionCode);
-        addToMapIfNotNull(map, "collection_name",collectionName);
-        addToMapIfNotNull(map, "catalogue_number",raw_catalogNumber);
-        addToMapIfNotNull(map, "taxon_concept_lsid",taxonConceptID);
-        addToMapIfNotNull(map, "occurrence_date", sdate);
-        addToMapIfNotNull(map, "occurrence_date_end_dt", sdateEnd);
-        addToMapIfNotNull(map, "taxon_name",scientificName);
-        addToMapIfNotNull(map, "common_name",vernacularName);
-        addToMapIfNotNull(map, "rank",taxonRank);
-        addToMapIfNotNull(map, "rank_id",safeIntToString(taxonRankID)); 
-        addToMapIfNotNull(map, "country_code", raw_countryCode);
-        addToMapIfNotNull(map, "country", country);
-        addToMapIfNotNull(map, "kingdom",kingdom); 
-        addToMapIfNotNull(map, "phylum", phylum);
-        addToMapIfNotNull(map, "class", classs); 
-        addToMapIfNotNull(map, "order", order); 
-        addToMapIfNotNull(map, "family", family);
-        addToMapIfNotNull(map, "genus",genus);
-        addToMapIfNotNull(map, "genus_guid",genusGuid);
-        addToMapIfNotNull(map, "species", species);
-        addToMapIfNotNull(map, "species_guid", speciesGuid);
-        addToMapIfNotNull(map, "subspecies", subspecies);
-        addToMapIfNotNull(map, "subspecies_guid", subspeciesGuid);
-        addToMapIfNotNull(map, "state", stateProvince); 
-        addToMapIfNotNull(map, "latitude", safeDblToString(decimalLatitude));
-        addToMapIfNotNull(map, "longitude", safeDblToString(decimalLongitude)); 
-        addToMapIfNotNull(map, "year", safeIntToString(year));
-        addToMapIfNotNull(map, "month", month); 
-        addToMapIfNotNull(map, "basis_of_record", basisOfRecord);
-        addToMapIfNotNull(map, "type_status", typeStatus); 
-        addToMapIfNotNull(map, "location_remarks", raw_locationRemarks); 
-        addToMapIfNotNull(map, "occurrence_remarks", raw_occurrenceRemarks);
-        addToMapIfNotNull(map, "lft", safeIntToString(left)); 
-        addToMapIfNotNull(map, "rgt", safeIntToString(right));
-        addToMapIfNotNull(map, "ibra", ibra); 
-        addToMapIfNotNull(map, "imcra", imcra);
-        addToMapIfNotNull(map, "places", lga); 
-        addToMapIfNotNull(map, "data_provider_uid", dataProviderUid); 
-        addToMapIfNotNull(map, "data_provider", dataProviderName);
-        addToMapIfNotNull(map, "data_resource_uid", dataResourceUid);
-        addToMapIfNotNull(map, "data_resource", dataResourceName); 
-        addToMapIfNotNull(map, "assertions", arrToString(assertions));
-        addToMapIfNotNull(map, "user_assertions", hasUserAssertions); 
-        addToMapIfNotNull(map, "species_group", arrToString(speciesGroups));
-        addToMapIfNotNull(map, "image_url", image); 
-        addToMapIfNotNull(map, "geospatial_kosher", geospatialKosher); 
-        addToMapIfNotNull(map, "taxonomic_kosher", taxonomicKosher);
-        addToMapIfNotNull(map, "raw_taxon_name", raw_scientificName); 
-        addToMapIfNotNull(map, "raw_basis_of_record", raw_basisOfRecord);
-        addToMapIfNotNull(map, "raw_type_status", raw_typeStatus); 
-        addToMapIfNotNull(map, "raw_common_name", raw_vernacularName); 
-        addToMapIfNotNull(map, "lat_long", latLong);
-        addToMapIfNotNull(map, "point-1", point1); 
-        addToMapIfNotNull(map, "point-0.1", point01); 
-        addToMapIfNotNull(map, "point-0.01", point001); 
-        addToMapIfNotNull(map, "point-0.001", point0001);
-        addToMapIfNotNull(map, "point-0.0001", point00001); 
-        addToMapIfNotNull(map, "names_and_lsid", namesLsid); 
-        addToMapIfNotNull(map, "multimedia", arrToString(multimedia));
-        addToMapIfNotNull(map, "collector",collector);
-        addToMapIfNotNull(map, "collectors",arrToString(collectors));
-        addToMapIfNotNull(map, "record_number", recordNumber);
-        addToMapIfNotNull(map, "occurrence_details", occurrenceDetails);
-        addToMapIfNotNull(map, "rights", rights);
-        addToMapIfNotNull(map, "photographer_s", photographer);
-        addToMapIfNotNull(map, "license", license);
-        addToMapIfNotNull(map, "grid_ref", gridReference);
-        addToMapIfNotNull(map, "identification_verification_status", identificationVerificationStatus);
+        for (java.lang.reflect.Field f : OccurrenceIndex.class.getDeclaredFields()) {
+            Field annotation = f.getAnnotation(Field.class);
+            if (annotation != null && !annotation.value().contains("*")) {
+                try {
+                    String value = null;
+                    if (f.getType() == Integer.class) value = safeIntToString((Integer) f.get(this));
+                    else if (f.getType() == Double.class) value = safeDblToString((Double) f.get(this));
+                    else if (f.getType() == Date.class)
+                        value = DateFormatUtils.format((Date) f.get(this), "yyyy-MM-dd");
+                    else if (f.getType() == String.class) value = (String) f.get(this);
+                    else if (f.getType() == (new String[0]).getClass()) value = arrToString((String[]) f.get(this));
+                    else
+                        logger.error(new Exception("Field type not yet implemented in OccurrenceIndex.toMap: " + f.getType().getName() + " " + f.getName()));
+
+                    addToMapIfNotNull(map, annotation.value(), value);
+                } catch (IllegalAccessException e) {
+                    logger.error(e);
+                }
+            }
+        }
         return map;
     }
 
     @JsonIgnore
     public Map<String,String> indexToJsonMap() {
         Map<String,String> map = new HashMap<String,String>();
-        map.put("id", "uuid");
-        map.put("occurrence_id", "occurrenceID");
-        map.put("data_hub_uid","dataHubUid");
-        map.put("data_hub" ,"dataHub");
-        map.put("institution_uid", "institutionUid");
-        map.put("institution_code", "raw_institutionCode");
-        map.put("institution_name", "institutionName");
-        map.put("collection_uid", "collectionUid");
-        map.put("collection_code", "raw_collectionCode");
-        map.put("collection_name","collectionName");
-        map.put("catalogue_number","raw_catalogNumber");
-        map.put("taxon_concept_lsid","taxonConceptID");
-        map.put("occurrence_date", "eventDate");
-        map.put("occurrence_date_end_dt", "eventDateEnd");
-        map.put("taxon_name","scientificName");
-        map.put("common_name","vernacularName");
-        map.put("rank","taxonRank");
-        map.put("rank_id","taxonRankID");
-        map.put("country_code", "raw_countryCode");
-        map.put("country", "country");
-        map.put("kingdom","kingdom");
-        map.put("phylum", "phylum");
-        map.put("class", "classs");
-        map.put("order","order");
-        map.put("family","family");
-        map.put("genus","genus");
-        map.put("genus_guid","genusGuid");
-        map.put("species", "species");
-        map.put("species_guid", "speciesGuid");
-        map.put("subspecies", "subspecies");
-        map.put("subspecies_guid", "subspeciesGuid");
-        map.put("state", "stateProvince");
-        map.put("latitude", "decimalLatitude");
-        map.put("longitude", "decimalLongitude");
-        map.put("year", "year");
-        map.put("month","month");
-        map.put("basis_of_record", "basisOfRecord");
-        map.put("type_status", "typeStatus");
-        map.put("location_remarks", "raw_locationRemarks");
-        map.put("occurrence_remarks", "raw_occurrenceRemarks");
-        map.put("lft","left");
-        map.put("rgt", "right");
-        map.put("ibra", "ibra");
-        map.put("imcra", "imcra");
-        map.put("places", "lga");
-        map.put("data_provider_uid", "dataProviderUid");
-        map.put("data_provider", "dataProviderName");
-        map.put("data_resource_uid", "dataResourceUid");
-        map.put("data_resource", "dataResourceName");
-        map.put("assertions", "assertions");
-        map.put("user_assertions", "hasUserAssertions");
-        map.put("species_group", "speciesGroups");
-        map.put("image_url", "image");
-        map.put("geospatial_kosher", "geospatialKosher");
-        map.put("taxonomic_kosher", "taxonomicKosher");
-        map.put("raw_taxon_name", "raw_scientificName");
-        map.put("raw_basis_of_record", "raw_basisOfRecord");
-        map.put("raw_type_status", "raw_typeStatus");
-        map.put("raw_common_name", "raw_vernacularName");
-        map.put("lat_long", "latLong");
-        map.put("point-1", "point1");
-        map.put("point-0.1", "point01");
-        map.put("point-0.01", "point001");
-        map.put("point-0.001", "point0001");
-        map.put("point-0.0001", "point00001");
-        map.put("names_and_lsid", "namesLsid");
-        map.put("multimedia", "multimedia");
-        map.put("collector","collector");
-        map.put("collectors","collectors");
-        map.put("record_number", "recordNumber");
-        map.put("occurrence_details", "occurrenceDetails");
-        map.put("rights", "rights");
-        map.put("photographer_s", "photographer");
-        map.put("license", "license");
-        map.put("grid_ref", "gridReference");
+        for (java.lang.reflect.Field f : OccurrenceIndex.class.getDeclaredFields()) {
+            Field annotation = f.getAnnotation(Field.class);
+            if (annotation != null && !annotation.value().contains("*")) {
+                map.put(annotation.value(), f.getName());
+            }
+        }
         return map;
     }
 

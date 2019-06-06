@@ -14,13 +14,12 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import au.org.ala.biocache.util.QueryFormatUtils;
 import org.apache.commons.httpclient.URIException;
 import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -39,7 +38,12 @@ public class SearchRequestParams {
     protected String q = "*:*";
     protected String[] fq = {}; // must not be null
     protected String[] formattedFq = {}; // must not be null
-    protected String fl = "";
+
+    /**
+     * When the default OccurrenceIndex mapped SOLR fields are stored=false and docValues=true fl must include them
+     */
+    protected String fl = OccurrenceIndex.defaultFields;
+
     /**
      * The facets to be included by the search
      * Initialised with the default facets to use
@@ -196,6 +200,7 @@ public class SearchRequestParams {
      * @param query new value of q
      */
     public void setQ(String query) {
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "q", query);
         this.q = query;
     }
 
@@ -222,6 +227,7 @@ public class SearchRequestParams {
      * @param filterQuery new value of fq
      */
     public void setFq(String[] filterQuery) {
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "fq", filterQuery);
         this.fq = filterQuery;
     }
     
@@ -292,6 +298,7 @@ public class SearchRequestParams {
      * @param sort new value of sort
      */
     public void setSort(String sort) {
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "sort", sort);
         this.sort = sort;
     }
 
@@ -310,6 +317,7 @@ public class SearchRequestParams {
      * @param sortDirection new value of dir
      */
     public void setDir(String sortDirection) {
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "sortDirection", sortDirection);
         this.dir = sortDirection;
     }
 
@@ -318,6 +326,7 @@ public class SearchRequestParams {
     }
 
     public void setDisplayString(String displayString) {
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "displayString", displayString);
         this.displayString = displayString;
     }
 
@@ -326,6 +335,8 @@ public class SearchRequestParams {
     }
 
     public void setFacets(String[] facets) {
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "facets", facets);
+
         if (facets != null && facets.length == 1 && facets[0].contains(",")) facets = facets[0].split(",");
 
         //remove empty facets
@@ -354,6 +365,7 @@ public class SearchRequestParams {
     }
 
     public void setQc(String qc) {
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "qc", qc);
         this.qc = qc;
     }
     public String getFl() {
@@ -361,6 +373,7 @@ public class SearchRequestParams {
     }
 
     public void setFl(String fl) {
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "fl", fl);
         this.fl = fl;
     }
 
@@ -375,6 +388,7 @@ public class SearchRequestParams {
      * @param formattedQuery the formattedQuery to set
      */
     public void setFormattedQuery(String formattedQuery) {
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "formattedQuery", formattedQuery);
         this.formattedQuery = formattedQuery;
     }
 
@@ -395,7 +409,8 @@ public class SearchRequestParams {
 	 * @param fsort the fsort to set
 	 */
 	public void setFsort(String fsort) {
-		this.fsort = fsort;
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "fsort", fsort);
+        this.fsort = fsort;
 	}
 	/**
 	 * @return the foffset
@@ -435,6 +450,7 @@ public class SearchRequestParams {
     }
 
     public void setFormattedFq(String[] formattedFq) {
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "formattedFq", formattedFq);
         this.formattedFq = formattedFq;
     }
 

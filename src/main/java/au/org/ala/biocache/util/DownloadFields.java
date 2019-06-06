@@ -177,13 +177,13 @@ public class DownloadFields {
                 field = indexByDwcMaps.get(indexName);
             }
 
-            if ((field != null && field.isStored()) || fieldName.startsWith("sensitive")) {
+            if ((field != null && (field.isStored() || field.isDocvalue())) || fieldName.startsWith("sensitive")) {
 
                 String fieldNameToUse = field != null ? field.getName() : fieldName;
 
                 mappedNames.add(fieldNameToUse);
                 //only dwcHeader lookup is permitted when dwcHeaders == true or it is a cl or el field
-                String header = dwcHeaders && field != null && field.isStored() && !isSpatialField(field.getName()) ?
+                String header = dwcHeaders && field != null && (field.isStored() || field.isDocvalue()) && !isSpatialField(field.getName()) ?
                         field.getName() :
                         layerProperties.getProperty(
                                 fieldNameToUse,

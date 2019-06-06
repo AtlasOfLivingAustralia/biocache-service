@@ -40,6 +40,7 @@ import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.beans.DocumentObjectBinder;
+import org.apache.solr.client.solrj.beans.Field;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.response.*;
@@ -105,10 +106,30 @@ public class SearchDAOImpl implements SearchDAO {
     public static final String OCCURRENCE_YEAR_INDEX_FIELD = "occurrence_year";
 
     //sensitive fields and their non-sensitive replacements
-    private static final String[] sensitiveCassandraHdr = {"decimalLongitude", "decimalLatitude", "verbatimLocality"};
-    private static final String[] sensitiveSOLRHdr = {"sensitive_longitude", "sensitive_latitude", "sensitive_locality", "sensitive_event_date", "sensitive_event_date_end", "sensitive_grid_reference"};
-    private static final String[] notSensitiveCassandraHdr = {"decimalLongitude_p", "decimalLatitude_p", "locality"};
-    private static final String[] notSensitiveSOLRHdr = {"longitude", "latitude", "locality"};
+    public static final String[] sensitiveCassandraHdr = {"decimalLongitude", "decimalLatitude", "verbatimLocality"};
+    public static final String[] sensitiveSOLRHdr = {"sensitive_longitude", "sensitive_latitude", "sensitive_locality", "sensitive_event_date", "sensitive_event_date_end", "sensitive_grid_reference"};
+    public static final String[] notSensitiveCassandraHdr = {"decimalLongitude_p", "decimalLatitude_p", "locality"};
+    public static final String[] notSensitiveSOLRHdr = {"longitude", "latitude", "locality"};
+    public static final String CONTAINS_SENSITIVE_PATTERN = StringUtils.join(sensitiveSOLRHdr, "|");
+
+    /**
+     * SOLR by default does not return docvalue fields in the same way as stored fields. This breaks the
+     * default mapping of SOLR documents to OccurrenceIndex. This is a method to map some fl values.
+     * It will fail at startup should OccurrenceIndex fields change.
+     */
+    public static String SOLR_FIELD_FOR_OCCURRENCEINDEX_DECIMAL_LATITUDE;
+    public static String SOLR_FIELD_FOR_OCCURRENCEINDEX_DECIMAL_LONGITUDE;
+    public static String SOLR_FIELD_FOR_OCCURRENCEINDEX_UUID;
+
+    static {
+        try {
+            SOLR_FIELD_FOR_OCCURRENCEINDEX_DECIMAL_LATITUDE = OccurrenceIndex.class.getDeclaredField("decimalLatitude").getAnnotation(Field.class).value();
+            SOLR_FIELD_FOR_OCCURRENCEINDEX_DECIMAL_LONGITUDE = OccurrenceIndex.class.getDeclaredField("decimalLongitude").getAnnotation(Field.class).value();
+            SOLR_FIELD_FOR_OCCURRENCEINDEX_UUID = OccurrenceIndex.class.getDeclaredField("uuid").getAnnotation(Field.class).value();
+        } catch (Exception e) {
+            logger.fatal("Failed to find the SOLR field name for the given OccurrenceIndex field.", e);
+        }
+    }
 
     /**
      * SOLR client instance
@@ -122,6 +143,13 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Value("${download.max:500000}")
     public Integer MAX_DOWNLOAD_SIZE = 500000;
+
+    /**
+     * The threshold to use the export handler instead of search handler when streaming from SOLR.
+     */
+    @Value("${solr.export.handler.threashold:10000}")
+    public Integer EXPORT_THREASHOLD = 10000;
+
     /**
      * Throttle value used to split up large downloads from Solr.
      * Randomly set to a range of 100% up to 200% of the value given here in each case.
@@ -326,6 +354,9 @@ public class SearchDAOImpl implements SearchDAO {
 
     @Value("${layers.service.url:https://spatial.ala.org.au/ws}")
     protected String layersServiceUrl;
+
+    @Value("${solr.collection:biocache1}")
+    protected String solrCollection;
 
     /**
      * Initialise the SOLR server instance
@@ -3413,7 +3444,7 @@ public class SearchDAOImpl implements SearchDAO {
                 //ignore fields with multiple items
                 if (cassandraField != null && !cassandraField.contains(",") ) {
                     for (IndexFieldDTO field : fieldList) {
-                        if (field.isIndexed() || field.isStored()) {
+                        if (field.isIndexed() || field.isStored() || field.isDocvalue()) {
                             if (field.getDownloadName() != null && field.getDownloadName().equals(cassandraField)) {
 
                                 found = true;
@@ -3474,6 +3505,7 @@ public class SearchDAOImpl implements SearchDAO {
                     f.setIndexed(schema.contains("I"));
                     f.setStored(schema.contains("S"));
                     f.setMultivalue(schema.contains("M"));
+                    f.setDocvalue(schema.contains("D"));
                 }
 
                 //now add the i18n and associated strings to the field.
