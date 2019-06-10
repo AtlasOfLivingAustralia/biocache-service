@@ -12,6 +12,7 @@ public class FieldStatsItem {
     private Object mean;
     private Double stddev;
     private String label;
+    private Long countDistinct;
 
     public FieldStatsItem(FieldStatsInfo info) {
         this.min = info.getMin();
@@ -22,6 +23,7 @@ public class FieldStatsItem {
         this.mean = info.getMean();
         this.stddev = info.getStddev();
         this.label = info.getName();
+        this.countDistinct = info.getCountDistinct();
     }
 
     public String getFq() {
@@ -94,5 +96,13 @@ public class FieldStatsItem {
 
     public String getLabel() {
         return label;
+    }
+
+    public Long getCountDistinct() {
+        return countDistinct;
+    }
+
+    public void setCountDistinct(Long countDistinct) {
+        this.countDistinct = countDistinct;
     }
 }

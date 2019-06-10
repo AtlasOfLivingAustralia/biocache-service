@@ -39,7 +39,6 @@ import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.beans.DocumentObjectBinder;
 import org.apache.solr.client.solrj.beans.Field;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
@@ -4182,53 +4181,39 @@ public class SearchDAOImpl implements SearchDAO {
      * pageSize restricts the number of docs in each group returned
      * fl is the list of fields in the returned docs
      */
-    public List<GroupFacetResultDTO> searchGroupedFacets(SpatialSearchRequestParams searchParams) throws Exception {
+    public QueryResponse searchGroupedFacets(SpatialSearchRequestParams searchParams) throws Exception {
         queryFormatUtils.formatSearchQuery(searchParams);
         String queryString = searchParams.getFormattedQuery();
-        searchParams.setFacet(false);
 
         //get facet group counts
-        SolrQuery query = initSolrQuery(searchParams, false, null);
-        query.setQuery(queryString);
-        query.setFields(null);
-        //now use the supplied facets to add groups to the query
-        query.add("group", "true");
-        query.add("group.ngroups", "true");
-        query.add("group.limit", String.valueOf(searchParams.getPageSize()));
-        query.setRows(searchParams.getFlimit());
-        query.setFields(searchParams.getFl());
+        SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
+        solrQuery.setQuery(queryString);
+        solrQuery.setRows(0);
+        solrQuery.setFacet(false);
+
+        StringBuilder sb = new StringBuilder("{");
+        int facets = 0;
         for (String facet : searchParams.getFacets()) {
-            query.add("group.field", facet);
-        }
+            if (StringUtils.isNotEmpty(searchParams.getFl())) {
+                if (facets > 0) sb.append(",");
+                facets++;
 
-        // need a workaround for runSolrQuery replacing query.rows with searchParams.pageSize
-        searchParams.setPageSize(searchParams.getFlimit());
+                sb.append(facet).append(":{type:terms,limit:-1,sort:index,field:").append(facet).append(",facet:{");
 
-        QueryResponse response = runSolrQuery(query, searchParams);
-        GroupResponse groupResponse = response.getGroupResponse();
+                int fls = 0;
+                for (String fl : searchParams.getFl().split(",")) {
+                    if (fls > 0) sb.append(",");
+                    fls++;
 
-        List<GroupFacetResultDTO> output = new ArrayList();
-        for (GroupCommand gc : groupResponse.getValues()) {
-            List<GroupFieldResultDTO> list = new ArrayList<GroupFieldResultDTO>();
-
-            String facet = gc.getName();
-            for (Group v : gc.getValues()) {
-                List<OccurrenceIndex> docs = (new DocumentObjectBinder()).getBeans(OccurrenceIndex.class, v.getResult());
-
-                //build facet displayName and fq
-                String value = v.getGroupValue();
-                Long count = v.getResult() != null ? v.getResult().getNumFound() : 0L;
-                if (value == null) {
-                    list.add(new GroupFieldResultDTO("", count, "-" + facet + ":*", docs));
-                } else {
-                    list.add(new GroupFieldResultDTO(getFacetValueDisplayName(facet, value), count, facet + ":\"" + value + "\"", docs));
+                    sb.append(fl).append(":{type:terms,limit:1,sort:index,field:").append(fl).append("}");
                 }
+                sb.append("}}}");
             }
-
-            output.add(new GroupFacetResultDTO(gc.getName(), list, gc.getNGroups()));
         }
 
-        return output;
+        solrQuery.add("json.facet", sb.toString());
+
+        return query(solrQuery, null);
     }
 
     /**
@@ -4398,7 +4383,8 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * @see au.org.ala.biocache.dao.SearchDAO#searchStat
      */
-    public List<FieldStatsItem> searchStat(SpatialSearchRequestParams searchParams, String field, String facet) throws Exception {
+    public List<FieldStatsItem> searchStat(SpatialSearchRequestParams searchParams, String field, String facet,
+                                           Collection<String> statType) throws Exception {
         searchParams.setFacets(new String[]{});
 
         queryFormatUtils.formatSearchQuery(searchParams);
@@ -4415,7 +4401,7 @@ public class SearchDAOImpl implements SearchDAO {
         //stats parameters
         query.add("stats", "true");
         if (facet != null) query.add("stats.facet", facet);
-        query.add("stats.field", field);
+        query.add("stats.field", "{!" + StringUtils.join(statType, "=true ") + "=true}" + field);
 
         query.setRows(0);
         searchParams.setPageSize(0);

@@ -2246,6 +2246,7 @@ public class WMSController extends AbstractSecureController{
             requestParams.setFacets(new String[]{pointType.getLabel()});
             requestParams.setFormattedQuery(null);
             if (docCount) {
+                requestParams.setFacet(false);
                 SolrDocumentList result = searchDAO.findByFulltext(requestParams);
                 if (result != null) {
                     synchronized (countLock) {
@@ -2254,10 +2255,11 @@ public class WMSController extends AbstractSecureController{
                     }
                 }
             } else {
-                List<GroupFacetResultDTO> result = searchDAO.searchGroupedFacets(requestParams);
+                List<FieldStatsItem> result = searchDAO.searchStat(requestParams, pointType.getLabel(), null,
+                        Arrays.asList("countDistinct"));
                 if (result != null && result.size() > 0) {
                     synchronized (countLock) {
-                        count = result.get(0).getCount();
+                        count = result.get(0).getCountDistinct().intValue();
                         countsCache.put(q + tag, count);
                     }
                 }

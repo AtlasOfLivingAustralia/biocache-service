@@ -558,31 +558,6 @@ public class OccurrenceController extends AbstractSecureController {
         afterInitialisation();
         return searchDAO.getFacetCounts(requestParams);
     }
-
-    /**
-     * Returns a group list including the number of distinct values for a field, and occurrences.
-     *
-     * Requires valid apiKey.
-     *
-     * @param requestParams
-     * @return
-     * @throws Exception
-     */
-    @RequestMapping(value = "occurrence/groups", method = RequestMethod.GET)
-    public
-    @ResponseBody
-    List<GroupFacetResultDTO> getOccurrenceGroupDetails(SpatialSearchRequestParams requestParams,
-                                                        @RequestParam(value = "apiKey", required = true) String apiKey,
-                                                        HttpServletResponse response) throws Exception {
-        afterInitialisation();
-        if (isValidKey(apiKey)) {
-            return searchDAO.searchGroupedFacets(requestParams);
-        }
-
-        response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
-        return null;
-        
-    }
     
     /**
      * Returns a list of image urls for the supplied taxon guid.

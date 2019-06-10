@@ -18,6 +18,7 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.LegendItem;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
+import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocumentList;
 
 import javax.servlet.ServletOutputStream;
@@ -389,7 +390,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    List<GroupFacetResultDTO> searchGroupedFacets(SpatialSearchRequestParams searchRequestParams) throws Exception ;
+    QueryResponse searchGroupedFacets(SpatialSearchRequestParams searchRequestParams) throws Exception;
 
     /**
      * Perform one pivot facet query.
@@ -413,7 +414,8 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    List<FieldStatsItem> searchStat(SpatialSearchRequestParams searchParams, String field, String facet) throws Exception;
+    List<FieldStatsItem> searchStat(SpatialSearchRequestParams searchParams, String field, String facet,
+                                    Collection<String> statType) throws Exception;
 
     /**
      * Return legend items for a query and facet.
