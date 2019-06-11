@@ -1085,10 +1085,6 @@ public class OccurrenceController extends AbstractSecureController {
         if (terms > 0) {
             sb.append(")");
         }
-        
-        if (parts.isEmpty()){
-            return null;
-        }
 
         String q = sb.toString();
         title = title == null?q : title;
