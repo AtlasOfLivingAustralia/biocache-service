@@ -305,7 +305,7 @@ public class AssertionController extends AbstractSecureController {
         if(assertionUuid != null){
             return getAssertion(recordUuid, assertionUuid, response);
         } else {
-            return getAssertions(recordUuid);
+            return getAssertions(recordUuid, response);
         }
     }
 
@@ -316,7 +316,7 @@ public class AssertionController extends AbstractSecureController {
     public @ResponseBody QualityAssertion getAssertion(
         @PathVariable(value="recordUuid") String recordUuid,
         @PathVariable(value="assertionUuid") String assertionUuid,
-        HttpServletResponse response) throws Exception {
+        HttpServletResponse response) {
         QualityAssertion qa = assertionUtils.getUserAssertion(recordUuid, assertionUuid);
         if(qa != null){
             return qa;
@@ -331,8 +331,16 @@ public class AssertionController extends AbstractSecureController {
      */
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions", "/occurrences/{recordUuid}/assertions/"}, method = RequestMethod.GET)
     public @ResponseBody List<QualityAssertion> getAssertions(
-        @PathVariable(value="recordUuid") String recordUuid) throws Exception {
-        return assertionUtils.getUserAssertions(recordUuid);
+        @PathVariable(value="recordUuid") String recordUuid,
+        HttpServletResponse response
+    ) throws Exception {
+        List<QualityAssertion> assertions =  assertionUtils.getUserAssertions(recordUuid);
+        if (assertions == null){
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Unrecognised record with ID: " + recordUuid);
+            return null;
+        } else {
+            return assertions;
+        }
     }
 
     public void setAssertionUtils(AssertionUtils assertionUtils) {

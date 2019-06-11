@@ -12,10 +12,6 @@
            http://www.springframework.org/schema/context/spring-context-3.0.xsd
            http://www.springframework.org/schema/mvc 
            http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd
-
-
-
-
            http://ehcache-spring-annotations.googlecode.com/svn/schema/ehcache-spring
            http://ehcache-spring-annotations.googlecode.com/svn/schema/ehcache-spring/ehcache-spring-1.1.xsd
            http://www.springframework.org/schema/task
@@ -91,13 +87,6 @@
     <!-- Content negotiation view resolver - uses either accept header mime type of the request
      -   or the file extention for the request URL -->
     <bean class="org.springframework.web.servlet.view.ContentNegotiatingViewResolver" p:order="1">
-        <property name="mediaTypes">
-            <map>
-                <entry key="html" value="text/html" />
-                <entry key="xml"  value="application/xml"/>
-                <entry key="json" value="application/json"/>
-            </map>
-        </property>
         <property name="defaultViews">
             <list>
                 <bean class="org.springframework.web.servlet.view.xml.MarshallingView">
@@ -112,8 +101,6 @@
                 </bean>
             </list>
         </property>
-        <property name="defaultContentType" ref="htmlMediaType" />
-        <property name="ignoreAcceptHeader" value="true" />
     </bean>
 
     <bean id="htmlMediaType" class="org.springframework.http.MediaType">
@@ -125,8 +112,7 @@
     <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter" p:order="0">
         <property name="messageConverters">
             <list>
-                <bean
-                        class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
+                <bean class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
                     <property name="objectMapper" ref="jacksonObjectMapper" />
                 </bean>
             </list>
