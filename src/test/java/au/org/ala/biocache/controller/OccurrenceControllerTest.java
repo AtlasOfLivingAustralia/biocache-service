@@ -1,6 +1,5 @@
 package au.org.ala.biocache.controller;
 
-import au.org.ala.biocache.web.OccurrenceController;
 import junit.framework.TestCase;
 import org.junit.Before;
 import org.junit.Test;
@@ -13,9 +12,6 @@ import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-
-import java.net.URL;
-
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -39,15 +35,27 @@ public class OccurrenceControllerTest extends TestCase {
     @Autowired
     WebApplicationContext wac;
 
-    @Autowired
-    OccurrenceController occurrenceController;
-
     MockMvc mockMvc;
 
     @Before
-    public void setup() throws Exception {
-
+    public void setup() {
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).build();
+    }
+
+    @Test
+    public void getRecordTest() throws Exception {
+        this.mockMvc.perform(get("/occurrence/41fcf3f2-fa7b-4ba6-a88c-4ac5240c8aab")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.raw.rowKey").value("41fcf3f2-fa7b-4ba6-a88c-4ac5240c8aab"));
+    }
+
+    @Test
+    public void getRecordAssertionsTest() throws Exception {
+        this.mockMvc.perform(get("/occurrences/41fcf3f2-fa7b-4ba6-a88c-4ac5240c8aab/assertions")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test
@@ -78,4 +86,20 @@ public class OccurrenceControllerTest extends TestCase {
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().is3xxRedirection());
     }
+
+    @Test
+    public void emptyTaxaCountTest() throws Exception {
+        this.mockMvc.perform(post("/occurrences/taxaCount")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    public void taxaCountTest() throws Exception {
+        this.mockMvc.perform(post("/occurrences/taxaCount")
+                .param("guids", "urn:lsid:biodiversity.org.au:afd.taxon:75801261-975f-436f-b1c7-d395a06dc067")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$['urn:lsid:biodiversity.org.au:afd.taxon:75801261-975f-436f-b1c7-d395a06dc067']").value(1000));
+    }
+
 }
