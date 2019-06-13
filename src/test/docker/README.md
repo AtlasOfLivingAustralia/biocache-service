@@ -1,36 +1,48 @@
 # Docker images for integration testing
 
 
-Docker images have been created to use integration tests on local machines but also in CI (Travis).
+Docker images have been created to use for integration tests on local machines 
+and also in CI (Travis).
 
+## SOLR
 
-To build:
-
-
-## SOLR 7
+To build (change tags e.g. v1 - > v2):
 
 ```
 cd src/test/docker/solr7
 docker build . -t biocache-it-solr7:v1
 ```
 
-To test
+To run locally
 ```
 docker run --name biocache-it-solr7 -d -p 8983:8983 -t biocache-it-solr7:v1
 ```
 
-
-## SOLR 8
+To publish (where "3579a7d6de70" is the  image ID)
+```
+docker tag 3579a7d6de70 djtfmartin/biocache-it-solr7:v1
+docker push djtfmartin/biocache-it-solr7
 
 ```
-docker build . -t biocache-it-solr8:v1
-```
 
+
+## CASSANDRA
+
+To build
+
+```
 docker build . -t biocache-it-cass3:v1
+```
 
+To run locally
+```
+docker build . -t biocache-it-cass3:v1
+```
 
+To publish 
+```
+docker tag 3579a7d6de70 djtfmartin/biocache-it-cass3:v1
+docker push djtfmartin/biocache-it-cass3
 
+```
 
-docker run --name biocache-it-solr7 -d -p 8983:8983 -t biocache-it-solr7:v1
-docker run --name biocache-it-solr7 -d -p 8983:8983 -t biocache-it-solr8:v1
-docker run --name biocache-it-cass3 -d -p 9042:9042 -t biocache-it-cass3:v1
