@@ -19,7 +19,6 @@ To start the required containers, run the following:
 
 ```
 docker-compose -f src/test/docker/solr7-cassandra3.yml up -d
-
 ```
 
 Pre-requistes are Docker version 17+. For more details see this [readme](/src/test/docker/README.md).
