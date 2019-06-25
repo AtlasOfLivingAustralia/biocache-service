@@ -10,6 +10,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -96,6 +97,14 @@ public class OccurrenceControllerTest extends TestCase {
 
     @Test
     public void taxaCountTest() throws Exception {
+
+
+        MvcResult result = this.mockMvc.perform(post("/occurrences/taxaCount")
+                .param("guids", "urn:lsid:biodiversity.org.au:afd.taxon:75801261-975f-436f-b1c7-d395a06dc067")
+                .contentType(MediaType.APPLICATION_JSON)).andReturn();
+
+        System.out.println("TAXACOUNT:" + result.getResponse().getContentAsString());
+
         this.mockMvc.perform(post("/occurrences/taxaCount")
                 .param("guids", "urn:lsid:biodiversity.org.au:afd.taxon:75801261-975f-436f-b1c7-d395a06dc067")
                 .contentType(MediaType.APPLICATION_JSON))
