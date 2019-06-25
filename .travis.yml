@@ -16,7 +16,7 @@ before_install:
   - docker-compose -f src/test/docker/solr7-cassandra3.yml up -d
   - mkdir -p ~/.m2; wget -q -O ~/.m2/settings.xml https://raw.githubusercontent.com/AtlasOfLivingAustralia/travis-build-configuration/master/travis_maven_settings.xml
 script:
-  - "[ \"${TRAVIS_PULL_REQUEST}\" = \"false\" ] && mvn -P travis clean install"
+  - "[ \"${TRAVIS_PULL_REQUEST}\" = \"false\" ] && mvn -P travis clean deploy"
 after_script:
   - docker-compose -f src/test/docker/solr7-cassandra3.yml kill
 env:
