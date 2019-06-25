@@ -11,7 +11,7 @@ jdk:
   - oraclejdk8
 branches:
   only:
-    - bug-fixes
+    - spring4-integration-tests
 before_install:
   - docker-compose -f src/test/docker/solr7-cassandra3.yml up -d
   - mkdir -p ~/.m2; wget -q -O ~/.m2/settings.xml https://raw.githubusercontent.com/AtlasOfLivingAustralia/travis-build-configuration/master/travis_maven_settings.xml
