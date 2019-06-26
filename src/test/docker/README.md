@@ -2,7 +2,7 @@
 
 
 Docker images have been created to use for integration tests on local machines 
-and also in CI (Travis).
+and also in CI (Travis). These images are published in DockerHub (https://hub.docker.com/) so that they can be retrieved and used by CI.
 
 ## SOLR
 
@@ -13,7 +13,8 @@ cd src/test/docker/solr7
 docker build . -t biocache-it-solr7:v1
 ```
 
-To run locally
+To run locally:
+
 ```
 docker run --name biocache-it-solr7 -d -p 8983:8983 -t biocache-it-solr7:v1
 ```
@@ -39,7 +40,7 @@ To run locally
 docker build . -t biocache-it-cass3:v1
 ```
 
-To publish 
+To publish - the published images are used by travis. 
 ```
 docker tag 3579a7d6de70 djtfmartin/biocache-it-cass3:v1
 docker push djtfmartin/biocache-it-cass3
