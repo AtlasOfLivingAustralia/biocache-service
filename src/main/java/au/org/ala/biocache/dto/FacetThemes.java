@@ -55,7 +55,7 @@ public class FacetThemes {
             FacetThemes.facetsDefaultMax = facetsDefaultMax;
             FacetThemes.facetDefault = facetDefault;
             
-            if(configFilePath != null && new File(configFilePath).exists()){
+            if (configFilePath != null && new File(configFilePath).exists()){
                 java.util.List<FacetTheme> newThemes = new ArrayList<>();
                 ObjectMapper om = new ObjectMapper();
                 List<Map<String,Object>> config = om.readValue(new File(configFilePath), List.class);

@@ -18,7 +18,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
@@ -46,7 +45,7 @@ public class AuthService {
     private final static Logger logger = Logger.getLogger(AuthService.class);
     @Inject
     protected RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
-    @Value("${auth.user.details.url}")
+    @Value("${auth.user.details.url:}")
     protected String userDetailsUrl = null;
     @Value("${auth.user.names.id.path:getUserList}")
     protected String userNamesForIdPath = null;
@@ -193,12 +192,12 @@ public class AuthService {
     }
 
     public Map<String,?> getUserDetails(String userId) {
-        Map<String,?> userDetails
-                = new HashMap<>();
+        Map<String,?> userDetails = new HashMap<>();
+        if(StringUtils.isNotBlank(userDetailsUrl)){
             final String jsonUri = userDetailsUrl + userDetailsPath + "?userName=" + userId;
             logger.info("authCache requesting: " + jsonUri);
             userDetails = (Map) restTemplate.postForObject(jsonUri, null, Map.class);
-
+        }
         return userDetails;
     }
 }

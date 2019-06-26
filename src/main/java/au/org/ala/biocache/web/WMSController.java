@@ -589,11 +589,10 @@ public class WMSController extends AbstractSecureController{
     @RequestMapping(value = {"/webportal/occurrences.gz", "/mapping/occurrences.gz"}, method = RequestMethod.GET)
     public void occurrenceGz(
             SpatialSearchRequestParams requestParams,
-            HttpServletResponse response)
-            throws Exception {
+            HttpServletResponse response) {
 
         response.setContentType("text/plain");
-        response.setCharacterEncoding("gzip");
+//        response.setCharacterEncoding("gzip");
 
         try {
             ServletOutputStream outStream = response.getOutputStream();

@@ -1,0 +1,14 @@
+solr:
+  image: solr:8.1.1
+  container_name: biocache-solr8
+  environment:
+    SOLR_HEAP: 4g
+  volumes:
+    - ./solr8/biocache:/var/solr/data/biocache
+    - ./solr8/solr.xml:/var/solr/data/solr.xml
+    - ./solr8/zoo.cfg:/var/solr/data/zoo.cfg
+    - ./solr8/solr.in.sh:/etc/default/solr.in.sh:ro
+    - ./solr8/jts-core-1.16.1.jar:/opt/solr/server/solr-webapp/webapp/WEB-INF/lib/jts-core-1.16.1.jar
+    - ./solr8/jts-io-common-1.16.1.jar:/opt/solr/server/solr-webapp/webapp/WEB-INF/lib//jts-io-common-1.16.1.jar
+  ports:
+    - 8983:8983

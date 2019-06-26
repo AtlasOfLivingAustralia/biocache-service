@@ -1,0 +1,13 @@
+version: "3.2"
+
+services:
+  cassandra:
+    image: djtfmartin/biocache-it-cass3:v1
+    container_name: biocache-cassandra
+    ports:
+      - 9042:9042
+  solr:
+    image: djtfmartin/biocache-it-solr7:v1
+    container_name: biocache-solr8
+    ports:
+      - 8983:8983

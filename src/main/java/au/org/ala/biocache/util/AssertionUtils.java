@@ -88,7 +88,7 @@ public class AssertionUtils {
      * @return quality assertions
      */
     public List<QualityAssertion> getUserAssertions(OccurrenceDTO occ) {
-        if(occ.getRaw() != null){
+        if (occ.getRaw() != null){
             //set the user assertions
             List<QualityAssertion> userAssertions = Store.getUserAssertions(occ.getRaw().getRowKey());
             //Legacy integration - fix up the user assertions - legacy - to add replace with CAS IDs....
@@ -114,7 +114,7 @@ public class AssertionUtils {
     public QualityAssertion enhanceQA(OccurrenceDTO occ, QualityAssertion ua) {
         String email = ua.getUserEmail();
         ContactDTO contact = contactUtils.getContactForEmailAndUid(email, occ.getProcessed().getAttribution().getCollectionUid());
-        if(contact != null){
+        if (contact != null){
             ua.setUserRole(contact.getRole());
             ua.setUserEntityName(occ.getProcessed().getAttribution().getCollectionName());
             ua.setUserEntityUid(occ.getProcessed().getAttribution().getCollectionUid());
