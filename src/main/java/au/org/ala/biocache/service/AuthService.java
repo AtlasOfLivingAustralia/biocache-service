@@ -14,7 +14,6 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
-import com.drew.lang.StringUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
