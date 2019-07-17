@@ -38,10 +38,10 @@ public class AbstractSecureController {
 
     private final static Logger logger = LoggerFactory.getLogger(AbstractSecureController.class);
 
-    @Value("${api.check.url:https://auth.ala.org.au/apikey/ws/check?apikey=}")
+    @Value("${apikey.check.url:https://auth.ala.org.au/apikey/ws/check?apikey=}")
     protected String apiCheckUrl;
 
-    @Value("${api.check.enabled:true}")
+    @Value("${apikey.check.enabled:true}")
     protected Boolean apiKeyCheckedEnabled = true;
 
     /** 
