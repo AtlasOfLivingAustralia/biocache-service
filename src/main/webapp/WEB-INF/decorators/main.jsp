@@ -11,14 +11,21 @@
     <link rel="alternate" type="application/rss+xml" title="Atlas of Living Australia &raquo; Comments Feed" href="https://www.ala.org.aucomments/feed/" />
     <link rel="alternate" type="application/rss+xml" title="Atlas of Living Australia &raquo; Blogs &amp; news updates Comments Feed" href="https://www.ala.org.aublogs-news/feed/" />
 
-    <link rel='stylesheet' id='bootstrap.css-css'  href='https://www.ala.org.au/wp-content/themes/devdmbootstrap3/css/bootstrap.css?ver=1' type='text/css' media='all' />
+    <link href="https://www.ala.org.au/commonui-bs3-2019/css/bootstrap.min.css" rel="stylesheet" media="screen,print"/>
+    <link href="https://www.ala.org.au/commonui-bs3-2019/css/bootstrap-theme.min.css" rel="stylesheet" media="screen,print"/>
     <link rel='stylesheet' id='parent-style-css'  href='https://www.ala.org.au/wp-content/themes/devdmbootstrap3/style.css?ver=1.5.0' type='text/css' media='all' />
-    <link rel='stylesheet' id='autocompcss-css'  href='https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/css/jquery.autocomplete.css?ver=1.0' type='text/css' media='all' />
-    <link rel='stylesheet' id='ala-style-css'  href='https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/css/ala-styles.css?ver=1.4' type='text/css' media='all' />
-    <link rel='stylesheet' id='fontawesome-css'  href='//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css?ver=4.3.0' type='text/css' media='all' />
-    <link rel='stylesheet' id='stylesheet-css'  href='https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/style.css?ver=1' type='text/css' media='all' />
-    <script type='text/javascript' src='https://www.ala.org.au/wp-includes/js/jquery/jquery.js?ver=1.11.2'></script>
-    <script type='text/javascript' src='https://www.ala.org.au/wp-includes/js/jquery/jquery-migrate.min.js?ver=1.2.1'></script>
+    <link href="https://www.ala.org.au/commonui-bs3-2019/css/ala-styles.css" rel="stylesheet" media="screen,print"/>
+    <link href="https://www.ala.org.au/commonui-bs3-2019/css/autocomplete.min.css" rel="stylesheet" media="screen,print"/>
+    <link href="https://www.ala.org.au/commonui-bs3-2019/css/autocomplete-extra.min.css" rel="stylesheet" media="screen,print"/>
+    <link href="https://www.ala.org.au/commonui-bs3-2019/css/font-awesome.min.css" rel="stylesheet" media="screen,print"/>
+    <link rel="stylesheet" href="/assets/ala-admin-asset-b49e31ab5b68287070729cdb93ef8636.css"/>
+
+    <script type="text/javascript" src="https://www.ala.org.au/commonui-bs3-2019/js/jquery.min.js"></script>
+    <script type="text/javascript" src="https://www.ala.org.au/commonui-bs3-2019/js/jquery-migration.min.js"></script>
+    <script type="text/javascript" src="https://www.ala.org.au/commonui-bs3-2019/js/autocomplete.min.js"></script>
+    <script type="text/javascript" src="https://www.ala.org.au/commonui-bs3-2019/js/application.js" defer></script>
+    <script type="text/javascript" src="https://www.ala.org.au/commonui-bs3-2019/js/bootstrap.min.js"></script>
+
     <link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://www.ala.org.auxmlrpc.php?rsd" />
     <link rel="wlwmanifest" type="application/wlwmanifest+xml" href="https://www.ala.org.au/wp-includes/wlwmanifest.xml" />
     <!-- END GADWP Universal Tracking -->
@@ -48,20 +55,19 @@
 <body>
 
 <!-- Navbar -->
-<nav id="alatopnav" class="navbar navbar-inverse navbar-fixed-top">
-    <div class="container-fluid">
+<div id="wrapper-navbar" itemscope="" itemtype="http://schema.org/WebSite">
+<nav class="navbar navbar-inverse navbar-expand-md">
+    <div class="container-fluid header-logo-menu">
         <!-- Brand and toggle get grouped for better mobile display -->
         <div class="navbar-header">
-            <a class="navbar-brand" href="/">
-                <img alt="Brand" class="img-responsive" src="https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/supporting-graphic-element-flat.png">
-            </a>
-            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
-                <span class="sr-only">Toggle navigation</span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-            </button>
-            <a class="navbar-brand font-xsmall" href="/">The Atlas Of Living Australia</a>
+            <div>
+                <a href="https://www.ala.org.au/" class="custom-logo-link navbar-brand" itemprop="url">
+                    <img width="1005" height="150" src="https://www.ala.org.au/app/uploads/2019/01/logo.png"
+                         class="custom-logo" alt="Atlas of Living Australia" itemprop="image"
+                         srcset="https://www.ala.org.au/app/uploads/2019/01/logo.png 1005w, https://www.ala.org.au/app/uploads/2019/01/logo-300x45.png 300w, https://www.ala.org.au/app/uploads/2019/01/logo-768x115.png 768w"
+                         sizes="(max-width: 1005px) 100vw, 1005px"> </a>
+                <!-- end custom logo -->
+            </div>
         </div>
 
         <!-- Collect the nav links, forms, and other content for toggling -->
@@ -121,7 +127,7 @@
                             <span class="caret"></span>
                         </a>
                         <ul class="dropdown-menu" role="menu">
-                            <li><a href="https://www.ala.org.auwp-login.php?redirect_to=http%3A%2F%2Fwww.ala.org.au">Log in</a></li>
+                            <li><a href="https://auth.ala.org.au/cas/login?service=https://biocache.ala.org.au/">Log in</a></li>
                             <li><a href="https://auth.ala.org.au/userdetails/registration/createAccount">Register</a></li>
                         </ul>
                     </li>
@@ -131,7 +137,7 @@
         </div>
         <!-- /.navbar-collapse --> </div>
     <!-- /.container-fluid --> </nav>
-
+</div>
 <div id="main" class="container dmbs-container">
 <decorator:body/>
 </div><!-- End container -->
