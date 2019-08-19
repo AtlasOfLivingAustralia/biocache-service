@@ -56,8 +56,8 @@
 
 <!-- Navbar -->
 <div id="wrapper-navbar" itemscope="" itemtype="http://schema.org/WebSite">
-<nav class="navbar navbar-inverse navbar-expand-md">
-    <div class="container-fluid header-logo-menu">
+    <nav class="navbar navbar-inverse navbar-expand-md">
+        <div class="container-fluid header-logo-menu">
         <!-- Brand and toggle get grouped for better mobile display -->
         <div class="navbar-header">
             <div>
