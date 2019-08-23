@@ -1,0 +1,247 @@
+#
+# This is the crowdin-cli configuration for this repository that allow to keep in sync ALA and crowdin translations in both directions.
+#
+# Currently github integration only allows to configure one repo, so we need to use crowdin-cli to keep in sync serveral githubs repos with one crowdin project.
+#
+# To use it this, you need to configure two vars:
+#
+#   export CROWDIN_BASE_PATH=$(dirname $PWD)
+#   export CROWDIN_API_KEY=XXXXXX
+#
+# You can get the API from https://crowdin.com/project/ala-i18n/settings#api
+# CROWDIN_BASE_PATH is the parent directory of this repository.
+#
+# After installing crowdin in your computer, to download translations from crowdin run:
+#   crowdin download
+# or a specific language with:
+#   crowdin download --language es-ES
+# so you can later commit the changes to github.
+#
+# You can update messages.properties in crowdin with:
+#   crowdin upload sources
+# and the translations (if there are some change in the repository that needs to be updated in crowdin), for instance to update Japanese language:
+#   crowdin upload translations -l ja
+#
+# Note: Right now `crowdin-cli download` downloads files of non translated languages with empty lines and comments, so as a workround, you can run this bash snippet to delete these empty files prior to git commit the changes:
+#   for i in $(ls grails-app/i18n/messages_*) ; do SIZE=$(cat $i | egrep -v "^#|^$" | wc -c); if [[ $SIZE -eq 0 ]] ; then rm $i; fi ; done
+#
+# Also you will get some warning like "Warning: Downloaded translations do not match current project configuration. The following files will be omitted" for the rest of repository translations files.
+#
+# More info:
+#
+# - https://support.crowdin.com/cli-tool/
+# - https://support.crowdin.com/configuration-file/
+
+#
+# Configuration
+#
+# Your crowdin's credentials
+
+#
+"project_identifier" : "ala-i18n"
+"api_key_env" : CROWDIN_API_KEY
+"base_path_env": CROWDIN_BASE_PATH
+
+# "api_key" : "foo"
+# "base_path" : ""
+# "base_url" : ""
+
+#
+# Choose file structure in crowdin
+# e.g. true or false
+#
+"preserve_hierarchy": true
+
+#
+# Files configuration
+#
+files: [
+ {
+  #
+  # Source files filter
+  # e.g. "/resources/en/*.json"
+  #
+  "source" : "/biocache-service/src/main/webapp/WEB-INF/messages.properties",
+
+  #
+  # where translations live
+  # e.g. "/resources/%two_letters_code%/%original_file_name%"
+  #
+  "translation" : "/biocache-service/src/main/webapp/WEB-INF/messages_%locale_with_underscore%.properties",
+
+  "translation_replace" : {
+    "af_ZA": "af",
+    "ar_SA": "ar",
+    "ca_ES": "ca",
+    "cs_CZ": "cs",
+    "da_DK": "da",
+    "de_DE": "de",
+    # "de_LU": "de",
+    "el_GR": "el",
+    "en_CA": "en",
+    "en_US": "en",
+    "es_ES": "es",
+    "es_MX": "es",
+    "eu_ES": "eu",
+    "fi_FI": "fi",
+    "fr_CA": "fr",
+    "fr_FR": "fr",
+    "fr_LU": "fr",
+    "gl_ES": "gl",
+    "he_IL": "he",
+    "hu_HU": "hu",
+    "it_IT": "it",
+    "ja_JP": "ja",
+    "ko_KR": "ko",
+    "lb_LU": "lb",
+    "nl_NL": "nl",
+    "no_NO": "no",
+    "pl_PL": "pl",
+    # "pt_BR": "pt",
+    # "pt_PT": "pt",
+    "ro_RO": "ro",
+    "ru_RU": "ru",
+    "sr_SP": "sr",
+    "sv_SE": "sv",
+    "tr_TR": "tr",
+    "uk_UA": "uk",
+    "vi_VN": "vi",
+    "zh_CN": "zh"
+    # "zh_TW": "zh"
+  },
+
+  #
+  # files or directories for ignore
+  # e.g. ["/**/?.txt", "/**/[0-9].txt", "/**/*\?*.txt"]
+  #
+  #"ignore" : [],
+
+  #
+  # The dest allows you to specify a file name on Crowdin
+  # e.g. "/messages.json"
+  #
+  "dest" : "/biocache-service/messages.properties",
+
+  #
+  # File type
+  # e.g. "json"
+  #
+  #"type" : "",
+ "type" : "properties",
+
+  #
+  # The parameter "update_option" is optional. If it is not set, translations for changed strings will be lost. Useful for typo fixes and minor changes in source strings.
+  # e.g. "update_as_unapproved" or "update_without_changes"
+  #
+  "update_option" : "update_as_unapproved",
+
+  #
+  # Start block only for XML
+  #
+
+  #
+  # Defines whether to translate tags attributes.
+  # e.g. 0 or 1  (Default is 1)
+  #
+  # "translate_attributes" : 1,
+
+  #
+  # Defines whether to translate texts placed inside the tags.
+  # e.g. 0 or 1 (Default is 1)
+  #
+  # "translate_content" : 1,
+
+  #
+  # This is an array of strings, where each item is the XPaths to DOM element that should be imported
+  # e.g. ["/content/text", "/content/text[@value]"]
+  #
+  # "translatable_elements" : [],
+
+  #
+  # Defines whether to split long texts into smaller text segments.
+  # e.g. 0 or 1 (Default is 1)
+  #
+  # "content_segmentation" : 1,
+
+  #
+  # End block only for XML
+  #
+
+  #
+  # Start .properties block
+  #
+
+  #
+  # Defines whether single quote should be escaped by another single quote or backslash in exported translations.
+  # e.g. 0 or 1 or 2 or 3 (Default is 3)
+  # 0 - do not escape single quote;
+  # 1 - escape single quote by another single quote;
+  # 2 - escape single quote by backslash;
+  # 3 - escape single quote by another single quote only in strings containing variables ( {0} ).
+  #
+
+  "escape_quotes" : 3,
+
+  #
+  # End .properties block
+  #
+
+  #
+  # Often software projects have custom names for locale directories. crowdin-cli allows you to map your own languages to be understandable by Crowdin.
+  #
+  "languages_mapping" : {
+    "locale_with_underscore" : {
+      "af_ZA": "af",
+      "ar_SA": "ar",
+      "ca_ES": "ca",
+      "cs_CZ": "cs",
+      "da_DK": "da",
+      "de_DE": "de",
+      # "de_LU": "de",
+      "el_GR": "el",
+      # "en_CA": "en",
+      "en_US": "en",
+      "es_ES": "es",
+      "es_MX": "es",
+      "eu_ES": "eu",
+      "fi_FI": "fi",
+      "fr_CA": "fr",
+      "fr_FR": "fr",
+      "fr_LU": "fr",
+      "gl_ES": "gl",
+      "he_IL": "he",
+      "hu_HU": "hu",
+      "it_IT": "it",
+      "ja_JP": "ja",
+      "ko_KR": "ko",
+      "lb_LU": "lb",
+      "nl_NL": "nl",
+      "no_NO": "no",
+      "pl_PL": "pl",
+      # "pt_BR": "pt",
+      # "pt_PT": "pt",
+      "ro_RO": "ro",
+      "ru_RU": "ru",
+      "sr_SP": "sr",
+      "sv_SE": "sv",
+      "tr_TR": "tr",
+      "uk_UA": "uk",
+      "vi_VN": "vi",
+      "zh_CN": "zh"
+      #"zh_TW": "zh"
+     }
+  }
+
+  #
+  # Does the first line contain a header?
+  # e.g. true or false
+  #
+  #"first_line_contains_header" : true,
+
+  #
+  # for spreadsheets
+  # e.g. "identifier,source_phrase,context,uk,ru,fr"
+  #
+  # "scheme" : "",
+ }
+]
