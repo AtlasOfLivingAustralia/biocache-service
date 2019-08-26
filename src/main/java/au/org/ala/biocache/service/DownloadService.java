@@ -72,8 +72,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Component("downloadService")
 public class DownloadService implements ApplicationListener<ContextClosedEvent> {
 
-    public static final String OFFICIAL_DOI_RESOLVER = "https://doi.org/";
-
     protected static final Logger logger = Logger.getLogger(DownloadService.class);
     /**
      * Download threads for matching subsets of offline downloads.
@@ -143,6 +141,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     @Value("${download.email.template:}")
     protected String biocacheDownloadEmailTemplate;
+
+    @Value("${download.doi.resolver:https://doi.ala.org.au/doi/}")
+    public String officialDoiResolver;
 
     @Value("${download.doi.email.template:}")
     protected String biocacheDownloadDoiEmailTemplate;
@@ -678,7 +679,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
                     // final String doiLandingPage = requestParams.getDoiDisplayUrl() != null ? requestParams.getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
                     // fileLocation = doiLandingPage + doi;
-                    fileLocation = OFFICIAL_DOI_RESOLVER + doi;
+                    fileLocation = officialDoiResolver + doi;
 
                 } else {
                     readmeFile = biocacheDownloadReadmeTemplate;
@@ -1262,7 +1263,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                         // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
                                         //final String doiLandingPage = currentDownload.getRequestParams().getDoiDisplayUrl() != null ? currentDownload.getRequestParams().getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
                                         //downloadFileLocation = doiLandingPage + doiStr;
-                                        downloadFileLocation = OFFICIAL_DOI_RESOLVER + doiStr;
+                                        downloadFileLocation = officialDoiResolver + doiStr;
                                     }
                                     catch (Exception ex) {
                                         logger.error("DOI update failed for DOI uuid " + doiResponse.getUuid() +
