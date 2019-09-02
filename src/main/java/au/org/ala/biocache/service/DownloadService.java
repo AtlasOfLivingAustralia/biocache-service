@@ -144,6 +144,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.email.template:}")
     protected String biocacheDownloadEmailTemplate;
 
+    @Value("${download.doi.resolver:https://doi.ala.org.au/doi/}")
+    public String alaDoiResolver;
+
     @Value("${download.doi.email.template:}")
     protected String biocacheDownloadDoiEmailTemplate;
 
@@ -694,8 +697,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         .replace("[date]", dd.getStartDateString())
                         .replace("[searchUrl]", searchUrl)
                         .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
-                        .replace("[dataProviders]", dataProviders)
-                        .replace("[doi]", doi);
+                        .replace("[dataProviders]", dataProviders);
 
                 sp.write(readmeContent.getBytes(StandardCharsets.UTF_8));
                 sp.write(("For more information about the fields that are being downloaded please consult <a href='"
@@ -1248,6 +1250,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 String emailBody;
                                 String emailTemplate;
                                 String downloadFileLocation;
+                                String officialFileLocation = "";
                                 if(mintDoi && doiResponseList != null && !doiResponseList.isEmpty() && doiResponseList.get(0) != null) {
 
                                     CreateDoiResponse doiResponse;
@@ -1262,7 +1265,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                         // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
                                         //final String doiLandingPage = currentDownload.getRequestParams().getDoiDisplayUrl() != null ? currentDownload.getRequestParams().getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
                                         //downloadFileLocation = doiLandingPage + doiStr;
-                                        downloadFileLocation = OFFICIAL_DOI_RESOLVER + doiStr;
+                                        downloadFileLocation = alaDoiResolver + doiStr;
+                                        officialFileLocation = OFFICIAL_DOI_RESOLVER + doiStr;
                                     }
                                     catch (Exception ex) {
                                         logger.error("DOI update failed for DOI uuid " + doiResponse.getUuid() +
@@ -1280,10 +1284,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                                 final String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
                                 String emailBodyHtml = emailBody.replace("[url]", downloadFileLocation)
+                                        .replace("[officialDoiUrl]", officialFileLocation)
                                         .replace("[date]", currentDownload.getStartDateString())
                                         .replace("[searchUrl]", searchUrl)
                                         .replace("[queryTitle]", currentDownload.getRequestParams().getDisplayString())
-                                        .replace("[doi]", doiStr)
                                         .replace("[doiFailureMessage]", doiFailureMessage);
                                 String body = messageSource.getMessage("offlineEmailBody",
                                         new Object[]{archiveFileLocation, searchUrl, currentDownload.getStartDateString()},
