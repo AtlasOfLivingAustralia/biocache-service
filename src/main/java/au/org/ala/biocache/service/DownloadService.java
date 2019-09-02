@@ -144,7 +144,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.email.template:}")
     protected String biocacheDownloadEmailTemplate;
 
-    @Value("${download.doi.ala.resolver:https://doi.ala.org.au/doi/}")
+    @Value("${download.doi.resolver:https://doi.ala.org.au/doi/}")
     public String alaDoiResolver;
 
     @Value("${download.doi.email.template:}")
