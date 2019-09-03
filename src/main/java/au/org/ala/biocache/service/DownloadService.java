@@ -1348,7 +1348,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 // user email
                                 emailService.sendEmail(currentDownload.getEmail(), subject,
                                         body + " Please contact " + support + " for assistance."
-                                                + "<br><br>searchUrl: " + searchUrl1
+                                                + "<br><br>searchUrl: " + searchUrl
                                                 + "<br>uniqueId: " + currentDownload.getUniqueId() + " <br>path: "
                                                 + currentDownload.getFileLocation().replace(biocacheDownloadDir, ""));
                             } catch (Exception ex) {
