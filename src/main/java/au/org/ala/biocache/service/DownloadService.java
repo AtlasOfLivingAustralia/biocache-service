@@ -147,14 +147,17 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.doi.resolver:https://doi.ala.org.au/doi/}")
     public String alaDoiResolver;
 
+    @Value("${download.doi.support:support@ala.org.au}")
+    public String support;
+
     @Value("${download.doi.email.template:}")
     protected String biocacheDownloadDoiEmailTemplate;
 
     @Value("${download.email.subject.failure:Occurrence Download Failed - [filename]}")
     protected String biocacheDownloadEmailSubjectError = "Occurrence Download Failed - [filename]";
 
-    @Value("${download.email.body.error:The download has failed.}")
-    protected String biocacheDownloadEmailBodyError = "The download has failed.";
+    @Value("${download.email.body.error:Your download has failed.}")
+    protected String biocacheDownloadEmailBodyError = "Your download has failed.";
 
     @Value("${download.readme.template:}")
     protected String biocacheDownloadReadmeTemplate;
@@ -1341,10 +1344,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 String body = messageSource.getMessage("offlineEmailBodyError",
                                         new Object[] { fileLocation },
                                         biocacheDownloadEmailBodyError.replace("[url]", fileLocation), null);
-
+                                String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
                                 // user email
                                 emailService.sendEmail(currentDownload.getEmail(), subject,
-                                        body + "\r\n\r\nuniqueId:" + currentDownload.getUniqueId() + " path:"
+                                        body + " Please contact " + support + " for assistance."
+                                                + "<br><br>searchUrl: " + searchUrl1
+                                                + "<br>uniqueId: " + currentDownload.getUniqueId() + " <br>path: "
                                                 + currentDownload.getFileLocation().replace(biocacheDownloadDir, ""));
                             } catch (Exception ex) {
                                 logger.error("Error sending error message to download email. "
