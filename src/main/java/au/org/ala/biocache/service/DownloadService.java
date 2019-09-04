@@ -147,7 +147,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.doi.resolver:https://doi.ala.org.au/doi/}")
     public String alaDoiResolver;
 
-    @Value("${download.doi.support:support@ala.org.au}")
+    @Value("${my.download.doi.baseUrl:https://doi.ala.org.au/myDownloads}")
+    public String myDownloadsUrl;
+
+    @Value("${download.support:support@ala.org.au}")
     public String support;
 
     @Value("${download.doi.email.template:}")
@@ -156,8 +159,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.email.subject.failure:Occurrence Download Failed - [filename]}")
     protected String biocacheDownloadEmailSubjectError = "Occurrence Download Failed - [filename]";
 
-    @Value("${download.email.body.error:Your download has failed.}")
-    protected String biocacheDownloadEmailBodyError = "Your download has failed.";
+    @Value("${download.email.body.error:Your [hubName] download has failed.}")
+    protected String biocacheDownloadEmailBodyError = "Your [hubName] download has failed.";
 
     @Value("${download.readme.template:}")
     protected String biocacheDownloadReadmeTemplate;
@@ -1343,13 +1346,16 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                         biocacheDownloadUrl);
                                 String body = messageSource.getMessage("offlineEmailBodyError",
                                         new Object[] { fileLocation },
-                                        biocacheDownloadEmailBodyError.replace("[url]", fileLocation), null);
+                                        biocacheDownloadEmailBodyError.replace("[url]", fileLocation)
+                                                .replace("[hubName]", hubName), null);
                                 String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
                                 // user email
                                 emailService.sendEmail(currentDownload.getEmail(), subject,
                                         body + " Please contact " + support + " by replying to this email and we will investigate the cause."
                                                 + "<br><br>Your search URL was: <br>" + searchUrl
-                                                + "<br><br>The reference to quote is:<br> " + currentDownload.getUniqueId());
+                                                + "<br><br>The reference to quote is:<br>" + currentDownload.getUniqueId()
+                                                + "<br><br>Your successful downloads can be found at:<br>"
+                                                + myDownloadsUrl);
                             } catch (Exception ex) {
                                 logger.error("Error sending error message to download email. "
                                         + currentDownload.getFileLocation(), ex);
