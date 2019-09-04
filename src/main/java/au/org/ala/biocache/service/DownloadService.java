@@ -1347,10 +1347,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
                                 // user email
                                 emailService.sendEmail(currentDownload.getEmail(), subject,
-                                        body + " Please contact " + support + " for assistance."
-                                                + "<br><br>searchUrl: " + searchUrl
-                                                + "<br>uniqueId: " + currentDownload.getUniqueId() + " <br>path: "
-                                                + currentDownload.getFileLocation().replace(biocacheDownloadDir, ""));
+                                        body + " Please contact " + support + " by replying to this email and we will investigate the cause."
+                                                + "<br><br>Your search URL was: <br>" + searchUrl
+                                                + "<br><br>The reference to quote is:<br> " + currentDownload.getUniqueId());
                             } catch (Exception ex) {
                                 logger.error("Error sending error message to download email. "
                                         + currentDownload.getFileLocation(), ex);
