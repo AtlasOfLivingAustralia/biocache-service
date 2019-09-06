@@ -126,6 +126,13 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${headings.enabled:true}")
     public Boolean headingsEnabled = Boolean.TRUE;
 
+    // Allow emailing support to be disabled via config (enabled by default)
+    @Value("${download.support.email.enabled:true}")
+    public Boolean supportEmailEnabled = Boolean.TRUE;
+
+    @Value("${download.support.email:support@ala.org.au}")
+    public String supportEmail = "support@ala.org.au";
+
     /** Stores the current list of downloads that are being performed. */
     protected final Queue<DownloadDetailsDTO> currentDownloads = new LinkedBlockingQueue<DownloadDetailsDTO>();
 
