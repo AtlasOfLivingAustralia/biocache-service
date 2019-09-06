@@ -55,11 +55,12 @@ public class EmailService {
      * Sends an email with the supplied details. 
      * 
      * @param recipient
+     * @param copy
      * @param subject
      * @param content
      * @param sender
      */
-    public void sendEmail(String recipient, String subject, String content, String sender){
+    public void sendEmail(String recipient, String copy, String subject, String content, String sender){
         
         logger.debug("Send email to : " + recipient);
 //        logger.debug("Body: " + content);
@@ -70,6 +71,9 @@ public class EmailService {
             MimeMessage message = new MimeMessage(session);
             message.setFrom(new InternetAddress(sender));
             message.addRecipient(Message.RecipientType.TO, new InternetAddress(recipient));
+            if(copy != null){
+                message.addRecipient(Message.RecipientType.CC, new InternetAddress(copy));
+            }
             message.setSubject(subject);
             message.setContent(content, "text/html" );
             Transport.send(message);
@@ -86,7 +90,19 @@ public class EmailService {
      * @param content
      */
     public void sendEmail(String recipient, String subject, String content){
-        sendEmail(recipient, subject, content, sender);
+        sendEmail(recipient, null, subject, content, sender);
+    }
+
+    /**
+     * Sends an email from the default sender using the supplied details.
+     *
+     * @param recipient
+     * @param copy
+     * @param subject
+     * @param content
+     */
+    public void sendEmail(String recipient, String copy, String subject, String content){
+        sendEmail(recipient, copy, subject, content, sender);
     }
     
     /**

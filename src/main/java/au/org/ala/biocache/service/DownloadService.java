@@ -1349,8 +1349,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                         biocacheDownloadEmailBodyError.replace("[url]", fileLocation)
                                                 .replace("[hubName]", hubName), null);
                                 String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
-                                // user email
-                                emailService.sendEmail(currentDownload.getEmail(), subject,
+                                String copyTo = supportEmailEnabled ? supportEmail : null;
+                                // email error to user and support (configurable)
+                                emailService.sendEmail(currentDownload.getEmail(), copyTo, subject,
                                         body + " Please contact " + support + " by replying to this email and we will investigate the cause."
                                                 + "<br><br>Your search URL was: <br>" + searchUrl
                                                 + "<br><br>The reference to quote is:<br>" + currentDownload.getUniqueId()
