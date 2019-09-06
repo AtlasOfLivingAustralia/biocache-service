@@ -256,6 +256,13 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.offline.msg:This download is unavailable. Run the download again.}")
     public String downloadOfflineMsgDeleted = "This download is unavailable. Run the download again.";
 
+    @Value("${download.shp.enabled:true}")
+    public void setDownloadShpEnabled(Boolean downloadShpEnabled) {
+        DownloadService.downloadShpEnabled = downloadShpEnabled;
+    }
+
+    public static Boolean downloadShpEnabled;
+
     /**
      * Ensures closure is only attempted once.
      */

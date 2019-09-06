@@ -15,8 +15,10 @@
 
 package au.org.ala.biocache.dto;
 
+import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.validate.LogType;
+import org.springframework.beans.InvalidPropertyException;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
@@ -237,6 +239,9 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
      * @param fileType the fileType to set
      */
     public void setFileType(String fileType) {
+        if (!DownloadService.downloadShpEnabled && "shp".equalsIgnoreCase(fileType)) {
+            throw new InvalidPropertyException(DownloadRequestParams.class, "fileType", "Shapefile downloads are disabled.");
+        }
         this.fileType = fileType;
     }
 
