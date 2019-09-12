@@ -32,12 +32,13 @@ docker push djtfmartin/biocache-it-solr7
 To build
 
 ```
+cd src/test/docker/cassandra3
 docker build . -t biocache-it-cass3:v1
 ```
 
 To run locally
 ```
-docker build . -t biocache-it-cass3:v1
+docker run --name biocache-it-cass3:v1 -d -p 9042:9042 -t biocache-it-cass3:v1
 ```
 
 To publish - the published images are used by travis. 

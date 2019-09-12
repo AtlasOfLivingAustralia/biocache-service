@@ -126,6 +126,13 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${headings.enabled:true}")
     public Boolean headingsEnabled = Boolean.TRUE;
 
+    // Allow emailing support to be disabled via config (enabled by default)
+    @Value("${download.support.email.enabled:true}")
+    public Boolean supportEmailEnabled = Boolean.TRUE;
+
+    @Value("${download.support.email:support@ala.org.au}")
+    public String supportEmail = "support@ala.org.au";
+
     /** Stores the current list of downloads that are being performed. */
     protected final Queue<DownloadDetailsDTO> currentDownloads = new LinkedBlockingQueue<DownloadDetailsDTO>();
 
@@ -144,14 +151,23 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.email.template:}")
     protected String biocacheDownloadEmailTemplate;
 
+    @Value("${download.doi.resolver:https://doi.ala.org.au/doi/}")
+    public String alaDoiResolver;
+
+    @Value("${my.download.doi.baseUrl:https://doi.ala.org.au/myDownloads}")
+    public String myDownloadsUrl;
+
+    @Value("${download.support:support@ala.org.au}")
+    public String support;
+
     @Value("${download.doi.email.template:}")
     protected String biocacheDownloadDoiEmailTemplate;
 
     @Value("${download.email.subject.failure:Occurrence Download Failed - [filename]}")
     protected String biocacheDownloadEmailSubjectError = "Occurrence Download Failed - [filename]";
 
-    @Value("${download.email.body.error:The download has failed.}")
-    protected String biocacheDownloadEmailBodyError = "The download has failed.";
+    @Value("${download.email.body.error:Your [hubName] download has failed.}")
+    protected String biocacheDownloadEmailBodyError = "Your [hubName] download has failed.";
 
     @Value("${download.readme.template:}")
     protected String biocacheDownloadReadmeTemplate;
@@ -239,6 +255,13 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     @Value("${download.offline.msg:This download is unavailable. Run the download again.}")
     public String downloadOfflineMsgDeleted = "This download is unavailable. Run the download again.";
+
+    @Value("${download.shp.enabled:true}")
+    public void setDownloadShpEnabled(Boolean downloadShpEnabled) {
+        DownloadService.downloadShpEnabled = downloadShpEnabled;
+    }
+
+    public static Boolean downloadShpEnabled;
 
     /**
      * Ensures closure is only attempted once.
@@ -694,8 +717,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         .replace("[date]", dd.getStartDateString())
                         .replace("[searchUrl]", searchUrl)
                         .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
-                        .replace("[dataProviders]", dataProviders)
-                        .replace("[doi]", doi);
+                        .replace("[dataProviders]", dataProviders);
 
                 sp.write(readmeContent.getBytes(StandardCharsets.UTF_8));
                 sp.write(("For more information about the fields that are being downloaded please consult <a href='"
@@ -1248,6 +1270,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 String emailBody;
                                 String emailTemplate;
                                 String downloadFileLocation;
+                                String officialFileLocation = "";
                                 if(mintDoi && doiResponseList != null && !doiResponseList.isEmpty() && doiResponseList.get(0) != null) {
 
                                     CreateDoiResponse doiResponse;
@@ -1262,7 +1285,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                         // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
                                         //final String doiLandingPage = currentDownload.getRequestParams().getDoiDisplayUrl() != null ? currentDownload.getRequestParams().getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
                                         //downloadFileLocation = doiLandingPage + doiStr;
-                                        downloadFileLocation = OFFICIAL_DOI_RESOLVER + doiStr;
+                                        downloadFileLocation = alaDoiResolver + doiStr;
+                                        officialFileLocation = OFFICIAL_DOI_RESOLVER + doiStr;
                                     }
                                     catch (Exception ex) {
                                         logger.error("DOI update failed for DOI uuid " + doiResponse.getUuid() +
@@ -1280,10 +1304,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                                 final String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
                                 String emailBodyHtml = emailBody.replace("[url]", downloadFileLocation)
+                                        .replace("[officialDoiUrl]", officialFileLocation)
                                         .replace("[date]", currentDownload.getStartDateString())
                                         .replace("[searchUrl]", searchUrl)
                                         .replace("[queryTitle]", currentDownload.getRequestParams().getDisplayString())
-                                        .replace("[doi]", doiStr)
                                         .replace("[doiFailureMessage]", doiFailureMessage);
                                 String body = messageSource.getMessage("offlineEmailBody",
                                         new Object[]{archiveFileLocation, searchUrl, currentDownload.getStartDateString()},
@@ -1336,12 +1360,17 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                         biocacheDownloadUrl);
                                 String body = messageSource.getMessage("offlineEmailBodyError",
                                         new Object[] { fileLocation },
-                                        biocacheDownloadEmailBodyError.replace("[url]", fileLocation), null);
-
-                                // user email
-                                emailService.sendEmail(currentDownload.getEmail(), subject,
-                                        body + "\r\n\r\nuniqueId:" + currentDownload.getUniqueId() + " path:"
-                                                + currentDownload.getFileLocation().replace(biocacheDownloadDir, ""));
+                                        biocacheDownloadEmailBodyError.replace("[url]", fileLocation)
+                                                .replace("[hubName]", hubName), null);
+                                String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
+                                String copyTo = supportEmailEnabled ? supportEmail : null;
+                                // email error to user and support (configurable)
+                                emailService.sendEmail(currentDownload.getEmail(), copyTo, subject,
+                                        body + " Please contact " + support + " by replying to this email and we will investigate the cause."
+                                                + "<br><br>Your search URL was: <br>" + searchUrl
+                                                + "<br><br>The reference to quote is:<br>" + currentDownload.getUniqueId()
+                                                + "<br><br>Your successful downloads can be found at:<br>"
+                                                + myDownloadsUrl);
                             } catch (Exception ex) {
                                 logger.error("Error sending error message to download email. "
                                         + currentDownload.getFileLocation(), ex);
