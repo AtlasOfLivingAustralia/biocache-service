@@ -22,6 +22,8 @@ import org.springframework.beans.InvalidPropertyException;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * Data Transfer Object to represent the request parameters required to download
@@ -83,6 +85,12 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
      * This will be used in e-mails, and zip content
      */
     protected String hubName;
+
+    /**
+     * If a DOI is to be minted containing download data, this allows the requesting application to attach
+     * custom metadata to be stored with the DOI as application metadata.
+     */
+    Map<String, String> doiMetadata = new HashMap<String, String>();
 
     /**
      * Custom toString method to produce a String to be used as the request parameters
@@ -337,5 +345,13 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
 
     public void setHubName(String hubName) {
         this.hubName = hubName;
+    }
+
+    public Map<String, String> getDoiMetadata() {
+        return doiMetadata;
+    }
+
+    public void setDoiMetadata(Map<String, String> doiMetadata) {
+        this.doiMetadata = doiMetadata;
     }
 }
