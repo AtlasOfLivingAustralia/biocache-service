@@ -160,17 +160,24 @@ public class DoiService {
 
         request.setProviderMetadata(providerMetadata);
 
+        Map<String, Object> applicationMetadata = generateApplicationMetadataPayload(downloadInfo);
+        request.setApplicationMetadata(applicationMetadata);
+
+        request.setActive(false);
+        return mintDoi(request);
+    }
+
+    private Map<String, Object> generateApplicationMetadataPayload(DownloadDoiDTO downloadInfo) {
         Map<String, Object> applicationMetadata = new HashMap<>();
+        if (downloadInfo.getApplicationMetadata() != null) {
+            applicationMetadata.putAll(downloadInfo.getApplicationMetadata());
+        }
         applicationMetadata.put("searchUrl", downloadInfo.getApplicationUrl());
         applicationMetadata.put("datasets", downloadInfo.getDatasetMetadata());
         applicationMetadata.put("requestedOn", downloadInfo.getRequestTime());
         applicationMetadata.put("recordCount", Long.toString(downloadInfo.getRecordCount()));
         applicationMetadata.put("queryTitle", downloadInfo.getQueryTitle());
-
-        request.setApplicationMetadata(applicationMetadata);
-
-        request.setActive(false);
-        return mintDoi(request);
+        return applicationMetadata;
     }
 
     private Map<String, Object> generateProviderMetadataPayload(DownloadDoiDTO downloadInfo) {
