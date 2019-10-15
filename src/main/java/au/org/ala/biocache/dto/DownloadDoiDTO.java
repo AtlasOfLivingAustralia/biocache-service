@@ -33,6 +33,8 @@ public class DownloadDoiDTO {
     private String requestTime;
     private String queryTitle;
 
+    Map<String, String> applicationMetadata;
+
     public long getRecordCount() {
         return recordCount;
     }
@@ -130,5 +132,13 @@ public class DownloadDoiDTO {
 
     public void setAuthorisedRoles(List<String> authorisedRoles) {
         this.authorisedRoles = authorisedRoles;
+    }
+
+    public Map<String, String> getApplicationMetadata() {
+        return applicationMetadata;
+    }
+
+    public void setApplicationMetadata(Map<String, String> applicationMetadata) {
+        this.applicationMetadata = applicationMetadata;
     }
 }

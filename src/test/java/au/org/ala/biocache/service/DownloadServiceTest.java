@@ -3,34 +3,37 @@
  */
 package au.org.ala.biocache.service;
 
-import static org.junit.Assert.*;
-
-import java.nio.file.Path;
-import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.Timeout;
-import org.springframework.context.event.ContextClosedEvent;
-import org.springframework.context.support.GenericApplicationContext;
-
 import au.org.ala.biocache.dao.JsonPersistentQueueDAOImpl;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
+import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
+import au.org.ala.biocache.dto.DownloadDoiDTO;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.FacetThemes;
 import au.org.ala.biocache.util.thread.DownloadCreator;
+import au.org.ala.doi.CreateDoiResponse;
+import org.junit.*;
+import org.junit.rules.TemporaryFolder;
+import org.junit.rules.Timeout;
+import org.mockito.ArgumentCaptor;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.support.AbstractMessageSource;
+import org.springframework.context.support.GenericApplicationContext;
+
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Test for {@link DownloadService}
@@ -295,6 +298,59 @@ public class DownloadServiceTest {
         // assertEquals(1, notEmptyDownloads.size());
         testService.unregisterDownload(registerDownload);
         assertEquals(0, emptyDownloads.size());
+    }
+
+    /**
+     * This test is to ensure the DoiApplicationMetadata supplied to the DownloadRequestParams is copied
+     * correctly to the DownloadDetailsDTO before invoking the doiService.mintDoi method.
+     * There is a fair bit of mocking/stubbing required to be able to test this.
+     */
+    @Test
+    public final void testDoiApplicationMetadataIsPassedToTheDoiService() throws Exception {
+
+        // Initialisation - if we don't do this the tests will not run.
+        testLatch.countDown();
+        testService.init();
+
+        // Setup mocks and stubs - could be in setup but I don't want to interfere with the other tests.
+        DoiService doiService = mock(DoiService.class);
+        testService.doiService = doiService;
+        SearchDAO searchDAO = mock(SearchDAO.class);
+        testService.searchDAO = searchDAO;
+        AbstractMessageSource messageSource = mock(AbstractMessageSource.class);
+        testService.messageSource = messageSource;
+        AuthService authService = mock(AuthService.class);
+        testService.authService = authService;
+
+        testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
+
+        // Setup method parameters
+        OutputStream out = new ByteArrayOutputStream();
+        List<CreateDoiResponse> doiResponseList = new ArrayList<CreateDoiResponse>();
+
+        DownloadRequestParams downloadRequestParams = new DownloadRequestParams();
+        downloadRequestParams.setMintDoi(true);
+        downloadRequestParams.setDisplayString("");
+        Map<String, String> doiApplicationMetadata = new HashMap<String, String>();
+        doiApplicationMetadata.put("key1", "value1");
+        doiApplicationMetadata.put("key2", "value2");
+
+        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", DownloadType.RECORDS_INDEX);
+
+        when(searchDAO.writeResultsFromIndexToStream(any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new ConcurrentHashMap<String, AtomicInteger>());
+        when(doiService.mintDoi(isA(DownloadDoiDTO.class))).thenReturn(new CreateDoiResponse());
+        testService.writeQueryToStream(
+                downloadDetailsDTO,
+                downloadRequestParams,
+                downloadDetailsDTO.getIpAddress(),
+                out,
+                false, true, true, false, (ExecutorService)null, doiResponseList);
+
+        ArgumentCaptor<DownloadDoiDTO> argument = ArgumentCaptor.forClass(DownloadDoiDTO.class);
+        verify(doiService).mintDoi(argument.capture());
+
+        DownloadDoiDTO downloadDoiDTO = argument.getValue();
+        assertEquals(downloadDoiDTO.getApplicationMetadata(), downloadRequestParams.getDoiMetadata());
     }
 
     /**
