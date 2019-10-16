@@ -12,6 +12,8 @@ jdk:
 branches:
   only:
     - master
+    - spring4-integration-tests
+    - /^feature\/.*$/
     - /^hotfix\/.*$/
 before_install:
   - docker-compose -f src/test/docker/solr7-cassandra3.yml up -d
