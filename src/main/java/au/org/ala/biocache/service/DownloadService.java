@@ -83,6 +83,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     private static final String SEARCH_URL = "[searchUrl]";
     private static final String DOI_FAILURE_MESSAGE = "[doiFailureMessage]";
     private static final String BCCVL_IMPORT_ID = "[bccvlImportID]";
+    private static final String SUPPORT = "[support]";
+    private static final String UNIQUE_ID = "[uniqueId]";
+    private static final String MY_DOWNLOADS_URL = "[myDownloadsUrl]";
+    private static final String HUB_NAME = "[hubName]";
 
     protected static final Logger logger = Logger.getLogger(DownloadService.class);
     /**
@@ -1366,21 +1370,22 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                                 .replace("[hubName]",hubName),
                                         null);
 
-                                String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir,
-                                        biocacheDownloadUrl);
-                                String body = messageSource.getMessage("offlineEmailBodyError",
-                                        new Object[] { fileLocation },
-                                        biocacheDownloadEmailBodyError.replace("[url]", fileLocation)
-                                                .replace("[hubName]", hubName), null);
-                                String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
                                 String copyTo = supportEmailEnabled ? supportEmail : null;
+
+                                Map<String, String> substitutions = new HashMap<>();
+                                substitutions.put(SEARCH_URL, generateSearchUrl(currentDownload.getRequestParams()));
+                                substitutions.put(SUPPORT, support);
+                                substitutions.put(UNIQUE_ID, currentDownload.getUniqueId());
+                                substitutions.put(MY_DOWNLOADS_URL, myDownloadsUrl);
+                                substitutions.put(HUB_NAME, hubName);
+                                substitutions.put(DOWNLOAD_FILE_LOCATION, currentDownload.getFileLocation().replace(biocacheDownloadDir,
+                                        biocacheDownloadUrl));
+
+                                String emailTemplate = getFailEmailBodyTemplate();
+                                String emailBody = generateEmailContent(emailTemplate, substitutions);
                                 // email error to user and support (configurable)
-                                emailService.sendEmail(currentDownload.getEmail(), copyTo, subject,
-                                        body + " Please contact " + support + " by replying to this email and we will investigate the cause."
-                                                + "<br><br>Your search URL was: <br>" + searchUrl
-                                                + "<br><br>The reference to quote is:<br>" + currentDownload.getUniqueId()
-                                                + "<br><br>Your successful downloads can be found at:<br>"
-                                                + myDownloadsUrl);
+                                emailService.sendEmail(currentDownload.getEmail(), copyTo, subject, emailBody);
+
                             } catch (Exception ex) {
                                 logger.error("Error sending error message to download email. "
                                         + currentDownload.getFileLocation(), ex);
@@ -1399,19 +1404,36 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 }
 
                 public String getEmailTemplateFile() {
-                    String emailTemplate;
+                    String file;
                     switch (currentDownload.getRequestParams().getEmailTemplate()) {
                         case CSDM_SELECTOR:
-                            emailTemplate = biocacheDownloadCSDMEmailTemplate;
+                            file = biocacheDownloadCSDMEmailTemplate;
                             break;
                         case DOI_SELECTOR:
-                            emailTemplate = biocacheDownloadDoiEmailTemplate;
+                            file = biocacheDownloadDoiEmailTemplate;
                             break;
                         case DEFAULT_SELECTOR:
                         default:
-                            emailTemplate = biocacheDownloadEmailTemplate;
+                            file = biocacheDownloadEmailTemplate;
                             break;
                     }
+
+                    return  file;
+                }
+
+                public String getFailEmailBodyTemplate() {
+                    String emailTemplate;
+                    switch (currentDownload.getRequestParams().getEmailTemplate()) {
+                        case CSDM_SELECTOR:
+                            emailTemplate = messageSource.getMessage("offlineFailEmailBodyCSDM", null, "", null);
+                            break;
+                        case DOI_SELECTOR:
+                        case DEFAULT_SELECTOR:
+                        default:
+                            emailTemplate = messageSource.getMessage("offlineFailEmailBody", null, "", null);
+                            break;
+                    }
+
                     return  emailTemplate;
                 }
 
