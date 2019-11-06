@@ -15,6 +15,7 @@
 
 package au.org.ala.biocache.dto;
 
+import au.org.ala.biocache.service.DoiService;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.validate.LogType;
@@ -76,6 +77,10 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
      */
     protected Boolean mintDoi=false;
 
+    /**
+     * The name of display template to be used to show DOI information.
+     */
+    protected String doiDisplayTemplate = DoiService.DISPLAY_TEMPLATE_BIOCACHE;
     /**
      * What is the search in the UI that generates this occurrence download.
      */
@@ -375,5 +380,13 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
             this.emailTemplate = validTemplates.get(0);
             logger.info("Unsupported emailTemplate passed - " + emailTemplate + ".  Using emailTemplate - " + this.emailTemplate);
         }
+    }
+
+    public String getDoiDisplayTemplate() {
+        return this.doiDisplayTemplate;
+    }
+
+    public void setDoiDisplayTemplate(String doiDisplayTemplate) {
+        this.doiDisplayTemplate = doiDisplayTemplate;
     }
 }

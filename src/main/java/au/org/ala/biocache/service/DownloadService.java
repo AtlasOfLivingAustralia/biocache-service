@@ -676,6 +676,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             doiDetails.setLicence(licence);
                             doiDetails.setQueryTitle(requestParams.getDisplayString());
                             doiDetails.setApplicationMetadata(requestParams.getDoiMetadata());
+                            doiDetails.setDisplayTemplate(requestParams.getDoiDisplayTemplate());
 
                             doiResponse = doiService.mintDoi(doiDetails);
 
