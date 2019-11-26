@@ -1444,8 +1444,8 @@ public class WMSController extends AbstractSecureController{
         }
 
         String[] boundingBoxFqs = new String[2];
-        boundingBoxFqs[0] = String.format("longitude:[%f TO %f]", bbox[0], bbox[2]);
-        boundingBoxFqs[1] = String.format("latitude:[%f TO %f]", bbox[1], bbox[3]);
+        boundingBoxFqs[0] = String.format(Locale.ROOT, "longitude:[%f TO %f]", bbox[0], bbox[2]);
+        boundingBoxFqs[1] = String.format(Locale.ROOT, "latitude:[%f TO %f]", bbox[1], bbox[3]);
 
         int pointWidth = vars.size * 2;
         double width_mult = (width / (pbbox[2] - pbbox[0]));
