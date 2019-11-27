@@ -51,6 +51,7 @@ public class PersistentQueueDAOTest {
             }
         };
         queueDAO.init();
+        DownloadService.downloadShpEnabled = true;
     }
 
     @After
