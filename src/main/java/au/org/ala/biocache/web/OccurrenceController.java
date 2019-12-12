@@ -25,6 +25,7 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.model.FullRecord;
 import au.org.ala.biocache.model.QualityAssertion;
+import au.org.ala.biocache.parser.ProcessedValue;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.service.ImageMetadataService;
@@ -95,6 +96,8 @@ public class OccurrenceController extends AbstractSecureController {
     protected AuthService authService;
     @Inject
     protected ContactUtils contactUtils;
+    @Inject
+    protected OccurrenceUtils occurrenceUtils;
     @Inject
     protected AssertionUtils assertionUtils;
     @Inject
@@ -346,7 +349,7 @@ public class OccurrenceController extends AbstractSecureController {
             @RequestParam(value="isDwc", required=false) Boolean isDwc) throws Exception {
 
         Set<IndexFieldDTO> result;
-        if(fields == null) {
+        if (fields == null) {
             result = searchDAO.getIndexedFields();
         } else {
             result = searchDAO.getIndexFieldDetails(fields.split(","));
@@ -1286,11 +1289,12 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping(value = {"/occurrence/compare/{uuid}.json", "/occurrence/compare/{uuid}"}, method = RequestMethod.GET)
-    public @ResponseBody Object showOccurrence(@PathVariable("uuid") String uuid){
-        Map values = OccurrenceUtils.getComparisonByUuid(uuid);
+    public @ResponseBody Object showOccurrence(@PathVariable("uuid") String uuid) throws Exception {
+
+        Map values = occurrenceUtils.getComparisonByUuid(uuid);
         if(values.isEmpty()) {
             // Try again, better the second time around?
-            values = OccurrenceUtils.getComparisonByUuid(uuid);
+            values = occurrenceUtils.getComparisonByUuid(uuid);
         }
         //substitute the values for recordedBy if it is an authenticated user
         if(values.containsKey("Occurrence")){
@@ -1300,9 +1304,9 @@ public class OccurrenceController extends AbstractSecureController {
             for(au.org.ala.biocache.parser.ProcessedValue pv : compareList){
                 if(pv.getName().equals("recordedBy")){
                     logger.info(pv);
-                    String raw = authService.substituteEmailAddress(pv.getRaw());
-                    String processed = authService.substituteEmailAddress(pv.getProcessed());
-                    au.org.ala.biocache.parser.ProcessedValue newpv = new au.org.ala.biocache.parser.ProcessedValue("recordedBy", raw, processed);
+                    String raw2 = authService.substituteEmailAddress(pv.getRaw());
+                    String processed2 = authService.substituteEmailAddress(pv.getProcessed());
+                    au.org.ala.biocache.parser.ProcessedValue newpv = new au.org.ala.biocache.parser.ProcessedValue("recordedBy", raw2, processed2);
                     newList.add(newpv);
                 } else {
                     newList.add(pv);
@@ -1319,7 +1323,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      */
     @RequestMapping(value = {"/occurrence/compare*"}, method = RequestMethod.GET)
-    public @ResponseBody Object compareOccurrenceVersions(@RequestParam(value = "uuid", required = true) String uuid){
+    public @ResponseBody Object compareOccurrenceVersions(@RequestParam(value = "uuid", required = true) String uuid) throws Exception {
         return showOccurrence(uuid);
     }
     
@@ -1530,37 +1534,12 @@ public class OccurrenceController extends AbstractSecureController {
 
             return result;
         } else {
-            FullRecord[] fullRecord = OccurrenceUtils.getAllVersionsByUuid(uuid, includeSensitive);
-            if (fullRecord == null) {
-                //get the rowKey for the supplied uuid in the index
-                //This is a workaround.  There seems to be an issue on Cassandra with retrieving uuids that start with e or f
-                SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
-                srp.setQ("id:" + uuid);
-                srp.setPageSize(1);
-                srp.setFacets(new String[]{});
-                SearchResultDTO results = occurrenceSearch(srp);
-                if (results.getTotalRecords() > 0) {
-                    fullRecord = OccurrenceUtils.getAllVersionsByUuid(results.getOccurrences().get(0).getUuid(), includeSensitive);
-                }
-            }
 
-            if (fullRecord == null) {
-                //check to see if we have an occurrence id
-                SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
-                srp.setQ("occurrence_id:" + uuid);
-                SearchResultDTO result = occurrenceSearch(srp);
-                if (result.getTotalRecords() > 1)
-                    return result;
-                else if (result.getTotalRecords() == 0)
-                    return new OccurrenceDTO();
-                else
-                    fullRecord = OccurrenceUtils.getAllVersionsByUuid(result.getOccurrences().get(0).getUuid(), includeSensitive);
-            }
+            FullRecord[] fullRecord = occurrenceUtils.getAllVersionsByUuid(uuid, false);
 
             OccurrenceDTO occ = new OccurrenceDTO(fullRecord);
             // now update the values required for the authService
             if (fullRecord != null) {
-                //TODO - move this logic to service layer
                 //raw record may need recordedBy to be changed
                 //NC 2013-06-26: The substitution was removed in favour of email obscuring due to numeric id's being used for non-ALA data resources
                 fullRecord[0].getOccurrence().setRecordedBy(authService.substituteEmailAddress(fullRecord[0].getOccurrence().getRecordedBy()));

@@ -229,7 +229,7 @@ public class ExploreController {
             @PathVariable(value="group") String group) throws Exception{
         addGroupFilterToQuery(requestParams, group);
         requestParams.setPageSize(0);
-        requestParams.setFacets(new String[]{"taxon_name"});
+            requestParams.setFacets(new String[]{"taxon_name"});
         requestParams.setFlimit(-1);
         SearchResultDTO results = searchDao.findByFulltextSpatialQuery(requestParams, null);
         Integer speciesCount = 0;

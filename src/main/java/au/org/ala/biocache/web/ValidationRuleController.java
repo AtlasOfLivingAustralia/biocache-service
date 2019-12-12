@@ -239,19 +239,20 @@ public class ValidationRuleController extends AbstractSecureController {
     public @ResponseBody ValidationRule[] getValidationRules(
             @PathVariable(value="recordUuid") String recordUuid,
             HttpServletResponse response) {
-        ValidationRule[] result = null;
-        try {
-            result = assertionUtils.getQueryAssertions(recordUuid);
-            if(result == null) {
-                response.sendError(HttpServletResponse.SC_NOT_FOUND, "No record found for " + recordUuid);
-            }
-        } catch (Exception e) {
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error requesting query assertions for record" + recordUuid);
-            logger.error("Error requesting query assertions for  record" + recordUuid, e);
-        }
-        finally {
-            return result;
-        }
+//        ValidationRule[] result = null;
+//        try {
+//            result = assertionUtils.getQueryAssertions(recordUuid);
+//            if(result == null) {
+//                response.sendError(HttpServletResponse.SC_NOT_FOUND, "No record found for " + recordUuid);
+//            }
+//        } catch (Exception e) {
+//            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error requesting query assertions for record" + recordUuid);
+//            logger.error("Error requesting query assertions for  record" + recordUuid, e);
+//        }
+//        finally {
+//            return result;
+//        }
+        return new ValidationRule[0];
     }
 
     public void setAssertionUtils(AssertionUtils assertionUtils) {

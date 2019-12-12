@@ -34,6 +34,8 @@ public class AssertionUtils {
     protected AuthService authService;
     @Inject
     protected ContactUtils contactUtils;
+    @Inject
+    protected OccurrenceUtils occurrenceUtils;
 
     /**
      * Retrieve the user assertions adding additional metadata about users
@@ -42,14 +44,14 @@ public class AssertionUtils {
      * @param recordUuid
      * @return quality assertions
      */
-    public List<QualityAssertion> getUserAssertions(String recordUuid) {
-        FullRecord[] fr = OccurrenceUtils.getAllVersionsByUuid(recordUuid, false);
+    public List<QualityAssertion> getUserAssertions(String recordUuid) throws Exception {
+        FullRecord[] fr = occurrenceUtils.getAllVersionsByUuid(recordUuid, false);
         OccurrenceDTO occ = new OccurrenceDTO(fr);
         return getUserAssertions(occ);
     }
 
-    public ValidationRule[] getQueryAssertions(String recordUuid) {
-        FullRecord[] fr = OccurrenceUtils.getAllVersionsByUuid(recordUuid, false);
+    public ValidationRule[] getQueryAssertions(String recordUuid) throws Exception {
+        FullRecord[] fr = occurrenceUtils.getAllVersionsByUuid(recordUuid, false);
 
         if(fr == null) {
             return null;
@@ -122,8 +124,8 @@ public class AssertionUtils {
         return ua;
     }
 
-    public QualityAssertion enhanceQA(String recordUuid, QualityAssertion ua) {
-        FullRecord[] fr = OccurrenceUtils.getAllVersionsByUuid(recordUuid, false);
+    public QualityAssertion enhanceQA(String recordUuid, QualityAssertion ua) throws Exception {
+        FullRecord[] fr = occurrenceUtils.getAllVersionsByUuid(recordUuid, false);
         OccurrenceDTO occ = new OccurrenceDTO(fr);
         String email = ua.getUserEmail();
         ContactDTO contact = contactUtils.getContactForEmailAndUid(email, occ.getProcessed().getAttribution().getCollectionUid());
@@ -135,7 +137,7 @@ public class AssertionUtils {
         return ua;
     }
 
-    public QualityAssertion getUserAssertion(String recordUuid, String assertionUuid){
+    public QualityAssertion getUserAssertion(String recordUuid, String assertionUuid) throws Exception {
         QualityAssertion qa = Store.getUserAssertion(recordUuid,assertionUuid);
         return enhanceQA(recordUuid, qa);
     }

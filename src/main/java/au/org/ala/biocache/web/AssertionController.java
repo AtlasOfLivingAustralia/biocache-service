@@ -38,6 +38,7 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.net.HttpURLConnection;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -316,7 +317,7 @@ public class AssertionController extends AbstractSecureController {
     public @ResponseBody QualityAssertion getAssertion(
         @PathVariable(value="recordUuid") String recordUuid,
         @PathVariable(value="assertionUuid") String assertionUuid,
-        HttpServletResponse response) {
+        HttpServletResponse response) throws Exception {
         QualityAssertion qa = assertionUtils.getUserAssertion(recordUuid, assertionUuid);
         if(qa != null){
             return qa;
@@ -334,13 +335,15 @@ public class AssertionController extends AbstractSecureController {
         @PathVariable(value="recordUuid") String recordUuid,
         HttpServletResponse response
     ) throws Exception {
-        List<QualityAssertion> assertions =  assertionUtils.getUserAssertions(recordUuid);
-        if (assertions == null){
-            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Unrecognised record with ID: " + recordUuid);
-            return null;
-        } else {
-            return assertions;
-        }
+
+        return new ArrayList<QualityAssertion>();
+//        List<QualityAssertion> assertions =  assertionUtils.getUserAssertions(recordUuid);
+//        if (assertions == null){
+//            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Unrecognised record with ID: " + recordUuid);
+//            return null;
+//        } else {
+//            return assertions;
+//        }
     }
 
     public void setAssertionUtils(AssertionUtils assertionUtils) {

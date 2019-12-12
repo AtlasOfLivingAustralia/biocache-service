@@ -83,6 +83,10 @@
                     <groupId>com.thoughtworks.xstream</groupId>
                     <artifactId>xstream</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>com.thoughtworks.xstream</groupId>
+                    <artifactId>xstream</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <!-- Reusing interfaces from layers-store -->
