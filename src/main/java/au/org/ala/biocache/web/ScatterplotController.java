@@ -14,6 +14,7 @@ import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.data.xy.DefaultXYDataset;
 import org.jfree.ui.RectangleEdge;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -46,7 +47,8 @@ public class ScatterplotController {
 
     private static Logger logger = Logger.getLogger(ScatterplotController.class);
 
-    private final static int PAGE_SIZE = 100000000;
+    @Value("${scatterplot.query.page.size:100000000}")
+    private int pageSize = 100000000;
     private final static String DEFAULT_SCATTERPLOT_TITLE = " ";
     private final static String DEFAULT_SCATTERPLOT_HEIGHT = "256";
     private final static String DEFAULT_SCATTERPLOT_WIDTH = "256";
@@ -187,7 +189,7 @@ public class ScatterplotController {
         }
 
         //get data
-        requestParams.setPageSize(PAGE_SIZE);
+        requestParams.setPageSize(pageSize);
         requestParams.setFl(x + "," + y);
         SolrDocumentList sdl = searchDAO.findByFulltext(requestParams);
         int size = sdl.size();
