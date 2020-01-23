@@ -167,12 +167,6 @@ public class WMSController extends AbstractSecureController{
     protected String limitToFocusValue;
 
     /**
-     * Limit WKT complexity to reduce index query time for qids.
-     */
-    @Value("${qid.wkt.maxPoints:5000}")
-    private int maxWktPoints;
-
-    /**
      * Threshold for caching a whole PointType for a query or only caching the current bounding box.
      */
     @Value("${wms.cache.maxLayerPoints:100000}")
@@ -266,7 +260,7 @@ public class WMSController extends AbstractSecureController{
             if(StringUtils.isEmpty(requestParams.getWkt())){
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unable to generate QID for query");
             } else {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "WKT provided has more than " + maxWktPoints + " points and failed to be simplified.");
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "WKT provided failed to be simplified.");
             }
         } else {
             response.setContentType("text/plain");
@@ -1444,8 +1438,8 @@ public class WMSController extends AbstractSecureController{
         }
 
         String[] boundingBoxFqs = new String[2];
-        boundingBoxFqs[0] = String.format("longitude:[%f TO %f]", bbox[0], bbox[2]);
-        boundingBoxFqs[1] = String.format("latitude:[%f TO %f]", bbox[1], bbox[3]);
+        boundingBoxFqs[0] = String.format(Locale.ROOT, "longitude:[%f TO %f]", bbox[0], bbox[2]);
+        boundingBoxFqs[1] = String.format(Locale.ROOT, "latitude:[%f TO %f]", bbox[1], bbox[3]);
 
         int pointWidth = vars.size * 2;
         double width_mult = (width / (pbbox[2] - pbbox[0]));

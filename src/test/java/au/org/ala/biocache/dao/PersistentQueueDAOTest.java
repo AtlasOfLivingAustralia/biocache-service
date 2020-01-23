@@ -3,6 +3,7 @@ package au.org.ala.biocache.dao;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
+import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.dto.FacetThemes;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
@@ -51,6 +52,7 @@ public class PersistentQueueDAOTest {
             }
         };
         queueDAO.init();
+        DownloadService.downloadShpEnabled = true;
     }
 
     @After
