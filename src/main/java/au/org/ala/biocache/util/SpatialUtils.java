@@ -1,5 +1,6 @@
 package au.org.ala.biocache.util;
 
+import au.org.ala.biocache.config.AppConfig;
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryCollection;
@@ -7,6 +8,8 @@ import com.vividsolutions.jts.io.WKTReader;
 import com.vividsolutions.jts.simplify.TopologyPreservingSimplifier;
 import org.apache.log4j.Logger;
 import org.geotools.geometry.jts.JTS;
+
+import javax.inject.Inject;
 
 /**
  * Supplies spatial utilities that can be used for the geospatial seaches
@@ -260,10 +263,11 @@ public class SpatialUtils {
 
             double distance = 0.0001;
             while (maxPoints > 0 && g.getNumPoints() > maxPoints && distance < 10) {
-                Geometry gsimplified = TopologyPreservingSimplifier.simplify(g, distance);
+                g = TopologyPreservingSimplifier.simplify(g, distance);
+                logger.debug("Simplified geometry to "+g.getNumPoints()+" at distance "+distance);
                 distance *= 2;
 
-                smallerGeometry = gsimplified;
+                smallerGeometry = g;
             }
         } catch (Exception e) {
             logger.error("WKT reduction failed: " + e.getMessage());
