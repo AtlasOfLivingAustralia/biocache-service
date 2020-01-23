@@ -243,33 +243,54 @@ public class SpatialUtils {
      * <p/>
      * TODO: do something with invalid WKT
      *
-     * @param wkt
-     * @param maxPoints
-     * @return WKT that has fewer than maxPoints or null
+     * @param wkt The WKT to simplify, represented as a string
+     * @param maxPoints Set to 0 to disable simplification
+     * @return WKT that has less than or equal to maxPoints or null
      */
     public static String simplifyWkt(String wkt, int maxPoints) {
+        final double distanceFactor = 2.0;
+        final double distanceInitialPrecision = 0.0001;
+        final double distanceMaxPrecision = 10.0;
+        return simplifyWkt(wkt, maxPoints, distanceFactor, distanceInitialPrecision, distanceMaxPrecision);
+    }
+    
+    public static String simplifyWkt(final String wkt, final int maxPoints, final double distanceFactor, final double distanceInitialPrecision, final double distanceMaxPrecision) {
         WKTReader r = new WKTReader();
-        Geometry smallerGeometry = null;
 
         try {
             Geometry g = r.read(wkt);
 
-            if (g.getNumPoints() < maxPoints) {
+            if (maxPoints <= 0 || g.getNumPoints() <= maxPoints) {
                 return wkt;
             }
 
-            double distance = 0.0001;
-            while (maxPoints > 0 && g.getNumPoints() > maxPoints && distance < 10) {
+            double distance = distanceInitialPrecision;
+            while (distance < distanceMaxPrecision) {
                 g = TopologyPreservingSimplifier.simplify(g, distance);
-                logger.debug("Simplified geometry to "+g.getNumPoints()+" at distance "+distance);
-                distance *= 2;
 
-                smallerGeometry = g;
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Simplified geometry to " + g.getNumPoints() + " at distance precision " + distance);
+                }
+                
+                distance *= distanceFactor;
+
+                if (g.getNumPoints() <= maxPoints) {
+                    return g.toText();
+                }
             }
+
+            logger.warn(
+                    "WKT simplification failed to achieve the required precision: " +
+                            " finalNumberOfPoints=" + g.getNumPoints() +
+                            " maxPoints=" + maxPoints + 
+                            " distanceFactor=" + distanceFactor +
+                            " distanceInitialPrecision=" + distanceInitialPrecision + 
+                            " distanceMaxPrecision=" + distanceMaxPrecision);
         } catch (Exception e) {
-            logger.error("WKT reduction failed: " + e.getMessage());
+            logger.error("WKT reduction failed due to an exception: " + e.getMessage());
         }
-        return smallerGeometry == null ? null : smallerGeometry.toText();
+        // An exception occurred or we were unable to reduce it. In both cases, we return null as part of our contract
+        return null;
     }
 
 }
