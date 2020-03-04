@@ -29,6 +29,9 @@ import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.StringRequestEntity;
 import org.apache.log4j.Logger;
+import org.gbif.api.vocabulary.InterpretationRemarkSeverity;
+import org.gbif.api.vocabulary.NameUsageIssue;
+import org.gbif.api.vocabulary.OccurrenceIssue;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Controller;
@@ -69,27 +72,27 @@ public class AssertionController extends AbstractSecureController {
      */
     @RequestMapping(value = {"/assertions/codes", "/assertions/codes/"}, method = RequestMethod.GET)
     public @ResponseBody ErrorCode[] showCodes() throws Exception {
-        return applyi18n(Store.retrieveAssertionCodes());
+        return applyi18n(OccurrenceIssue.values());
     }
 
     @RequestMapping(value = {"/assertions/geospatial/codes", "/assertions/geospatial/codes/"}, method = RequestMethod.GET)
     public @ResponseBody ErrorCode[] showGeospatialCodes() throws Exception {
-        return applyi18n(Store.retrieveGeospatialCodes());
+        return applyi18n(OccurrenceIssue.values());
     }
 
     @RequestMapping(value = {"/assertions/taxonomic/codes", "/assertions/taxonomic/codes/"}, method = RequestMethod.GET)
     public @ResponseBody ErrorCode[] showTaxonomicCodes() throws Exception {
-        return applyi18n(Store.retrieveTaxonomicCodes());
+        return applyi18n(NameUsageIssue.values());
     }
 
     @RequestMapping(value = {"/assertions/temporal/codes", "/assertions/temporal/codes/"}, method = RequestMethod.GET)
     public @ResponseBody ErrorCode[] showTemporalCodes() throws Exception {
-        return applyi18n(Store.retrieveTemporalCodes());
+        return applyi18n(OccurrenceIssue.values());
     }
 
     @RequestMapping(value = {"/assertions/miscellaneous/codes", "/assertions/miscellaneous/codes/"}, method = RequestMethod.GET)
     public @ResponseBody ErrorCode[] showMiscellaneousCodes() throws Exception {
-        return applyi18n(Store.retrieveMiscellaneousCodes());
+        return applyi18n(OccurrenceIssue.values());
     }
 
     @RequestMapping(value = {"/assertions/user/codes", "/assertions/user/codes/"}, method = RequestMethod.GET)
@@ -358,6 +361,34 @@ public class AssertionController extends AbstractSecureController {
                     errorCodes[i].getIsFatal(),
                     messageSource.getMessage(errorCodes[i].getName(), null, errorCodes[i].getDescription(), null),
                     errorCodes[i].getCategory());
+        }
+        return formattedErrorCodes;
+    }
+
+    private ErrorCode[] applyi18n(NameUsageIssue[] nameUsageIssues) {
+        //use i18n descriptions
+        ErrorCode[] formattedErrorCodes = new ErrorCode[nameUsageIssues.length];
+        for (int i = 0; i < nameUsageIssues.length; i++) {
+            formattedErrorCodes[i] = new ErrorCode(
+                    nameUsageIssues[i].name(),
+                    nameUsageIssues[i].ordinal(),
+                    nameUsageIssues[i].getSeverity().equals(InterpretationRemarkSeverity.ERROR),
+                    messageSource.getMessage(nameUsageIssues[i].name(), null, nameUsageIssues[i].name(), null),
+                    "taxonomic");
+        }
+        return formattedErrorCodes;
+    }
+
+    private ErrorCode[] applyi18n(OccurrenceIssue[] occurrenceIssues) {
+        //use i18n descriptions
+        ErrorCode[] formattedErrorCodes = new ErrorCode[occurrenceIssues.length];
+        for (int i = 0; i < occurrenceIssues.length; i++) {
+            formattedErrorCodes[i] = new ErrorCode(
+                    occurrenceIssues[i].name(),
+                    occurrenceIssues[i].ordinal(),
+                    occurrenceIssues[i].getSeverity().equals(InterpretationRemarkSeverity.ERROR),
+                    messageSource.getMessage(occurrenceIssues[i].name(), null, occurrenceIssues[i].name(), null),
+                    "geospatial");
         }
         return formattedErrorCodes;
     }

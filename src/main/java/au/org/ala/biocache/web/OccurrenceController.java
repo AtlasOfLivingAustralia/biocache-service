@@ -1535,33 +1535,30 @@ public class OccurrenceController extends AbstractSecureController {
             return result;
         } else {
 
-            FullRecord[] fullRecord = occurrenceUtils.getAllVersionsByUuid(uuid, false);
+            OccurrenceDTO occ = occurrenceUtils.getOcc(uuid);
 
-            OccurrenceDTO occ = new OccurrenceDTO(fullRecord);
             // now update the values required for the authService
-            if (fullRecord != null) {
+            if (occ !=null && occ.getRaw() != null) {
                 //raw record may need recordedBy to be changed
                 //NC 2013-06-26: The substitution was removed in favour of email obscuring due to numeric id's being used for non-ALA data resources
-                fullRecord[0].getOccurrence().setRecordedBy(authService.substituteEmailAddress(fullRecord[0].getOccurrence().getRecordedBy()));
+                occ.getRaw().getOccurrence().setRecordedBy(authService.substituteEmailAddress(occ.getRaw().getOccurrence().getRecordedBy()));
                 //processed record may need recordedBy modified in case it was an email address.
-                fullRecord[1].getOccurrence().setRecordedBy(authService.substituteEmailAddress(fullRecord[1].getOccurrence().getRecordedBy()));
+                occ.getProcessed().getOccurrence().setRecordedBy(authService.substituteEmailAddress(occ.getProcessed().getOccurrence().getRecordedBy()));
                 //hide the email addresses in the raw miscProperties
-                Map<String, String> miscProps = fullRecord[0].miscProperties();
+                Map<String, String> miscProps = occ.getRaw().miscProperties();
                 for (Map.Entry<String, String> entry : miscProps.entrySet()) {
                     if (entry.getValue().contains("@"))
                         entry.setValue(authService.substituteEmailAddress(entry.getValue()));
                 }
                 //if the raw record contains a userId we will need to include the alaUserName in the DTO
-                if (fullRecord[0].getOccurrence().getUserId() != null) {
-                    occ.setAlaUserName(authService.getDisplayNameFor(fullRecord[0].getOccurrence().getUserId()));
-                } else if (fullRecord[1].getOccurrence().getUserId() != null) {
-                    occ.setAlaUserName(authService.getDisplayNameFor(fullRecord[1].getOccurrence().getUserId()));
+                if (occ.getRaw().getOccurrence().getUserId() != null) {
+                    occ.setAlaUserName(authService.getDisplayNameFor(occ.getRaw().getOccurrence().getUserId()));
+                } else if (occ.getProcessed().getOccurrence().getUserId() != null) {
+                    occ.setAlaUserName(authService.getDisplayNameFor(occ.getProcessed().getOccurrence().getUserId()));
                 }
             }
 
             //assertions are based on the row key not uuid
-            occ.setSystemAssertions(Store.getAllSystemAssertions(occ.getRaw().getRowKey()));
-
             occ.setUserAssertions(assertionUtils.getUserAssertions(occ));
 
             //retrieve details of the media files
