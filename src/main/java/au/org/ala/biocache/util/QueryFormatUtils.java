@@ -106,7 +106,7 @@ public class QueryFormatUtils {
         this.maxBooleanClauses = maxBooleanClauses;
     }
 
-    public Map<String, Facet> formatSearchQuery(SpatialSearchRequestParams searchParams) {
+    public Map[] formatSearchQuery(SpatialSearchRequestParams searchParams) {
         return formatSearchQuery(searchParams, false);
     }
 
@@ -120,8 +120,11 @@ public class QueryFormatUtils {
      * @return
      */
 //    @Cacheable(cacheName = "formatSearchQuery")
-    public Map<String, Facet> formatSearchQuery(SpatialSearchRequestParams searchParams, boolean forceQueryFormat) {
+    public Map[] formatSearchQuery(SpatialSearchRequestParams searchParams, boolean forceQueryFormat) {
         Map<String, Facet> activeFacetMap = new HashMap();
+        Map<String, List<Facet>> activeFacetObj = new HashMap<>();
+        Map[] fqMaps = {activeFacetMap, activeFacetObj};
+
         //Only format the query if it doesn't already supply a formattedQuery.
         if (forceQueryFormat || StringUtils.isEmpty(searchParams.getFormattedQuery())) {
             String [] originalFqs = searchParams.getFq();
@@ -139,7 +142,17 @@ public class QueryFormatUtils {
                     String fq = searchParams.getFq()[i];
 
                     if (fq != null && fq.length() > 0) {
-                        formatted = formatQueryTerm(fq, searchParams);
+                        // formatQueryTerm can correctly format fq=(month:"01" OR month:"02" OR month:"03") or whatever inclusive combination.
+                        // but failed on fq=-(month:"01" OR month:"02" OR month:"03") or whatever exclusive combination.
+                        // above fq is formatted to "-(month:'01' OR Month:'February' OR Month:'March')
+                        //
+                        // Instead of fixing the complicated algorithm, it can be fixed simply by translating everything inside the () and append '-'
+                        if (fq.startsWith("-(") && fq.endsWith(")")) {
+                            formatted = formatQueryTerm(fq.substring(1), searchParams);
+                            formatted[0] = "-" + formatted[0];
+                        } else {
+                            formatted = formatQueryTerm(fq, searchParams);
+                        }
 
                         if (StringUtils.isNotEmpty(formatted[1])) {
                             addFormattedFq(new String[]{formatted[1]}, searchParams);
@@ -156,6 +169,19 @@ public class QueryFormatUtils {
                                 facet.setValue(fq.substring(fv[0].length() + 1));
                             }
                             activeFacetMap.put(facet.getName(), facet);
+
+                            // activeFacetMap is based on the assumption that each fq is on different key so its a [StringKey: Facet] structure
+                            // but actually different fqs can use same key for example &fq=-month:'11'&fq=-month='12' so we added a new map
+                            // activeFacetObj which is [StringKey: List<Facet>]
+                            fv = parseFQ(fq);
+                            if (fv != null) {
+                                String fqName = fv[0]; // fqName is the filter key, that part before :
+                                Facet fct = new Facet(fqName, formatted[0]); // display name is the formatted name, for example '11' to 'November'
+                                fct.setValue(fq); // value in activeFacetMap is the part with key replaced by '', but here is the original fq because front end will need it
+                                List<Facet> valList = activeFacetObj.getOrDefault(fqName, new ArrayList<>());
+                                valList.add(fct);
+                                activeFacetObj.put(fqName, valList);
+                            }
                         }
                     }
                 }
@@ -173,7 +199,47 @@ public class QueryFormatUtils {
 
         updateQueryContext(searchParams);
 
-        return activeFacetMap;
+        return fqMaps;
+    }
+
+    /**
+     * To split a fq into key and value
+     *
+     * This method assumes fq is in one of below format
+     * fq = key:val or fq = -key:val
+     * fq = (key:val) or fq = (-key:val)
+     * fq = -(key:val) or fq = -(-key:val)
+     * fq = key:val1 OR key:val2 or fq = -key:val1 OR -key:val2
+     * fq = (key:val1 OR key:val2) or fq = (-key:val1 OR -key:val2)
+     * fq = -(key:val1 OR key:val2) or fq = -(-key:val1 OR -key:val2)
+     *
+     * inclusive and exclusive keys can't co-exist in one fq
+     */
+    private String[] parseFQ(String fq) {
+        if (StringUtils.isNotEmpty(fq)) {
+            boolean globalInclusive = true;
+
+            // if () or -()
+            if (fq.indexOf('(') != -1) {
+                if (fq.charAt(0) == '-') {
+                    globalInclusive = false;
+                }
+                fq = fq.substring(fq.indexOf('(') + 1, fq.length() - 1);
+            }
+
+            // now () is removed, either key:val or key:val OR key:val
+            String[] fv = fq.split(":");
+            if (fv.length >= 2 && StringUtils.isNotBlank(fv[0]) && StringUtils.isNotBlank(fv[1])) {
+                boolean localInclusive = fv[0].charAt(0) != '-';
+                String key = localInclusive ? fv[0] : fv[0].substring(1);
+
+                String calculatedKey = globalInclusive ^ localInclusive ? "-" + key : key;
+                String values = fq.replace(fv[0] + ":", "");
+                return new String[]{calculatedKey, values};
+            }
+        }
+
+        return null;
     }
 
     public void addFqs(String [] fqs, SpatialSearchRequestParams searchParams) {
