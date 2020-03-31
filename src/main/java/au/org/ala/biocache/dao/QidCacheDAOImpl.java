@@ -31,6 +31,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.regex.Matcher;
 
@@ -43,28 +44,68 @@ import java.util.regex.Matcher;
 public class QidCacheDAOImpl implements QidCacheDAO {
 
     private final Logger logger = Logger.getLogger(QidCacheDAOImpl.class);
-    //max size of cached params in bytes
+    
+    /**
+     * max size of cached params in bytes
+     */
     @Value("${qid.cache.size.max:104857600}")
     long maxCacheSize;
-    //min size of cached params in bytes
+    
+    /**
+     * min size of cached params in bytes
+     */
     @Value("${qid.cache.size.min:52428800}")
     long minCacheSize;
-    //max single cacheable object size
+    
+    /**
+     * max single cacheable object size
+     */
     @Value("${qid.cache.largestCacheableSize:5242880}")
     long largestCacheableSize;
+    
     /**
      * Limit WKT complexity to reduce index query time for qids.
      */
     @Value("${qid.wkt.maxPoints:5000}")
     private int maxWktPoints;
-    //in memory store of params
-    private ConcurrentHashMap<String, Qid> cache = new ConcurrentHashMap<String, Qid>();
-    //counter and lock
+
+    /**
+     * The simplification factor used to iteratively reduce WKT complexity to reduce index query time for qids between the initial and maximum precisions
+     */
+    @Value("${qid.wkt.simplification.factor:2.0}")
+    private double wktSimplificationFactor;
+
+    /**
+     * The initial distance precision value to attempt when reducing WKT complexity to reduce index query time for qids.
+     */
+    @Value("${qid.wkt.simplification.initialprecision:0.0001}")
+    private double wktSimplificationInitialPrecision;
+
+    /**
+     * The maximum distance precision value before giving up on iteratively reducing WKT complexity to reduce index query time for qids.
+     */
+    @Value("${qid.wkt.simplification.maxprecision:10.0}")
+    private double wktSimplificationMaxPrecision;
+
+    /**
+     * in memory store of params
+     */
+    private ConcurrentMap<String, Qid> cache = new ConcurrentHashMap<String, Qid>();
+    
+    /**
+     * counter and lock
+     */
     final private Object counterLock = new Object();
+
     private long cacheSize;
+    
     private CountDownLatch counter;
+    
     private long triggerCleanSize = minCacheSize + (maxCacheSize - minCacheSize) / 2;
-    //thread for cache size limitation
+    
+    /**
+     * thread for cache size limitation
+     */
     private Thread cacheCleaner;
 
     @Inject
@@ -441,6 +482,6 @@ public class QidCacheDAOImpl implements QidCacheDAO {
 
     @Cacheable(cacheName = "fixWkt")
     private String fixWkt(String wkt) {
-        return SpatialUtils.simplifyWkt(wkt, maxWktPoints);
+        return SpatialUtils.simplifyWkt(wkt, maxWktPoints, wktSimplificationFactor, wktSimplificationInitialPrecision, wktSimplificationMaxPrecision);
     }
 }
