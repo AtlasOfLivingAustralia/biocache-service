@@ -8,6 +8,8 @@ import au.org.ala.biocache.service.SpeciesLookupRestService;
 import au.org.ala.biocache.service.SpeciesLookupService;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.impl.CloudHttp2SolrClient;
+import org.apache.solr.client.solrj.impl.Http2SolrClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +18,9 @@ import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.web.client.RestOperations;
 
 import javax.inject.Inject;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * This class handles the switching between implementations of interfaces based on
@@ -113,18 +118,38 @@ public class AppConfig {
     public @Bean(name = "solrClient")
     SolrClient solrClientBean() {
 
-        SolrClient result;
-
-        SolrIndexDAO dao = (SolrIndexDAO) au.org.ala.biocache.Config
-                .getInstance(IndexDAO.class);
-        dao.init();
-        result = dao.solrServer();
-
-        if (logger.isDebugEnabled()) {
-            logger.debug("solrClient initialised, Type: " + result.getClass());
+        //TODO - this is experimental. Requires more configuration params for tuning timeouts etc
+        String solrHome = au.org.ala.biocache.Config.solrHome();
+        if (!solrHome.startsWith("http")) {
+            String[] zkHosts = solrHome.split(",");
+            List<String> hosts = new ArrayList<String>();
+            for (String zkHost: zkHosts){
+                hosts.add(zkHost.trim());
+            }
+            //HTTP2
+            CloudHttp2SolrClient.Builder builder = new CloudHttp2SolrClient.Builder(hosts, Optional.empty());
+            CloudHttp2SolrClient client = builder.build();
+            client.setDefaultCollection(au.org.ala.biocache.Config.solrCollection());
+            return client;
+        } else {
+            Http2SolrClient.Builder builder = new Http2SolrClient.Builder(au.org.ala.biocache.Config.solrHome());
+            builder.connectionTimeout(au.org.ala.biocache.Config.solrConnectionConnectTimeout());
+            builder.maxConnectionsPerHost(au.org.ala.biocache.Config.solrConnectionMaxPerRoute());
+            return builder.build();
         }
 
-        return result;
 
+//        SolrClient result;
+//
+//        SolrIndexDAO dao = (SolrIndexDAO) au.org.ala.biocache.Config
+//                .getInstance(IndexDAO.class);
+//        dao.init();
+//        result = dao.solrServer();
+//
+//        if (logger.isDebugEnabled()) {
+//            logger.debug("solrClient initialised, Type: " + result.getClass());
+//        }
+//
+//        return result;
     }
 }

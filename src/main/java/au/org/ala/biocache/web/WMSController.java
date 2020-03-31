@@ -1444,8 +1444,8 @@ public class WMSController extends AbstractSecureController{
         }
 
         String[] boundingBoxFqs = new String[2];
-        boundingBoxFqs[0] = String.format(Locale.ROOT, "longitude:[%f TO %f]", bbox[0], bbox[2]);
-        boundingBoxFqs[1] = String.format(Locale.ROOT, "latitude:[%f TO %f]", bbox[1], bbox[3]);
+        boundingBoxFqs[0] = String.format(Locale.ROOT, "decimalLongitude:[%f TO %f]", bbox[0], bbox[2]);
+        boundingBoxFqs[1] = String.format(Locale.ROOT, "decimalLatitude:[%f TO %f]", bbox[1], bbox[3]);
 
         int pointWidth = vars.size * 2;
         double width_mult = (width / (pbbox[2] - pbbox[0]));
@@ -1924,7 +1924,7 @@ public class WMSController extends AbstractSecureController{
             //uncertainty colour/fq/radius, [0]=map, [1]=not specified, [2]=too large
             Color[] uncertaintyColours = {new Color(255, 170, 0, vars.alpha), new Color(255, 255, 100, vars.alpha), new Color(50, 255, 50, vars.alpha)};
             //TODO: don't assume MAX_UNCERTAINTY > default_uncertainty
-            String[] uncertaintyFqs = {"coordinate_uncertainty:[" + min_uncertainty + " TO " + MAX_UNCERTAINTY + "] AND -assertions:uncertaintyNotSpecified", "assertions:uncertaintyNotSpecified", "coordinate_uncertainty:[" + MAX_UNCERTAINTY + " TO *]"};
+            String[] uncertaintyFqs = {"coordinateUncertaintyInMeters:[" + min_uncertainty + " TO " + MAX_UNCERTAINTY + "] AND -assertions:uncertaintyNotSpecified", "assertions:uncertaintyNotSpecified", "coordinateUncertaintyInMeters:[" + MAX_UNCERTAINTY + " TO *]"};
             double[] uncertaintyR = {-1, MAX_UNCERTAINTY, MAX_UNCERTAINTY};
 
             int originalFqsLength = originalFqs != null ? originalFqs.length : 0;
@@ -1936,8 +1936,8 @@ public class WMSController extends AbstractSecureController{
             }
 
             //expand bounding box to cover MAX_UNCERTAINTY radius (m to degrees)
-            fqs[1] = "longitude:[" + (bbox[0] - MAX_UNCERTAINTY / 100000.0) + " TO " + (bbox[2] + MAX_UNCERTAINTY / 100000.0) + "]";
-            fqs[2] = "latitude:[" + (bbox[1] - MAX_UNCERTAINTY / 100000.0) + " TO " + (bbox[3] + MAX_UNCERTAINTY / 100000.0) + "]";
+            fqs[1] = "decimalLongitude:[" + (bbox[0] - MAX_UNCERTAINTY / 100000.0) + " TO " + (bbox[2] + MAX_UNCERTAINTY / 100000.0) + "]";
+            fqs[2] = "decimalLatitude:[" + (bbox[1] - MAX_UNCERTAINTY / 100000.0) + " TO " + (bbox[3] + MAX_UNCERTAINTY / 100000.0) + "]";
 
             requestParams.setPageSize(DEFAULT_PAGE_SIZE);
 
@@ -1950,8 +1950,8 @@ public class WMSController extends AbstractSecureController{
                 fqs[0] = uncertaintyFqs[j];
                 requestParams.setFq(fqs);
 
-                //There can be performance issues with pivot when too many distinct coordinate_uncertainty values
-                requestParams.setFacets(new String[]{"coordinate_uncertainty", pointType.getLabel()});
+                //There can be performance issues with pivot when too many distinct coordinateUncertaintyInMeters values
+                requestParams.setFacets(new String[]{"coordinateUncertaintyInMeters", pointType.getLabel()});
                 requestParams.setFlimit(-1);
                 requestParams.setFormattedQuery(null);
                 List<FacetPivotResultDTO> qr = searchDAO.searchPivot(requestParams);

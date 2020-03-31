@@ -1014,7 +1014,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             if (includeSensitive) {
                 //include raw latitude and longitudes
-                if (requestedFieldsParam.contains("decimalLatitude_p")) {
+                if (requestedFieldsParam.contains("decimalLatitude")) {
                     requestedFieldsParam = requestedFieldsParam.replaceFirst("decimalLatitude_p", "sensitive_latitude,sensitive_longitude,decimalLatitude_p");
                 } else if (requestedFieldsParam.contains("decimalLatitude")) {
                     requestedFieldsParam = requestedFieldsParam.replaceFirst("decimalLatitude", "sensitive_latitude,sensitive_longitude,decimalLatitude");
@@ -1568,8 +1568,8 @@ public class SearchDAOImpl implements SearchDAO {
                         points[i][0] = (double) sd.getFirstValue("sensitive_longitude");
                         points[i][1] = (double) sd.getFirstValue("sensitive_latitude");
                     } else if (sd.containsKey("longitude") && sd.containsKey("latitude")) {
-                        points[i][0] = (double) sd.getFirstValue("longitude");
-                        points[i][1] = (double) sd.getFirstValue("latitude");
+                        points[i][0] = (double) sd.getFirstValue("decimalLongitude");
+                        points[i][1] = (double) sd.getFirstValue("decimalLatitude");
                     } else {
                         points[i][0] = 0;
                         points[i][1] = 0;
@@ -4506,11 +4506,11 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public double[] getBBox(SpatialSearchRequestParams requestParams) throws Exception {
         double[] bbox = new double[4];
-        String[] sort = {"longitude", "latitude", "longitude", "latitude"};
+        String[] sort = {"decimalLongitude", "decimalLatitude", "decimalLongitude", "decimalLatitude"};
         String[] dir = {"asc", "asc", "desc", "desc"};
 
         //Filter for -180 +180 longitude and -90 +90 latitude to match WMS request bounds.
-        String [] bounds = new String[]{"longitude:[-180 TO 180]", "latitude:[-90 TO 90]"};
+        String [] bounds = new String[]{"decimalLongitude:[-180 TO 180]", "decimalLatitude:[-90 TO 90]"};
 
         queryFormatUtils.addFqs(bounds, requestParams);
 
