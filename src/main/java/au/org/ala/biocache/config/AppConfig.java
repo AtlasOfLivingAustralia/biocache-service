@@ -34,6 +34,9 @@ public class AppConfig {
     @Inject
     private AbstractMessageSource messageSource; // use for i18n of the headers
 
+    @Value("${solr.usehttp2:false}")
+    protected Boolean usehttp2;
+
     @Value("${name.index.dir:/data/lucene/namematching}")
     protected String nameIndexLocation;
 
@@ -118,38 +121,37 @@ public class AppConfig {
     public @Bean(name = "solrClient")
     SolrClient solrClientBean() {
 
-        //TODO - this is experimental. Requires more configuration params for tuning timeouts etc
-        String solrHome = au.org.ala.biocache.Config.solrHome();
-        if (!solrHome.startsWith("http")) {
-            String[] zkHosts = solrHome.split(",");
-            List<String> hosts = new ArrayList<String>();
-            for (String zkHost: zkHosts){
-                hosts.add(zkHost.trim());
+        if (usehttp2) {
+            //TODO - this is experimental. Requires more configuration params for tuning timeouts etc
+            String solrHome = au.org.ala.biocache.Config.solrHome();
+            if (!solrHome.startsWith("http")) {
+                String[] zkHosts = solrHome.split(",");
+                List<String> hosts = new ArrayList<String>();
+                for (String zkHost : zkHosts) {
+                    hosts.add(zkHost.trim());
+                }
+                //HTTP2
+                CloudHttp2SolrClient.Builder builder = new CloudHttp2SolrClient.Builder(hosts, Optional.empty());
+                CloudHttp2SolrClient client = builder.build();
+                client.setDefaultCollection(au.org.ala.biocache.Config.solrCollection());
+                return client;
+            } else {
+                Http2SolrClient.Builder builder = new Http2SolrClient.Builder(au.org.ala.biocache.Config.solrHome());
+                builder.connectionTimeout(au.org.ala.biocache.Config.solrConnectionConnectTimeout());
+                builder.maxConnectionsPerHost(au.org.ala.biocache.Config.solrConnectionMaxPerRoute());
+                return builder.build();
             }
-            //HTTP2
-            CloudHttp2SolrClient.Builder builder = new CloudHttp2SolrClient.Builder(hosts, Optional.empty());
-            CloudHttp2SolrClient client = builder.build();
-            client.setDefaultCollection(au.org.ala.biocache.Config.solrCollection());
-            return client;
         } else {
-            Http2SolrClient.Builder builder = new Http2SolrClient.Builder(au.org.ala.biocache.Config.solrHome());
-            builder.connectionTimeout(au.org.ala.biocache.Config.solrConnectionConnectTimeout());
-            builder.maxConnectionsPerHost(au.org.ala.biocache.Config.solrConnectionMaxPerRoute());
-            return builder.build();
+
+            SolrIndexDAO dao = (SolrIndexDAO) au.org.ala.biocache.Config.getInstance(IndexDAO.class);
+            dao.init();
+            SolrClient result = dao.solrServer();
+
+            if (logger.isDebugEnabled()) {
+                logger.debug("solrClient initialised, Type: " + result.getClass());
+            }
+
+            return result;
         }
-
-
-//        SolrClient result;
-//
-//        SolrIndexDAO dao = (SolrIndexDAO) au.org.ala.biocache.Config
-//                .getInstance(IndexDAO.class);
-//        dao.init();
-//        result = dao.solrServer();
-//
-//        if (logger.isDebugEnabled()) {
-//            logger.debug("solrClient initialised, Type: " + result.getClass());
-//        }
-//
-//        return result;
     }
 }
