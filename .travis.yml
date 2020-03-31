@@ -12,6 +12,7 @@ jdk:
 branches:
   only:
     - master
+    - experimental/pipelines
     - /^hotfix\/.*$/
 before_install:
   - docker-compose -f src/test/docker/solr7-cassandra3.yml up -d
