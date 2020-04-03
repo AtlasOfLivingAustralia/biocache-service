@@ -151,4 +151,24 @@ public class FilterQueryParserTest {
         assertTrue("got: " + month.getValue(), StringUtils.containsIgnoreCase(month.getValue(), "09 OR month:10 OR month:11"));
         assertTrue("got: " + month.getDisplayName(), StringUtils.containsIgnoreCase(month.getDisplayName(), "Month:September OR Month:October OR Month:November"));
     }
+
+    @Test
+    public void testFqFormat() {
+        SpatialSearchRequestParams query = new SpatialSearchRequestParams();
+        String[][] fqs = new String[][] {
+                {"-month:\"09\"", "-Month:\"September\""},
+                {"-(month:\"09\")", "-(Month:\"September\")"},
+                {"-(month:\"09\" OR month:\"10\")", "-(Month:\"September\" OR Month:\"October\")"},
+                {"month:\"09\"", "Month:\"September\""},
+                {"(month:\"09\")", "(Month:\"September\")"},
+                {"month:\"09\" OR month:\"10\"", "Month:\"September\" OR Month:\"October\""},
+                {"(month:\"09\" OR month:\"10\")", "(Month:\"September\" OR Month:\"October\")"}};
+
+        for (String[] fq : fqs) {
+            query.setFq(new String[] { fq[0] });
+            Map<String, Facet> facetMap = queryFormatUtils.formatSearchQuery(query, true);
+            assertTrue(facetMap != null && facetMap.size() == 1);
+            assertTrue(facetMap.get(facetMap.keySet().iterator().next()).getDisplayName().equals(fq[1]));
+        }
+    }
 }
