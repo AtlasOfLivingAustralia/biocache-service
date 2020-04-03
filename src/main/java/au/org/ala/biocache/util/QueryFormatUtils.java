@@ -809,7 +809,10 @@ public class QueryFormatUtils {
                 } else {
                     MatchResult mr = m.toMatchResult();
 
-                    if (matchedIndexTerm.startsWith("-")) {
+                    if (matchedIndexTerm.startsWith("-(")) {
+                        matchedIndexTerm = matchedIndexTerm.substring(2);
+                        formatted += "-(";
+                    } else if (matchedIndexTerm.startsWith("-")) {
                         matchedIndexTerm = matchedIndexTerm.substring(1);
                         formatted += "-";
                     }
