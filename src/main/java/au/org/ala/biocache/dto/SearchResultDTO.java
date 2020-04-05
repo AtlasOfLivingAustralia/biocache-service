@@ -60,7 +60,12 @@ public class SearchResultDTO {
      * Stores a map a facets that have been applied to the query.  This will include details that a
      * necessary to display on clients.
      */
-    private Map<String,Facet> activeFacetMap;
+    private Map<String, Facet> activeFacetMap;
+    /*
+     * Stores a map of facets that have been applied to the query. Since multiple fqs can be applied on same field
+     * like &fq=-month:"11"&fq=-month:"12", current implementation in activeFacetMap can't handle this.
+     */
+    private Map<String, List<Facet>> activeFacetObj;
 
     /**
      * Constructor with 2 args
@@ -212,4 +217,17 @@ public class SearchResultDTO {
         this.activeFacetMap = activeFacetMap;
     }
 
+    /**
+     * @return the activeFacetObj
+     */
+    public Map<String, List<Facet>> getActiveFacetObj() {
+        return activeFacetObj;
+    }
+
+    /**
+     * @param activeFacetObj the activeFacetObj to set
+     */
+    public void setActiveFacetObj(Map<String, List<Facet>> activeFacetObj) {
+        this.activeFacetObj = activeFacetObj;
+    }
 }
