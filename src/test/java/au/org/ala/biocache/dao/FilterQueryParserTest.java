@@ -10,7 +10,6 @@ import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.RangeBasedFacets;
 import au.org.ala.biocache.util.SearchUtils;
 import org.apache.commons.lang.StringUtils;
-import org.drools.core.rule.Collect;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -24,11 +23,7 @@ import org.springframework.context.support.ReloadableResourceBundleMessageSource
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.CollectionUtils;
 
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertNotNull;
@@ -160,8 +155,27 @@ public class FilterQueryParserTest {
     }
 
     @Test
-    public void testActiveFacetObj_validfq() {
+    public void testFqFormat() {
+        SpatialSearchRequestParams query = new SpatialSearchRequestParams();
+        String[][] fqs = new String[][] {
+                {"-month:\"09\"", "-Month:\"September\""},
+                {"-(month:\"09\")", "-(Month:\"September\")"},
+                {"-(month:\"09\" OR month:\"10\")", "-(Month:\"September\" OR Month:\"October\")"},
+                {"month:\"09\"", "Month:\"September\""},
+                {"(month:\"09\")", "(Month:\"September\")"},
+                {"month:\"09\" OR month:\"10\"", "Month:\"September\" OR Month:\"October\""},
+                {"(month:\"09\" OR month:\"10\")", "(Month:\"September\" OR Month:\"October\")"}};
 
+        for (String[] fq : fqs) {
+            query.setFq(new String[] { fq[0] });
+            Map<String, Facet> facetMap = queryFormatUtils.formatSearchQuery(query, true)[0];
+            assertTrue(facetMap != null && facetMap.size() == 1);
+            assertTrue(facetMap.get(facetMap.keySet().iterator().next()).getDisplayName().equals(fq[1]));
+        }
+    }
+
+    @Test
+    public void testActiveFacetObj_validfq() {
         // test valid fqs
         List<Facet> facetList = new ArrayList<>();
         facetList.add(new Facet("month", "Month:\"August\"", "month:\"08\""));
