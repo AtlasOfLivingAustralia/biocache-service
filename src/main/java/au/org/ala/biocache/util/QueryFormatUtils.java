@@ -206,6 +206,7 @@ public class QueryFormatUtils {
      * inclusive and exclusive keys can't co-exist in one fq
      */
     private String[] parseFQ(String fq) {
+        fq = StringUtils.trimToEmpty(fq);
         if (StringUtils.isNotEmpty(fq)) {
             boolean globalInclusive = true;
 

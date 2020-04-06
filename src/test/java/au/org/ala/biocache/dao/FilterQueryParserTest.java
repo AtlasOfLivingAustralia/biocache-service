@@ -24,7 +24,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.CollectionUtils;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -96,7 +98,8 @@ public class FilterQueryParserTest {
         CollectionUtils.mergeArrayIntoCollection("assertion_user_id,user_id,alau_user_id".split(","), set);
         SpatialSearchRequestParams query = new SpatialSearchRequestParams();
         query.setFq(fqs);
-        facetMap = queryFormatUtils.formatSearchQuery(query, true);
+        facetMap = queryFormatUtils.formatSearchQuery(query, true)[0];
+
     }
 
     @Test
@@ -153,22 +156,46 @@ public class FilterQueryParserTest {
     }
 
     @Test
-    public void testFqFormat() {
-        SpatialSearchRequestParams query = new SpatialSearchRequestParams();
-        String[][] fqs = new String[][] {
-                {"-month:\"09\"", "-Month:\"September\""},
-                {"-(month:\"09\")", "-(Month:\"September\")"},
-                {"-(month:\"09\" OR month:\"10\")", "-(Month:\"September\" OR Month:\"October\")"},
-                {"month:\"09\"", "Month:\"September\""},
-                {"(month:\"09\")", "(Month:\"September\")"},
-                {"month:\"09\" OR month:\"10\"", "Month:\"September\" OR Month:\"October\""},
-                {"(month:\"09\" OR month:\"10\")", "(Month:\"September\" OR Month:\"October\")"}};
+    public void testParsingActiveFacetObj() {
+        // test valid fqs
+        String[] fq = {"month:\"08\"", "-month:\"08\"", "(month:\"08\")", "(-month:\"08\")", "-(month:\"08\")", "-(-month:\"08\")",
+            "(month:\"08\" OR month:\"09\")", "(-month:\"08\" OR -month:\"09\")", "-(month:\"08\" OR month:\"09\")", "-(-month:\"08\" OR -month:\"09\")",
+            "month:\"08\" OR month:\"09\"", "-month:\"08\" OR -month:\"09\""};
 
-        for (String[] fq : fqs) {
-            query.setFq(new String[] { fq[0] });
-            Map<String, Facet> facetMap = queryFormatUtils.formatSearchQuery(query, true);
-            assertTrue(facetMap != null && facetMap.size() == 1);
-            assertTrue(facetMap.get(facetMap.keySet().iterator().next()).getDisplayName().equals(fq[1]));
+        Map<String, List<String>> expected = new HashMap<>();
+        expected.put("month", Arrays.asList("\"08\"","\"08\"", "\"08\"", "\"08\" OR \"09\"", "\"08\" OR \"09\"", "\"08\" OR \"09\""));
+        expected.put("-month", Arrays.asList("\"08\"","\"08\"", "\"08\"", "\"08\" OR \"09\"", "\"08\" OR \"09\"", "\"08\" OR \"09\""));
+
+        runFqParsingTest(fq, expected);
+
+        // test valid fqs
+        fq = new String[] {"-(month:\"11\" OR month:\"12\")", "-(month:\"09\" OR month:\"10\")", "-(month:\"07\" OR month:\"08\")", "month:\"02\"",
+            "(occurrence_decade_i:\"2010\" OR occurrence_decade_i:\"2000\" OR occurrence_decade_i:\"1990\" OR occurrence_decade_i:\"1980\")",
+            "(occurrence_decade_i:\"2010\" OR occurrence_decade_i:\"2000\")",
+            "occurrence_decade_i:\"2010\""
+        };
+        expected.clear();
+        expected.put("month", Arrays.asList("\"02\""));
+        expected.put("-month", Arrays.asList("\"11\" OR \"12\"", "\"09\" OR \"10\"", "\"07\" OR \"08\""));
+        expected.put("occurrence_decade_i", Arrays.asList("\"2010\" OR \"2000\" OR \"1990\" OR \"1980\"", "\"2010\" OR \"2000\"", "\"2010\""));
+
+        runFqParsingTest(fq, expected);
+
+        // test invalid fqs
+        fq = new String[] {null, "", " ", "month", "   month  ", "(month", "month)", "(month:\"11\"", "month:\"11\" )", "month\"11\"", ":\"11\"", "    :\"11\"", "(:\"11\")", "(    :\"11\")", "month:", "month:   ",  "(month:   )", "-(month:   )"};
+        expected.clear();
+        runFqParsingTest(fq, expected);
+    }
+
+    private void runFqParsingTest(String[] fq, Map<String, List<String>> expectedResult) {
+        SpatialSearchRequestParams query = new SpatialSearchRequestParams();
+        query.setFq(fq);
+        Map<String, List<Facet>> actualResult = queryFormatUtils.formatSearchQuery(query)[1];
+        assertTrue(actualResult != null && actualResult.size() == expectedResult.size() && actualResult.keySet().equals(expectedResult.keySet()));
+
+        for (Map.Entry<String, List<Facet>> entry : actualResult.entrySet()) {
+            // Here we only test if filter keys are correctly parsed from fqs
+            assertTrue(entry.getValue().size() == expectedResult.get(entry.getKey()).size());
         }
     }
 }
