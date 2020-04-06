@@ -163,14 +163,13 @@ public class QueryFormatUtils {
                             // activeFacetMap is based on the assumption that each fq is on different filter so its a [StringKey: Facet] structure
                             // but actually different fqs can use same filter key for example &fq=-month:'11'&fq=-month='12' so we added a new map
                             // activeFacetObj which is [StringKey: List<Facet>]
-                            fv = parseFQ(fq);
-                            if (fv != null) {
-                                String fqName = fv[0]; // fqName is the filter key, the part before :
-                                Facet fct = new Facet(fqName, formatted[0]); // display name is the formatted name, for example '11' to 'November'
+                            String fqKey = parseFQ(fq);
+                            if (fqKey != null) {
+                                Facet fct = new Facet(fqKey, formatted[0]); // display name is the formatted name, for example '11' to 'November'
                                 fct.setValue(fq); // value in activeFacetMap is the part with key replaced by '', but here is the original fq because front end will need it
-                                List<Facet> valList = activeFacetObj.getOrDefault(fqName, new ArrayList<>());
+                                List<Facet> valList = activeFacetObj.getOrDefault(fqKey, new ArrayList<>());
                                 valList.add(fct);
-                                activeFacetObj.put(fqName, valList);
+                                activeFacetObj.put(fqKey, valList);
                             }
                         }
                     }
@@ -193,7 +192,7 @@ public class QueryFormatUtils {
     }
 
     /**
-     * To split a fq into key and value
+     * To retrieve the key from a fq
      *
      * This method assumes fq is in one of below format
      * fq = key:val or fq = -key:val
@@ -205,7 +204,7 @@ public class QueryFormatUtils {
      *
      * inclusive and exclusive keys can't co-exist in one fq
      */
-    private String[] parseFQ(String fq) {
+    private String parseFQ(String fq) {
         fq = StringUtils.trimToEmpty(fq);
         if (StringUtils.isNotEmpty(fq)) {
             boolean globalInclusive = true;
@@ -228,9 +227,7 @@ public class QueryFormatUtils {
                 boolean localInclusive = fv[0].charAt(0) != '-';
                 String key = localInclusive ? fv[0] : fv[0].substring(1);
 
-                String calculatedKey = globalInclusive ^ localInclusive ? "-" + key : key;
-                String value = fq.replace(fv[0] + ":", "");
-                return new String[]{ calculatedKey, value };
+                return globalInclusive ^ localInclusive ? "-" + key : key;
             }
         }
 

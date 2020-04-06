@@ -10,6 +10,7 @@ import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.RangeBasedFacets;
 import au.org.ala.biocache.util.SearchUtils;
 import org.apache.commons.lang.StringUtils;
+import org.drools.core.rule.Collect;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -24,15 +25,18 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.CollectionUtils;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyList;
+
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.*;
 
 //TODO: update hubs, then remove fqs[0].substring(0, fqs[0].indexOf(':'))
 @RunWith(MockitoJUnitRunner.class)
@@ -156,46 +160,47 @@ public class FilterQueryParserTest {
     }
 
     @Test
-    public void testParsingActiveFacetObj() {
-        // test valid fqs
-        String[] fq = {"month:\"08\"", "-month:\"08\"", "(month:\"08\")", "(-month:\"08\")", "-(month:\"08\")", "-(-month:\"08\")",
-            "(month:\"08\" OR month:\"09\")", "(-month:\"08\" OR -month:\"09\")", "-(month:\"08\" OR month:\"09\")", "-(-month:\"08\" OR -month:\"09\")",
-            "month:\"08\" OR month:\"09\"", "-month:\"08\" OR -month:\"09\""};
-
-        Map<String, List<String>> expected = new HashMap<>();
-        expected.put("month", Arrays.asList("\"08\"","\"08\"", "\"08\"", "\"08\" OR \"09\"", "\"08\" OR \"09\"", "\"08\" OR \"09\""));
-        expected.put("-month", Arrays.asList("\"08\"","\"08\"", "\"08\"", "\"08\" OR \"09\"", "\"08\" OR \"09\"", "\"08\" OR \"09\""));
-
-        runFqParsingTest(fq, expected);
+    public void testActiveFacetObj_validfq() {
 
         // test valid fqs
-        fq = new String[] {"-(month:\"11\" OR month:\"12\")", "-(month:\"09\" OR month:\"10\")", "-(month:\"07\" OR month:\"08\")", "month:\"02\"",
-            "(occurrence_decade_i:\"2010\" OR occurrence_decade_i:\"2000\" OR occurrence_decade_i:\"1990\" OR occurrence_decade_i:\"1980\")",
-            "(occurrence_decade_i:\"2010\" OR occurrence_decade_i:\"2000\")",
-            "occurrence_decade_i:\"2010\""
-        };
-        expected.clear();
-        expected.put("month", Arrays.asList("\"02\""));
-        expected.put("-month", Arrays.asList("\"11\" OR \"12\"", "\"09\" OR \"10\"", "\"07\" OR \"08\""));
-        expected.put("occurrence_decade_i", Arrays.asList("\"2010\" OR \"2000\" OR \"1990\" OR \"1980\"", "\"2010\" OR \"2000\"", "\"2010\""));
+        List<Facet> facetList = new ArrayList<>();
+        facetList.add(new Facet("month", "Month:\"August\"", "month:\"08\""));
+        facetList.add(new Facet("-month", "-Month:\"August\"", "-month:\"08\""));
+        facetList.add(new Facet("month", "(Month:\"August\")", "(month:\"08\")"));
+        facetList.add(new Facet("-month", "(-Month:\"August\")", "(-month:\"08\")"));
+        facetList.add(new Facet("-month", "-(Month:\"August\")","-(month:\"08\")"));
+        facetList.add(new Facet("month", "(Month:\"August\" OR Month:\"September\")", "(month:\"08\" OR month:\"09\")"));
+        facetList.add(new Facet("month", "Month:\"August\" OR Month:\"September\"", "month:\"08\" OR month:\"09\""));
+        facetList.add(new Facet("-month", "-Month:\"August\" OR -Month:\"September\"", "-month:\"08\" OR -month:\"09\""));
+        facetList.add(new Facet("-month", "(-Month:\"August\" OR -Month:\"September\")", "(-month:\"08\" OR -month:\"09\")"));
+        facetList.add(new Facet("-month", "-(Month:\"August\" OR Month:\"September\")", "-(month:\"08\" OR month:\"09\")"));
+        facetList.add(new Facet("month", "Month:\"February\"", "month:\"02\""));
+        facetList.add(new Facet("-month", "-(Month:\"November\" OR Month:\"December\")", "-(month:\"11\" OR month:\"12\")"));
+        facetList.add(new Facet("-month", "-(Month:\"September\" OR Month:\"October\")", "-(month:\"09\" OR month:\"10\")"));
+        facetList.add(new Facet("-month", "-(Month:\"July\" OR Month:\"August\")", "-(month:\"07\" OR month:\"08\")"));
 
-        runFqParsingTest(fq, expected);
+        facetList.add(new Facet("occurrence_decade_i", "Decade:\"2010\"", "occurrence_decade_i:\"2010\""));
+        facetList.add(new Facet("occurrence_decade_i", "(Decade:\"2010\" OR Decade:\"2000\")", "(occurrence_decade_i:\"2010\" OR occurrence_decade_i:\"2000\")"));
+        facetList.add(new Facet("occurrence_decade_i", "(Decade:\"2010\" OR Decade:\"2000\" OR Decade:\"1990\" OR Decade:\"1980\")", "(occurrence_decade_i:\"2010\" OR occurrence_decade_i:\"2000\" OR occurrence_decade_i:\"1990\" OR occurrence_decade_i:\"1980\")"));
 
-        // test invalid fqs
-        fq = new String[] {null, "", " ", "month", "   month  ", "(month", "month)", "(month:\"11\"", "month:\"11\" )", "month\"11\"", ":\"11\"", "    :\"11\"", "(:\"11\")", "(    :\"11\")", "month:", "month:   ",  "(month:   )", "-(month:   )"};
-        expected.clear();
-        runFqParsingTest(fq, expected);
+        runFqParsingTest(facetList);
     }
 
-    private void runFqParsingTest(String[] fq, Map<String, List<String>> expectedResult) {
+    private void runFqParsingTest(List<Facet> facets) {
         SpatialSearchRequestParams query = new SpatialSearchRequestParams();
-        query.setFq(fq);
-        Map<String, List<Facet>> actualResult = queryFormatUtils.formatSearchQuery(query)[1];
-        assertTrue(actualResult != null && actualResult.size() == expectedResult.size() && actualResult.keySet().equals(expectedResult.keySet()));
 
-        for (Map.Entry<String, List<Facet>> entry : actualResult.entrySet()) {
-            // Here we only test if filter keys are correctly parsed from fqs
-            assertTrue(entry.getValue().size() == expectedResult.get(entry.getKey()).size());
-        }
+        // collect values into fq list
+        query.setFq(facets.stream().map(Facet::getValue).collect(Collectors.toList()).toArray(new String[0]));
+        Map<String, List<Facet>> actualResult = queryFormatUtils.formatSearchQuery(query)[1];
+        List<Facet> actualList = actualResult.values().stream().flatMap(List::stream).collect(Collectors.toList());
+        assertThat("List equality without order", actualList, containsInAnyOrder(facets.toArray()));
+    }
+
+    @Test
+    public void testActiveFacetObj_invalidfq() {
+        SpatialSearchRequestParams query = new SpatialSearchRequestParams();
+        // Construct fq
+        query.setFq(new String[] {null, "", " ", "month", "   month  ", "(month", "month)", "(month:\"11\"", "month:\"11\" )", "month\"11\"", ":\"11\"", "    :\"11\"", "(:\"11\")", "(    :\"11\")", "month:", "month:   ",  "(month:   )", "-(month:   )"});
+        assertTrue(queryFormatUtils.formatSearchQuery(query)[1].isEmpty());
     }
 }
