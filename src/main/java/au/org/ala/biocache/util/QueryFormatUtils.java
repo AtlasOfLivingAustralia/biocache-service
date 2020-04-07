@@ -106,7 +106,7 @@ public class QueryFormatUtils {
         this.maxBooleanClauses = maxBooleanClauses;
     }
 
-    public Map<String, Facet> formatSearchQuery(SpatialSearchRequestParams searchParams) {
+    public Map[] formatSearchQuery(SpatialSearchRequestParams searchParams) {
         return formatSearchQuery(searchParams, false);
     }
 
@@ -120,8 +120,11 @@ public class QueryFormatUtils {
      * @return
      */
 //    @Cacheable(cacheName = "formatSearchQuery")
-    public Map<String, Facet> formatSearchQuery(SpatialSearchRequestParams searchParams, boolean forceQueryFormat) {
+    public Map[] formatSearchQuery(SpatialSearchRequestParams searchParams, boolean forceQueryFormat) {
         Map<String, Facet> activeFacetMap = new HashMap();
+        Map<String, List<Facet>> activeFacetObj = new HashMap<>();
+        Map[] fqMaps = {activeFacetMap, activeFacetObj};
+
         //Only format the query if it doesn't already supply a formattedQuery.
         if (forceQueryFormat || StringUtils.isEmpty(searchParams.getFormattedQuery())) {
             String [] originalFqs = searchParams.getFq();
@@ -156,6 +159,18 @@ public class QueryFormatUtils {
                                 facet.setValue(fq.substring(fv[0].length() + 1));
                             }
                             activeFacetMap.put(facet.getName(), facet);
+
+                            // activeFacetMap is based on the assumption that each fq is on different filter so its a [StringKey: Facet] structure
+                            // but actually different fqs can use same filter key for example &fq=-month:'11'&fq=-month='12' so we added a new map
+                            // activeFacetObj which is [StringKey: List<Facet>]
+                            String fqKey = parseFQ(fq);
+                            if (fqKey != null) {
+                                Facet fct = new Facet(fqKey, formatted[0]); // display name is the formatted name, for example '11' to 'November'
+                                fct.setValue(fq); // value in activeFacetMap is the part with key replaced by '', but here is the original fq because front end will need it
+                                List<Facet> valList = activeFacetObj.getOrDefault(fqKey, new ArrayList<>());
+                                valList.add(fct);
+                                activeFacetObj.put(fqKey, valList);
+                            }
                         }
                     }
                 }
@@ -173,7 +188,50 @@ public class QueryFormatUtils {
 
         updateQueryContext(searchParams);
 
-        return activeFacetMap;
+        return fqMaps;
+    }
+
+    /**
+     * To retrieve the key from a fq
+     *
+     * This method assumes fq is in one of below format
+     * fq = key:val or fq = -key:val
+     * fq = (key:val) or fq = (-key:val)
+     * fq = -(key:val) or fq = -(-key:val)
+     * fq = key:val1 OR key:val2 or fq = -key:val1 OR -key:val2
+     * fq = (key:val1 OR key:val2) or fq = (-key:val1 OR -key:val2)
+     * fq = -(key:val1 OR key:val2) or fq = -(-key:val1 OR -key:val2)
+     *
+     * inclusive and exclusive keys can't co-exist in one fq
+     */
+    private String parseFQ(String fq) {
+        fq = StringUtils.trimToEmpty(fq);
+        if (StringUtils.isNotEmpty(fq)) {
+            boolean globalInclusive = true;
+
+            // if () or -()
+            int start = fq.indexOf('(');
+            int end = fq.indexOf(')');
+            if ((start != -1) ^ (end != -1)) return null;
+
+            if (start != -1) {
+                if (fq.charAt(0) == '-') {
+                    globalInclusive = false;
+                }
+                fq = fq.substring(start + 1, end);
+            }
+
+            // now () is removed, either key:val or key:val OR key:val
+            String[] fv = fq.split(":");
+            if (fv.length >= 2 && StringUtils.isNotBlank(fv[0]) && StringUtils.isNotBlank(fv[1])) {
+                boolean localInclusive = fv[0].charAt(0) != '-';
+                String key = localInclusive ? fv[0] : fv[0].substring(1);
+
+                return globalInclusive ^ localInclusive ? "-" + key : key;
+            }
+        }
+
+        return null;
     }
 
     public void addFqs(String [] fqs, SpatialSearchRequestParams searchParams) {

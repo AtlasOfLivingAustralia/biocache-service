@@ -14,6 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import java.util.Objects;
+
 /**
  * A representation of a facet value.
  * 
@@ -30,6 +32,12 @@ public class Facet {
     public Facet(String name, String displayName) {
         this.name = name;
         this.displayName = displayName;
+    }
+
+    public Facet(String name, String displayName, String value) {
+        this.name = name;
+        this.displayName = displayName;
+        this.value = value;
     }
 
     public String getName() {
@@ -70,6 +78,19 @@ public class Facet {
         return "Facet [name=" + name + ", displayName=" + displayName
             + ", value=" + value + "]";
     }
-    
-    
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Facet facet = (Facet) o;
+        return Objects.equals(name, facet.name) &&
+                Objects.equals(displayName, facet.displayName) &&
+                Objects.equals(value, facet.value);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, displayName, value);
+    }
 }
