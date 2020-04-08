@@ -708,7 +708,8 @@ public class SearchDAOImpl implements SearchDAO {
         SpatialSearchRequestParams original = new SpatialSearchRequestParams();
         BeanUtils.copyProperties(searchParams, original);
         try {
-            Map<String, Facet> activeFacetMap = queryFormatUtils.formatSearchQuery(searchParams, true);
+            Map[] fqMaps = queryFormatUtils.formatSearchQuery(searchParams, true);
+
             String queryString = searchParams.getFormattedQuery();
             SolrQuery solrQuery = initSolrQuery(searchParams, true, extraParams); // general search settings
             solrQuery.setQuery(queryString);
@@ -721,7 +722,8 @@ public class SearchDAOImpl implements SearchDAO {
             searchResults.setUrlParameters(original.getUrlParams());
 
             //now update the fq display map...
-            searchResults.setActiveFacetMap(activeFacetMap);
+            searchResults.setActiveFacetMap(fqMaps[0]);
+            searchResults.setActiveFacetObj(fqMaps[1]);
 
             if (logger.isInfoEnabled()) {
                 logger.info("spatial search query: " + queryString);
