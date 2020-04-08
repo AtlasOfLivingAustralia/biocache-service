@@ -43,6 +43,8 @@ public class DownloadDoiDTO {
 
     Map<String, String> applicationMetadata;
 
+    Map<String, String> applicationMetadata;
+
     public long getRecordCount() {
         return recordCount;
     }
