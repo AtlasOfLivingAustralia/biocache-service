@@ -16,6 +16,7 @@ package au.org.ala.biocache.dto;
 
 import au.org.ala.biocache.service.DoiService;
 import org.apache.log4j.Logger;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -40,8 +41,6 @@ public class DownloadDoiDTO {
     private String requestTime;
     private String queryTitle;
     private String displayTemplate;
-
-    Map<String, String> applicationMetadata;
 
     Map<String, String> applicationMetadata;
 
