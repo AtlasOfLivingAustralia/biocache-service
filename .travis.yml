@@ -12,6 +12,8 @@ jdk:
 branches:
   only:
     - master
+    - spring4-integration-tests
+    - /^feature\/.*$/
     - develop
     - /^hotfix\/.*$/
 before_install:

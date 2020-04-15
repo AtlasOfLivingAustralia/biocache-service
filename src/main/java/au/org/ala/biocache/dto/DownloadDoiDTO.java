@@ -14,6 +14,10 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import au.org.ala.biocache.service.DoiService;
+import org.apache.log4j.Logger;
+
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +25,10 @@ import java.util.Map;
  * Encapsulates parameters need it to mint a DOI from the offline download functionality
  */
 public class DownloadDoiDTO {
+    public final static List<String> validDisplayTemplates = Arrays.asList(DoiService.DISPLAY_TEMPLATE_BIOCACHE, DoiService.DISPLAY_TEMPLATE_CSDM);
+    /** log4 j logger */
+    private static final Logger logger = Logger.getLogger(DownloadDoiDTO.class);
+
     private String title;
     private String applicationUrl;
     private String query;
@@ -32,6 +40,7 @@ public class DownloadDoiDTO {
     private long recordCount;
     private String requestTime;
     private String queryTitle;
+    private String displayTemplate;
 
     Map<String, String> applicationMetadata;
 
@@ -140,5 +149,18 @@ public class DownloadDoiDTO {
 
     public void setApplicationMetadata(Map<String, String> applicationMetadata) {
         this.applicationMetadata = applicationMetadata;
+    }
+
+    public String getDisplayTemplate(){
+        return  this.displayTemplate;
+    }
+
+    public void setDisplayTemplate(String displayTemplate){
+        if( validDisplayTemplates.contains(displayTemplate) )
+            this.displayTemplate = displayTemplate;
+        else {
+            this.displayTemplate = validDisplayTemplates.get(0);
+            logger.info("Unsupported displayTemplate passed - " + displayTemplate + ".  Using displayTemplate - " + this.displayTemplate);
+        }
     }
 }
