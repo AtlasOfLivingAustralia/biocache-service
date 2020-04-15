@@ -73,20 +73,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class DownloadService implements ApplicationListener<ContextClosedEvent> {
 
     public static final String OFFICIAL_DOI_RESOLVER = "https://doi.org/";
-    public static final String CSDM_SELECTOR = "csdm";
-    public static final String DOI_SELECTOR = "doi";
-    public static final String DEFAULT_SELECTOR = "default";
-    private static final String DOWNLOAD_FILE_LOCATION = "[url]";
-    private static final String OFFICIAL_FILE_LOCATION =  "[officialDoiUrl]";
-    private static final String START_DATE_TIME = "[date]";
-    private static final String QUERY_TITLE = "[queryTitle]";
-    private static final String SEARCH_URL = "[searchUrl]";
-    private static final String DOI_FAILURE_MESSAGE = "[doiFailureMessage]";
-    private static final String BCCVL_IMPORT_ID = "[bccvlImportID]";
-    private static final String SUPPORT = "[support]";
-    private static final String UNIQUE_ID = "[uniqueId]";
-    private static final String MY_DOWNLOADS_URL = "[myDownloadsUrl]";
-    private static final String HUB_NAME = "[hubName]";
 
     protected static final Logger logger = Logger.getLogger(DownloadService.class);
     /**
@@ -274,9 +260,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     public void setDownloadShpEnabled(Boolean downloadShpEnabled) {
         DownloadService.downloadShpEnabled = downloadShpEnabled;
     }
-
-    @Value("${download.csdm.email.template:}")
-    protected String biocacheDownloadCSDMEmailTemplate;
 
     public static Boolean downloadShpEnabled;
 
@@ -676,7 +659,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             doiDetails.setLicence(licence);
                             doiDetails.setQueryTitle(requestParams.getDisplayString());
                             doiDetails.setApplicationMetadata(requestParams.getDoiMetadata());
-                            doiDetails.setDisplayTemplate(requestParams.getDoiDisplayTemplate());
 
                             doiResponse = doiService.mintDoi(doiDetails);
 
@@ -1284,16 +1266,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
 
                                 String archiveFileLocation = biocacheDownloadUrl + File.separator + URLEncoder.encode(currentDownload.getFileLocation().replace(biocacheDownloadDir + "/",""), "UTF-8").replace("%2F", "/").replace("+", "%20");
-                                final String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
-                                String doiStr = "";
-                                String emailTemplate;
-                                String emailTemplateFile;
-                                Map<String, String> substitutions = new HashMap<>();
-                                substitutions.put(START_DATE_TIME, currentDownload.getStartDateString());
-                                substitutions.put(QUERY_TITLE, currentDownload.getRequestParams().getDisplayString());
-                                substitutions.put(SEARCH_URL, searchUrl);
-                                substitutions.put(DOI_FAILURE_MESSAGE,  biocacheDownloadDoiFailureMessage);
 
+                                String doiStr = "";
+                                String emailBody;
+                                String emailTemplate;
+                                String downloadFileLocation;
+                                String officialFileLocation = "";
                                 if(mintDoi && doiResponseList != null && !doiResponseList.isEmpty() && doiResponseList.get(0) != null) {
 
                                     CreateDoiResponse doiResponse;
@@ -1301,32 +1279,40 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     try {
                                         doiService.updateFile(doiResponse.getUuid(), currentDownload.getFileLocation());
                                         doiStr = doiResponse.getDoi();
-                                        if (currentDownload.getRequestParams().getEmailTemplate() == DEFAULT_SELECTOR)
-                                            currentDownload.getRequestParams().setEmailTemplate(DOI_SELECTOR);
+                                        emailTemplate = biocacheDownloadDoiEmailTemplate;
 
                                         // TODO: The downloads-plugin has issues with unencoded user queries 
                                         // Working around that by hardcoding the official DOI resolution service as the landing page
                                         // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
                                         //final String doiLandingPage = currentDownload.getRequestParams().getDoiDisplayUrl() != null ? currentDownload.getRequestParams().getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
                                         //downloadFileLocation = doiLandingPage + doiStr;
-                                        substitutions.put(DOWNLOAD_FILE_LOCATION,  alaDoiResolver + doiStr);
-                                        substitutions.put(OFFICIAL_FILE_LOCATION,  OFFICIAL_DOI_RESOLVER + doiStr);
-                                        substitutions.put(BCCVL_IMPORT_ID,  URLEncoder.encode(doiStr, "UTF-8"));
+                                        downloadFileLocation = alaDoiResolver + doiStr;
+                                        officialFileLocation = OFFICIAL_DOI_RESOLVER + doiStr;
                                     }
                                     catch (Exception ex) {
                                         logger.error("DOI update failed for DOI uuid " + doiResponse.getUuid() +
                                                 " and path " + currentDownload.getFileLocation(), ex);
-                                        currentDownload.getRequestParams().setEmailTemplate(DEFAULT_SELECTOR);
-                                        substitutions.put(DOWNLOAD_FILE_LOCATION,  archiveFileLocation);
+                                        doiFailureMessage = biocacheDownloadDoiFailureMessage;
+                                        emailTemplate = biocacheDownloadEmailTemplate;
+                                        downloadFileLocation = archiveFileLocation;
                                     }
                                 } else {
-                                    currentDownload.getRequestParams().setEmailTemplate(DEFAULT_SELECTOR);
-                                    substitutions.put(DOWNLOAD_FILE_LOCATION,  archiveFileLocation);
+                                    emailTemplate = biocacheDownloadEmailTemplate;
+                                    downloadFileLocation = archiveFileLocation;
                                 }
 
-                                emailTemplateFile = getEmailTemplateFile();
-                                emailTemplate = Files.asCharSource(new File(emailTemplateFile), StandardCharsets.UTF_8).read();
-                                String emailBody = generateEmailContent(emailTemplate, substitutions);
+                                emailBody = Files.asCharSource(new File(emailTemplate), StandardCharsets.UTF_8).read();
+
+                                final String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
+                                String emailBodyHtml = emailBody.replace("[url]", downloadFileLocation)
+                                        .replace("[officialDoiUrl]", officialFileLocation)
+                                        .replace("[date]", currentDownload.getStartDateString())
+                                        .replace("[searchUrl]", searchUrl)
+                                        .replace("[queryTitle]", currentDownload.getRequestParams().getDisplayString())
+                                        .replace("[doiFailureMessage]", doiFailureMessage);
+                                String body = messageSource.getMessage("offlineEmailBody",
+                                        new Object[]{archiveFileLocation, searchUrl, currentDownload.getStartDateString()},
+                                        emailBodyHtml, null);
 
                                 // save the statistics to the download directory
                                 try (FileOutputStream statsStream = FileUtils
@@ -1339,7 +1325,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     // Delay sending the email to allow the DOI to propagate through to upstream DOI providers
                                     Thread.sleep(doiPropagationDelay);
                                 }
-                                emailService.sendEmail(currentDownload.getEmail(), subject, emailBody);
+                                emailService.sendEmail(currentDownload.getEmail(), subject, body);
                             }
 
                         } catch (InterruptedException e) {
@@ -1371,22 +1357,21 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                                 .replace("[hubName]",hubName),
                                         null);
 
+                                String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir,
+                                        biocacheDownloadUrl);
+                                String body = messageSource.getMessage("offlineEmailBodyError",
+                                        new Object[] { fileLocation },
+                                        biocacheDownloadEmailBodyError.replace("[url]", fileLocation)
+                                                .replace("[hubName]", hubName), null);
+                                String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
                                 String copyTo = supportEmailEnabled ? supportEmail : null;
-
-                                Map<String, String> substitutions = new HashMap<>();
-                                substitutions.put(SEARCH_URL, generateSearchUrl(currentDownload.getRequestParams()));
-                                substitutions.put(SUPPORT, support);
-                                substitutions.put(UNIQUE_ID, currentDownload.getUniqueId());
-                                substitutions.put(MY_DOWNLOADS_URL, myDownloadsUrl);
-                                substitutions.put(HUB_NAME, hubName);
-                                substitutions.put(DOWNLOAD_FILE_LOCATION, currentDownload.getFileLocation().replace(biocacheDownloadDir,
-                                        biocacheDownloadUrl));
-
-                                String emailTemplate = getFailEmailBodyTemplate();
-                                String emailBody = generateEmailContent(emailTemplate, substitutions);
                                 // email error to user and support (configurable)
-                                emailService.sendEmail(currentDownload.getEmail(), copyTo, subject, emailBody);
-
+                                emailService.sendEmail(currentDownload.getEmail(), copyTo, subject,
+                                        body + " Please contact " + support + " by replying to this email and we will investigate the cause."
+                                                + "<br><br>Your search URL was: <br>" + searchUrl
+                                                + "<br><br>The reference to quote is:<br>" + currentDownload.getUniqueId()
+                                                + "<br><br>Your successful downloads can be found at:<br>"
+                                                + myDownloadsUrl);
                             } catch (Exception ex) {
                                 logger.error("Error sending error message to download email. "
                                         + currentDownload.getFileLocation(), ex);
@@ -1402,50 +1387,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     } finally {
                         capacitySemaphore.release();
                     }
-                }
-
-                public String getEmailTemplateFile() {
-                    String file;
-                    switch (currentDownload.getRequestParams().getEmailTemplate()) {
-                        case CSDM_SELECTOR:
-                            file = biocacheDownloadCSDMEmailTemplate;
-                            break;
-                        case DOI_SELECTOR:
-                            file = biocacheDownloadDoiEmailTemplate;
-                            break;
-                        case DEFAULT_SELECTOR:
-                        default:
-                            file = biocacheDownloadEmailTemplate;
-                            break;
-                    }
-
-                    return  file;
-                }
-
-                public String getFailEmailBodyTemplate() {
-                    String emailTemplate;
-                    switch (currentDownload.getRequestParams().getEmailTemplate()) {
-                        case CSDM_SELECTOR:
-                            emailTemplate = messageSource.getMessage("offlineFailEmailBodyCSDM", null, "", null);
-                            break;
-                        case DOI_SELECTOR:
-                        case DEFAULT_SELECTOR:
-                        default:
-                            emailTemplate = messageSource.getMessage("offlineFailEmailBody", null, "", null);
-                            break;
-                    }
-
-                    return  emailTemplate;
-                }
-
-                public String generateEmailContent(String template, Map<String, String> substitutions) {
-                    if (template != null && substitutions.size() > 0 ){
-                        for(Map.Entry<String, String> entry : substitutions.entrySet()) {
-                            template = template.replace(entry.getKey(), entry.getValue());
-                        }
-                    }
-
-                    return  template;
                 }
             };
         }

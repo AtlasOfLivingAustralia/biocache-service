@@ -29,7 +29,7 @@ public class DownloadRequestParamsTest {
     }
 
     /**
-     * Test for {@link DownloadRequestParams#setFileType(String)}.
+     * Test for {@link DownloadRequestParams#setFileType(Boolean)}.
      */
     @Test
     public final void testSetFileType() throws Exception {
@@ -61,27 +61,4 @@ public class DownloadRequestParamsTest {
         assertFalse("shp".equals(downloadRequestParams.getFileType()));
     }
 
-    /**
-     * Test for {@link DownloadRequestParams#setEmailTemplate(String)}.
-     */
-    @Test
-    public final void testSetEmailTemplate() throws Exception {
-
-        DownloadRequestParams downloadRequestParams = new DownloadRequestParams();
-        assertTrue("default".equals(downloadRequestParams.getEmailTemplate()));
-
-        downloadRequestParams = new DownloadRequestParams();
-        downloadRequestParams.setEmailTemplate("doi");
-        assertTrue("doi".equals(downloadRequestParams.getEmailTemplate()));
-
-        downloadRequestParams = new DownloadRequestParams();
-        downloadRequestParams.setEmailTemplate("csdm");
-        assertTrue("csdm".equals(downloadRequestParams.getEmailTemplate()));
-
-
-        downloadRequestParams = new DownloadRequestParams();
-        downloadRequestParams.setEmailTemplate("uuidaof");
-        assertFalse("uuidaof".equals(downloadRequestParams.getEmailTemplate()));
-        assertTrue("default".equals(downloadRequestParams.getEmailTemplate()));
-    }
 }
