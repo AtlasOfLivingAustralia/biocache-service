@@ -5,7 +5,6 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.dto.FacetThemes;
-import au.org.ala.biocache.service.DownloadService;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -42,7 +41,6 @@ public class PersistentQueueDAOTest {
         //init FacetThemes
         new FacetThemes();
 
-        DownloadService.downloadShpEnabled = true;
         testCacheDir = tempDir.newFolder("persistentqueuedaotest-cache").toPath();
         testDownloadDir = tempDir.newFolder("persistentqueuedaotest-destination").toPath();        
         queueDAO = new JsonPersistentQueueDAOImpl() {

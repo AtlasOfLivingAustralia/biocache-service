@@ -39,8 +39,7 @@ import java.util.concurrent.TimeUnit;
 public class DoiService {
 
     private static final Logger logger = Logger.getLogger(DoiService.class);
-    public static final String DISPLAY_TEMPLATE_BIOCACHE = "biocache";
-    public static final String DISPLAY_TEMPLATE_CSDM = "csdm";
+    public static final String DISPLAY_TEMPLATE = "biocache";
 
     @Value("${doi.service.url:https://devt.ala.org.au/doi-service/api/}")
     private String doiServiceUrl;
@@ -154,7 +153,7 @@ public class DoiService {
 
         request.setProvider(Provider.ANDS.name());
         request.setFileUrl(downloadInfo.getFileUrl());
-        request.setDisplayTemplate(downloadInfo.getDisplayTemplate());
+        request.setDisplayTemplate(DISPLAY_TEMPLATE);
 
 
         Map<String, Object> providerMetadata = generateProviderMetadataPayload(downloadInfo);
