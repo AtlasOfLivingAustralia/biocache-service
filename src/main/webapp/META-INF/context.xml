@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Context antiJARLocking="true" path="/biocache-service">
-<!-- 
+<Context path="/biocache-service">
+<!--
     TOMCAT SPECIFIC 
     NC 20130808: Use a virtual webapp loader to provide external directory where it will look for resources first,
     thus allowing biocache.properties to be configured external to tomcat 
  -->
-<Loader className="org.apache.catalina.loader.VirtualWebappLoader" virtualClasspath="/data/biocache/config" searchVirtualFirst="true"/>
+    <Resources className="org.apache.catalina.webresources.StandardRoot">
+        <PreResources className="org.apache.catalina.webresources.DirResourceSet"
+                      base="/data/biocache/config"
+                      internalPath="/"
+                      webAppMount="/WEB-INF/classes" />
+    </Resources>
 </Context>
