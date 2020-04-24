@@ -15,17 +15,16 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.Store;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.client.RestOperations;
 
+import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.net.URL;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -43,6 +42,9 @@ public class AbstractSecureController {
 
     @Value("${apikey.check.enabled:true}")
     protected Boolean apiKeyCheckedEnabled = true;
+
+    @Inject
+    protected RestOperations restTemplate;
 
     /** 
      * Local cache of keys 
@@ -102,8 +104,7 @@ public class AbstractSecureController {
 		try {
 			logger.debug("Checking api key: {}", keyToTest);
     		String url = apiCheckUrl + keyToTest;
-    		ObjectMapper om = new ObjectMapper();
-    		Map<String,Object> response = om.readValue(new URL(url), Map.class);
+    		Map<String,Object> response = restTemplate.getForObject(url, Map.class);
     		boolean isValid = (Boolean) response.get("valid");
     		logger.debug("Checking api key: {}, valid: {}", keyToTest, isValid);
     		if(isValid){
