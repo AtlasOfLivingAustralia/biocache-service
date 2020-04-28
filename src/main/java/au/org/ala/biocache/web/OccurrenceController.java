@@ -1148,7 +1148,11 @@ public class OccurrenceController extends AbstractSecureController {
             //response.setStatus(response.SC_INTERNAL_SERVER_ERROR);
             return VALIDATION_ERROR;//result.toString();
         }
-        
+
+        if (rateLimitRequest(request, response)) {
+            return null;
+        }
+
         ip = ip == null ? getIPAddress(request) : ip;
 
         //search params must have a query or formatted query for the download to work
@@ -1193,17 +1197,6 @@ public class OccurrenceController extends AbstractSecureController {
 
         }
         return null;
-    }
-    /**
-     * Returns the IP address for the supplied request. It will look for the existence of
-     * an X-Forwarded-For Header before extracting it from the request.
-     * @param request
-     * @return IP Address of the request
-     */
-    private String getIPAddress(HttpServletRequest request){
-        //check to see if proxied.
-        String forwardedFor=request.getHeader("X-Forwarded-For");
-        return forwardedFor == null ? request.getRemoteAddr(): forwardedFor;
     }
     
     /**

@@ -21,13 +21,18 @@ import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.web.util.matcher.IpAddressMatcher;
 
+import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.net.URL;
-import java.util.HashSet;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * Controllers that need to perform security checks should extend this class and call shouldPerformOperation.
@@ -37,6 +42,16 @@ import java.util.Set;
 public class AbstractSecureController {
 
     private final static Logger logger = LoggerFactory.getLogger(AbstractSecureController.class);
+
+    protected Supplier<Stream<IpAddressMatcher>> networkStream;
+
+    @Value("${ratelimit.allow:networks:0.0.0.0/0}")
+    void setAcceptNetworks(String[] acceptNetworks) {
+        networkStream = () -> Arrays.stream(acceptNetworks)
+                .map(acceptNetwork -> new IpAddressMatcher(acceptNetwork));
+    }
+
+    protected String[] acceptNetworks;
 
     @Value("${apikey.check.url:https://auth.ala.org.au/apikey/ws/check?apikey=}")
     protected String apiCheckUrl;
@@ -50,8 +65,44 @@ public class AbstractSecureController {
      * FIXME: Why is the cache static?
      **/
     private static Set<String> apiKeyCache = new ConcurrentHashSet<>();
-    
+
     public AbstractSecureController(){}
+
+    /**
+     * Returns the IP address for the supplied request. It will look for the existence of
+     * an X-Forwarded-For Header before extracting it from the request.
+     * @param request
+     * @return IP Address of the request
+     */
+    protected String getIPAddress(HttpServletRequest request) {
+
+        String ipAddress = request.getParameter("ip");
+        ipAddress = ipAddress == null ? request.getHeader("X-Forwarded-For"): ipAddress;
+
+        return ipAddress == null ? request.getRemoteAddr(): ipAddress;
+    }
+
+    public boolean rateLimitRequest(HttpServletRequest request, HttpServletResponse response) throws IOException {
+
+        String apiKey = request.getParameter("apiKey");
+        String email = request.getParameter("email");
+
+        if (apiKey != null || email != null) {
+            return false;
+        }
+
+        String ipAddress = getIPAddress(request);
+        boolean acceptIp = networkStream.get().anyMatch(networkMather -> networkMather.matches(ipAddress));
+
+        if (acceptIp) {
+            return false;
+        }
+
+        response.sendError(HttpServletResponse.SC_FORBIDDEN, "API Key or email required");
+        return true;
+    }
+
+
 
     /**
      * Check the validity of the supplied key, returning false if the store is in read only mode.
