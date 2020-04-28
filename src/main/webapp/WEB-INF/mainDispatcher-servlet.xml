@@ -156,6 +156,7 @@
         <ehcache:evict-expired-elements interval="60" />
     </ehcache:config>
 
+    <!-- MBean configuration for ehcache -->
     <bean id="mbeanServer" class="org.springframework.jmx.support.MBeanServerFactoryBean">
         <property name="locateExistingServerIfPossible" value="true" />
     </bean>
@@ -175,14 +176,4 @@
         <property name="configLocation"  value="/WEB-INF/ehcache.xml"/>
     </bean>
 
-<!--
-    <bean id="ehcache" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">
-        <property name="configLocation" value="/WEB-INF/ehcache.xml" />
-        <property name="shared" value="true" />
-    </bean>
-
-    <bean id="cacheManager" class="org.springframework.cache.ehcache.EhCacheCacheManager">
-        <property name="cacheManager" ref="ehcache" />
-    </bean>
--->
 </beans>
