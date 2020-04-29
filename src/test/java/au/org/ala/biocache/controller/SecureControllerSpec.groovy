@@ -9,53 +9,33 @@ class SecureControllerSpec extends Specification {
 
     AbstractSecureController secureController = new AbstractSecureController()
 
-    def setup() {
-
-    }
-
     def 'rate limiting request'() {
 
         setup:
-        secureController.acceptNetworks = [ '10.0.0.0/8', '192.168.0.0/16' ]
-        secureController.afterPropertiesSet()
+        secureController.excludedNetworks = [ '10.0.0.0/8', '192.168.0.0/16' ]
+        secureController.includedNetworks = [ '10.1.0.0/16' ]
 
         MockHttpServletRequest request = new MockHttpServletRequest()
         MockHttpServletResponse response = new MockHttpServletResponse()
 
         when:
-        request.removeAllParameters()
-        request.addParameter('email', 'test@example.com')
+        if (ip) { request.addParameter('ip', ip) }
+        if (email) { request.addParameter('email', email) }
+        if (apiKey) { request.addParameter('apiKey', apiKey) }
 
         then:
-        !secureController.rateLimitRequest(request, response)
+        secureController.rateLimitRequest(request, response) == rateLimit
 
-        when:
-        request.removeAllParameters()
-        request.addParameter('apiKey', 'XXXXX')
-
-        then:
-        !secureController.rateLimitRequest(request, response)
-
-        when:
-        request.removeAllParameters()
-        request.addParameter('ip', '10.0.0.1')
-
-        then:
-        !secureController.rateLimitRequest(request, response)
-
-        when:
-        request.removeAllParameters()
-        request.addParameter('ip', '192.168.0.1')
-
-        then:
-        !secureController.rateLimitRequest(request, response)
-
-        when:
-        request.removeAllParameters()
-        request.addParameter('ip', '172.16.0.1')
-
-        then:
-        secureController.rateLimitRequest(request, response)
+        where:
+        ip              | email                 | apiKey    || rateLimit
+        null            | null                  | null      || true
+        null            | 'test@example.com'    | null      || false
+        null            | null                  | 'XXXXX'   || false
+        '10.0.0.1'      | null                  | null      || false
+        '192.168.0.1'   | null                  | null      || false
+        '172.16.0.1'    | null                  | null      || true
+        '10.1.0.1'      | null                  | null      || true
+        '10.1.0.1'      | null                  | 'XXXXX'   || false
     }
 
 
