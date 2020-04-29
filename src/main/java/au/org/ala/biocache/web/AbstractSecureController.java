@@ -30,9 +30,8 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Set;
+import java.time.Instant;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -54,10 +53,12 @@ public class AbstractSecureController {
      *
      * @param networks array of network addresses in the format x.x.x.x/m
      */
-    @Value("${ratelimit.network.exclude}")
+    @Value("${ratelimit.network.exclude:#{null}}")
     void setExcludedNetworks(String[] networks) {
-        excludedNetworkStream = () -> Arrays.stream(networks)
-                .map(IpAddressMatcher::new);
+        if (networks != null) {
+            excludedNetworkStream = () -> Arrays.stream(networks)
+                    .map(IpAddressMatcher::new);
+        }
     }
 
     /**
@@ -68,18 +69,24 @@ public class AbstractSecureController {
      */
     @Value("${ratelimit.network.include:0.0.0.0/0}")
     void setIncludedNetworks(String[] networks) {
-        includedNetworkStream = () -> Arrays.stream(networks)
-                .map(IpAddressMatcher::new);
+        if (networks != null) {
+            includedNetworkStream = () -> Arrays.stream(networks)
+                    .map(IpAddressMatcher::new);
+        }
     }
 
-    protected String[] acceptNetworks;
+    @Value("${ratelimit.window.seconds:360}")
+    protected int rateLimitWindowSeconds;
+
+    @Value("${ratelimit.count:5}")
+    protected int rateLimitCount;
 
     @Value("${apikey.check.url:https://auth.ala.org.au/apikey/ws/check?apikey=}")
     protected String apiCheckUrl;
 
     @Value("${apikey.check.enabled:true}")
     protected Boolean apiKeyCheckedEnabled = true;
-    
+
     @Inject
     protected RestOperations restTemplate;
 
@@ -134,8 +141,37 @@ public class AbstractSecureController {
             return false;
         }
 
-        response.sendError(HttpServletResponse.SC_FORBIDDEN, "API Key or email required");
-        return true;
+        Cache cache = cacheManager.getCache("rateLimit");
+        Element element = cache.get(ipAddress);
+        ArrayDeque<Instant> accessTimes;
+
+        if (element == null) {
+
+            accessTimes = new ArrayDeque<Instant>();
+
+        } else {
+
+            accessTimes = (ArrayDeque<Instant>) element.getValue();
+            // remove any access times that are older then the rate limit window
+            Instant windowStart = Instant.now().minusSeconds(rateLimitWindowSeconds);
+            for (Instant oldestAccessTime = accessTimes.getFirst();
+                 oldestAccessTime != null && oldestAccessTime.isBefore(windowStart);
+                 oldestAccessTime = accessTimes.getFirst()) {
+                accessTimes.removeFirst();
+            }
+        }
+
+        if (accessTimes.size() >= rateLimitCount) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "API Key or email required");
+            return true;
+        }
+
+        // add access times keyed by IP address only for successful requests.
+        accessTimes.addLast(Instant.now());
+        element = new Element(ipAddress, accessTimes, false, rateLimitWindowSeconds, 0);
+        cache.put(element);
+
+        return false;
     }
 
     /**
@@ -182,7 +218,6 @@ public class AbstractSecureController {
         // caching manually managed via the cacheManager not using the @Cacheable annotation
         // the @Cacheable annotation only works when an external call is made to a method, for
         // an explanation see: https://stackoverflow.com/a/32999744
-        cacheManager.getCache("apiKeys");
         Cache cache = cacheManager.getCache("apiKeys");
         Element element = cache.get(keyToTest);
 
