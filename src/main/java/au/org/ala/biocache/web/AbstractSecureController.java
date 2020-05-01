@@ -120,13 +120,6 @@ public class AbstractSecureController {
      */
     public boolean rateLimitRequest(HttpServletRequest request, HttpServletResponse response) throws IOException {
 
-//        String apiKey = request.getParameter("apiKey");
-//        String email = request.getParameter("email");
-//
-//        if (apiKey != null || email != null) {
-//            return false;
-//        }
-
         String ipAddress = getIPAddress(request);
         boolean ratelimitIp = true;
         if (excludedNetworkStream != null) {
