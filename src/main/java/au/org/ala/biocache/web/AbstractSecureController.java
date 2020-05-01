@@ -67,7 +67,7 @@ public class AbstractSecureController {
      *
      * @param networks array of network addresses in the format x.x.x.x/m
      */
-    @Value("${ratelimit.network.include:0.0.0.0/0}")
+    @Value("${ratelimit.network.include:#{null}}")
     void setIncludedNetworks(String[] networks) {
         if (networks != null) {
             includedNetworkStream = () -> Arrays.stream(networks)
@@ -103,8 +103,7 @@ public class AbstractSecureController {
      */
     protected String getIPAddress(HttpServletRequest request) {
 
-        String ipAddress = request.getParameter("ip");
-        ipAddress = ipAddress == null ? request.getHeader("X-Forwarded-For"): ipAddress;
+        String ipAddress = request.getHeader("X-Forwarded-For");
 
         return ipAddress == null ? request.getRemoteAddr(): ipAddress;
     }
@@ -121,12 +120,12 @@ public class AbstractSecureController {
      */
     public boolean rateLimitRequest(HttpServletRequest request, HttpServletResponse response) throws IOException {
 
-        String apiKey = request.getParameter("apiKey");
-        String email = request.getParameter("email");
-
-        if (apiKey != null || email != null) {
-            return false;
-        }
+//        String apiKey = request.getParameter("apiKey");
+//        String email = request.getParameter("email");
+//
+//        if (apiKey != null || email != null) {
+//            return false;
+//        }
 
         String ipAddress = getIPAddress(request);
         boolean ratelimitIp = true;
@@ -141,37 +140,40 @@ public class AbstractSecureController {
             return false;
         }
 
-        Cache cache = cacheManager.getCache("rateLimit");
-        Element element = cache.get(ipAddress);
-        ArrayDeque<Instant> accessTimes;
+        if (rateLimitWindowSeconds > 0 && rateLimitCount > 0) {
 
-        if (element == null) {
+            Cache cache = cacheManager.getCache("rateLimit");
+            Element element = cache.get(ipAddress);
+            ArrayDeque<Instant> accessTimes;
 
-            accessTimes = new ArrayDeque<Instant>();
+            if (element == null) {
 
-        } else {
+                accessTimes = new ArrayDeque<Instant>();
 
-            accessTimes = (ArrayDeque<Instant>) element.getValue();
-            // remove any access times that are older then the rate limit window
-            Instant windowStart = Instant.now().minusSeconds(rateLimitWindowSeconds);
-            for (Instant oldestAccessTime = accessTimes.getFirst();
-                 oldestAccessTime != null && oldestAccessTime.isBefore(windowStart);
-                 oldestAccessTime = accessTimes.getFirst()) {
-                accessTimes.removeFirst();
+            } else {
+
+                accessTimes = (ArrayDeque<Instant>) element.getValue();
+                // remove any access times that are older then the rate limit window
+                Instant windowStart = Instant.now().minusSeconds(rateLimitWindowSeconds);
+                for (Instant oldestAccessTime = accessTimes.getFirst();
+                     oldestAccessTime != null && oldestAccessTime.isBefore(windowStart);
+                     oldestAccessTime = accessTimes.getFirst()) {
+                    accessTimes.removeFirst();
+                }
+            }
+
+            if (accessTimes.size() < rateLimitCount) {
+
+                // add access times keyed by IP address only for successful requests.
+                accessTimes.addLast(Instant.now());
+                element = new Element(ipAddress, accessTimes, false, rateLimitWindowSeconds, 0);
+                cache.put(element);
+
+                return false;
             }
         }
 
-        if (accessTimes.size() >= rateLimitCount) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN, "API Key or email required");
-            return true;
-        }
-
-        // add access times keyed by IP address only for successful requests.
-        accessTimes.addLast(Instant.now());
-        element = new Element(ipAddress, accessTimes, false, rateLimitWindowSeconds, 0);
-        cache.put(element);
-
-        return false;
+        return true;
     }
 
     /**
