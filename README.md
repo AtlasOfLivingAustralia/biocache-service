@@ -12,6 +12,10 @@ There are currently two supported versions:
 * 1.9.x  - SOLR 4 and Cassandra 1.2.x. See the 1.9.x branch.
 * 2.x - SOLR 7 with SOLR Cloud support and Cassandra 3.x. See the master branch.
 
+## Dev Setup
+
+see wiki: https://github.com/AtlasOfLivingAustralia/biocache-service/wiki
+
 ## Integration Tests
 
 Integration testing is supported using docker containers.
