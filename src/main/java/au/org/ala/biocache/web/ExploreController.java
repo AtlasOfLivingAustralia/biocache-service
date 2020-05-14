@@ -271,7 +271,7 @@ public class ExploreController {
         if(!facetValue.equals("ALL_SPECIES"))
             sb.append(" AND " + facetName + ":").append(facetValue);
         //now ignore the records that have been identified to a rank above species
-        sb.append( " AND -rank:kingdom AND -rank:phylum AND -rank:class AND -rank:order AND -rank:family AND -rank:genus");
+        sb.append(" AND rank_id:[7000 TO *]");
         //String query = sb.togroup.equals("ALL_SPECIES")? "*:*" : "species_group:" + group;
         requestParams.setQ(sb.toString());
         //don't care about the formatted query
