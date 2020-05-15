@@ -21,6 +21,7 @@ import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.model.Qid;
 import au.org.ala.biocache.util.QueryFormatUtils;
+import au.org.ala.names.model.RankType;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -269,7 +270,7 @@ public class ExploreController {
         if(!facetValue.equals("ALL_SPECIES")) {
             fqs.add(facetName + ":" + facetValue);
         }
-        fqs.add("rank_id:[7000 TO *]");
+        fqs.add("rank_id:[" + RankType.SPECIES.getId() + " TO *]");
 
         new QueryFormatUtils().addFqs(fqs.toArray(new String[0]), requestParams);
 
