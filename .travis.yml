@@ -24,6 +24,8 @@ before_install:
   - cd $TRAVIS_BUILD_DIR
 script:
   - "[ \"${TRAVIS_PULL_REQUEST}\" = \"false\" ] && mvn -P travis clean deploy"
+after_success:
+  - mvn clean test jacoco:report coveralls:report
 after_script:
   - docker-compose -f src/test/docker/solr7-cassandra3.yml kill
 env:
