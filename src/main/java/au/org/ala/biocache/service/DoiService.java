@@ -122,7 +122,7 @@ public class DoiService {
      * @throws IOException If unable to connect to the DOI service backend
      */
     public CreateDoiResponse mintDoi(CreateDoiRequest request) throws IOException {
-        request.setProvider(Provider.ANDS.name());
+        request.setProvider(Provider.DATACITE.name());
 
         Response<CreateDoiResponse> response = doiApiService.create(request).execute();
 
@@ -151,7 +151,7 @@ public class DoiService {
         request.setUserId(downloadInfo.getRequesterId());
         request.setAuthorisedRoles(downloadInfo.getAuthorisedRoles());
 
-        request.setProvider(Provider.ANDS.name());
+        request.setProvider(Provider.DATACITE.name());
         request.setFileUrl(downloadInfo.getFileUrl());
         request.setDisplayTemplate(DISPLAY_TEMPLATE);
 
