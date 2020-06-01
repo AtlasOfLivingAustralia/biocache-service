@@ -23,12 +23,14 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadDoiDTO;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.IndexFieldDTO;
+import au.org.ala.biocache.dto.QualityFilterDTO;
 import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import au.org.ala.biocache.util.AlaFileUtils;
 import au.org.ala.biocache.util.thread.DownloadControlThread;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.biocache.writer.RecordWriterException;
 import au.org.ala.doi.CreateDoiResponse;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -36,9 +38,14 @@ import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
+import org.apache.velocity.Template;
+import org.apache.velocity.VelocityContext;
+import org.apache.velocity.runtime.RuntimeServices;
+import org.apache.velocity.runtime.RuntimeSingleton;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -48,6 +55,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.support.AbstractMessageSource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
@@ -61,6 +69,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.apache.commons.lang3.StringUtils.*;
 
 /**
  * Services to perform the downloads.
@@ -255,6 +265,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     @Value("${download.offline.msg:This download is unavailable. Run the download again.}")
     public String downloadOfflineMsgDeleted = "This download is unavailable. Run the download again.";
+
+    @Value("${download.qualityFiltersTemplate:classpath:download-email-quality-filter-snippet.html}")
+    public Resource downloadQualityFiltersTemplate;
 
     @Value("${download.shp.enabled:true}")
     public void setDownloadShpEnabled(Boolean downloadShpEnabled) {
@@ -594,6 +607,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 sp.write(("</table>").getBytes(StandardCharsets.UTF_8));
             }
 
+            List<QualityFilterDTO> qualityFilters = getQualityFilterDTOS(requestParams);
+
             if (uidStats != null) {
                 // Add the data citation to the download
                 List<String> citationsForReadme = new ArrayList<String>();
@@ -659,7 +674,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             doiDetails.setLicence(licence);
                             doiDetails.setQueryTitle(requestParams.getDisplayString());
                             doiDetails.setApplicationMetadata(requestParams.getDoiMetadata());
-
+                            doiDetails.setQualityFilters(qualityFilters);
                             doiResponse = doiService.mintDoi(doiDetails);
 
                         } catch (Exception e) {
@@ -714,11 +729,17 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     readmeTemplate = Files.asCharSource(new File(readmeFile), StandardCharsets.UTF_8).read();
                 }
 
+                String dataQualityFilters = "";
+                if (!qualityFilters.isEmpty()) {
+                    dataQualityFilters = getDataQualityFiltersString(qualityFilters);
+                }
+
                 String readmeContent = readmeTemplate.replace("[url]", fileLocation)
                         .replace("[date]", dd.getStartDateString())
                         .replace("[searchUrl]", searchUrl)
                         .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
-                        .replace("[dataProviders]", dataProviders);
+                        .replace("[dataProviders]", dataProviders)
+                        .replace("[dataQualityFilters]", dataQualityFilters);
 
                 sp.write(readmeContent.getBytes(StandardCharsets.UTF_8));
                 sp.write(("For more information about the fields that are being downloaded please consult <a href='"
@@ -770,6 +791,45 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             // sApplication may be shutting down, do not delete the download file
             throw e;
         }
+    }
+
+    @VisibleForTesting
+    List<QualityFilterDTO> getQualityFilterDTOS(DownloadRequestParams requestParams) {
+        List<QualityFilterDTO> qualityFilters = new ArrayList<>();
+        if (requestParams.getQualityFiltersInfo() != null) {
+            List<String> filters = requestParams.getQualityFiltersInfo();
+            filters.forEach( filter -> {
+                String[] strings = split(filter, ":", 2);
+                if (strings.length == 2) {
+                    Map<String, String> map = new HashMap<>();
+                    QualityFilterDTO dto = new QualityFilterDTO(strings[0], strings[1]);
+                    qualityFilters.add(dto);
+                }
+            });
+        }
+        return qualityFilters;
+    }
+
+    @VisibleForTesting
+    String getDataQualityFiltersString(List<QualityFilterDTO> qualityFilters) throws IOException, org.apache.velocity.runtime.parser.ParseException {
+        String dataQualityFilters;
+        RuntimeServices runtimeServices = RuntimeSingleton.getRuntimeServices();
+        Reader reader = new InputStreamReader(downloadQualityFiltersTemplate.getInputStream(), StandardCharsets.UTF_8);
+        Template template = new Template();
+        template.setRuntimeServices(runtimeServices);
+
+        template.setData(runtimeServices.parse(reader, "download-quality-filters-template"));
+
+        template.initDocument();
+        StringWriter sw = new StringWriter();
+
+        VelocityContext context = new VelocityContext();
+
+        context.put("qualityFilters", qualityFilters);
+
+        template.merge(context, sw);
+        dataQualityFilters = sw.toString();
+        return dataQualityFilters;
     }
 
     /**

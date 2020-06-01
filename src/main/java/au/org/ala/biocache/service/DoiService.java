@@ -177,6 +177,7 @@ public class DoiService {
         applicationMetadata.put("requestedOn", downloadInfo.getRequestTime());
         applicationMetadata.put("recordCount", Long.toString(downloadInfo.getRecordCount()));
         applicationMetadata.put("queryTitle", downloadInfo.getQueryTitle());
+        applicationMetadata.put("qualityFilters", downloadInfo.getQualityFilters());
         return applicationMetadata;
     }
 
