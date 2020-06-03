@@ -607,8 +607,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 sp.write(("</table>").getBytes(StandardCharsets.UTF_8));
             }
 
-            List<QualityFilterDTO> qualityFilters = getQualityFilterDTOS(requestParams);
-
             if (uidStats != null) {
                 // Add the data citation to the download
                 List<String> citationsForReadme = new ArrayList<String>();
@@ -618,6 +616,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 String doi = "";
 
                 final String searchUrl = generateSearchUrl(requestParams);
+
+                List<QualityFilterDTO> qualityFilters = getQualityFilterDTOS(requestParams);
 
                 if (citationsEnabled) {
                     List<Map<String, String>> datasetMetadata = null;
@@ -801,7 +801,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             filters.forEach( filter -> {
                 String[] strings = split(filter, ":", 2);
                 if (strings.length == 2) {
-                    Map<String, String> map = new HashMap<>();
                     QualityFilterDTO dto = new QualityFilterDTO(strings[0], strings[1]);
                     qualityFilters.add(dto);
                 }
