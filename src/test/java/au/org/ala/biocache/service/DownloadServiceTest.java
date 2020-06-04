@@ -12,6 +12,7 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadDoiDTO;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.FacetThemes;
+import au.org.ala.biocache.dto.QualityFilterDTO;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.doi.CreateDoiResponse;
 import org.junit.*;
@@ -21,6 +22,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.core.io.ClassPathResource;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
@@ -32,6 +34,8 @@ import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
@@ -114,6 +118,7 @@ public class DownloadServiceTest {
                 };
             }
         };
+        testService.downloadQualityFiltersTemplate = new ClassPathResource("download-email-quality-filter-snippet.html");
         testService.biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
         testService.persistentQueueDAO = persistentQueueDAO;
         testService.searchDAO = searchDAO;
@@ -395,4 +400,38 @@ public class DownloadServiceTest {
         fail("Not yet implemented"); // TODO
     }
 
+    @Test
+    public final void testGetQualityFilterDTOS() {
+        List<String> qualityFiltersInfo = new ArrayList<>();
+        qualityFiltersInfo.add("test:asdf");
+        qualityFiltersInfo.add("test:foo:bar");
+        qualityFiltersInfo.add("test:foo:bar AND -bar:baz");
+
+
+        DownloadRequestParams drp = new DownloadRequestParams();
+        drp.setQualityFiltersInfo(qualityFiltersInfo);
+        List<QualityFilterDTO> qualityFilterDTOS = testService.getQualityFilterDTOS(drp);
+
+        assertThat(qualityFilterDTOS, containsInAnyOrder(
+                new QualityFilterDTO("test", "asdf"),
+                new QualityFilterDTO("test", "foo:bar"),
+                new QualityFilterDTO("test", "foo:bar AND -bar:baz")
+        ));
+    }
+
+    @Test
+    public final void testDataQualityResourceTemplate() throws Exception {
+        List<QualityFilterDTO> qualityFilters = new ArrayList<>();
+        qualityFilters.add(new QualityFilterDTO("test", "asdf"));
+        qualityFilters.add(new QualityFilterDTO("test2", "fdas"));
+
+        String result = testService.getDataQualityFiltersString(qualityFilters);
+
+        assertThat(result, equalTo("<p>Quality Filters applied:</p>\n" +
+                "\n" +
+                "<ul>\n" +
+                " <li>test: asdf</li>\n" +
+                " <li>test2: fdas</li>\n" +
+                "</ul>"));
+    }
 }
