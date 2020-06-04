@@ -15,19 +15,19 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.Store;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import net.sf.ehcache.Cache;
+import net.sf.ehcache.CacheManager;
+import net.sf.ehcache.Element;
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.client.RestOperations;
 
+import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.net.URL;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Controllers that need to perform security checks should extend this class and call shouldPerformOperation.
@@ -44,13 +44,12 @@ public class AbstractSecureController {
     @Value("${apikey.check.enabled:true}")
     protected Boolean apiKeyCheckedEnabled = true;
 
-    /** 
-     * Local cache of keys 
-     * 
-     * FIXME: Why is the cache static?
-     **/
-    private static Set<String> apiKeyCache = new ConcurrentHashSet<>();
-    
+    @Inject
+    protected RestOperations restTemplate;
+
+    @Inject
+    protected CacheManager cacheManager;
+
     public AbstractSecureController(){}
 
     /**
@@ -94,21 +93,27 @@ public class AbstractSecureController {
             return false;
         }
 
-    	if(apiKeyCache.contains(keyToTest)){
-    		return true;
-    	}
-    	
+        // caching manually managed via the cacheManager not using the @Cacheable annotation
+        // the @Cacheable annotation only works when an external call is made to a method, for
+        // an explanation see: https://stackoverflow.com/a/32999744
+        cacheManager.getCache("apiKeys");
+        Cache cache = cacheManager.getCache("apiKeys");
+        Element element = cache.get(keyToTest);
+
+        if (element != null && (Boolean)element.getValue()) {
+            return true;
+        }
+
 		//check via a web service
 		try {
 			logger.debug("Checking api key: {}", keyToTest);
     		String url = apiCheckUrl + keyToTest;
-    		ObjectMapper om = new ObjectMapper();
-    		Map<String,Object> response = om.readValue(new URL(url), Map.class);
+    		Map<String,Object> response = restTemplate.getForObject(url, Map.class);
     		boolean isValid = (Boolean) response.get("valid");
     		logger.debug("Checking api key: {}, valid: {}", keyToTest, isValid);
-    		if(isValid){
-    			apiKeyCache.add(keyToTest);
-    		}
+    		if (isValid) {
+    		    cache.put(new Element(keyToTest, true));
+            }
     		return isValid; 
 		} catch (Exception e){
 			logger.error(e.getMessage(), e);
