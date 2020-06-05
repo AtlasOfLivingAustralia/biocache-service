@@ -25,7 +25,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.web.util.matcher.IpAddressMatcher;
 import org.springframework.web.client.RestOperations;
 
-
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
