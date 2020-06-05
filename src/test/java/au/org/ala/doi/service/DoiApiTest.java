@@ -94,7 +94,7 @@ public class DoiApiTest {
         List<String> authorisedRoles = Lists.asList("ROLE 1", new String[]{"ROLE 2"});
         createRequest.setAuthorisedRoles(authorisedRoles);
 
-        createRequest.setProvider(Provider.DATACITE.name());
+        createRequest.setProvider("DATACITE");
 //        createRequest.setFileUrl("https://www.ala.org.au/wp-content/themes/ala-wordpress-theme/img/homepage-channel-image-lionfish.jpg");
 
         Map providerMetadata = new HashMap<String, String>();

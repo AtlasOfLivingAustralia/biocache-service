@@ -64,6 +64,9 @@ public class DoiService {
     @Value("${doi.resourceText:Species information}")
     private String doiResourceText;
 
+    @Value("${doi.provider:ALA}")
+    private String provider;
+
     private DoiApiService doiApiService;
 
     @PostConstruct
@@ -122,7 +125,7 @@ public class DoiService {
      * @throws IOException If unable to connect to the DOI service backend
      */
     public CreateDoiResponse mintDoi(CreateDoiRequest request) throws IOException {
-        request.setProvider(Provider.DATACITE.name());
+        request.setProvider(provider);
 
         Response<CreateDoiResponse> response = doiApiService.create(request).execute();
 
@@ -151,7 +154,7 @@ public class DoiService {
         request.setUserId(downloadInfo.getRequesterId());
         request.setAuthorisedRoles(downloadInfo.getAuthorisedRoles());
 
-        request.setProvider(Provider.DATACITE.name());
+        request.setProvider(provider);
         request.setFileUrl(downloadInfo.getFileUrl());
         request.setDisplayTemplate(DISPLAY_TEMPLATE);
 
