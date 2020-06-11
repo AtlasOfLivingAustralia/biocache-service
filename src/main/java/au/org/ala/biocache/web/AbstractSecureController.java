@@ -22,12 +22,17 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.web.util.matcher.IpAddressMatcher;
 import org.springframework.web.client.RestOperations;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.Map;
+import java.io.IOException;
+import java.time.Instant;
+import java.util.*;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * Controllers that need to perform security checks should extend this class and call shouldPerformOperation.
@@ -37,6 +42,43 @@ import java.util.Map;
 public class AbstractSecureController {
 
     private final static Logger logger = LoggerFactory.getLogger(AbstractSecureController.class);
+
+    protected Supplier<Stream<IpAddressMatcher>> excludedNetworkStream;
+    protected Supplier<Stream<IpAddressMatcher>> includedNetworkStream;
+
+    /**
+     * networks to exclude from rate limiting.
+     * If the request IP address is within any of the networks then request will be excluded from rate limiting rules.
+     *
+     * @param networks array of network addresses in the format x.x.x.x/m
+     */
+    @Value("${ratelimit.network.exclude:#{null}}")
+    void setExcludedNetworks(String[] networks) {
+        if (networks != null) {
+            excludedNetworkStream = () -> Arrays.stream(networks)
+                    .map(IpAddressMatcher::new);
+        }
+    }
+
+    /**
+     * networks to include in rate limiting.
+     * If the request IP address is within any of the list if networks then the request will be subject to rate limiting rules.
+     *
+     * @param networks array of network addresses in the format x.x.x.x/m
+     */
+    @Value("${ratelimit.network.include:#{null}}")
+    void setIncludedNetworks(String[] networks) {
+        if (networks != null) {
+            includedNetworkStream = () -> Arrays.stream(networks)
+                    .map(IpAddressMatcher::new);
+        }
+    }
+
+    @Value("${ratelimit.window.seconds:360}")
+    protected int rateLimitWindowSeconds;
+
+    @Value("${ratelimit.count:5}")
+    protected int rateLimitCount;
 
     @Value("${apikey.check.url:https://auth.ala.org.au/apikey/ws/check?apikey=}")
     protected String apiCheckUrl;
@@ -51,6 +93,80 @@ public class AbstractSecureController {
     protected CacheManager cacheManager;
 
     public AbstractSecureController(){}
+
+    /**
+     * Returns the IP address for the supplied request. It will look for the existence of
+     * an X-Forwarded-For Header before extracting it from the request.
+     * @param request
+     * @return IP Address of the request
+     */
+    protected String getIPAddress(HttpServletRequest request) {
+
+        String ipAddress = request.getHeader("X-Forwarded-For");
+
+        return ipAddress == null ? request.getRemoteAddr(): ipAddress;
+    }
+
+    /**
+     * Check if the request should be rate limited.
+     * The request will be rate limited if there is no 'apiKey' OR 'email' request parameter
+     * OR if the IP address of the request is not in the excludedNetworks OR in the includedNetworks
+     *
+     * @param request
+     * @param response
+     * @return if the request should be rate limited
+     * @throws IOException
+     */
+    public boolean rateLimitRequest(HttpServletRequest request, HttpServletResponse response) throws IOException {
+
+        String ipAddress = getIPAddress(request);
+        boolean ratelimitIp = true;
+        if (excludedNetworkStream != null) {
+            ratelimitIp &= excludedNetworkStream.get().noneMatch(networkMatcher -> networkMatcher.matches(ipAddress));
+        }
+        if (includedNetworkStream != null) {
+            ratelimitIp |= includedNetworkStream.get().anyMatch(networkMatcher -> networkMatcher.matches(ipAddress));
+        }
+
+        if (!ratelimitIp) {
+            return false;
+        }
+
+        if (rateLimitWindowSeconds > 0 && rateLimitCount > 0) {
+
+            Cache cache = cacheManager.getCache("rateLimit");
+            Element element = cache.get(ipAddress);
+            ArrayDeque<Instant> accessTimes;
+
+            if (element == null) {
+
+                accessTimes = new ArrayDeque<Instant>();
+
+            } else {
+
+                accessTimes = (ArrayDeque<Instant>) element.getValue();
+                // remove any access times that are older then the rate limit window
+                Instant windowStart = Instant.now().minusSeconds(rateLimitWindowSeconds);
+                for (Instant oldestAccessTime = accessTimes.getFirst();
+                     oldestAccessTime != null && oldestAccessTime.isBefore(windowStart);
+                     oldestAccessTime = accessTimes.getFirst()) {
+                    accessTimes.removeFirst();
+                }
+            }
+
+            if (accessTimes.size() < rateLimitCount) {
+
+                // add access times keyed by IP address only for successful requests.
+                accessTimes.addLast(Instant.now());
+                element = new Element(ipAddress, accessTimes, false, rateLimitWindowSeconds, 0);
+                cache.put(element);
+
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     /**
      * Check the validity of the supplied key, returning false if the store is in read only mode.
@@ -96,7 +212,6 @@ public class AbstractSecureController {
         // caching manually managed via the cacheManager not using the @Cacheable annotation
         // the @Cacheable annotation only works when an external call is made to a method, for
         // an explanation see: https://stackoverflow.com/a/32999744
-        cacheManager.getCache("apiKeys");
         Cache cache = cacheManager.getCache("apiKeys");
         Element element = cache.get(keyToTest);
 
