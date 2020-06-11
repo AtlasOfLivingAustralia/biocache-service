@@ -235,7 +235,7 @@ public class SearchUtils {
         }
         String value = StringUtils.remove(uid, "\"");
 
-        return messageSource.getMessage(fieldName + "." + value, null, value, null);
+        return messageSource.getMessage(fieldName + "." + value, null, uid, null);
     }
 
     /**
