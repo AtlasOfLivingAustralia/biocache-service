@@ -23,7 +23,7 @@ before_install:
   - ls -laF
   - cd $TRAVIS_BUILD_DIR
 script:
-  - "[ \"${TRAVIS_PULL_REQUEST}\" = \"false\" ] && mvn -P travis clean deploy"
+  - "[ \"${TRAVIS_PULL_REQUEST}\" = \"false\" ] && mvn -P travis clean deploy || mvn -P travis clean install"
 after_success:
   - mvn clean test jacoco:report coveralls:report
 after_script:
