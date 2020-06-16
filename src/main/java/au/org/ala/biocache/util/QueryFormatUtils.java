@@ -1013,7 +1013,6 @@ public class QueryFormatUtils {
 
     /**
      * Creates a SOLR escaped string the can be used in a StringBuffer.appendReplacement
-     * The appendReplacement needs an extra delimiting on the backslashes when quoted.
      *
      * @param value
      * @return
@@ -1022,23 +1021,13 @@ public class QueryFormatUtils {
         if (value.equals("*")) {
             return value;
         }
-
-        //if starts and ends with quotes just escape the inside
-        boolean quoted = false;
-
         StringBuffer sb = new StringBuffer();
-        if (value.startsWith("\"") && value.endsWith("\"")) {
-            quoted = true;
-            value = value.substring(1, value.length() - 1);
-            sb.append("\"");
-        }
         if (forMatcher) {
             sb.append(ClientUtils.escapeQueryChars(value).replaceAll("\\\\", "\\\\\\\\"));
         } else {
             sb.append(ClientUtils.escapeQueryChars(value));
         }
 
-        if (quoted) sb.append("\"");
         return sb.toString();
     }
 
