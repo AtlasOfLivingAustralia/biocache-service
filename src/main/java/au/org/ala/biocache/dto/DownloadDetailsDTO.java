@@ -37,6 +37,7 @@ public class DownloadDetailsDTO {
     private AtomicLong recordsDownloaded = new AtomicLong(0);
     private String downloadParams;
     private String ipAddress;
+    private String userAgent;
     private String email;
     private DownloadRequestParams requestParams;
     private String fileLocation;
@@ -55,16 +56,17 @@ public class DownloadDetailsDTO {
      */
     public DownloadDetailsDTO(){}
     
-    public DownloadDetailsDTO(String params, String ipAddress, DownloadType type){
+    public DownloadDetailsDTO(String params, String ipAddress, String userAgent, DownloadType type){
         this.downloadParams = params;
         this.ipAddress = ipAddress;
+        this.userAgent = userAgent;
         this.downloadType = type;
         this.startDate = new Date();
         this.lastUpdate = new Date();
     }
     
-    public DownloadDetailsDTO(DownloadRequestParams params, String ipAddress, DownloadType type){
-        this(params.getUrlParams(), ipAddress, type);
+    public DownloadDetailsDTO(DownloadRequestParams params, String ipAddress, String userAgent, DownloadType type){
+        this(params.getUrlParams(), ipAddress, userAgent, type);
         requestParams = params;
         email = requestParams.getEmail();
     }
@@ -112,7 +114,11 @@ public class DownloadDetailsDTO {
     public String getIpAddress(){
         return ipAddress;
     }
-    
+
+    public String getUserAgent() {
+        return userAgent;
+    }
+
     public DownloadType getDownloadType(){
         return downloadType;
     }
@@ -210,6 +216,10 @@ public class DownloadDetailsDTO {
      */
     public void setIpAddress(String ipAddress) {
         this.ipAddress = ipAddress;
+    }
+
+    public void setUserAgent(String userAgent) {
+        this.userAgent = userAgent;
     }
 
     /**

@@ -355,7 +355,7 @@ public class DownloadControlThreadTest {
         testRunningThread = new Thread(testDownloadControlThread);
         testRunningThread.start();
         for (int i = 0; i < count; i++) {
-            DownloadDetailsDTO nextDownload = new DownloadDetailsDTO("does-not-exist-" + i, "127.0.0.1",
+            DownloadDetailsDTO nextDownload = new DownloadDetailsDTO("does-not-exist-" + i, "127.0.0.1", "",
                     DownloadType.RECORDS_DB);
             nextDownload.setEmail("test@csiro.au.example");
             DownloadRequestParams requestParams = new DownloadRequestParams();
