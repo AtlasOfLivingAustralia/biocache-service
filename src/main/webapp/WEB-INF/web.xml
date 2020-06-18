@@ -100,6 +100,7 @@
     </filter-mapping>
 
     <!-- Case insensitive filter -->
+    <!-- Used to make WMS parameters case insensitive, as per OGC specification -->
     <filter>
         <filter-name>CaseInsensitiveRequestFilter</filter-name>
         <filter-class>au.org.ala.biocache.web.CaseInsensitiveRequestFilter</filter-class>
