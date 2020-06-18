@@ -545,12 +545,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @deprecated Use {@link #writeQueryToStream(DownloadDetailsDTO, DownloadRequestParams, String, OutputStream, boolean, boolean, boolean, boolean, ExecutorService, List)} instead.
      */
     @Deprecated
-    public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip, String userAgent,
+    public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
                                    OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip)
             throws Exception {
         afterInitialisation();
 
-        writeQueryToStream(dd, requestParams, ip, userAgent, out, includeSensitive, fromIndex, limit, zip, getOfflineThreadPoolExecutor(), null);
+        writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex, limit, zip, getOfflineThreadPoolExecutor(), null);
     }
 
     /**
@@ -566,7 +566,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param doiResponseList Return the CreateDoiResponse instance as the first element of the list if requestParams.mintDoi was true
      * @throws Exception
      */
-    public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip, String userAgent,
+    public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
                                    OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip, ExecutorService parallelExecutor, List<CreateDoiResponse> doiResponseList)
             throws Exception {
         afterInitialisation();
@@ -792,7 +792,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                 // log the stats to ala logger
                 LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
-                        requestParams.getEmail(), requestParams.getReason(), ip, userAgent, null, uidStats, sourceUrl);
+                        requestParams.getEmail(), requestParams.getReason(), ip, dd.getUserAgent(), null, uidStats, sourceUrl);
 
                 loggerService.logEvent(vo);
 //                logger.log(RestLevel.REMOTE, vo);
@@ -855,7 +855,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param fromIndex
      * @param zip
      * @throws Exception
-     * @deprecated Use {@link #writeQueryToStream(DownloadRequestParams, HttpServletResponse, String, OutputStream, boolean, boolean, boolean, ExecutorService)} instead.
+     * @deprecated Use {@link #writeQueryToStream(DownloadRequestParams, HttpServletResponse, String, String, OutputStream, boolean, boolean, boolean, ExecutorService)} instead.
      */
     @Deprecated
     public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, String userAgent,
@@ -883,7 +883,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
         DownloadDetailsDTO.DownloadType type = fromIndex ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
         DownloadDetailsDTO dd = registerDownload(requestParams, ip, userAgent, type);
-        writeQueryToStream(dd, requestParams, ip, userAgent, new CloseShieldOutputStream(out), includeSensitive, fromIndex, true, zip, parallelQueryExecutor, null);
+        writeQueryToStream(dd, requestParams, ip, new CloseShieldOutputStream(out), includeSensitive, fromIndex, true, zip, parallelQueryExecutor, null);
     }
 
     /**
@@ -1312,7 +1312,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 doiResponseList = new ArrayList<>();
                             }
                             writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
-                                    currentDownload.getIpAddress(), currentDownload.getUserAgent(), new CloseShieldOutputStream(fos), currentDownload.getIncludeSensitive(),
+                                    currentDownload.getIpAddress(), new CloseShieldOutputStream(fos), currentDownload.getIncludeSensitive(),
                                     currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false, true, parallelExecutor, doiResponseList);
 
                             if(mintDoi && doiResponseList.size() <= 0) {
