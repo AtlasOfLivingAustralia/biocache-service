@@ -106,6 +106,6 @@
     </filter>
     <filter-mapping>
         <filter-name>CaseInsensitiveRequestFilter</filter-name>
-        <url-pattern>*/osgrid/wms/*</url-pattern>
+        <url-pattern>/ogc/*</url-pattern>
     </filter-mapping>
 </web-app>

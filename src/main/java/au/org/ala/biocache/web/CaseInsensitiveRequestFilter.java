@@ -16,7 +16,7 @@ import java.util.Map;
 /**
  * Wrapper for an {@link HttpServletRequest} to make the lookup of parameters case insensitive. The functionality
  * is achieved by using the {@link LinkedCaseInsensitiveMap} from Spring.
- *
+ * <p>
  * This implementation is taken from StackOverflow here: https://stackoverflow.com/a/29533456
  *
  * @author Marten Deinum
@@ -63,7 +63,7 @@ public class CaseInsensitiveRequestFilter extends OncePerRequestFilter {
 
         @Override
         public String[] getParameterValues(String name) {
-            return (String[])params.get(name);
+            return (String[]) params.get(name);
         }
     }
 }
