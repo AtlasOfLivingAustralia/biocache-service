@@ -196,7 +196,7 @@ public class DownloadServiceTest {
     @Test
     public final void testRegisterDownload() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
     }
@@ -208,7 +208,7 @@ public class DownloadServiceTest {
     @Test
     public final void testUnregisterDownload() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         Thread.sleep(5000);
@@ -223,7 +223,7 @@ public class DownloadServiceTest {
     public final void testUnregisterDownloadWithoutDownloadLatchWait() throws Exception {
         testLatch.countDown();
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         Thread.sleep(5000);
@@ -237,7 +237,7 @@ public class DownloadServiceTest {
     @Test
     public final void testUnregisterDownloadMultipleWithDownloadLatchWaitOn() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         Thread.sleep(5000);
@@ -252,7 +252,7 @@ public class DownloadServiceTest {
     @Test
     public final void testUnregisterDownloadMultipleWithDownloadLatchWaitOnNoSleep() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         testService.unregisterDownload(registerDownload);
@@ -268,7 +268,7 @@ public class DownloadServiceTest {
         testService.init();
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         Thread.sleep(5000);
@@ -292,7 +292,7 @@ public class DownloadServiceTest {
         testService.init();
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         Thread.sleep(5000);
@@ -340,7 +340,7 @@ public class DownloadServiceTest {
         doiApplicationMetadata.put("key1", "value1");
         doiApplicationMetadata.put("key2", "value2");
 
-        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", DownloadType.RECORDS_INDEX);
+        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", "", DownloadType.RECORDS_INDEX);
 
         when(searchDAO.writeResultsFromIndexToStream(any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new ConcurrentHashMap<String, AtomicInteger>());
         when(doiService.mintDoi(isA(DownloadDoiDTO.class))).thenReturn(new CreateDoiResponse());
@@ -348,6 +348,7 @@ public class DownloadServiceTest {
                 downloadDetailsDTO,
                 downloadRequestParams,
                 downloadDetailsDTO.getIpAddress(),
+                downloadDetailsDTO.getUserAgent(),
                 out,
                 false, true, true, false, (ExecutorService)null, doiResponseList);
 
@@ -360,7 +361,7 @@ public class DownloadServiceTest {
 
     /**
      * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#writeQueryToStream(au.org.ala.biocache.dto.DownloadDetailsDTO, au.org.ala.biocache.dto.DownloadRequestParams, java.lang.String, java.io.OutputStream, boolean, boolean, boolean, boolean)}.
+     * {@link au.org.ala.biocache.service.DownloadService#writeQueryToStream(au.org.ala.biocache.dto.DownloadDetailsDTO, au.org.ala.biocache.dto.DownloadRequestParams, java.lang.String, java.lang.String, java.io.OutputStream, boolean, boolean, boolean, boolean)}.
      */
     @Ignore("TODO: Implement me")
     @Test
@@ -371,7 +372,7 @@ public class DownloadServiceTest {
 
     /**
      * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#writeQueryToStream(au.org.ala.biocache.dto.DownloadRequestParams, javax.servlet.http.HttpServletResponse, java.lang.String, javax.servlet.ServletOutputStream, boolean, boolean, boolean)}.
+     * {@link au.org.ala.biocache.service.DownloadService#writeQueryToStream(au.org.ala.biocache.dto.DownloadRequestParams, javax.servlet.http.HttpServletResponse, java.lang.String, java.lang.String, javax.servlet.ServletOutputStream, boolean, boolean, boolean)}.
      */
     @Ignore("TODO: Implement me")
     @Test
