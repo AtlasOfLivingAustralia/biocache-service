@@ -15,6 +15,7 @@ import au.org.ala.biocache.dto.FacetThemes;
 import au.org.ala.biocache.dto.QualityFilterDTO;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.doi.CreateDoiResponse;
+import org.ala.client.model.LogEventVO;
 import org.junit.*;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
@@ -23,6 +24,7 @@ import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.io.ClassPathResource;
+import sun.rmi.runtime.Log;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
@@ -322,6 +324,7 @@ public class DownloadServiceTest {
         testService.doiService = doiService;
         SearchDAO searchDAO = mock(SearchDAO.class);
         testService.searchDAO = searchDAO;
+        testService.loggerService = mock(LoggerService.class);
         AbstractMessageSource messageSource = mock(AbstractMessageSource.class);
         testService.messageSource = messageSource;
         AuthService authService = mock(AuthService.class);
@@ -348,7 +351,6 @@ public class DownloadServiceTest {
                 downloadDetailsDTO,
                 downloadRequestParams,
                 downloadDetailsDTO.getIpAddress(),
-                downloadDetailsDTO.getUserAgent(),
                 out,
                 false, true, true, false, (ExecutorService)null, doiResponseList);
 
@@ -357,6 +359,53 @@ public class DownloadServiceTest {
 
         DownloadDoiDTO downloadDoiDTO = argument.getValue();
         assertEquals(downloadDoiDTO.getApplicationMetadata(), downloadRequestParams.getDoiMetadata());
+    }
+
+    @Test
+    public final void testUserAgentPassedToLoggerService() throws Exception {
+
+        // Initialisation - if we don't do this the tests will not run.
+        testLatch.countDown();
+        testService.init();
+
+        // Setup mocks and stubs - could be in setup but I don't want to interfere with the other tests.
+        DoiService doiService = mock(DoiService.class);
+        testService.doiService = doiService;
+        SearchDAO searchDAO = mock(SearchDAO.class);
+        testService.searchDAO = searchDAO;
+        LoggerService loggerService = mock(LoggerService.class);
+        testService.loggerService = loggerService;
+        AbstractMessageSource messageSource = mock(AbstractMessageSource.class);
+        testService.messageSource = messageSource;
+        AuthService authService = mock(AuthService.class);
+        testService.authService = authService;
+
+        testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
+
+        // Setup method parameters
+        OutputStream out = new ByteArrayOutputStream();
+        List<CreateDoiResponse> doiResponseList = new ArrayList<CreateDoiResponse>();
+
+        DownloadRequestParams downloadRequestParams = new DownloadRequestParams();
+        downloadRequestParams.setMintDoi(true);
+        downloadRequestParams.setDisplayString("");
+
+        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", "test User-Agent", DownloadType.RECORDS_INDEX);
+
+        when(searchDAO.writeResultsFromIndexToStream(any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new ConcurrentHashMap<String, AtomicInteger>());
+        when(doiService.mintDoi(isA(DownloadDoiDTO.class))).thenReturn(new CreateDoiResponse());
+        testService.writeQueryToStream(
+                downloadDetailsDTO,
+                downloadRequestParams,
+                downloadDetailsDTO.getIpAddress(),
+                out,
+                false, true, true, false, (ExecutorService)null, doiResponseList);
+
+        ArgumentCaptor<LogEventVO> argument = ArgumentCaptor.forClass(LogEventVO.class);
+        verify(loggerService).logEvent(argument.capture());
+
+        LogEventVO logEventVO = argument.getValue();
+        assertEquals(logEventVO.getUserAgent(), "test User-Agent");
     }
 
     /**

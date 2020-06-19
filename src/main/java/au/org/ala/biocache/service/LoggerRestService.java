@@ -99,7 +99,7 @@ public class LoggerRestService implements LoggerService {
         HttpEntity<LogEventVO> request = new HttpEntity<>(logEvent, headers);
         ResponseEntity<String> response = restTemplate.postForEntity(loggerUriPrefix, request, String.class);
 
-        if (response.getStatusCode() == HttpStatus.OK) {
+        if (response.getStatusCode() != HttpStatus.OK) {
             logger.warn("failed to log event");
         }
     }
