@@ -18,6 +18,7 @@ import au.org.ala.biocache.Store;
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.Element;
+import org.ala.client.util.Constants;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,6 +106,11 @@ public class AbstractSecureController {
         String ipAddress = request.getHeader("X-Forwarded-For");
 
         return ipAddress == null ? request.getRemoteAddr(): ipAddress;
+    }
+
+    protected String getUserAgent(HttpServletRequest request) {
+
+        return request.getHeader(Constants.USER_AGENT_PARAM);
     }
 
     /**

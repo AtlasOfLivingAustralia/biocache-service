@@ -111,6 +111,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Inject
     protected EmailService emailService;
     @Inject
+    protected LoggerService loggerService;
+    @Inject
     protected AbstractMessageSource messageSource;
 
     @Inject
@@ -494,10 +496,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param type
      * @return
      */
-    public DownloadDetailsDTO registerDownload(DownloadRequestParams requestParams, String ip,
+    public DownloadDetailsDTO registerDownload(DownloadRequestParams requestParams, String ip, String userAgent,
             DownloadDetailsDTO.DownloadType type) {
         afterInitialisation();
-        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, type);
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, userAgent, type);
         dd.setRequestParams(requestParams);
         currentDownloads.add(dd);
         return dd;
@@ -544,7 +546,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      */
     @Deprecated
     public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
-            OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip)
+                                   OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip)
             throws Exception {
         afterInitialisation();
 
@@ -790,8 +792,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                 // log the stats to ala logger
                 LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
-                        requestParams.getEmail(), requestParams.getReason(), ip, null, uidStats, sourceUrl);
-                logger.log(RestLevel.REMOTE, vo);
+                        requestParams.getEmail(), requestParams.getReason(), ip, dd.getUserAgent(), null, uidStats, sourceUrl);
+
+                loggerService.logEvent(vo);
+//                logger.log(RestLevel.REMOTE, vo);
+
             }
         } catch (RecordWriterException e) {
             logger.error(e.getMessage(), e);
@@ -850,17 +855,17 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param fromIndex
      * @param zip
      * @throws Exception
-     * @deprecated Use {@link #writeQueryToStream(DownloadRequestParams, HttpServletResponse, String, OutputStream, boolean, boolean, boolean, ExecutorService)} instead.
+     * @deprecated Use {@link #writeQueryToStream(DownloadRequestParams, HttpServletResponse, String, String, OutputStream, boolean, boolean, boolean, ExecutorService)} instead.
      */
     @Deprecated
-    public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip,
+    public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, String userAgent,
             OutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip) throws Exception {
         afterInitialisation();
-        writeQueryToStream(requestParams, response, ip, out, includeSensitive, fromIndex, zip, getOfflineThreadPoolExecutor());
+        writeQueryToStream(requestParams, response, ip, userAgent, out, includeSensitive, fromIndex, zip, getOfflineThreadPoolExecutor());
     }
 
 
-    public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip,
+    public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, String userAgent,
             OutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip, ExecutorService parallelQueryExecutor) throws Exception {
         afterInitialisation();
         String filename = requestParams.getFile();
@@ -877,7 +882,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         }
 
         DownloadDetailsDTO.DownloadType type = fromIndex ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
-        DownloadDetailsDTO dd = registerDownload(requestParams, ip, type);
+        DownloadDetailsDTO dd = registerDownload(requestParams, ip, userAgent, type);
         writeQueryToStream(dd, requestParams, ip, new CloseShieldOutputStream(out), includeSensitive, fromIndex, true, zip, parallelQueryExecutor, null);
     }
 
