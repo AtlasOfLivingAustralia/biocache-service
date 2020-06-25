@@ -14,6 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import org.ala.client.model.LogEventVO;
+
 import java.util.List;
 import java.util.Map;
 
@@ -29,4 +31,6 @@ public interface LoggerService {
     public List<Map<String,Object>> getSources();
     public List<Integer> getReasonIds();
     public List<Integer> getSourceIds();
+
+    public void logEvent(LogEventVO logEvent);
 }

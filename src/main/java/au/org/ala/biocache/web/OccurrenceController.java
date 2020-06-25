@@ -37,6 +37,7 @@ import net.sf.json.JSONArray;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
+import org.ala.client.util.Constants;
 import org.ala.client.util.RestfulClient;
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
@@ -846,7 +847,7 @@ public class OccurrenceController extends AbstractSecureController {
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
         if(requestParams.getFacets().length > 0){
-            DownloadDetailsDTO dd = downloadService.registerDownload(requestParams, getIPAddress(request), DownloadDetailsDTO.DownloadType.FACET);
+            DownloadDetailsDTO dd = downloadService.registerDownload(requestParams, getIPAddress(request), getUserAgent(request), DownloadDetailsDTO.DownloadType.FACET);
             try {
                 String filename = requestParams.getFile() != null ? requestParams.getFile() : requestParams.getFacets()[0];
                 response.setHeader("Cache-Control", "must-revalidate");
@@ -921,7 +922,7 @@ public class OccurrenceController extends AbstractSecureController {
         final File file = new File(filepath);
         
         final SpeciesLookupService mySpeciesLookupService = this.speciesLookupService;
-        final DownloadDetailsDTO dd = downloadService.registerDownload(params, getIPAddress(request), DownloadType.RECORDS_INDEX);
+        final DownloadDetailsDTO dd = downloadService.registerDownload(params, getIPAddress(request), getUserAgent(request), DownloadType.RECORDS_INDEX);
         
         if(file.exists()){
             Runnable t = new Runnable(){
@@ -1124,7 +1125,7 @@ public class OccurrenceController extends AbstractSecureController {
         }
         try {
             ServletOutputStream out = response.getOutputStream();
-            downloadService.writeQueryToStream(requestParams, response, getIPAddress(request), new CloseShieldOutputStream(out), false, true, zip, executor);
+            downloadService.writeQueryToStream(requestParams, response, getIPAddress(request), getUserAgent(request), new CloseShieldOutputStream(out), false, true, zip, executor);
         } catch(Exception e){
             logger.error(e.getMessage(), e);
         }
@@ -1147,7 +1148,7 @@ public class OccurrenceController extends AbstractSecureController {
 
             try {
                 ServletOutputStream out = response.getOutputStream();
-                downloadService.writeQueryToStream(requestParams, response, getIPAddress(request), new CloseShieldOutputStream(out), true, fromIndex, zip, executor);
+                downloadService.writeQueryToStream(requestParams, response, getIPAddress(request), getUserAgent(request), new CloseShieldOutputStream(out), true, fromIndex, zip, executor);
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
             }
@@ -1548,13 +1549,13 @@ public class OccurrenceController extends AbstractSecureController {
             Config.mediaStore().convertPathsToUrls(occ.getProcessed(), biocacheMediaUrl);
 
             //log the statistics for viewing the record
-            logViewEvent(ip, occ, null, "Viewing Occurrence Record " + uuid);
+            logViewEvent(ip, occ, null,  getUserAgent(request), "Viewing Occurrence Record " + uuid);
 
             return occ;
         }
     }
     
-    private void logViewEvent(String ip, OccurrenceDTO occ, String email, String reason) {
+    private void logViewEvent(String ip, OccurrenceDTO occ, String userAgent, String email, String reason) {
         //String ip = request.getLocalAddr();
         ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
         if(occ.getProcessed() != null && occ.getProcessed().getAttribution()!=null){
