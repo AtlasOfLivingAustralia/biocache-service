@@ -1120,7 +1120,7 @@ public class OccurrenceController extends AbstractSecureController {
             return null;
         }
         if(apiKey != null){
-                occurrenceSensitiveDownload(requestParams, apiKey, true, zip, response, request);
+            occurrenceSensitiveDownload(requestParams, apiKey, true, zip, response, request);
             return null;
         }
         try {
