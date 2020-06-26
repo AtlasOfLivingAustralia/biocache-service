@@ -35,7 +35,7 @@ class BuildInfoController {
                     runtimeEnvironmentProperties.setProperty("java.version", System.getProperty("java.version"));
                     model.addAttribute("runtimeEnvironment", runtimeEnvironmentProperties);
                 } catch (IOException e) {
-                    logger.error(e.getMessage(), e);
+                    logger.error("failed to read 'runtimeEnvironment.properties' resource", e);
                 }
             }
 
@@ -46,7 +46,7 @@ class BuildInfoController {
                     buildInfoProperties.load(buildInfoStream);
                     model.addAttribute("buildInfo", buildInfoProperties);
                 } catch (IOException e) {
-                    logger.error(e.getMessage(), e);
+                    logger.error("failed to read 'buildInfo.properties' resource", e);
                 }
             }
 

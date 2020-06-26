@@ -228,7 +228,7 @@ public class OccurrenceController extends AbstractSecureController {
                 model.addAttribute("versionInfoString", sb.toString());
 
             } catch (Exception e) {
-                logger.error(e.getMessage(), e);
+                logger.error("failed to read 'git.properties' resource", e);
             }
         }
         return HOME;
@@ -1120,7 +1120,7 @@ public class OccurrenceController extends AbstractSecureController {
             return null;
         }
         if(apiKey != null){
-            occurrenceSensitiveDownload(requestParams, apiKey, true, zip, response, request);
+                occurrenceSensitiveDownload(requestParams, apiKey, true, zip, response, request);
             return null;
         }
         try {
