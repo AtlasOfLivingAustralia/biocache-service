@@ -228,7 +228,7 @@ public class OccurrenceController extends AbstractSecureController {
                 model.addAttribute("versionInfoString", sb.toString());
 
             } catch (Exception e) {
-                logger.error(e.getMessage(), e);
+                logger.error("failed to read 'git.properties' resource", e);
             }
         }
         return HOME;
