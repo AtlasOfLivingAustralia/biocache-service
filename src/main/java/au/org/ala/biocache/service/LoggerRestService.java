@@ -100,13 +100,13 @@ public class LoggerRestService implements LoggerService {
         HttpEntity<LogEventVO> request = new HttpEntity<>(logEvent, headers);
         try {
 
-            ResponseEntity<String> response = restTemplate.postForEntity(loggerUriPrefix, request, String.class);
+            ResponseEntity<Void> response = restTemplate.postForEntity(loggerUriPrefix, request, Void.class);
 
             if (response.getStatusCode() != HttpStatus.OK) {
                 logger.warn("failed to log event");
             }
 
-        } catch (RestClientException e) {
+        } catch (Exception e) {
             logger.warn("failed to log event", e);
         }
     }
