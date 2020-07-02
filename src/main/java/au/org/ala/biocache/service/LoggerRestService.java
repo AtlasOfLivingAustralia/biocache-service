@@ -24,6 +24,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestOperations;
 
 import javax.annotation.PostConstruct;
@@ -54,7 +55,7 @@ public class LoggerRestService implements LoggerService {
     //Used to wait for reloadCache() to complete
     private CountDownLatch initialised = new CountDownLatch(1);
 
-    @Value("${logger.service.url:https://logger.ala.org.au/service/logger/}")
+    @Value("${logger.service.url:https://logger.ala.org.au/service/logger}")
     protected String loggerUriPrefix;
     //NC 20131018: Allow cache to be disabled via config (enabled by default)
     @Value("${caches.log.enabled:true}")
@@ -97,10 +98,16 @@ public class LoggerRestService implements LoggerService {
         HttpHeaders headers = new HttpHeaders();
         headers.set(HttpHeaders.USER_AGENT, logEvent.getUserAgent());
         HttpEntity<LogEventVO> request = new HttpEntity<>(logEvent, headers);
-        ResponseEntity<String> response = restTemplate.postForEntity(loggerUriPrefix, request, String.class);
+        try {
 
-        if (response.getStatusCode() != HttpStatus.OK) {
-            logger.warn("failed to log event");
+            ResponseEntity<String> response = restTemplate.postForEntity(loggerUriPrefix, request, String.class);
+
+            if (response.getStatusCode() != HttpStatus.OK) {
+                logger.warn("failed to log event");
+            }
+
+        } catch (RestClientException e) {
+            logger.warn("failed to log event", e);
         }
     }
 
@@ -186,7 +193,7 @@ public class LoggerRestService implements LoggerService {
         List<Map<String,Object>> entities = new ArrayList<Map<String,Object>>();
 
         try {
-            final String jsonUri = loggerUriPrefix + type.name();
+            final String jsonUri = loggerUriPrefix + "/" + type.name();
             logger.info("Requesting " + type.name() + " via: " + jsonUri);
             entities = restTemplate.getForObject(jsonUri, List.class);
             logger.info("The values : " + entities);
