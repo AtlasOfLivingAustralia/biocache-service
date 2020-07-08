@@ -26,6 +26,7 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.model.FullRecord;
 import au.org.ala.biocache.model.QualityAssertion;
 import au.org.ala.biocache.service.AuthService;
+import au.org.ala.biocache.service.LoggerService;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.service.ImageMetadataService;
 import au.org.ala.biocache.service.SpeciesLookupService;
@@ -100,6 +101,8 @@ public class OccurrenceController extends AbstractSecureController {
     protected AssertionUtils assertionUtils;
     @Inject
     protected DownloadService downloadService;
+    @Inject
+    protected LoggerService loggerService;
     @Inject
     private AbstractMessageSource messageSource;
     @Inject
@@ -1549,7 +1552,7 @@ public class OccurrenceController extends AbstractSecureController {
             Config.mediaStore().convertPathsToUrls(occ.getProcessed(), biocacheMediaUrl);
 
             //log the statistics for viewing the record
-            logViewEvent(ip, occ, null,  getUserAgent(request), "Viewing Occurrence Record " + uuid);
+            logViewEvent(ip, occ, getUserAgent(request), null, "Viewing Occurrence Record " + uuid);
 
             return occ;
         }
@@ -1586,7 +1589,9 @@ public class OccurrenceController extends AbstractSecureController {
             }
         }
         LogEventVO vo = new LogEventVO(LogEventType.OCCURRENCE_RECORDS_VIEWED, email, reason, ip, uidStats);
-        logger.log(RestLevel.REMOTE, vo);
+        vo.setUserAgent(userAgent);
+
+        loggerService.logEvent(vo);
     }
 
     /**
