@@ -64,6 +64,8 @@ public class OccurrenceControllerTest extends TestCase {
         loggerService = mock(LoggerService.class);
         ReflectionTestUtils.setField(downloadService, "loggerService", loggerService);
 
+        ReflectionTestUtils.setField(occurrenceController, "rateLimitCount", 5);
+
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).build();
     }
 
@@ -165,7 +167,13 @@ public class OccurrenceControllerTest extends TestCase {
     @Test
     public void downloadInvalidEmailTest() throws Exception {
 
+        // need to set rate limit count to 0 to cause failure on first attempt
         ReflectionTestUtils.setField(occurrenceController, "rateLimitCount", 0);
+
+        this.mockMvc.perform(get("/occurrences/download*")
+                .param("reasonTypeId", "10")
+                .param("email", ""))
+                .andExpect(status().is(HttpServletResponse.SC_FORBIDDEN));
 
         this.mockMvc.perform(get("/occurrences/download*")
                 .param("reasonTypeId", "10"))
