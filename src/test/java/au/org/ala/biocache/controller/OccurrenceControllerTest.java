@@ -2,6 +2,7 @@ package au.org.ala.biocache.controller;
 
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.service.LoggerService;
+import au.org.ala.biocache.web.OccurrenceController;
 import junit.framework.TestCase;
 import org.ala.client.model.LogEventVO;
 import org.junit.Before;
@@ -18,6 +19,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+
+import javax.servlet.http.HttpServletResponse;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -41,6 +44,9 @@ public class OccurrenceControllerTest extends TestCase {
     public final int TEST_INDEX_SIZE = 1000;
     public final int DEFAULT_SEARCH_PAGE_SIZE = 10;
     public final int INDEXED_FIELD_SIZE = 377;
+
+    @Autowired
+    OccurrenceController occurrenceController;
 
     @Autowired
     DownloadService downloadService;
@@ -143,5 +149,31 @@ public class OccurrenceControllerTest extends TestCase {
 
         LogEventVO logEventVO = argument.getValue();
         assertEquals(logEventVO.getUserAgent(), "test User-Agent");
+    }
+
+    @Test
+    public void downloadValidEmailTest() throws Exception {
+
+        this.mockMvc.perform(get("/occurrences/download*")
+                .header("user-agent", "test User-Agent")
+                .param("reasonTypeId", "10")
+                .param("email", "test@test.com"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/zip"));
+    }
+
+    @Test
+    public void downloadInvalidEmailTest() throws Exception {
+
+        ReflectionTestUtils.setField(occurrenceController, "rateLimitCount", 0);
+
+        this.mockMvc.perform(get("/occurrences/download*")
+                .param("reasonTypeId", "10"))
+                .andExpect(status().is(HttpServletResponse.SC_FORBIDDEN));
+
+        this.mockMvc.perform(get("/occurrences/download*")
+                .param("reasonTypeId", "10")
+                .param("email", "test"))
+                .andExpect(status().is(HttpServletResponse.SC_FORBIDDEN));
     }
 }
