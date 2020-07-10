@@ -4,7 +4,7 @@
     <parent>
         <groupId>au.org.ala</groupId>
         <artifactId>ala-parent-pom</artifactId>
-        <version>12</version>
+        <version>13</version>
     </parent>
 
     <groupId>au.org.ala</groupId>
