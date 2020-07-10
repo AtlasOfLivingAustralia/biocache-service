@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -32,6 +33,9 @@ public class DownloadDoiDTO {
     private long recordCount;
     private String requestTime;
     private String queryTitle;
+    private List<QualityFilterDTO> qualityFilters = new ArrayList<>();
+
+    Map<String, String> applicationMetadata;
 
     public long getRecordCount() {
         return recordCount;
@@ -130,5 +134,21 @@ public class DownloadDoiDTO {
 
     public void setAuthorisedRoles(List<String> authorisedRoles) {
         this.authorisedRoles = authorisedRoles;
+    }
+
+    public Map<String, String> getApplicationMetadata() {
+        return applicationMetadata;
+    }
+
+    public void setApplicationMetadata(Map<String, String> applicationMetadata) {
+        this.applicationMetadata = applicationMetadata;
+    }
+
+    public List<QualityFilterDTO> getQualityFilters() {
+        return qualityFilters;
+    }
+
+    public void setQualityFilters(List<QualityFilterDTO> qualityFilters) {
+        this.qualityFilters = qualityFilters;
     }
 }

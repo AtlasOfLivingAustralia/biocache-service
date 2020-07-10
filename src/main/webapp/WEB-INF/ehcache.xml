@@ -10,4 +10,7 @@
     <cache name="speciesKvp" maxElementsInMemory="1000" eternal="false" overflowToDisk="false"/>
     <cache name="qidGeneration" maxElementsInMemory="1000" eternal="false" overflowToDisk="false" />
     <cache name="formatSearchQuery" maxElementsInMemory="1000" eternal="false" overflowToDisk="false" />
+    <!-- apiKeys cache with a TTL of 5 minutes to ensure keys are expired in a timely manner -->
+    <cache name="apiKeys" maxElementsInMemory="100" eternal="false" overflowToDisk="false" timeToLiveSeconds="360" />
+    <cache name="rateLimit" maxElementsInMemory="1000" eternal="false" overflowToDisk="false" />
 </ehcache>

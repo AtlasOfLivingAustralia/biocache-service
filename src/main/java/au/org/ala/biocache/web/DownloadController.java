@@ -124,7 +124,7 @@ public class DownloadController extends AbstractSecureController {
 
         DownloadDetailsDTO.DownloadType downloadType = "index".equals(type.toLowerCase()) ? DownloadDetailsDTO.DownloadType.RECORDS_INDEX : DownloadDetailsDTO.DownloadType.RECORDS_DB;
 
-        return download(requestParams, ip, apiKey, response, request, downloadType);
+        return download(requestParams, ip, getUserAgent(request), apiKey, response, request, downloadType);
     }
 
     /**
@@ -169,10 +169,10 @@ public class DownloadController extends AbstractSecureController {
 
         DownloadDetailsDTO.DownloadType downloadType = hasDBColumn ? DownloadDetailsDTO.DownloadType.RECORDS_DB : DownloadDetailsDTO.DownloadType.RECORDS_INDEX;
 
-        return download(requestParams, ip, apiKey, response, request, downloadType);
+        return download(requestParams, ip, getUserAgent(request), apiKey, response, request, downloadType);
     }
 
-    private Object download(DownloadRequestParams requestParams, String ip, String apiKey,
+    private Object download(DownloadRequestParams requestParams, String ip, String userAgent, String apiKey,
                             HttpServletResponse response, HttpServletRequest request,
                             DownloadDetailsDTO.DownloadType downloadType) throws Exception {
 
@@ -199,7 +199,7 @@ public class DownloadController extends AbstractSecureController {
         ip = ip == null ? request.getRemoteAddr() : ip;
 
         //create a new task
-        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, downloadType);
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, userAgent, downloadType);
         dd.setIncludeSensitive(includeSensitive);
         dd.setSensitiveFq(sensitiveFq);
 
@@ -216,7 +216,7 @@ public class DownloadController extends AbstractSecureController {
             status.put("message", "Already in queue.");
             status.put("status", "inQueue");
             status.put("queueSize", persistentQueueDAO.getTotalDownloads());
-            status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
+            status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + d.getUniqueId());
         } else if (dd.getTotalRecords() > downloadService.dowloadOfflineMaxSize) {
             //identify this download as too large
             File file = new File(downloadService.biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes(StandardCharsets.UTF_8)) + File.separator + dd.getStartTime() + File.separator + "tooLarge");

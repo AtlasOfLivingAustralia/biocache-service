@@ -23,12 +23,14 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadDoiDTO;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.IndexFieldDTO;
+import au.org.ala.biocache.dto.QualityFilterDTO;
 import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import au.org.ala.biocache.util.AlaFileUtils;
 import au.org.ala.biocache.util.thread.DownloadControlThread;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.biocache.writer.RecordWriterException;
 import au.org.ala.doi.CreateDoiResponse;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -36,9 +38,14 @@ import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
+import org.apache.velocity.Template;
+import org.apache.velocity.VelocityContext;
+import org.apache.velocity.runtime.RuntimeServices;
+import org.apache.velocity.runtime.RuntimeSingleton;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -48,6 +55,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.support.AbstractMessageSource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
@@ -61,6 +69,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.apache.commons.lang3.StringUtils.*;
 
 /**
  * Services to perform the downloads.
@@ -100,6 +110,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     protected com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     @Inject
     protected EmailService emailService;
+    @Inject
+    protected LoggerService loggerService;
     @Inject
     protected AbstractMessageSource messageSource;
 
@@ -255,6 +267,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     @Value("${download.offline.msg:This download is unavailable. Run the download again.}")
     public String downloadOfflineMsgDeleted = "This download is unavailable. Run the download again.";
+
+    @Value("${download.qualityFiltersTemplate:classpath:download-email-quality-filter-snippet.html}")
+    public Resource downloadQualityFiltersTemplate;
 
     @Value("${download.shp.enabled:true}")
     public void setDownloadShpEnabled(Boolean downloadShpEnabled) {
@@ -481,10 +496,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param type
      * @return
      */
-    public DownloadDetailsDTO registerDownload(DownloadRequestParams requestParams, String ip,
+    public DownloadDetailsDTO registerDownload(DownloadRequestParams requestParams, String ip, String userAgent,
             DownloadDetailsDTO.DownloadType type) {
         afterInitialisation();
-        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, type);
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, userAgent, type);
         dd.setRequestParams(requestParams);
         currentDownloads.add(dd);
         return dd;
@@ -531,7 +546,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      */
     @Deprecated
     public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
-            OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip)
+                                   OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip)
             throws Exception {
         afterInitialisation();
 
@@ -604,6 +619,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                 final String searchUrl = generateSearchUrl(requestParams);
 
+                List<QualityFilterDTO> qualityFilters = getQualityFilterDTOS(requestParams);
+
                 if (citationsEnabled) {
                     List<Map<String, String>> datasetMetadata = null;
                     if(mintDoi) {
@@ -658,7 +675,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             doiDetails.setRecordCount(dd.getTotalRecords());
                             doiDetails.setLicence(licence);
                             doiDetails.setQueryTitle(requestParams.getDisplayString());
-
+                            doiDetails.setApplicationMetadata(requestParams.getDoiMetadata());
+                            doiDetails.setQualityFilters(qualityFilters);
                             doiResponse = doiService.mintDoi(doiDetails);
 
                         } catch (Exception e) {
@@ -713,16 +731,31 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     readmeTemplate = Files.asCharSource(new File(readmeFile), StandardCharsets.UTF_8).read();
                 }
 
+                String dataQualityFilters = "";
+                if (!qualityFilters.isEmpty()) {
+                    dataQualityFilters = getDataQualityFiltersString(qualityFilters);
+                }
+
                 String readmeContent = readmeTemplate.replace("[url]", fileLocation)
                         .replace("[date]", dd.getStartDateString())
                         .replace("[searchUrl]", searchUrl)
                         .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
-                        .replace("[dataProviders]", dataProviders);
+                        .replace("[dataProviders]", dataProviders)
+                        .replace("[dataQualityFilters]", dataQualityFilters);
 
                 sp.write(readmeContent.getBytes(StandardCharsets.UTF_8));
                 sp.write(("For more information about the fields that are being downloaded please consult <a href='"
                         + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes(StandardCharsets.UTF_8));
                 sp.closeEntry();
+
+                if (mintDoi && doiResponse != null) {
+
+                    sp.putNextEntry("doi.txt");
+
+                    sp.write((OFFICIAL_DOI_RESOLVER + doiResponse.getDoi()).getBytes(StandardCharsets.UTF_8));
+                    sp.write(CSVWriter.DEFAULT_LINE_END.getBytes(StandardCharsets.UTF_8));
+                    sp.closeEntry();
+                }
 
                 // Add headings file, listing information about the headings
                 if (headingsEnabled) {
@@ -759,8 +792,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                 // log the stats to ala logger
                 LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
-                        requestParams.getEmail(), requestParams.getReason(), ip, null, uidStats, sourceUrl);
-                logger.log(RestLevel.REMOTE, vo);
+                        requestParams.getEmail(), requestParams.getReason(), ip, dd.getUserAgent(), null, uidStats, sourceUrl);
+
+                loggerService.logEvent(vo);
+//                logger.log(RestLevel.REMOTE, vo);
+
             }
         } catch (RecordWriterException e) {
             logger.error(e.getMessage(), e);
@@ -769,6 +805,44 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             // sApplication may be shutting down, do not delete the download file
             throw e;
         }
+    }
+
+    @VisibleForTesting
+    List<QualityFilterDTO> getQualityFilterDTOS(DownloadRequestParams requestParams) {
+        List<QualityFilterDTO> qualityFilters = new ArrayList<>();
+        if (requestParams.getQualityFiltersInfo() != null) {
+            List<String> filters = requestParams.getQualityFiltersInfo();
+            filters.forEach( filter -> {
+                String[] strings = split(filter, ":", 2);
+                if (strings.length == 2) {
+                    QualityFilterDTO dto = new QualityFilterDTO(strings[0], strings[1]);
+                    qualityFilters.add(dto);
+                }
+            });
+        }
+        return qualityFilters;
+    }
+
+    @VisibleForTesting
+    String getDataQualityFiltersString(List<QualityFilterDTO> qualityFilters) throws IOException, org.apache.velocity.runtime.parser.ParseException {
+        String dataQualityFilters;
+        RuntimeServices runtimeServices = RuntimeSingleton.getRuntimeServices();
+        Reader reader = new InputStreamReader(downloadQualityFiltersTemplate.getInputStream(), StandardCharsets.UTF_8);
+        Template template = new Template();
+        template.setRuntimeServices(runtimeServices);
+
+        template.setData(runtimeServices.parse(reader, "download-quality-filters-template"));
+
+        template.initDocument();
+        StringWriter sw = new StringWriter();
+
+        VelocityContext context = new VelocityContext();
+
+        context.put("qualityFilters", qualityFilters);
+
+        template.merge(context, sw);
+        dataQualityFilters = sw.toString();
+        return dataQualityFilters;
     }
 
     /**
@@ -781,17 +855,17 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param fromIndex
      * @param zip
      * @throws Exception
-     * @deprecated Use {@link #writeQueryToStream(DownloadRequestParams, HttpServletResponse, String, OutputStream, boolean, boolean, boolean, ExecutorService)} instead.
+     * @deprecated Use {@link #writeQueryToStream(DownloadRequestParams, HttpServletResponse, String, String, OutputStream, boolean, boolean, boolean, ExecutorService)} instead.
      */
     @Deprecated
-    public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip,
+    public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, String userAgent,
             OutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip) throws Exception {
         afterInitialisation();
-        writeQueryToStream(requestParams, response, ip, out, includeSensitive, fromIndex, zip, getOfflineThreadPoolExecutor());
+        writeQueryToStream(requestParams, response, ip, userAgent, out, includeSensitive, fromIndex, zip, getOfflineThreadPoolExecutor());
     }
 
 
-    public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip,
+    public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, String userAgent,
             OutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip, ExecutorService parallelQueryExecutor) throws Exception {
         afterInitialisation();
         String filename = requestParams.getFile();
@@ -808,7 +882,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         }
 
         DownloadDetailsDTO.DownloadType type = fromIndex ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
-        DownloadDetailsDTO dd = registerDownload(requestParams, ip, type);
+        DownloadDetailsDTO dd = registerDownload(requestParams, ip, userAgent, type);
         writeQueryToStream(dd, requestParams, ip, new CloseShieldOutputStream(out), includeSensitive, fromIndex, true, zip, parallelQueryExecutor, null);
     }
 
