@@ -3299,7 +3299,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         params.set("tr", "luke.xsl");
         if (fields != null) {
-            params.set("fl", fields);
+            params.set("fl", String.join(",", fields));
             params.set("numTerms", "1");
         } else {
             // TODO: We should be caching the result locally without calling Solr in this case, as it is called very often
