@@ -216,7 +216,7 @@ public class DownloadController extends AbstractSecureController {
             status.put("message", "Already in queue.");
             status.put("status", "inQueue");
             status.put("queueSize", persistentQueueDAO.getTotalDownloads());
-            status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
+            status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + d.getUniqueId());
         } else if (dd.getTotalRecords() > downloadService.dowloadOfflineMaxSize) {
             //identify this download as too large
             File file = new File(downloadService.biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes(StandardCharsets.UTF_8)) + File.separator + dd.getStartTime() + File.separator + "tooLarge");
