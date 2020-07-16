@@ -75,7 +75,7 @@ public class AbstractSecureController {
         }
     }
 
-    @Value("${ratelimit.window.seconds:360}")
+    @Value("${ratelimit.window.seconds:300}")
     protected int rateLimitWindowSeconds;
 
     @Value("${ratelimit.count:5}")
