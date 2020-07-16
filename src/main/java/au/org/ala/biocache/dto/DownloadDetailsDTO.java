@@ -38,6 +38,7 @@ public class DownloadDetailsDTO {
     private String downloadParams;
     private String ipAddress;
     private String userAgent;
+    private boolean emailNotify = true;
     private String email;
     private DownloadRequestParams requestParams;
     private String fileLocation;
@@ -68,6 +69,7 @@ public class DownloadDetailsDTO {
     public DownloadDetailsDTO(DownloadRequestParams params, String ipAddress, String userAgent, DownloadType type){
         this(params.getUrlParams(), ipAddress, userAgent, type);
         requestParams = params;
+        emailNotify = requestParams.isEmailNotify();
         email = requestParams.getEmail();
     }
 
@@ -141,7 +143,15 @@ public class DownloadDetailsDTO {
     public long getTotalRecords(){
         return totalRecords;
     }
-  
+
+    public boolean isEmailNotify() {
+        return emailNotify;
+    }
+
+    public void setEmailNotify(boolean emailNotify) {
+        this.emailNotify = emailNotify;
+    }
+
     /**
      * @return the email
      */

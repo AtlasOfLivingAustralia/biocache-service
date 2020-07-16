@@ -34,11 +34,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -1330,7 +1328,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     .replace("[hubName]",hubName),
                                     null);
 
-                            if (currentDownload != null && currentDownload.getFileLocation() != null) {
+                            if (currentDownload.isEmailNotify() && currentDownload != null && currentDownload.getFileLocation() != null) {
                                 insertMiscHeader(currentDownload);
 
                                 //ensure new directories have correct permissions
