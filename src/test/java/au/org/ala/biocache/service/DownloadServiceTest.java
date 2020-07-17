@@ -7,14 +7,11 @@ import au.org.ala.biocache.dao.JsonPersistentQueueDAOImpl;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dao.SearchDAOImpl;
-import au.org.ala.biocache.dto.DownloadDetailsDTO;
+import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
-import au.org.ala.biocache.dto.DownloadDoiDTO;
-import au.org.ala.biocache.dto.DownloadRequestParams;
-import au.org.ala.biocache.dto.FacetThemes;
-import au.org.ala.biocache.dto.QualityFilterDTO;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.doi.CreateDoiResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ala.client.model.LogEventVO;
 import org.junit.*;
 import org.junit.rules.TemporaryFolder;
@@ -24,7 +21,6 @@ import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.io.ClassPathResource;
-import sun.rmi.runtime.Log;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
@@ -91,6 +87,7 @@ public class DownloadServiceTest {
         testService = new DownloadService() {
             {
                 sensitiveAccessRoles = "{}";
+                concurrentDownloadsJSON = "[]";
             }
 
             protected DownloadCreator getNewDownloadCreator() {
@@ -108,6 +105,8 @@ public class DownloadServiceTest {
                                     // The latch must be already at 0 before
                                     // test to avoid a
                                     // wait here
+
+
                                     testLatch.await();
                                     Thread.sleep(executionDelay + Math.round(Math.random() * executionDelay));
                                     return nextDownload;
@@ -193,7 +192,7 @@ public class DownloadServiceTest {
 
     /**
      * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#registerDownload(au.org.ala.biocache.dto.DownloadRequestParams, java.lang.String, au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType)}.
+     * {@link au.org.ala.biocache.service.DownloadService#registerDownload(DownloadRequestParams requestParams, String ip, String userAgent, DownloadDetailsDTO.DownloadType type)}.
      */
     @Test
     public final void testRegisterDownload() throws Exception {
@@ -407,6 +406,102 @@ public class DownloadServiceTest {
         LogEventVO logEventVO = argument.getValue();
         assertEquals(logEventVO.getUserAgent(), "test User-Agent");
     }
+
+    @Test
+    public final void testOfflineDownload() throws Exception {
+
+        testService = new DownloadService() {
+            {
+                sensitiveAccessRoles = "{}";
+                concurrentDownloadsJSON = "[]";
+            }
+        };
+
+        testService.downloadQualityFiltersTemplate = new ClassPathResource("download-email-quality-filter-snippet.html");
+        testService.biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
+        testService.persistentQueueDAO = persistentQueueDAO;
+
+        DoiService doiService = mock(DoiService.class);
+        testService.doiService = doiService;
+        SearchDAO searchDAO = mock(SearchDAO.class);
+        testService.searchDAO = searchDAO;
+        testService.objectMapper = new ObjectMapper();
+        LoggerService loggerService = mock(LoggerService.class);
+        testService.loggerService = loggerService;
+        AbstractMessageSource messageSource = mock(AbstractMessageSource.class);
+        testService.messageSource = messageSource;
+        AuthService authService = mock(AuthService.class);
+        testService.authService = authService;
+        EmailService emailService = mock(EmailService.class);
+        testService.emailService = emailService;
+
+        testService.biocacheDownloadEmailTemplate = "/data/biocache/config/download-email.html";
+        testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
+
+
+        testService.init();
+        List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
+        assertEquals(0, emptyDownloads.size());
+
+        DownloadRequestParams requestParams = new DownloadRequestParams();
+        requestParams.setDisplayString("[all records]");
+
+        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, "::1", "", DownloadType.RECORDS_INDEX);
+        assertNotNull(registerDownload);
+        testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
+        Thread.sleep(5000);
+
+        verify(emailService, times(1)).sendEmail(any(), any(), any());
+    }
+
+    @Test
+    public final void testOfflineDownloadNoEmailNotify() throws Exception {
+
+        testService = new DownloadService() {
+            {
+                sensitiveAccessRoles = "{}";
+                concurrentDownloadsJSON = "[]";
+            }
+        };
+
+        testService.downloadQualityFiltersTemplate = new ClassPathResource("download-email-quality-filter-snippet.html");
+        testService.biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
+        testService.persistentQueueDAO = persistentQueueDAO;
+
+        DoiService doiService = mock(DoiService.class);
+        testService.doiService = doiService;
+        SearchDAO searchDAO = mock(SearchDAO.class);
+        testService.searchDAO = searchDAO;
+        testService.objectMapper = new ObjectMapper();
+        LoggerService loggerService = mock(LoggerService.class);
+        testService.loggerService = loggerService;
+        AbstractMessageSource messageSource = mock(AbstractMessageSource.class);
+        testService.messageSource = messageSource;
+        AuthService authService = mock(AuthService.class);
+        testService.authService = authService;
+        EmailService emailService = mock(EmailService.class);
+        testService.emailService = emailService;
+
+        testService.biocacheDownloadEmailTemplate = "/data/biocache/config/download-email.html";
+        testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
+
+
+        testService.init();
+        List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
+        assertEquals(0, emptyDownloads.size());
+
+        DownloadRequestParams requestParams = new DownloadRequestParams();
+        requestParams.setEmailNotify(false);
+        requestParams.setDisplayString("[all records]");
+
+        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, "::1", "", DownloadType.RECORDS_INDEX);
+        assertNotNull(registerDownload);
+        testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
+        Thread.sleep(5000);
+
+        verify(emailService, times(0)).sendEmail(any(), any(), any());
+    }
+
 
     /**
      * Test method for
