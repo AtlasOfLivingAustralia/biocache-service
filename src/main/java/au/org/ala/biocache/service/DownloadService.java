@@ -138,6 +138,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${headings.enabled:true}")
     public Boolean headingsEnabled = Boolean.TRUE;
 
+    @Value("${download.readme.enabled:true}")
+    public Boolean readmeEnabled = Boolean.TRUE;
+
     // Allow emailing support to be disabled via config (enabled by default)
     @Value("${download.support.email.enabled:true}")
     public Boolean supportEmailEnabled = Boolean.TRUE;
@@ -705,56 +708,58 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 }
 
                 // add the Readme for the data field descriptions
-                sp.putNextEntry("README.html");
-                String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
+                if (readmeEnabled) {
+                    sp.putNextEntry("README.html");
+                    String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
 
-                String readmeFile;
-                String fileLocation;
+                    String readmeFile;
+                    String fileLocation;
 
-                if(mintDoi && doiResponse != null) {
-                    readmeFile = biocacheDownloadDoiReadmeTemplate;
-                    doi = doiResponse.getDoi();
-                    // TODO: The downloads-plugin has issues with unencoded user queries 
-                    // Working around that by hardcoding the official DOI resolution service as the landing page
-                    // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
-                    // final String doiLandingPage = requestParams.getDoiDisplayUrl() != null ? requestParams.getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
-                    // fileLocation = doiLandingPage + doi;
-                    fileLocation = OFFICIAL_DOI_RESOLVER + doi;
+                    if (mintDoi && doiResponse != null) {
+                        readmeFile = biocacheDownloadDoiReadmeTemplate;
+                        doi = doiResponse.getDoi();
+                        // TODO: The downloads-plugin has issues with unencoded user queries
+                        // Working around that by hardcoding the official DOI resolution service as the landing page
+                        // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
+                        // final String doiLandingPage = requestParams.getDoiDisplayUrl() != null ? requestParams.getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
+                        // fileLocation = doiLandingPage + doi;
+                        fileLocation = OFFICIAL_DOI_RESOLVER + doi;
 
-                } else {
-                    readmeFile = biocacheDownloadReadmeTemplate;
-                    fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
-                }
+                    } else {
+                        readmeFile = biocacheDownloadReadmeTemplate;
+                        fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
+                    }
 
-                String readmeTemplate = "";
-                if (new File(readmeFile).exists()) {
-                    readmeTemplate = Files.asCharSource(new File(readmeFile), StandardCharsets.UTF_8).read();
-                }
+                    String readmeTemplate = "";
+                    if (new File(readmeFile).exists()) {
+                        readmeTemplate = Files.asCharSource(new File(readmeFile), StandardCharsets.UTF_8).read();
+                    }
 
-                String dataQualityFilters = "";
-                if (!qualityFilters.isEmpty()) {
-                    dataQualityFilters = getDataQualityFiltersString(qualityFilters);
-                }
+                    String dataQualityFilters = "";
+                    if (!qualityFilters.isEmpty()) {
+                        dataQualityFilters = getDataQualityFiltersString(qualityFilters);
+                    }
 
-                String readmeContent = readmeTemplate.replace("[url]", fileLocation)
-                        .replace("[date]", dd.getStartDateString())
-                        .replace("[searchUrl]", searchUrl)
-                        .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
-                        .replace("[dataProviders]", dataProviders)
-                        .replace("[dataQualityFilters]", dataQualityFilters);
+                    String readmeContent = readmeTemplate.replace("[url]", fileLocation)
+                            .replace("[date]", dd.getStartDateString())
+                            .replace("[searchUrl]", searchUrl)
+                            .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
+                            .replace("[dataProviders]", dataProviders)
+                            .replace("[dataQualityFilters]", dataQualityFilters);
 
-                sp.write(readmeContent.getBytes(StandardCharsets.UTF_8));
-                sp.write(("For more information about the fields that are being downloaded please consult <a href='"
-                        + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes(StandardCharsets.UTF_8));
-                sp.closeEntry();
-
-                if (mintDoi && doiResponse != null) {
-
-                    sp.putNextEntry("doi.txt");
-
-                    sp.write((OFFICIAL_DOI_RESOLVER + doiResponse.getDoi()).getBytes(StandardCharsets.UTF_8));
-                    sp.write(CSVWriter.DEFAULT_LINE_END.getBytes(StandardCharsets.UTF_8));
+                    sp.write(readmeContent.getBytes(StandardCharsets.UTF_8));
+                    sp.write(("For more information about the fields that are being downloaded please consult <a href='"
+                            + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes(StandardCharsets.UTF_8));
                     sp.closeEntry();
+
+                    if (mintDoi && doiResponse != null) {
+
+                        sp.putNextEntry("doi.txt");
+
+                        sp.write((OFFICIAL_DOI_RESOLVER + doiResponse.getDoi()).getBytes(StandardCharsets.UTF_8));
+                        sp.write(CSVWriter.DEFAULT_LINE_END.getBytes(StandardCharsets.UTF_8));
+                        sp.closeEntry();
+                    }
                 }
 
                 // Add headings file, listing information about the headings
