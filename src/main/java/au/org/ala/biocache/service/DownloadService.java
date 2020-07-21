@@ -271,6 +271,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.qualityFiltersTemplate:classpath:download-email-quality-filter-snippet.html}")
     public Resource downloadQualityFiltersTemplate;
 
+    @Value("${download.date.format:yyyy-MM-dd}")
+    public String downloadDateFormat = "yyyy-MM-dd";
+
     @Value("${download.shp.enabled:true}")
     public void setDownloadShpEnabled(Boolean downloadShpEnabled) {
         DownloadService.downloadShpEnabled = downloadShpEnabled;
@@ -737,7 +740,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 }
 
                 String readmeContent = readmeTemplate.replace("[url]", fileLocation)
-                        .replace("[date]", dd.getStartDateString())
+                        .replace("[date]", dd.getStartDateString(downloadDateFormat))
                         .replace("[searchUrl]", searchUrl)
                         .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
                         .replace("[dataProviders]", dataProviders)
@@ -1379,12 +1382,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 final String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
                                 String emailBodyHtml = emailBody.replace("[url]", downloadFileLocation)
                                         .replace("[officialDoiUrl]", officialFileLocation)
-                                        .replace("[date]", currentDownload.getStartDateString())
+                                        .replace("[date]", currentDownload.getStartDateString(downloadDateFormat))
                                         .replace("[searchUrl]", searchUrl)
                                         .replace("[queryTitle]", currentDownload.getRequestParams().getDisplayString())
                                         .replace("[doiFailureMessage]", doiFailureMessage);
                                 String body = messageSource.getMessage("offlineEmailBody",
-                                        new Object[]{archiveFileLocation, searchUrl, currentDownload.getStartDateString()},
+                                        new Object[]{archiveFileLocation, searchUrl, currentDownload.getStartDateString(downloadDateFormat)},
                                         emailBodyHtml, null);
 
                                 // save the statistics to the download directory
