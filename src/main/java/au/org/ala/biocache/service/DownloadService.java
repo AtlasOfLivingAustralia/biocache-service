@@ -34,11 +34,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -1374,31 +1372,35 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     downloadFileLocation = archiveFileLocation;
                                 }
 
-                                emailBody = Files.asCharSource(new File(emailTemplate), StandardCharsets.UTF_8).read();
+                                if (currentDownload.isEmailNotify()) {
 
-                                final String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
-                                String emailBodyHtml = emailBody.replace("[url]", downloadFileLocation)
-                                        .replace("[officialDoiUrl]", officialFileLocation)
-                                        .replace("[date]", currentDownload.getStartDateString())
-                                        .replace("[searchUrl]", searchUrl)
-                                        .replace("[queryTitle]", currentDownload.getRequestParams().getDisplayString())
-                                        .replace("[doiFailureMessage]", doiFailureMessage);
-                                String body = messageSource.getMessage("offlineEmailBody",
-                                        new Object[]{archiveFileLocation, searchUrl, currentDownload.getStartDateString()},
-                                        emailBodyHtml, null);
+                                    emailBody = Files.asCharSource(new File(emailTemplate), StandardCharsets.UTF_8).read();
 
-                                // save the statistics to the download directory
-                                try (FileOutputStream statsStream = FileUtils
-                                        .openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()
-                                                + File.separator + "downloadStats.json"))) {
-                                    objectMapper.writeValue(statsStream, currentDownload);
+                                    final String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
+                                    String emailBodyHtml = emailBody.replace("[url]", downloadFileLocation)
+                                            .replace("[officialDoiUrl]", officialFileLocation)
+                                            .replace("[date]", currentDownload.getStartDateString())
+                                            .replace("[searchUrl]", searchUrl)
+                                            .replace("[queryTitle]", currentDownload.getRequestParams().getDisplayString())
+                                            .replace("[doiFailureMessage]", doiFailureMessage);
+                                    String body = messageSource.getMessage("offlineEmailBody",
+                                            new Object[]{archiveFileLocation, searchUrl, currentDownload.getStartDateString()},
+                                            emailBodyHtml, null);
+
+                                    // save the statistics to the download directory
+                                    try (FileOutputStream statsStream = FileUtils
+                                            .openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()
+                                                    + File.separator + "downloadStats.json"))) {
+                                        objectMapper.writeValue(statsStream, currentDownload);
+                                    }
+
+                                    if(mintDoi && doiResponseList != null && !doiResponseList.isEmpty() && doiResponseList.get(0) != null) {
+                                        // Delay sending the email to allow the DOI to propagate through to upstream DOI providers
+                                        Thread.sleep(doiPropagationDelay);
+                                    }
+
+                                    emailService.sendEmail(currentDownload.getEmail(), subject, body);
                                 }
-
-                                if(mintDoi && doiResponseList != null && !doiResponseList.isEmpty() && doiResponseList.get(0) != null) {
-                                    // Delay sending the email to allow the DOI to propagate through to upstream DOI providers
-                                    Thread.sleep(doiPropagationDelay);
-                                }
-                                emailService.sendEmail(currentDownload.getEmail(), subject, body);
                             }
 
                         } catch (InterruptedException e) {
