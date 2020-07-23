@@ -776,7 +776,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     }
                 }
 
-                if (!biocacheDownloadAdditionalLocalFiles.isEmpty()) {
+                if ((biocacheDownloadAdditionalLocalFiles != null) && !biocacheDownloadAdditionalLocalFiles.isEmpty()) {
                     String[] localFiles = biocacheDownloadAdditionalLocalFiles.split(",");
                     for (String localFile : localFiles) {
                         File f = new File(localFile);
