@@ -22,6 +22,10 @@ import org.springframework.beans.InvalidPropertyException;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Data Transfer Object to represent the request parameters required to download
@@ -85,6 +89,17 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     protected String hubName;
 
     /**
+     * If a DOI is to be minted containing download data, this allows the requesting application to attach
+     * custom metadata to be stored with the DOI as application metadata.
+     */
+    Map<String, String> doiMetadata = new HashMap<String, String>();
+
+    /**
+     * Quality Filters information from the hub about the download
+     */
+    protected List<String> qualityFiltersInfo = new ArrayList<>();
+
+    /**
      * Custom toString method to produce a String to be used as the request parameters
      * for the Biocache Service webservices
      *
@@ -128,6 +143,10 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
         }
         if (includeMisc) {
             req.append("&includeMisc=true");
+        }
+
+        for (String qualityFilter : qualityFiltersInfo) {
+            req.append("&qualityFiltersInfo=").append(super.conditionalEncode(qualityFilter, encodeParams));
         }
         
         return req.toString();
@@ -338,4 +357,21 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     public void setHubName(String hubName) {
         this.hubName = hubName;
     }
+
+    public Map<String, String> getDoiMetadata() {
+        return doiMetadata;
+    }
+
+    public void setDoiMetadata(Map<String, String> doiMetadata) {
+        this.doiMetadata = doiMetadata;
+    }
+
+    public List<String> getQualityFiltersInfo() {
+        return qualityFiltersInfo;
+    }
+
+    public void setQualityFiltersInfo(List<String> qualityFiltersInfo) {
+        this.qualityFiltersInfo = qualityFiltersInfo;
+    }
+
 }

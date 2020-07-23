@@ -72,11 +72,11 @@ public class PersistentQueueDAOTest {
     @Test
     public void testQueue(){
         System.out.println("test add");
-        DownloadDetailsDTO dd = new DownloadDetailsDTO(getParams("test1"), "127.0.0.1", DownloadType.FACET);
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(getParams("test1"), "127.0.0.1", "", DownloadType.FACET);
         
         queueDAO.addDownloadToQueue(dd);
         assertEquals(1,queueDAO.getTotalDownloads());
-        DownloadDetailsDTO dd2 = new DownloadDetailsDTO(getParams("test2"), "127.0.0.1", DownloadType.FACET);
+        DownloadDetailsDTO dd2 = new DownloadDetailsDTO(getParams("test2"), "127.0.0.1", "", DownloadType.FACET);
         
         queueDAO.addDownloadToQueue(dd2);
         assertEquals(2,queueDAO.getTotalDownloads());

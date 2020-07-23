@@ -902,16 +902,34 @@ public class QueryFormatUtils {
                         end += 2;
                     }
                     if (extractedValue.startsWith("\"")) {
-                        //find unescaped "
-                        int pos = 1;
-                        while ((pos = extractedValue.indexOf('\"', pos + 1)) >= 0 && extractedValue.charAt(pos - 1) == '\\');
+                        // if it contains OR, isQuery == false
+                        if (extractedValue.contains(" OR ")) {
+                            extractedValue = extractedValue.substring(0, extractedValue.indexOf(" OR "));
+                        }
+
+                        // below code fragment extracts the filter value and try to format for solr query or get display value
+                        // &fq = taxon_name:""Cyclophora"+lechriostropha"
+                        // the old implementation yields this fq to be sent to solr: taxon_name:"\"Cyclophora",
+                        // instead of start from left, we need to search from right for the first unescaped "
+                        // so the correct fq taxon_name:"\"Cyclophora\"+lechriostropha" is sent to solr
+                        //
+                        // if the query has an 'OR', for example month:"03" OR month:"04", we can't directly start from right
+                        // sine it will extract "03" OR month:"04" as a value. we need to split it with ' OR '
 
                         //unescape \\ and \"
                         extractedValue = extractedValue.replace("\\\\", "\\").replace("\\\"", "\"");
 
-                        if (pos >= 0) {
+                        int pos = extractedValue.length() - 1;
+                        // find last unescaped "
+                        while ((pos = extractedValue.lastIndexOf('\"', pos)) >= 0) {
+                            if ((pos == 0) || (extractedValue.charAt(pos - 1) != '\\')) break;
+                            pos--;
+                        }
+
+                        // there are 2 \"
+                        if (pos >= 1) {
                             extractedValue = extractedValue.substring(1, pos);
-                        } else {
+                        } else { // there's only 1 \"
                             extractedValue = extractedValue.substring(1, extractedValue.length());
                         }
                         end += 2;
@@ -995,7 +1013,6 @@ public class QueryFormatUtils {
 
     /**
      * Creates a SOLR escaped string the can be used in a StringBuffer.appendReplacement
-     * The appendReplacement needs an extra delimiting on the backslashes when quoted.
      *
      * @param value
      * @return
@@ -1004,23 +1021,13 @@ public class QueryFormatUtils {
         if (value.equals("*")) {
             return value;
         }
-
-        //if starts and ends with quotes just escape the inside
-        boolean quoted = false;
-
         StringBuffer sb = new StringBuffer();
-        if (value.startsWith("\"") && value.endsWith("\"")) {
-            quoted = true;
-            value = value.substring(1, value.length() - 1);
-            sb.append("\"");
-        }
         if (forMatcher) {
             sb.append(ClientUtils.escapeQueryChars(value).replaceAll("\\\\", "\\\\\\\\"));
         } else {
             sb.append(ClientUtils.escapeQueryChars(value));
         }
 
-        if (quoted) sb.append("\"");
         return sb.toString();
     }
 

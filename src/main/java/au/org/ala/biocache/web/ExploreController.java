@@ -20,6 +20,8 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.model.Qid;
+import au.org.ala.biocache.util.QueryFormatUtils;
+import au.org.ala.names.model.RankType;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -178,7 +180,7 @@ public class ExploreController {
         List<au.org.ala.biocache.vocab.SpeciesGroup> sgs = au.org.ala.biocache.Store.retrieveSpeciesGroups();
         List<SpeciesGroupDTO> speciesGroups = new java.util.ArrayList<SpeciesGroupDTO>();
         SpeciesGroupDTO all = new SpeciesGroupDTO();
-        String originalQ = requestParams.getQ();
+        String[] originalFqs = requestParams.getFq();
         all.setName("ALL_SPECIES");
         all.setLevel(0);
         Integer[] counts = getYourAreaCount(requestParams, "ALL_SPECIES");
@@ -206,7 +208,7 @@ public class ExploreController {
             }
             sdto.setLevel(level);
             //set the original query back to default to clean up after ourselves
-            requestParams.setQ(originalQ);
+            requestParams.setFq(originalFqs);
             //query per group
             counts = getYourAreaCount(requestParams, sg.name());
             sdto.setCount(counts[0]);
@@ -262,18 +264,16 @@ public class ExploreController {
      * @param facetValue
      */
     private void addFacetFilterToQuery(SpatialSearchRequestParams requestParams, String facetName, String facetValue){
-        StringBuilder sb = new StringBuilder();
-        if(requestParams.getQ() != null && !requestParams.getQ().isEmpty())
-            sb.append(requestParams.getQ());
-        else{
-            sb.append("*:*");
+
+        List<String> fqs = new ArrayList<>();
+
+        if(!facetValue.equals("ALL_SPECIES")) {
+            fqs.add(facetName + ":" + facetValue);
         }
-        if(!facetValue.equals("ALL_SPECIES"))
-            sb.append(" AND " + facetName + ":").append(facetValue);
-        //now ignore the records that have been identified to a rank above species
-        sb.append( " AND -rank:kingdom AND -rank:phylum AND -rank:class AND -rank:order AND -rank:family AND -rank:genus");
-        //String query = sb.togroup.equals("ALL_SPECIES")? "*:*" : "species_group:" + group;
-        requestParams.setQ(sb.toString());
+        fqs.add("rank_id:[" + RankType.SPECIES.getId() + " TO *]");
+
+        new QueryFormatUtils().addFqs(fqs.toArray(new String[0]), requestParams);
+
         //don't care about the formatted query
         requestParams.setFormattedQuery(null);
     }
