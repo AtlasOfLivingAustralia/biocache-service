@@ -63,7 +63,8 @@ public class TSVRecordWriter implements RecordWriterError {
         //assume correct column count
         for (int i = 0; i < record.length; i++) {
             if (i > 0) line.append('\t');
-            line.append(record[i].replace("\r","").replace("\n","").replace("\t",""));
+            String value = (record[i] != null) ? record[i] : "";
+            line.append(value.replace("\r","").replace("\n","").replace("\t",""));
         }
 
         line.append("\n");
