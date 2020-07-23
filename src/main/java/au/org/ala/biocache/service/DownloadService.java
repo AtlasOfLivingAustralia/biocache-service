@@ -1325,11 +1325,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             // now that the download is complete email a link to the
                             // recipient.
                             final String hubName = currentDownload.getRequestParams().getHubName() != null ? currentDownload.getRequestParams().getHubName() : "ALA";
-                            String subject = messageSource.getMessage("offlineEmailSubject", null,
-                                    biocacheDownloadEmailSubject.replace("[filename]",
-                                            currentDownload.getRequestParams().getFile())
-                                    .replace("[hubName]",hubName),
-                                    null);
+                            String subject = messageSource.getMessage("offlineEmailSubject", null, biocacheDownloadEmailSubject, null)
+                                    .replace("[filename]", currentDownload.getRequestParams().getFile())
+                                    .replace("[hubName]",hubName);
 
                             if (currentDownload != null && currentDownload.getFileLocation() != null) {
                                 insertMiscHeader(currentDownload);
@@ -1429,11 +1427,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                             try {
                                 final String hubName = currentDownload.getRequestParams().getHubName() != null ? currentDownload.getRequestParams().getHubName() : "ALA";
-                                String subject = messageSource.getMessage("offlineEmailSubjectError", null,
-                                        biocacheDownloadEmailSubjectError.replace("[filename]",
-                                                currentDownload.getRequestParams().getFile())
-                                                .replace("[hubName]",hubName),
-                                        null);
+                                String subject = messageSource.getMessage("offlineEmailSubjectError", null, biocacheDownloadEmailSubjectError, null)
+                                        .replace("[filename]", currentDownload.getRequestParams().getFile())
+                                        .replace("[hubName]",hubName);
 
                                 String fileLocation = currentDownload.getFileLocation().replace(biocacheDownloadDir,
                                         biocacheDownloadUrl);
