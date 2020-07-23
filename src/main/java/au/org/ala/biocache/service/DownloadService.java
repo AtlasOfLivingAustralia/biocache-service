@@ -751,15 +751,15 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     sp.write(("For more information about the fields that are being downloaded please consult <a href='"
                             + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes(StandardCharsets.UTF_8));
                     sp.closeEntry();
+                }
 
-                    if (mintDoi && doiResponse != null) {
+                if (mintDoi && doiResponse != null) {
 
-                        sp.putNextEntry("doi.txt");
+                    sp.putNextEntry("doi.txt");
 
-                        sp.write((OFFICIAL_DOI_RESOLVER + doiResponse.getDoi()).getBytes(StandardCharsets.UTF_8));
-                        sp.write(CSVWriter.DEFAULT_LINE_END.getBytes(StandardCharsets.UTF_8));
-                        sp.closeEntry();
-                    }
+                    sp.write((OFFICIAL_DOI_RESOLVER + doiResponse.getDoi()).getBytes(StandardCharsets.UTF_8));
+                    sp.write(CSVWriter.DEFAULT_LINE_END.getBytes(StandardCharsets.UTF_8));
+                    sp.closeEntry();
                 }
 
                 // Add headings file, listing information about the headings
