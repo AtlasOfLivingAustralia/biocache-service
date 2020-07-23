@@ -17,6 +17,7 @@ package au.org.ala.biocache.dto;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
@@ -89,7 +90,11 @@ public class DownloadDetailsDTO {
     public String getStartDateString(){
         return startDate.toString();
     }
-    
+
+    public String getStartDateString(String format){
+        return new SimpleDateFormat(format).format(startDate);
+    }
+
     public Date getStartDate(){
         return this.startDate;
     }
