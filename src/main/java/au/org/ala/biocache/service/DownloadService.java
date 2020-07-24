@@ -199,6 +199,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.doi.landing.page.baseUrl:https://doi-test.ala.org.au/doi/}")
     protected String biocacheDownloadDoiLandingPage = "https://doi-test.ala.org.au/doi/";
 
+    @Value("${download.additional.local.files:}")
+    protected String biocacheDownloadAdditionalLocalFiles;
+
     /**
      * A delay (in milliseconds) between minting the DOI, and sending emails containing 
      * the DOI to allow for the DOI registration to propagate to upstream DOI providers.
@@ -775,6 +778,18 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 } else {
                     if (logger.isDebugEnabled()) {
                         logger.debug("Not adding header. Enabled: " + headingsEnabled + " uids: " + uidStats);
+                    }
+                }
+
+                if ((biocacheDownloadAdditionalLocalFiles != null) && !biocacheDownloadAdditionalLocalFiles.isEmpty()) {
+                    String[] localFiles = biocacheDownloadAdditionalLocalFiles.split(",");
+                    for (String localFile : localFiles) {
+                        File f = new File(localFile);
+                        if (f.exists()) {
+                            sp.putNextEntry(f.getName());
+                            sp.write(IOUtils.toByteArray(new FileInputStream(f)));
+                            sp.closeEntry();
+                        }
                     }
                 }
 
