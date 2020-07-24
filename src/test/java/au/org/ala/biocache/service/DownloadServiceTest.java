@@ -25,6 +25,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.context.support.ReloadableResourceBundleMessageSource;
 import org.springframework.core.io.ClassPathResource;
 
 import javax.servlet.http.HttpServletResponse;
@@ -438,7 +439,9 @@ public class DownloadServiceTest {
         testService.searchDAO = mock(SearchDAO.class);
         testService.objectMapper = new ObjectMapper();
         testService.loggerService = mock(LoggerService.class);
-        testService.messageSource = mock(AbstractMessageSource.class);
+        AbstractMessageSource messageSource = new ReloadableResourceBundleMessageSource();
+        messageSource.setUseCodeAsDefaultMessage(true);
+        testService.messageSource = messageSource;
         testService.authService = mock(AuthService.class);
         EmailService emailService = mock(EmailService.class);
         testService.emailService = emailService;
@@ -483,7 +486,9 @@ public class DownloadServiceTest {
         testService.searchDAO = mock(SearchDAO.class);
         testService.objectMapper = new ObjectMapper();
         testService.loggerService = mock(LoggerService.class);
-        testService.messageSource = mock(AbstractMessageSource.class);
+        AbstractMessageSource messageSource = new ReloadableResourceBundleMessageSource();
+        messageSource.setUseCodeAsDefaultMessage(true);
+        testService.messageSource = messageSource;
         testService.authService = mock(AuthService.class);
         EmailService emailService = mock(EmailService.class);
         testService.emailService = emailService;
