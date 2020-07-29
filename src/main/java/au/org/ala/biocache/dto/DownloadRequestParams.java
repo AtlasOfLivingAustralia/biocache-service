@@ -35,6 +35,7 @@ import java.util.List;
  */
 public class DownloadRequestParams extends SpatialSearchRequestParams {
 
+    protected boolean emailNotify = true;
     protected String email = "";
     protected String reason = "";
     protected String file = "data";
@@ -121,6 +122,10 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
 
     protected String addParams(String paramString, Boolean encodeParams) {
         StringBuilder req = new StringBuilder(paramString);
+        // since emailNotify default is "true", only add param if !emailNotify
+        if (!emailNotify) {
+            req.append("&emailNotify=false");
+        }
         req.append("&email=").append(super.conditionalEncode(email, encodeParams));
         req.append("&reason=").append(super.conditionalEncode(reason, encodeParams));
         req.append("&file=").append(super.conditionalEncode(getFile(), encodeParams));
@@ -150,6 +155,14 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
         }
         
         return req.toString();
+    }
+
+    public boolean isEmailNotify() {
+        return emailNotify;
+    }
+
+    public void setEmailNotify(boolean emailNotify) {
+        this.emailNotify = emailNotify;
     }
 
     public String getEmail() {
