@@ -42,8 +42,8 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     private String description;
     /** the i18n information used for this field */
     private String info;
-    /** furtherInfo for this field*/
-    private String furtherInfo;
+    /** info url for this field*/
+    private String infoUrl;
     /** the occurrences/search json key for this field */
     private String jsonName;
     /** the DwC name for this field */
@@ -246,12 +246,12 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
         return classs;
     }
 
-    public void setFurtherInfo(String furtherInfo) {
-        this.furtherInfo = furtherInfo;
+    public void setInfoUrl(String infoUrl) {
+        this.infoUrl = infoUrl;
     }
 
-    public String getFurtherInfo() {
-        return furtherInfo;
+    public String getInfoUrl() {
+        return infoUrl;
     }
 
     public void setMultivalue(boolean multivalue) {
