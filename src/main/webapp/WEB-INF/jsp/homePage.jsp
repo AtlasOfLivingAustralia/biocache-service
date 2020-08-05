@@ -35,6 +35,8 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             <strong>support 'AT' ala.org.au</strong>
             <br/>
             <a href="${webservicesRoot}/oldapi">Old API reference</a>
+            <br/>
+            <a href="${webservicesRoot}/buildInfo">Build Info</a>
         </p>
         <p style="display:none;">
             ${versionInfoString}

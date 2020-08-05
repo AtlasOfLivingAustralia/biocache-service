@@ -623,6 +623,8 @@ The services above support the following params:
     </form>
 </div>
 
+<h3>Build Info</h3>
+<a href="${webservicesRoot}/buildInfo">/buildInfo</a>
 
 <div id="andsFundedDiv" style="clear:both;margin-top:40px;">
     <p>
