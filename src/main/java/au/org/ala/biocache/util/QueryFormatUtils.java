@@ -945,7 +945,7 @@ public class QueryFormatUtils {
                         extractedValue = extractedValue.substring(0, extractedValue.length() - 1);
                         end += 1;
                     } else if (extractedValue.contains(" ") && end == 0) {
-                        extractedValue = extractedValue.substring(0, extractedValue.indexOf(' ') > 1 ? extractedValue.indexOf(' ') : extractedValue.length());
+                        extractedValue = extractedValue.substring(0, extractedValue.indexOf(' ') >= 1 ? extractedValue.indexOf(' ') : extractedValue.length());
                     }
 
                     String i18nForValue;
