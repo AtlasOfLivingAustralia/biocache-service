@@ -1372,7 +1372,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             if (currentDownload != null && currentDownload.getFileLocation() != null) {
                                 insertMiscHeader(currentDownload);
 
-                                //ensure new directories have correct permissions
+                                //ensure new directories and download file have correct permissions
+                                new File(currentDownload.getFileLocation()).setReadable(true, false);
+                                new File(currentDownload.getFileLocation()).getParentFile().setReadable(true, false);
+                                new File(currentDownload.getFileLocation()).getParentFile().getParentFile().setReadable(true, false);
                                 new File(currentDownload.getFileLocation()).getParentFile().setExecutable(true, false);
                                 new File(currentDownload.getFileLocation()).getParentFile().getParentFile().setExecutable(true, false);
 
