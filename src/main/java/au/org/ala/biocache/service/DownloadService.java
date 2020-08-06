@@ -1385,7 +1385,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 substitutions.put(START_DATE_TIME, currentDownload.getStartDateString(downloadDateFormat));
                                 substitutions.put(QUERY_TITLE, currentDownload.getRequestParams().getDisplayString());
                                 substitutions.put(SEARCH_URL, searchUrl);
-                                substitutions.put(DOI_FAILURE_MESSAGE,  biocacheDownloadDoiFailureMessage);
+                                substitutions.put(DOI_FAILURE_MESSAGE,  doiFailureMessage);
 
                                 if(mintDoi && doiResponseList != null && !doiResponseList.isEmpty() && doiResponseList.get(0) != null) {
 
