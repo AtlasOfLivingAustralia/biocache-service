@@ -166,9 +166,9 @@ public class DownloadDoiDTO {
     }
 
     public void setDisplayTemplate(String displayTemplate) {
-        if (validDisplayTemplates.contains(displayTemplate))
+        if (validDisplayTemplates.contains(displayTemplate)) {
             this.displayTemplate = displayTemplate;
-        else {
+        } else {
             this.displayTemplate = validDisplayTemplates.get(0);
             logger.info("Unsupported displayTemplate passed - " + displayTemplate + ".  Using displayTemplate - " + this.displayTemplate);
         }

@@ -282,7 +282,9 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
         return fileType;
     }
 
-    public String getEmailTemplate() { return emailTemplate; }
+    public String getEmailTemplate() {
+        return emailTemplate;
+    }
 
     /**
      * @param fileType the fileType to set
@@ -405,9 +407,9 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     }
 
     public void setEmailTemplate(String emailTemplate) {
-        if( validTemplates.contains(emailTemplate) )
+        if( validTemplates.contains(emailTemplate) ) {
             this.emailTemplate = emailTemplate;
-        else {
+        } else {
             this.emailTemplate = validTemplates.get(0);
             logger.info("Unsupported emailTemplate passed - " + emailTemplate + ".  Using emailTemplate - " + this.emailTemplate);
         }

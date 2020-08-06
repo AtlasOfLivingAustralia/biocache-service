@@ -1394,8 +1394,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     try {
                                         doiService.updateFile(doiResponse.getUuid(), currentDownload.getFileLocation());
                                         doiStr = doiResponse.getDoi();
-                                        if (currentDownload.getRequestParams().getEmailTemplate() == DEFAULT_SELECTOR)
+                                        if (currentDownload.getRequestParams().getEmailTemplate() == DEFAULT_SELECTOR) {
                                             currentDownload.getRequestParams().setEmailTemplate(DOI_SELECTOR);
+                                        }
 
                                         // TODO: The downloads-plugin has issues with unencoded user queries 
                                         // Working around that by hardcoding the official DOI resolution service as the landing page

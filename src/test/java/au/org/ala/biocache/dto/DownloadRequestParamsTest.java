@@ -78,7 +78,6 @@ public class DownloadRequestParamsTest {
         downloadRequestParams.setEmailTemplate("csdm");
         assertTrue("csdm".equals(downloadRequestParams.getEmailTemplate()));
 
-
         downloadRequestParams = new DownloadRequestParams();
         downloadRequestParams.setEmailTemplate("uuidaof");
         assertFalse("uuidaof".equals(downloadRequestParams.getEmailTemplate()));
