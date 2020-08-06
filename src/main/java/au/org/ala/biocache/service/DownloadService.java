@@ -1420,19 +1420,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                                 if (currentDownload.isEmailNotify()) {
 
-//                                    emailBody = Files.asCharSource(new File(emailTemplate), StandardCharsets.UTF_8).read();
-//
-//                                    final String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
-//                                    String emailBodyHtml = emailBody.replace("[url]", downloadFileLocation)
-//                                            .replace("[officialDoiUrl]", officialFileLocation)
-//                                       *     .replace("[date]", currentDownload.getStartDateString(downloadDateFormat))
-//                                       *     .replace("[searchUrl]", searchUrl)
-//                                       *     .replace("[queryTitle]", currentDownload.getRequestParams().getDisplayString())
-//                                            .replace("[doiFailureMessage]", doiFailureMessage);
-//                                    String body = messageSource.getMessage("offlineEmailBody",
-//                                            new Object[]{archiveFileLocation, searchUrl, currentDownload.getStartDateString(downloadDateFormat)},
-//                                            emailBodyHtml, null);
-
                                     // save the statistics to the download directory
                                     try (FileOutputStream statsStream = FileUtils
                                             .openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()
