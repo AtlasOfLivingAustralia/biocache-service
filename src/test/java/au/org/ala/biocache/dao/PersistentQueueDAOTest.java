@@ -5,6 +5,7 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.dto.FacetThemes;
+import au.org.ala.biocache.service.DownloadService;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -41,6 +42,7 @@ public class PersistentQueueDAOTest {
         //init FacetThemes
         new FacetThemes();
 
+        DownloadService.downloadShpEnabled = true;
         testCacheDir = tempDir.newFolder("persistentqueuedaotest-cache").toPath();
         testDownloadDir = tempDir.newFolder("persistentqueuedaotest-destination").toPath();        
         queueDAO = new JsonPersistentQueueDAOImpl() {
@@ -72,11 +74,11 @@ public class PersistentQueueDAOTest {
     @Test
     public void testQueue(){
         System.out.println("test add");
-        DownloadDetailsDTO dd = new DownloadDetailsDTO(getParams("test1"), "127.0.0.1", DownloadType.FACET);
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(getParams("test1"), "127.0.0.1", "", DownloadType.FACET);
         
         queueDAO.addDownloadToQueue(dd);
         assertEquals(1,queueDAO.getTotalDownloads());
-        DownloadDetailsDTO dd2 = new DownloadDetailsDTO(getParams("test2"), "127.0.0.1", DownloadType.FACET);
+        DownloadDetailsDTO dd2 = new DownloadDetailsDTO(getParams("test2"), "127.0.0.1", "", DownloadType.FACET);
         
         queueDAO.addDownloadToQueue(dd2);
         assertEquals(2,queueDAO.getTotalDownloads());

@@ -15,10 +15,16 @@
 package au.org.ala.biocache.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import org.ala.client.model.LogEventVO;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestOperations;
 
 import javax.annotation.PostConstruct;
@@ -49,11 +55,12 @@ public class LoggerRestService implements LoggerService {
     //Used to wait for reloadCache() to complete
     private CountDownLatch initialised = new CountDownLatch(1);
 
-    @Value("${logger.service.url:https://logger.ala.org.au/service/logger/}")
+    @Value("${logger.service.url:https://logger.ala.org.au/service/logger}")
     protected String loggerUriPrefix;
     //NC 20131018: Allow cache to be disabled via config (enabled by default)
     @Value("${caches.log.enabled:true}")
     protected Boolean enabled =null;
+
     @Inject
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
 
@@ -83,6 +90,25 @@ public class LoggerRestService implements LoggerService {
         isReady();
 
         return sourceIds;
+    }
+
+    @Override
+    public void logEvent(LogEventVO logEvent) {
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.USER_AGENT, logEvent.getUserAgent());
+        HttpEntity<LogEventVO> request = new HttpEntity<>(logEvent, headers);
+        try {
+
+            ResponseEntity<Void> response = restTemplate.postForEntity(loggerUriPrefix, request, Void.class);
+
+            if (response.getStatusCode() != HttpStatus.OK) {
+                logger.warn("failed to log event");
+            }
+
+        } catch (Exception e) {
+            logger.warn("failed to log event", e);
+        }
     }
 
     /**
@@ -167,7 +193,7 @@ public class LoggerRestService implements LoggerService {
         List<Map<String,Object>> entities = new ArrayList<Map<String,Object>>();
 
         try {
-            final String jsonUri = loggerUriPrefix + type.name();
+            final String jsonUri = loggerUriPrefix + "/" + type.name();
             logger.info("Requesting " + type.name() + " via: " + jsonUri);
             entities = restTemplate.getForObject(jsonUri, List.class);
             logger.info("The values : " + entities);

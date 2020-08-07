@@ -7,25 +7,31 @@ import au.org.ala.biocache.dao.JsonPersistentQueueDAOImpl;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dao.SearchDAOImpl;
-import au.org.ala.biocache.dto.DownloadDetailsDTO;
+import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
-import au.org.ala.biocache.dto.DownloadDoiDTO;
-import au.org.ala.biocache.dto.DownloadRequestParams;
-import au.org.ala.biocache.dto.FacetThemes;
-import au.org.ala.biocache.dto.QualityFilterDTO;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.doi.CreateDoiResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.io.CharSource;
+import com.google.common.io.Files;
+import org.ala.client.model.LogEventVO;
 import org.junit.*;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
+import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.context.support.ReloadableResourceBundleMessageSource;
 import org.springframework.core.io.ClassPathResource;
 
+import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -37,13 +43,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.*;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 /**
  * Test for {@link DownloadService}
  * 
  * @author Peter Ansell
  */
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(Files.class)
 public class DownloadServiceTest {
 
     @Rule
@@ -89,6 +99,7 @@ public class DownloadServiceTest {
         testService = new DownloadService() {
             {
                 sensitiveAccessRoles = "{}";
+                concurrentDownloadsJSON = "[]";
             }
 
             protected DownloadCreator getNewDownloadCreator() {
@@ -106,6 +117,8 @@ public class DownloadServiceTest {
                                     // The latch must be already at 0 before
                                     // test to avoid a
                                     // wait here
+
+
                                     testLatch.await();
                                     Thread.sleep(executionDelay + Math.round(Math.random() * executionDelay));
                                     return nextDownload;
@@ -191,12 +204,12 @@ public class DownloadServiceTest {
 
     /**
      * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#registerDownload(au.org.ala.biocache.dto.DownloadRequestParams, java.lang.String, au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType)}.
+     * {@link au.org.ala.biocache.service.DownloadService#registerDownload(DownloadRequestParams requestParams, String ip, String userAgent, DownloadDetailsDTO.DownloadType type)}.
      */
     @Test
     public final void testRegisterDownload() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
     }
@@ -208,7 +221,7 @@ public class DownloadServiceTest {
     @Test
     public final void testUnregisterDownload() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         Thread.sleep(5000);
@@ -223,7 +236,7 @@ public class DownloadServiceTest {
     public final void testUnregisterDownloadWithoutDownloadLatchWait() throws Exception {
         testLatch.countDown();
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         Thread.sleep(5000);
@@ -237,7 +250,7 @@ public class DownloadServiceTest {
     @Test
     public final void testUnregisterDownloadMultipleWithDownloadLatchWaitOn() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         Thread.sleep(5000);
@@ -252,7 +265,7 @@ public class DownloadServiceTest {
     @Test
     public final void testUnregisterDownloadMultipleWithDownloadLatchWaitOnNoSleep() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         testService.unregisterDownload(registerDownload);
@@ -268,7 +281,7 @@ public class DownloadServiceTest {
         testService.init();
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         Thread.sleep(5000);
@@ -292,7 +305,7 @@ public class DownloadServiceTest {
         testService.init();
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         Thread.sleep(5000);
@@ -322,6 +335,7 @@ public class DownloadServiceTest {
         testService.doiService = doiService;
         SearchDAO searchDAO = mock(SearchDAO.class);
         testService.searchDAO = searchDAO;
+        testService.loggerService = mock(LoggerService.class);
         AbstractMessageSource messageSource = mock(AbstractMessageSource.class);
         testService.messageSource = messageSource;
         AuthService authService = mock(AuthService.class);
@@ -340,7 +354,7 @@ public class DownloadServiceTest {
         doiApplicationMetadata.put("key1", "value1");
         doiApplicationMetadata.put("key2", "value2");
 
-        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", DownloadType.RECORDS_INDEX);
+        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", "", DownloadType.RECORDS_INDEX);
 
         when(searchDAO.writeResultsFromIndexToStream(any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new ConcurrentHashMap<String, AtomicInteger>());
         when(doiService.mintDoi(isA(DownloadDoiDTO.class))).thenReturn(new CreateDoiResponse());
@@ -358,9 +372,159 @@ public class DownloadServiceTest {
         assertEquals(downloadDoiDTO.getApplicationMetadata(), downloadRequestParams.getDoiMetadata());
     }
 
+    @Test
+    public final void testUserAgentPassedToLoggerService() throws Exception {
+
+        // Initialisation - if we don't do this the tests will not run.
+        testLatch.countDown();
+        testService.init();
+
+        // Setup mocks and stubs - could be in setup but I don't want to interfere with the other tests.
+        DoiService doiService = mock(DoiService.class);
+        testService.doiService = doiService;
+        SearchDAO searchDAO = mock(SearchDAO.class);
+        testService.searchDAO = searchDAO;
+        LoggerService loggerService = mock(LoggerService.class);
+        testService.loggerService = loggerService;
+        AbstractMessageSource messageSource = mock(AbstractMessageSource.class);
+        testService.messageSource = messageSource;
+        AuthService authService = mock(AuthService.class);
+        testService.authService = authService;
+
+        testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
+
+        // Setup method parameters
+        OutputStream out = new ByteArrayOutputStream();
+        List<CreateDoiResponse> doiResponseList = new ArrayList<CreateDoiResponse>();
+
+        DownloadRequestParams downloadRequestParams = new DownloadRequestParams();
+        downloadRequestParams.setMintDoi(true);
+        downloadRequestParams.setDisplayString("");
+
+        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", "test User-Agent", DownloadType.RECORDS_INDEX);
+
+        when(searchDAO.writeResultsFromIndexToStream(any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new ConcurrentHashMap<String, AtomicInteger>());
+        when(doiService.mintDoi(isA(DownloadDoiDTO.class))).thenReturn(new CreateDoiResponse());
+        testService.writeQueryToStream(
+                downloadDetailsDTO,
+                downloadRequestParams,
+                downloadDetailsDTO.getIpAddress(),
+                out,
+                false, true, true, false, (ExecutorService)null, doiResponseList);
+
+        ArgumentCaptor<LogEventVO> argument = ArgumentCaptor.forClass(LogEventVO.class);
+        verify(loggerService).logEvent(argument.capture());
+
+        LogEventVO logEventVO = argument.getValue();
+        assertEquals(logEventVO.getUserAgent(), "test User-Agent");
+    }
+
+    @Test
+    public final void testOfflineDownload() throws Exception {
+
+        CountDownLatch doneLatch = new CountDownLatch(1);
+
+        testService = new DownloadService() {
+            {
+                sensitiveAccessRoles = "{}";
+                concurrentDownloadsJSON = "[]";
+            }
+        };
+
+        testService.downloadQualityFiltersTemplate = new ClassPathResource("download-email-quality-filter-snippet.html");
+        testService.biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
+        testService.persistentQueueDAO = persistentQueueDAO;
+
+        testService.doiService = mock(DoiService.class);
+        testService.searchDAO = mock(SearchDAO.class);
+        testService.objectMapper = new ObjectMapper();
+        testService.loggerService = mock(LoggerService.class);
+        AbstractMessageSource messageSource = new ReloadableResourceBundleMessageSource();
+        messageSource.setUseCodeAsDefaultMessage(true);
+        testService.messageSource = messageSource;
+        testService.authService = mock(AuthService.class);
+        EmailService emailService = mock(EmailService.class);
+        testService.emailService = emailService;
+
+        // mock the reading of the downloadEmailTemplate
+        mockStatic(Files.class);
+        given(Files.asCharSource(any(), eq(StandardCharsets.UTF_8))).willReturn(CharSource.wrap(""));
+
+        testService.biocacheDownloadEmailTemplate = "/tmp/download-email.html";
+        testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
+
+        testService.init();
+        List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
+        assertEquals(0, emptyDownloads.size());
+
+        DownloadRequestParams requestParams = new DownloadRequestParams();
+        requestParams.setDisplayString("[all records]");
+
+        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, "::1", "", DownloadType.RECORDS_INDEX);
+        assertNotNull(registerDownload);
+        testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
+        Thread.sleep(5000);
+
+        verify(emailService, times(1)).sendEmail(any(), any(), any());
+    }
+
+    @Test
+    public final void testOfflineDownloadNoEmailNotify() throws Exception {
+
+        testService = new DownloadService() {
+            {
+                sensitiveAccessRoles = "{}";
+                concurrentDownloadsJSON = "[]";
+            }
+        };
+
+        testService.downloadQualityFiltersTemplate = new ClassPathResource("download-email-quality-filter-snippet.html");
+        testService.biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
+        testService.persistentQueueDAO = persistentQueueDAO;
+
+        testService.doiService = mock(DoiService.class);
+        testService.searchDAO = mock(SearchDAO.class);
+        testService.objectMapper = new ObjectMapper();
+        testService.loggerService = mock(LoggerService.class);
+        AbstractMessageSource messageSource = new ReloadableResourceBundleMessageSource();
+        messageSource.setUseCodeAsDefaultMessage(true);
+        testService.messageSource = messageSource;
+        testService.authService = mock(AuthService.class);
+        EmailService emailService = mock(EmailService.class);
+        testService.emailService = emailService;
+
+        testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
+
+        testService.init();
+        List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
+        assertEquals(0, emptyDownloads.size());
+
+        DownloadRequestParams requestParams = new DownloadRequestParams();
+        requestParams.setEmailNotify(false);
+        requestParams.setDisplayString("[all records]");
+
+        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, "::1", "", DownloadType.RECORDS_INDEX);
+        assertNotNull(registerDownload);
+        testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
+        Thread.sleep(5000);
+
+        verify(emailService, times(0)).sendEmail(any(), any(), any());
+    }
+
+
     /**
      * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#writeQueryToStream(au.org.ala.biocache.dto.DownloadDetailsDTO, au.org.ala.biocache.dto.DownloadRequestParams, java.lang.String, java.io.OutputStream, boolean, boolean, boolean, boolean)}.
+     * {@link au.org.ala.biocache.service.DownloadService#writeQueryToStream(
+     *                                                              DownloadDetailsDTO dd,
+     *                                                              DownloadRequestParams requestParams,
+     *                                                              String ip,
+     *                                                              OutputStream out,
+     *                                                              boolean includeSensitive,
+     *                                                              boolean fromIndex,
+     *                                                              boolean limit,
+     *                                                              boolean zip,
+     *                                                              ExecutorService parallelExecutor,
+     *                                                              List<CreateDoiResponse> doiResponseList)}.
      */
     @Ignore("TODO: Implement me")
     @Test
@@ -371,7 +535,16 @@ public class DownloadServiceTest {
 
     /**
      * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#writeQueryToStream(au.org.ala.biocache.dto.DownloadRequestParams, javax.servlet.http.HttpServletResponse, java.lang.String, javax.servlet.ServletOutputStream, boolean, boolean, boolean)}.
+     * {@link au.org.ala.biocache.service.DownloadService#writeQueryToStream(
+     *                                                              DownloadRequestParams requestParams,
+     *                                                              HttpServletResponse response,
+     *                                                              String ip,
+     *                                                              String userAgent,
+     *                                                              OutputStream out,
+     *                                                              boolean includeSensitive,
+     *                                                              boolean fromIndex,
+     *                                                              boolean zip,
+     *                                                              ExecutorService parallelQueryExecutor)}.
      */
     @Ignore("TODO: Implement me")
     @Test

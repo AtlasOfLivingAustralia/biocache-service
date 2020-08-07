@@ -79,16 +79,6 @@
         <url-pattern>*.json</url-pattern>
     </filter-mapping>
 
-    <!-- ALA Logger Service -->
-    <filter>
-        <filter-name>LoggerServiceContextFilter</filter-name>
-        <filter-class>au.org.ala.biocache.web.LoggerConfigFilter</filter-class>
-    </filter>
-    <filter-mapping>
-        <filter-name>LoggerServiceContextFilter</filter-name>
-        <url-pattern>/*</url-pattern>
-    </filter-mapping>
-
     <!-- Simple CORS filter -->
     <filter>
         <filter-name>CorsFilter</filter-name>
@@ -97,6 +87,17 @@
     <filter-mapping>
         <filter-name>CorsFilter</filter-name>
         <url-pattern>*</url-pattern>
+    </filter-mapping>
+  
+    <!-- Case insensitive filter -->
+    <!-- Used to make WMS parameters case insensitive, as per OGC specification -->
+    <filter>
+        <filter-name>CaseInsensitiveRequestFilter</filter-name>
+        <filter-class>au.org.ala.biocache.web.CaseInsensitiveRequestFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>CaseInsensitiveRequestFilter</filter-name>
+        <url-pattern>/ogc/*</url-pattern>
     </filter-mapping>
 
     <!-- tld -->

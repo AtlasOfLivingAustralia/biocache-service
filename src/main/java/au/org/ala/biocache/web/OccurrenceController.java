@@ -26,6 +26,7 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.model.FullRecord;
 import au.org.ala.biocache.model.QualityAssertion;
 import au.org.ala.biocache.service.AuthService;
+import au.org.ala.biocache.service.LoggerService;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.service.ImageMetadataService;
 import au.org.ala.biocache.service.SpeciesLookupService;
@@ -37,6 +38,7 @@ import net.sf.json.JSONArray;
 import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
+import org.ala.client.util.Constants;
 import org.ala.client.util.RestfulClient;
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
@@ -57,6 +59,8 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import javax.mail.internet.AddressException;
+import javax.mail.internet.InternetAddress;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -99,6 +103,8 @@ public class OccurrenceController extends AbstractSecureController {
     protected AssertionUtils assertionUtils;
     @Inject
     protected DownloadService downloadService;
+    @Inject
+    protected LoggerService loggerService;
     @Inject
     private AbstractMessageSource messageSource;
     @Inject
@@ -227,7 +233,7 @@ public class OccurrenceController extends AbstractSecureController {
                 model.addAttribute("versionInfoString", sb.toString());
 
             } catch (Exception e) {
-                logger.error(e.getMessage(), e);
+                logger.error("failed to read 'git.properties' resource", e);
             }
         }
         return HOME;
@@ -846,7 +852,7 @@ public class OccurrenceController extends AbstractSecureController {
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
         if(requestParams.getFacets().length > 0){
-            DownloadDetailsDTO dd = downloadService.registerDownload(requestParams, getIPAddress(request), DownloadDetailsDTO.DownloadType.FACET);
+            DownloadDetailsDTO dd = downloadService.registerDownload(requestParams, getIPAddress(request), getUserAgent(request), DownloadDetailsDTO.DownloadType.FACET);
             try {
                 String filename = requestParams.getFile() != null ? requestParams.getFile() : requestParams.getFacets()[0];
                 response.setHeader("Cache-Control", "must-revalidate");
@@ -921,7 +927,7 @@ public class OccurrenceController extends AbstractSecureController {
         final File file = new File(filepath);
         
         final SpeciesLookupService mySpeciesLookupService = this.speciesLookupService;
-        final DownloadDetailsDTO dd = downloadService.registerDownload(params, getIPAddress(request), DownloadType.RECORDS_INDEX);
+        final DownloadDetailsDTO dd = downloadService.registerDownload(params, getIPAddress(request), getUserAgent(request), DownloadType.RECORDS_INDEX);
         
         if(file.exists()){
             Runnable t = new Runnable(){
@@ -1108,7 +1114,16 @@ public class OccurrenceController extends AbstractSecureController {
             return VALIDATION_ERROR; //result.toString();
         }
 
-        if (apiKey == null && email == null && rateLimitRequest(request, response)) {
+        boolean validEmail = false;
+        if (email != null) {
+
+            try {
+                new InternetAddress(email).validate();
+                validEmail = true;
+            } catch (AddressException e) {}
+        }
+
+        if (apiKey == null && !validEmail && rateLimitRequest(request, response)) {
 
             response.sendError(HttpServletResponse.SC_FORBIDDEN, "API Key or email required, please contact 'support@ala.org.au'");
             return null;
@@ -1124,7 +1139,7 @@ public class OccurrenceController extends AbstractSecureController {
         }
         try {
             ServletOutputStream out = response.getOutputStream();
-            downloadService.writeQueryToStream(requestParams, response, getIPAddress(request), new CloseShieldOutputStream(out), false, true, zip, executor);
+            downloadService.writeQueryToStream(requestParams, response, getIPAddress(request), getUserAgent(request), new CloseShieldOutputStream(out), false, true, zip, executor);
         } catch(Exception e){
             logger.error(e.getMessage(), e);
         }
@@ -1147,7 +1162,7 @@ public class OccurrenceController extends AbstractSecureController {
 
             try {
                 ServletOutputStream out = response.getOutputStream();
-                downloadService.writeQueryToStream(requestParams, response, getIPAddress(request), new CloseShieldOutputStream(out), true, fromIndex, zip, executor);
+                downloadService.writeQueryToStream(requestParams, response, getIPAddress(request), getUserAgent(request), new CloseShieldOutputStream(out), true, fromIndex, zip, executor);
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
             }
@@ -1548,13 +1563,13 @@ public class OccurrenceController extends AbstractSecureController {
             Config.mediaStore().convertPathsToUrls(occ.getProcessed(), biocacheMediaUrl);
 
             //log the statistics for viewing the record
-            logViewEvent(ip, occ, null, "Viewing Occurrence Record " + uuid);
+            logViewEvent(ip, occ, getUserAgent(request), null, "Viewing Occurrence Record " + uuid);
 
             return occ;
         }
     }
     
-    private void logViewEvent(String ip, OccurrenceDTO occ, String email, String reason) {
+    private void logViewEvent(String ip, OccurrenceDTO occ, String userAgent, String email, String reason) {
         //String ip = request.getLocalAddr();
         ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
         if(occ.getProcessed() != null && occ.getProcessed().getAttribution()!=null){
@@ -1585,7 +1600,9 @@ public class OccurrenceController extends AbstractSecureController {
             }
         }
         LogEventVO vo = new LogEventVO(LogEventType.OCCURRENCE_RECORDS_VIEWED, email, reason, ip, uidStats);
-        logger.log(RestLevel.REMOTE, vo);
+        vo.setUserAgent(userAgent);
+
+        loggerService.logEvent(vo);
     }
 
     /**
