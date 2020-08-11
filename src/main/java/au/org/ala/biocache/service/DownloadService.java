@@ -69,6 +69,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static java.util.stream.Collectors.toList;
 import static org.apache.commons.lang3.StringUtils.*;
 
 /**
@@ -133,6 +134,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     @Inject
     protected AuthService authService;
+
+    @Inject
+    protected DataQualityService dataQualityService;
 
     // when everything is indexed in SOLR, there will be no cassandra download unless requested
     @Value("${download.solr.only:false}")
@@ -642,9 +646,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 CreateDoiResponse doiResponse = null;
                 String doi = "";
 
-                final String searchUrl = generateSearchUrl(requestParams);
+                Map<String, String> enabledQualityFiltersByLabel = dataQualityService.getEnabledFiltersByLabel(requestParams);
+                List<QualityFilterDTO> qualityFilters = getQualityFilterDTOS(enabledQualityFiltersByLabel);
+                final String searchUrl = generateSearchUrl(requestParams, enabledQualityFiltersByLabel);
 
-                List<QualityFilterDTO> qualityFilters = getQualityFilterDTOS(requestParams);
 
                 if (citationsEnabled) {
                     List<Map<String, String>> datasetMetadata = null;
@@ -848,20 +853,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         }
     }
 
-    @VisibleForTesting
-    List<QualityFilterDTO> getQualityFilterDTOS(DownloadRequestParams requestParams) {
-        List<QualityFilterDTO> qualityFilters = new ArrayList<>();
-        if (requestParams.getQualityFiltersInfo() != null) {
-            List<String> filters = requestParams.getQualityFiltersInfo();
-            filters.forEach( filter -> {
-                String[] strings = split(filter, ":", 2);
-                if (strings.length == 2) {
-                    QualityFilterDTO dto = new QualityFilterDTO(strings[0], strings[1]);
-                    qualityFilters.add(dto);
-                }
-            });
-        }
-        return qualityFilters;
+    private List<QualityFilterDTO> getQualityFilterDTOS(Map<String, String> filtersByLabel) {
+        return filtersByLabel.entrySet().stream().map((e) -> new QualityFilterDTO(e.getKey(), e.getValue())).collect(toList());
     }
 
     @VisibleForTesting
@@ -1134,6 +1127,18 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @return url
      */
     public String generateSearchUrl(DownloadRequestParams params) {
+        return generateSearchUrl(params, dataQualityService.getEnabledFiltersByLabel(params));
+    }
+
+    /**
+     * Generate a search URL the user can use to regenerate the same download
+     * (assumes they came via biocache UI) using pre-supplied quality filters
+     *
+     * @param params The download / search parameters to use
+     * @param enabledQualityFiltersByLabel The map of enabled quality filter label to fqs
+     * @return url The generated search url
+     */
+    public String generateSearchUrl(DownloadRequestParams params, Map<String, String> enabledQualityFiltersByLabel) {
         if (params.getSearchUrl() != null) {
             return params.getSearchUrl();
         } else {
@@ -1165,6 +1170,19 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         }
                     }
                 }
+            }
+
+            if (params.isDisableAllQualityFilters()) {
+                sb.append("&disableAllQualityFilters=true");
+            } else {
+                sb.append("&disableAllQualityFilters=true");
+
+                enabledQualityFiltersByLabel.forEach((label, fq) -> {
+                    try {
+                        sb.append("&fq=").append(URLEncoder.encode(fq, "UTF-8"));
+                    } catch (UnsupportedEncodingException ignored) {
+                    }
+                });
             }
 
             if (StringUtils.isNotEmpty(params.getQc())) {

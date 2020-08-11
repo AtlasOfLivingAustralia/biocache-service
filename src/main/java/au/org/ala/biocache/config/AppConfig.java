@@ -6,6 +6,8 @@ import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.service.SpeciesLookupIndexService;
 import au.org.ala.biocache.service.SpeciesLookupRestService;
 import au.org.ala.biocache.service.SpeciesLookupService;
+import au.org.ala.dataquality.api.QualityServiceRpcApi;
+import au.org.ala.dataquality.client.ApiClient;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrClient;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -55,6 +57,10 @@ public class AppConfig {
     protected Integer facetsMax;
     @Value("${facet.default:true}")
     protected Boolean facetDefault;
+
+    // Configuration for DataQualityApi
+    @Value("${dataquality.baseUrl:https://dataquality.ala.org.au/}")
+    protected String dataQualityBaseUrl;
 
 
     //Set RestartDataService.dir before classes using RestartDataService are instantiated.
@@ -127,4 +133,17 @@ public class AppConfig {
         return result;
 
     }
+
+    @Bean("dataQualityApiClient")
+    public ApiClient dataQualityApiClient() {
+        ApiClient apiClient = new ApiClient();
+        apiClient.getAdapterBuilder().baseUrl(dataQualityBaseUrl);
+        return apiClient;
+    }
+
+    @Bean
+    public QualityServiceRpcApi dataQualityApi(@Qualifier("dataQualityApiClient") ApiClient dataQualityApiClient) {
+        return dataQualityApiClient.createService(QualityServiceRpcApi.class);
+    }
+
 }

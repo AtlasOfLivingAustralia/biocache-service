@@ -26,7 +26,6 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -111,11 +110,6 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     Map<String, String> doiMetadata = new HashMap<String, String>();
 
     /**
-     * Quality Filters information from the hub about the download
-     */
-    protected List<String> qualityFiltersInfo = new ArrayList<>();
-
-    /**
      * Custom toString method to produce a String to be used as the request parameters
      * for the Biocache Service webservices
      *
@@ -163,10 +157,6 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
         }
         if (includeMisc) {
             req.append("&includeMisc=true");
-        }
-
-        for (String qualityFilter : qualityFiltersInfo) {
-            req.append("&qualityFiltersInfo=").append(super.conditionalEncode(qualityFilter, encodeParams));
         }
         
         return req.toString();
@@ -396,14 +386,6 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
 
     public void setDoiMetadata(Map<String, String> doiMetadata) {
         this.doiMetadata = doiMetadata;
-    }
-
-    public List<String> getQualityFiltersInfo() {
-        return qualityFiltersInfo;
-    }
-
-    public void setQualityFiltersInfo(List<String> qualityFiltersInfo) {
-        this.qualityFiltersInfo = qualityFiltersInfo;
     }
 
     public void setEmailTemplate(String emailTemplate) {

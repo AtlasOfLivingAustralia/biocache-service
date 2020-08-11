@@ -12,6 +12,7 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.doi.CreateDoiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Maps;
 import com.google.common.io.CharSource;
 import com.google.common.io.Files;
 import org.ala.client.model.LogEventVO;
@@ -35,13 +36,17 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
@@ -131,6 +136,7 @@ public class DownloadServiceTest {
                 };
             }
         };
+        testService.dataQualityService = mock(DataQualityService.class);
         testService.downloadQualityFiltersTemplate = new ClassPathResource("download-email-quality-filter-snippet.html");
         testService.biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
         testService.persistentQueueDAO = persistentQueueDAO;
@@ -445,6 +451,7 @@ public class DownloadServiceTest {
         testService.authService = mock(AuthService.class);
         EmailService emailService = mock(EmailService.class);
         testService.emailService = emailService;
+        testService.dataQualityService = mock(DataQualityService.class);
 
         // mock the reading of the downloadEmailTemplate
         mockStatic(Files.class);
@@ -466,6 +473,106 @@ public class DownloadServiceTest {
         Thread.sleep(5000);
 
         verify(emailService, times(1)).sendEmail(any(), any(), any());
+    }
+
+    @Test
+    public final void testOfflineDownloadWithQualityFiltersAndDoi() throws Exception {
+
+        CountDownLatch doneLatch = new CountDownLatch(1);
+
+        testService = new DownloadService() {
+            {
+                sensitiveAccessRoles = "{}";
+                concurrentDownloadsJSON = "[]";
+            }
+        };
+
+        testService.downloadQualityFiltersTemplate = new ClassPathResource("download-email-quality-filter-snippet.html");
+        testService.biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
+        testService.persistentQueueDAO = persistentQueueDAO;
+
+        testService.doiService = mock(DoiService.class);
+        testService.searchDAO = mock(SearchDAO.class);
+        testService.objectMapper = new ObjectMapper();
+        testService.loggerService = mock(LoggerService.class);
+        AbstractMessageSource messageSource = new ReloadableResourceBundleMessageSource();
+        messageSource.setUseCodeAsDefaultMessage(true);
+        testService.messageSource = messageSource;
+        testService.authService = mock(AuthService.class);
+        EmailService emailService = mock(EmailService.class);
+        testService.emailService = emailService;
+        testService.dataQualityService = mock(DataQualityService.class);
+
+        // mock the reading of the downloadEmailTemplate
+        mockStatic(Files.class);
+        given(Files.asCharSource(any(), eq(StandardCharsets.UTF_8))).willReturn(CharSource.wrap(""));
+
+        testService.biocacheDownloadEmailTemplate = "/tmp/download-email.html";
+        testService.biocacheDownloadDoiEmailTemplate = "/tmp/download-email.html";
+        testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
+
+        testService.init();
+        List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
+        assertEquals(0, emptyDownloads.size());
+
+        DownloadRequestParams requestParams = new DownloadRequestParams();
+        requestParams.setDisplayString("[all records]");
+
+        //
+        // verify with data quality results
+        //
+        requestParams.setQualityProfile("default");
+        requestParams.setDisableAllQualityFilters(false);
+        requestParams.setMintDoi(true);
+        requestParams.setEmailTemplate("doi");
+        requestParams.setEmail("example@example.org");
+        requestParams.setReason("testing");
+        requestParams.setReasonTypeId(1);
+        requestParams.setSourceTypeId(2);
+
+        Map<String, String> filters = new LinkedHashMap<>();
+        filters.put("first", "foo:bar");
+        filters.put("second", "baz:qux");
+
+        when(testService.dataQualityService.getEnabledFiltersByLabel(any(DownloadRequestParams.class))).thenReturn(filters);
+
+        CreateDoiResponse createDoiResponse = new CreateDoiResponse();
+        createDoiResponse.setDoi("10.5555/12345678");
+        createDoiResponse.setUuid("ac2ca7ca-9f3a-42af-a840-9c9bd99066b7");
+        createDoiResponse.setLandingPage("https://example.org/");
+        createDoiResponse.setDoiServiceLandingPage("https://doi.example.org/");
+        when(testService.doiService.mintDoi(any(DownloadDoiDTO.class))).thenReturn(createDoiResponse);
+
+        ConcurrentMap<String, AtomicInteger> uidStats = Maps.newConcurrentMap();
+        when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(uidStats);
+
+        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, "::1", "", DownloadType.RECORDS_INDEX);
+        assertNotNull(registerDownload);
+        testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
+        Thread.sleep(5000);
+
+        verify(emailService).sendEmail(requestParams.getEmail(), "ALA Occurrence Download Complete - data", "");
+
+        verify(testService.dataQualityService, times(2)).getEnabledFiltersByLabel(requestParams);
+
+        ArgumentCaptor<DownloadDoiDTO> acDoi = ArgumentCaptor.forClass(DownloadDoiDTO.class);
+
+        verify(testService.doiService).mintDoi(acDoi.capture());
+        DownloadDoiDTO value = acDoi.getValue();
+        assertThat("Mint DOI call was captured", value, notNullValue());
+        assertThat("Mint DOI call contained filters info",
+                value.getQualityFilters(),
+                containsInAnyOrder(
+                        new QualityFilterDTO("first", "foo:bar"),
+                        new QualityFilterDTO("second", "baz:qux")
+                )
+        );
+        assertThat("Mint DOI call contains search URL with filters as fqs",
+                value.getApplicationUrl(), containsString("&disableAllQualityFilters=true&fq=foo%3Abar&fq=baz%3Aqux"));
+
+        // TODO verify LogEventVO, requires .equals/.hashCode on LogEventVO?
+        verify(testService.loggerService).logEvent(any(LogEventVO.class));
+
     }
 
     @Test
@@ -571,25 +678,6 @@ public class DownloadServiceTest {
     @Test
     public final void testGetHeadings() throws Exception {
         fail("Not yet implemented"); // TODO
-    }
-
-    @Test
-    public final void testGetQualityFilterDTOS() {
-        List<String> qualityFiltersInfo = new ArrayList<>();
-        qualityFiltersInfo.add("test:asdf");
-        qualityFiltersInfo.add("test:foo:bar");
-        qualityFiltersInfo.add("test:foo:bar AND -bar:baz");
-
-
-        DownloadRequestParams drp = new DownloadRequestParams();
-        drp.setQualityFiltersInfo(qualityFiltersInfo);
-        List<QualityFilterDTO> qualityFilterDTOS = testService.getQualityFilterDTOS(drp);
-
-        assertThat(qualityFilterDTOS, containsInAnyOrder(
-                new QualityFilterDTO("test", "asdf"),
-                new QualityFilterDTO("test", "foo:bar"),
-                new QualityFilterDTO("test", "foo:bar AND -bar:baz")
-        ));
     }
 
     @Test

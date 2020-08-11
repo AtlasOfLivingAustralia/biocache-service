@@ -4,6 +4,7 @@ package au.org.ala.biocache.dao;
 import au.org.ala.biocache.dto.Facet;
 import au.org.ala.biocache.dto.FacetThemes;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.service.DataQualityService;
 import au.org.ala.biocache.service.SpeciesLookupService;
 import au.org.ala.biocache.util.CollectionsCache;
 import au.org.ala.biocache.util.QueryFormatUtils;
@@ -45,6 +46,9 @@ public class FilterQueryParserTest {
 
     @Mock
     protected MessageSource messageSource;
+
+    @Mock
+    DataQualityService dataQualityService;
 
     @InjectMocks
     QueryFormatUtils queryFormatUtils;
