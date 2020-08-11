@@ -43,6 +43,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
+import org.apache.velocity.runtime.RuntimeConstants;
 import org.apache.velocity.runtime.RuntimeServices;
 import org.apache.velocity.runtime.RuntimeSingleton;
 import org.json.simple.JSONArray;
@@ -861,6 +862,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     String getDataQualityFiltersString(List<QualityFilterDTO> qualityFilters) throws IOException, org.apache.velocity.runtime.parser.ParseException {
         String dataQualityFilters;
         RuntimeServices runtimeServices = RuntimeSingleton.getRuntimeServices();
+        runtimeServices.setProperty(RuntimeConstants.RUNTIME_LOG_LOGSYSTEM_CLASS, org.apache.velocity.runtime.log.Log4JLogChute.class.getName());
+        runtimeServices.setProperty("runtime.log.logsystem.log4j.logger", "velocity");
         Reader reader = new InputStreamReader(downloadQualityFiltersTemplate.getInputStream(), StandardCharsets.UTF_8);
         Template template = new Template();
         template.setRuntimeServices(runtimeServices);

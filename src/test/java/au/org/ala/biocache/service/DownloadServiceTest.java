@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.google.common.collect.Maps.newConcurrentMap;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -428,30 +429,7 @@ public class DownloadServiceTest {
     @Test
     public final void testOfflineDownload() throws Exception {
 
-        CountDownLatch doneLatch = new CountDownLatch(1);
-
-        testService = new DownloadService() {
-            {
-                sensitiveAccessRoles = "{}";
-                concurrentDownloadsJSON = "[]";
-            }
-        };
-
-        testService.downloadQualityFiltersTemplate = new ClassPathResource("download-email-quality-filter-snippet.html");
-        testService.biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
-        testService.persistentQueueDAO = persistentQueueDAO;
-
-        testService.doiService = mock(DoiService.class);
-        testService.searchDAO = mock(SearchDAO.class);
-        testService.objectMapper = new ObjectMapper();
-        testService.loggerService = mock(LoggerService.class);
-        AbstractMessageSource messageSource = new ReloadableResourceBundleMessageSource();
-        messageSource.setUseCodeAsDefaultMessage(true);
-        testService.messageSource = messageSource;
-        testService.authService = mock(AuthService.class);
-        EmailService emailService = mock(EmailService.class);
-        testService.emailService = emailService;
-        testService.dataQualityService = mock(DataQualityService.class);
+        testService = createDownloadServiceForOfflineTest();
 
         // mock the reading of the downloadEmailTemplate
         mockStatic(Files.class);
@@ -472,36 +450,13 @@ public class DownloadServiceTest {
         testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
         Thread.sleep(5000);
 
-        verify(emailService, times(1)).sendEmail(any(), any(), any());
+        verify(testService.emailService, times(1)).sendEmail(any(), any(), any());
     }
 
     @Test
     public final void testOfflineDownloadWithQualityFiltersAndDoi() throws Exception {
 
-        CountDownLatch doneLatch = new CountDownLatch(1);
-
-        testService = new DownloadService() {
-            {
-                sensitiveAccessRoles = "{}";
-                concurrentDownloadsJSON = "[]";
-            }
-        };
-
-        testService.downloadQualityFiltersTemplate = new ClassPathResource("download-email-quality-filter-snippet.html");
-        testService.biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
-        testService.persistentQueueDAO = persistentQueueDAO;
-
-        testService.doiService = mock(DoiService.class);
-        testService.searchDAO = mock(SearchDAO.class);
-        testService.objectMapper = new ObjectMapper();
-        testService.loggerService = mock(LoggerService.class);
-        AbstractMessageSource messageSource = new ReloadableResourceBundleMessageSource();
-        messageSource.setUseCodeAsDefaultMessage(true);
-        testService.messageSource = messageSource;
-        testService.authService = mock(AuthService.class);
-        EmailService emailService = mock(EmailService.class);
-        testService.emailService = emailService;
-        testService.dataQualityService = mock(DataQualityService.class);
+        testService = createDownloadServiceForOfflineTest();
 
         // mock the reading of the downloadEmailTemplate
         mockStatic(Files.class);
@@ -543,7 +498,7 @@ public class DownloadServiceTest {
         createDoiResponse.setDoiServiceLandingPage("https://doi.example.org/");
         when(testService.doiService.mintDoi(any(DownloadDoiDTO.class))).thenReturn(createDoiResponse);
 
-        ConcurrentMap<String, AtomicInteger> uidStats = Maps.newConcurrentMap();
+        ConcurrentMap<String, AtomicInteger> uidStats = newConcurrentMap();
         when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(uidStats);
 
         DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, "::1", "", DownloadType.RECORDS_INDEX);
@@ -551,7 +506,7 @@ public class DownloadServiceTest {
         testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
         Thread.sleep(5000);
 
-        verify(emailService).sendEmail(requestParams.getEmail(), "ALA Occurrence Download Complete - data", "");
+        verify(testService.emailService).sendEmail(requestParams.getEmail(), "ALA Occurrence Download Complete - data", "");
 
         verify(testService.dataQualityService, times(2)).getEnabledFiltersByLabel(requestParams);
 
@@ -578,27 +533,7 @@ public class DownloadServiceTest {
     @Test
     public final void testOfflineDownloadNoEmailNotify() throws Exception {
 
-        testService = new DownloadService() {
-            {
-                sensitiveAccessRoles = "{}";
-                concurrentDownloadsJSON = "[]";
-            }
-        };
-
-        testService.downloadQualityFiltersTemplate = new ClassPathResource("download-email-quality-filter-snippet.html");
-        testService.biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
-        testService.persistentQueueDAO = persistentQueueDAO;
-
-        testService.doiService = mock(DoiService.class);
-        testService.searchDAO = mock(SearchDAO.class);
-        testService.objectMapper = new ObjectMapper();
-        testService.loggerService = mock(LoggerService.class);
-        AbstractMessageSource messageSource = new ReloadableResourceBundleMessageSource();
-        messageSource.setUseCodeAsDefaultMessage(true);
-        testService.messageSource = messageSource;
-        testService.authService = mock(AuthService.class);
-        EmailService emailService = mock(EmailService.class);
-        testService.emailService = emailService;
+        testService = createDownloadServiceForOfflineTest();
 
         testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
 
@@ -615,7 +550,7 @@ public class DownloadServiceTest {
         testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
         Thread.sleep(5000);
 
-        verify(emailService, times(0)).sendEmail(any(), any(), any());
+        verify(testService.emailService, times(0)).sendEmail(any(), any(), any());
     }
 
 
@@ -694,5 +629,32 @@ public class DownloadServiceTest {
                 " <li>test: asdf</li>\n" +
                 " <li>test2: fdas</li>\n" +
                 "</ul>"));
+    }
+
+    private DownloadService createDownloadServiceForOfflineTest() {
+        DownloadService testService = new DownloadService() {
+            {
+                sensitiveAccessRoles = "{}";
+                concurrentDownloadsJSON = "[]";
+            }
+        };
+
+        testService.downloadQualityFiltersTemplate = new ClassPathResource("download-email-quality-filter-snippet.html");
+        testService.biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
+        testService.persistentQueueDAO = persistentQueueDAO;
+
+        testService.doiService = mock(DoiService.class);
+        testService.searchDAO = mock(SearchDAO.class);
+        testService.objectMapper = new ObjectMapper();
+        testService.loggerService = mock(LoggerService.class);
+        AbstractMessageSource messageSource = new ReloadableResourceBundleMessageSource();
+        messageSource.setUseCodeAsDefaultMessage(true);
+        testService.messageSource = messageSource;
+        testService.authService = mock(AuthService.class);
+        EmailService emailService = mock(EmailService.class);
+        testService.emailService = emailService;
+        testService.dataQualityService = mock(DataQualityService.class);
+
+        return testService;
     }
 }
