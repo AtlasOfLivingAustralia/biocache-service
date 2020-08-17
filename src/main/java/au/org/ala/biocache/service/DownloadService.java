@@ -59,6 +59,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
+import javax.annotation.Nullable;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletResponse;
@@ -71,7 +72,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.stream.Collectors.toList;
-import static org.apache.commons.lang3.StringUtils.*;
 
 /**
  * Services to perform the downloads.
@@ -650,6 +650,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 Map<String, String> enabledQualityFiltersByLabel = dataQualityService.getEnabledFiltersByLabel(requestParams);
                 List<QualityFilterDTO> qualityFilters = getQualityFilterDTOS(enabledQualityFiltersByLabel);
                 final String searchUrl = generateSearchUrl(requestParams, enabledQualityFiltersByLabel);
+                String dqFixedSearchUrl = dataQualityService.convertDataQualityParameters(searchUrl, enabledQualityFiltersByLabel);
 
 
                 if (citationsEnabled) {
@@ -694,7 +695,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             DownloadDoiDTO doiDetails = new DownloadDoiDTO();
 
                             doiDetails.setTitle(biocacheDownloadDoiTitlePrefix + filename);
-                            doiDetails.setApplicationUrl(searchUrl);
+                            doiDetails.setApplicationUrl(dqFixedSearchUrl);
                             doiDetails.setRequesterId(requesterId);
                             if (dd.getSensitiveFq() != null) {
                                 doiDetails.setAuthorisedRoles(getSensitiveRolesForUser(requesterId));
@@ -734,7 +735,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     dd.setRequestParams(requestParams);
                 }
                 if (dd.getFileLocation() == null) {
-                    dd.setFileLocation(searchUrl);
+                    dd.setFileLocation(dqFixedSearchUrl);
                 }
 
                 if (readmeEnabled) {
@@ -772,7 +773,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                     String readmeContent = readmeTemplate.replace("[url]", fileLocation)
                             .replace("[date]", dd.getStartDateString(downloadDateFormat))
-                            .replace("[searchUrl]", searchUrl)
+                            .replace("[searchUrl]", dqFixedSearchUrl)
                             .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
                             .replace("[dataProviders]", dataProviders)
                             .replace("[dataQualityFilters]", dataQualityFilters);
@@ -1130,7 +1131,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @return url
      */
     public String generateSearchUrl(DownloadRequestParams params) {
-        return generateSearchUrl(params, dataQualityService.getEnabledFiltersByLabel(params));
+        return generateSearchUrl(params, null);
     }
 
     /**
@@ -1138,10 +1139,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * (assumes they came via biocache UI) using pre-supplied quality filters
      *
      * @param params The download / search parameters to use
-     * @param enabledQualityFiltersByLabel The map of enabled quality filter label to fqs
+     * @param enabledQualityFiltersByLabel A pre-provided map of enabled quality filter label to fqs or null if the should be looked up on demand.
      * @return url The generated search url
      */
-    public String generateSearchUrl(DownloadRequestParams params, Map<String, String> enabledQualityFiltersByLabel) {
+    public String generateSearchUrl(DownloadRequestParams params, @Nullable Map<String, String> enabledQualityFiltersByLabel) {
         if (params.getSearchUrl() != null) {
             return params.getSearchUrl();
         } else {
@@ -1180,6 +1181,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             } else {
                 sb.append("&disableAllQualityFilters=true");
 
+                if (enabledQualityFiltersByLabel == null) {
+                    enabledQualityFiltersByLabel = dataQualityService.getEnabledFiltersByLabel(params);
+                }
                 enabledQualityFiltersByLabel.forEach((label, fq) -> {
                     try {
                         sb.append("&fq=").append(URLEncoder.encode(fq, "UTF-8"));
