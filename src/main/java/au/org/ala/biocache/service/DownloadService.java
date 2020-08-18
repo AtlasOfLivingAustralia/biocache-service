@@ -295,8 +295,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.qualityFiltersTemplate:classpath:download-email-quality-filter-snippet.html}")
     public Resource downloadQualityFiltersTemplate;
 
-    @Value("${download.date.format:EEE MMM dd HH:mm:ss z yyyy}")
-    public String downloadDateFormat = "EEE MMM dd HH:mm:ss z yyyy";
+    @Value("${download.date.format:dd MMM yyyy}")
+    public String downloadDateFormat;
 
     @Value("${download.shp.enabled:true}")
     public void setDownloadShpEnabled(Boolean downloadShpEnabled) {
