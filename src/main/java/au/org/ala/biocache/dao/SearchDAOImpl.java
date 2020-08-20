@@ -4251,7 +4251,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
         }
 
-        return facet + ":\"" + value + "\"";
+        return facet + ":\"" + value.replace("\"", "\\\"") + "\"";
     }
 
     /**
