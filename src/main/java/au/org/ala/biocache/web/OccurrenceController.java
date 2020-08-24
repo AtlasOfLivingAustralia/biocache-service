@@ -165,6 +165,9 @@ public class OccurrenceController extends AbstractSecureController {
     @Value("${occurrence.cache.cachecontrol.maxage:86400}")
     private String occurrenceCacheControlHeaderMaxAge;
 
+    @Value("${occurrence.log.enabled:true}")
+    private boolean occurrenceLogEnabled = true;
+
     private final AtomicReference<String> occurrenceETag = new AtomicReference<String>(UUID.randomUUID().toString());
 
     private ExecutorService executor;
@@ -1562,8 +1565,10 @@ public class OccurrenceController extends AbstractSecureController {
             Config.mediaStore().convertPathsToUrls(occ.getRaw(), biocacheMediaUrl);
             Config.mediaStore().convertPathsToUrls(occ.getProcessed(), biocacheMediaUrl);
 
-            //log the statistics for viewing the record
-            logViewEvent(ip, occ, getUserAgent(request), null, "Viewing Occurrence Record " + uuid);
+            if (occurrenceLogEnabled) {
+                //log the statistics for viewing the record
+                logViewEvent(ip, occ, getUserAgent(request), null, "Viewing Occurrence Record " + uuid);
+            }
 
             return occ;
         }
