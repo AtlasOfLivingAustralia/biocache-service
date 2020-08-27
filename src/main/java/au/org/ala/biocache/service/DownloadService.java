@@ -43,6 +43,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
+import org.apache.velocity.runtime.RuntimeConstants;
 import org.apache.velocity.runtime.RuntimeServices;
 import org.apache.velocity.runtime.RuntimeSingleton;
 import org.json.simple.JSONArray;
@@ -58,6 +59,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
+import javax.annotation.Nullable;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletResponse;
@@ -69,7 +71,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.apache.commons.lang3.StringUtils.*;
+import static java.util.stream.Collectors.toList;
 
 /**
  * Services to perform the downloads.
@@ -133,6 +135,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     @Inject
     protected AuthService authService;
+
+    @Inject
+    protected DataQualityService dataQualityService;
 
     // when everything is indexed in SOLR, there will be no cassandra download unless requested
     @Value("${download.solr.only:false}")
@@ -290,8 +295,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.qualityFiltersTemplate:classpath:download-email-quality-filter-snippet.html}")
     public Resource downloadQualityFiltersTemplate;
 
-    @Value("${download.date.format:EEE MMM dd HH:mm:ss z yyyy}")
-    public String downloadDateFormat = "EEE MMM dd HH:mm:ss z yyyy";
+    @Value("${download.date.format:dd MMMMM yyyy}")
+    public String downloadDateFormat = "dd MMMMM yyyy";
 
     @Value("${download.shp.enabled:true}")
     public void setDownloadShpEnabled(Boolean downloadShpEnabled) {
@@ -642,9 +647,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 CreateDoiResponse doiResponse = null;
                 String doi = "";
 
-                final String searchUrl = generateSearchUrl(requestParams);
+                Map<String, String> enabledQualityFiltersByLabel = dataQualityService.getEnabledFiltersByLabel(requestParams);
+                List<QualityFilterDTO> qualityFilters = getQualityFilterDTOS(enabledQualityFiltersByLabel);
+                final String searchUrl = generateSearchUrl(requestParams, enabledQualityFiltersByLabel);
+                String dqFixedSearchUrl = dataQualityService.convertDataQualityParameters(searchUrl, enabledQualityFiltersByLabel);
 
-                List<QualityFilterDTO> qualityFilters = getQualityFilterDTOS(requestParams);
 
                 if (citationsEnabled) {
                     List<Map<String, String>> datasetMetadata = null;
@@ -688,7 +695,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             DownloadDoiDTO doiDetails = new DownloadDoiDTO();
 
                             doiDetails.setTitle(biocacheDownloadDoiTitlePrefix + filename);
-                            doiDetails.setApplicationUrl(searchUrl);
+                            doiDetails.setApplicationUrl(dqFixedSearchUrl);
                             doiDetails.setRequesterId(requesterId);
                             if (dd.getSensitiveFq() != null) {
                                 doiDetails.setAuthorisedRoles(getSensitiveRolesForUser(requesterId));
@@ -728,7 +735,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     dd.setRequestParams(requestParams);
                 }
                 if (dd.getFileLocation() == null) {
-                    dd.setFileLocation(searchUrl);
+                    dd.setFileLocation(dqFixedSearchUrl);
                 }
 
                 if (readmeEnabled) {
@@ -766,7 +773,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                     String readmeContent = readmeTemplate.replace("[url]", fileLocation)
                             .replace("[date]", dd.getStartDateString(downloadDateFormat))
-                            .replace("[searchUrl]", searchUrl)
+                            .replace("[searchUrl]", dqFixedSearchUrl)
                             .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
                             .replace("[dataProviders]", dataProviders)
                             .replace("[dataQualityFilters]", dataQualityFilters);
@@ -848,26 +855,16 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         }
     }
 
-    @VisibleForTesting
-    List<QualityFilterDTO> getQualityFilterDTOS(DownloadRequestParams requestParams) {
-        List<QualityFilterDTO> qualityFilters = new ArrayList<>();
-        if (requestParams.getQualityFiltersInfo() != null) {
-            List<String> filters = requestParams.getQualityFiltersInfo();
-            filters.forEach( filter -> {
-                String[] strings = split(filter, ":", 2);
-                if (strings.length == 2) {
-                    QualityFilterDTO dto = new QualityFilterDTO(strings[0], strings[1]);
-                    qualityFilters.add(dto);
-                }
-            });
-        }
-        return qualityFilters;
+    private List<QualityFilterDTO> getQualityFilterDTOS(Map<String, String> filtersByLabel) {
+        return filtersByLabel.entrySet().stream().map((e) -> new QualityFilterDTO(e.getKey(), e.getValue())).collect(toList());
     }
 
     @VisibleForTesting
     String getDataQualityFiltersString(List<QualityFilterDTO> qualityFilters) throws IOException, org.apache.velocity.runtime.parser.ParseException {
         String dataQualityFilters;
         RuntimeServices runtimeServices = RuntimeSingleton.getRuntimeServices();
+        runtimeServices.setProperty(RuntimeConstants.RUNTIME_LOG_LOGSYSTEM_CLASS, org.apache.velocity.runtime.log.Log4JLogChute.class.getName());
+        runtimeServices.setProperty("runtime.log.logsystem.log4j.logger", "velocity");
         Reader reader = new InputStreamReader(downloadQualityFiltersTemplate.getInputStream(), StandardCharsets.UTF_8);
         Template template = new Template();
         template.setRuntimeServices(runtimeServices);
@@ -1134,6 +1131,18 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @return url
      */
     public String generateSearchUrl(DownloadRequestParams params) {
+        return generateSearchUrl(params, null);
+    }
+
+    /**
+     * Generate a search URL the user can use to regenerate the same download
+     * (assumes they came via biocache UI) using pre-supplied quality filters
+     *
+     * @param params The download / search parameters to use
+     * @param enabledQualityFiltersByLabel A pre-provided map of enabled quality filter label to fqs or null if the should be looked up on demand.
+     * @return url The generated search url
+     */
+    public String generateSearchUrl(DownloadRequestParams params, @Nullable Map<String, String> enabledQualityFiltersByLabel) {
         if (params.getSearchUrl() != null) {
             return params.getSearchUrl();
         } else {
@@ -1165,6 +1174,22 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         }
                     }
                 }
+            }
+
+            if (params.isDisableAllQualityFilters()) {
+                sb.append("&disableAllQualityFilters=true");
+            } else {
+                sb.append("&disableAllQualityFilters=true");
+
+                if (enabledQualityFiltersByLabel == null) {
+                    enabledQualityFiltersByLabel = dataQualityService.getEnabledFiltersByLabel(params);
+                }
+                enabledQualityFiltersByLabel.forEach((label, fq) -> {
+                    try {
+                        sb.append("&fq=").append(URLEncoder.encode(fq, "UTF-8"));
+                    } catch (UnsupportedEncodingException ignored) {
+                    }
+                });
             }
 
             if (StringUtils.isNotEmpty(params.getQc())) {
