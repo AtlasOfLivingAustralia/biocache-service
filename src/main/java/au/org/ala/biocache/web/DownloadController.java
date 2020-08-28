@@ -202,6 +202,7 @@ public class DownloadController extends AbstractSecureController {
                 return null;
             }
 
+            boolean activated = (Boolean) userDetails.get("activated");
             boolean locked = (Boolean) userDetails.get("locked");
             boolean hasRole = false;
 
@@ -214,7 +215,7 @@ public class DownloadController extends AbstractSecureController {
                 hasRole = roles == null ? false : roles.stream().anyMatch(downloadRole::equals);
             }
 
-            if (locked || !hasRole) {
+            if (!activated || locked || !hasRole) {
 
                 response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download without insufficient privileges");
                 return null;
