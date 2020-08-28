@@ -7,6 +7,7 @@ import au.org.ala.biocache.dto.SearchRequestParams;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.model.Qid;
 import au.org.ala.biocache.service.AuthService;
+import au.org.ala.biocache.service.DataQualityService;
 import au.org.ala.biocache.service.LayersService;
 import au.org.ala.biocache.service.ListsService;
 import au.org.ala.biocache.service.ListsService.SpeciesListSearchDTO;
@@ -61,6 +62,9 @@ public class QueryFormatUtils {
 
     @Inject
     private AuthService authService;
+
+    @Inject
+    private DataQualityService dataQualityService;
 
     protected static final String QUOTE = "\"";
     protected static final char[] CHARS = {' ', ':'};
@@ -187,6 +191,8 @@ public class QueryFormatUtils {
         }
 
         updateQueryContext(searchParams);
+
+        updateQualityProfileContext(searchParams);
 
         return fqMaps;
     }
@@ -945,7 +951,7 @@ public class QueryFormatUtils {
                         extractedValue = extractedValue.substring(0, extractedValue.length() - 1);
                         end += 1;
                     } else if (extractedValue.contains(" ") && end == 0) {
-                        extractedValue = extractedValue.substring(0, extractedValue.indexOf(' ') > 1 ? extractedValue.indexOf(' ') : extractedValue.length());
+                        extractedValue = extractedValue.substring(0, extractedValue.indexOf(' ') >= 1 ? extractedValue.indexOf(' ') : extractedValue.length());
                     }
 
                     String i18nForValue;
@@ -1051,6 +1057,12 @@ public class QueryFormatUtils {
             return values;
         }
         return new String[]{};
+    }
+
+    protected void updateQualityProfileContext(SearchRequestParams searchParams) {
+        Map<String, String> enabledFiltersByLabel = dataQualityService.getEnabledFiltersByLabel(searchParams);
+        String[] enabledFilters = enabledFiltersByLabel.values().toArray(new String[0]);
+        addFormattedFq(enabledFilters, searchParams);
     }
 
     /**

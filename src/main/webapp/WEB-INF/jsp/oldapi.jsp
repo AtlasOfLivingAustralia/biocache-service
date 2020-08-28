@@ -23,6 +23,9 @@
 
 <h1> Occurrence Web Services (old reference) </h1>
 <p>
+    New reference: <a href="https://api.ala.org.au/apps/biocache">https://api.ala.org.au/apps/biocache</a>
+</p>
+<p>
     These webservices provide spatial search capabilities for occurrence records, mapping service (WMS) and parsing services.
     <br/>
     Please send any bug reports, suggestions for improvements or new services to:
@@ -463,17 +466,17 @@ The remaining services in the section only support POST. All services must suppl
                     <li><strong>opacity</strong> - opacity value 0 - 1</li>
                     <li><strong>sel</strong> - fq parameter applied to CQL_FILTER.  Matching occurrences will be highlighted on the map in a Red circle</li>
                     <li><strong>uncertainty</strong> - presence of the uncertainty parameter draws uncertainty circles to a fixed maximum of 30km</li>
-                    <li><strong>colormode</strong> - facet colouring type.  <br>
-                        <table style="border-bottom:none;">
-                            <tr><td>colourmode</td><td>description</td></tr>
-                            <tr><td>-1</td><td>(default) use color value</td></tr>
-                            <tr><td>grid</td><td>map as density grid.  Grid cells drawn are not restricted to within any query WKT parameters.</td></tr>
-                            <tr><td>facetname</td><td>colour as categories in a facet</td></tr>
-                            <tr><td>facetname,cutpoints</td><td>colour as range in a facet using the supplied
+                    <li><strong>colormode</strong> - facet colouring type.
+                        <ul>
+                            <li><strong>-1</strong> - (default) use color value</li>
+                            <li><strong>grid</strong> - map as density grid.  Grid cells drawn are not restricted to within any query WKT parameters.</li>
+                            <li><strong>facetname</strong> - colour as categories in a facet</li>
+                            <li><strong>facetname,cutpoints</strong> - colour as range in a facet using the supplied
                                 comma separated cutpoints.  4 to 10 values are required.  Include minimum and maximum.
                                 Minimum and maximum values do not need to be accurate.
-                                e.g. colormode:year,1800,1900,1950,1970,1990,2010</td></tr>
-                        </table>
+                                e.g. colormode:year,1800,1900,1950,1970,1990,2010</li>
+                        </ul>
+                        <br>
                     </li>
                 </ul>
             </li>
@@ -623,11 +626,13 @@ The services above support the following params:
     </form>
 </div>
 
+<h3>Build Info</h3>
+<a href="${webservicesRoot}/buildInfo">/buildInfo</a>
 
 <div id="andsFundedDiv" style="clear:both;margin-top:40px;">
     <p>
 
-        <img src="http://www.ands.org.au/partner/ands-logo-hi-res.jpg" style="width:200px;"/>
+        <img src="https://www.ands.org.au/__data/assets/image/0013/602311/ands-logo-transparent-background.png" style="width:200px;float:left;"/>
         This project is supported by the Australian National Data Service (ANDS) through the National Collaborative Research Infrastructure Strategy Program and the Education Investment Fund (EIF) Super Science Initiative.
     </p>
 </div>

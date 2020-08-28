@@ -15,17 +15,19 @@
 
 package au.org.ala.biocache.dto;
 
+import au.org.ala.biocache.service.DoiService;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.validate.LogType;
+import org.apache.log4j.Logger;
 import org.springframework.beans.InvalidPropertyException;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
-import java.util.Map;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Data Transfer Object to represent the request parameters required to download
@@ -34,6 +36,9 @@ import java.util.List;
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
 public class DownloadRequestParams extends SpatialSearchRequestParams {
+    public final static List<String> validTemplates = Arrays.asList(DownloadService.DEFAULT_SELECTOR, DownloadService.DOI_SELECTOR, DownloadService.CSDM_SELECTOR);
+    /** log4 j logger */
+    private static final Logger logger = Logger.getLogger(SearchRequestParams.class);
 
     protected boolean emailNotify = true;
     protected String email = "";
@@ -74,6 +79,10 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     protected Boolean mintDoi=false;
 
     /**
+     * The name of display template to be used to show DOI information.
+     */
+    protected String doiDisplayTemplate = DoiService.DISPLAY_TEMPLATE_BIOCACHE;
+    /**
      * What is the search in the UI that generates this occurrence download.
      */
     protected String searchUrl;
@@ -90,15 +99,15 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     protected String hubName;
 
     /**
+     * Specify email template to use when informing
+     */
+    protected String emailTemplate = validTemplates.get(0);
+
+    /**
      * If a DOI is to be minted containing download data, this allows the requesting application to attach
      * custom metadata to be stored with the DOI as application metadata.
      */
     Map<String, String> doiMetadata = new HashMap<String, String>();
-
-    /**
-     * Quality Filters information from the hub about the download
-     */
-    protected List<String> qualityFiltersInfo = new ArrayList<>();
 
     /**
      * Custom toString method to produce a String to be used as the request parameters
@@ -148,10 +157,6 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
         }
         if (includeMisc) {
             req.append("&includeMisc=true");
-        }
-
-        for (String qualityFilter : qualityFiltersInfo) {
-            req.append("&qualityFiltersInfo=").append(super.conditionalEncode(qualityFilter, encodeParams));
         }
         
         return req.toString();
@@ -267,6 +272,10 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
         return fileType;
     }
 
+    public String getEmailTemplate() {
+        return emailTemplate;
+    }
+
     /**
      * @param fileType the fileType to set
      */
@@ -379,12 +388,20 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
         this.doiMetadata = doiMetadata;
     }
 
-    public List<String> getQualityFiltersInfo() {
-        return qualityFiltersInfo;
+    public void setEmailTemplate(String emailTemplate) {
+        if( validTemplates.contains(emailTemplate) ) {
+            this.emailTemplate = emailTemplate;
+        } else {
+            this.emailTemplate = validTemplates.get(0);
+            logger.info("Unsupported emailTemplate passed - " + emailTemplate + ".  Using emailTemplate - " + this.emailTemplate);
+        }
     }
 
-    public void setQualityFiltersInfo(List<String> qualityFiltersInfo) {
-        this.qualityFiltersInfo = qualityFiltersInfo;
+    public String getDoiDisplayTemplate() {
+        return this.doiDisplayTemplate;
     }
 
+    public void setDoiDisplayTemplate(String doiDisplayTemplate) {
+        this.doiDisplayTemplate = doiDisplayTemplate;
+    }
 }
