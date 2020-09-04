@@ -4,6 +4,7 @@ import au.org.ala.biocache.dao.QidCacheDAO;
 import au.org.ala.biocache.dao.QidCacheDAOImpl;
 import au.org.ala.biocache.dao.QidDAO;
 import au.org.ala.biocache.model.Qid;
+import au.org.ala.biocache.service.DataQualityService;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -37,6 +38,9 @@ public class QidCacheTest {
 
     @Mock
     QidDAO qidDao;
+
+    @Mock
+    DataQualityService dataQualityService;
 
     @InjectMocks
     QidCacheDAO qidCacheDao = new QidCacheDAOImpl();

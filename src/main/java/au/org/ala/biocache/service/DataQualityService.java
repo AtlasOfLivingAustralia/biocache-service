@@ -1,6 +1,7 @@
 package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dto.SearchRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang.StringUtils;
@@ -14,12 +15,15 @@ import retrofit2.Call;
 import retrofit2.HttpException;
 import retrofit2.Response;
 
+import javax.annotation.CheckForNull;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -169,5 +173,23 @@ public class DataQualityService {
             // we use URLEncoder but replace "+" with "%20" to make Spring UriComponentsBuilder happy.
             return URLEncoder.encode(paramValue, "UTF-8").replace("+","%20");
         } catch (UnsupportedEncodingException e) { throw new RuntimeException(e); }// UTF-8 always exists
+    }
+
+    /**
+     * Combine the fqs from a request with the fqs from the data quality profile, if any, for the QidCacheDAOImpl service
+     * @param requestParams The params
+     * @return The combined fqs
+     */
+    public String[] generateCombinedFqs(SpatialSearchRequestParams requestParams) {
+        String[] fqs = requestParams.getFq();
+        if (fqs == null) {
+            fqs = new String[0];
+        }
+        int fqsLength = fqs.length;
+        Collection<String> qualityFilters = this.getEnabledFiltersByLabel(requestParams).values();
+
+        fqs = Arrays.copyOf(fqs, fqsLength + qualityFilters.size());
+        System.arraycopy(qualityFilters.toArray(new String[0]), 0, fqs, fqsLength, qualityFilters.size());
+        return fqs;
     }
 }
