@@ -2,6 +2,7 @@ package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dto.FacetThemes;
 import au.org.ala.biocache.dto.SearchRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import okhttp3.MediaType;
 import okhttp3.ResponseBody;
@@ -46,7 +47,7 @@ public class DataQualityServiceTest {
     @Before
     public void setup() {
         // Every application needs to explicitly initialise static fields in
-        // FacetThemes by calling its constructor
+        // FacetThemes by calling its constructor 🤮
         new FacetThemes();
         mocks = MockitoAnnotations.openMocks(this);
     }
@@ -337,6 +338,110 @@ public class DataQualityServiceTest {
 
         String result = dataQualityService.convertDataQualityParameters(searchUrl, filters);
         assertThat("searchUrl is the same with dq filters disabled", result, equalTo(searchUrl));
+    }
+
+    @Test
+    public void testGenerateCombinedFqsWithDisableAll() {
+        dataQualityService.dataQualityEnabled = true;
+
+        // setup filters response
+        Map<String, String> responseValue = new LinkedHashMap<>();
+        responseValue.put("first", "foo:bar -baz:qux");
+        responseValue.put("second", "qux:baz -bar:foo");
+
+        when(qualityServiceRpcApi.getEnabledFiltersByLabel("profile")).then((invocation) -> response(responseValue));
+
+        // given a request with disable all quality filters
+        SpatialSearchRequestParams ssrp = new SpatialSearchRequestParams();
+        ssrp.setFq(new String[]{"a:b", "d:e"});
+        ssrp.setDisableAllQualityFilters(true);
+        ssrp.setQualityProfile("profile");
+
+        // when
+        String[] fqs = dataQualityService.generateCombinedFqs(ssrp);
+
+        // then dq filters aren't applied
+        verify(qualityServiceRpcApi, times(0)).getEnabledFiltersByLabel("profile");
+        assertThat(fqs, equalTo(new String[]{"a:b", "d:e"}));
+    }
+
+    public void testGenerateCombinedFqsWithAProfile() {
+        dataQualityService.dataQualityEnabled = true;
+
+        // setup filters response
+        Map<String, String> responseValue = new LinkedHashMap<>();
+        responseValue.put("first", "foo:bar -baz:qux");
+        responseValue.put("second", "qux:baz -bar:foo");
+
+        when(qualityServiceRpcApi.getEnabledFiltersByLabel("profile")).then((invocation) -> response(responseValue));
+
+        // given a request with a quality profile
+        SpatialSearchRequestParams ssrp = new SpatialSearchRequestParams();
+        ssrp.setFq(new String[]{"a:b", "d:e"});
+        ssrp.setDisableAllQualityFilters(false);
+        ssrp.setQualityProfile("profile");
+
+        // when
+        String[] fqs = dataQualityService.generateCombinedFqs(ssrp);
+
+        // then
+        verify(qualityServiceRpcApi).getEnabledFiltersByLabel("profile");
+        assertThat(fqs, arrayContainingInAnyOrder("a:b", "d:e", "foo:bar -baz:qux", "qux:baz -bar:foo"));
+    }
+    @Test
+    public void testGenerateCombinedFqsWithAProfileWithDisableFilterList() {
+        dataQualityService.dataQualityEnabled = true;
+
+        // setup filters response
+        Map<String, String> responseValue = new LinkedHashMap<>();
+        responseValue.put("first", "foo:bar -baz:qux");
+        responseValue.put("second", "qux:baz -bar:foo");
+
+        when(qualityServiceRpcApi.getEnabledFiltersByLabel("profile")).then((invocation) -> response(responseValue));
+
+        // given a request with a quality profile and some disabled filters
+        SpatialSearchRequestParams ssrp = new SpatialSearchRequestParams();
+        ssrp.setFq(new String[]{ "a:b", "d:e" });
+        ssrp.setDisableAllQualityFilters(false);
+        ssrp.setQualityProfile("profile");
+        ssrp.setDisableQualityFilter(newArrayList("first"));
+
+        // when
+        String[] fqs = dataQualityService.generateCombinedFqs(ssrp);
+
+        verify(qualityServiceRpcApi).getEnabledFiltersByLabel("profile");
+        assertThat(fqs, arrayContainingInAnyOrder("a:b", "d:e", "qux:baz -bar:foo"));
+    }
+
+    @Test
+    public void testGenerateCombinedFqsWithDqDisabled() {
+        dataQualityService.dataQualityEnabled = false;
+        SpatialSearchRequestParams ssrp = new SpatialSearchRequestParams();
+        ssrp.setFq(new String[]{ "a:b", "d:e" });
+        ssrp.setQualityProfile("profile");
+
+        String[] fqs = dataQualityService.generateCombinedFqs(ssrp);
+
+        verify(qualityServiceRpcApi, times(0)).getEnabledFiltersByLabel(any());
+
+        assertThat(fqs, arrayContainingInAnyOrder("a:b", "d:e"));
+
+        ssrp.setFq(new String[]{ });
+
+        fqs = dataQualityService.generateCombinedFqs(ssrp);
+
+        verify(qualityServiceRpcApi, times(0)).getEnabledFiltersByLabel(any());
+
+        assertThat(fqs, emptyArray());
+
+        ssrp.setFq(null);
+
+        fqs = dataQualityService.generateCombinedFqs(ssrp);
+
+        verify(qualityServiceRpcApi, times(0)).getEnabledFiltersByLabel(any());
+
+        assertThat(fqs, emptyArray());
+
     }
 
     @Factory
