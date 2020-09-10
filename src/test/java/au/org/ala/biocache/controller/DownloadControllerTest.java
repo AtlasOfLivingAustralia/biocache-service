@@ -76,6 +76,7 @@ public class DownloadControllerTest extends TestCase {
 
         when(authService.getUserDetails("test@test.com"))
                 .thenReturn((Map)ImmutableMap.of(
+                        "activated", true,
                         "locked", false,
                         "roles", Arrays.asList("ROLE_USER")
                 ));
@@ -108,6 +109,7 @@ public class DownloadControllerTest extends TestCase {
 
         when(authService.getUserDetails("test@test.com"))
                 .thenReturn((Map)ImmutableMap.of(
+                        "activated", true,
                         "locked", true
                 ));
 
@@ -124,6 +126,7 @@ public class DownloadControllerTest extends TestCase {
 
         when(authService.getUserDetails("test@test.com"))
                 .thenReturn((Map)ImmutableMap.of(
+                        "activated", true,
                         "locked", false,
                         "roles", Arrays.asList("NO_ROLE")
                 ));

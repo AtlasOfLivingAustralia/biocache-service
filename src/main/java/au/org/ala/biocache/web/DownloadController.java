@@ -194,16 +194,16 @@ public class DownloadController extends AbstractSecureController {
         // lookup the user details and check privileges based on the supplied email
         try {
 
-            Map<String, ?> userDetails = authService.getUserDetails(email);
+            Map<String, Object> userDetails = (Map<String, Object>) authService.getUserDetails(email);
 
             if (userDetails == null) {
 
-                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download matching user details");
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, user not recognised");
                 return null;
             }
 
-            boolean activated = (Boolean) userDetails.get("activated");
-            boolean locked = (Boolean) userDetails.get("locked");
+            boolean activated = (Boolean) userDetails.getOrDefault("activated", false);
+            boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
             boolean hasRole = false;
 
             if (downloadRole == null) {
@@ -217,13 +217,13 @@ public class DownloadController extends AbstractSecureController {
 
             if (!activated || locked || !hasRole) {
 
-                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download without insufficient privileges");
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, insufficient privileges");
                 return null;
             }
 
         } catch (Exception e) {
 
-            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download cannot verify user details");
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, unable to verify user details");
             return null;
         }
 
