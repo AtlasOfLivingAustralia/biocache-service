@@ -913,6 +913,14 @@ public class QueryFormatUtils {
                             extractedValue = extractedValue.substring(0, extractedValue.indexOf(" OR "));
                         }
 
+                        // search for term in the extractedValue and clip
+                        // NOTE: the if the quoted term value contains content that looks like a term "name" then it will be
+                        //       treated as a new term.
+                        Matcher termMatcher = termPattern.matcher(extractedValue);
+                        if (termMatcher.find()) {
+                            extractedValue = extractedValue.substring(0, termMatcher.start());
+                        }
+
                         // below code fragment extracts the filter value and try to format for solr query or get display value
                         // &fq = taxon_name:""Cyclophora"+lechriostropha"
                         // the old implementation yields this fq to be sent to solr: taxon_name:"\"Cyclophora",

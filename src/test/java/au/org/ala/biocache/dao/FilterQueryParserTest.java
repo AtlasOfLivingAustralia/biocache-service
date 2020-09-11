@@ -168,7 +168,8 @@ public class FilterQueryParserTest {
                 {"month:\"09\"", "Month:\"September\""},
                 {"(month:\"09\")", "(Month:\"September\")"},
                 {"month:\"09\" OR month:\"10\"", "Month:\"September\" OR Month:\"October\""},
-                {"(month:\"09\" OR month:\"10\")", "(Month:\"September\" OR Month:\"October\")"}};
+                {"(month:\"09\" OR month:\"10\")", "(Month:\"September\" OR Month:\"October\")"}
+        };
 
         for (String[] fq : fqs) {
             query.setFq(new String[] { fq[0] });
