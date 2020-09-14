@@ -161,7 +161,9 @@ public class QueryFormatTest {
                 //new SearchQueryTester("matched_name_children:\"kangurus lanosus\"", "lft:[", "found", false),
                 //new SearchQueryTester("(matched_name_children:Mammalia OR matched_name_children:whales)", "lft:[", "class:", false),
                 //new SearchQueryTester("collector_text:Latz AND matched_name_children:\"Pluchea tetranthera\"", "as","as",false)
-                new SearchQueryTester("spatial_list:dr123", "", "", false)
+                new SearchQueryTester("spatial_list:dr123", "", "", false),
+                new SearchQueryTester("month:03 month:04", "month:03 month:04", "Month:March Month:April", true),
+                new SearchQueryTester("month:\"03\" month:\"04\"", "month:\"03\" month:\"04\"", "Month:\"March\" Month:\"April\"", true),
         };
     }
 
