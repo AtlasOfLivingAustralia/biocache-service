@@ -31,6 +31,7 @@ import org.apache.solr.common.SolrDocumentList;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -71,6 +72,9 @@ public class DownloadController extends AbstractSecureController {
 
     @Inject
     protected DownloadService downloadService;
+
+    @Value("${download.auth.role:ROLE_USER}")
+    String downloadRole;
 
     /**
      * Retrieves all the downloads that are on the queue
@@ -118,13 +122,14 @@ public class DownloadController extends AbstractSecureController {
             DownloadRequestParams requestParams,
             @RequestParam(value = "ip", required = false) String ip,
             @RequestParam(value = "apiKey", required = false) String apiKey,
+            @RequestParam(value = "email", required = true) String email,
             @PathVariable("type") String type,
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
 
         DownloadDetailsDTO.DownloadType downloadType = "index".equals(type.toLowerCase()) ? DownloadDetailsDTO.DownloadType.RECORDS_INDEX : DownloadDetailsDTO.DownloadType.RECORDS_DB;
 
-        return download(requestParams, ip, getUserAgent(request), apiKey, response, request, downloadType);
+        return download(requestParams, ip, getUserAgent(request), apiKey, email, response, request, downloadType);
     }
 
     /**
@@ -142,50 +147,100 @@ public class DownloadController extends AbstractSecureController {
             DownloadRequestParams requestParams,
             @RequestParam(value = "ip", required = false) String ip,
             @RequestParam(value = "apiKey", required = false) String apiKey,
+            @RequestParam(value = "email", required = true) String email,
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
 
-        if (StringUtils.isEmpty(requestParams.getEmail())) {
+        if (StringUtils.isEmpty(email)) {
             response.sendError(400, "Required parameter 'email' is not present");
+            return null;
         }
 
-        //download from index only when there are no CASSANDRA fields requested and not everything is in SOLR
-        boolean hasDBColumn = !downloadService.downloadSolrOnly && requestParams.getIncludeMisc();
-        if (!downloadService.downloadSolrOnly) {
-            String fields = requestParams.getFields() + "," + requestParams.getExtra();
-            if (fields.length() > 1) {
-                Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
-                for (String column : fields.split(",")) {
-                    for (IndexFieldDTO field : indexedFields) {
-                        if (!field.isStored() && field.getDownloadName() != null && field.getDownloadName().equals(column)) {
-                            hasDBColumn = true;
-                            break;
+        try {
+            //download from index only when there are no CASSANDRA fields requested and not everything is in SOLR
+            boolean hasDBColumn = !downloadService.downloadSolrOnly && requestParams.getIncludeMisc();
+            if (!downloadService.downloadSolrOnly) {
+                String fields = requestParams.getFields() + "," + requestParams.getExtra();
+                if (fields.length() > 1) {
+                    Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
+                    for (String column : fields.split(",")) {
+                        for (IndexFieldDTO field : indexedFields) {
+                            if (!field.isStored() && field.getDownloadName() != null && field.getDownloadName().equals(column)) {
+                                hasDBColumn = true;
+                                break;
+                            }
                         }
+                        if (hasDBColumn) break;
                     }
-                    if (hasDBColumn) break;
                 }
             }
+
+            DownloadDetailsDTO.DownloadType downloadType = hasDBColumn ? DownloadDetailsDTO.DownloadType.RECORDS_DB : DownloadDetailsDTO.DownloadType.RECORDS_INDEX;
+
+            return download(requestParams, ip, getUserAgent(request), apiKey, email, response, request, downloadType);
+
+        } catch (Exception e) {
+            logger.error("download exception: ", e);
+            throw e;
         }
-
-        DownloadDetailsDTO.DownloadType downloadType = hasDBColumn ? DownloadDetailsDTO.DownloadType.RECORDS_DB : DownloadDetailsDTO.DownloadType.RECORDS_INDEX;
-
-        return download(requestParams, ip, getUserAgent(request), apiKey, response, request, downloadType);
     }
 
-    private Object download(DownloadRequestParams requestParams, String ip, String userAgent, String apiKey,
+    private Object download(DownloadRequestParams requestParams, String ip, String userAgent, String apiKey, String email,
                             HttpServletResponse response, HttpServletRequest request,
                             DownloadDetailsDTO.DownloadType downloadType) throws Exception {
+
+        // check the email is supplied and a matching user account exists with the required privileges
+        if (StringUtils.isEmpty(email)) {
+
+            response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
+            return null;
+
+        }
+
+        // lookup the user details and check privileges based on the supplied email
+        try {
+
+            Map<String, Object> userDetails = (Map<String, Object>) authService.getUserDetails(email);
+
+            if (userDetails == null) {
+
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, user not recognised");
+                return null;
+            }
+
+            boolean activated = (Boolean) userDetails.getOrDefault("activated", false);
+            boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
+            boolean hasRole = false;
+
+            if (downloadRole == null) {
+                // no download role defined, allow based on role privileges
+                hasRole = true;
+            } else {
+                // check that the user roles contains the download role
+                List<String> roles = (List<String>) userDetails.get("roles");
+                hasRole = roles == null ? false : roles.stream().anyMatch(downloadRole::equals);
+            }
+
+            if (!activated || locked || !hasRole) {
+
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, insufficient privileges");
+                return null;
+            }
+
+        } catch (Exception e) {
+
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, unable to verify user details");
+            return null;
+        }
 
         boolean includeSensitive = false;
         if (apiKey != null) {
             if (shouldPerformOperation(apiKey, response, false)) {
                 includeSensitive = true;
             }
-        } else if (StringUtils.isEmpty(requestParams.getEmail())) {
-            response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
         }
 
-        //Pre SDS roles the sensitive flag controlled access to sensitive data.
+        // Pre SDS roles the sensitive flag controlled access to sensitive data.
         // After SDS roles were introduced, sensitiveFq variable drives the logic for sensitive data down the excution flow.
 
         // In Summary either sensitive is true or sensitiveFq is not null but not both
