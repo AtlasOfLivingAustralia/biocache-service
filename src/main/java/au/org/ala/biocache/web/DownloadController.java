@@ -156,27 +156,33 @@ public class DownloadController extends AbstractSecureController {
             return null;
         }
 
-        //download from index only when there are no CASSANDRA fields requested and not everything is in SOLR
-        boolean hasDBColumn = !downloadService.downloadSolrOnly && requestParams.getIncludeMisc();
-        if (!downloadService.downloadSolrOnly) {
-            String fields = requestParams.getFields() + "," + requestParams.getExtra();
-            if (fields.length() > 1) {
-                Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
-                for (String column : fields.split(",")) {
-                    for (IndexFieldDTO field : indexedFields) {
-                        if (!field.isStored() && field.getDownloadName() != null && field.getDownloadName().equals(column)) {
-                            hasDBColumn = true;
-                            break;
+        try {
+            //download from index only when there are no CASSANDRA fields requested and not everything is in SOLR
+            boolean hasDBColumn = !downloadService.downloadSolrOnly && requestParams.getIncludeMisc();
+            if (!downloadService.downloadSolrOnly) {
+                String fields = requestParams.getFields() + "," + requestParams.getExtra();
+                if (fields.length() > 1) {
+                    Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
+                    for (String column : fields.split(",")) {
+                        for (IndexFieldDTO field : indexedFields) {
+                            if (!field.isStored() && field.getDownloadName() != null && field.getDownloadName().equals(column)) {
+                                hasDBColumn = true;
+                                break;
+                            }
                         }
+                        if (hasDBColumn) break;
                     }
-                    if (hasDBColumn) break;
                 }
             }
+
+            DownloadDetailsDTO.DownloadType downloadType = hasDBColumn ? DownloadDetailsDTO.DownloadType.RECORDS_DB : DownloadDetailsDTO.DownloadType.RECORDS_INDEX;
+
+            return download(requestParams, ip, getUserAgent(request), apiKey, email, response, request, downloadType);
+
+        } catch (Exception e) {
+            logger.error("download exception: ", e);
+            throw e;
         }
-
-        DownloadDetailsDTO.DownloadType downloadType = hasDBColumn ? DownloadDetailsDTO.DownloadType.RECORDS_DB : DownloadDetailsDTO.DownloadType.RECORDS_INDEX;
-
-        return download(requestParams, ip, getUserAgent(request), apiKey, email, response, request, downloadType);
     }
 
     private Object download(DownloadRequestParams requestParams, String ip, String userAgent, String apiKey, String email,
