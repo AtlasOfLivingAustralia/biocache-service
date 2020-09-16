@@ -92,6 +92,7 @@ public class DownloadControllerTest extends TestCase {
         authService = mock(AuthService.class);
 
         ReflectionTestUtils.setField(downloadController, "authService", authService);
+        ReflectionTestUtils.setField(downloadController, "persistentQueueDAO", persistentQueueDao);
         ReflectionTestUtils.setField(downloadService, "persistentQueueDAO", persistentQueueDao);
 
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).build();
