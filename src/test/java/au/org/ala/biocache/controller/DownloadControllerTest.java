@@ -93,6 +93,8 @@ public class DownloadControllerTest extends TestCase {
 
         ReflectionTestUtils.setField(downloadController, "authService", authService);
         ReflectionTestUtils.setField(downloadController, "persistentQueueDAO", persistentQueueDao);
+
+        downloadService.biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
         ReflectionTestUtils.setField(downloadService, "persistentQueueDAO", persistentQueueDao);
 
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).build();
