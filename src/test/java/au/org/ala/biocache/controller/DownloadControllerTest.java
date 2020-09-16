@@ -1,5 +1,7 @@
 package au.org.ala.biocache.controller;
 
+import au.org.ala.biocache.dao.JsonPersistentQueueDAOImpl;
+import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.service.LoggerService;
@@ -9,7 +11,9 @@ import com.google.common.collect.ImmutableMap;
 import junit.framework.TestCase;
 import org.ala.client.model.LogEventVO;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +29,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import javax.servlet.http.HttpServletResponse;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -55,6 +60,7 @@ public class DownloadControllerTest extends TestCase {
     @Autowired
     DownloadService downloadService;
 
+    PersistentQueueDAO persistentQueueDao;
     AuthService authService;
 
     @Autowired
@@ -62,11 +68,31 @@ public class DownloadControllerTest extends TestCase {
 
     MockMvc mockMvc;
 
+    @Rule
+    public TemporaryFolder tempDir = new TemporaryFolder();
+
     @Before
-    public void setup() {
+    public void setup() throws Exception {
+
+        Path testCacheDir;
+        Path testDownloadDir;
+
+        testCacheDir = tempDir.newFolder("downloadcontrolthreadtest-cache").toPath();
+        testDownloadDir = tempDir.newFolder("downloadcontrolthreadtest-destination").toPath();
+        persistentQueueDao = new JsonPersistentQueueDAOImpl() {
+            @Override
+            public void init() {
+                cacheDirectory = testCacheDir.toAbsolutePath().toString();
+                biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
+                super.init();
+            }
+        };
+        persistentQueueDao.init();
 
         authService = mock(AuthService.class);
+
         ReflectionTestUtils.setField(downloadController, "authService", authService);
+        ReflectionTestUtils.setField(downloadService, "persistentQueueDAO", persistentQueueDao);
 
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).build();
     }
