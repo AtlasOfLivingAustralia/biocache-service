@@ -202,6 +202,8 @@ public class FilterQueryParserTest {
         facetList.add(new Facet("occurrence_decade_i", "(Decade:\"2010\" OR Decade:\"2000\")", "(occurrence_decade_i:\"2010\" OR occurrence_decade_i:\"2000\")"));
         facetList.add(new Facet("occurrence_decade_i", "(Decade:\"2010\" OR Decade:\"2000\" OR Decade:\"1990\" OR Decade:\"1980\")", "(occurrence_decade_i:\"2010\" OR occurrence_decade_i:\"2000\" OR occurrence_decade_i:\"1990\" OR occurrence_decade_i:\"1980\")"));
 
+        facetList.add(new Facet("license", "license:\"CC BY NC\" license:\"CC BY NC 4.0 (Int)\"", "license:\"CC BY NC\" license:\"CC BY NC 4.0 (Int)\""));
+
         runFqParsingTest(facetList);
     }
 

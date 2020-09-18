@@ -208,36 +208,29 @@ public class QueryFormatUtils {
      * fq = (key:val1 OR key:val2) or fq = (-key:val1 OR -key:val2)
      * fq = -(key:val1 OR key:val2) or fq = -(-key:val1 OR -key:val2)
      *
+     * a new fq format added 18/09/2020
+     * fq = license:"CC BY NC" license:"CC BY NC 4.0 (Int)"
+     *
      * inclusive and exclusive keys can't co-exist in one fq
      */
     private String parseFQ(String fq) {
+        String rsltKey = null;
         fq = StringUtils.trimToEmpty(fq);
         if (StringUtils.isNotEmpty(fq)) {
-            boolean globalInclusive = true;
-
-            // if () or -()
-            int start = fq.indexOf('(');
-            int end = fq.indexOf(')');
-            if ((start != -1) ^ (end != -1)) return null;
-
-            if (start != -1) {
-                if (fq.charAt(0) == '-') {
-                    globalInclusive = false;
-                }
-                fq = fq.substring(start + 1, end);
-            }
-
-            // now () is removed, either key:val or key:val OR key:val
             String[] fv = fq.split(":");
             if (fv.length >= 2 && StringUtils.isNotBlank(fv[0]) && StringUtils.isNotBlank(fv[1])) {
-                boolean localInclusive = fv[0].charAt(0) != '-';
-                String key = localInclusive ? fv[0] : fv[0].substring(1);
+                String key = fv[0];
 
-                return globalInclusive ^ localInclusive ? "-" + key : key;
+                if (key.startsWith("-(-")) rsltKey = key.substring(3);
+                else if (key.startsWith("-(")) rsltKey = "-" + key.substring(2);
+                else if (key.startsWith("(-")) rsltKey = "-" + key.substring(2);
+                else if (key.startsWith("(")) rsltKey = key.substring(1);
+                else if (key.startsWith("-")) rsltKey = "-" + key.substring(1);
+                else rsltKey = key;
             }
         }
 
-        return null;
+        return (StringUtils.isEmpty(rsltKey) || rsltKey.equals("-")) ? null : rsltKey;
     }
 
     public void addFqs(String [] fqs, SpatialSearchRequestParams searchParams) {
