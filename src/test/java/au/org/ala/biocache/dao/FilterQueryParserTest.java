@@ -221,7 +221,7 @@ public class FilterQueryParserTest {
     public void testActiveFacetObj_invalidfq() {
         SpatialSearchRequestParams query = new SpatialSearchRequestParams();
         // Construct fq
-        query.setFq(new String[] {null, "", " ", "month", "   month  ", "(month", "month)", "(month:\"11\"", "month:\"11\" )", "month\"11\"", ":\"11\"", "    :\"11\"", "(:\"11\")", "(    :\"11\")", "month:", "month:   ",  "(month:   )", "-(month:   )"});
+        query.setFq(new String[] {null, "", " ", "month", "   month  ", "(month", "month)", "(month:\"11\"", "month\"11\"", ":\"11\"", "    :\"11\"", "(:\"11\")", "(    :\"11\")", "month:", "month:   ",  "(month:   )", "-(month:   )"});
         assertTrue(queryFormatUtils.formatSearchQuery(query)[1].isEmpty());
     }
 }

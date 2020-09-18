@@ -214,23 +214,26 @@ public class QueryFormatUtils {
      * inclusive and exclusive keys can't co-exist in one fq
      */
     private String parseFQ(String fq) {
-        String rsltKey = null;
         fq = StringUtils.trimToEmpty(fq);
+        if ((fq.startsWith("-(") || fq.startsWith("(")) && !fq.endsWith(")")) return null;
+
+        boolean globalInclusive = true;
+        if (fq.startsWith("-(") && fq.endsWith(")")) {
+            fq = fq.substring(2, fq.length() - 1);
+            globalInclusive = false;
+        } else if (fq.startsWith("(") && fq.endsWith(")")) fq = fq.substring(1, fq.length() - 1);
+
         if (StringUtils.isNotEmpty(fq)) {
             String[] fv = fq.split(":");
             if (fv.length >= 2 && StringUtils.isNotBlank(fv[0]) && StringUtils.isNotBlank(fv[1])) {
-                String key = fv[0];
+                boolean localInclusive = fv[0].charAt(0) != '-';
+                String key = localInclusive ? fv[0] : fv[0].substring(1);
 
-                if (key.startsWith("-(-")) rsltKey = key.substring(3);
-                else if (key.startsWith("-(")) rsltKey = "-" + key.substring(2);
-                else if (key.startsWith("(-")) rsltKey = "-" + key.substring(2);
-                else if (key.startsWith("(")) rsltKey = key.substring(1);
-                else if (key.startsWith("-")) rsltKey = "-" + key.substring(1);
-                else rsltKey = key;
+                return globalInclusive ^ localInclusive ? "-" + key : key;
             }
         }
 
-        return (StringUtils.isEmpty(rsltKey) || rsltKey.equals("-")) ? null : rsltKey;
+        return null;
     }
 
     public void addFqs(String [] fqs, SpatialSearchRequestParams searchParams) {
