@@ -15,6 +15,7 @@
 package au.org.ala.biocache.dto;
 
 import au.org.ala.biocache.util.QueryFormatUtils;
+import com.google.common.base.Strings;
 import org.apache.commons.httpclient.URIException;
 import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.lang.StringUtils;
@@ -23,6 +24,7 @@ import org.apache.log4j.Logger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Data Transfer Object to represent the request parameters required to search
@@ -31,6 +33,10 @@ import java.util.List;
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
 public class SearchRequestParams {
+
+    /** log4 j logger */
+    private static final Logger logger = Logger.getLogger(SearchRequestParams.class);
+
     /** Only used to store the formattedQuery to be passed around in biocache-service**/
 
     protected Long qId = null;  // "qid:12312321"
@@ -72,8 +78,13 @@ public class SearchRequestParams {
     protected String qc = "";
     /** To disable facets */
     protected Boolean facet = FacetThemes.getFacetDefault();
-    /** log4 j logger */
-    private static final Logger logger = Logger.getLogger(SearchRequestParams.class);
+
+    /** The quality profile to use, null for default */
+    protected String qualityProfile;
+    /** If to disable all default filters*/
+    protected boolean disableAllQualityFilters = false;
+    /** Default filters to disable (currently can only disable on category, so it's a list of disabled category name)*/
+    protected List<String> disableQualityFilter = new ArrayList<>();
 
     /**
      * Custom toString method to produce a String to be used as the request parameters
@@ -134,6 +145,16 @@ public class SearchRequestParams {
         if(!"".equals(fprefix))
             req.append("&fprefix=").append(fprefix);
 
+        if (!Strings.isNullOrEmpty(qualityProfile)) {
+            req.append("&qualityProfile=").append(conditionalEncode(qualityProfile, encodeParams));
+        }
+        if (disableAllQualityFilters) {
+            req.append("&disableAllQualityFilters=true");
+        }
+        for (String filter : disableQualityFilter) {
+            req.append("&disableQualityFilter=").append(conditionalEncode(filter, encodeParams));
+        }
+
         return req.toString();
     }
 
@@ -171,6 +192,18 @@ public class SearchRequestParams {
             req.append("?q=qid:").append(conditionalEncode(qId.toString(), true));
         } else {
             req.append("?q=").append(conditionalEncode(q, true));
+        }
+
+        if (disableAllQualityFilters) {
+            req.append("&disableAllQualityFilters=true");
+        }
+
+        if (StringUtils.isNotBlank(qualityProfile)) {
+            req.append("&qualityProfile=").append(qualityProfile);
+        }
+
+        for (String disableQualityFilter: this.disableQualityFilter) {
+            req.append("&disableQualityFilter=").append(disableQualityFilter);
         }
 
         for(String f : fq){
@@ -454,32 +487,63 @@ public class SearchRequestParams {
         this.formattedFq = formattedFq;
     }
 
-  /* (non-Javadoc)
-   * @see java.lang.Object#hashCode()
-   */
-  @Override
-  public int hashCode() {
-      final int prime = 31;
-      int result = 1;
-      result = prime * result + ((dir == null) ? 0 : dir.hashCode());
-      result = prime * result
-          + ((displayString == null) ? 0 : displayString.hashCode());
-      result = prime * result + ((facet == null) ? 0 : facet.hashCode());
-      result = prime * result + Arrays.hashCode(facets);
-      result = prime * result + ((fl == null) ? 0 : fl.hashCode());
-      result = prime * result + ((flimit == null) ? 0 : flimit.hashCode());
-      result = prime * result + ((foffset == null) ? 0 : foffset.hashCode());
-      result = prime * result
-          + ((formattedQuery == null) ? 0 : formattedQuery.hashCode());
-      result = prime * result + ((fprefix == null) ? 0 : fprefix.hashCode());
-      result = prime * result + Arrays.hashCode(fq);
-      result = prime * result + ((fsort == null) ? 0 : fsort.hashCode());
-      result = prime * result + ((pageSize == null) ? 0 : pageSize.hashCode());
-      result = prime * result + ((q == null) ? 0 : q.hashCode());
-      result = prime * result + ((qc == null) ? 0 : qc.hashCode());
-      result = prime * result + ((sort == null) ? 0 : sort.hashCode());
-      result = prime * result + ((start == null) ? 0 : start.hashCode());
-      return result;
-  }
+    public String getQualityProfile() {
+        return qualityProfile;
+    }
+
+    public void setQualityProfile(String qualityProfile) {
+        this.qualityProfile = qualityProfile;
+    }
+
+    public boolean isDisableAllQualityFilters() {
+        return disableAllQualityFilters;
+    }
+
+    public void setDisableAllQualityFilters(boolean disableAllQualityFilters) {
+        this.disableAllQualityFilters = disableAllQualityFilters;
+    }
+
+    public List<String> getDisableQualityFilter() {
+        return disableQualityFilter;
+    }
+
+    public void setDisableQualityFilter(List<String> disableQualityFilter) {
+        this.disableQualityFilter = disableQualityFilter;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        SearchRequestParams that = (SearchRequestParams) o;
+        return disableAllQualityFilters == that.disableAllQualityFilters &&
+                Objects.equals(formattedQuery, that.formattedQuery) &&
+                Objects.equals(q, that.q) &&
+                Arrays.equals(fq, that.fq) &&
+                Objects.equals(fl, that.fl) &&
+                Arrays.equals(facets, that.facets) &&
+                Objects.equals(start, that.start) &&
+                Objects.equals(facetsMax, that.facetsMax) &&
+                Objects.equals(flimit, that.flimit) &&
+                Objects.equals(fsort, that.fsort) &&
+                Objects.equals(foffset, that.foffset) &&
+                Objects.equals(fprefix, that.fprefix) &&
+                Objects.equals(pageSize, that.pageSize) &&
+                Objects.equals(sort, that.sort) &&
+                Objects.equals(dir, that.dir) &&
+                Objects.equals(displayString, that.displayString) &&
+                Objects.equals(qc, that.qc) &&
+                Objects.equals(facet, that.facet) &&
+                Objects.equals(qualityProfile, that.qualityProfile) &&
+                Objects.equals(disableQualityFilter, that.disableQualityFilter);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(formattedQuery, q, fl, start, facetsMax, flimit, fsort, foffset, fprefix, pageSize, sort, dir, displayString, qc, facet, qualityProfile, disableAllQualityFilters, disableQualityFilter);
+        result = 31 * result + Arrays.hashCode(fq);
+        result = 31 * result + Arrays.hashCode(facets);
+        return result;
+    }
  
 }

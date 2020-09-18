@@ -17,6 +17,7 @@ package au.org.ala.biocache.dto;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
@@ -38,6 +39,7 @@ public class DownloadDetailsDTO {
     private String downloadParams;
     private String ipAddress;
     private String userAgent;
+    private boolean emailNotify = true;
     private String email;
     private DownloadRequestParams requestParams;
     private String fileLocation;
@@ -68,6 +70,7 @@ public class DownloadDetailsDTO {
     public DownloadDetailsDTO(DownloadRequestParams params, String ipAddress, String userAgent, DownloadType type){
         this(params.getUrlParams(), ipAddress, userAgent, type);
         requestParams = params;
+        emailNotify = requestParams.isEmailNotify();
         email = requestParams.getEmail();
     }
 
@@ -87,7 +90,11 @@ public class DownloadDetailsDTO {
     public String getStartDateString(){
         return startDate.toString();
     }
-    
+
+    public String getStartDateString(String format){
+        return new SimpleDateFormat(format).format(startDate);
+    }
+
     public Date getStartDate(){
         return this.startDate;
     }
@@ -141,7 +148,15 @@ public class DownloadDetailsDTO {
     public long getTotalRecords(){
         return totalRecords;
     }
-  
+
+    public boolean isEmailNotify() {
+        return emailNotify;
+    }
+
+    public void setEmailNotify(boolean emailNotify) {
+        this.emailNotify = emailNotify;
+    }
+
     /**
      * @return the email
      */

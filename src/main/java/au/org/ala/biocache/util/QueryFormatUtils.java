@@ -7,6 +7,7 @@ import au.org.ala.biocache.dto.SearchRequestParams;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.model.Qid;
 import au.org.ala.biocache.service.AuthService;
+import au.org.ala.biocache.service.DataQualityService;
 import au.org.ala.biocache.service.LayersService;
 import au.org.ala.biocache.service.ListsService;
 import au.org.ala.biocache.service.ListsService.SpeciesListSearchDTO;
@@ -61,6 +62,9 @@ public class QueryFormatUtils {
 
     @Inject
     private AuthService authService;
+
+    @Inject
+    private DataQualityService dataQualityService;
 
     protected static final String QUOTE = "\"";
     protected static final char[] CHARS = {' ', ':'};
@@ -187,6 +191,8 @@ public class QueryFormatUtils {
         }
 
         updateQueryContext(searchParams);
+
+        updateQualityProfileContext(searchParams);
 
         return fqMaps;
     }
@@ -907,6 +913,14 @@ public class QueryFormatUtils {
                             extractedValue = extractedValue.substring(0, extractedValue.indexOf(" OR "));
                         }
 
+                        // search for term in the extractedValue and clip
+                        // NOTE: the if the quoted term value contains content that looks like a term "name" then it will be
+                        //       treated as a new term.
+                        Matcher termMatcher = termPattern.matcher(extractedValue);
+                        if (termMatcher.find()) {
+                            extractedValue = extractedValue.substring(0, termMatcher.start());
+                        }
+
                         // below code fragment extracts the filter value and try to format for solr query or get display value
                         // &fq = taxon_name:""Cyclophora"+lechriostropha"
                         // the old implementation yields this fq to be sent to solr: taxon_name:"\"Cyclophora",
@@ -945,7 +959,7 @@ public class QueryFormatUtils {
                         extractedValue = extractedValue.substring(0, extractedValue.length() - 1);
                         end += 1;
                     } else if (extractedValue.contains(" ") && end == 0) {
-                        extractedValue = extractedValue.substring(0, extractedValue.indexOf(' ') > 1 ? extractedValue.indexOf(' ') : extractedValue.length());
+                        extractedValue = extractedValue.substring(0, extractedValue.indexOf(' ') >= 1 ? extractedValue.indexOf(' ') : extractedValue.length());
                     }
 
                     String i18nForValue;
@@ -1051,6 +1065,12 @@ public class QueryFormatUtils {
             return values;
         }
         return new String[]{};
+    }
+
+    protected void updateQualityProfileContext(SearchRequestParams searchParams) {
+        Map<String, String> enabledFiltersByLabel = dataQualityService.getEnabledFiltersByLabel(searchParams);
+        String[] enabledFilters = enabledFiltersByLabel.values().toArray(new String[0]);
+        addFormattedFq(enabledFilters, searchParams);
     }
 
     /**
