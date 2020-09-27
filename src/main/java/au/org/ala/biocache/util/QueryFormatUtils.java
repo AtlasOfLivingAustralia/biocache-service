@@ -215,13 +215,17 @@ public class QueryFormatUtils {
      */
     private String parseFQ(String fq) {
         fq = StringUtils.trimToEmpty(fq);
-        if ((fq.startsWith("-(") || fq.startsWith("(")) && !fq.endsWith(")")) return null;
+        if ((fq.startsWith("-(") || fq.startsWith("(")) && !fq.endsWith(")")) {
+            return null;
+        }
 
         boolean globalInclusive = true;
         if (fq.startsWith("-(") && fq.endsWith(")")) {
             fq = fq.substring(2, fq.length() - 1);
             globalInclusive = false;
-        } else if (fq.startsWith("(") && fq.endsWith(")")) fq = fq.substring(1, fq.length() - 1);
+        } else if (fq.startsWith("(") && fq.endsWith(")")) {
+            fq = fq.substring(1, fq.length() - 1);
+        }
 
         if (StringUtils.isNotEmpty(fq)) {
             String[] fv = fq.split(":");
