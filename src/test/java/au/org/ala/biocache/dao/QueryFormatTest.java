@@ -21,7 +21,10 @@ import au.org.ala.biocache.util.*;
 import au.org.ala.names.model.NameSearchResult;
 import au.org.ala.names.model.RankType;
 import au.org.ala.names.search.ALANameSearcher;
+import com.google.common.collect.Maps;
 import org.apache.commons.lang.StringUtils;
+import org.hamcrest.MatcherAssert;
+import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.theories.DataPoints;
@@ -36,9 +39,19 @@ import org.springframework.context.support.ReloadableResourceBundleMessageSource
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import static com.google.common.collect.Maps.newLinkedHashMap;
+import static java.util.Arrays.asList;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.when;
 
 /**
  * JUnit tests for SOLR Query formatting methods in SearchDAOImpl
@@ -88,6 +101,7 @@ public class QueryFormatTest {
     @Mock
     protected ALANameSearcher alaNameSearcher;
 
+    @Mock DataQualityService dataQualityService;
 
     @InjectMocks
     QueryFormatUtils queryFormatUtils;
@@ -102,7 +116,7 @@ public class QueryFormatTest {
         nsr.setLeft("0");
         nsr.setRight("1");
         nsr.setRank(RankType.SPECIES);
-        Mockito.when(alaNameSearcher.searchForRecordByLsid(anyString())).thenReturn(nsr);
+        when(alaNameSearcher.searchForRecordByLsid(anyString())).thenReturn(nsr);
 
         ReloadableResourceBundleMessageSource messageSource = new ReloadableResourceBundleMessageSource();
         messageSource.setDefaultEncoding("UTF-8");
@@ -147,7 +161,9 @@ public class QueryFormatTest {
                 //new SearchQueryTester("matched_name_children:\"kangurus lanosus\"", "lft:[", "found", false),
                 //new SearchQueryTester("(matched_name_children:Mammalia OR matched_name_children:whales)", "lft:[", "class:", false),
                 //new SearchQueryTester("collector_text:Latz AND matched_name_children:\"Pluchea tetranthera\"", "as","as",false)
-                new SearchQueryTester("spatial_list:dr123", "", "", false)
+                new SearchQueryTester("spatial_list:dr123", "", "", false),
+                new SearchQueryTester("month:03 month:04", "month:03 month:04", "Month:March Month:April", true),
+                new SearchQueryTester("month:\"03\" month:\"04\"", "month:\"03\" month:\"04\"", "Month:\"March\" Month:\"April\"", true),
         };
     }
 
@@ -168,6 +184,28 @@ public class QueryFormatTest {
                 assertTrue("display query does not have expected 'contains' match. " + ssrp.getDisplayString(), StringUtils.containsIgnoreCase(ssrp.getDisplayString(), sqt.displayString));
             }
         }
+    }
+
+    /**
+     * Run the tests with quality filters
+     */
+    @Test
+    public void testQueryFormattingWithQualityFilters() {
+        Map<String, String> filters = newLinkedHashMap();
+        filters.put("first", "foo:bar");
+        filters.put("second", "baz:qux");
+        when(dataQualityService.getEnabledFiltersByLabel(any(SpatialSearchRequestParams.class))).thenReturn(filters);
+
+        SpatialSearchRequestParams ssrp = new SpatialSearchRequestParams();
+        ssrp.setQ("lsid:urn:lsid:biodiversity.org.au:afd.taxon:31a9b8b8-4e8f-4343-a15f-2ed24e0bf1ae"); //"lsid:urn:lsid:biodiversity.org.au:afd.taxon:31a9b8b8-4e8f-4343-a15f-2ed24e0bf1ae", "lft:[", "species", false
+        queryFormatUtils.formatSearchQuery(ssrp, false);
+        assertThat("filters are added", asList(ssrp.getFormattedFq()), containsInAnyOrder("foo:bar", "baz:qux"));
+
+        ssrp = new SpatialSearchRequestParams();
+        ssrp.setQ("lsid:urn:lsid:biodiversity.org.au:afd.taxon:31a9b8b8-4e8f-4343-a15f-2ed24e0bf1ae");
+        ssrp.setFq(new String[]{"family:MACROPODIDAE"});
+        queryFormatUtils.formatSearchQuery(ssrp, false);
+        assertThat("filters are added", asList(ssrp.getFormattedFq()), containsInAnyOrder("family:MACROPODIDAE","foo:bar", "baz:qux"));
     }
 
     /**

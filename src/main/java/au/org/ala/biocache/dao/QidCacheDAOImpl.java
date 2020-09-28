@@ -16,6 +16,7 @@ package au.org.ala.biocache.dao;
 
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.model.Qid;
+import au.org.ala.biocache.service.DataQualityService;
 import au.org.ala.biocache.util.QidMissingException;
 import au.org.ala.biocache.util.QidSizeException;
 import au.org.ala.biocache.util.SpatialUtils;
@@ -86,6 +87,9 @@ public class QidCacheDAOImpl implements QidCacheDAO {
      */
     @Value("${qid.wkt.simplification.maxprecision:10.0}")
     private double wktSimplificationMaxPrecision;
+
+    @Inject
+    private DataQualityService dataQualityService;
 
     /**
      * in memory store of params
@@ -467,8 +471,8 @@ public class QidCacheDAOImpl implements QidCacheDAO {
             if (title == null) {
                 title = requestParams.getDisplayString();
             }
-            String[] fqs = requestParams.getFq();
-            if (fqs != null && (fqs.length == 0 || (fqs.length == 1 && fqs[0].length() == 0))) {
+            String[] fqs = dataQualityService.generateCombinedFqs(requestParams);
+            if (fqs.length == 0 || (fqs.length == 1 && fqs[0].length() == 0)) {
                 fqs = null;
             }
             String qid = put(requestParams.getQ(), title, requestParams.getWkt(), bb, fqs, maxage, source);

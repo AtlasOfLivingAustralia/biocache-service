@@ -16,7 +16,7 @@ public class Doi {
     private String userId;
     private String description;
     private Date dateMinted;
-    private Provider provider;
+    private String provider;
     private String filename;
     private String contentType;
     private Map<String, ?> providerMetadata;
@@ -83,11 +83,11 @@ public class Doi {
         this.dateMinted = dateMinted;
     }
 
-    public Provider getProvider() {
+    public String getProvider() {
         return provider;
     }
 
-    public void setProvider(Provider provider) {
+    public void setProvider(String provider) {
         this.provider = provider;
     }
 
