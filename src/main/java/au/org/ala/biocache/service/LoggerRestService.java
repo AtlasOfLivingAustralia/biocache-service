@@ -15,6 +15,9 @@
 package au.org.ala.biocache.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import io.reactivex.rxjava3.core.*;
+import io.reactivex.rxjava3.schedulers.Schedulers;
+import io.reactivex.rxjava3.subscribers.DisposableSubscriber;
 import org.ala.client.model.LogEventVO;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,7 +27,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestOperations;
 
 import javax.annotation.PostConstruct;
@@ -61,6 +63,14 @@ public class LoggerRestService implements LoggerService {
     @Value("${caches.log.enabled:true}")
     protected Boolean enabled =null;
 
+    private FlowableEmitter<LogEventVO> emitter;
+    private Flowable<LogEventVO> loggerSource = Flowable.<LogEventVO>create(emitter -> {
+
+        this.emitter = emitter;
+
+    }, BackpressureStrategy.BUFFER);
+
+
     @Inject
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
 
@@ -94,6 +104,10 @@ public class LoggerRestService implements LoggerService {
 
     @Override
     public void logEvent(LogEventVO logEvent) {
+        logEventAsync(logEvent);
+    }
+
+    public void logEventSync(LogEventVO logEvent) {
 
         HttpHeaders headers = new HttpHeaders();
         headers.set(HttpHeaders.USER_AGENT, logEvent.getUserAgent());
@@ -108,6 +122,15 @@ public class LoggerRestService implements LoggerService {
 
         } catch (Exception e) {
             logger.warn("failed to log event", e);
+        }
+    }
+
+    public void logEventAsync(LogEventVO logEvent) {
+
+        if (emitter.requested() > 0) {
+            emitter.onNext(logEvent);
+        } else {
+            logger.warn("buffer full, ignoring log event: " + logEvent.toString());
         }
     }
 
@@ -128,15 +151,12 @@ public class LoggerRestService implements LoggerService {
      */
     @Scheduled(fixedDelay = 43200000)// schedule to run every 12 hours
     public void reloadCache() {
-        init();
-    }
 
-    @PostConstruct
-    public void init() {
         if (loggerReasons.size() > 0) {
             //data exists, no need to wait
             initialised.countDown();
         }
+
         if (enabled) {
             logger.info("Refreshing the log sources and reasons");
             List list;
@@ -168,6 +188,27 @@ public class LoggerRestService implements LoggerService {
             }
         }
         initialised.countDown();
+    }
+
+    @PostConstruct
+    public void init() {
+
+        loggerSource
+                .observeOn(Schedulers.single())
+                .subscribeWith(new DisposableSubscriber<LogEventVO>() {
+                    @Override public void onStart() {
+                        request(1);
+                    }
+                    @Override public void onNext(LogEventVO logEventVO) {
+
+                        logEventSync(logEventVO);
+                        request(1);
+                    }
+                    @Override public void onError(Throwable t) { }
+                    @Override public void onComplete() { }
+                });
+
+        reloadCache();
     }
 
     /**
