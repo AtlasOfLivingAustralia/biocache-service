@@ -15,11 +15,9 @@
 package au.org.ala.biocache.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-
 import io.reactivex.rxjava3.core.*;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.reactivex.rxjava3.subscribers.DisposableSubscriber;
-
 import org.ala.client.model.LogEventVO;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,13 +30,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import javax.inject.Inject;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Implementation of @see au.org.ala.biocache.service.LoggerService that
@@ -67,18 +63,13 @@ public class LoggerRestService implements LoggerService {
     @Value("${caches.log.enabled:true}")
     protected Boolean enabled =null;
 
-    @Value("${logger.service.thread.pool:1}")
-    protected int loggerThreadPool = 1;
+    private FlowableEmitter<LogEventVO> emitter;
+    private Flowable<LogEventVO> loggerSource = Flowable.<LogEventVO>create(emitter -> {
 
-    @Value("${logger.service.throttle.delay:0}")
-    protected long throttleDelay = 0;
+        this.emitter = emitter;
 
-    @Value("${logger.service.queue.size:100}")
-    protected int eventQueueSize = 100;
+    }, BackpressureStrategy.BUFFER);
 
-    protected DisposableSubscriber logEventSubscriber;
-
-    private BlockingQueue<LogEventVO> eventQueue;
 
     @Inject
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
@@ -113,14 +104,7 @@ public class LoggerRestService implements LoggerService {
 
     @Override
     public void logEvent(LogEventVO logEvent) {
-
-        try {
-
-            eventQueue.put(logEvent);
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        } finally {}
+        logEventAsync(logEvent);
     }
 
     public void logEventSync(LogEventVO logEvent) {
@@ -138,6 +122,15 @@ public class LoggerRestService implements LoggerService {
 
         } catch (Exception e) {
             logger.warn("failed to log event", e);
+        }
+    }
+
+    public void logEventAsync(LogEventVO logEvent) {
+
+        if (emitter.requested() > 0) {
+            emitter.onNext(logEvent);
+        } else {
+            logger.warn("buffer full, ignoring log event: " + logEvent.toString());
         }
     }
 
@@ -200,49 +193,24 @@ public class LoggerRestService implements LoggerService {
     @PostConstruct
     public void init() {
 
-        eventQueue = new ArrayBlockingQueue<>(eventQueueSize);
-        Executor executor = Executors.newFixedThreadPool(this.loggerThreadPool);
-
-        Flowable<LogEventVO> backpressureAwarePublisher = Flowable.generate(() -> eventQueue, (queue, emitter) -> {
-            emitter.onNext(queue.take());
-        });
-
-        this.logEventSubscriber = backpressureAwarePublisher
-                .subscribeOn(Schedulers.single())
-                .observeOn(Schedulers.from(executor))
+        loggerSource
+                .observeOn(Schedulers.single())
                 .subscribeWith(new DisposableSubscriber<LogEventVO>() {
+                    @Override public void onStart() {
+                        request(1);
+                    }
+                    @Override public void onNext(LogEventVO logEventVO) {
 
-            @Override public void onStart() {
-                request(1);
-            }
-
-            @Override
-            public void onNext(LogEventVO logEventVO) {
-
-                try {
-                    logEventSync(logEventVO);
-                    Thread.sleep(throttleDelay);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                request(1);
-            }
-
-            @Override
-            public void onError(Throwable throwable) { }
-
-            @Override
-            public void onComplete() { }
-        });
+                        logEventSync(logEventVO);
+                        request(1);
+                    }
+                    @Override public void onError(Throwable t) { }
+                    @Override public void onComplete() { }
+                });
 
         reloadCache();
     }
 
-    @PreDestroy
-    void destroy() {
-
-        logEventSubscriber.dispose();
-    }
     /**
      * Generates an id list from the supplied list
      * @param list
