@@ -101,11 +101,29 @@ public class DownloadControllerTest extends TestCase {
     }
 
     @Test
-    public void offlineDownloadValidEmailTest() throws Exception {
+    public void offlineDownloadValidEmailTestAllAttributes() throws Exception {
 
         when(authService.getUserDetails("test@test.com"))
                 .thenReturn((Map)ImmutableMap.of(
                         "activated", true,
+                        "locked", false,
+                        "roles", Arrays.asList("ROLE_USER")
+                ));
+
+        this.mockMvc.perform(get("/occurrences/offline/download*")
+                .param("reasonTypeId", "10")
+                .param("email", "test@test.com"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/json;charset=UTF-8"));
+
+        verify(authService).getUserDetails("test@test.com");
+    }
+
+    @Test
+    public void offlineDownloadValidEmailTestNoActivated() throws Exception {
+
+        when(authService.getUserDetails("test@test.com"))
+                .thenReturn((Map)ImmutableMap.of(
                         "locked", false,
                         "roles", Arrays.asList("ROLE_USER")
                 ));
@@ -158,6 +176,24 @@ public class DownloadControllerTest extends TestCase {
                         "activated", true,
                         "locked", false,
                         "roles", Arrays.asList("NO_ROLE")
+                ));
+
+        this.mockMvc.perform(get("/occurrences/offline/download*")
+                .param("reasonTypeId", "10")
+                .param("email", "test@test.com"))
+                .andExpect(status().is4xxClientError());
+
+        verify(authService).getUserDetails("test@test.com");
+    }
+
+    @Test
+    public void downloadActivatedFalseEmailTest() throws Exception {
+
+        when(authService.getUserDetails("test@test.com"))
+                .thenReturn((Map)ImmutableMap.of(
+                        "activated", false,
+                        "locked", false,
+                        "roles", Arrays.asList("ROLE_USER")
                 ));
 
         this.mockMvc.perform(get("/occurrences/offline/download*")
