@@ -208,7 +208,7 @@ public class DownloadController extends AbstractSecureController {
                 return null;
             }
 
-            boolean activated = (Boolean) userDetails.getOrDefault("activated", false);
+            boolean activated = (Boolean) userDetails.getOrDefault("activated", true);
             boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
             boolean hasRole = false;
 
