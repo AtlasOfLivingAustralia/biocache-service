@@ -17,6 +17,7 @@ package au.org.ala.biocache.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.reactivex.rxjava3.annotations.NonNull;
 import io.reactivex.rxjava3.core.*;
+import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.reactivex.rxjava3.subjects.PublishSubject;
 import io.reactivex.rxjava3.subjects.Subject;
@@ -33,12 +34,11 @@ import org.springframework.web.client.RestOperations;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 /**
  * Implementation of @see au.org.ala.biocache.service.LoggerService that
@@ -73,7 +73,11 @@ public class LoggerRestService implements LoggerService {
     @Value("${logger.service.throttle.delay:0}")
     protected long throttleDelay = 0;
 
+    @Value("${logger.service.queue.size:100}")
+    protected int eventQueueSize = 100;
+
     private Subject<LogEventVO> loggerSubject = PublishSubject.create();
+    private BlockingQueue<LogEventVO> eventQueue;
 
     @Inject
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
@@ -108,7 +112,15 @@ public class LoggerRestService implements LoggerService {
 
     @Override
     public void logEvent(LogEventVO logEvent) {
-        loggerSubject.onNext(logEvent);
+
+        try {
+
+            eventQueue.put(logEvent);
+            loggerSubject.onNext(logEvent);
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {}
     }
 
     public void logEventSync(LogEventVO logEvent) {
@@ -130,6 +142,8 @@ public class LoggerRestService implements LoggerService {
 
         return Single.create(emitter -> {
 
+            System.out.println(Instant.now() + " " + Thread.currentThread().getName() + " - perform async log event " + logEvent.getSourceUrl());
+
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.USER_AGENT, logEvent.getUserAgent());
             HttpEntity<LogEventVO> request = new HttpEntity<>(logEvent, headers);
@@ -140,6 +154,7 @@ public class LoggerRestService implements LoggerService {
 
             } catch (Exception e) {
                 logger.warn("failed to log event", e);
+                System.out.println(Instant.now() + " " + Thread.currentThread().getName() + " failed to log event" + e);
                 emitter.onError(e);
             }
         });
@@ -204,18 +219,28 @@ public class LoggerRestService implements LoggerService {
     @PostConstruct
     public void init() {
 
+        eventQueue = new ArrayBlockingQueue<>(eventQueueSize);
         Executor executor = Executors.newFixedThreadPool(this.loggerThreadPool);
 
         loggerSubject
+
                 .flatMap(logEventVO -> {
 
+                    System.out.println(Instant.now() + " " + Thread.currentThread().getName() + " - log async event: " + logEventVO.getSourceUrl());
+
                     return logEventAsync(logEventVO)
+                            .subscribeOn(Schedulers.from(executor))
                             .doAfterSuccess(r -> Thread.sleep(throttleDelay))
-                            .toObservable()
-                            .subscribeOn(Schedulers.from(executor));
+                            .doAfterTerminate(() -> {
+                                eventQueue.remove(logEventVO);
+                                System.out.println(Instant.now() + " " + Thread.currentThread().getName() + " - remove log event: " + logEventVO.getSourceUrl() + " : " + eventQueue.size());
+                            })
+                            .toObservable();
                 })
                 .retry()
                 .subscribe(response -> {
+
+                    System.out.println(Instant.now() + " " + Thread.currentThread().getName() + " - log event status: " + response);
 
                     if (response.getStatusCode() != HttpStatus.OK) {
                         logger.warn("failed to log event");
