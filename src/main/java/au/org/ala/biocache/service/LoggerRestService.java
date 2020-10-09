@@ -15,9 +15,11 @@
 package au.org.ala.biocache.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import io.reactivex.rxjava3.annotations.NonNull;
 import io.reactivex.rxjava3.core.*;
 import io.reactivex.rxjava3.schedulers.Schedulers;
-import io.reactivex.rxjava3.subscribers.DisposableSubscriber;
+import io.reactivex.rxjava3.subjects.PublishSubject;
+import io.reactivex.rxjava3.subjects.Subject;
 import org.ala.client.model.LogEventVO;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,6 +37,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 /**
  * Implementation of @see au.org.ala.biocache.service.LoggerService that
@@ -63,13 +67,13 @@ public class LoggerRestService implements LoggerService {
     @Value("${caches.log.enabled:true}")
     protected Boolean enabled =null;
 
-    private FlowableEmitter<LogEventVO> emitter;
-    private Flowable<LogEventVO> loggerSource = Flowable.<LogEventVO>create(emitter -> {
+    @Value("${logger.service.thread.pool:1}")
+    protected int loggerThreadPool = 1;
 
-        this.emitter = emitter;
+    @Value("${logger.service.throttle.delay:0}")
+    protected long throttleDelay = 0;
 
-    }, BackpressureStrategy.BUFFER);
-
+    private Subject<LogEventVO> loggerSubject = PublishSubject.create();
 
     @Inject
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
@@ -104,17 +108,14 @@ public class LoggerRestService implements LoggerService {
 
     @Override
     public void logEvent(LogEventVO logEvent) {
-        logEventAsync(logEvent);
+        loggerSubject.onNext(logEvent);
     }
 
     public void logEventSync(LogEventVO logEvent) {
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set(HttpHeaders.USER_AGENT, logEvent.getUserAgent());
-        HttpEntity<LogEventVO> request = new HttpEntity<>(logEvent, headers);
         try {
 
-            ResponseEntity<Void> response = restTemplate.postForEntity(loggerUriPrefix, request, Void.class);
+            ResponseEntity<Void> response = logEventAsync(logEvent).blockingGet();
 
             if (response.getStatusCode() != HttpStatus.OK) {
                 logger.warn("failed to log event");
@@ -125,13 +126,23 @@ public class LoggerRestService implements LoggerService {
         }
     }
 
-    public void logEventAsync(LogEventVO logEvent) {
+    public @NonNull Single<ResponseEntity> logEventAsync(LogEventVO logEvent) {
 
-        if (emitter.requested() > 0) {
-            emitter.onNext(logEvent);
-        } else {
-            logger.warn("buffer full, ignoring log event: " + logEvent.toString());
-        }
+        return Single.create(emitter -> {
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.USER_AGENT, logEvent.getUserAgent());
+            HttpEntity<LogEventVO> request = new HttpEntity<>(logEvent, headers);
+            try {
+
+                ResponseEntity<Void> response = restTemplate.postForEntity(loggerUriPrefix, request, Void.class);
+                emitter.onSuccess(response);
+
+            } catch (Exception e) {
+                logger.warn("failed to log event", e);
+                emitter.onError(e);
+            }
+        });
     }
 
     /**
@@ -193,19 +204,22 @@ public class LoggerRestService implements LoggerService {
     @PostConstruct
     public void init() {
 
-        loggerSource
-                .observeOn(Schedulers.single())
-                .subscribeWith(new DisposableSubscriber<LogEventVO>() {
-                    @Override public void onStart() {
-                        request(1);
-                    }
-                    @Override public void onNext(LogEventVO logEventVO) {
+        Executor executor = Executors.newFixedThreadPool(this.loggerThreadPool);
 
-                        logEventSync(logEventVO);
-                        request(1);
+        loggerSubject
+                .flatMap(logEventVO -> {
+
+                    return logEventAsync(logEventVO)
+                            .doAfterSuccess(r -> Thread.sleep(throttleDelay))
+                            .toObservable()
+                            .subscribeOn(Schedulers.from(executor));
+                })
+                .retry()
+                .subscribe(response -> {
+
+                    if (response.getStatusCode() != HttpStatus.OK) {
+                        logger.warn("failed to log event");
                     }
-                    @Override public void onError(Throwable t) { }
-                    @Override public void onComplete() { }
                 });
 
         reloadCache();
