@@ -29,17 +29,28 @@ class LoggerServiceSpec extends Specification {
 
         then:
         1 * loggerService.restTemplate.postForEntity(_, new HttpEntity<>(logEvent, headers), Void) >> { new ResponseEntity<Void>(HttpStatus.OK) }
+
+        cleanup:
+        loggerService.destroy()
     }
 
     void 'block on queue limit'() {
 
         setup:
+        final int queueSize = 10
+
+        long logEventPostCount = 0
+
         LoggerRestService loggerService = new LoggerRestService()
         loggerService.enabled = false
         loggerService.restTemplate = Stub(RestOperations) {
-            postForEntity(_, _, Void) >> { sleep(11); new ResponseEntity<Void>(HttpStatus.OK) }
+            postForEntity(_, _, Void) >> {
+                sleep(10)
+                logEventPostCount++
+                new ResponseEntity<Void>(HttpStatus.OK)
+            }
         }
-        loggerService.eventQueueSize = 10
+        loggerService.eventQueueSize = queueSize
 //        loggerService.throttleDelay = 100
 
         loggerService.init()
@@ -54,9 +65,8 @@ class LoggerServiceSpec extends Specification {
             loggerService.logEvent(logEvent)
         }
 
-        then:
-        true
-//        0 * loggerService.restTemplate.postForEntity(_, _, Void) >> { sleep(11); new ResponseEntity<Void>(HttpStatus.OK) }
+        then: 'no log events should be async posted'
+        logEventPostCount == 0
 
         when:
         Thread.start {
@@ -70,37 +80,18 @@ class LoggerServiceSpec extends Specification {
             logEventBlocked = false
         }
 
-        then:
+        then: 'nexted log event should be blocked'
         logEventBlocked
-//        _ * loggerService.restTemplate.postForEntity(*_) >> { sleep(12); new ResponseEntity<Void>(HttpStatus.OK) }
 
         when:
-        sleep(10000)
+        // wait until the posted async log events >= query size (queue cleared)
+        while (logEventPostCount < queueSize) { sleep(10) }
 
-        then: 'expect all events POSTed'
+        then: 'blocked log event call cleared'
         !logEventBlocked
-//        _ * loggerService.restTemplate.postForEntity(*_) >> { sleep(12); new ResponseEntity<Void>(HttpStatus.OK) }
 
-
-//        when:
-//        logEventBlocked = true
-//        Thread.start({
-//            loggerService.logEvent(logEvent)
-//            logEventBlocked = false
-//        })
-//
-//        then:
-//        logEventBlocked
-//        loggerService.eventQueue.size() == 9
-
-//        when:
-//        sleep(2000)
-//
-//        then:
-//        10 * loggerService.restTemplate.postForEntity(_, new HttpEntity<>(logEvent, headers), Void) >> { new ResponseEntity<Void>(HttpStatus.OK) }
-//        !logEventBlocked
-
-//        then: 'expect all events POSTed'
+        cleanup:
+        loggerService.destroy()
     }
 
     void 'thottle log events'() {
@@ -120,10 +111,13 @@ class LoggerServiceSpec extends Specification {
 
             loggerService.logEvent(logEvent)
         }
-        
+
         sleep(10 * loggerService.throttleDelay)
 
         then: 'expect all events POSTed'
         10 * loggerService.restTemplate.postForEntity(*_) >> { new ResponseEntity<Void>(HttpStatus.OK) }
+
+        cleanup:
+        loggerService.destroy()
     }
 }
