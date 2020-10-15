@@ -77,7 +77,8 @@ public class WMSController extends AbstractSecureController{
     /**
      * webportal results limit
      */
-    private final int DEFAULT_PAGE_SIZE = 1000000;
+    @Value("${wms.pagesize:1000000}")
+    private int DEFAULT_PAGE_SIZE = 1000000;
 
     @Value("${wms.colour:0x00000000}")
     private int DEFAULT_COLOUR;
