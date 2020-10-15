@@ -152,6 +152,20 @@ public class DownloadControllerTest extends TestCase {
     }
 
     @Test
+    public void downloadInvalidEmailByPassAuthTest() throws Exception {
+
+        boolean authBypass = (boolean) ReflectionTestUtils.getField(downloadController, "authBypass");
+        ReflectionTestUtils.setField(downloadController, "authBypass", true);
+
+        this.mockMvc.perform(get("/occurrences/offline/download*")
+                .param("reasonTypeId", "10")
+                .param("email", "test@test.com"))
+                .andExpect(status().isOk());
+
+        ReflectionTestUtils.setField(downloadController, "authBypass", authBypass);
+    }
+
+    @Test
     public void downloadLockedEmailTest() throws Exception {
 
         when(authService.getUserDetails("test@test.com"))
