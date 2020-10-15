@@ -15,12 +15,11 @@
 package au.org.ala.biocache.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import io.reactivex.rxjava3.annotations.NonNull;
+
 import io.reactivex.rxjava3.core.*;
-import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
-import io.reactivex.rxjava3.subjects.PublishSubject;
-import io.reactivex.rxjava3.subjects.Subject;
+import io.reactivex.rxjava3.subscribers.DisposableSubscriber;
+
 import org.ala.client.model.LogEventVO;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,8 +32,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.inject.Inject;
-import java.time.Instant;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -76,7 +76,8 @@ public class LoggerRestService implements LoggerService {
     @Value("${logger.service.queue.size:100}")
     protected int eventQueueSize = 100;
 
-    private Subject<LogEventVO> loggerSubject = PublishSubject.create();
+    protected DisposableSubscriber logEventSubscriber;
+
     private BlockingQueue<LogEventVO> eventQueue;
 
     @Inject
@@ -116,7 +117,6 @@ public class LoggerRestService implements LoggerService {
         try {
 
             eventQueue.put(logEvent);
-            loggerSubject.onNext(logEvent);
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -125,9 +125,12 @@ public class LoggerRestService implements LoggerService {
 
     public void logEventSync(LogEventVO logEvent) {
 
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.USER_AGENT, logEvent.getUserAgent());
+        HttpEntity<LogEventVO> request = new HttpEntity<>(logEvent, headers);
         try {
 
-            ResponseEntity<Void> response = logEventAsync(logEvent).blockingGet();
+            ResponseEntity<Void> response = restTemplate.postForEntity(loggerUriPrefix, request, Void.class);
 
             if (response.getStatusCode() != HttpStatus.OK) {
                 logger.warn("failed to log event");
@@ -136,28 +139,6 @@ public class LoggerRestService implements LoggerService {
         } catch (Exception e) {
             logger.warn("failed to log event", e);
         }
-    }
-
-    public @NonNull Single<ResponseEntity> logEventAsync(LogEventVO logEvent) {
-
-        return Single.create(emitter -> {
-
-            System.out.println(Instant.now() + " " + Thread.currentThread().getName() + " - perform async log event " + logEvent.getSourceUrl());
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.set(HttpHeaders.USER_AGENT, logEvent.getUserAgent());
-            HttpEntity<LogEventVO> request = new HttpEntity<>(logEvent, headers);
-            try {
-
-                ResponseEntity<Void> response = restTemplate.postForEntity(loggerUriPrefix, request, Void.class);
-                emitter.onSuccess(response);
-
-            } catch (Exception e) {
-                logger.warn("failed to log event", e);
-                System.out.println(Instant.now() + " " + Thread.currentThread().getName() + " failed to log event" + e);
-                emitter.onError(e);
-            }
-        });
     }
 
     /**
@@ -222,34 +203,46 @@ public class LoggerRestService implements LoggerService {
         eventQueue = new ArrayBlockingQueue<>(eventQueueSize);
         Executor executor = Executors.newFixedThreadPool(this.loggerThreadPool);
 
-        loggerSubject
+        Flowable<LogEventVO> backpressureAwarePublisher = Flowable.generate(() -> eventQueue, (queue, emitter) -> {
+            emitter.onNext(queue.take());
+        });
 
-                .flatMap(logEventVO -> {
+        this.logEventSubscriber = backpressureAwarePublisher
+                .subscribeOn(Schedulers.single())
+                .observeOn(Schedulers.from(executor))
+                .subscribeWith(new DisposableSubscriber<LogEventVO>() {
 
-                    System.out.println(Instant.now() + " " + Thread.currentThread().getName() + " - log async event: " + logEventVO.getSourceUrl());
+            @Override public void onStart() {
+                request(1);
+            }
 
-                    return logEventAsync(logEventVO)
-                            .subscribeOn(Schedulers.from(executor))
-                            .doAfterSuccess(r -> Thread.sleep(throttleDelay))
-                            .doAfterTerminate(() -> {
-                                eventQueue.remove(logEventVO);
-                                System.out.println(Instant.now() + " " + Thread.currentThread().getName() + " - remove log event: " + logEventVO.getSourceUrl() + " : " + eventQueue.size());
-                            })
-                            .toObservable();
-                })
-                .retry()
-                .subscribe(response -> {
+            @Override
+            public void onNext(LogEventVO logEventVO) {
 
-                    System.out.println(Instant.now() + " " + Thread.currentThread().getName() + " - log event status: " + response);
+                try {
+                    logEventSync(logEventVO);
+                    Thread.sleep(throttleDelay);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                request(1);
+            }
 
-                    if (response.getStatusCode() != HttpStatus.OK) {
-                        logger.warn("failed to log event");
-                    }
-                });
+            @Override
+            public void onError(Throwable throwable) { }
+
+            @Override
+            public void onComplete() { }
+        });
 
         reloadCache();
     }
 
+    @PreDestroy
+    void destroy() {
+
+        logEventSubscriber.dispose();
+    }
     /**
      * Generates an id list from the supplied list
      * @param list
