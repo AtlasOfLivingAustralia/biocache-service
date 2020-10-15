@@ -73,6 +73,9 @@ public class DownloadController extends AbstractSecureController {
     @Inject
     protected DownloadService downloadService;
 
+    @Value("${download.auth.bypass:false}")
+    boolean authBypass = false;
+
     @Value("${download.auth.role:ROLE_USER}")
     String downloadRole;
 
@@ -197,40 +200,43 @@ public class DownloadController extends AbstractSecureController {
 
         }
 
-        // lookup the user details and check privileges based on the supplied email
-        try {
+        if (!authBypass) {
 
-            Map<String, Object> userDetails = (Map<String, Object>) authService.getUserDetails(email);
+            // lookup the user details and check privileges based on the supplied email
+            try {
 
-            if (userDetails == null) {
+                Map<String, Object> userDetails = (Map<String, Object>) authService.getUserDetails(email);
 
-                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, user not recognised");
+                if (userDetails == null) {
+
+                    response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, user not recognised");
+                    return null;
+                }
+
+                boolean activated = (Boolean) userDetails.getOrDefault("activated", true);
+                boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
+                boolean hasRole = false;
+
+                if (downloadRole == null) {
+                    // no download role defined, allow based on role privileges
+                    hasRole = true;
+                } else {
+                    // check that the user roles contains the download role
+                    List<String> roles = (List<String>) userDetails.get("roles");
+                    hasRole = roles == null ? false : roles.stream().anyMatch(downloadRole::equals);
+                }
+
+                if (!activated || locked || !hasRole) {
+
+                    response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, insufficient privileges");
+                    return null;
+                }
+
+            } catch (Exception e) {
+
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, unable to verify user details");
                 return null;
             }
-
-            boolean activated = (Boolean) userDetails.getOrDefault("activated", true);
-            boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
-            boolean hasRole = false;
-
-            if (downloadRole == null) {
-                // no download role defined, allow based on role privileges
-                hasRole = true;
-            } else {
-                // check that the user roles contains the download role
-                List<String> roles = (List<String>) userDetails.get("roles");
-                hasRole = roles == null ? false : roles.stream().anyMatch(downloadRole::equals);
-            }
-
-            if (!activated || locked || !hasRole) {
-
-                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, insufficient privileges");
-                return null;
-            }
-
-        } catch (Exception e) {
-
-            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, unable to verify user details");
-            return null;
         }
 
         boolean includeSensitive = false;
