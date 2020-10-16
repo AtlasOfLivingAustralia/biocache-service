@@ -204,7 +204,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
                     // merge with results from cache
                     int resultsPos = 0;
                     int unknownPos = 0;
-                    while (resultsPos < guids.size() && unknownPos < unknown.size()) {
+                    while (resultsPos < results.size() && unknownPos < unknown.size() && unknownPos < unknownResults.size()) {
                         if (results.get(resultsPos) == null) {
                             nameDetailsForGuidsCache.put(unknown.get(unknownPos), unknownResults.get(unknownPos));
                             results.set(resultsPos, unknownResults.get(unknownPos++));
