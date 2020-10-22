@@ -24,14 +24,9 @@ class ListsServiceSpec extends Specification {
         Kvp result = listService.find(kvps, new Kvp(lft, rgt))
 
         then:
-        if (expectedKvp != null) {
-
-            result.lft == expectedKvp.lft
-            result.rgt == expectedKvp.rgt
-
-        } else {
-            result == null
-        }
+        expectedKvp != null || result == null
+        expectedKvp == null || result.lft == expectedKvp.lft
+        expectedKvp == null || result.rgt == expectedKvp.rgt
 
         where:
         lft | rgt || expectedKvp
@@ -39,11 +34,10 @@ class ListsServiceSpec extends Specification {
         10  | 10  || new Kvp(10, 10)
         19  | 21  || null
         24  | 26  || new Kvp(24, 26)
-        25  | 25  || null
+        25  | 25  || new Kvp(24, 26)
         29  | 30  || null
         30  | 30  || new Kvp(30, 30)
         30  | 31  || null
         40  | 40  || null
-
     }
 }
