@@ -518,7 +518,7 @@
         <dependency>
             <groupId>au.org.ala</groupId>
             <artifactId>data-quality-filter-service-client</artifactId>
-            <version>0.9</version>
+            <version>1.0.0</version>
         </dependency>
 
     </dependencies>
