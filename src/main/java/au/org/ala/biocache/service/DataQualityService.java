@@ -3,6 +3,7 @@ package au.org.ala.biocache.service;
 import au.org.ala.biocache.dto.SearchRequestParams;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.dataquality.api.QualityServiceRpcApi;
+import au.org.ala.dataquality.model.QualityProfile;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -47,6 +48,21 @@ public class DataQualityService {
     @Value("${dataquality.enabled:false}")
     @VisibleForTesting
     protected boolean dataQualityEnabled;
+
+    /**
+     * Get the full name of the profile based on the provided short name
+     *
+     * @param profileShortName short name of the profile
+     * @return Full name of the requested profile
+     */
+    public String getProfileFullName(String profileShortName) {
+        if (!dataQualityEnabled) {
+            return profileShortName;
+        }
+
+        QualityProfile profile = responseValueOrThrow(qualityServiceRpcApi.activeProfile(profileShortName));
+        return profile.getName();
+    }
 
     /**
      * Get all enabled filters by label for the search params.  This method will take into account whether

@@ -708,6 +708,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             doiDetails.setLicence(licence);
                             doiDetails.setQueryTitle(requestParams.getDisplayString());
                             doiDetails.setApplicationMetadata(requestParams.getDoiMetadata());
+                            doiDetails.setDataProfile(dataQualityService.getProfileFullName(requestParams.getQualityProfile()));
                             doiDetails.setQualityFilters(qualityFilters);
                             doiDetails.setDisplayTemplate(requestParams.getDoiDisplayTemplate());
 
