@@ -96,7 +96,7 @@ public class OccurrenceIndex {
     /*@Field("collectors")*/ String[] collectors;
     //extra raw record fields
     @Field("raw_taxon_name") String raw_scientificName;
-    @Field("raw_basis_of_record") String raw_basisOfRecord;
+    @Field("raw_basisOfRecord") String raw_basisOfRecord;
     @Field("raw_type_status") String raw_typeStatus;
     @Field("raw_common_name") String raw_vernacularName;    
     //constructed fields
