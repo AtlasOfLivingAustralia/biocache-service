@@ -385,6 +385,117 @@ public class DownloadServiceTest {
         assertEquals(downloadDoiDTO.getApplicationMetadata(), downloadRequestParams.getDoiMetadata());
     }
 
+    /**
+     * This test is to ensure the DoiApplicationMetadata supplied to the DownloadRequestParams is copied
+     * correctly to the DownloadDetailsDTO before invoking the doiService.mintDoi method.
+     * There is a fair bit of mocking/stubbing required to be able to test this.
+     */
+    @Test
+    public final void testDoiDTOContainsProfileFullNameWhenDataProfileIsProvded() throws Exception {
+
+        // Initialisation - if we don't do this the tests will not run.
+        testLatch.countDown();
+        testService.init();
+
+        // Setup mocks and stubs - could be in setup but I don't want to interfere with the other tests.
+        DoiService doiService = mock(DoiService.class);
+        testService.doiService = doiService;
+        SearchDAO searchDAO = mock(SearchDAO.class);
+        testService.searchDAO = searchDAO;
+        testService.loggerService = mock(LoggerService.class);
+        AbstractMessageSource messageSource = mock(AbstractMessageSource.class);
+        testService.messageSource = messageSource;
+        AuthService authService = mock(AuthService.class);
+        testService.authService = authService;
+
+        testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
+
+        // Setup method parameters
+        OutputStream out = new ByteArrayOutputStream();
+        List<CreateDoiResponse> doiResponseList = new ArrayList<CreateDoiResponse>();
+
+        DownloadRequestParams downloadRequestParams = new DownloadRequestParams();
+        downloadRequestParams.setMintDoi(true);
+        downloadRequestParams.setDisplayString("");
+        downloadRequestParams.setQualityProfile("short-name");
+
+        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", "", DownloadType.RECORDS_INDEX);
+        final String profileFullName = "Full Name";
+
+        when(searchDAO.writeResultsFromIndexToStream(any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new ConcurrentHashMap<String, AtomicInteger>());
+        when(doiService.mintDoi(isA(DownloadDoiDTO.class))).thenReturn(new CreateDoiResponse());
+        String doiSearchUrl = "https://biocache-test.ala.org.au/occurrences/search?q=lsid%3Aurn%3Alsid%3Abiodiversity.org.au%3Aafd.taxon%3Ae6aff6af-ff36-4ad5-95f2-2dfdcca8caff&disableAllQualityFilters=true&fq=month%3A%2207%22&foo%3Abar&baz%3Aqux";
+        when(testService.dataQualityService.convertDataQualityParameters(anyString(), any())).thenReturn(doiSearchUrl);
+        when(testService.dataQualityService.getProfileFullName(downloadRequestParams.getQualityProfile())).thenReturn(profileFullName);
+        testService.writeQueryToStream(
+                downloadDetailsDTO,
+                downloadRequestParams,
+                downloadDetailsDTO.getIpAddress(),
+                out,
+                false, true, true, false, (ExecutorService)null, doiResponseList);
+
+        ArgumentCaptor<DownloadDoiDTO> argument = ArgumentCaptor.forClass(DownloadDoiDTO.class);
+        verify(doiService).mintDoi(argument.capture());
+
+        DownloadDoiDTO downloadDoiDTO = argument.getValue();
+        assertEquals(downloadDoiDTO.getDataProfile(), profileFullName);
+    }
+
+    /**
+     * This test is to ensure the DoiApplicationMetadata supplied to the DownloadRequestParams is copied
+     * correctly to the DownloadDetailsDTO before invoking the doiService.mintDoi method.
+     * There is a fair bit of mocking/stubbing required to be able to test this.
+     */
+    @Test
+    public final void testDoiDTOContainsNoProfileNameWhenNoneProvided() throws Exception {
+
+        // Initialisation - if we don't do this the tests will not run.
+        testLatch.countDown();
+        testService.init();
+
+        // Setup mocks and stubs - could be in setup but I don't want to interfere with the other tests.
+        DoiService doiService = mock(DoiService.class);
+        testService.doiService = doiService;
+        SearchDAO searchDAO = mock(SearchDAO.class);
+        testService.searchDAO = searchDAO;
+        testService.loggerService = mock(LoggerService.class);
+        AbstractMessageSource messageSource = mock(AbstractMessageSource.class);
+        testService.messageSource = messageSource;
+        AuthService authService = mock(AuthService.class);
+        testService.authService = authService;
+
+        testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
+
+        // Setup method parameters
+        OutputStream out = new ByteArrayOutputStream();
+        List<CreateDoiResponse> doiResponseList = new ArrayList<CreateDoiResponse>();
+
+        DownloadRequestParams downloadRequestParams = new DownloadRequestParams();
+        downloadRequestParams.setMintDoi(true);
+        downloadRequestParams.setDisplayString("");
+        downloadRequestParams.setQualityProfile("");
+
+        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", "", DownloadType.RECORDS_INDEX);
+
+        when(searchDAO.writeResultsFromIndexToStream(any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new ConcurrentHashMap<String, AtomicInteger>());
+        when(doiService.mintDoi(isA(DownloadDoiDTO.class))).thenReturn(new CreateDoiResponse());
+        String doiSearchUrl = "https://biocache-test.ala.org.au/occurrences/search?q=lsid%3Aurn%3Alsid%3Abiodiversity.org.au%3Aafd.taxon%3Ae6aff6af-ff36-4ad5-95f2-2dfdcca8caff&disableAllQualityFilters=true&fq=month%3A%2207%22&foo%3Abar&baz%3Aqux";
+        when(testService.dataQualityService.convertDataQualityParameters(anyString(), any())).thenReturn(doiSearchUrl);
+        verify(testService.dataQualityService, never()).getProfileFullName(anyString());
+        testService.writeQueryToStream(
+                downloadDetailsDTO,
+                downloadRequestParams,
+                downloadDetailsDTO.getIpAddress(),
+                out,
+                false, true, true, false, (ExecutorService)null, doiResponseList);
+
+        ArgumentCaptor<DownloadDoiDTO> argument = ArgumentCaptor.forClass(DownloadDoiDTO.class);
+        verify(doiService).mintDoi(argument.capture());
+
+        DownloadDoiDTO downloadDoiDTO = argument.getValue();
+        assertEquals(downloadDoiDTO.getDataProfile(), null);
+    }
+
     @Test
     public final void testUserAgentPassedToLoggerService() throws Exception {
 
