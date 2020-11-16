@@ -41,6 +41,7 @@ public class DownloadDoiDTO {
     private long recordCount;
     private String requestTime;
     private String queryTitle;
+    private String dataProfile;
     private List<QualityFilterDTO> qualityFilters = new ArrayList<>();
     private String displayTemplate;
 
@@ -151,6 +152,14 @@ public class DownloadDoiDTO {
 
     public void setApplicationMetadata(Map<String, String> applicationMetadata) {
         this.applicationMetadata = applicationMetadata;
+    }
+
+    public String getDataProfile() {
+        return dataProfile;
+    }
+
+    public void setDataProfile(String dataProfile) {
+        this.dataProfile = dataProfile;
     }
 
     public List<QualityFilterDTO> getQualityFilters() {

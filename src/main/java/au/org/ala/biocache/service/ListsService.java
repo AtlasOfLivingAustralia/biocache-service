@@ -300,7 +300,7 @@ public class ListsService {
             return kvps.get(idx);
         } else {
             // reverse through kvps until a match is found
-            idx = idx * -1;
+            idx = Math.min(idx * -1, kvps.size() -1);
             while (idx >= 0) {
                 if (kvps.get(idx).contains(lftrgt)) {
                     return kvps.get(idx);

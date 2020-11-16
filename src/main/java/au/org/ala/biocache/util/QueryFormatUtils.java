@@ -208,26 +208,26 @@ public class QueryFormatUtils {
      * fq = (key:val1 OR key:val2) or fq = (-key:val1 OR -key:val2)
      * fq = -(key:val1 OR key:val2) or fq = -(-key:val1 OR -key:val2)
      *
+     * a new fq format added 18/09/2020
+     * fq = license:"CC BY NC" license:"CC BY NC 4.0 (Int)"
+     *
      * inclusive and exclusive keys can't co-exist in one fq
      */
     private String parseFQ(String fq) {
         fq = StringUtils.trimToEmpty(fq);
+        if ((fq.startsWith("-(") || fq.startsWith("(")) && !fq.endsWith(")")) {
+            return null;
+        }
+
+        boolean globalInclusive = true;
+        if (fq.startsWith("-(") && fq.endsWith(")")) {
+            fq = fq.substring(2, fq.length() - 1);
+            globalInclusive = false;
+        } else if (fq.startsWith("(") && fq.endsWith(")")) {
+            fq = fq.substring(1, fq.length() - 1);
+        }
+
         if (StringUtils.isNotEmpty(fq)) {
-            boolean globalInclusive = true;
-
-            // if () or -()
-            int start = fq.indexOf('(');
-            int end = fq.indexOf(')');
-            if ((start != -1) ^ (end != -1)) return null;
-
-            if (start != -1) {
-                if (fq.charAt(0) == '-') {
-                    globalInclusive = false;
-                }
-                fq = fq.substring(start + 1, end);
-            }
-
-            // now () is removed, either key:val or key:val OR key:val
             String[] fv = fq.split(":");
             if (fv.length >= 2 && StringUtils.isNotBlank(fv[0]) && StringUtils.isNotBlank(fv[1])) {
                 boolean localInclusive = fv[0].charAt(0) != '-';
