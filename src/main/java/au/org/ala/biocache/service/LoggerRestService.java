@@ -24,15 +24,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestOperations;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 /**
  * Implementation of @see au.org.ala.biocache.service.LoggerService that
@@ -47,6 +47,8 @@ public class LoggerRestService implements LoggerService {
 
     private final static Logger logger = Logger.getLogger(LoggerRestService.class);
 
+    protected Supplier<Stream<Pattern>> excludedUserAgentStream;
+
     private List<Map<String,Object>> loggerReasons = RestartDataService.get(this, "loggerReasons", new TypeReference<ArrayList<Map<String,Object>>>(){}, ArrayList.class);
     private List<Map<String,Object>> loggerSources = RestartDataService.get(this, "loggerSources", new TypeReference<ArrayList<Map<String,Object>>>(){}, ArrayList.class);
     private List<Integer> reasonIds = RestartDataService.get(this, "reasonIds", new TypeReference<ArrayList<Integer>>(){}, ArrayList.class);
@@ -57,6 +59,16 @@ public class LoggerRestService implements LoggerService {
 
     @Value("${logger.service.url:https://logger.ala.org.au/service/logger}")
     protected String loggerUriPrefix;
+
+    @Value("${logger.useragent.blacklist:#{null}}")
+    protected void setUserAgentBlacklist(String[] excludedUserAgent) {
+
+        if (excludedUserAgent != null) {
+            excludedUserAgentStream = () -> Arrays.stream(excludedUserAgent)
+                    .map(Pattern::compile);
+        }
+    }
+
     //NC 20131018: Allow cache to be disabled via config (enabled by default)
     @Value("${caches.log.enabled:true}")
     protected Boolean enabled =null;
@@ -95,19 +107,28 @@ public class LoggerRestService implements LoggerService {
     @Override
     public void logEvent(LogEventVO logEvent) {
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set(HttpHeaders.USER_AGENT, logEvent.getUserAgent());
-        HttpEntity<LogEventVO> request = new HttpEntity<>(logEvent, headers);
-        try {
+        boolean excludeUserAgent = false;
 
-            ResponseEntity<Void> response = restTemplate.postForEntity(loggerUriPrefix, request, Void.class);
+        if (excludedUserAgentStream != null) {
+            excludeUserAgent = excludedUserAgentStream.get().anyMatch(userAgentPattern -> userAgentPattern.matcher(logEvent.getUserAgent()).matches());
+        }
 
-            if (response.getStatusCode() != HttpStatus.OK) {
-                logger.warn("failed to log event");
+        if (!excludeUserAgent) {
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.USER_AGENT, logEvent.getUserAgent());
+            HttpEntity<LogEventVO> request = new HttpEntity<>(logEvent, headers);
+            try {
+
+                ResponseEntity<Void> response = restTemplate.postForEntity(loggerUriPrefix, request, Void.class);
+
+                if (response.getStatusCode() != HttpStatus.OK) {
+                    logger.warn("failed to log event");
+                }
+
+            } catch (Exception e) {
+                logger.warn("failed to log event", e);
             }
-
-        } catch (Exception e) {
-            logger.warn("failed to log event", e);
         }
     }
 
