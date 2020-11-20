@@ -71,7 +71,7 @@ public class SpeciesImageService {
                 params.setFacet(true);
                 params.setFacets(new String[]{"lft"});
                 params.setFlimit(99999999);
-                params.setFl("data_resource_uid,image_url");
+                params.setFl("dataResourceUid,image_url");  // PIPELINES: recheck pipelines field mapping
                 params.setQ("image_url:*");
 
                 QueryResponse qr = searchDAO.searchGroupedFacets(params);

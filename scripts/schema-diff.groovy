@@ -75,7 +75,7 @@ Map<String, DwcField> dwcFields
 
 JsonSlurper slurper = new JsonSlurper()
 
-def biocacheV2Fields = slurper.parse('https://biocache-ws.ala.org.au/ws/index/fields'.toURL())
+def biocacheV2Fields = slurper.parse('https://biocache-ws.ala.org.au/ws/index/fields?isMisc=true'.toURL())
 def biocacheV2Schema = slurper.parse(new File('biocache-prod-solr-schema.json'))
 def biocacheV3Schema = slurper.parse(new File('biocache-pipelines-solr-schema.json'))
 
@@ -113,6 +113,10 @@ fieldMappings.each { FieldMapping fieldMapping ->
         return
     }
 
+    if (pipelinesSolrFieldName.startsWith('_')) {
+        return
+    }
+
     // convert to camel case and perform match
     String camelField = toCamelCase(pipelinesSolrFieldName)
 
@@ -131,7 +135,14 @@ pipelinesSolrFields.each { fieldName, pipelinesSolrField ->
 
     FieldMapping unmatchedField = fieldMappings.find { FieldMapping fieldMapping ->
 
-        fieldMapping.biocacheField && (fieldMapping.biocacheField.name.equalsIgnoreCase(fieldName) || toCamelCase(fieldMapping.biocacheField.name).equalsIgnoreCase(fieldName))
+        if (fieldMapping.biocacheField) {
+            boolean found = fieldMapping.biocacheField.name.equalsIgnoreCase(fieldName)
+            if (!found && !fieldMapping.biocacheField.name.startsWith('_')) {
+                found = toCamelCase(fieldMapping.biocacheField.name).equalsIgnoreCase(fieldName)
+            }
+            return found
+        }
+        return false
     }
 
     if (unmatchedField && !unmatchedField.pipelinesSolrField) {
