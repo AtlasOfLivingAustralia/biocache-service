@@ -160,6 +160,9 @@ public class TaxonDAOImpl implements TaxonDAO {
     }
 
     private List<FacetField.Count> extractFacet(String queryString, String[] filterQueries, String facetName) throws Exception {
+
+        // TODO: PIPELINES: query mapping needs to be performed!!!
+
         SolrQuery query = new SolrQuery(queryString);
         query.setFacet(true);
         query.addFacetField(facetName);

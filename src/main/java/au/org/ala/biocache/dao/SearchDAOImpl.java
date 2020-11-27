@@ -56,6 +56,7 @@ import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
+import org.apache.solr.search.SolrQueryTimeoutImpl;
 import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.gbif.dwc.terms.DcTerm;
 import org.gbif.dwc.terms.DwcTerm;
@@ -728,8 +729,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             String queryString = searchParams.getFormattedQuery();
             SolrQuery solrQuery = initSolrQuery(searchParams, true, extraParams); // general search settings
-            // TODO: PIPELINES: map deprecated field names
-            solrQuery.setQuery(translateQueryFields(queryString));
+            solrQuery.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
 
             QueryResponse qr = runSolrQuery(solrQuery, searchParams);
             //need to set the original q to the processed value so that we remove the wkt etc that is added from paramcache object
@@ -808,8 +808,7 @@ public class SearchDAOImpl implements SearchDAO {
         queryFormatUtils.formatSearchQuery(searchParams);
         String queryString = searchParams.getFormattedQuery();
         SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
-        // TODO: PIPELINES: map deprecated field names
-        solrQuery.setQuery(translateQueryFields(queryString));
+        solrQuery.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
 
         //don't want any results returned
         solrQuery.setRows(0);
@@ -950,8 +949,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFacetLimit(-1);
         solrQuery.setFacetSort("count");
         solrQuery.setRows(0);
-        // TODO: PIPELINES: map deprecated field names
-        solrQuery.setQuery(translateQueryFields(searchParams.getQ()));
+        solrQuery.setQuery(searchParams.getQ());    // PIPELINES: SolrQuery::setQuery entry point
 
         QueryResponse qr = runSolrQuery(solrQuery, srp);
         if (qr.getResults().size() > 0) {
@@ -1028,7 +1026,7 @@ public class SearchDAOImpl implements SearchDAO {
         final ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
 
         try {
-            SolrQuery solrQuery = new SolrQuery();
+            SolrQueryFieldTranslationWrapper solrQuery = new SolrQueryFieldTranslationWrapper(deprecatedFields);
             queryFormatUtils.formatSearchQuery(downloadParams);
 
             String requestedFieldsParam = getDownloadFields(downloadParams);
@@ -1090,18 +1088,17 @@ public class SearchDAOImpl implements SearchDAO {
 
             //set the fields to the ones that are available in the index
             String[] fields = indexedFields[0].toArray(new String[]{});
-            // TODO: PIPELINES: map deprecated field names
-            solrQuery.setFields(fields);
+            solrQuery.setFields(fields); // TODO: PIPELINES: check the fields items only contains single field names (not csv)
             StringBuilder qasb = new StringBuilder();
             if (!"none".equals(downloadParams.getQa())) {
-                solrQuery.addField("assertions");
+                solrQuery.addField("assertions"); // PIPELINES: SolrQuery::addField entry point
                 if (!"all".equals(downloadParams.getQa()) && !"includeall".equals(downloadParams.getQa())) {
                     //add all the qa fields
                     qasb.append(downloadParams.getQa());
                 }
             }
-            // TODO: PIPELINES: review deprecated field names
-            solrQuery.addField("institution_uid")
+            // TODO: PIPELINES: check the that addField returns instance of SolrFieldTranslationWrapper for further translation of chained calls.
+            solrQuery.addField("institution_uid")   // PIPELINES: SolrQuery::addField entry point
                     .addField("collection_uid")
                     .addField("data_resource_uid")
                     .addField("data_provider_uid");
@@ -1109,22 +1106,26 @@ public class SearchDAOImpl implements SearchDAO {
             // 'lft' and 'rgt' is mandatory when there are species list fields (indexedFields[7])
             if (indexedFields[7].size() > 0) {
                 if (!solrQuery.getFields().matches("($lft,|,lft,|,lft^)")) {
-                    solrQuery.addField("lft");
+                    solrQuery.addField("lft");  // PIPELINES: SolrQuery::addField entry point
                 }
                 if (!solrQuery.getFields().matches("($rgt,|,rgt,|,rgt^)")) {
-                    solrQuery.addField("rgt");
+                    solrQuery.addField("rgt");  // PIPELINES: SolrQuery::addField entry point
                 }
             }
 
-            // TODO: PIPELINES: map deprecated field names
-            solrQuery.setQuery(translateQueryFields(downloadParams.getFormattedQuery()));
+            solrQuery.setQuery(downloadParams.getFormattedQuery()); // PIPELINES: SolrQuery::setQuery entry point
             solrQuery.setFacetMinCount(1);
             solrQuery.setFacetLimit(-1);
 
             //get the assertion facets to add them to the download fields
             boolean getAssertionsFromFacets = "all".equals(downloadParams.getQa()) || "includeall".equals(downloadParams.getQa());
-            // TODO: PIPELINES: review deprecated field names
-            SolrQuery monthAssertionsQuery = getAssertionsFromFacets ? solrQuery.getCopy().addFacetField("month", "assertions") : solrQuery.getCopy().addFacetField("month");
+
+            SolrQuery monthAssertionsQuery = solrQuery.getCopy();           // PIPELINES: SolarQuery::getCopy entry point
+            if (getAssertionsFromFacets) {
+                monthAssertionsQuery.addFacetField("month", "assertions");  // PIPELINES: SolarQuery::addFacetField entry point
+            } else {
+                monthAssertionsQuery.addFacetField("month");                // PIPELINES: SolarQuery::addFacetField entry point
+            }
             if (getAssertionsFromFacets) {
                 //set the order for the facet to be based on the index - this will force the assertions to be returned in the same order each time
                 //based on alphabetical sort.  The number of QA's may change between searches so we can't guarantee that the order won't change
@@ -1153,11 +1154,11 @@ public class SearchDAOImpl implements SearchDAO {
                 for (IndexFieldDTO f : indexFields) {
                     // identify misc fields that are in the index
                     if (f.isStored() && f.getName() != null && f.getName().startsWith("_"))
-                        solrQuery.addField(f.getName());
+                        solrQuery.addField(f.getName());    // PIPELINES: SolrQuery::addField entry point
                 }
                 // include record sensitive flag
                 if (!solrQuery.getFields().contains(",sensitive,")) {
-                    solrQuery.addField("sensitive");
+                    solrQuery.addField("sensitive");    // PIPELINES: SolrQuery::addField entry point
                 }
             }
 
@@ -1363,15 +1364,18 @@ public class SearchDAOImpl implements SearchDAO {
                     dd.setHeaderMap(((ShapeFileRecordWriter) rw).getHeaderMappings());
                 }
 
+                // TODO: PIPELINES: deal with split queries and translating fields
                 //for each month create a separate query that pages through 500 records per page
-                List<SolrQuery> queries = new ArrayList<SolrQuery>();
+                List<SolrQueryFieldTranslationWrapper> queries = new ArrayList<>();
                 if (splitByFacet != null) {
                     for (Count facet : splitByFacet) {
                         if (facet.getCount() > 0) {
-                            SolrQuery splitByFacetQuery;
+                            SolrQueryFieldTranslationWrapper splitByFacetQuery;
                             //do not add remainderQuery here
                             if (facet.getName() != null) {
-                                splitByFacetQuery = solrQuery.getCopy().addFilterQuery(facet.getFacetField().getName() + ":" + facet.getName());
+                                splitByFacetQuery = solrQuery.getCopy();    // PIPELINES: SolarQuery::getCopy entry point
+                                // TODO: PIPELINES: check facet.name does is contain a field name???
+                                splitByFacetQuery.addFilterQuery(facet.getFacetField().getName() + ":" + facet.getName());  // PIPELINES: SolarQuery::addFilterQuery entry point
                                 splitByFacetQuery.setFacet(false);
                                 queries.add(splitByFacetQuery);
                             }
@@ -1379,7 +1383,8 @@ public class SearchDAOImpl implements SearchDAO {
                         }
                     }
                     if (splitByFacet.size() > 0) {
-                        SolrQuery remainderQuery = solrQuery.getCopy().addFilterQuery("-" + splitByFacet.get(0).getFacetField().getName() + ":[* TO *]");
+                        SolrQueryFieldTranslationWrapper remainderQuery = solrQuery.getCopy();  // PIPELINES: SolarQuery::getCopy entry point
+                        remainderQuery.addFilterQuery("-" + splitByFacet.get(0).getFacetField().getName() + ":[* TO *]");   // PIPELINES: SolarQuery::addFilterQuery entry point
                         queries.add(0, remainderQuery);
                     }
                 } else {
@@ -1400,7 +1405,7 @@ public class SearchDAOImpl implements SearchDAO {
 
                 List<Callable<Integer>> solrCallables = new ArrayList<>(queries.size());
                 // execute each query, writing the results to stream
-                for (final SolrQuery splitByFacetQuery : queries) {
+                for (final SolrQueryFieldTranslationWrapper splitByFacetQuery : queries) {
                     // define a thread
                     Callable<Integer> solrCallable = new Callable<Integer>() {
                         @Override
@@ -1417,7 +1422,7 @@ public class SearchDAOImpl implements SearchDAO {
                                 fq = org.apache.commons.lang3.ArrayUtils.addAll(fq, splitByFacetQuery.getFilterQueries());
                             }
 
-                            splitByFacetQuery.setFilterQueries(fq);
+                            splitByFacetQuery.setFilterQueries(fq);     // PIPELINES: SolarQuery::setFilterQueries entry point
 
                             QueryResponse qr = runSolrQueryWithCursorMark(splitByFacetQuery, downloadBatchSize, null);
                             AtomicInteger recordsForThread = new AtomicInteger(0);
@@ -1797,11 +1802,9 @@ public class SearchDAOImpl implements SearchDAO {
             if (logger.isInfoEnabled()) {
                 logger.info("search query: " + downloadParams.getFormattedQuery());
             }
-            // TODO: PIPELINES: map deprecated field names
-            solrQuery.setQuery(translateQueryFields(downloadParams.getFormattedQuery()));
+            solrQuery.setQuery(downloadParams.getFormattedQuery()); // PIPELINES: SolrQuery::setQuery entry point
             //Only the fields specified below will be included in the results from the SOLR Query
-            // TODO: PIPELINES: review deprecated field names
-            solrQuery.setFields("id", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid");
+            solrQuery.setFields("id", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid"); // PIPELINES: field names entry point
 
             String dFields = getDownloadFields(downloadParams);
 
@@ -2058,14 +2061,12 @@ public class SearchDAOImpl implements SearchDAO {
         if (logger.isInfoEnabled()) {
             logger.info("download query: " + downloadParams.getQ());
         }
-        SolrQuery solrQuery = initSolrQuery(downloadParams, false, null);
+        SolrQueryFieldTranslationWrapper solrQuery = initSolrQuery(downloadParams, false, null);
         solrQuery.setRows(limit ? MAX_DOWNLOAD_SIZE : -1);
         queryFormatUtils.formatSearchQuery(downloadParams);
-        // TODO: PIPELINES: map deprecated field names
-        solrQuery.setQuery(translateQueryFields(downloadParams.getFormattedQuery()));
+        solrQuery.setQuery(downloadParams.getFormattedQuery()); // PIPELINES: SolrQuery::setQuery entry point
         //Only the fields specified below will be included in the results from the SOLR Query
-        // TODO: PIPELINES: review deprecated field names
-        solrQuery.setFields("id", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid", "lft", "rgt");
+        solrQuery.setFields("id", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid", "lft", "rgt"); // PIPELINES: field names entry point
 
         if (dd != null) {
             dd.resetCounts();
@@ -2075,9 +2076,9 @@ public class SearchDAOImpl implements SearchDAO {
         if (analysisLayers.length > 0) {
 
             if (!includeSensitive && dd.getSensitiveFq() != null) {
-                for (String s : sensitiveSOLRHdr) solrQuery.addField(s);
+                for (String s : sensitiveSOLRHdr) solrQuery.addField(s);    // PIPELINES: SolrQuery::addField entry point
             } else {
-                for (String s : notSensitiveSOLRHdr) solrQuery.addField(s);
+                for (String s : notSensitiveSOLRHdr) solrQuery.addField(s); // PIPELINES: SolrQuery::addField entry point
             }
         }
 
@@ -2087,7 +2088,7 @@ public class SearchDAOImpl implements SearchDAO {
             sb.append(",").append(downloadParams.getExtra());
         }
 
-        List<SolrQuery> queries = new ArrayList<SolrQuery>();
+        List<SolrQueryFieldTranslationWrapper> queries = new ArrayList<>();
         queries.add(solrQuery);
 
         // TODO: PIPELINES: review this code!!!
@@ -2095,7 +2096,7 @@ public class SearchDAOImpl implements SearchDAO {
         //split into sensitive and non-sensitive queries when
         // - not including all sensitive values
         // - there is a sensitive fq
-        List<SolrQuery> sensitiveQ = new ArrayList<SolrQuery>();
+        List<SolrQueryFieldTranslationWrapper> sensitiveQ = new ArrayList<>();
         if (!includeSensitive && dd.getSensitiveFq() != null) {
             sensitiveQ = splitQueries(queries, dd.getSensitiveFq(), null, null);
         }
@@ -2235,20 +2236,23 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * Split a list of queries by a fq.
      */
-    private List<SolrQuery> splitQueries(List<SolrQuery> queries, String fq, String[] fqFields, String[] notFqFields) {
-        List<SolrQuery> notFQ = new ArrayList<SolrQuery>();
-        List<SolrQuery> fQ = new ArrayList<SolrQuery>();
+    private List<SolrQueryFieldTranslationWrapper> splitQueries(List<SolrQueryFieldTranslationWrapper> queries, String fq, String[] fqFields, String[] notFqFields) {
+        List<SolrQueryFieldTranslationWrapper> notFQ = new ArrayList<>();
+        List<SolrQueryFieldTranslationWrapper> fQ = new ArrayList<>();
 
-        for (SolrQuery query : queries) {
-            SolrQuery nsq = query.getCopy().addFilterQuery("-(" + fq + ")");
+        for (SolrQueryFieldTranslationWrapper query : queries) {
+
+            SolrQueryFieldTranslationWrapper nsq = query.getCopy(); // PIPELINES: SolarQuery::getCopy entry point
+            nsq.addFilterQuery("-(" + fq + ")");               // PIPELINES: SolarQuery::addFilterQuery entry point
             if (notFqFields != null) {
-                for (String field : notFqFields) nsq.addField(field);
+                Arrays.stream(notFqFields).forEach(nsq::addField);  // PIPELINES: SolrQuery::addField entry point
             }
             notFQ.add(nsq);
 
-            SolrQuery sq = query.getCopy().addFilterQuery(fq);
+            SolrQueryFieldTranslationWrapper sq = query.getCopy();  // PIPELINES: SolarQuery::getCopy entry point
+            sq.addFilterQuery(fq);                                  // PIPELINES: SolarQuery::addFilterQuery entry point
             if (fqFields != null) {
-                for (String field : fqFields) sq.addField(field);
+                Arrays.stream(fqFields).forEach(sq::addField);      // PIPELINES: SolrQuery::addField entry point
             }
             fQ.add(sq);
         }
@@ -2337,14 +2341,12 @@ public class SearchDAOImpl implements SearchDAO {
         if (logger.isInfoEnabled()) {
             logger.info("search query: " + searchParams.getFormattedQuery());
         }
-        SolrQuery solrQuery = new SolrQuery();
+        SolrQuery solrQuery = new SolrQueryFieldTranslationWrapper(deprecatedFields);
         solrQuery.setRequestHandler("standard");
-        // TODO: PIPELINES: map deprecated field names
-        solrQuery.setQuery(translateQueryFields(searchParams.getFormattedQuery()));
+        solrQuery.setQuery(searchParams.getFormattedQuery());   // PIPELINES: SolrQuery::setQuery entry point
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
-        // TODO: PIPELINES: review point type labels
-        solrQuery.addFacetField(pointType.getLabel());
+        solrQuery.addFacetField(pointType.getLabel());  // PIPELINES: SolrQuery::addFacetField entry point
         solrQuery.setFacetMinCount(1);
         solrQuery.setFacetLimit(max);  // unlimited = -1
 
@@ -2394,14 +2396,12 @@ public class SearchDAOImpl implements SearchDAO {
         if (logger.isInfoEnabled()) {
             logger.info("search query: " + searchParams.getFormattedQuery());
         }
-        SolrQuery solrQuery = new SolrQuery();
+        SolrQuery solrQuery = new SolrQueryFieldTranslationWrapper(deprecatedFields);
         solrQuery.setRequestHandler("standard");
-        // TODO: PIPELINES: map deprecated field names
-        solrQuery.setQuery(translateQueryFields(searchParams.getFormattedQuery()));
+        solrQuery.setQuery(searchParams.getFormattedQuery());   // PIPELINES: SolrQuery::setQuery entry point
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
-        // TODO: PIPELINES: review facet field
-        solrQuery.addFacetField(pointType);
+        solrQuery.addFacetField(pointType); // PIPELINES: SolrQuery::addFacetField entry point
         solrQuery.setFacetMinCount(1);
         solrQuery.setFacetLimit(searchParams.getFlimit());//MAX_DOWNLOAD_SIZE);  // unlimited = -1
 
@@ -2431,10 +2431,8 @@ public class SearchDAOImpl implements SearchDAO {
         if (logger.isInfoEnabled()) {
             logger.info("search query: " + queryString);
         }
-        SolrQuery solrQuery = new SolrQuery();
-        solrQuery.setRequestHandler("standard");
-        // TODO: PIPELINES: map deprecated field names
-        solrQuery.setQuery(translateQueryFields(queryString));
+        SolrQuery solrQuery = new SolrQueryFieldTranslationWrapper(deprecatedFields);
+        solrQuery.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
 //        solrQuery.setRows(0);
 //        solrQuery.setFacet(true);
 //        solrQuery.addFacetField(pointType.getLabel());
@@ -2475,14 +2473,13 @@ public class SearchDAOImpl implements SearchDAO {
     public List<DataProviderCountDTO> getDataProviderCounts() throws Exception {
 
         List<DataProviderCountDTO> dpDTOs = new ArrayList<DataProviderCountDTO>(); // new OccurrencePoint(PointType.POINT);
-        SolrQuery solrQuery = new SolrQuery();
+        SolrQuery solrQuery = new SolrQueryFieldTranslationWrapper(deprecatedFields);
         solrQuery.setRequestHandler("standard");
-        solrQuery.setQuery("*:*");
+        solrQuery.setQuery("*:*");  // PIPELINES: SolrQuery::setQuery entry point
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
-        // TODO: PIPELINES: review deprecated field names
-        solrQuery.addFacetField("data_provider_uid");
-        solrQuery.addFacetField("data_provider");
+        solrQuery.addFacetField("data_provider_uid");   // PIPELINES: SolrQuery::addFacetField entry point
+        solrQuery.addFacetField("data_provider");       // PIPELINES: SolrQuery::addFacetField entry point
         solrQuery.setFacetMinCount(1);
         QueryResponse qr = runSolrQuery(solrQuery, null, 1, 0, "data_provider", "asc");
         List<FacetField> facets = qr.getFacetFields();
@@ -2556,13 +2553,12 @@ public class SearchDAOImpl implements SearchDAO {
     public List<FieldResultDTO> findRecordByStateFor(String query)
             throws Exception {
         List<FieldResultDTO> fDTOs = new ArrayList<FieldResultDTO>(); // new OccurrencePoint(PointType.POINT);
-        SolrQuery solrQuery = new SolrQuery();
+        SolrQuery solrQuery = new SolrQueryFieldTranslationWrapper(deprecatedFields);
         solrQuery.setRequestHandler("standard");
-        // TODO: PIPELINES: map deprecated field names
-        solrQuery.setQuery(translateQueryFields(query));
+        solrQuery.setQuery(query);  // PIPELINES: SolrQuery::setQuery entry point
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
-        solrQuery.addFacetField("state");
+        solrQuery.addFacetField("state");   // PIPELINES: SolrQuery::addFacetField entry point
         solrQuery.setFacetMinCount(1);
         QueryResponse qr = runSolrQuery(solrQuery, null, 1, 0, "data_provider", "asc");
         FacetField ff = qr.getFacetField("state");
@@ -2586,11 +2582,10 @@ public class SearchDAOImpl implements SearchDAO {
             logger.debug("Attempting to find the counts for " + queryParams);
         }
         TaxaRankCountDTO trDTO = null;
-        SolrQuery solrQuery = new SolrQuery();
+        SolrQuery solrQuery = new SolrQueryFieldTranslationWrapper(deprecatedFields);
         solrQuery.setRequestHandler("standard");
         queryFormatUtils.formatSearchQuery(queryParams);
-        // TODO: PIPELINES: map deprecated field names
-        solrQuery.setQuery(translateQueryFields(queryParams.getFormattedQuery()));
+        solrQuery.setQuery(queryParams.getFormattedQuery());    // PIPELINES: SolrQuery::setQuery entry point
         queryParams.setPageSize(0);
         solrQuery.setFacet(true);
         solrQuery.setFacetMinCount(1);
@@ -2605,13 +2600,11 @@ public class SearchDAOImpl implements SearchDAO {
         if (queryParams.getLevel() == null) {
             List<String> ranks = queryParams.getRank() != null ? searchUtils.getNextRanks(queryParams.getRank(), queryParams.getName() == null) : searchUtils.getRanks();
             for (String r : ranks) {
-                // TODO: PIPELINES: map deprecated field names
-                solrQuery.addFacetField(r);
+                solrQuery.addFacetField(r); // PIPELINES: SolrQuery::addFacetField entry point
             }
         } else {
             //the user has supplied the "exact" level at which to perform the breakdown
-            // TODO: PIPELINES: map deprecated field names
-            solrQuery.addFacetField(queryParams.getLevel());
+            solrQuery.addFacetField(queryParams.getLevel());    // PIPELINES: SolrQuery::addFacetField entry point
         }
         QueryResponse qr = runSolrQuery(solrQuery, queryParams);
         if (queryParams.getMax() != null && queryParams.getMax() > 0) {
@@ -2675,18 +2668,16 @@ public class SearchDAOImpl implements SearchDAO {
         if (breakdownParams.getLevel() != null)
             ranks.add(breakdownParams.getLevel());
         if (ranks != null && ranks.size() > 0) {
-            SolrQuery solrQuery = new SolrQuery();
+            SolrQuery solrQuery = new SolrQueryFieldTranslationWrapper(deprecatedFields);
             solrQuery.setRequestHandler("standard");
-            // TODO: PIPELINES: map deprecated field names
-            solrQuery.setQuery(translateQueryFields(query));
+            solrQuery.setQuery(query);  // PIPELINES: SolrQuery::setQuery entry point
             solrQuery.setRows(0);
             solrQuery.setFacet(true);
             solrQuery.setFacetMinCount(1);
             solrQuery.setFacetSort("count");
             solrQuery.setFacetLimit(-1); //we want all facets
             for (String r : ranks) {
-                // TODO: PIPELINES: review rank facet fields
-                solrQuery.addFacetField(r);
+                solrQuery.addFacetField(r); // PIPELINES: SolrQuery::addFacetField entry point
             }
             QueryResponse qr = runSolrQuery(solrQuery, queryFormatUtils.getQueryContextAsArray(breakdownParams.getQc()), 1, 0, breakdownParams.getRank(), "asc");
             if (qr.getResults().size() > 0) {
@@ -2748,7 +2739,7 @@ public class SearchDAOImpl implements SearchDAO {
         if (requestParams.getFormattedFq() != null) {
             for (String fq : requestParams.getFormattedFq()) {
                 if (StringUtils.isNotEmpty(fq)) {
-                    solrQuery.addFilterQuery(fq);
+                    solrQuery.addFilterQuery(fq);   // PIPELINES: SolarQuery::addFilterQuery entry point
                 }
             }
         }
@@ -3066,9 +3057,9 @@ public class SearchDAOImpl implements SearchDAO {
      *
      * @return solrQuery the SolrQuery
      */
-    protected SolrQuery initSolrQuery(SearchRequestParams searchParams, boolean substituteDefaultFacetOrder, Map<String, String[]> extraSolrParams) {
+    protected SolrQueryFieldTranslationWrapper initSolrQuery(SearchRequestParams searchParams, boolean substituteDefaultFacetOrder, Map<String, String[]> extraSolrParams) {
 
-        SolrQuery solrQuery = new SolrQuery();
+        SolrQueryFieldTranslationWrapper solrQuery = new SolrQueryFieldTranslationWrapper(deprecatedFields);
         solrQuery.setRequestHandler("standard");
         boolean rangeAdded = false;
         // Facets
@@ -3098,8 +3089,7 @@ public class SearchDAOImpl implements SearchDAO {
                     }
                 } else {
 
-                    // TODO: PIPELINES: map facet field
-                    solrQuery.addFacetField(facet);
+                    solrQuery.addFacetField(facet); // PIPELINES: SolrQuery::addFacetField entry point
 
                     if ("".equals(searchParams.getFsort()) && substituteDefaultFacetOrder && FacetThemes.getFacetsMap().containsKey(facet)) {
                         //now check if the sort order is different to supplied
@@ -3127,8 +3117,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         if (searchParams.getFl().length() > 0) {
 
-            // TODO: PIPELINES: map field list names
-            solrQuery.setFields(searchParams.getFl());
+            solrQuery.setFields(searchParams.getFl().split(",")); // PIPELINES: field names entry point
         }
 
         //add the extra SOLR params
@@ -3199,16 +3188,14 @@ public class SearchDAOImpl implements SearchDAO {
                                                   Integer startIndex, String sortField, String sortDirection) throws SolrServerException {
 
         List<TaxaCountDTO> speciesCounts = new ArrayList<TaxaCountDTO>();
-        SolrQuery solrQuery = new SolrQuery();
+        SolrQuery solrQuery = new SolrQueryFieldTranslationWrapper(deprecatedFields);
         solrQuery.setRequestHandler("standard");
-        // TODO: PIPELINES: map deprecated field names
-        solrQuery.setQuery(translateQueryFields(queryString));
+        solrQuery.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
 
         if (filterQueries != null && filterQueries.size() > 0) {
             //solrQuery.addFilterQuery("(" + StringUtils.join(filterQueries, " OR ") + ")");
             for (String fq : filterQueries) {
-                // TODO: PIPELINES: map deprecated field names
-                solrQuery.addFilterQuery(translateQueryFields(fq));
+                solrQuery.addFilterQuery(fq);   // PIPELINES: SolarQuery::addFilterQuery entry point
             }
         }
         solrQuery.setRows(0);
@@ -3216,8 +3203,7 @@ public class SearchDAOImpl implements SearchDAO {
         // TODO: PIPELINES: map deprecated field names
         solrQuery.setFacetSort(sortField);
         for (String facet : facetFields) {
-            // TODO: PIPELINES: map deprecated field names
-            solrQuery.addFacetField(facet);
+            solrQuery.addFacetField(facet); // PIPELINES: SolrQuery::addFacetField entry point
             if (logger.isDebugEnabled()) {
                 logger.debug("adding facetField: " + facet);
             }
@@ -3312,19 +3298,17 @@ public class SearchDAOImpl implements SearchDAO {
     public Map<String, Integer> getSourcesForQuery(SpatialSearchRequestParams searchParams) throws Exception {
 
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
-        SolrQuery solrQuery = new SolrQuery();
+        SolrQuery solrQuery = new SolrQueryFieldTranslationWrapper(deprecatedFields);
         queryFormatUtils.formatSearchQuery(searchParams);
         if (logger.isInfoEnabled()) {
             logger.info("The query : " + searchParams.getFormattedQuery());
         }
-        // TODO: PIPELINES: map deprecated field names
-        solrQuery.setQuery(translateQueryFields(searchParams.getFormattedQuery()));
+        solrQuery.setQuery(searchParams.getFormattedQuery());   // PIPELINES: SolrQuery::setQuery entry point
         solrQuery.setRequestHandler("standard");
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
         solrQuery.setFacetMinCount(1);
-        // TODO: PIPELINES: review deprecated field names
-        solrQuery.addFacetField("data_provider_uid");
+        solrQuery.addFacetField("data_provider_uid");   // PIPELINES: SolrQuery::addFacetField entry point
         solrQuery.addFacetField("data_resource_uid");
         solrQuery.addFacetField("collection_uid");
         solrQuery.addFacetField("institution_uid");
@@ -3354,7 +3338,8 @@ public class SearchDAOImpl implements SearchDAO {
         params.set("tr", "luke.xsl");
         if (fields != null) {
             // TODO: PIPELINES: map deprecated field names
-            params.set("fl", String.join(",", fields));
+            String[] translatedFields = new SolrQueryFieldTranslationWrapper(deprecatedFields).translateFieldArray(fields);
+            params.set("fl", translatedFields);
             params.set("numTerms", "1");
         } else {
             // TODO: We should be caching the result locally without calling Solr in this case, as it is called very often
@@ -3377,8 +3362,7 @@ public class SearchDAOImpl implements SearchDAO {
         searchParams.setFacet(true);
         searchParams.setPageSize(0);
         SolrQuery facetQuery = initSolrQuery(searchParams, false, null);
-        // TODO: PIPELINES: map deprecated field names
-        facetQuery.setQuery(translateQueryFields(queryString));
+        facetQuery.setQuery(queryString);   // PIPELINES: SolrQuery::setQuery entry point
         facetQuery.setFields(null);
         facetQuery.setRows(0);
         facetQuery.setFacetLimit(-1);
@@ -3389,8 +3373,7 @@ public class SearchDAOImpl implements SearchDAO {
             org.apache.commons.collections.CollectionUtils.addAll(fqList, searchParams.getFormattedFq());
         }
 
-        // TODO: PIPELINES: map deprecated field names
-        facetQuery.setFilterQueries(fqList.stream().map(this::translateQueryFields).toArray(String[]::new));
+        facetQuery.setFilterQueries(fqList.stream().toArray(String[]::new));    // PIPELINES: SolarQuery::setFilterQueries entry point
 
         QueryResponse qr = query(facetQuery, queryMethod);
         SearchResultDTO searchResults = processSolrResponse(searchParams, qr, facetQuery, OccurrenceIndex.class);
@@ -3752,11 +3735,9 @@ public class SearchDAOImpl implements SearchDAO {
         try {
             queryFormatUtils.formatSearchQuery(searchParams);
             String queryString = searchParams.getFormattedQuery();
-            SolrQuery solrQuery = new SolrQuery();
-            // TODO: PIPELINES: map deprecated field names
-            solrQuery.setQuery(translateQueryFields(queryString));
-            // TODO: PIPELINES: map deprecated field names
-            solrQuery.setFields(searchParams.getFl());
+            SolrQuery solrQuery = new SolrQueryFieldTranslationWrapper(deprecatedFields);
+            solrQuery.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
+            solrQuery.setFields(searchParams.getFl().split(",")); // PIPELINES: field names entry point
             solrQuery.setFacet(false);
             solrQuery.setRows(searchParams.getPageSize());
 
@@ -3775,9 +3756,8 @@ public class SearchDAOImpl implements SearchDAO {
         try {
             queryFormatUtils.formatSearchQuery(searchParams);
             String queryString = searchParams.getFormattedQuery();
-            SolrQuery solrQuery = new SolrQuery();
-            // TODO: PIPELINES: map deprecated field names
-            solrQuery.setQuery(translateQueryFields(queryString));
+            SolrQuery solrQuery = new SolrQueryFieldTranslationWrapper(deprecatedFields);
+            solrQuery.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
             for (String field : searchParams.getFacets()) {
                 solrQuery.setGetFieldStatistics(field);
             }
@@ -3805,10 +3785,9 @@ public class SearchDAOImpl implements SearchDAO {
         if (logger.isInfoEnabled()) {
             logger.info("search query: " + searchParams.getFormattedQuery());
         }
-        SolrQuery solrQuery = new SolrQuery();
+        SolrQuery solrQuery = new SolrQueryFieldTranslationWrapper(deprecatedFields);
         solrQuery.setRequestHandler("standard");
-        // TODO: PIPELINES: map deprecated field names
-        solrQuery.setQuery(translateQueryFields(searchParams.getFormattedQuery()));
+        solrQuery.setQuery(searchParams.getFormattedQuery());   // PIPELINES: SolrQuery::setQuery entry point
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
 
@@ -3819,8 +3798,7 @@ public class SearchDAOImpl implements SearchDAO {
                 // PIPELINES: missing field "occurrence_year"
                 initDecadeBasedFacet(solrQuery, "occurrence_year");
             else
-                // TODO: PIPELINES: map deprecated field names
-                solrQuery.addFacetField(facetField);
+                solrQuery.addFacetField(facetField);    // PIPELINES: SolrQuery::addFacetField entry point
         } else {
             // TODO: PIPELINES: map deprecated field names
             solrQuery.addFacetQuery("-" + facetField + ":[* TO *]");
@@ -3912,14 +3890,12 @@ public class SearchDAOImpl implements SearchDAO {
         if (logger.isInfoEnabled()) {
             logger.info("search query: " + searchParams.getFormattedQuery());
         }
-        SolrQuery solrQuery = new SolrQuery();
+        SolrQuery solrQuery = new SolrQueryFieldTranslationWrapper(deprecatedFields);
         solrQuery.setRequestHandler("standard");
-        // TODO: PIPELINES: map field names
-        solrQuery.setQuery(searchParams.getFormattedQuery());
+        solrQuery.setQuery(searchParams.getFormattedQuery());   // PIPELINES: SolrQuery::setQuery entry point
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
-        // TODO: PIPELINES: map deprecated field names
-        solrQuery.addFacetField(facet);
+        solrQuery.addFacetField(facet); // PIPELINES: SolrQuery::addFacetField entry point
         solrQuery.setFacetMinCount(1);
         solrQuery.setFacetLimit(-1); //MAX_DOWNLOAD_SIZE);  // unlimited = -1
 
@@ -3990,14 +3966,13 @@ public class SearchDAOImpl implements SearchDAO {
      * @throws Exception
      */
     public Map<String, Integer> getOccurrenceCountsForTaxa(List<String> taxa, String[] filterQueries) throws Exception {
-        SolrQuery solrQuery = new SolrQuery();
+        SolrQuery solrQuery = new SolrQueryFieldTranslationWrapper(deprecatedFields);
         solrQuery.setRequestHandler("standard");
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
         solrQuery.setFacetLimit(taxa.size());
         if(filterQueries != null && filterQueries.length > 0) {
-            // TODO: PIPELINES: map deprecated field names
-            solrQuery.setFilterQueries(Arrays.stream(filterQueries).map(this::translateQueryFields).toArray(String[]::new));
+            solrQuery.setFilterQueries(filterQueries);  // PIPELINES: SolarQuery::setFilterQueries entry point
         }
         StringBuilder sb = new StringBuilder();
         Map<String,Integer> counts = new HashMap<String,Integer>();
@@ -4015,8 +3990,7 @@ public class SearchDAOImpl implements SearchDAO {
             // TODO: PIPELINES: review taxon search values???
             solrQuery.add("facet.query", values[0]);
         }
-        // TODO: PIPELINES: map deprecated field names
-        solrQuery.setQuery(translateQueryFields(sb.toString()));
+        solrQuery.setQuery(sb.toString());  // PIPELINES: SolrQuery::setQuery entry point
 
         //solrQuery.add("facet.query", "confidence:" + os.getRange());
         QueryResponse qr = runSolrQuery(solrQuery, null, 1, 0, "score", "asc");
@@ -4283,8 +4257,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         //get facet group counts
         SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
-        // TODO: PIPELINES: map deprecated field names
-        solrQuery.setQuery(translateQueryFields(queryString));
+        solrQuery.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
         solrQuery.setRows(0);
         solrQuery.setFacet(false);
 
@@ -4404,8 +4377,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         //get facet group counts
         SolrQuery query = initSolrQuery(searchParams, false, null);
-        // TODO: PIPELINES: map deprecated field names
-        query.setQuery(translateQueryFields(queryString));
+        query.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
         query.setFields(null);
         //now use the supplied facets to add groups to the query
         // TODO: PIPELINES: review pivot field names
@@ -4493,8 +4465,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         //get facet group counts
         SolrQuery query = initSolrQuery(searchParams, false, null);
-        // TODO: PIPELINES: map deprecated field names
-        query.setQuery(translateQueryFields(queryString));
+        query.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
         query.setFields(null);
         //query.setFacetLimit(-1);
 
@@ -4644,16 +4615,14 @@ public class SearchDAOImpl implements SearchDAO {
 
         String queryString = searchParams.getFormattedQuery();
         SolrQuery solrQuery = initSolrQuery(searchParams, false, null); // general search settings
-        // TODO: PIPELINES: map deprecated field names
-        solrQuery.setQuery(queryString);
+        solrQuery.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
         solrQuery.setFacetLimit(-1);
         solrQuery.setRows(0);
 
         if (searchParams.getFormattedFq() != null) {
             for (String fq : searchParams.getFormattedFq()) {
                 if (StringUtils.isNotEmpty(fq)) {
-                    // TODO: PIPELINES: map deprecated field names
-                    solrQuery.addFilterQuery(fq);
+                    solrQuery.addFilterQuery(fq);   // PIPELINES: SolarQuery::addFilterQuery entry point
                 }
             }
         }
@@ -4677,15 +4646,5 @@ public class SearchDAOImpl implements SearchDAO {
         }
 
         return found;
-    }
-
-    private String translateQueryFields(String query) {
-
-        return this.deprecatedFields.entrySet()
-                .stream()
-                .reduce(query,
-                        (String transformedQuery, Entry<String, String> deprecatedField) ->
-                             transformedQuery.replaceAll("(^|\\s|\\()" + deprecatedField.getKey() + ":", "$1" + deprecatedField.getValue() + ":"),
-                        (a, e) -> { throw new IllegalStateException("unable to combine deprecated field replacement, use sequential stream"); });
     }
 }
