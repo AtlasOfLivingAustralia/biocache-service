@@ -18,10 +18,9 @@ import au.org.ala.biocache.Store;
 import au.org.ala.biocache.model.FullRecord;
 import au.org.ala.biocache.model.QualityAssertion;
 import au.org.ala.biocache.model.Versions;
+import au.org.ala.biocache.service.AssertionService;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.util.AssertionUtils;
-import au.org.ala.biocache.vocab.AssertionCodes;
-import au.org.ala.biocache.vocab.AssertionStatus;
 import au.org.ala.biocache.vocab.ErrorCode;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -59,6 +58,8 @@ public class AssertionController extends AbstractSecureController {
     protected AuthService authService;
     @Inject
     private AbstractMessageSource messageSource;
+    @Inject
+    private AssertionService assertionService;
    
     /**
      * Retrieve an array of the assertion codes in use by the processing system
@@ -115,8 +116,9 @@ public class AssertionController extends AbstractSecureController {
             @RequestParam(value = "userDisplayName", required = true) String userDisplayName,
             @RequestParam(value = "userAssertionStatus", required = false) String userAssertionStatus,
             @RequestParam(value = "assertionUuid", required = false) String assertionUuid,
+            @RequestParam(value = "relatedRecordId", required = false) String relatedRecordId,
             HttpServletResponse response) throws Exception {
-        addAssertion(recordUuid, request,apiKey, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, response);
+        addAssertion(recordUuid, request,apiKey, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, relatedRecordId, response);
     }
     /**
      * Adds a bulk list of assertions.
@@ -181,26 +183,12 @@ public class AssertionController extends AbstractSecureController {
        @RequestParam(value = "userDisplayName", required = true) String userDisplayName,
        @RequestParam(value = "userAssertionStatus", required = false) String userAssertionStatus,
        @RequestParam(value = "assertionUuid", required = false) String assertionUuid,
+       @RequestParam(value = "relatedRecordId", required = false) String relatedRecordId,
         HttpServletResponse response) throws Exception {
 
         if (shouldPerformOperation(request, response)) {
             try {
-                logger.debug("Adding assertion to:" + recordUuid + ", code:" + code + ", comment:" + comment
-                        + ",userAssertionStatus: " + userAssertionStatus + ", assertionUuid: " + assertionUuid
-                        + ", userId:" +userId + ", userDisplayName:" + userDisplayName);
-    
-                QualityAssertion qa = au.org.ala.biocache.model.QualityAssertion.apply(Integer.parseInt(code));
-                qa.setComment(comment);
-                qa.setUserId(userId);
-                qa.setUserDisplayName(userDisplayName);
-                if (code.equals(Integer.toString(AssertionCodes.VERIFIED().getCode()))) {
-                    qa.setRelatedUuid(assertionUuid);
-                    qa.setQaStatus(Integer.parseInt(userAssertionStatus));
-                } else {
-                    qa.setQaStatus(AssertionStatus.QA_UNCONFIRMED());
-                }
-
-                Store.addUserAssertion(recordUuid, qa);
+                QualityAssertion qa = assertionService.addAssertion(recordUuid, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, relatedRecordId);
 
                 String server = request.getSession().getServletContext().getInitParameter("serverName");
                 response.setHeader("Location", server + "/occurrences/" + recordUuid + "/assertions/" + qa.getUuid());
