@@ -25,19 +25,23 @@ public class AssertionService {
             String userDisplayName,
             String userAssertionStatus,
             String assertionUuid,
-            String relatedRecordId
+            String relatedRecordId,
+            String relatedRecordReason
     ) {
         logger.debug("Adding assertion to:" + recordUuid + ", code:" + code + ", comment:" + comment
                 + ",userAssertionStatus: " + userAssertionStatus + ", assertionUuid: " + assertionUuid
-                + ", userId:" +userId + ", userDisplayName:" + userDisplayName);
+                + ", userId:" +userId + ", userDisplayName:" + userDisplayName +", relatedRecordId: " + relatedRecordId
+                + ", relatedRecordReason: " + relatedRecordReason);
 
         QualityAssertion qa = au.org.ala.biocache.model.QualityAssertion.apply(Integer.parseInt(code));
         qa.setComment(comment);
         if (qa.code() == AssertionCodes.USER_DUPLICATE_RECORD().code()) {
             Preconditions.checkArgument(!Strings.isNullOrEmpty(relatedRecordId), "Related Record ID must be set for User Duplicate Record Assertion");
             Preconditions.checkArgument(!Objects.equals(recordUuid, relatedRecordId), "User Duplicate Record Assertion can not be related to itself");
+            Preconditions.checkArgument(!Strings.isNullOrEmpty(relatedRecordReason), "Duplicate record must have a reason recorded");
 
             qa.setRelatedRecordId(relatedRecordId);
+            qa.setRelatedRecordReason(relatedRecordReason);
         }
         qa.setUserId(userId);
         qa.setUserDisplayName(userDisplayName);

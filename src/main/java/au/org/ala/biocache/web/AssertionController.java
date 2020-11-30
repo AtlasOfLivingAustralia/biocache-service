@@ -117,8 +117,9 @@ public class AssertionController extends AbstractSecureController {
             @RequestParam(value = "userAssertionStatus", required = false) String userAssertionStatus,
             @RequestParam(value = "assertionUuid", required = false) String assertionUuid,
             @RequestParam(value = "relatedRecordId", required = false) String relatedRecordId,
+            @RequestParam(value = "relatedRecordReason", required = false) String relatedRecordReason,
             HttpServletResponse response) throws Exception {
-        addAssertion(recordUuid, request,apiKey, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, relatedRecordId, response);
+        addAssertion(recordUuid, request,apiKey, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason, response);
     }
     /**
      * Adds a bulk list of assertions.
@@ -184,11 +185,12 @@ public class AssertionController extends AbstractSecureController {
        @RequestParam(value = "userAssertionStatus", required = false) String userAssertionStatus,
        @RequestParam(value = "assertionUuid", required = false) String assertionUuid,
        @RequestParam(value = "relatedRecordId", required = false) String relatedRecordId,
+       @RequestParam(value = "relatedRecordReason", required = false) String relatedRecordReason,
         HttpServletResponse response) throws Exception {
 
         if (shouldPerformOperation(request, response)) {
             try {
-                QualityAssertion qa = assertionService.addAssertion(recordUuid, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, relatedRecordId);
+                QualityAssertion qa = assertionService.addAssertion(recordUuid, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason);
 
                 String server = request.getSession().getServletContext().getInitParameter("serverName");
                 response.setHeader("Location", server + "/occurrences/" + recordUuid + "/assertions/" + qa.getUuid());

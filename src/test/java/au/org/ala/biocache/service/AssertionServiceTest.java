@@ -42,6 +42,7 @@ public class AssertionServiceTest {
                 "user display name",
                 "",
                 assertionUuid,
+                null,
                 null
         );
 
@@ -65,6 +66,7 @@ public class AssertionServiceTest {
                 "user display name",
                 Integer.toString(userAssertionStatus),
                 assertionUuid,
+                null,
                 null
         );
 
@@ -79,6 +81,7 @@ public class AssertionServiceTest {
         String recordUuid = UUID.randomUUID().toString();
         String assertionUuid = UUID.randomUUID().toString();
         String relatedRecordUuid = UUID.randomUUID().toString();
+        String relatedRecordReason = "same-occurence";
         int code = AssertionCodes.USER_DUPLICATE_RECORD().code();
 
         QualityAssertion qualityAssertion = service.addAssertion(
@@ -89,7 +92,8 @@ public class AssertionServiceTest {
                 "user display name",
                 "",
                 assertionUuid,
-                relatedRecordUuid
+                relatedRecordUuid,
+                relatedRecordReason
         );
 
         assertThat("Quality Assertion is returned", qualityAssertion, notNullValue());
@@ -112,14 +116,17 @@ public class AssertionServiceTest {
                 "user display name",
                 "",
                 assertionUuid,
+                null,
                 null
         );
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testAddDuplicateRecordAssertionFailsWithSameRecordAsAssertion() {
+    public void testAddDuplicateRecordAssertionFailsWithNoRelatedReason() {
         String recordUuid = UUID.randomUUID().toString();
         String assertionUuid = UUID.randomUUID().toString();
+        String relatedRecordUuid = UUID.randomUUID().toString();
+        String relatedRecordReason = "";
         int code = AssertionCodes.USER_DUPLICATE_RECORD().code();
 
         QualityAssertion qualityAssertion = service.addAssertion(
@@ -130,7 +137,33 @@ public class AssertionServiceTest {
                 "user display name",
                 "",
                 assertionUuid,
-                recordUuid
+                relatedRecordUuid,
+                relatedRecordReason
+        );
+
+        assertThat("Quality Assertion is returned", qualityAssertion, notNullValue());
+        assertThat("Quality Assertion has code", qualityAssertion.code(), equalTo(code));
+        assertThat("Quality Assertion has related record id", qualityAssertion.relatedRecordId(), equalTo(relatedRecordUuid));
+
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testAddDuplicateRecordAssertionFailsWithSameRecordAsAssertion() {
+        String recordUuid = UUID.randomUUID().toString();
+        String assertionUuid = UUID.randomUUID().toString();
+        String relatedRecordReason = "same-occurence";
+        int code = AssertionCodes.USER_DUPLICATE_RECORD().code();
+
+        QualityAssertion qualityAssertion = service.addAssertion(
+                recordUuid,
+                Integer.toString(code),
+                "Comment",
+                "userId",
+                "user display name",
+                "",
+                assertionUuid,
+                recordUuid,
+                relatedRecordReason
         );
     }
 }
