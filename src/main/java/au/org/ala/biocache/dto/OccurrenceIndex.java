@@ -95,7 +95,7 @@ public class OccurrenceIndex {
     /*@Field("collector")*/ String collector;                           // PIPELINES: missing field mapping
     /*@Field("collectors")*/ String[] collectors;                       // PIPELINES: missing field mapping
     //extra raw record fields
-    @Field("raw_taxon_name") String raw_scientificName;
+    @Field("scientificName") String raw_scientificName;
     @Field("raw_basisOfRecord") String raw_basisOfRecord;
     @Field("raw_type_status") String raw_typeStatus;
     @Field("raw_common_name") String raw_vernacularName;    
