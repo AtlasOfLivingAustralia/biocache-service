@@ -11,18 +11,17 @@ import com.opencsv.bean.CsvBindByName
 
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
+import groovy.yaml.YamlSlurper
 
 import groovyx.net.http.*
 
-import org.apache.http.entity.mime.MultipartEntity
-import org.apache.http.entity.mime.HttpMultipartMode
-import org.apache.http.entity.mime.content.StringBody
 
 class SolrField {
     String name
     String type
     boolean multi
     long count = 0
+    boolean deprecated = false
 }
 
 class BiocacheField {
@@ -42,6 +41,8 @@ class BiocacheField {
     String infoUrl
     String i18nValues
     String downloadDescription
+
+    boolean deprecated = false
 }
 
 class DwcField {
@@ -72,9 +73,84 @@ class FieldMapping {
 
 def toCamelCase = { it.replaceAll("(_)([A-Za-z0-9])", { Object[] o -> o[2].toUpperCase() }) }
 
+
+Map<String, SolrField> parseSolrFields(String host, String collection) {
+
+    Map<String, SolrField> solrFields
+
+    def http = new HTTPBuilder(host)
+
+    http.request(Method.GET, ContentType.JSON) {
+
+        uri.path = "/solr/${collection}/schema"
+
+        response.success = { resp, json ->
+
+            solrFields = json.schema.fields.collectEntries { [(it.name): new SolrField(name: it.name, type: it.type, multi: !!it.multiValued)] }
+            json.schema.dynamicFields
+        }
+    }
+
+    def shards = []
+
+    http.request(Method.GET, ContentType.JSON) {
+
+        uri.path = '/solr/admin/collections'
+        uri.query = [action: 'CLUSTERSTATUS', wt: 'json']
+
+        response.success = { resp, json ->
+
+            String collectionAlias = collection
+
+            if (json.cluster.aliases && json.cluster.aliases[collection]) {
+
+                collectionAlias = json.cluster.aliases[collection]
+            }
+
+            json.cluster.collections[collectionAlias].shards.each { shard ->
+
+                def firstReplica = shard.value.replicas.entrySet().toArray()[0]
+
+                shards += firstReplica.value.core
+            }
+        }
+    }
+
+    shards.each { shard ->
+
+        http.request(Method.GET, ContentType.JSON) {
+
+            uri.path = "/solr/${shard}/admin/luke"
+            uri.query = [wt: 'json']
+
+            response.success = { resp, json ->
+
+                json.fields.each { field, stats ->
+
+                    if (solrFields[field]) {
+
+                        solrFields[field].count += stats.docs ?: 0
+
+                    } else {
+
+                        solrFields[field] = new SolrField(name: field, type: stats.type, multi: stats.schema.contains('M'), count: stats.docs)
+                    }
+                }
+            }
+        }
+    }
+
+    return solrFields
+}
+
+
+YamlSlurper yamlSlurper = new YamlSlurper()
+
+def config = yamlSlurper.parse(new File('./config/field-mapping.yml'))
+
 // parse the TDWG DwC term vocabulary csv into a map of DwcFields
 Map<String, DwcField> dwcFields
-'https://raw.githubusercontent.com/tdwg/dwc/master/vocabulary/term_versions.csv'.toURL().withReader { Reader reader ->
+config.dwcTerms.toURL().withReader { Reader reader ->
 
     dwcFields = new CsvToBeanBuilder(reader)
             .withType(DwcField.class)
@@ -84,80 +160,25 @@ Map<String, DwcField> dwcFields
             .collectEntries { [ (it.name): it ]}
 }
 
+
 JsonSlurper slurper = new JsonSlurper()
 
-def biocacheV2Fields = slurper.parse('https://biocache-ws.ala.org.au/ws/index/fields?isMisc=true'.toURL())
-def biocacheV2Schema = slurper.parse('file:./data/biocache-legacy-solr-schema.json'.toURL())
-def biocacheV3Schema = slurper.parse('file:./data/biocache-pipelines-solr-schema.json'.toURL())
-
-
-Map<String, SolrField> legacySolrFields
-
-def http = new HTTPBuilder("http://localhost:8984")
-
-String biocacheCollection = 'biocache'
-
-http.request(Method.GET, ContentType.JSON) {
-
-    uri.path = "/solr/${biocacheCollection}/schema"
-
-    response.success = { resp, json ->
-
-        legacySolrFields = json.schema.fields.collectEntries { [(it.name): new SolrField(name: it.name, type: it.type, multi: !!it.multiValued) ] }
-    }
-}
-
-def shards = []
-
-http.request(Method.GET, ContentType.JSON) {
-
-    uri.path = '/solr/admin/collections'
-    uri.query = [ action: 'CLUSTERSTATUS', wt: 'json' ]
-
-    response.success = { resp, json ->
-
-        if (json.cluster.aliases[biocacheCollection]) {
-
-            biocacheCollection = json.cluster.aliases[biocacheCollection]
-        }
-
-        json.cluster.collections[biocacheCollection].shards.each { shard ->
-
-            def firstReplica = shard.value.replicas.entrySet().toArray()[0]
-
-            shards += firstReplica.value.core
-        }
-    }
-}
-
-shards.each { shard ->
-
-    http.request(Method.GET, ContentType.JSON) {
-
-        uri.path = "/solr/${shard}/admin/luke"
-        uri.query = [wt: 'json']
-
-        response.success = { resp, json ->
-
-            json.fields.each { field, stats ->
-
-                if (legacySolrFields[field]) {
-
-                    legacySolrFields[field].count += stats.docs ?: 0
-
-                } else {
-
-                    legacySolrFields[field] = new SolrField(name: field, type: stats.type, multi: stats.schema.contains('M'), count: stats.docs)
-                }
-            }
-        }
-    }
-}
-
+def biocacheV2Fields = slurper.parse(config.biocache.fields.toURL())
 
 // create Map of all solr fields keyed by field name
+Map<String, SolrField> pipelinesSolrFields = parseSolrFields(config.pipelines.solr.host, config.pipelines.solr.collection)
+Map<String, SolrField> legacySolrFields = parseSolrFields(config.biocache.solr.host, config.biocache.solr.collection)
 
-Map<String, SolrField> pipelinesSolrFields = biocacheV3Schema.schema.fields.collectEntries { [(it.name): new SolrField(name: it.name, type: it.type)] }
+File fieldMappingJson = new File(config.mappingJson)
+
+Map<String, String> fieldNameMappings = [:]
+
+if (fieldMappingJson.exists()) {
+    fieldNameMappings = slurper.parse(fieldMappingJson)
+}
+
+println "${pipelinesSolrFields.size()} : ${legacySolrFields.size()} : ${biocacheV2Fields.size()}, ${fieldNameMappings.size()}"
+
 
 // process the biocache fields mapping to the solr schema fields
 List<FieldMapping> fieldMappings = biocacheV2Fields.collect { field ->
@@ -169,7 +190,25 @@ List<FieldMapping> fieldMappings = biocacheV2Fields.collect { field ->
     fieldMapping.legacySolrField = legacySolrFields[biocacheField.name]
     legacySolrFields.remove(biocacheField.name)
 
-    if (!biocacheField.name.startsWith('raw_') && !biocacheField.name.startsWith('_') && pipelinesSolrFields[biocacheField.dwcTerm]) {
+    if (fieldNameMappings.containsKey(biocacheField.name)) {
+
+        String pipelinesFieldName = fieldNameMappings[biocacheField.name]
+        if (pipelinesSolrFields[pipelinesFieldName]) {
+
+            fieldMapping.pipelinesSolrField = pipelinesSolrFields[pipelinesFieldName]
+            pipelinesSolrFields.remove(pipelinesFieldName)
+
+        } else if (pipelinesFieldName == null) {
+
+            fieldMapping.biocacheField.deprecated = true
+            fieldMapping.legacySolrField.deprecated = true
+
+        } else {
+
+            println "no field mapping for ${biocacheField.name} -> ${pipelinesFieldName}"
+        }
+
+    } else if (!biocacheField.name.startsWith('raw_') && !biocacheField.name.startsWith('_') && pipelinesSolrFields[biocacheField.dwcTerm]) {
 
         // check the pipelines solr field name matchs DwC term
         fieldMapping.pipelinesSolrField = pipelinesSolrFields[biocacheField.dwcTerm]
@@ -226,7 +265,24 @@ fieldMappings += legacySolrFields.collect { fieldName, solrField ->
 
     FieldMapping fieldMapping = new FieldMapping(legacySolrField: solrField)
 
-    if (pipelinesSolrFields[fieldName]) {
+    if (fieldNameMappings.containsKey(fieldName)) {
+
+        String pipelinesFieldName = fieldNameMappings[fieldName]
+        if (pipelinesSolrFields[pipelinesFieldName]) {
+
+            fieldMapping.pipelinesSolrField = pipelinesSolrFields[pipelinesFieldName]
+            pipelinesSolrFields.remove(pipelinesFieldName)
+
+        } else if (pipelinesFieldName == null) {
+
+            fieldMapping.legacySolrField.deprecated = true
+
+        } else {
+
+            println "no field mapping for ${fieldName} -> ${pipelinesFieldName}"
+        }
+
+    } else if (pipelinesSolrFields[fieldName]) {
 
         // check the pipelines solr exact legacy solr field name
         fieldMapping.pipelinesSolrField = pipelinesSolrFields[fieldName]
@@ -296,6 +352,34 @@ pipelinesSolrFields.each { fieldName, pipelinesSolrField ->
     }
 }
 
+def http = new HTTPBuilder(config.pipelines.solr.host)
+
+http.request(Method.GET, ContentType.JSON) {
+
+    uri.path = "/solr/${config.pipelines.solr.collection}/schema"
+
+    response.success = { resp, json ->
+
+        json.schema.dynamicFields.each { dynamicField ->
+
+            String regex = "^${dynamicField.name.replaceAll('\\*', '\\.\\*')}\$"
+
+            fieldMappings.findAll { FieldMapping fieldMapping ->
+
+                fieldMapping.legacySolrField?.name ==~ ~/${regex}/
+
+            }.each { FieldMapping fieldMapping ->
+
+                if (!fieldMapping.pipelinesSolrField) {
+
+                    fieldMapping.pipelinesSolrField = new SolrField(name: dynamicField.name, type: dynamicField.type)
+                }
+            }
+        }
+    }
+}
+
+/*
 // process the dynamic fields searching for unmatched legacy solr fields
 biocacheV3Schema.schema.dynamicFields.each { dynamicField ->
 
@@ -313,7 +397,7 @@ biocacheV3Schema.schema.dynamicFields.each { dynamicField ->
         }
     }
 }
-
+*/
 // map the dwc terms
 fieldMappings.each { FieldMapping fieldMapping ->
 
@@ -352,12 +436,6 @@ fieldMappings.each { FieldMapping fieldMapping ->
 // add the unmatched dwc terms
 fieldMappings += dwcFields.collect { fieldName, dwcField -> new FieldMapping(dwcField: dwcField) }
 
-MultipartEntity multiPartContent = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE)
-multiPartContent.addPart('q', new StringBody('*.*'))
-multiPartContent.addPart('rows', new StringBody('0'))
-multiPartContent.addPart('facet', new StringBody('true'))
-
-
 
 def fieldNameComparitor = { lft, rgt ->
 
@@ -378,19 +456,22 @@ def fieldNameComparitor = { lft, rgt ->
 
 }
 
-File fieldMappingFile = new File('pipeline_field_mappings.csv')
+File fieldMappingCsv = new File(config.mappingCsv)
 
-fieldMappingFile.newWriter().withWriter { Writer w ->
+fieldMappingCsv.newWriter().withWriter { Writer w ->
 
-    w << "\"Solr V8 (pipelines)\",,\"Solr v6\",,,,\"Biocache Index Fields\",,\"DwC Fields\"\n"
-
-    w << "\"field_name\","
-    w << "\"field_type\","
+    w << "\"Solr V8 (pipelines)\",,,,\"Solr v6\",,,,,\"Biocache Index Fields\",,\"DwC Fields\"\n"
 
     w << "\"field_name\","
     w << "\"field_type\","
     w << "\"multi_value\","
     w << "\"record_count\","
+
+    w << "\"field_name\","
+    w << "\"field_type\","
+    w << "\"multi_value\","
+    w << "\"record_count\","
+    w << "\"deprecated\","
 
     w << "\"dwc_term\","
     w << "\"term_iri\","
@@ -417,11 +498,14 @@ fieldMappingFile.newWriter().withWriter { Writer w ->
 
         w << "\"${fieldMapping.pipelinesSolrField?.name ?: ''}\","
         w << "\"${fieldMapping.pipelinesSolrField?.type ?: ''}\","
+        w << "${fieldMapping.pipelinesSolrField ? fieldMapping.pipelinesSolrField.multi : ''},"
+        w << "${fieldMapping.pipelinesSolrField ? fieldMapping.pipelinesSolrField?.count : ''},"
 
         w << "\"${fieldMapping.legacySolrField?.name ?: ''}\","
         w << "\"${fieldMapping.legacySolrField?.type ?: ''}\","
         w << "${fieldMapping.legacySolrField ? fieldMapping.legacySolrField.multi : ''},"
         w << "${fieldMapping.legacySolrField ? fieldMapping.legacySolrField?.count : ''},"
+        w << "${fieldMapping.legacySolrField ? fieldMapping.legacySolrField.deprecated : ''},"
 
         w << "\"${fieldMapping.dwcField?.name ?: ''}\","
         w << "\"${fieldMapping.dwcField?.termIri ?: ''}\","
@@ -446,13 +530,14 @@ fieldMappingFile.newWriter().withWriter { Writer w ->
     }
 }
 
-
 Map<String, String> deprecatedFields = [:]
 
-fieldMappings.findAll { FieldMapping fieldMapping ->
-    fieldMapping.legacySolrField && fieldMapping.pipelinesSolrField && !fieldMapping.pipelinesSolrField.name.contains('*') && fieldMapping.legacySolrField.name != fieldMapping.pipelinesSolrField.name
-}.sort(fieldNameComparitor).each { FieldMapping fieldMapping ->
-    deprecatedFields[fieldMapping.legacySolrField.name] = fieldMapping.pipelinesSolrField.name
+fieldMappings.each { FieldMapping fieldMapping ->
+    if (fieldMapping.legacySolrField && fieldMapping.pipelinesSolrField && !fieldMapping.pipelinesSolrField.name.contains('*') && fieldMapping.legacySolrField.name != fieldMapping.pipelinesSolrField.name) {
+        deprecatedFields[fieldMapping.legacySolrField.name] = fieldMapping.pipelinesSolrField.name
+    } else if (fieldMapping.legacySolrField?.deprecated) {
+        deprecatedFields[fieldMapping.legacySolrField.name] = null
+    }
 }
 
 new File('deprecated-fields.json').newWriter().withWriter { Writer w ->
