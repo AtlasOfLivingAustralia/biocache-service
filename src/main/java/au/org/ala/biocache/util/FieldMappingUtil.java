@@ -2,6 +2,7 @@ package au.org.ala.biocache.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableBiMap;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.response.QueryResponse;
@@ -11,13 +12,14 @@ import org.springframework.stereotype.Component;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
 @Component("fieldMappingUtil")
 public class FieldMappingUtil {
 
-    private BiMap<String, String> deprecatedFields;
+    private Map<String, String> deprecatedFields;
 
     @Value("${solr.deprecated.fields.config:/data/biocache/config/deprecated-fields.json}")
     void setDeprecatedFieldsConfig(String deprecatedFieldsConfig) throws IOException {
@@ -25,7 +27,7 @@ public class FieldMappingUtil {
         if (deprecatedFieldsConfig != null && new File(deprecatedFieldsConfig).exists()) {
 
             ObjectMapper om = new ObjectMapper();
-            deprecatedFields = ImmutableBiMap.copyOf(om.readValue(new File(deprecatedFieldsConfig), Map.class));
+            deprecatedFields = om.readValue(new File(deprecatedFieldsConfig), HashMap.class);
         }
     }
 
