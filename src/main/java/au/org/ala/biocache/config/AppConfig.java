@@ -8,6 +8,7 @@ import au.org.ala.biocache.service.SpeciesLookupRestService;
 import au.org.ala.biocache.service.SpeciesLookupService;
 import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import au.org.ala.dataquality.client.ApiClient;
+import au.org.ala.dataquality.client.auth.ApiKeyAuth;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrClient;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -137,6 +138,8 @@ public class AppConfig {
     @Bean("dataQualityApiClient")
     public ApiClient dataQualityApiClient() {
         ApiClient apiClient = new ApiClient();
+        apiClient.addAuthorization("apiKeyAuth", new ApiKeyAuth("header", "apiKey"));
+        apiClient.setApiKey(dataQualityAPIKey);
         apiClient.getAdapterBuilder().baseUrl(dataQualityBaseUrl);
         return apiClient;
     }
