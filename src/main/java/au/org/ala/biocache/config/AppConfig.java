@@ -63,6 +63,8 @@ public class AppConfig {
     @Value("${dataquality.baseUrl:https://dataquality.ala.org.au/}")
     protected String dataQualityBaseUrl;
 
+    @Value("${dataquality.apiKey:Provide a valid key}")
+    protected String dataQualityAPIKey;
 
     //Set RestartDataService.dir before classes using RestartDataService are instantiated.
     @Value("${restart.data.dir:/tmp}")
