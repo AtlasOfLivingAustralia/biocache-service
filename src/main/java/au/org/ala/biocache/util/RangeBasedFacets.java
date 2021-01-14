@@ -53,13 +53,13 @@ public class RangeBasedFacets {
 
         //construct the bi directional map for the uncertainty ranges
         ImmutableBiMap<String, String> map = new ImmutableBiMap.Builder<String,String>()
-                .put("coordinate_uncertainty:[0 TO 100]", MessageFormat.format(less_than, "100"))
-                .put("coordinate_uncertainty:[101 TO 500]", MessageFormat.format(between, "100", "500"))
-                .put("coordinate_uncertainty:[501 TO 1000]", MessageFormat.format(between, "500", "1000"))
-                .put("coordinate_uncertainty:[1001 TO 5000]", MessageFormat.format(between,"1000","5000"))
-                .put("coordinate_uncertainty:[5001 TO 10000]", MessageFormat.format(between,"5000","10000"))
-                .put("coordinate_uncertainty:[10001 TO *]", MessageFormat.format(greater_than,"10000"))
-                .put("-coordinate_uncertainty:[* TO *]", unknown).build();
+                .put("coordinateUncertaintyInMeters:[0 TO 100]", MessageFormat.format(less_than, "100"))
+                .put("coordinateUncertaintyInMeters:[101 TO 500]", MessageFormat.format(between, "100", "500"))
+                .put("coordinateUncertaintyInMeters:[501 TO 1000]", MessageFormat.format(between, "500", "1000"))
+                .put("coordinateUncertaintyInMeters:[1001 TO 5000]", MessageFormat.format(between,"1000","5000"))
+                .put("coordinateUncertaintyInMeters:[5001 TO 10000]", MessageFormat.format(between,"5000","10000"))
+                .put("coordinateUncertaintyInMeters:[10001 TO *]", MessageFormat.format(greater_than,"10000"))
+                .put("-coordinateUncertaintyInMeters:[* TO *]", unknown).build();
 
         rangeFacets.put("uncertainty", map);
     }

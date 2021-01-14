@@ -65,6 +65,11 @@ public class FieldMappedSolrQuery extends SolrQuery  {
     }
 
     @Override
+    public SolrQuery addNumericRangeFacet(String field, Number start, Number end, Number gap) {
+        return super.addNumericRangeFacet(fieldMappingUtil.translateFieldName(field), start, end, gap);
+    }
+
+    @Override
     public FieldMappedSolrQuery getCopy() {
 
         FieldMappedSolrQuery query = new FieldMappedSolrQuery(fieldMappingUtil);
@@ -80,7 +85,7 @@ public class FieldMappedSolrQuery extends SolrQuery  {
     @Override
     public SolrQuery addField(String field) {
 
-        return super.addField(fieldMappingUtil.translateField(field));
+        return super.addField(fieldMappingUtil.translateFieldName(field));
     }
 
     @Override
@@ -93,6 +98,5 @@ public class FieldMappedSolrQuery extends SolrQuery  {
 
         return super.addFacetField(fieldMappingUtil.translateFieldArray(fields));
     }
-
 
 }

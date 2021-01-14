@@ -1,9 +1,6 @@
 package au.org.ala.biocache.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
-import com.google.common.collect.ImmutableBiMap;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,14 +9,17 @@ import org.springframework.stereotype.Component;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Component("fieldMappingUtil")
 public class FieldMappingUtil {
 
-    private Map<String, String> deprecatedFields;
+    private Map<String, String> fieldMappings;
+    private Map<String, String> inverseFieldMappings;
 
     @Value("${solr.deprecated.fields.config:/data/biocache/config/deprecated-fields.json}")
     void setDeprecatedFieldsConfig(String deprecatedFieldsConfig) throws IOException {
@@ -27,8 +27,17 @@ public class FieldMappingUtil {
         if (deprecatedFieldsConfig != null && new File(deprecatedFieldsConfig).exists()) {
 
             ObjectMapper om = new ObjectMapper();
-            deprecatedFields = om.readValue(new File(deprecatedFieldsConfig), HashMap.class);
+            fieldMappings = om.readValue(new File(deprecatedFieldsConfig), HashMap.class);
+
+            inverseFieldMappings = fieldMappings.entrySet()
+                    .stream()
+                    .filter((Map.Entry<String, String> fieldMapping) -> fieldMapping.getValue() != null)
+                    .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
         }
+    }
+
+    public Map<String, String> getFieldMappings() {
+        return Collections.unmodifiableMap(fieldMappings);
     }
 
     public SolrQuery newSolrQuery() {
@@ -47,7 +56,7 @@ public class FieldMappingUtil {
             return null;
         }
 
-        return this.deprecatedFields.entrySet()
+        return this.fieldMappings.entrySet()
                 .stream()
                 .reduce(query,
                         (String transformedQuery, Map.Entry<String, String> deprecatedField) ->
@@ -57,16 +66,27 @@ public class FieldMappingUtil {
 
     public Stream<Map.Entry<String, String>> asStream() {
 
-        return this.deprecatedFields.entrySet().stream();
+        return this.fieldMappings.entrySet().stream();
     }
 
-    public String translateField(String fieldName) {
+    public String translateFieldName(String fieldName) {
 
         if (fieldName == null) {
             return null;
         }
 
-        String translatedFieldName = this.deprecatedFields.get(fieldName);
+        String translatedFieldName = this.fieldMappings.get(fieldName);
+
+        return translatedFieldName != null ? translatedFieldName : fieldName;
+    }
+
+    public String inverseFieldName(String fieldName) {
+
+        if (fieldName == null) {
+            return null;
+        }
+
+        String translatedFieldName = this.inverseFieldMappings.get(fieldName);
 
         return translatedFieldName != null ? translatedFieldName : fieldName;
     }
@@ -87,7 +107,7 @@ public class FieldMappingUtil {
         }
 
         return Arrays.stream(fields)
-                .map(this::translateField)
+                .map(this::translateFieldName)
                 .toArray(String[]::new);
     }
 }

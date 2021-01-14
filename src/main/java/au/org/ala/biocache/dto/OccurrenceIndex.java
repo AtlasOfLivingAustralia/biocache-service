@@ -92,7 +92,7 @@ public class OccurrenceIndex {
     /*@Field("all_image_url")*/ String[] images;                        // PIPELINES: missing field mapping
     @Field("geospatial_kosher") Boolean geospatialKosher;
     /*@Field("taxonomic_kosher")*/ String taxonomicKosher;              // PIPELINES: field DEPRECATED
-    @Field("recordedBy") String collector;
+    @Field("recordedBy") String[] collector;
     /*@Field("collectors")*/ String[] collectors;                       // PIPELINES: missing field mapping
     //extra raw record fields
     @Field("scientificName") String raw_scientificName;
@@ -712,11 +712,11 @@ public class OccurrenceIndex {
         this.taxonomicKosher = taxonomicKosher;
     }
 
-    public String getCollector() {
+    public String[] getCollector() {
         return collector;
     }
 
-    public void setCollector(String collector) {
+    public void setCollector(String[] collector) {
         this.collector = collector;
     }
 

@@ -14,6 +14,9 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import au.org.ala.biocache.util.IndexFieldSerializer;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
 /**
  * DTO for the fields that belong to the index.
  * 
@@ -21,6 +24,7 @@ package au.org.ala.biocache.dto;
  * 
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
+@JsonSerialize(using = IndexFieldSerializer.class)
 public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     /** The name of the field in the index */
     private String name;
@@ -56,6 +60,11 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     private Boolean i18nValues;
     /** class of this field */
     private String classs;
+
+    /** the field has been deprecated **/
+    private boolean deprecated;
+    /** the new field name for deprecated fields **/
+    private String newFieldName;
 
     @Override
     public boolean equals(Object obj){
@@ -268,5 +277,21 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
 
     public void setDocvalue(boolean docvalue) {
         this.docvalue = docvalue;
+    }
+
+    public boolean isDeprecated() {
+        return deprecated;
+    }
+
+    public void setDeprecated(boolean deprecated) {
+        this.deprecated = deprecated;
+    }
+
+    public String getNewFieldName() {
+        return newFieldName;
+    }
+
+    public void setNewFieldName(String newFieldName) {
+        this.newFieldName = newFieldName;
     }
 }

@@ -298,7 +298,7 @@ public class SearchUtils {
                 sb.append(lft).append(" TO ").append(rgt).append("]");
                 return new String[]{sb.toString(), dispSB.toString()};
             } else {
-                return new String[]{"taxon_concept_lsid:\"" + ClientUtils.escapeQueryChars(lsid) + "\"", "taxon_concept_lsid:\"" + lsid + "\""};
+                return new String[]{"taxonConceptID:\"" + ClientUtils.escapeQueryChars(lsid) + "\"", "taxonConceptID:\"" + lsid + "\""};
             }
         } catch(Exception e){
             logger.error(e.getMessage(), e);

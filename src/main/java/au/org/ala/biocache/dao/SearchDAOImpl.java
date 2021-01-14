@@ -2728,7 +2728,7 @@ public class SearchDAOImpl implements SearchDAO {
         if (requestParams.getFormattedFq() != null) {
             for (String fq : requestParams.getFormattedFq()) {
                 if (StringUtils.isNotEmpty(fq)) {
-                    solrQuery.addFilterQuery(fq);   // PIPELINES: SolarQuery::addFilterQuery entry point
+                    solrQuery.addFilterQuery(fq);   // PIPELINES: SolrQuery::addFilterQuery entry point
                 }
             }
         }
@@ -3031,7 +3031,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     protected void initDecadeBasedFacet(SolrQuery solrQuery, String field) {
-        //Solr 6.x don't use facet.date but facef.range instead
+        //Solr 6.x don't use facet.date but facet.range instead
         solrQuery.add("facet.range", field);
         solrQuery.add("facet.range.start", DECADE_FACET_START_DATE); // facet date range starts from 1850
         solrQuery.add("facet.range.end", "NOW/DAY"); // facet date range ends for current date (gap period)
@@ -3055,7 +3055,7 @@ public class SearchDAOImpl implements SearchDAO {
         if (searchParams.getFacet()) {
             for (String facet : searchParams.getFacets()) {
                 if (facet.equals("date") || facet.equals("decade")) {
-                    // PIPELINES: no mapping to occurence_date or occurence_year defined
+                    // PIPELINES: no mapping to occurrence_date or occurrence_year defined
                     String fname = facet.equals("decade") ? OCCURRENCE_YEAR_INDEX_FIELD : "occurrence_" + facet;
                     initDecadeBasedFacet(solrQuery, fname);
                 } else if (facet.equals("uncertainty")) {
@@ -3070,9 +3070,9 @@ public class SearchDAOImpl implements SearchDAO {
                         solrQuery.add("facet.range.other", "after");
                     }
                     String field = facet.replaceAll(RANGE_SUFFIX, "");
-                    // TODO: PIPELINES: map facet field
                     StatsIndexFieldDTO details = getRangeFieldDetails(field);
                     if (details != null) {
+                        // PIPELINES: SolrQuery::addNumericRangeFacet entry point
                         solrQuery.addNumericRangeFacet(field, details.getStart(), details.getEnd(), details.getGap());
                     }
                 } else {
@@ -3105,7 +3105,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         if (searchParams.getFl().length() > 0) {
 
-            solrQuery.setFields(searchParams.getFl().split(",")); // PIPELINES: field names entry point
+            solrQuery.setFields(searchParams.getFl().split(",")); // PIPELINES: SolrQuery::setFields entry point
         }
 
         //add the extra SOLR params
@@ -3452,7 +3452,6 @@ public class SearchDAOImpl implements SearchDAO {
 
         Map<String, String> indexToJsonMap = new OccurrenceIndex().indexToJsonMap();
 
-
         for (String fieldStr : fieldsStr) {
             if (fieldStr != null && !"".equals(fieldStr) ) {
                 String[] fields = includeCounts ? fieldStr.split("\\}\\},") : fieldStr.split("\\},");
@@ -3487,6 +3486,21 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             }
         }
+
+        fieldMappingUtil.getFieldMappings()
+                .entrySet()
+                .stream()
+                .forEach((Map.Entry<String, String> fieldMapping) -> {
+
+                    IndexFieldDTO deprecatedFields = new IndexFieldDTO();
+                    deprecatedFields.setName(fieldMapping.getKey());
+                    deprecatedFields.setDeprecated(true);
+                    if (fieldMapping.getValue() != null) {
+                        deprecatedFields.setNewFieldName(fieldMapping.getValue());
+                    }
+
+                    fieldList.add(deprecatedFields);
+                });
 
         //filter fields, to hide deprecated terms
         List<String> toIgnore = new ArrayList<String>();
@@ -3976,7 +3990,7 @@ public class SearchDAOImpl implements SearchDAO {
             lftToGuid.put(values[0], lsid);
             //add the query part as a facet
             // TODO: PIPELINES: review taxon search values???
-            solrQuery.add("facet.query", values[0]);
+            solrQuery.add("facet.query", fieldMappingUtil.translateQueryFields(values[0]));
         }
         solrQuery.setQuery(sb.toString());  // PIPELINES: SolrQuery::setQuery entry point
 
