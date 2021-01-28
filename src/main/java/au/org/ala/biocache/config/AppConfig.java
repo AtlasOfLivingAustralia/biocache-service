@@ -6,6 +6,8 @@ import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.service.SpeciesLookupIndexService;
 import au.org.ala.biocache.service.SpeciesLookupRestService;
 import au.org.ala.biocache.service.SpeciesLookupService;
+import au.org.ala.biocache.util.FieldMappedSolrClient;
+import au.org.ala.biocache.util.FieldMappingUtil;
 import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import au.org.ala.dataquality.client.ApiClient;
 import org.apache.log4j.Logger;
@@ -30,6 +32,9 @@ public class AppConfig {
 
     @Inject
     private AbstractMessageSource messageSource; // use for i18n of the headers
+
+    @Inject
+    private FieldMappingUtil fieldMappingUtil;
 
     @Value("${name.index.dir:/data/lucene/namematching}")
     protected String nameIndexLocation;
@@ -130,7 +135,7 @@ public class AppConfig {
             logger.debug("solrClient initialised, Type: " + result.getClass());
         }
 
-        return result;
+        return new FieldMappedSolrClient(fieldMappingUtil, result);
 
     }
 

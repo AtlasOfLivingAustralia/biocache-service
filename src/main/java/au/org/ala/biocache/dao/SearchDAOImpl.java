@@ -53,7 +53,6 @@ import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
-import org.apache.solr.search.SolrQueryTimeoutImpl;
 import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.gbif.dwc.terms.DcTerm;
 import org.gbif.dwc.terms.DwcTerm;
@@ -374,7 +373,8 @@ public class SearchDAOImpl implements SearchDAO {
 
         logger.debug("Initialising SearchDAOImpl");
 
-        queryMethod = solrClient instanceof EmbeddedSolrServer ? SolrRequest.METHOD.GET : SolrRequest.METHOD.POST;
+        boolean isEmbedded = solrClient instanceof EmbeddedSolrServer || (solrClient instanceof FieldMappedSolrClient && ((FieldMappedSolrClient)solrClient).isInstanceOf(EmbeddedSolrServer.class));
+        queryMethod = isEmbedded ? SolrRequest.METHOD.GET : SolrRequest.METHOD.POST;
 
         // TODO: There was a note about possible issues with the following two lines
         Set<IndexFieldDTO> indexedFields = getIndexedFields();
@@ -1624,7 +1624,7 @@ public class SearchDAOImpl implements SearchDAO {
         int count = 0;
         int record = 0;
         for (SolrDocument sd : qr.getResults()) {   // TODO: PIPELINES: QueryResponse::getResults entry point
-            if (sd.getFieldValue("data_resource_uid") != null && (!checkLimit || (checkLimit && resultsCount.intValue() < maxDownloadSize))) {  // TODO: PIPELINES: SolrDocument:: entry point
+            if (sd.getFieldValue("dataResourceUid") != null && (!checkLimit || (checkLimit && resultsCount.intValue() < maxDownloadSize))) {  // TODO: PIPELINES: SolrDocument:: entry point
 
                 //resultsCount++;
                 count++;
@@ -1745,10 +1745,10 @@ public class SearchDAOImpl implements SearchDAO {
                 rw.write(values);
 
                 //increment the counters....
-                incrementCount(uidStats, sd.getFieldValue("institution_uid"));  // TODO: PIPELINES: SolrDocument::getFieldValue entry point
-                incrementCount(uidStats, sd.getFieldValue("collection_uid"));   // TODO: PIPELINES: SolrDocument::getFieldValue entry point
-                incrementCount(uidStats, sd.getFieldValue("data_provider_uid"));    // TODO: PIPELINES: SolrDocument::getFieldValue entry point
-                incrementCount(uidStats, sd.getFieldValue("data_resource_uid"));    // TODO: PIPELINES: SolrDocument::getFieldValue entry point
+                incrementCount(uidStats, sd.getFieldValue("institutionUid"));  // TODO: PIPELINES: SolrDocument::getFieldValue entry point
+                incrementCount(uidStats, sd.getFieldValue("collectionUid"));   // TODO: PIPELINES: SolrDocument::getFieldValue entry point
+                incrementCount(uidStats, sd.getFieldValue("dataProviderUid"));    // TODO: PIPELINES: SolrDocument::getFieldValue entry point
+                incrementCount(uidStats, sd.getFieldValue("dataResourceUid"));    // TODO: PIPELINES: SolrDocument::getFieldValue entry point
             }
 
             record++;
@@ -2130,8 +2130,8 @@ public class SearchDAOImpl implements SearchDAO {
                 //cycle through the results adding them to the list that will be sent to cassandra
                 int row = 0;
                 for (SolrDocument sd : qr.getResults()) {   // TODO: PIPELINES: QueryResponse::getResults entry point
-                    if (sd.getFieldValue("data_resource_uid") != null) {       // TODO: PIPELINES: SolrDocument::getFieldValue entry point
-                        String druid = sd.getFieldValue("data_resource_uid").toString();    // TODO: PIPELINES: SolrDocument::getFieldValue entry point
+                    if (sd.getFieldValue("dataResourceUid") != null) {       // TODO: PIPELINES: SolrDocument::getFieldValue entry point
+                        String druid = sd.getFieldValue("dataResourceUid").toString();    // TODO: PIPELINES: SolrDocument::getFieldValue entry point
                         if (shouldDownload(druid, downloadLimit, true) && (!limit || resultsCount < MAX_DOWNLOAD_SIZE)) {
                             resultsCount++;
                             String uuid = sd.getFieldValue("id").toString();    // TODO: PIPELINES: SolrDocument::getFieldValue entry point
@@ -2188,9 +2188,9 @@ public class SearchDAOImpl implements SearchDAO {
                             }
 
                             //increment the counters....
-                            incrementCount(uidStats, sd.getFieldValue("institution_uid"));  // TODO: PIPELINES: SolrDocument::getFieldValue entry point
-                            incrementCount(uidStats, sd.getFieldValue("collection_uid"));   // TODO: PIPELINES: SolrDocument::getFieldValue entry point
-                            incrementCount(uidStats, sd.getFieldValue("data_provider_uid"));    // TODO: PIPELINES: SolrDocument::getFieldValue entry point
+                            incrementCount(uidStats, sd.getFieldValue("institutionUid"));  // TODO: PIPELINES: SolrDocument::getFieldValue entry point
+                            incrementCount(uidStats, sd.getFieldValue("collectionUid"));   // TODO: PIPELINES: SolrDocument::getFieldValue entry point
+                            incrementCount(uidStats, sd.getFieldValue("dataProviderUid"));    // TODO: PIPELINES: SolrDocument::getFieldValue entry point
                             incrementCount(uidStats, druid);
                         }
                     }
@@ -4076,9 +4076,14 @@ public class SearchDAOImpl implements SearchDAO {
                 }
 
                 // this.queryMethod is not always set by init() before query() is called
-                SolrRequest.METHOD defaultMethod = solrClient instanceof EmbeddedSolrServer ? SolrRequest.METHOD.GET : SolrRequest.METHOD.POST;
+                SolrRequest.METHOD currQueryMethod = (queryMethod != null) ? queryMethod : this.queryMethod;
+                if (currQueryMethod == null) {
 
-                qr = solrClient.query(query, queryMethod == null ? (this.queryMethod == null ? defaultMethod : this.queryMethod) : queryMethod); // can throw exception
+                    boolean isEmbedded = solrClient instanceof EmbeddedSolrServer || (solrClient instanceof FieldMappedSolrClient && ((FieldMappedSolrClient)solrClient).isInstanceOf(EmbeddedSolrServer.class));
+                    currQueryMethod = isEmbedded ? SolrRequest.METHOD.GET : SolrRequest.METHOD.POST;
+                }
+
+                qr = solrClient.query(query, currQueryMethod); // can throw exception
             } catch (SolrServerException e) {
                 //want to retry IOException and Proxy Error
                 if (retry < maxRetries && (e.getMessage().contains("IOException") || e.getMessage().contains("Proxy Error"))) {
@@ -4097,7 +4102,9 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             } catch (SolrException e) {
                 // Fix zk disconnects, maybe
-                if (solrClient instanceof CloudSolrClient && e.getMessage().contains("Could not load collection")) {
+                boolean isSolrCloud = solrClient instanceof CloudSolrClient || (solrClient instanceof FieldMappedSolrClient && ((FieldMappedSolrClient)solrClient).isInstanceOf(CloudSolrClient.class));
+
+                if (isSolrCloud && e.getMessage().contains("Could not load collection")) {
                     logger.error("query failed, attempting to reconnect: " + query.toString() + " : " + e.getMessage());
 
                     // zk reconnect
