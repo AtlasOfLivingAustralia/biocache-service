@@ -1,5 +1,6 @@
 package au.org.ala.biocache.util;
 
+import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import org.apache.solr.client.solrj.SolrResponse;
 import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.common.SolrDocumentList;

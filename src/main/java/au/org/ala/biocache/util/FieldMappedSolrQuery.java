@@ -1,5 +1,6 @@
 package au.org.ala.biocache.util;
 
+import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import org.apache.solr.client.solrj.SolrQuery;
 
 import java.util.Arrays;
@@ -26,7 +27,7 @@ public class FieldMappedSolrQuery extends SolrQuery  {
         this.fieldMappingUtil = fieldMappingUtil;
     }
 
-
+/*
     @Override
     public SolrQuery setFilterQueries(String... fq) {
 
@@ -98,5 +99,5 @@ public class FieldMappedSolrQuery extends SolrQuery  {
 
         return super.addFacetField(fieldMappingUtil.translateFieldArray(fields));
     }
-
+*/
 }
