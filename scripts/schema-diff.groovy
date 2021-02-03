@@ -133,7 +133,7 @@ Map<String, SolrField> parseSolrFields(String host, String collection) {
 
                     } else {
 
-                        solrFields[field] = new SolrField(name: field, type: stats.type, multi: stats.schema.contains('M'), count: stats.docs)
+                        solrFields[field] = new SolrField(name: field, type: stats.type, multi: stats.schema.contains('M'), count: stats.docs?:0)
                     }
                 }
             }
