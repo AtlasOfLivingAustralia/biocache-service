@@ -20,6 +20,7 @@ import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.beans.Field;
 import org.codehaus.jackson.map.ObjectMapper;
 
+import java.time.Month;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -33,26 +34,26 @@ public class OccurrenceIndex {
     protected static final Logger logger = Logger.getLogger(OccurrenceIndex.class);
 
     @Field("id") String uuid;
-    @Field("occurrence_id") String occurrenceID;
+    @Field("occurrenceID") String occurrenceID;
     //processed values
-    @Field("data_hub_uid") String[] dataHubUid;
-    @Field("data_hub") String dataHub;
-    @Field("institution_uid") String institutionUid;
-    @Field("institution_code") String raw_institutionCode;
-    @Field("institution_name") String institutionName;
-    @Field("collection_uid") String collectionUid;
-    @Field("collection_code") String raw_collectionCode;
-    @Field("collection_name") String collectionName;
-    @Field("catalogue_number") String raw_catalogNumber;
-    @Field("taxon_concept_lsid") String taxonConceptID;
-    @Field("occurrence_date") java.util.Date eventDate;
-    @Field("occurrence_date_end_dt") java.util.Date eventDateEnd;
-    @Field("occurrence_year") java.util.Date occurrenceYear;
+    /*@Field("data_hub_uid")*/ String[] dataHubUid;                     // PIPELINES: missing field mapping
+    /*@Field("data_hub")*/String dataHub;                               // PIPELINES: missing field mapping
+    @Field("institutionUid") String institutionUid;
+    @Field("institutionCode") String raw_institutionCode;
+    @Field("institutionName") String institutionName;
+    @Field("collectionUid") String collectionUid;
+    @Field("collectionCode") String raw_collectionCode;
+    @Field("collectionName") String collectionName;
+    @Field("catalogNumber") String raw_catalogNumber;
+    @Field("taxonConceptID") String taxonConceptID;
+    @Field("eventDate") java.util.Date eventDate;
+    /*@Field("occurrence_date_end_dt")*/ java.util.Date eventDateEnd;   // PIPELINES: missing field mapping
+    /*@Field("occurrence_year")*/ java.util.Date occurrenceYear;        // PIPELINES: missing field mapping
     @Field("taxon_name") String scientificName;
     @Field("common_name") String vernacularName;
     @Field("rank") String taxonRank;
     @Field("rank_id") Integer taxonRankID;
-    @Field("country_code") String raw_countryCode;
+    @Field("countryCode") String raw_countryCode;
     @Field("country") String country;
     @Field("kingdom") String kingdom;
     @Field("phylum") String phylum;
@@ -60,42 +61,42 @@ public class OccurrenceIndex {
     @Field("order") String order;
     @Field("family") String family;
     @Field("genus") String genus;
-    @Field("genus_guid") String genusGuid;
+    @Field("genusID") String genusGuid;
     @Field("species") String species;
-    @Field("species_guid") String speciesGuid;
-    @Field("subspecies") String subspecies;
-    @Field("subspecies_guid") String subspeciesGuid;
-    @Field("state") String stateProvince;
-    @Field("latitude") Double decimalLatitude;
-    @Field("longitude") Double decimalLongitude;
-    @Field("coordinate_uncertainty") Double coordinateUncertaintyInMeters;
+    @Field("speciesID") String speciesGuid;
+    /*@Field("subspecies")*/ String subspecies;                         // PIPELINES: missing field mapping
+    /*@Field("subspecies_guid")*/ String subspeciesGuid;                // PIPELINES: missing field mapping
+    @Field("stateProvince") String stateProvince;
+    @Field("decimalLatitude") Double decimalLatitude;
+    @Field("decimalLongitude") Double decimalLongitude;
+    @Field("coordinateUncertaintyInMeters") Double coordinateUncertaintyInMeters;
     @Field("year") Integer year;
-    @Field("month") String month;
-    @Field("basis_of_record") String basisOfRecord;
-    @Field("type_status") String typeStatus;
-    @Field("location_remarks") String raw_locationRemarks;
-    @Field("occurrence_remarks") String raw_occurrenceRemarks;
+    @Field("month") Integer month;
+    @Field("basisOfRecord") String basisOfRecord;
+    @Field("typeStatus") String typeStatus;
+    @Field("locationRemarks") String raw_locationRemarks;
+    @Field("occurrenceRemarks") String raw_occurrenceRemarks;
     @Field("lft") Integer left;
     @Field("rgt") Integer right;
-    @Field("ibra") String ibra;
-    @Field("imcra") String imcra;
-    @Field("places") String lga;
-    @Field("data_provider_uid") String dataProviderUid;
-    @Field("data_provider") String dataProviderName;
-    @Field("data_resource_uid") String dataResourceUid;
-    @Field("data_resource") String dataResourceName;
+    /*@Field("ibra")*/ String ibra;                                     // PIPELINES: field DEPRECATED
+    /*@Field("imcra")*/ String imcra;                                   // PIPELINES: field DEPRECATED
+    /*@Field("places")*/ String lga;                                    // PIPELINES: missing field mapping
+    @Field("dataProviderUid") String dataProviderUid;
+    @Field("dataProviderName") String dataProviderName;
+    @Field("dataResourceUid") String dataResourceUid;
+    @Field("dataResourceName") String dataResourceName;
     @Field("assertions") String[] assertions;
-    @Field("user_assertions") String hasUserAssertions;
+    /*@Field("user_assertions")*/ String hasUserAssertions;             // PIPELINES: missing field mapping
     @Field("species_group") String[] speciesGroups;
     @Field("image_url") String image;
-    @Field("all_image_url") String[] images;
-    @Field("geospatial_kosher") String geospatialKosher;
-    @Field("taxonomic_kosher") String taxonomicKosher;
-    @Field("collector") String collector;
-    @Field("collectors") String[] collectors;
+    /*@Field("all_image_url")*/ String[] images;                        // PIPELINES: missing field mapping
+    @Field("geospatial_kosher") Boolean geospatialKosher;
+    /*@Field("taxonomic_kosher")*/ String taxonomicKosher;              // PIPELINES: field DEPRECATED
+    @Field("recordedBy") String[] collector;
+    /*@Field("collectors")*/ String[] collectors;                       // PIPELINES: missing field mapping
     //extra raw record fields
-    @Field("raw_taxon_name") String raw_scientificName;
-    @Field("raw_basis_of_record") String raw_basisOfRecord;
+    @Field("scientificName") String raw_scientificName;
+    @Field("raw_basisOfRecord") String raw_basisOfRecord;
     @Field("raw_type_status") String raw_typeStatus;
     @Field("raw_common_name") String raw_vernacularName;    
     //constructed fields
@@ -106,20 +107,20 @@ public class OccurrenceIndex {
     @Field("point-0.001") String point0001;
     @Field("point-0.0001") String point00001;
     @Field("names_and_lsid") String namesLsid;
-    @Field("multimedia") String[] multimedia;
+    /*@Field("multimedia")*/ String[] multimedia;                       // PIPELINES: missing field mapping
     @Field("license") String license;
-    @Field("identification_verification_status") String identificationVerificationStatus;
+    @Field("identificationVerificationStatus") String identificationVerificationStatus;
     //conservation status field
-    @Field("aust_conservation") String austConservation;
-    @Field("state_conservation") String stateConservation;
-    @Field("sensitive") String sensitive;
+    /*@Field("aust_conservation")*/ String austConservation;            // PIPELINES: field DEPRECATED
+    /*@Field("state_conservation") */String stateConservation;          // PIPELINES: missing field mapping
+    /*@Field("sensitive")*/ String sensitive;                           // PIPELINES: missing field mapping
     //AVH extra fields
-    @Field("record_number") String recordNumber;
+    @Field("recordNumber") String recordNumber;
     //For harvesting of images into the BIE
-    @Field("occurrence_details") String occurrenceDetails;
-    @Field("rights") String rights; 
+    /*@Field("occurrence_details")*/ String occurrenceDetails;          // PIPELINES: missing field mapping
+    /*@Field("rights")*/ String rights;                                 // PIPELINES: missing field mapping
     @Field("photographer_s") String photographer;
-    @Field("grid_ref") String gridReference;
+    /*@Field("grid_ref")*/ String gridReference;                        // PIPELINES: missing field mapping
     @Field("*_s") Map<String, Object> miscStringProperties;
     @Field("*_i") Map<String, Object> miscIntProperties;
     @Field("*_d") Map<String, Object> miscDoubleProperties;
@@ -544,11 +545,11 @@ public class OccurrenceIndex {
     }
 
     public String getMonth() {
-        return month;
+        return String.format("%02d", month);
     }
 
     public void setMonth(String month) {
-        this.month = month;
+        this.month = Integer.decode(month);
     }
 
     public String getBasisOfRecord() {
@@ -696,11 +697,11 @@ public class OccurrenceIndex {
     }
 
     public String getGeospatialKosher() {
-        return geospatialKosher;
+        return geospatialKosher.toString();
     }
 
     public void setGeospatialKosher(String geospatialKosher) {
-        this.geospatialKosher = geospatialKosher;
+        this.geospatialKosher = Boolean.getBoolean(geospatialKosher);
     }
 
     public String getTaxonomicKosher() {
@@ -711,11 +712,11 @@ public class OccurrenceIndex {
         this.taxonomicKosher = taxonomicKosher;
     }
 
-    public String getCollector() {
+    public String[] getCollector() {
         return collector;
     }
 
-    public void setCollector(String collector) {
+    public void setCollector(String[] collector) {
         this.collector = collector;
     }
 

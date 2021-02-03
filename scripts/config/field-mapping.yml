@@ -1,0 +1,14 @@
+dwcTerms: https://raw.githubusercontent.com/tdwg/dwc/master/vocabulary/term_versions.csv
+biocache:
+    fields: https://biocache-ws.ala.org.au/ws/index/fields?isMisc=true
+    solr:
+        host: 'http://localhost:8984'
+        collection: 'biocache'
+pipelines:
+    fields:
+    solr:
+        host: http://localhost:8983
+        collection: biocache
+
+mappingJson: deprecated-fields.json
+mappingCsv: pipeline_field_mappings.csv

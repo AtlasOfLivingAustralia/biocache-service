@@ -15,15 +15,15 @@ public class FieldStatsItem {
     private Long countDistinct;
 
     public FieldStatsItem(FieldStatsInfo info) {
-        this.min = info.getMin();
-        this.max = info.getMax();
-        this.sum = info.getSum();
-        this.count = info.getCount();
-        this.missing = info.getMissing();
-        this.mean = info.getMean();
-        this.stddev = info.getStddev();
-        this.label = info.getName();
-        this.countDistinct = info.getCountDistinct();
+        this.min = info.getMin();       // TODO: PIPELINES: FieldStatsInfo::getMin entry point
+        this.max = info.getMax();       // TODO: PIPELINES: FieldStatsInfo::getMax entry point
+        this.sum = info.getSum();       // TODO: PIPELINES: FieldStatsInfo::getSum entry point
+        this.count = info.getCount();   // TODO: PIPELINES: FieldStatsInfo::getCount entry point
+        this.missing = info.getMissing();   // TODO: PIPELINES: FieldStatsInfo::getMissing entry point
+        this.mean = info.getMean();     // TODO: PIPELINES: FieldStatsInfo::getMean entry point
+        this.stddev = info.getStddev(); // TODO: PIPELINES: FieldStatsInfo::getStddev entry point
+        this.label = info.getName();    // TODO: PIPELINES: FieldStatsInfo::getName entry point
+        this.countDistinct = info.getCountDistinct();   // TODO: PIPELINES: FieldStatsInfo::getCountDistinct entry point
     }
 
     public String getFq() {

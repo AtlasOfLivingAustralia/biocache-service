@@ -8,7 +8,7 @@ import org.springframework.test.context.ContextConfiguration
 import spock.lang.Specification
 import spock.lang.Unroll
 
-@ContextConfiguration(locations = "classpath:springTest.xml")
+//@ContextConfiguration(locations = "classpath:springTest.xml")
 class SecureControllerSpec extends Specification {
 
     AbstractSecureController secureController = new AbstractSecureController()
