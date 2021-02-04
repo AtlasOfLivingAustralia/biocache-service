@@ -13,6 +13,7 @@ branches:
   only:
     - master
     - develop
+    - epic/pipelines/develop
     - /^hotfix\/.*$/
 before_install:
   - docker-compose -f src/test/docker/solr7-cassandra3.yml up -d
