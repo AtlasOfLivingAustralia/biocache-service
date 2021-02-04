@@ -14,6 +14,7 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.web.WebAppConfiguration
 import spock.lang.Shared
 import spock.lang.Specification
+import spock.lang.Unroll
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.*
@@ -25,66 +26,58 @@ class FieldMappedSolrClientSpec extends Specification {
     @Autowired
     SolrClient solrClient
 
-//    @Autowired
-//    FieldMappingUtil fieldMappingUtil
-
-    def setupSpec() {
-
-    }
-
-
-    def 'basic query'() {
-
-        setup:
-        SolrQuery query = new SolrQuery()
-        query.fields = [ 'taxon_name' ]
-        query.query = 'taxon_name:*'
+    @Unroll
+    def 'query: #desc'() {
 
         when:
-        QueryResponse qr = solrClient.query(query)
+        QueryResponse qr = solrClient.query(query as SolrQuery)
         println qr
+        println result
 
         then:
         qr != null
-        qr.results.get(0).getFieldValue('taxon_name') == null
-        qr.results.get(0).getFieldValue('scientificName') != null
+        with qr, result
+
+        where:
+        desc | query || result
+        'basic taxon_name'  | [ fields: [ 'taxon_name' ], query: 'taxon_name:*' ] || { QueryResponse resp ->
+            assert resp.results.size() > 0
+            assert resp.results.get(0).getFieldValue('taxon_name') == null
+            assert resp.results.get(0).getFieldValue('scientificName') != null
+        }
+        'combination query' | [ fields: [ 'taxon_name' ], query: 'taxon_name:* AND -(common_name:"test")' ] || { QueryResponse resp ->
+            assert resp.results.size() > 0
+            assert resp.results.get(0).getFieldValue('taxon_name') == null
+            assert resp.results.get(0).getFieldValue('scientificName') != null
+        }
+        'deprecated field'  | [ fields: [ 'aust_conservation' ], query: 'aust_conservation:*' ] || { QueryResponse resp ->
+            assert resp.results.size() == 0
+        }
+        'deprecated field (string)' | [ fields: [ 'aust_conservation' ], query: 'aust_conservation:""' ] || { QueryResponse resp ->
+            assert resp.results.size() == 0
+        }
+        'deprecated field (number)' | [ fields: [ 'aust_conservation' ], query: 'aust_conservation:100' ] || { QueryResponse resp ->
+            assert resp.results.size() == 0
+        }
+        'deprecated field (range)' | [ fields: [ 'aust_conservation' ], query: 'aust_conservation:[* TO 100]' ] || { QueryResponse resp ->
+            assert resp.results.size() == 0
+        }
+        'deprecated field combination' | [ fields: [ 'aust_conservation' ], query: '*:* aust_conservation:*' ] || { QueryResponse resp ->
+            assert resp.results.size() > 0
+        }
+        'deprecated field combination' | [ fields: [ 'aust_conservation' ], query: '*:* AND aust_conservation:*' ] || { QueryResponse resp ->
+            assert resp.results.size() == 0
+        }
+        'basic filter query' | [ fields: [ 'taxon_name' ], query: '*:*', filterQueries: [ 'taxon_name:*', 'scientificName:*' ] ] || { QueryResponse resp ->
+            assert resp.results.size() > 0
+            assert resp.results.get(0).getFieldValue('taxon_name') == null
+            assert resp.results.get(0).getFieldValue('scientificName') != null
+        }
+//        'facet query' | [ query: '*:*', addFacetField: ('scientificName') ] || { QueryResponse resp ->
+//            assert resp.facetFields.get(0).name == 'scientificName'
+//        }
     }
 
-    def 'query'() {
-
-        setup:
-        SolrQuery query = new SolrQuery()
-        query.fields = [ 'taxon_name' ]
-        query.query = 'taxon_name:* AND -(common_name:"test")'
-
-        when:
-        QueryResponse qr = solrClient.query(query)
-        println qr
-
-        then:
-        qr != null
-        qr.results.get(0).getFieldValue('taxon_name') == null
-        qr.results.get(0).getFieldValue('scientificName') != null
-    }
-
-    def 'basic filterQueries'() {
-
-        setup:
-        SolrQuery query = new SolrQuery()
-        query.fields = [ 'taxon_name' ]
-        query.query = '*:*'
-        query.filterQueries = [ 'taxon_name:*', 'scientificName:*' ]
-
-        when:
-        QueryResponse qr = solrClient.query(query)
-
-        println qr
-
-        then:
-        qr != null
-        qr.results.get(0).getFieldValue('taxon_name') == null
-        qr.results.get(0).getFieldValue('scientificName') != null
-    }
 
     def 'facet query'() {
 

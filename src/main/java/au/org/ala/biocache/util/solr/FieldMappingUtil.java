@@ -24,6 +24,8 @@ public class FieldMappingUtil {
     private Map<String, String> fieldMappings;
 //    private Map<String, Map<String, String>>
 
+    static String DEPRECATED_PREFIX = "deprecated_";
+
     protected FieldMappingUtil(Map<String, String> fieldMappings) {
 
         this.fieldMappings = fieldMappings;
@@ -73,8 +75,7 @@ public class FieldMappingUtil {
             return null;
         }
 
-
-                return this.fieldMappings.entrySet()
+        return this.fieldMappings.entrySet()
                 .stream()
                 .reduce(query,
                         (String transformedQuery, Map.Entry<String, String> deprecatedField) -> {
@@ -90,7 +91,11 @@ public class FieldMappingUtil {
                                 StringBuffer sb = new StringBuffer();
 
                                 do {
-                                    matcher.appendReplacement(sb, "$1" + deprecatedField.getValue() + ":");
+                                    if (deprecatedField.getValue() == null) {
+                                        matcher.appendReplacement(sb, "$1" + DEPRECATED_PREFIX + deprecatedField.getKey() + ":");
+                                    } else {
+                                        matcher.appendReplacement(sb, "$1" + deprecatedField.getValue() + ":");
+                                    }
                                     translation.accept(deprecatedField);
                                     result = matcher.find();
                                 } while (result);
@@ -113,9 +118,9 @@ public class FieldMappingUtil {
             return null;
         }
 
-        String translatedFieldName = this.fieldMappings.get(fieldName);
+        String translatedFieldName = this.fieldMappings.getOrDefault(fieldName, "");
 
-        if (translatedFieldName != null) {
+        if (translatedFieldName == null || !"".equals(translatedFieldName)) {
 
             translation.accept(Maps.immutableEntry(fieldName, translatedFieldName));
             return translatedFieldName;
@@ -153,6 +158,7 @@ public class FieldMappingUtil {
 
         return Arrays.stream(fields)
                 .map((String field) -> translateFieldName(translation, field))
+                .filter((String field) -> field != null && !field.equals(""))
                 .toArray(String[]::new);
     }
 
