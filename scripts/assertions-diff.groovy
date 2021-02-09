@@ -1,12 +1,12 @@
+@GrabResolver(name='org.gbif', root='http://repository.gbif.org/content/groups/gbif')
 @Grapes([
-        @Grab(group = 'com.opencsv', module = 'opencsv', version = '5.3'),
+//        @GrabConfig(systemClassLoader=true),
         @Grab(group='org.apache.httpcomponents', module='httpmime', version='4.3.1'),
         @Grab(group = 'org.codehaus.groovy.modules.http-builder', module='http-builder', version='0.7.1'),
+        @Grab(group='org.gbif', module='gbif-api', version='0.138'),
+//        @Grab(group='au.org.ala', module='livingatlas', version='2.8.0-SNAPSHOT')
+//        @Grab(group='au.orgls.ala', module='livingatlas', version='2.8.0-SNAPSHOT', changing=true)
 ])
-
-
-import com.opencsv.bean.CsvToBeanBuilder
-import com.opencsv.bean.CsvBindByName
 
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
@@ -14,10 +14,185 @@ import groovy.yaml.YamlSlurper
 
 import groovyx.net.http.*
 
-import org.gbif.api.vocabulary.OccurrenceIssue;
-import org.ala.pipelines.vocabulary.ALAOccurrenceIssue;
+import org.gbif.api.vocabulary.OccurrenceIssue
+//import org.ala.pipelines.vocabulary.ALAOccurrenceIssue
+
+//println ALAOccurrenceIssue.values()
+
+YamlSlurper yamlSlurper = new YamlSlurper()
+
+def config = yamlSlurper.parse(new File('./config/field-mapping.yml'))
+
+class AssertionFacet {
+
+    String name
+    long count
+}
+
+class AssertionMapping {
+
+    AssertionFacet biocacheAssertion
+    AssertionFacet pipelinesAssertion
+
+    String gbifOccurrenceIssue
+    String alaOccurrenceIssue
+}
+
+Collection<AssertionFacet> parseAssertions(String host, String collection) {
+
+    def http = new HTTPBuilder(host)
+
+    Collection assertions = http.request(Method.GET, ContentType.JSON) {
+
+        uri.path = "/solr/${collection}/select"
+        uri.query = [
+                q            : '*:*',
+                limit        : 0,
+                facet        : 'on',
+                'facet.field': 'assertions',
+                'facet.limit': 1000,
+                wt           : 'json',
+                indent       : 'on'
+        ]
+        response.success = { resp, json ->
+
+            json.facet_counts.facet_fields.assertions
+        }
+    }
+    Collection<AssertionFacet> assertionFacets = []
+
+    for (int i = 0; i < assertions.size(); i += 2) {
+
+        assertionFacets << new AssertionFacet(name: assertions[i], count: assertions[i+1])
+    }
+
+    return assertionFacets
+}
+
+def toCamelCase = { it.replaceAll("(_)([A-Za-z0-9])", { Object[] o -> o[2].toUpperCase() }) }
+def toSnakeCase = { it.replaceAll( /([A-Z])/, /_$1/ ).toLowerCase().replaceAll( /^_/, '' ) }
+
+Collection<AssertionFacet> biocacheAssertions = parseAssertions(config.biocache.solr.host, config.biocache.solr.collection)
+Collection<AssertionFacet> pipelinesAssertions = parseAssertions(config.pipelines.solr.host, config.pipelines.solr.collection)
+
+File assertionMappingJson = new File(config.fields.mappingJson)
+
+Map<String, String> assertionNameMappings = [:]
+
+JsonSlurper slurper = new JsonSlurper()
+
+if (assertionMappingJson.exists()) {
+    assertionNameMappings = slurper.parse(assertionMappingJson)
+}
+
+println biocacheAssertions
+println pipelinesAssertions
+
+Collection<AssertionMapping> assertionMappings = pipelinesAssertions.collect { AssertionFacet assertionFacet ->
+
+    return new AssertionMapping(pipelinesAssertion: assertionFacet)
+}
+
+biocacheAssertions.each { AssertionFacet assertionFacet ->
+
+    AssertionMapping assertionMapping = assertionMappings.find { AssertionMapping assertionMapping ->
+
+        if (assertionMapping.biocacheAssertion) { return false }
+
+        String pipelineAssertion = assertionNameMappings[assertionFacet.name]
+
+        if (pipelineAssertion && assertionMapping.pipelinesAssertion.name == pipelineAssertion) {
+            return true
+        }
+
+        if (assertionMapping.pipelinesAssertion?.name?.equalsIgnoreCase(assertionFacet.name)) {
+
+            return true
+        }
+
+        if (assertionMapping.pipelinesAssertion?.name?.equalsIgnoreCase(toSnakeCase(assertionFacet.name))) {
+
+            return true
+        }
+
+        return false
+    }
+
+    if (assertionMapping) {
+        assertionMapping.biocacheAssertion = assertionFacet
+    } else {
+        assertionMappings << new AssertionMapping(biocacheAssertion: assertionFacet)
+    }
+}
+
+OccurrenceIssue.values().each { OccurrenceIssue gbifOccurrenceIssue ->
+
+    AssertionMapping assertionMapping = assertionMappings.find { AssertionMapping assertionMapping ->
+
+        if (assertionMapping.gbifOccurrenceIssue) { return false }
+
+        if (gbifOccurrenceIssue.name().equalsIgnoreCase(assertionMapping.biocacheAssertion.name) ||
+                gbifOccurrenceIssue.name().equalsIgnoreCase(assertionMapping.pipelinesAssertion.name)) {
+            return true
+        }
+
+        String gbifOccurrenceIssueName = toCamelCase(gbifOccurrenceIssue.name())
+
+        if (gbifOccurrenceIssueName.equalsIgnoreCase(assertionMapping.biocacheAssertion.name) ||
+                gbifOccurrenceIssueName.equalsIgnoreCase(assertionMapping.pipelinesAssertion.name)) {
+            return true
+        }
+
+        return false
+    }
+
+    if (assertionMapping) {
+        assertionMapping.gbifOccurrenceIssue = gbifOccurrenceIssue
+    } else {
+        assertionMappings << new AssertionMapping(gbifOccurrenceIssue: gbifOccurrenceIssue)
+    }
+}
+
+def assertionComparitor = { AssertionMapping lft, AssertionMapping rgt ->
+
+    String lftFieldName = lft.biocacheAssertion?.name ?: (lft.pipelinesAssertion?.name ?: (lft.gbifOccurrenceIssue ?: lft.alaOccurrenceIssue))
+    String rgtFieldName = rgt.biocacheAssertion?.name ?: (rgt.pipelinesAssertion?.name ?: (rgt.gbifOccurrenceIssue ?: rgt.alaOccurrenceIssue))
+
+    if (lftFieldName == rgtFieldName) {
+        return 0
+    }
+    if (!lftFieldName) {
+        return -1
+    }
+    if (!rgtFieldName) {
+        return 1
+    }
+
+    return lftFieldName.compareToIgnoreCase(rgtFieldName)
+
+}
+
+File assertionsCsv = new File(config.assertions.export)
+
+assertionsCsv.newWriter().withWriter { Writer w ->
+
+    w << "\"Solr V8 (pipelines)\",,\"Solr v6\",,\"GBIF Occurrence Issue\",\"ALA Occurrence Issue\"\n"
+
+    assertionMappings.sort(assertionComparitor).each { AssertionMapping assertionMapping ->
+
+        w << "\"${assertionMapping.pipelinesAssertion?.name ?: ''}\","
+        w << "${assertionMapping.pipelinesAssertion?.count ?: ''},"
+        w << "\"${assertionMapping.biocacheAssertion?.name ?: ''}\","
+        w << "${assertionMapping.biocacheAssertion?.count ?: ''},"
+        w << "${assertionMapping.gbifOccurrenceIssue ?: ''},"
+        w << '\n'
+    }
+}
+
+//println ALAOccurrenceIssue.values()
 
 
+/*
 class SolrField {
     String name
     String type
@@ -171,7 +346,7 @@ def biocacheV2Fields = slurper.parse(config.biocache.fields.toURL())
 Map<String, SolrField> pipelinesSolrFields = parseSolrFields(config.pipelines.solr.host, config.pipelines.solr.collection)
 Map<String, SolrField> legacySolrFields = parseSolrFields(config.biocache.solr.host, config.biocache.solr.collection)
 
-File fieldMappingJson = new File(config.fields.mappingJson)
+File fieldMappingJson = new File(config.mappingJson)
 
 Map<String, String> fieldNameMappings = [:]
 
@@ -181,13 +356,13 @@ if (fieldMappingJson.exists()) {
 
 println "${pipelinesSolrFields.size()} : ${legacySolrFields.size()} : ${biocacheV2Fields.size()}, ${fieldNameMappings.size()}"
 
-//fieldNameMappings.each { String legacyFieldName, String pipelinesFieldName ->
-//
-//    if (legacySolrFields[legacyFieldName] && pipelinesSolrFields[pipelinesFieldName]) {
-//
-//
-//    }
-//}
+fieldNameMappings.each { String legacyFieldName, String pipelinesFieldName ->
+
+    if (legacySolrFields[legacyFieldName] && pipelinesSolrFields[pipelinesFieldName]) {
+
+
+    }
+}
 
 // process the biocache fields mapping to the solr schema fields
 List<FieldMapping> fieldMappings = biocacheV2Fields.collect { field ->
@@ -388,6 +563,7 @@ biocacheV3Schema.schema.dynamicFields.each { dynamicField ->
     }
 }
 */
+/*
 // map the dwc terms
 fieldMappings.each { FieldMapping fieldMapping ->
 
@@ -446,7 +622,7 @@ def fieldNameComparitor = { lft, rgt ->
 
 }
 
-File fieldMappingCsv = new File(config.fields.export)
+File fieldMappingCsv = new File(config.mappingCsv)
 
 fieldMappingCsv.newWriter().withWriter { Writer w ->
 
@@ -530,9 +706,9 @@ fieldMappings.each { FieldMapping fieldMapping ->
     }
 }
 
-new File(config.fields.mappingJson).newWriter().withWriter { Writer w ->
+new File(config.mappingJson).newWriter().withWriter { Writer w ->
     w << JsonOutput.prettyPrint(JsonOutput.toJson(deprecatedFields))
 }
 
-println OccurrenceIssue.values()
-println ALAOccurrenceIssue.values()
+
+ */
