@@ -55,6 +55,7 @@ import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
+import org.apache.solr.common.util.SimpleOrderedMap;
 import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.gbif.dwc.terms.DcTerm;
 import org.gbif.dwc.terms.DwcTerm;
@@ -82,7 +83,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import static com.google.common.base.CaseFormat.LOWER_CAMEL;
 import static com.google.common.base.CaseFormat.LOWER_UNDERSCORE;
@@ -1795,7 +1795,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
             solrQuery.setQuery(downloadParams.getFormattedQuery()); // PIPELINES: SolrQuery::setQuery entry point
             //Only the fields specified below will be included in the results from the SOLR Query
-            solrQuery.setFields("id", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid"); // PIPELINES: field names entry point
+            solrQuery.setFields("id", "institutionUid", "collectionUid", "dataResourceUid", "dataProviderUid"); // PIPELINES: field names entry point
 
             String dFields = getDownloadFields(downloadParams);
 
@@ -1915,13 +1915,13 @@ public class SearchDAOImpl implements SearchDAO {
                     StringBuilder fqBuilder = new StringBuilder("-(");
                     for (String dr : downloadLimit.keySet()) {
                         //add another fq to the search for data_resource_uid
-                        downloadParams.setFq((String[]) ArrayUtils.add(originalFq, "data_resource_uid:" + dr));
+                        downloadParams.setFq((String[]) ArrayUtils.add(originalFq, "dataResourceUid:" + dr));
                         resultsCount = downloadRecords(downloadParams, rw, downloadLimit, uidStats, fields, qaFields,
                                 resultsCount, dr, includeSensitive, dd, limit, analysisFields, speciesListFields);
                         if (fqBuilder.length() > 2) {
                             fqBuilder.append(" OR ");
                         }
-                        fqBuilder.append("data_resource_uid:").append(dr);
+                        fqBuilder.append("dataResourceUid:").append(dr);
                     }
                     fqBuilder.append(")");
                     //now include the rest of the data resources
@@ -4188,7 +4188,7 @@ public class SearchDAOImpl implements SearchDAO {
             maxBooleanClauses = value;
         }
 
-        queryFormatUtils.setMaxBooleanClauses(maxBooleanClauses);
+        queryFormatUtils.setMaxBooleanClauses(1024);
 
         return maxBooleanClauses;
     }
@@ -4586,11 +4586,11 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public double[] getBBox(SpatialSearchRequestParams requestParams) throws Exception {
         double[] bbox = new double[4];
-        String[] sort = {"longitude", "latitude", "longitude", "latitude"};
+        String[] sort = {"decimalLongitude", "decimalLatitude", "decimalLongitude", "decimalLatitude"};
         String[] dir = {"asc", "asc", "desc", "desc"};
 
         //Filter for -180 +180 longitude and -90 +90 latitude to match WMS request bounds.
-        String [] bounds = new String[]{"longitude:[-180 TO 180]", "latitude:[-90 TO 90]"};
+        String [] bounds = new String[]{"decimalLongitude:[-180 TO 180]", "decimalLatitude:[-90 TO 90]"};
 
         queryFormatUtils.addFqs(bounds, requestParams);
 
@@ -4653,5 +4653,41 @@ public class SearchDAOImpl implements SearchDAO {
         }
 
         return found;
+    }
+
+    @Override
+    public HeatmapDTO getHeatMap(SpatialSearchRequestParams searchParams, Double minx, Double miny, Double maxx, Double maxy) throws Exception {
+
+        SolrQuery solrQuery = new SolrQuery();
+        solrQuery.setRequestHandler("standard");
+        solrQuery.set("facet.heatmap", "geohash");
+
+        // heatmaps support international date line
+        if (minx < -180){
+            minx  = minx + 360;
+        }
+
+        if (maxx > 180){
+            maxx  = maxx - 360;
+        }
+
+        String geom = "[\"" + minx + " " + miny + "\" TO \"" + maxx + " " + maxy + "\"]";
+        solrQuery.set("facet.heatmap.geom", geom);
+        solrQuery.set("facet.heatmap.distErrPct", "0.05");
+        solrQuery.setFacetLimit(-1);
+        solrQuery.setFacet(true);
+        solrQuery.setFilterQueries(searchParams.getFq());
+        solrQuery.setRows(0);
+        solrQuery.setQuery(searchParams.getQ());
+        logger.info(solrQuery.toQueryString());
+        QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
+        // FIXME UGLY - not needed with SOLR8, but current constraint is SOLR 6 API
+        // See SpatialHeatmapFacets.HeatmapFacet in SOLR 8 API
+        SimpleOrderedMap facetHeatMaps = ((SimpleOrderedMap)((SimpleOrderedMap)((qr.getResponse().get("facet_counts")))).get("facet_heatmaps"));
+        if (facetHeatMaps != null) {
+            SimpleOrderedMap heatmap = ((SimpleOrderedMap) facetHeatMaps.get("geohash"));
+            return new HeatmapDTO((Integer) heatmap.get("gridLevel"), (List<List<Integer>>) heatmap.get("counts_ints2D"));
+        }
+        return null;
     }
 }
