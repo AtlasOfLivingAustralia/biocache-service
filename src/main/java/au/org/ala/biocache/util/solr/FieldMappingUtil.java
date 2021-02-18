@@ -1,9 +1,7 @@
 package au.org.ala.biocache.util.solr;
 
-import au.org.ala.biocache.util.FieldMappedSolrQuery;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
-import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
@@ -22,7 +20,9 @@ import java.util.stream.Stream;
 public class FieldMappingUtil {
 
     private Map<String, String> fieldMappings;
-//    private Map<String, Map<String, String>>
+
+    private Map<String, String> facetMap;
+    private Map<String, String> facetRangeMap;
 
     static String DEPRECATED_PREFIX = "deprecated_";
 
@@ -34,6 +34,9 @@ public class FieldMappingUtil {
     SolrParams translateSolrParams(SolrParams params) {
 
         System.out.println("before translation: " + params.toQueryString());
+
+        facetMap = null;
+        facetRangeMap = null;
 
         // TODO: PIPELINES: translate the params performing field mappings
         ModifiableSolrParams translatedSolrParams = ModifiableSolrParams.of(params);
@@ -50,9 +53,12 @@ public class FieldMappingUtil {
                     break;
 
                 case "facet.field":
-                    translatedSolrParams.set("facet.field", translateFieldArray((Map.Entry<String, String> mapping) -> {
-                        System.out.println("facet mapping: " + mapping.getKey() + " -> " + mapping.getValue());
-                    }, translatedSolrParams.getParams("facet.field")));
+                    facetMap = new HashMap();
+                    translatedSolrParams.set("facet.field", translateFieldArray((Map.Entry<String, String> mapping) -> facetMap.put(mapping.getKey(), mapping.getValue()), translatedSolrParams.getParams("facet.field")));
+                    break;
+                case "facet.range":
+                    facetRangeMap = new HashMap<>();
+                    translatedSolrParams.set("facet.range", translateFieldArray((Map.Entry<String, String> mapping) -> facetRangeMap.put(mapping.getKey(), mapping.getValue()), translatedSolrParams.getParams("facet.range")));
                     break;
             }
         });
@@ -65,8 +71,7 @@ public class FieldMappingUtil {
     QueryResponse translateQueryResponse(QueryResponse queryResponse) {
 
         // TODO: PIPELINES: translate the query response performing reverse field mappings
-
-        return queryResponse;
+        return new FieldMappedQueryResponse(facetMap, queryResponse);
     }
 
     public String translateQueryFields(Consumer<Map.Entry<String, String>> translation, String query) {
@@ -110,17 +115,15 @@ public class FieldMappingUtil {
 
     }
 
-
-
     public String translateFieldName(Consumer<Map.Entry<String, String>> translation, String fieldName) {
 
         if (fieldName == null) {
             return null;
         }
 
-        String translatedFieldName = this.fieldMappings.getOrDefault(fieldName, "");
+        String translatedFieldName = this.fieldMappings.getOrDefault(fieldName, "\0");
 
-        if (translatedFieldName == null || !"".equals(translatedFieldName)) {
+        if (translatedFieldName == null || !"\0".equals(translatedFieldName)) {
 
             translation.accept(Maps.immutableEntry(fieldName, translatedFieldName));
             return translatedFieldName;

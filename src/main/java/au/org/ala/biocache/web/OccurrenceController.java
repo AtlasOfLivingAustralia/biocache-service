@@ -1417,6 +1417,7 @@ public class OccurrenceController extends AbstractSecureController {
             idRequest.setFacet(false);
             SolrDocumentList result = searchDAO.findByFulltext(idRequest);
 
+            // TODO: PIPELINES: translate SolrDocument field names (possible use OccurrenceDTO object).
             //apply same logic to SOLR response as Cassandra response
             for (SolrDocument sd : result) {
                 // obscure email addresses, or anything else containing @

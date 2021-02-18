@@ -197,9 +197,9 @@ public class ScatterplotController {
         int count = 0;
         for(int i=0;i<size;i++) {
             try {
-                Object a = sdl.get(i).getFieldValue(y);
-                Object b = sdl.get(i).getFieldValue(x);
-                data[1][i] = Double.parseDouble(String.valueOf(sdl.get(i).getFieldValue(y)));
+                Object a = sdl.get(i).getFieldValue(y); // PIPELINES: SolrDocument::getFieldValue entry point
+                Object b = sdl.get(i).getFieldValue(x); // PIPELINES: SolrDocument::getFieldValue entry point
+                data[1][i] = Double.parseDouble(String.valueOf(sdl.get(i).getFieldValue(y)));   // PIPELINES: SolrDocument::getFieldValue entry point
                 if(a instanceof Double) {
                     data[0][i] = (Double) a;
                 } else {

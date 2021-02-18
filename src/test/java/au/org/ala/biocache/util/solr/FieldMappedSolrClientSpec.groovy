@@ -104,5 +104,52 @@ class FieldMappedSolrClientSpec extends Specification {
         qr != null
         qr.facetFields?.size() == 1
         qr.facetFields.get(0).name == 'taxon_name'
+
+        when:
+        query.facet = false
+        query.addFacetField('aust_conservation')
+        qr = solrClient.query(query)
+
+        then:
+        qr != null
+        qr.facetFields?.size() == 1
+        qr.facetFields.get(0).name == 'aust_conservation'
+    }
+
+    def 'facet query getFacetField'() {
+
+        setup:
+        SolrQuery query = new SolrQuery()
+        query.query = '*:*'
+        query.fields = [ 'id' ]
+        query.addFacetField('scientificName')
+
+        when:
+        QueryResponse qr = solrClient.query(query)
+
+        then:
+        qr != null
+        qr.facetFields?.size() == 1
+        qr.getFacetField('scientificName') != null
+
+        when:
+        query.facet = false
+        query.addFacetField('taxon_name')
+        qr = solrClient.query(query)
+
+        then:
+        qr != null
+        qr.facetFields?.size() == 1
+        qr.getFacetField('taxon_name') != null
+
+        when:
+        query.facet = false
+        query.addFacetField('aust_conservation')
+        qr = solrClient.query(query)
+
+        then:
+        qr != null
+        qr.facetFields?.size() == 1
+        qr.getFacetField('aust_conservation') != null
     }
 }
