@@ -79,7 +79,7 @@ public class SpeciesImageService {
                 Map<Long, SpeciesImageDTO> map = new HashMap();
 
                 for (SimpleOrderedMap item : SearchUtils.getList(qr.getResponse(), "facets", "lft", "buckets")) {       // PIPELINES: recheck pipelines field mapping
-                    String dataResourceUid = (String) SearchUtils.getVal(item, "data_resource_uid", "buckets", 0, 0);   // PIPELINES: recheck pipelines field mapping
+                    String dataResourceUid = (String) SearchUtils.getVal(item, "dataResourceUid", "buckets", 0, 0);   // PIPELINES: recheck pipelines field mapping
                     String imageUrl = (String) SearchUtils.getVal(item, "image_url", "buckets", 0, 0);                  // PIPELINES: recheck pipelines field mapping
                     SpeciesImageDTO image = new SpeciesImageDTO(dataResourceUid, imageUrl);
                     image.setCount((Long) item.getVal(1));

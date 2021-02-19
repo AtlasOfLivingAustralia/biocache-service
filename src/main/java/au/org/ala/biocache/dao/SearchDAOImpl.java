@@ -1089,10 +1089,10 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             }
             // TODO: PIPELINES: check the that addField returns instance of SolrFieldTranslationWrapper for further translation of chained calls.
-            solrQuery.addField("institution_uid")   // PIPELINES: SolrQuery::addField entry point
-                    .addField("collection_uid")
-                    .addField("data_resource_uid")
-                    .addField("data_provider_uid");
+            solrQuery.addField("institutionUid")   // PIPELINES: SolrQuery::addField entry point
+                    .addField("collectionUid")
+                    .addField("dataResourceUid")
+                    .addField("dataProviderUid");
 
             // 'lft' and 'rgt' is mandatory when there are species list fields (indexedFields[7])
             if (indexedFields[7].size() > 0) {
@@ -1795,7 +1795,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
             solrQuery.setQuery(downloadParams.getFormattedQuery()); // PIPELINES: SolrQuery::setQuery entry point
             //Only the fields specified below will be included in the results from the SOLR Query
-            solrQuery.setFields("id", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid"); // PIPELINES: field names entry point
+            solrQuery.setFields("id", "institutionUid", "collectionUid", "dataResourceUid", "dataProviderUid"); // PIPELINES: field names entry point
 
             String dFields = getDownloadFields(downloadParams);
 
@@ -1818,7 +1818,7 @@ public class SearchDAOImpl implements SearchDAO {
             for (FacetField facet : facets) {
                 if (facet.getName().equals("assertions") && facet.getValueCount() > 0) {
                     qasb.append(getQAFromFacet(facet));
-                } else if (facet.getName().equals("data_resource_uid") && checkDownloadLimits) {    // PIPELINES: FacetField::getName entry point
+                } else if (facet.getName().equals("dataResourceUid") && checkDownloadLimits) {    // PIPELINES: FacetField::getName entry point
                     //populate the download limit
                     initDownloadLimits(downloadLimit, facet);
                 }
@@ -2057,7 +2057,7 @@ public class SearchDAOImpl implements SearchDAO {
         queryFormatUtils.formatSearchQuery(downloadParams);
         solrQuery.setQuery(downloadParams.getFormattedQuery()); // PIPELINES: SolrQuery::setQuery entry point
         //Only the fields specified below will be included in the results from the SOLR Query
-        solrQuery.setFields("id", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid", "lft", "rgt"); // PIPELINES: SolrQuery::setFields entry point
+        solrQuery.setFields("id", "institutionUid", "collectionUid", "dataResourceUid", "dataProviderUid", "lft", "rgt"); // PIPELINES: SolrQuery::setFields entry point
 
         if (dd != null) {
             dd.resetCounts();
@@ -3319,10 +3319,10 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
         solrQuery.setFacetMinCount(1);
-        solrQuery.addFacetField("data_provider_uid");   // PIPELINES: SolrQuery::addFacetField entry point
-        solrQuery.addFacetField("data_resource_uid");
-        solrQuery.addFacetField("collection_uid");
-        solrQuery.addFacetField("institution_uid");
+        solrQuery.addFacetField("dataProviderUid");   // PIPELINES: SolrQuery::addFacetField entry point
+        solrQuery.addFacetField("dataResourceUid");
+        solrQuery.addFacetField("collectionUid");
+        solrQuery.addFacetField("institutionUid");
         QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFormattedFq(), 1, 0, "score", "asc");
         //now cycle through and get all the facets
         List<FacetField> facets = qr.getFacetFields();  // TODO: PIPELINES: QueryResponse::getFacetFields entry point
