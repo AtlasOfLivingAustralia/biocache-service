@@ -14,10 +14,6 @@ import groovy.yaml.YamlSlurper
 
 import groovyx.net.http.*
 
-import org.gbif.api.vocabulary.OccurrenceIssue;
-import org.ala.pipelines.vocabulary.ALAOccurrenceIssue;
-
-
 class SolrField {
     String name
     String type
@@ -180,14 +176,6 @@ if (fieldMappingJson.exists()) {
 }
 
 println "${pipelinesSolrFields.size()} : ${legacySolrFields.size()} : ${biocacheV2Fields.size()}, ${fieldNameMappings.size()}"
-
-//fieldNameMappings.each { String legacyFieldName, String pipelinesFieldName ->
-//
-//    if (legacySolrFields[legacyFieldName] && pipelinesSolrFields[pipelinesFieldName]) {
-//
-//
-//    }
-//}
 
 // process the biocache fields mapping to the solr schema fields
 List<FieldMapping> fieldMappings = biocacheV2Fields.collect { field ->
@@ -520,7 +508,7 @@ fieldMappingCsv.newWriter().withWriter { Writer w ->
     }
 }
 
-Map<String, String> deprecatedFields = [:]
+Map<String, String> deprecatedFields = fieldNameMappings.clone()
 
 fieldMappings.each { FieldMapping fieldMapping ->
     if (fieldMapping.legacySolrField && fieldMapping.pipelinesSolrField && !fieldMapping.pipelinesSolrField.name.contains('*') && fieldMapping.legacySolrField.name != fieldMapping.pipelinesSolrField.name) {
@@ -531,8 +519,5 @@ fieldMappings.each { FieldMapping fieldMapping ->
 }
 
 new File(config.fields.mappingJson).newWriter().withWriter { Writer w ->
-    w << JsonOutput.prettyPrint(JsonOutput.toJson(deprecatedFields))
+    w << JsonOutput.prettyPrint(JsonOutput.toJson(deprecatedFields.sort {it.key }))
 }
-
-println OccurrenceIssue.values()
-println ALAOccurrenceIssue.values()
