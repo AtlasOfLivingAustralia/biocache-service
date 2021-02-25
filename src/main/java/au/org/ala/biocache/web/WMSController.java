@@ -1103,7 +1103,7 @@ public class WMSController extends AbstractSecureController{
             throws Exception {
 
         if ("GetMap".equalsIgnoreCase(requestString)) {
-            generateWmsTile(
+            generateWmsTileViaHeatmap(
                     requestParams,
                     cql_filter,
                     env,
@@ -1357,7 +1357,7 @@ public class WMSController extends AbstractSecureController{
      * @throws Exception
      */
     @RequestMapping(value = {"/webportal/wms/reflect", "/ogc/wms/reflect", "/mapping/wms/reflect"}, method = RequestMethod.GET)
-    public ModelAndView generateWmsTile(
+    public ModelAndView generateWmsTileViaHeatmap(
             SpatialSearchRequestParams requestParams,
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
@@ -1377,15 +1377,8 @@ public class WMSController extends AbstractSecureController{
             HttpServletResponse response)
             throws Exception {
 
-        // http://localhost:8984/solr/biocache/select?facet=true&q=*:*&
-        // facet.heatmap=geohash&
-        // rows=0&
-        // facet.heatmap.gridLevel=2&
-        // facet.heatmap.geom=["-180 -90" TO "180 90"]&
-        // facet.heatmap.format=png
-
         //for OS Grids, hand over to WMS OS controller
-        if(env != null && env.contains("osgrid")){
+        if (env != null && env.contains("osgrid")) {
             wmsosGridController.generateWmsTile(requestParams, cql_filter, env, srs, styles, bboxString, layers, width, height, outlinePoints, outlineColour, request, response);
             return null;
         }
@@ -1396,92 +1389,70 @@ public class WMSController extends AbstractSecureController{
             return null;
         }
 
-        if (StringUtils.isBlank(bboxString)){
+        if (StringUtils.isBlank(bboxString)) {
             return sendWmsError(response, 400, "MissingOrInvalidParameter",
                     "Missing valid BBOX parameter");
         }
-//
-//        Set<Integer> hq = new HashSet<Integer>();
-//        if (hqs != null && hqs.length > 0) {
-//            for (String h : hqs) {
-//                hq.add(Integer.parseInt(h));
-//            }
-//        }
-//
-//        if (logger.isDebugEnabled()) {
-//            logger.debug("WMS tile: " + request.getQueryString());
-//        }
-//
-//        response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
-//        response.setHeader("ETag", wmsETag.get());
-//        response.setContentType("image/png"); //only png images generated
-//
+
+        // Used to hide certain values from the layer
+        Set<Integer> hiddenFacets = new HashSet<Integer>();
+        if (hqs != null && hqs.length > 0) {
+            for (String h : hqs) {
+                hiddenFacets.add(Integer.parseInt(h));
+            }
+        }
+
         WmsEnv vars = new WmsEnv(env, styles);
-        double[] bbox = new double[4];
-        double[] tilebbox = new double[4];
-
-        //bbox adjustment for WMSCache is better with a stepped size
-        int steppedSize = (int) (Math.ceil(vars.size / 20.0) * 20);
-        int size = steppedSize + (vars.highlight != null ? HIGHLIGHT_RADIUS * 2 + (int) (steppedSize * 0.2) : 0) + 5;  //bounding box buffer
-
-        CRSAuthorityFactory factory = CRS.getAuthorityFactory(true);
-        CoordinateReferenceSystem sourceCRS = factory.createCoordinateReferenceSystem(srs);
-        CoordinateReferenceSystem targetCRS = factory.createCoordinateReferenceSystem("EPSG:4326");
-        CoordinateOperation transformTo4326 = new DefaultCoordinateOperationFactory().createOperation(sourceCRS, targetCRS);
 
         String[] splitBBox = bboxString.split(",");
+        double[] tilebbox = new double[4];
         for (int i = 0; i < 4; i++) {
             try {
                 tilebbox[i] = Double.parseDouble(splitBBox[i]);
             } catch (Exception e) {
-                displayBlankImage(response);
-                return null;
+                return sendWmsError(response, 400, "MissingOrInvalidParameter",
+                        "Missing valid BBOX parameter");
             }
         }
 
-        // pixel correction buffer: adjust bbox extents with half pixel width/height
-        GeneralDirectPosition directPositionSW = new GeneralDirectPosition(tilebbox[0], tilebbox[1]);
-        GeneralDirectPosition directPositionNE = new GeneralDirectPosition(tilebbox[2], tilebbox[3]);
+        double[] bbox = reprojectBBox(tilebbox, srs);
 
-        DirectPosition sw4326 = transformTo4326.getMathTransform().transform(directPositionSW, null);
-        DirectPosition ne4326 = transformTo4326.getMathTransform().transform(directPositionNE, null);
+        boolean isGrid = vars.colourMode.equals("grid");
+        logger.info("vars.colourMode = " + vars.colourMode);
 
+        // add a buffer of 10px
+        // add buffer
+        float pointWidth = (float) (vars.size * 2);
 
+        List<LegendItem> legend = searchDAO.getColours(requestParams, vars.colourMode);
+        if (!isGrid) {
+            // increase BBOX by pointWidth either side
+            bbox[0] = bbox[0] - ((pointWidth / (256f)) * (bbox[2] - bbox[0]));
+            bbox[1] = bbox[1] - ((pointWidth / (256f)) * (bbox[3] - bbox[1]));
+            bbox[2] = bbox[2] + ((pointWidth / (256f)) * (bbox[2] - bbox[0]));
+            bbox[3] = bbox[3] + ((pointWidth / (256f)) * (bbox[3] - bbox[1]));
+        }
 
-        bbox[0] = sw4326.getCoordinate()[0];
-        bbox[1] = sw4326.getCoordinate()[1];
-        bbox[2] = ne4326.getCoordinate()[0];
-        bbox[3] = ne4326.getCoordinate()[1];
+        HeatmapDTO heatmapDTO = searchDAO.getHeatMap(requestParams, bbox[0], bbox[1], bbox[2], bbox[3], legend, hiddenFacets, isGrid);
 
-
-//
-//        double resolution = getBBoxesSRS(transformTo4326, bboxString, width, height, size, vars.uncertainty, mbbox, bbox, pbbox, tilebbox);
-
-        HeatmapDTO heatmapDTO = searchDAO.getHeatMap(requestParams, bbox[0], bbox[1], bbox[2], bbox[3]);
-//        HeatmapDTO heatmapDTO = searchDAO.getHeatMap(requestParams, tilebbox[0], tilebbox[1], tilebbox[2], tilebbox[3]);
-
-        if (heatmapDTO.counts == null){
+        if (heatmapDTO.layers == null) {
             displayBlankImage(response);
             return null;
         }
 
-        int pointWidth = vars.size * 2;
-
         // render PNG...
-        ImgObj tile = renderHeatmap(heatmapDTO.counts,
+        ImgObj tile = renderHeatmap(heatmapDTO,
                 vars,
-                pointWidth,
+                (int) pointWidth,
                 outlinePoints,
                 outlineColour,
-                (List<Integer>) null,
-                -1,
                 width,
                 height
-                );
+        );
 
         if (tile != null && tile.g != null) {
             tile.g.dispose();
-            try (ServletOutputStream outStream = response.getOutputStream();){
+            try (ServletOutputStream outStream = response.getOutputStream();) {
                 ImageIO.write(tile.img, "png", outStream);
                 outStream.flush();
             } catch (Exception e) {
@@ -1491,7 +1462,139 @@ public class WMSController extends AbstractSecureController{
             displayBlankImage(response);
         }
         return null;
+    }
 
+    //    /**
+//     * WMS service for webportal.
+//     *
+//     * @param cql_filter q value.
+//     * @param env        ';' delimited field:value pairs.  See Env
+//     * @param bboxString
+//     * @param width
+//     * @param height
+//     * @param cache      'on' = use cache, 'off' = do not use cache this
+//     *                   also removes any related cache data.
+//     * @param response
+//     * @throws Exception
+//     */
+////    @RequestMapping(value = {"/webportal/wms/reflect", "/ogc/wms/reflect", "/mapping/wms/reflect"}, method = RequestMethod.GET)
+//    public ModelAndView generateWmsTile(
+//            SpatialSearchRequestParams requestParams,
+//            @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
+//            @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
+//            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs, //default to google mercator
+//            @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
+//            @RequestParam(value = "BBOX", required = true, defaultValue = "") String bboxString,
+//            @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
+//            @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
+//            @RequestParam(value = "CACHE", required = false, defaultValue = "default") String cache,
+//            @RequestParam(value = "REQUEST", required = true, defaultValue = "") String requestString,
+//            @RequestParam(value = "OUTLINE", required = true, defaultValue = "true") boolean outlinePoints,
+//            @RequestParam(value = "OUTLINECOLOUR", required = true, defaultValue = "0x000000") String outlineColour,
+//            @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
+//            @RequestParam(value = "HQ", required = false) String[] hqs,
+//            @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") Integer gridDivisionCount,
+//            HttpServletRequest request,
+//            HttpServletResponse response)
+//            throws Exception {
+//
+//        //for OS Grids, hand over to WMS OS controller
+//        if (env != null && env.contains("osgrid")){
+//            wmsosGridController.generateWmsTile(requestParams, cql_filter, env, srs, styles, bboxString, layers, width, height, outlinePoints, outlineColour, request, response);
+//            return null;
+//        }
+//
+//        //Some WMS clients are ignoring sections of the GetCapabilities....
+//        if ("GetLegendGraphic".equalsIgnoreCase(requestString)) {
+//            getLegendGraphic(env, styles, 30, 20, request, response);
+//            return null;
+//        }
+//
+//        if (StringUtils.isBlank(bboxString)){
+//            return sendWmsError(response, 400, "MissingOrInvalidParameter",
+//                    "Missing valid BBOX parameter");
+//        }
+//
+//        // Used to hide certain values from the layer
+//        Set<Integer> hq = new HashSet<Integer>();
+//        if (hqs != null && hqs.length > 0) {
+//            for (String h : hqs) {
+//                hq.add(Integer.parseInt(h));
+//            }
+//        }
+//
+//        WmsEnv vars = new WmsEnv(env, styles);
+//
+//        String[] splitBBox = bboxString.split(",");
+//        double[] tilebbox = new double[4];
+//        for (int i = 0; i < 4; i++) {
+//            try {
+//                tilebbox[i] = Double.parseDouble(splitBBox[i]);
+//            } catch (Exception e) {
+//                return sendWmsError(response, 400, "MissingOrInvalidParameter",
+//                        "Missing valid BBOX parameter");
+//            }
+//        }
+//
+//        double[] bbox = reprojectBBox(tilebbox, srs);
+//
+//        boolean isGrid = vars.colourMode.equals("grid");
+//
+//        float pointWidth = 0; // (float) (vars.size * 2);
+//
+////        int steppedSize = (int) (Math.ceil(vars.size / 20.0) * 20);
+////        int size = steppedSize + (vars.highlight != null ? HIGHLIGHT_RADIUS * 2 + (int) (steppedSize * 0.2) : 0) + 5;  //bounding box buffer
+//
+//        // add buffer
+//        double[] bboxWithBuffer = new double[4];
+//        bboxWithBuffer[0] = bbox[0] - pointWidth;
+//        bboxWithBuffer[1] = bbox[1] - pointWidth;
+//        bboxWithBuffer[2] = bbox[2] + pointWidth;
+//        bboxWithBuffer[3] = bbox[3] + pointWidth;
+//
+//        List<LegendItem> legend = searchDAO.getColours(requestParams, vars.colourMode);
+//
+//        HeatmapDTO heatmapDTO = searchDAO.getHeatMap(
+//                requestParams,
+//                bboxWithBuffer[0],
+//                bboxWithBuffer[1],
+//                bboxWithBuffer[2],
+//                bboxWithBuffer[3],
+//                legend,
+//                Set<Integer> hiddenFacets
+//                isGrid);
+//
+//        if (heatmapDTO.layers == null){
+//            displayBlankImage(response);
+//            return null;
+//        }
+//
+//
+//        List<Integer> pColour;
+//
+//        // render PNG...
+//        ImgObj tile = renderHeatmap(heatmapDTO,
+//                vars,
+//                (int) pointWidth,
+//                outlinePoints,
+//                outlineColour,
+//                width,
+//                height
+//                );
+//
+//        if (tile != null && tile.g != null) {
+//            tile.g.dispose();
+//            try (ServletOutputStream outStream = response.getOutputStream();){
+//                ImageIO.write(tile.img, "png", outStream);
+//                outStream.flush();
+//            } catch (Exception e) {
+//                logger.debug("Unable to write image", e);
+//            }
+//        } else {
+//            displayBlankImage(response);
+//        }
+//        return null;
+//
 
 
 
@@ -1524,8 +1627,9 @@ public class WMSController extends AbstractSecureController{
 //        }
 //
 //        //bounding box test (requestParams must be 'qid:' + number only)
-//        if (q.startsWith("qid:") && StringUtils.isEmpty(requestParams.getWkt()) &&
-//                (requestParams.getFq().length == 0 ||
+//        if (q.startsWith("qid:")
+//                  && StringUtils.isEmpty(requestParams.getWkt())
+//                  && (requestParams.getFq().length == 0 ||
 //                        (requestParams.getFq().length == 1 && StringUtils.isEmpty(requestParams.getFq()[0])))) {
 //            double[] queryBBox = qidCacheDAO.get(q.substring(4)).getBbox();
 //            if (queryBBox != null && (queryBBox[0] > bbox[2] || queryBBox[2] < bbox[0]
@@ -1571,6 +1675,28 @@ public class WMSController extends AbstractSecureController{
 //            displayBlankImage(response);
 //        }
 //        return null;
+//    }
+
+    private double[] reprojectBBox( double[] tilebbox, String srs) throws Exception {
+
+        CRSAuthorityFactory factory = CRS.getAuthorityFactory(true);
+        CoordinateReferenceSystem sourceCRS = factory.createCoordinateReferenceSystem(srs);
+        CoordinateReferenceSystem targetCRS = factory.createCoordinateReferenceSystem("EPSG:4326");
+        CoordinateOperation transformTo4326 = new DefaultCoordinateOperationFactory().createOperation(sourceCRS, targetCRS);
+
+        // pixel correction buffer: adjust bbox extents with half pixel width/height
+        GeneralDirectPosition directPositionSW = new GeneralDirectPosition(tilebbox[0], tilebbox[1]);
+        GeneralDirectPosition directPositionNE = new GeneralDirectPosition(tilebbox[2], tilebbox[3]);
+
+        DirectPosition sw4326 = transformTo4326.getMathTransform().transform(directPositionSW, null);
+        DirectPosition ne4326 = transformTo4326.getMathTransform().transform(directPositionNE, null);
+
+        double[] bbox = new double[4];
+        bbox[0] = sw4326.getCoordinate()[0];
+        bbox[1] = sw4326.getCoordinate()[1];
+        bbox[2] = ne4326.getCoordinate()[0];
+        bbox[3] = ne4326.getCoordinate()[1];
+        return bbox;
     }
 
     private ModelAndView sendWmsError(HttpServletResponse response, int status, String errorType, String errorDescription) {
@@ -1582,12 +1708,6 @@ public class WMSController extends AbstractSecureController{
     }
 
     private void transformBBox(CoordinateOperation op, String bbox, double[] source, double[] target) throws TransformException {
-//            if (lat1 <= -90) {
-//                lat1 = -89.999;
-//            }
-//            if (lat2 >= 90) {
-//                lat2 = 89.999;
-//            }
 
         String[] bb = bbox.split(",");
 
@@ -2119,7 +2239,6 @@ public class WMSController extends AbstractSecureController{
      * Returns the wms cache object and initialises it if required.
      *
      * @param vars
-     * @param pointType
      * @param requestParams
      * @param bbox
      * @return
@@ -2157,8 +2276,13 @@ public class WMSController extends AbstractSecureController{
             }
         }
 
-        String qfull = qparam + StringUtils.join(requestParams.getFq(), ",") + requestParams.getQc() +
-                requestParams.getWkt() + requestParams.getRadius() + requestParams.getLat() + requestParams.getLon();
+        String qfull = qparam +
+                StringUtils.join(requestParams.getFq(), ",") +
+                requestParams.getQc() +
+                requestParams.getWkt() +
+                requestParams.getRadius() +
+                requestParams.getLat() +
+                requestParams.getLon();
 
         //qfull can be long if there is WKT
         String q = String.valueOf(qfull.hashCode());
@@ -2171,6 +2295,7 @@ public class WMSController extends AbstractSecureController{
         Integer count = 0;
         Integer pointsCount = 0;
         if (canCache) {
+
             //count docs
             count = getCachedCount(true, requestParams, q, pointType, useBbox);
             if (count == null || count == 0) {
@@ -2561,83 +2686,136 @@ public class WMSController extends AbstractSecureController{
         if (gCount != null) gCount.add(count);
     }
 
-/*
-        renderHeatmap(heatmapDTO.counts,
-                vars,
-                pointWidth,
-                outlinePoints,
-                outlineColour,
-                (List<Integer>) null,
-                width,
-                height
-                );
- */
-
-    private ImgObj renderHeatmap(
-                               List<List<Integer>> rows,
+    private ImgObj renderHeatmap(HeatmapDTO heatmapDTO,
                                WmsEnv vars,
-                               int pointWidth,
+                               float pointWidth,
                                boolean outlinePoints,
                                String outlineColour,
-                               List<Integer> pColour,
-                               int colourIdx,
-                               int imgWidth,
-                               int imgHeight
+                               int tileWidthInPx,
+                               int tileHeightInPx
     )  {
 
-        if (rows.isEmpty()){
+        List<List<List<Integer>>> layers = heatmapDTO.layers;
+
+        if (layers.isEmpty()){
             return null;
         }
 
-        logger.info("Image width:" + imgWidth + ", height:" + imgHeight);
+        logger.info("Image width:" + tileWidthInPx + ", height:" + tileHeightInPx);
 
-        final int numberOfRows = rows.size();
-        Integer nofOfColumns = -1;
-        for (List<Integer> row: rows){
-            if (row != null){
-                nofOfColumns = row.size();
-                break;
-            }
-        }
+        ImgObj imgObj = ImgObj.create( (int)(tileWidthInPx ), (int) (tileHeightInPx ));
 
-        logger.info("Rows:" + numberOfRows+ ", columns:" + nofOfColumns);
+        int layerIdx = 0;
 
-        float cellWidth = (float) imgWidth / (float) nofOfColumns;
-        float cellHeight = (float) imgHeight / (float) numberOfRows;
+        for (List<List<Integer>> rows : layers){
 
-        logger.info("cellWidth:" + cellWidth + ", cellHeight:" + cellHeight);
+            if (rows != null && !rows.isEmpty()) {
 
-        ImgObj imgObj = ImgObj.create(imgWidth, imgHeight);
+                final int numberOfRows = rows.size();
+                Integer nofOfColumns = -1;
+                for (List<Integer> row : rows) {
+                    if (row != null) {
+                        nofOfColumns = row.size();
+                        break;
+                    }
+                }
 
-        Paint currentFill = Color.RED;
-        imgObj.g.setPaint(currentFill);
-        Color oColour = Color.BLACK;
+                logger.info("Rows:" + numberOfRows + ", columns:" + nofOfColumns);
 
-        for (int row = 0; row < numberOfRows; row++){
+                float cellWidth = (float) tileWidthInPx / (float) nofOfColumns;
+                float cellHeight = (float) tileHeightInPx / (float) numberOfRows;
 
-            List<Integer> columns = rows.get(row);
+                logger.info("cellWidth:" + cellWidth + ", cellHeight:" + cellHeight);
 
-            if (columns != null){
-                // render each column with a point
-                for (int column = 0; column < columns.size(); column++) {
-                    Integer cellValue = columns.get(column);
+                // cell width/height adjustment to take in padding
+                float cellWidthWithPadding = ((float) tileWidthInPx + (pointWidth * 2f)) / (float) nofOfColumns;
+                float cellHeightWithPadding = ((float) tileHeightInPx + (pointWidth * 2f)) / (float) numberOfRows;
 
-                    if (cellValue > 0){
+                Color oColour = Color.decode(outlineColour);
 
-                        int x = (int) ((cellWidth * column) + (cellWidth / 2) - vars.size) ;
-                        int y = (int) ((cellHeight * row) + (cellHeight / 2)  - vars.size);
+                for (int row = 0; row < numberOfRows; row++) {
 
-                        //render a point in the centre of the cell
-                        imgObj.g.setPaint(Color.RED);
-                        imgObj.g.fillOval(x, y, pointWidth, pointWidth);
-                        if (false || outlinePoints) {
-                            imgObj.g.setPaint(oColour);
-                            imgObj.g.drawOval(x, y, pointWidth, pointWidth);
-                            imgObj.g.setPaint(currentFill);
+                    List<Integer> columns = rows.get(row);
+
+                    if (columns != null) {
+                        // render each column with a point
+                        for (int column = 0; column < columns.size(); column++) {
+                            Integer cellValue = columns.get(column);
+
+                            if (cellValue > 0) {
+
+                                if (heatmapDTO.isGrid) {
+
+                                    int x = -1;
+                                    int y = -1;
+
+                                    if (column == 0) {
+                                        x = 0;
+                                    } else {
+                                        x = Math.round(cellWidth * (float) column);
+                                    }
+                                    if (row == 0) {
+                                        y = 0;
+                                    } else {
+                                        y = Math.round(cellHeight * (float) row);
+                                    }
+
+                                    int v = cellValue;
+                                    if (v > 500) {
+                                        v = 500;
+                                    }
+                                    int colour = (((500 - v) / 2) << 8) | (vars.alpha << 24) | 0x00FF0000;
+                                    imgObj.g.setColor(new Color(colour));
+                                    imgObj.g.fillRect(x, y, (int) Math.ceil(cellWidth), (int) Math.ceil(cellHeight));
+                                    if (outlinePoints) {
+                                        imgObj.g.setPaint(Color.BLACK);
+                                        imgObj.g.drawRect(x, y, (int) Math.ceil(cellWidth), (int) Math.ceil(cellHeight));
+                                    }
+                                } else {
+
+                                    int x = (int) ((cellWidthWithPadding * (float) column) - (pointWidth));
+                                    int y = (int) ((cellHeightWithPadding * (float) row) - (pointWidth));
+
+                                    Paint currentFill = null;
+                                    if (heatmapDTO.legend != null && !heatmapDTO.legend.isEmpty()){
+                                        currentFill = new Color(heatmapDTO.legend.get(layerIdx).getColour() | (vars.alpha << 24));
+                                    } else {
+                                        currentFill = Color.RED;
+                                    }
+                                    imgObj.g.setPaint(currentFill);
+
+                                    imgObj.g.fillOval(
+                                            x + (int) ((cellWidthWithPadding - pointWidth) / 2),
+                                            y + (int) ((cellHeightWithPadding - pointWidth) / 2),
+                                            //                                    x,y,
+                                            (int) pointWidth,
+                                            (int) pointWidth);
+
+//                                    imgObj.g.setPaint(Color.BLACK);
+//                                    imgObj.g.drawRect(
+//                                            //                                    x + (int)((cellWidthWithPadding-pointWidth)/2),
+//                                            //                                    y + (int)((cellHeightWithPadding-pointWidth)/2),
+//                                            x, y,
+//                                            (int) cellWidthWithPadding,
+//                                            (int) cellHeightWithPadding);
+
+                                    if (outlinePoints) {
+                                        imgObj.g.setPaint(oColour);
+                                        imgObj.g.drawOval(
+                                                x + (int) ((cellWidthWithPadding - pointWidth) / 2),
+                                                y + (int) ((cellHeightWithPadding - pointWidth) / 2),
+                                                //                                        x,y,
+                                                (int) pointWidth,
+                                                (int) pointWidth);
+                                        imgObj.g.setPaint(currentFill);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
+            layerIdx++;
         }
 
         return imgObj;

@@ -1000,7 +1000,7 @@ public class QueryFormatUtils {
     private String formatValue(String fn, String fv) {
         fv = SearchUtils.stripEscapedQuotes(fv);
 
-        if (StringUtils.equals(fn, "species_guid") || StringUtils.equals(fn, "genus_guid")) {
+        if (StringUtils.equals(fn, "speciesID") || StringUtils.equals(fn, "genusID")) {
             fv = searchUtils.substituteLsidsForNames(fv.replaceAll("\"",""));
         } else if (StringUtils.equals(fn, "occurrence_year")) {
             fv = searchUtils.substituteYearsForDates(fv);

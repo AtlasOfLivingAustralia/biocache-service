@@ -407,9 +407,9 @@ public class MapController implements ServletConfigAware {
         if (bbox != null && !bbox.isEmpty()) {
             String[] bounds = StringUtils.split(bbox, ",");
             if (bounds.length == 4) {
-                String fq1 = "longitude:[" + bounds[0] + " TO " + bounds[2] + "]";
+                String fq1 = "decimalLongitude:[" + bounds[0] + " TO " + bounds[2] + "]";
                 fqList.add(fq1);
-                String fq2 = "latitude:[" + bounds[1] + " TO " + bounds[3] + "]";
+                String fq2 = "decimalLatitude:[" + bounds[1] + " TO " + bounds[3] + "]";
                 fqList.add(fq2);
             } else {
                 logger.warn("BBOX does not contain the expected number of coords (4). Found: " + bounds.length);

@@ -1476,19 +1476,17 @@ public class OccurrenceController extends AbstractSecureController {
                 }
                 sd.addField("dbUserAssertions", userAssertions);
 
-                //retrieve details of the media files
-                if (sd.getFieldValue("sounds") != null) {
-                    List<MediaDTO> soundDtos = getSoundDtos((String[]) JSONArray.fromObject(sd.getFieldValue("sounds")).toArray(new String[0]));
-                    if (!soundDtos.isEmpty()) {
-                        sd.setField("sounds", soundDtos);
-                    }
+            //retrieve details of the media files
+            if (sd.getFieldValue("soundIDs") != null) {
+                List<MediaDTO> soundDtos = getSoundDtos((String[]) JSONArray.fromObject(sd.getFieldValue("soundIDs")).toArray(new String[0]));
+                if (!soundDtos.isEmpty()) {
+                    sd.setField("soundIDs", soundDtos);
                 }
+            }
 
-                //ADD THE DIFFERENT IMAGE FORMATS...thumb,small,large,raw
-                //default lookupImageMetadata to "true"
-                if (sd.getFieldValue("all_image_url") != null) {
-                    setupImageUrls(uuid, (String[]) JSONArray.fromObject(sd.getFieldValue("all_image_url")).toArray(new String[0]), im == null || !im.equalsIgnoreCase("false"));
-                }
+            if (sd.getFieldValue("imageIDs") != null) {
+                setupImageUrls(uuid, (String[]) JSONArray.fromObject(sd.getFieldValue("imageIDs")).toArray(new String[0]), im == null || !im.equalsIgnoreCase("false"));
+            }
 
                 //log the statistics for viewing the record
                 //logViewEvent(ip, null, null, "Viewing Occurrence Record " + uuid);

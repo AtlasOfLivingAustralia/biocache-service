@@ -3056,12 +3056,13 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFacet(searchParams.getFacet());
         if (searchParams.getFacet()) {
             for (String facet : searchParams.getFacets()) {
-                if (facet.equals("date") || facet.equals("decade")) {
-                    // PIPELINES: no mapping to occurrence_date or occurrence_year defined
-                    String fname = facet.equals("decade") ? OCCURRENCE_YEAR_INDEX_FIELD : "occurrence_" + facet;
-                    initDecadeBasedFacet(solrQuery, fname);
-                } else if (facet.equals("uncertainty")) {
-                    Map<String, String> rangeMap = rangeBasedFacets.getRangeMap("uncertainty");
+//                if (facet.equals("date") || facet.equals("decade")) {
+//                    // PIPELINES: no mapping to occurrence_date or eventDate defined
+//                    String fname = facet.equals("decade") ? eventDate_INDEX_FIELD : "occurrence_" + facet;
+//                    initDecadeBasedFacet(solrQuery, fname);
+//                } else
+                if (facet.equals("coordinateUncertaintyInMeters")) {
+                    Map<String, String> rangeMap = rangeBasedFacets.getRangeMap("coordinateUncertaintyInMeters");
                     for (String range : rangeMap.keySet()) {
                         solrQuery.add("facet.query", range);
                     }
@@ -3357,7 +3358,7 @@ public class SearchDAOImpl implements SearchDAO {
         facetQuery.setRows(0);
         facetQuery.setFacetLimit(-1);
 
-        List<String> fqList = new ArrayList<String>();
+        List<String> fqList = new ArrayList<>();
         //only add the FQ's if they are not the default values
         if (searchParams != null && searchParams.getFormattedFq() != null && searchParams.getFormattedFq().length > 0) {
             org.apache.commons.collections.CollectionUtils.addAll(fqList, searchParams.getFormattedFq());
@@ -4330,7 +4331,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      */
     String getFacetValueDisplayName(String facet, String value) {
-        if (facet.endsWith("_uid")) {
+        if (facet.endsWith("Uid")) {
             return searchUtils.getUidDisplayString(facet, value, false);
         } else if ("occurrence_year".equals(facet) && value != null) {
             try {
@@ -4656,38 +4657,99 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     @Override
-    public HeatmapDTO getHeatMap(SpatialSearchRequestParams searchParams, Double minx, Double miny, Double maxx, Double maxy) throws Exception {
+    public HeatmapDTO getHeatMap(SpatialSearchRequestParams searchParams,
+                                 Double minx,
+                                 Double miny,
+                                 Double maxx,
+                                 Double maxy,
+                                 List<LegendItem> legend,
+                                 Set<Integer> hiddenFacets,
+                                 boolean isGrid) throws Exception {
 
+        List<List<List<Integer>>> layers = new ArrayList<>();
+
+        if (isGrid || legend == null || legend.isEmpty()){
+            //single layer
+            SolrQuery solrQuery = createHeatmapQuery(searchParams, minx, miny, maxx, maxy, isGrid);
+            QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
+            // FIXME UGLY - not needed with SOLR8, but current constraint is SOLR 6 API
+            // See SpatialHeatmapFacets.HeatmapFacet in SOLR 8 API
+            SimpleOrderedMap facetHeatMaps = ((SimpleOrderedMap)((SimpleOrderedMap)((qr.getResponse().get("facet_counts")))).get("facet_heatmaps"));
+
+            Integer gridLevel = - 1;
+            if (facetHeatMaps != null) {
+                SimpleOrderedMap heatmap = (SimpleOrderedMap)  facetHeatMaps.get("geohash");
+                gridLevel = (Integer) heatmap.get("gridLevel");
+                List<List<Integer>> layer = (List<List<Integer>>) heatmap.get("counts_ints2D");
+                layers.add(layer);
+                return new HeatmapDTO(gridLevel, layers, legend, isGrid);
+            }
+
+        } else {
+            // colour by layer
+
+            Integer gridLevel= -1;
+            for (int legendIdx = 0; legendIdx < legend.size(); legendIdx ++){
+
+                if (!hiddenFacets.contains(legendIdx)){
+
+                    LegendItem legendItem = legend.get(legendIdx);
+
+                    SolrQuery solrQuery = createHeatmapQuery(searchParams, minx, miny, maxx, maxy, isGrid);
+                    //add the FQ for the legend item
+                    String[] filterQueries = Arrays.copyOf(solrQuery.getFilterQueries(), solrQuery.getFilterQueries().length + 1);
+                    filterQueries[filterQueries.length-1] = legendItem.getFq();
+                    solrQuery.setFilterQueries(filterQueries);
+
+                    // query
+                    QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
+                    SimpleOrderedMap facetHeatMaps = ((SimpleOrderedMap)((SimpleOrderedMap)((qr.getResponse().get("facet_counts")))).get("facet_heatmaps"));
+
+                    if (facetHeatMaps != null) {
+
+                        //iterate over legend
+                        SimpleOrderedMap heatmap = (SimpleOrderedMap)  facetHeatMaps.get("geohash");
+                        gridLevel = (Integer) heatmap.get("gridLevel");
+                        List<List<Integer>> layer = (List<List<Integer>>) heatmap.get("counts_ints2D");
+                        layers.add(layer);
+                    }
+                } else {
+                    layers.add(null);
+                }
+
+            }
+            return new HeatmapDTO(gridLevel, layers, legend, isGrid);
+        }
+
+        return null;
+    }
+
+    private SolrQuery createHeatmapQuery(SpatialSearchRequestParams searchParams, Double minx, Double miny, Double maxx, Double maxy, boolean isGrid) {
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
         solrQuery.set("facet.heatmap", "geohash");
 
         // heatmaps support international date line
         if (minx < -180){
-            minx  = minx + 360;
+            minx = minx + 360;
         }
 
         if (maxx > 180){
-            maxx  = maxx - 360;
+            maxx = maxx - 360;
         }
 
         String geom = "[\"" + minx + " " + miny + "\" TO \"" + maxx + " " + maxy + "\"]";
         solrQuery.set("facet.heatmap.geom", geom);
-        solrQuery.set("facet.heatmap.distErrPct", "0.05");
+        if (isGrid) {
+            solrQuery.set("facet.heatmap.distErrPct", "0.4"); //good for points
+        } else {
+            solrQuery.set("facet.heatmap.distErrPct", "0.05"); //good for points
+        }
         solrQuery.setFacetLimit(-1);
         solrQuery.setFacet(true);
         solrQuery.setFilterQueries(searchParams.getFq());
         solrQuery.setRows(0);
         solrQuery.setQuery(searchParams.getQ());
-        logger.info(solrQuery.toQueryString());
-        QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
-        // FIXME UGLY - not needed with SOLR8, but current constraint is SOLR 6 API
-        // See SpatialHeatmapFacets.HeatmapFacet in SOLR 8 API
-        SimpleOrderedMap facetHeatMaps = ((SimpleOrderedMap)((SimpleOrderedMap)((qr.getResponse().get("facet_counts")))).get("facet_heatmaps"));
-        if (facetHeatMaps != null) {
-            SimpleOrderedMap heatmap = ((SimpleOrderedMap) facetHeatMaps.get("geohash"));
-            return new HeatmapDTO((Integer) heatmap.get("gridLevel"), (List<List<Integer>>) heatmap.get("counts_ints2D"));
-        }
-        return null;
+        return solrQuery;
     }
 }
