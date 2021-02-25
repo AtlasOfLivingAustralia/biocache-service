@@ -603,6 +603,7 @@ public class WMSController extends AbstractSecureController{
     }
 
     private void writeOccurrencesCsvToStream(SpatialSearchRequestParams requestParams, OutputStream stream) throws Exception {
+        // TODO: PIPELINES: SolrDocumentList will need field names translated to legacy biocache names
         SolrDocumentList sdl = searchDAO.findByFulltext(requestParams);
 
         byte[] bComma = ",".getBytes("UTF-8");
@@ -615,7 +616,7 @@ public class WMSController extends AbstractSecureController{
             if (requestParams.getFl() == null || requestParams.getFl().isEmpty()) {
                 TreeSet<String> unique = new TreeSet<String>();
                 for (int i = 0; i < sdl.size(); i++) {
-                    unique.addAll(sdl.get(i).getFieldNames());
+                    unique.addAll(sdl.get(i).getFieldNames());  // PIPELINES: SolrDocument::getFieldNames entry point
                 }
                 header = new ArrayList<String>(unique);
             } else {
@@ -642,9 +643,9 @@ public class WMSController extends AbstractSecureController{
                     if (j > 0) {
                         stream.write(bComma);
                     }
-                    if (sdl.get(i).containsKey(header.get(j))) {
+                    if (sdl.get(i).containsKey(header.get(j))) {    // PIPELINES: SolrDocument::containsKey entry point
                         stream.write(bDblQuote);
-                        stream.write(String.valueOf(sdl.get(i).getFieldValue(header.get(j))).replace("\"", "\"\"").getBytes("UTF-8"));
+                        stream.write(String.valueOf(sdl.get(i).getFieldValue(header.get(j))).replace("\"", "\"\"").getBytes("UTF-8"));  // PIPELINES: SolrDocument::getFieldValue entry point
                         stream.write(bDblQuote);
                     }
                 }
@@ -978,12 +979,14 @@ public class WMSController extends AbstractSecureController{
         requestParams.setFq(fqs);
         requestParams.setFacet(false);
 
-        //TODO: paging
+        // TODO: paging
+
         SolrDocumentList sdl = searchDAO.findByFulltext(requestParams);
 
         //send back the results.
         if (sdl != null && sdl.size() > 0) {
             SolrDocument doc = sdl.get(0);
+            // TODO: PIPELINES: review the output of SolrDocument (translate FieldValueMap keys to legacy biocache names)
             model.addAttribute("record", doc.getFieldValueMap());
             model.addAttribute("totalRecords", sdl.getNumFound());
         }
