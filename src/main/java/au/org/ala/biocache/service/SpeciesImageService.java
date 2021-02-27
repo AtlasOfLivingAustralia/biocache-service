@@ -71,8 +71,8 @@ public class SpeciesImageService {
                 params.setFacet(true);
                 params.setFacets(new String[]{"lft"});
                 params.setFlimit(99999999);
-                params.setFl("dataResourceUid,image_url");  // PIPELINES: recheck pipelines field mapping
-                params.setQ("image_url:*");
+                params.setFl("dataResourceUid,imageID");  // PIPELINES: recheck pipelines field mapping
+                params.setQ("imageID:*");
 
                 QueryResponse qr = searchDAO.searchGroupedFacets(params);
 
@@ -80,7 +80,7 @@ public class SpeciesImageService {
 
                 for (SimpleOrderedMap item : SearchUtils.getList(qr.getResponse(), "facets", "lft", "buckets")) {       // PIPELINES: recheck pipelines field mapping
                     String dataResourceUid = (String) SearchUtils.getVal(item, "dataResourceUid", "buckets", 0, 0);   // PIPELINES: recheck pipelines field mapping
-                    String imageUrl = (String) SearchUtils.getVal(item, "image_url", "buckets", 0, 0);                  // PIPELINES: recheck pipelines field mapping
+                    String imageUrl = (String) SearchUtils.getVal(item, "imageID", "buckets", 0, 0);                  // PIPELINES: recheck pipelines field mapping
                     SpeciesImageDTO image = new SpeciesImageDTO(dataResourceUid, imageUrl);
                     image.setCount((Long) item.getVal(1));
                     try {

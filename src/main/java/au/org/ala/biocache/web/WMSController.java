@@ -1427,7 +1427,12 @@ public class WMSController extends AbstractSecureController{
         // add buffer
         float pointWidth = (float) (vars.size * 2);
 
+        // format the query -  this will deal with radius / wkt
+        queryFormatUtils.formatSearchQuery(requestParams, true);
+
+        //retrieve legend
         List<LegendItem> legend = searchDAO.getColours(requestParams, vars.colourMode);
+
         if (!isGrid) {
             // increase BBOX by pointWidth either side
             bbox[0] = bbox[0] - ((pointWidth / (256f)) * (bbox[2] - bbox[0]));
@@ -2710,118 +2715,144 @@ public class WMSController extends AbstractSecureController{
 
         int layerIdx = 0;
 
+        // render layers remainder layers
         for (List<List<Integer>> rows : layers){
 
-            if (rows != null && !rows.isEmpty()) {
+            if (heatmapDTO.legend !=null && heatmapDTO.legend.get(layerIdx) != null && heatmapDTO.legend.get(layerIdx).isRemainder()) {
+                renderLayer(heatmapDTO,
+                        vars,
+                        pointWidth,
+                        outlinePoints,
+                        outlineColour,
+                        (float) tileWidthInPx,
+                        (float) tileHeightInPx,
+                        imgObj,
+                        layerIdx,
+                        rows);
+            }
+            layerIdx++;
+        }
 
-                final int numberOfRows = rows.size();
-                Integer nofOfColumns = -1;
-                for (List<Integer> row : rows) {
-                    if (row != null) {
-                        nofOfColumns = row.size();
-                        break;
-                    }
+        layerIdx = 0;
+
+        // render layers
+        for (List<List<Integer>> rows : layers){
+
+            if (heatmapDTO.legend == null || heatmapDTO.legend.get(layerIdx) == null || !heatmapDTO.legend.get(layerIdx).isRemainder()) {
+                renderLayer(heatmapDTO,
+                        vars,
+                        pointWidth,
+                        outlinePoints,
+                        outlineColour,
+                        (float) tileWidthInPx,
+                        (float) tileHeightInPx,
+                        imgObj,
+                        layerIdx,
+                        rows);
+            }
+            layerIdx++;
+        }
+
+        return imgObj;
+    }
+
+    private void renderLayer(HeatmapDTO heatmapDTO, WmsEnv vars, float pointWidth, boolean outlinePoints, String outlineColour, float tileWidthInPx, float tileHeightInPx, ImgObj imgObj, int layerIdx, List<List<Integer>> rows) {
+        if (rows != null && !rows.isEmpty()) {
+
+            final int numberOfRows = rows.size();
+            Integer nofOfColumns = -1;
+            for (List<Integer> row : rows) {
+                if (row != null) {
+                    nofOfColumns = row.size();
+                    break;
                 }
+            }
 
-                logger.info("Rows:" + numberOfRows + ", columns:" + nofOfColumns);
+            logger.info("Rows:" + numberOfRows + ", columns:" + nofOfColumns);
 
-                float cellWidth = (float) tileWidthInPx / (float) nofOfColumns;
-                float cellHeight = (float) tileHeightInPx / (float) numberOfRows;
+            float cellWidth = tileWidthInPx / (float) nofOfColumns;
+            float cellHeight = tileHeightInPx / (float) numberOfRows;
 
-                logger.info("cellWidth:" + cellWidth + ", cellHeight:" + cellHeight);
+            logger.info("cellWidth:" + cellWidth + ", cellHeight:" + cellHeight);
 
-                // cell width/height adjustment to take in padding
-                float cellWidthWithPadding = ((float) tileWidthInPx + (pointWidth * 2f)) / (float) nofOfColumns;
-                float cellHeightWithPadding = ((float) tileHeightInPx + (pointWidth * 2f)) / (float) numberOfRows;
+            Color oColour = Color.decode(outlineColour);
 
-                Color oColour = Color.decode(outlineColour);
+            for (int row = 0; row < numberOfRows; row++) {
 
-                for (int row = 0; row < numberOfRows; row++) {
+                List<Integer> columns = rows.get(row);
 
-                    List<Integer> columns = rows.get(row);
+                if (columns != null) {
+                    // render each column with a point
+                    for (int column = 0; column < columns.size(); column++) {
+                        Integer cellValue = columns.get(column);
 
-                    if (columns != null) {
-                        // render each column with a point
-                        for (int column = 0; column < columns.size(); column++) {
-                            Integer cellValue = columns.get(column);
+                        if (cellValue > 0) {
 
-                            if (cellValue > 0) {
+                            if (heatmapDTO.isGrid) {
 
-                                if (heatmapDTO.isGrid) {
+                                int x = -1;
+                                int y = -1;
 
-                                    int x = -1;
-                                    int y = -1;
-
-                                    if (column == 0) {
-                                        x = 0;
-                                    } else {
-                                        x = Math.round(cellWidth * (float) column);
-                                    }
-                                    if (row == 0) {
-                                        y = 0;
-                                    } else {
-                                        y = Math.round(cellHeight * (float) row);
-                                    }
-
-                                    int v = cellValue;
-                                    if (v > 500) {
-                                        v = 500;
-                                    }
-                                    int colour = (((500 - v) / 2) << 8) | (vars.alpha << 24) | 0x00FF0000;
-                                    imgObj.g.setColor(new Color(colour));
-                                    imgObj.g.fillRect(x, y, (int) Math.ceil(cellWidth), (int) Math.ceil(cellHeight));
-                                    if (outlinePoints) {
-                                        imgObj.g.setPaint(Color.BLACK);
-                                        imgObj.g.drawRect(x, y, (int) Math.ceil(cellWidth), (int) Math.ceil(cellHeight));
-                                    }
+                                if (column == 0) {
+                                    x = 0;
                                 } else {
+                                    x = Math.round(cellWidth * (float) column);
+                                }
+                                if (row == 0) {
+                                    y = 0;
+                                } else {
+                                    y = Math.round(cellHeight * (float) row);
+                                }
 
-                                    int x = (int) ((cellWidthWithPadding * (float) column) - (pointWidth));
-                                    int y = (int) ((cellHeightWithPadding * (float) row) - (pointWidth));
+                                int v = cellValue;
+                                if (v > 500) {
+                                    v = 500;
+                                }
+                                int colour = (((500 - v) / 2) << 8) | (vars.alpha << 24) | 0x00FF0000;
+                                imgObj.g.setColor(new Color(colour));
+                                imgObj.g.fillRect(x, y, (int) Math.ceil(cellWidth), (int) Math.ceil(cellHeight));
+                                if (outlinePoints) {
+                                    imgObj.g.setPaint(Color.BLACK);
+                                    imgObj.g.drawRect(x, y, (int) Math.ceil(cellWidth), (int) Math.ceil(cellHeight));
+                                }
+                            } else {
 
-                                    Paint currentFill = null;
-                                    if (heatmapDTO.legend != null && !heatmapDTO.legend.isEmpty()){
-                                        currentFill = new Color(heatmapDTO.legend.get(layerIdx).getColour() | (vars.alpha << 24));
-                                    } else {
-                                        currentFill = Color.RED;
-                                    }
+                                // cell width / height adjustment to take in padding
+                                float cellWidthWithPadding = (tileWidthInPx + (pointWidth * 2f)) / (float) nofOfColumns;
+                                float cellHeightWithPadding = (tileHeightInPx + (pointWidth * 2f)) / (float) numberOfRows;
+
+                                int x = (int) ((cellWidthWithPadding  * (float) column) - pointWidth);
+                                int y = (int) ((cellHeightWithPadding * (float) row)    - pointWidth);
+
+                                Paint currentFill = null;
+                                if (heatmapDTO.legend != null && !heatmapDTO.legend.isEmpty()){
+                                    currentFill = new Color(heatmapDTO.legend.get(layerIdx).getColour() | (vars.alpha << 24));
+                                } else {
+                                    currentFill = Color.RED;
+                                }
+                                imgObj.g.setPaint(currentFill);
+
+                                imgObj.g.fillOval(
+                                        x, //+ (int) (( pointWidth) / 2),
+                                        y, // + (int) (( pointWidth) / 2),
+                                        (int) pointWidth,
+                                        (int) pointWidth);
+
+                                if (outlinePoints) {
+                                    imgObj.g.setPaint(oColour);
+                                    imgObj.g.drawOval(
+                                        x, //   + (int) (( pointWidth) / 2),
+                                        y, // + (int) (( pointWidth) / 2),
+                                        (int) pointWidth,
+                                        (int) pointWidth);
                                     imgObj.g.setPaint(currentFill);
-
-                                    imgObj.g.fillOval(
-                                            x + (int) ((cellWidthWithPadding - pointWidth) / 2),
-                                            y + (int) ((cellHeightWithPadding - pointWidth) / 2),
-                                            //                                    x,y,
-                                            (int) pointWidth,
-                                            (int) pointWidth);
-
-//                                    imgObj.g.setPaint(Color.BLACK);
-//                                    imgObj.g.drawRect(
-//                                            //                                    x + (int)((cellWidthWithPadding-pointWidth)/2),
-//                                            //                                    y + (int)((cellHeightWithPadding-pointWidth)/2),
-//                                            x, y,
-//                                            (int) cellWidthWithPadding,
-//                                            (int) cellHeightWithPadding);
-
-                                    if (outlinePoints) {
-                                        imgObj.g.setPaint(oColour);
-                                        imgObj.g.drawOval(
-                                                x + (int) ((cellWidthWithPadding - pointWidth) / 2),
-                                                y + (int) ((cellHeightWithPadding - pointWidth) / 2),
-                                                //                                        x,y,
-                                                (int) pointWidth,
-                                                (int) pointWidth);
-                                        imgObj.g.setPaint(currentFill);
-                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-            layerIdx++;
         }
-
-        return imgObj;
     }
 
 

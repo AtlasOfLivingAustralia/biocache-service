@@ -182,6 +182,12 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Value("${download.max.execute.time:604800000}")
     protected Long downloadMaxTime = 604800000L;
+
+    /**
+     * SOLR spatial field to use. Alternative are "quad", "packedQuad"
+     */
+    @Value("${solr.spatial.field:geohash}")
+    protected String spatialField = "geohash";
     /**
      * Maximum total time for downloads to be allowed to normally complete before they are aborted,
      * once all of the Solr/etc. queries have been completed or aborted and the RecordWriter is reading the remaining download.internal.queue.size items off the queue.
@@ -195,7 +201,6 @@ public class SearchDAOImpl implements SearchDAO {
     protected static final Integer FACET_PAGE_SIZE = 1000;
     protected static final String RANGE_SUFFIX = "_RNG";
 
-    private String spatialField = "geohash";
 
     protected Pattern layersPattern = Pattern.compile("(el|cl)[0-9abc]+");
     protected Pattern clpField = Pattern.compile("(,|^)cl.p(,|$)");
@@ -294,6 +299,13 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Value("${solr.downloadquery.busywaitsleep:100}")
     protected Long downloadCheckBusyWaitSleep = 100L;
+
+    /**
+     * Occurrence count where < uses pivot and > uses facet for retrieving points. Can be fine tuned with
+     * multiple queries and comparing DEBUG *
+     */
+    @Value("${wms.legendMaxItems:30}")
+    private int wmslegendMaxItems;
 
     /**
      * thread pool for multipart endemic queries
@@ -1089,10 +1101,10 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             }
             // TODO: PIPELINES: check the that addField returns instance of SolrFieldTranslationWrapper for further translation of chained calls.
-            solrQuery.addField("institution_uid")   // PIPELINES: SolrQuery::addField entry point
-                    .addField("collection_uid")
-                    .addField("data_resource_uid")
-                    .addField("data_provider_uid");
+            solrQuery.addField("institutionUid")   // PIPELINES: SolrQuery::addField entry point
+                    .addField("collectionUid")
+                    .addField("dataResourceUid")
+                    .addField("dataProviderUid");
 
             // 'lft' and 'rgt' is mandatory when there are species list fields (indexedFields[7])
             if (indexedFields[7].size() > 0) {
@@ -1585,9 +1597,9 @@ public class SearchDAOImpl implements SearchDAO {
                 int invalid = 0;
                 int i = 0;
                 for (SolrDocument sd : results) {   // TODO: PIPELINES: SolrDocumentList::interator entry point
-                    if (sd.containsKey("sensitive_longitude") && sd.containsKey("sensitive_latitude")) {    // TODO: PIPELINES: SolrDocument::containsKey entry point
-                        points[i][0] = (double) sd.getFirstValue("sensitive_longitude");            // TODO: PIPELINES: SolrDocument::getFirstValue entry point
-                        points[i][1] = (double) sd.getFirstValue("sensitive_latitude");             // TODO: PIPELINES: SolrDocument::getFirstValue entry point
+                    if (sd.containsKey("sensitive_decimalLongitude") && sd.containsKey("sensitive_decimalLatitude")) {    // TODO: PIPELINES: SolrDocument::containsKey entry point
+                        points[i][0] = (double) sd.getFirstValue("sensitive_decimalLongitude");            // TODO: PIPELINES: SolrDocument::getFirstValue entry point
+                        points[i][1] = (double) sd.getFirstValue("sensitive_decimalLatitude");             // TODO: PIPELINES: SolrDocument::getFirstValue entry point
                     } else if (sd.containsKey("longitude") && sd.containsKey("latitude")) {     // TODO: PIPELINES: SolrDocument::containsKey entry point
                         points[i][0] = (double) sd.getFirstValue("longitude");              // TODO: PIPELINES: SolrDocument::getFirstValue entry point
                         points[i][1] = (double) sd.getFirstValue("latitude");               // TODO: PIPELINES: SolrDocument::getFirstValue entry point
@@ -1818,7 +1830,7 @@ public class SearchDAOImpl implements SearchDAO {
             for (FacetField facet : facets) {
                 if (facet.getName().equals("assertions") && facet.getValueCount() > 0) {
                     qasb.append(getQAFromFacet(facet));
-                } else if (facet.getName().equals("data_resource_uid") && checkDownloadLimits) {
+                } else if (facet.getName().equals("dataResourceUid") && checkDownloadLimits) {
                     //populate the download limit
                     initDownloadLimits(downloadLimit, facet);
                 }
@@ -2057,7 +2069,7 @@ public class SearchDAOImpl implements SearchDAO {
         queryFormatUtils.formatSearchQuery(downloadParams);
         solrQuery.setQuery(downloadParams.getFormattedQuery()); // PIPELINES: SolrQuery::setQuery entry point
         //Only the fields specified below will be included in the results from the SOLR Query
-        solrQuery.setFields("id", "institution_uid", "collection_uid", "data_resource_uid", "data_provider_uid", "lft", "rgt"); // PIPELINES: field names entry point
+        solrQuery.setFields("id", "institutionUid", "collectionUid", "data_resourceUid", "dataProviderUid", "lft", "rgt"); // PIPELINES: field names entry point
 
         if (dd != null) {
             dd.resetCounts();
@@ -2469,10 +2481,10 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setQuery("*:*");  // PIPELINES: SolrQuery::setQuery entry point
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
-        solrQuery.addFacetField("data_provider_uid");   // PIPELINES: SolrQuery::addFacetField entry point
-        solrQuery.addFacetField("data_provider");       // PIPELINES: SolrQuery::addFacetField entry point
+        solrQuery.addFacetField("dataProviderUid");   // PIPELINES: SolrQuery::addFacetField entry point
+        solrQuery.addFacetField("dataProviderName");       // PIPELINES: SolrQuery::addFacetField entry point
         solrQuery.setFacetMinCount(1);
-        QueryResponse qr = runSolrQuery(solrQuery, null, 1, 0, "data_provider", "asc");
+        QueryResponse qr = runSolrQuery(solrQuery, null, 1, 0, "dataProviderName", "asc");
         List<FacetField> facets = qr.getFacetFields();
 
         if (facets != null && facets.size() == 2) {
@@ -2549,15 +2561,15 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setQuery(query);  // PIPELINES: SolrQuery::setQuery entry point
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
-        solrQuery.addFacetField("state");   // PIPELINES: SolrQuery::addFacetField entry point
+        solrQuery.addFacetField("stateProvince");   // PIPELINES: SolrQuery::addFacetField entry point
         solrQuery.setFacetMinCount(1);
-        QueryResponse qr = runSolrQuery(solrQuery, null, 1, 0, "data_provider", "asc");
-        FacetField ff = qr.getFacetField("state");
+        QueryResponse qr = runSolrQuery(solrQuery, null, 1, 0, "dataProviderName", "asc");
+        FacetField ff = qr.getFacetField("stateProvince");
         if (ff != null) {
             for (Count count : ff.getValues()) {
                 //only start adding counts when we hit a decade with some results.
                 if (count.getCount() > 0) {
-                    FieldResultDTO f = new FieldResultDTO(count.getName(), "state" + "." + count.getName(), count.getCount());
+                    FieldResultDTO f = new FieldResultDTO(count.getName(), "stateProvince" + "." + count.getName(), count.getCount());
                     fDTOs.add(f);
                 }
             }
@@ -3299,10 +3311,10 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
         solrQuery.setFacetMinCount(1);
-        solrQuery.addFacetField("data_provider_uid");   // PIPELINES: SolrQuery::addFacetField entry point
-        solrQuery.addFacetField("data_resource_uid");
-        solrQuery.addFacetField("collection_uid");
-        solrQuery.addFacetField("institution_uid");
+        solrQuery.addFacetField("dataProviderUid");   // PIPELINES: SolrQuery::addFacetField entry point
+        solrQuery.addFacetField("dataResourceUid");
+        solrQuery.addFacetField("collectionUid");
+        solrQuery.addFacetField("institutionUid");
         QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFormattedFq(), 1, 0, "score", "asc");
         //now cycle through and get all the facets
         List<FacetField> facets = qr.getFacetFields();  // TODO: PIPELINES: QueryResponse::getFacetFields entry point
@@ -3823,14 +3835,20 @@ public class SearchDAOImpl implements SearchDAO {
         if (facets != null) {
             for (FacetField facet : facets) {           // TODO: PIPELINES: List<FacetField>::iterator entry point
                 List<FacetField.Count> facetEntries = facet.getValues();    // TODO: PIPELINES: FacetField::getValues entry point
-                if (facet.getName().contains(facetField) && (facetEntries != null) && (facetEntries.size() > 0)) {  // TODO: PIPELINES: FacetField::getName & List<FacetField.Count>::size entry point
-                    int i = 0;
-                    for (i = 0; i < facetEntries.size(); i++) {         // TODO: PIPELINES: List<FacetField.Count>::size entry point
+                if (facet.getName().contains(facetField) && facetEntries != null && !facetEntries.isEmpty()) {  // TODO: PIPELINES: FacetField::getName & List<FacetField.Count>::size entry point
+
+                    List<String> addedFqs = new ArrayList<>();
+
+                    for (int i = 0; i < facetEntries.size() && i < wmslegendMaxItems; i++) {         // TODO: PIPELINES: List<FacetField.Count>::size entry point
                         FacetField.Count fcount = facetEntries.get(i);  // TODO: PIPELINES: List<FacetField.Count>::get entry point
                         if (fcount.getCount() > 0) {                    // TODO: PIPELINES: FacetField.Count::getCount entry point
                             String fq = facetField + ":\"" + fcount.getName() + "\"";   // TODO: PIPELINES: FacetField.Count::getName entry point
                             if (fcount.getName() == null) {             // TODO: PIPELINES: FacetField.Count::getName entry point
                                 fq = "-" + facetField + ":[* TO *]";
+                            }
+
+                            if (fcount.getName() != null) {
+                                addedFqs.add(fq);
                             }
 
                             if (skipI18n) {
@@ -3847,6 +3865,26 @@ public class SearchDAOImpl implements SearchDAO {
                             }
                         }
                     }
+
+                    if (facetEntries.size() > wmslegendMaxItems){
+
+                        long remainderCount = 0;
+                        for (int i = wmslegendMaxItems; i < facetEntries.size(); i++) {
+                            FacetField.Count fcount = facetEntries.get(i);
+                            remainderCount += fcount.getCount();
+                        }
+
+                        String theFq = "-(" + StringUtils.join(addedFqs, " OR ") +")";
+                            // create a single catch remainder facet
+                        legend.add(legend.size(), new LegendItem(
+                            "Other " + facetField,
+                                facetField + ".other",
+                                remainderCount,
+                                theFq,
+                                true
+                        ));
+                    }
+
                     break;
                 }
             }
@@ -4553,18 +4591,22 @@ public class SearchDAOImpl implements SearchDAO {
                 if (cutpoints == null) {     //do not sort if cutpoints are provided
                     java.util.Collections.sort(legend);
                 }
-                int i = 0;
                 int offset = 0;
-                for (i = 0; i < legend.size() && i < ColorUtil.colourList.length - 1; i++) {
+                for (int i = 0; i < legend.size(); i++) {
 
                     LegendItem li = legend.get(i);
 
-                    colours.add(new LegendItem(li.getName(), li.getName(), li.getCount(), li.getFq()));
+                    colours.add(new LegendItem(li.getName(), li.getName(), li.getCount(), li.getFq(), li.isRemainder()));
                     int colour = DEFAULT_COLOUR;
                     if (cutpoints == null) {
                         colour = ColorUtil.colourList[i];
                     } else if (cutpoints != null && i - offset < cutpoints.length) {
-                        if (StringUtils.isEmpty(legend.get(i).getName()) || legend.get(i).getName().equals("Unknown") || legend.get(i).getName().startsWith("-")) {
+                        if (li.isRemainder()){
+                            colour = ColorUtil.getRangedColour(i - offset, cutpoints.length / 2);
+                        } else if ( StringUtils.isEmpty(legend.get(i).getName())
+                                || legend.get(i).getName().equals("Unknown")
+                                || legend.get(i).getName().startsWith("-")
+                            ) {
                             offset++;
                         } else {
                             colour = ColorUtil.getRangedColour(i - offset, cutpoints.length / 2);
@@ -4678,7 +4720,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             Integer gridLevel = - 1;
             if (facetHeatMaps != null) {
-                SimpleOrderedMap heatmap = (SimpleOrderedMap)  facetHeatMaps.get("geohash");
+                SimpleOrderedMap heatmap = (SimpleOrderedMap)  facetHeatMaps.get(spatialField);
                 gridLevel = (Integer) heatmap.get("gridLevel");
                 List<List<Integer>> layer = (List<List<Integer>>) heatmap.get("counts_ints2D");
                 layers.add(layer);
@@ -4686,9 +4728,10 @@ public class SearchDAOImpl implements SearchDAO {
             }
 
         } else {
-            // colour by layer
 
             Integer gridLevel= -1;
+            // max number of layers....
+
             for (int legendIdx = 0; legendIdx < legend.size(); legendIdx ++){
 
                 if (!hiddenFacets.contains(legendIdx)){
@@ -4696,9 +4739,10 @@ public class SearchDAOImpl implements SearchDAO {
                     LegendItem legendItem = legend.get(legendIdx);
 
                     SolrQuery solrQuery = createHeatmapQuery(searchParams, minx, miny, maxx, maxy, isGrid);
+
                     //add the FQ for the legend item
                     String[] filterQueries = Arrays.copyOf(solrQuery.getFilterQueries(), solrQuery.getFilterQueries().length + 1);
-                    filterQueries[filterQueries.length-1] = legendItem.getFq();
+                    filterQueries[filterQueries.length - 1] = legendItem.getFq();
                     solrQuery.setFilterQueries(filterQueries);
 
                     // query
@@ -4708,7 +4752,7 @@ public class SearchDAOImpl implements SearchDAO {
                     if (facetHeatMaps != null) {
 
                         //iterate over legend
-                        SimpleOrderedMap heatmap = (SimpleOrderedMap)  facetHeatMaps.get("geohash");
+                        SimpleOrderedMap heatmap = (SimpleOrderedMap)  facetHeatMaps.get(spatialField);
                         gridLevel = (Integer) heatmap.get("gridLevel");
                         List<List<Integer>> layer = (List<List<Integer>>) heatmap.get("counts_ints2D");
                         layers.add(layer);
@@ -4716,8 +4760,8 @@ public class SearchDAOImpl implements SearchDAO {
                 } else {
                     layers.add(null);
                 }
-
             }
+
             return new HeatmapDTO(gridLevel, layers, legend, isGrid);
         }
 
@@ -4727,7 +4771,7 @@ public class SearchDAOImpl implements SearchDAO {
     private SolrQuery createHeatmapQuery(SpatialSearchRequestParams searchParams, Double minx, Double miny, Double maxx, Double maxy, boolean isGrid) {
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
-        solrQuery.set("facet.heatmap", "geohash");
+        solrQuery.set("facet.heatmap", spatialField);
 
         // heatmaps support international date line
         if (minx < -180){
@@ -4747,9 +4791,9 @@ public class SearchDAOImpl implements SearchDAO {
         }
         solrQuery.setFacetLimit(-1);
         solrQuery.setFacet(true);
-        solrQuery.setFilterQueries(searchParams.getFq());
+        solrQuery.setFilterQueries(searchParams.getFormattedFq());
         solrQuery.setRows(0);
-        solrQuery.setQuery(searchParams.getQ());
+        solrQuery.setQuery(searchParams.getFormattedQuery());
         return solrQuery;
     }
 }

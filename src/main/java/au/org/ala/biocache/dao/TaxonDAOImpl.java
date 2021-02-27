@@ -42,10 +42,10 @@ public class TaxonDAOImpl implements TaxonDAO {
 
     public void extractBySpeciesGroups(String metadataUrl, String q, String[] fq, Writer writer) throws Exception{
 
-        List<FacetField.Count> speciesGroups = extractFacet(q,fq, "species_group");
+        List<FacetField.Count> speciesGroups = extractFacet(q,fq, "speciesGroup");
         for(FacetField.Count spg: speciesGroups){
             if (spg.getName() != null) {
-                List<FacetField.Count> orders = extractFacet(q, (String[]) ArrayUtils.add(fq, "species_group:" + spg.getName()), "order");
+                List<FacetField.Count> orders = extractFacet(q, (String[]) ArrayUtils.add(fq, "speciesGroup:" + spg.getName()), "order");
                 for (FacetField.Count o : orders) {
                     if (o.getName() != null) {
                         outputNestedMappableLayerStart("order", o.getName(), writer);
@@ -53,11 +53,11 @@ public class TaxonDAOImpl implements TaxonDAO {
                         for (FacetField.Count f : families) {
                             if (f.getName() != null) {
                                 outputNestedMappableLayerStart("family", f.getName(), writer);
-                                List<FacetField.Count> genera = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{"family:" + f.getName(), "species_group:" + spg.getName()}), "genus");
+                                List<FacetField.Count> genera = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{"family:" + f.getName(), "speciesGroup:" + spg.getName()}), "genus");
                                 for (FacetField.Count g : genera) {
                                     if (g.getName() != null) {
                                         outputNestedMappableLayerStart("genus", g.getName(), writer);
-                                        List<FacetField.Count> species = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{"genus:" + g.getName(), "species_group:" + spg.getName(), "family:" + f.getName()}), "species");
+                                        List<FacetField.Count> species = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{"genus:" + g.getName(), "speciesGroup:" + spg.getName(), "family:" + f.getName()}), "species");
                                         for (FacetField.Count s : species) {
                                             if (s.getName() != null) {
                                                 outputLayer(metadataUrl, "species", s.getName(), writer);

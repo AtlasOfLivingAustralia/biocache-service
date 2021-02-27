@@ -35,10 +35,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.sf.ehcache.CacheManager;
 import net.sf.json.JSONArray;
-import org.ala.client.appender.RestLevel;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
-import org.ala.client.util.Constants;
 import org.ala.client.util.RestfulClient;
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
@@ -99,6 +97,8 @@ public class OccurrenceController extends AbstractSecureController {
     protected AuthService authService;
     @Inject
     protected ContactUtils contactUtils;
+    @Inject
+    protected OccurrenceUtils occurrenceUtils;
     @Inject
     protected AssertionUtils assertionUtils;
     @Inject
@@ -355,7 +355,7 @@ public class OccurrenceController extends AbstractSecureController {
             @RequestParam(value="isDwc", required=false) Boolean isDwc) throws Exception {
 
         Set<IndexFieldDTO> result;
-        if(fields == null) {
+        if (fields == null) {
             result = searchDAO.getIndexedFields();
         } else {
             result = searchDAO.getIndexFieldDetails(fields.split(","));
@@ -777,7 +777,7 @@ public class OccurrenceController extends AbstractSecureController {
         if (srtdto.getTotalRecords() > 0 && lookupImageMetadata){
             //use the image service API & grab the list of IDs
             List<String> occurrenceIDs = new ArrayList<String>();
-            for(OccurrenceIndex oi : srtdto.getOccurrences()){
+            for (OccurrenceIndex oi : srtdto.getOccurrences()){
                 occurrenceIDs.add(oi.getUuid());
             }
             
@@ -1254,23 +1254,24 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping(value = {"/occurrence/compare/{uuid}.json", "/occurrence/compare/{uuid}"}, method = RequestMethod.GET)
-    public @ResponseBody Object showOccurrence(@PathVariable("uuid") String uuid){
-        Map values = OccurrenceUtils.getComparisonByUuid(uuid);
-        if(values.isEmpty()) {
+    public @ResponseBody Object showOccurrence(@PathVariable("uuid") String uuid) throws Exception {
+
+        Map values = occurrenceUtils.getComparisonByUuid(uuid);
+        if (values.isEmpty()) {
             // Try again, better the second time around?
-            values = OccurrenceUtils.getComparisonByUuid(uuid);
+            values = occurrenceUtils.getComparisonByUuid(uuid);
         }
         //substitute the values for recordedBy if it is an authenticated user
-        if(values.containsKey("Occurrence")){
+        if (values.containsKey("Occurrence")){
             //String recordedBy = values.get("recordedBy").toString();
             List<au.org.ala.biocache.parser.ProcessedValue> compareList = (List<au.org.ala.biocache.parser.ProcessedValue>)values.get("Occurrence");
             List<au.org.ala.biocache.parser.ProcessedValue> newList = new ArrayList<au.org.ala.biocache.parser.ProcessedValue>();
-            for(au.org.ala.biocache.parser.ProcessedValue pv : compareList){
-                if(pv.getName().equals("recordedBy")){
+            for (au.org.ala.biocache.parser.ProcessedValue pv : compareList){
+                if (pv.getName().equals("recordedBy")){
                     logger.info(pv);
-                    String raw = authService.substituteEmailAddress(pv.getRaw());
-                    String processed = authService.substituteEmailAddress(pv.getProcessed());
-                    au.org.ala.biocache.parser.ProcessedValue newpv = new au.org.ala.biocache.parser.ProcessedValue("recordedBy", raw, processed);
+                    String raw2 = authService.substituteEmailAddress(pv.getRaw());
+                    String processed2 = authService.substituteEmailAddress(pv.getProcessed());
+                    au.org.ala.biocache.parser.ProcessedValue newpv = new au.org.ala.biocache.parser.ProcessedValue("recordedBy", raw2, processed2);
                     newList.add(newpv);
                 } else {
                     newList.add(pv);
@@ -1287,7 +1288,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      */
     @RequestMapping(value = {"/occurrence/compare*"}, method = RequestMethod.GET)
-    public @ResponseBody Object compareOccurrenceVersions(@RequestParam(value = "uuid", required = true) String uuid){
+    public @ResponseBody Object compareOccurrenceVersions(@RequestParam(value = "uuid", required = true) String uuid) throws Exception {
         return showOccurrence(uuid);
     }
     
@@ -1451,7 +1452,7 @@ public class OccurrenceController extends AbstractSecureController {
                         }
                         if (notJson) {
                             if (fv.getValue().toString().contains("@") &&
-                                    (fv.getKey().contains("recorded") || fv.getKey().startsWith("_") ||
+                                    (fv.getKey().contains("recordedBy") || fv.getKey().startsWith("_") ||
                                             fv.getKey().contains("collector"))) {
                                 fv.setValue(authService.substituteEmailAddress(fv.getValue().toString()));
                             } else if (fv.getValue() instanceof String && fv.getKey().contains("user_id")) {
@@ -1477,17 +1478,17 @@ public class OccurrenceController extends AbstractSecureController {
                 }
                 sd.addField("dbUserAssertions", userAssertions);
 
-            //retrieve details of the media files
-            if (sd.getFieldValue("soundIDs") != null) {
-                List<MediaDTO> soundDtos = getSoundDtos((String[]) JSONArray.fromObject(sd.getFieldValue("soundIDs")).toArray(new String[0]));
-                if (!soundDtos.isEmpty()) {
-                    sd.setField("soundIDs", soundDtos);
+                //retrieve details of the media files
+                if (sd.getFieldValue("soundIDs") != null) {
+                    List<MediaDTO> soundDtos = getSoundDtos((String[]) JSONArray.fromObject(sd.getFieldValue("soundIDs")).toArray(new String[0]));
+                    if (!soundDtos.isEmpty()) {
+                        sd.setField("soundIDs", soundDtos);
+                    }
                 }
-            }
 
-            if (sd.getFieldValue("imageIDs") != null) {
-                setupImageUrls(uuid, (String[]) JSONArray.fromObject(sd.getFieldValue("imageIDs")).toArray(new String[0]), im == null || !im.equalsIgnoreCase("false"));
-            }
+                if (sd.getFieldValue("imageIDs") != null) {
+                    setupImageUrls(uuid, (String[]) JSONArray.fromObject(sd.getFieldValue("imageIDs")).toArray(new String[0]), im == null || !im.equalsIgnoreCase("false"));
+                }
 
                 //log the statistics for viewing the record
                 //logViewEvent(ip, null, null, "Viewing Occurrence Record " + uuid);
@@ -1495,7 +1496,7 @@ public class OccurrenceController extends AbstractSecureController {
 
             return result;
         } else {
-            FullRecord[] fullRecord = OccurrenceUtils.getAllVersionsByUuid(uuid, includeSensitive);
+            FullRecord[] fullRecord = occurrenceUtils.getAllVersionsByUuid(uuid, includeSensitive);
             if (fullRecord == null) {
                 //get the rowKey for the supplied uuid in the index
                 //This is a workaround.  There seems to be an issue on Cassandra with retrieving uuids that start with e or f
@@ -1505,7 +1506,7 @@ public class OccurrenceController extends AbstractSecureController {
                 srp.setFacets(new String[]{});
                 SearchResultDTO results = occurrenceSearch(srp);
                 if (results.getTotalRecords() > 0) {
-                    fullRecord = OccurrenceUtils.getAllVersionsByUuid(results.getOccurrences().get(0).getUuid(), includeSensitive);
+                    fullRecord = occurrenceUtils.getAllVersionsByUuid(results.getOccurrences().get(0).getUuid(), includeSensitive);
                 }
             }
 
@@ -1519,35 +1520,33 @@ public class OccurrenceController extends AbstractSecureController {
                 else if (result.getTotalRecords() == 0)
                     return new OccurrenceDTO();
                 else
-                    fullRecord = OccurrenceUtils.getAllVersionsByUuid(result.getOccurrences().get(0).getUuid(), includeSensitive);
+                    fullRecord = occurrenceUtils.getAllVersionsByUuid(result.getOccurrences().get(0).getUuid(), includeSensitive);
             }
 
-            OccurrenceDTO occ = new OccurrenceDTO(fullRecord);
+            OccurrenceDTO occ = occurrenceUtils.getOcc(uuid);
+
             // now update the values required for the authService
-            if (fullRecord != null) {
-                //TODO - move this logic to service layer
+            if (occ !=null && occ.getRaw() != null) {
                 //raw record may need recordedBy to be changed
                 //NC 2013-06-26: The substitution was removed in favour of email obscuring due to numeric id's being used for non-ALA data resources
-                fullRecord[0].getOccurrence().setRecordedBy(authService.substituteEmailAddress(fullRecord[0].getOccurrence().getRecordedBy()));
+                occ.getRaw().getOccurrence().setRecordedBy(authService.substituteEmailAddress(occ.getRaw().getOccurrence().getRecordedBy()));
                 //processed record may need recordedBy modified in case it was an email address.
-                fullRecord[1].getOccurrence().setRecordedBy(authService.substituteEmailAddress(fullRecord[1].getOccurrence().getRecordedBy()));
+                occ.getProcessed().getOccurrence().setRecordedBy(authService.substituteEmailAddress(occ.getProcessed().getOccurrence().getRecordedBy()));
                 //hide the email addresses in the raw miscProperties
-                Map<String, String> miscProps = fullRecord[0].miscProperties();
+                Map<String, String> miscProps = occ.getRaw().miscProperties();
                 for (Map.Entry<String, String> entry : miscProps.entrySet()) {
                     if (entry.getValue().contains("@"))
                         entry.setValue(authService.substituteEmailAddress(entry.getValue()));
                 }
                 //if the raw record contains a userId we will need to include the alaUserName in the DTO
-                if (fullRecord[0].getOccurrence().getUserId() != null) {
-                    occ.setAlaUserName(authService.getDisplayNameFor(fullRecord[0].getOccurrence().getUserId()));
-                } else if (fullRecord[1].getOccurrence().getUserId() != null) {
-                    occ.setAlaUserName(authService.getDisplayNameFor(fullRecord[1].getOccurrence().getUserId()));
+                if (occ.getRaw().getOccurrence().getUserId() != null) {
+                    occ.setAlaUserName(authService.getDisplayNameFor(occ.getRaw().getOccurrence().getUserId()));
+                } else if (occ.getProcessed().getOccurrence().getUserId() != null) {
+                    occ.setAlaUserName(authService.getDisplayNameFor(occ.getProcessed().getOccurrence().getUserId()));
                 }
             }
 
             //assertions are based on the row key not uuid
-            occ.setSystemAssertions(Store.getAllSystemAssertions(occ.getRaw().getRowKey()));
-
             occ.setUserAssertions(assertionUtils.getUserAssertions(occ));
 
             //retrieve details of the media files
@@ -1675,7 +1674,7 @@ public class OccurrenceController extends AbstractSecureController {
                 }
             }
 
-            for(String fileNameOrID: images){
+            for (String fileNameOrID: images){
                 try {
                     MediaDTO m = new MediaDTO();
                     Map<String, String> urls = Config.mediaStore().getImageFormats(fileNameOrID);
