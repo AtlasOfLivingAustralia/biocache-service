@@ -31,6 +31,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.client.solrj.response.FacetField.Count;
@@ -3596,7 +3597,7 @@ public class SearchDAOImpl implements SearchDAO {
         if (isGrid || legend == null || legend.isEmpty()){
             //single layer
             SolrQuery solrQuery = createHeatmapQuery(searchParams, minx, miny, maxx, maxy, isGrid);
-            QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
+            QueryResponse qr = query(solrQuery); // can throw exception
             // FIXME UGLY - not needed with SOLR8, but current constraint is SOLR 6 API
             // See SpatialHeatmapFacets.HeatmapFacet in SOLR 8 API
             SimpleOrderedMap facetHeatMaps = ((SimpleOrderedMap)((SimpleOrderedMap)((qr.getResponse().get("facet_counts")))).get("facet_heatmaps"));
@@ -3629,7 +3630,7 @@ public class SearchDAOImpl implements SearchDAO {
                     solrQuery.setFilterQueries(filterQueries);
 
                     // query
-                    QueryResponse qr = query(solrQuery, queryMethod); // can throw exception
+                    QueryResponse qr = query(solrQuery); // can throw exception
                     SimpleOrderedMap facetHeatMaps = ((SimpleOrderedMap)((SimpleOrderedMap)((qr.getResponse().get("facet_counts")))).get("facet_heatmaps"));
 
                     if (facetHeatMaps != null) {

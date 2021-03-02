@@ -1474,6 +1474,29 @@ public class WMSController extends AbstractSecureController{
         return null;
     }
 
+
+    private double[] reprojectBBox( double[] tilebbox, String srs) throws Exception {
+
+        CRSAuthorityFactory factory = CRS.getAuthorityFactory(true);
+        CoordinateReferenceSystem sourceCRS = factory.createCoordinateReferenceSystem(srs);
+        CoordinateReferenceSystem targetCRS = factory.createCoordinateReferenceSystem("EPSG:4326");
+        CoordinateOperation transformTo4326 = new DefaultCoordinateOperationFactory().createOperation(sourceCRS, targetCRS);
+
+        // pixel correction buffer: adjust bbox extents with half pixel width/height
+        GeneralDirectPosition directPositionSW = new GeneralDirectPosition(tilebbox[0], tilebbox[1]);
+        GeneralDirectPosition directPositionNE = new GeneralDirectPosition(tilebbox[2], tilebbox[3]);
+
+        DirectPosition sw4326 = transformTo4326.getMathTransform().transform(directPositionSW, null);
+        DirectPosition ne4326 = transformTo4326.getMathTransform().transform(directPositionNE, null);
+
+        double[] bbox = new double[4];
+        bbox[0] = sw4326.getCoordinate()[0];
+        bbox[1] = sw4326.getCoordinate()[1];
+        bbox[2] = ne4326.getCoordinate()[0];
+        bbox[3] = ne4326.getCoordinate()[1];
+        return bbox;
+    }
+
     /**
      * WMS service for webportal.
      *

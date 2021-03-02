@@ -60,6 +60,21 @@ class DwcField {
     String flags
 }
 
+
+class MissingField {
+    @CsvBindByName(column = 'field', required = true)
+    String name
+
+    @CsvBindByName(column = 'action', required = true)
+    String action
+
+    @CsvBindByName(column = 'fieldtomapto', required = false)
+    String fieldToMapTo
+
+    @CsvBindByName(column = 'notes', required = false)
+    String notes
+}
+
 class FieldMapping {
 
     BiocacheField biocacheField
@@ -69,10 +84,25 @@ class FieldMapping {
     SolrField pipelinesSolrField
 }
 
-
-
 def toCamelCase = { it.replaceAll("(_)([A-Za-z0-9])", { Object[] o -> o[2].toUpperCase() }) }
 
+Map<String, MissingField> loadMissingFields() {
+    YamlSlurper yamlSlurper = new YamlSlurper()
+    def config = yamlSlurper.parse(new File('./config/field-mapping.yml'))
+
+    // parse the TDWG DwC term vocabulary csv into a map of DwcFields
+    Map<String, MissingField> missingFields
+    config.missingFieldsMap.toURL().withReader { Reader reader ->
+
+        missingFields = new CsvToBeanBuilder(reader)
+                .withType(MissingField.class)
+                .build()
+                .parse()
+                .collectEntries { [(it.name): it] }
+    }
+
+    missingFields
+}
 
 Map<String, SolrField> parseSolrFields(String host, String collection) {
 
@@ -160,14 +190,21 @@ config.dwcTerms.toURL().withReader { Reader reader ->
             .collectEntries { [ (it.name): it ]}
 }
 
-
 JsonSlurper slurper = new JsonSlurper()
 
 def biocacheV2Fields = slurper.parse(config.biocache.fields.toURL())
 
 // create Map of all solr fields keyed by field name
 Map<String, SolrField> pipelinesSolrFields = parseSolrFields(config.pipelines.solr.host, config.pipelines.solr.collection)
+
+pipelinesSolrFields.each {println it.getKey() + " = " + it.getValue().count}
+
+
+
+
 Map<String, SolrField> legacySolrFields = parseSolrFields(config.biocache.solr.host, config.biocache.solr.collection)
+
+Map<String, MissingField> missingFields = loadMissingFields()
 
 File fieldMappingJson = new File(config.mappingJson)
 
@@ -190,6 +227,7 @@ List<FieldMapping> fieldMappings = biocacheV2Fields.collect { field ->
     fieldMapping.legacySolrField = legacySolrFields[biocacheField.name]
     legacySolrFields.remove(biocacheField.name)
 
+    // check deprecated-fields.json
     if (fieldNameMappings.containsKey(biocacheField.name)) {
 
         String pipelinesFieldName = fieldNameMappings[biocacheField.name]
@@ -208,9 +246,10 @@ List<FieldMapping> fieldMappings = biocacheV2Fields.collect { field ->
             println "no field mapping for ${biocacheField.name} -> ${pipelinesFieldName}"
         }
 
-    } else if (!biocacheField.name.startsWith('raw_') && !biocacheField.name.startsWith('_') && pipelinesSolrFields[biocacheField.dwcTerm]) {
+    } else if (!biocacheField.name.startsWith('raw_')
+            && !biocacheField.name.startsWith('_') && pipelinesSolrFields[biocacheField.dwcTerm]) {
 
-        // check the pipelines solr field name matchs DwC term
+        // check the pipelines solr field name matches DwC term
         fieldMapping.pipelinesSolrField = pipelinesSolrFields[biocacheField.dwcTerm]
         pipelinesSolrFields.remove(biocacheField.dwcTerm)
 
@@ -218,6 +257,16 @@ List<FieldMapping> fieldMappings = biocacheV2Fields.collect { field ->
 
         // check the pipelines solr field name exact match
         fieldMapping.pipelinesSolrField = pipelinesSolrFields[biocacheField.name]
+        pipelinesSolrFields.remove(biocacheField.name)
+
+    } else if (missingFields[biocacheField.name] && missingFields[biocacheField.name].action == "MAP_TO_FIELD") {
+
+        MissingField missingField = missingFields[biocacheField.name]
+        // check the pipelines solr field name exact match
+        println("##### Using mapping '${biocacheField.name}' -> '${missingField.fieldToMapTo}'")
+        fieldMapping.pipelinesSolrField = pipelinesSolrFields[missingField.fieldToMapTo]
+        println("##### Extra mapping to " + fieldMapping.pipelinesSolrField)
+
         pipelinesSolrFields.remove(biocacheField.name)
 
     } else {
@@ -456,16 +505,30 @@ def fieldNameComparitor = { lft, rgt ->
 
 }
 
+String getMappingStatus(missingFields, fieldMapping){
+  if (fieldMapping.legacySolrField.name && missingFields.get(fieldMapping.legacySolrField.name)){
+      def action =  missingFields.get(fieldMapping.legacySolrField.name).action
+      if (action == "MAP_TO_BLANK"){
+          fieldMapping.pipelinesSolrField = new SolrField(name:"deprecated_" + fieldMapping.legacySolrField.name, type: "string", deprecated:true, multi:false)
+      }
+      action
+  } else {
+      ""
+  }
+}
+
+
 File fieldMappingCsv = new File(config.mappingCsv)
 
 fieldMappingCsv.newWriter().withWriter { Writer w ->
 
-    w << "\"Solr V8 (pipelines)\",,,,\"Solr v6\",,,,,\"Biocache Index Fields\",,\"DwC Fields\"\n"
+    w << "\"Solr V8 (pipelines)\",,,,,\"Solr v6\",,,,,\"Biocache Index Fields\",,\"DwC Fields\"\n"
 
     w << "\"field_name\","
     w << "\"field_type\","
     w << "\"multi_value\","
     w << "\"record_count\","
+    w << "\"mapping_status\","
 
     w << "\"field_name\","
     w << "\"field_type\","
@@ -496,44 +559,53 @@ fieldMappingCsv.newWriter().withWriter { Writer w ->
 
     fieldMappings.sort(fieldNameComparitor).each { FieldMapping fieldMapping ->
 
-        w << "\"${fieldMapping.pipelinesSolrField?.name ?: ''}\","
-        w << "\"${fieldMapping.pipelinesSolrField?.type ?: ''}\","
-        w << "${fieldMapping.pipelinesSolrField ? fieldMapping.pipelinesSolrField.multi : ''},"
-        w << "${fieldMapping.pipelinesSolrField ? fieldMapping.pipelinesSolrField?.count : ''},"
+        if (fieldMapping.legacySolrField && fieldMapping.legacySolrField?.name && !fieldMapping.legacySolrField?.name.startsWith("_")) {
 
-        w << "\"${fieldMapping.legacySolrField?.name ?: ''}\","
-        w << "\"${fieldMapping.legacySolrField?.type ?: ''}\","
-        w << "${fieldMapping.legacySolrField ? fieldMapping.legacySolrField.multi : ''},"
-        w << "${fieldMapping.legacySolrField ? fieldMapping.legacySolrField?.count : ''},"
-        w << "${fieldMapping.legacySolrField ? fieldMapping.legacySolrField.deprecated : ''},"
+            def mappingStatus = getMappingStatus(missingFields, fieldMapping)
 
-        w << "\"${fieldMapping.dwcField?.name ?: ''}\","
-        w << "\"${fieldMapping.dwcField?.termIri ?: ''}\","
-        w << "\"${fieldMapping.dwcField?.flags ?: ''}\","
+            w << "\"${fieldMapping.pipelinesSolrField?.name ?: ''}\","
+            w << "\"${fieldMapping.pipelinesSolrField?.type ?: ''}\","
+            w << "${fieldMapping.pipelinesSolrField ? fieldMapping.pipelinesSolrField.multi : ''},"
+            w << "${fieldMapping.pipelinesSolrField ? fieldMapping.pipelinesSolrField?.count : ''},"
+            w << "${mappingStatus},"
 
-        w << "\"${fieldMapping.biocacheField?.name ?: ''}\","
-        w << "\"${fieldMapping.biocacheField?.jsonName ?: ''}\","
-        w << "\"${fieldMapping.biocacheField?.dwcTerm ?: ''}\","
-        w << "\"${fieldMapping.biocacheField?.downloadName ?: ''}\","
-        w << "\"${fieldMapping.biocacheField?.dataType ?: ''}\","
-        w << "\"${fieldMapping.biocacheField?.classs ?: ''}\","
-        w << "${fieldMapping.biocacheField?.indexed ?: ''},"
-        w << "${fieldMapping.biocacheField?.docvalue ?: ''},"
-        w << "${fieldMapping.biocacheField?.stored ?: ''},"
-        w << "${fieldMapping.biocacheField?.multivalue ?: ''},"
-        w << "\"${fieldMapping.biocacheField?.i18nValues ?: ''}\","
-        w << "\"${fieldMapping.biocacheField?.description ?: ''}\","
-        w << "\"${fieldMapping.biocacheField?.downloadDescription ?: ''}\","
-        w << "\"${fieldMapping.biocacheField?.info ?: ''}\","
-        w << "\"${fieldMapping.biocacheField?.infoUrl ?: ''}\""
-        w << '\n'
+            w << "\"${fieldMapping.legacySolrField?.name ?: ''}\","
+            w << "\"${fieldMapping.legacySolrField?.type ?: ''}\","
+            w << "${fieldMapping.legacySolrField ? fieldMapping.legacySolrField.multi : ''},"
+            w << "${fieldMapping.legacySolrField ? fieldMapping.legacySolrField?.count : ''},"
+            w << "${fieldMapping.legacySolrField ? fieldMapping.legacySolrField.deprecated : ''},"
+
+            w << "\"${fieldMapping.dwcField?.name ?: ''}\","
+            w << "\"${fieldMapping.dwcField?.termIri ?: ''}\","
+            w << "\"${fieldMapping.dwcField?.flags ?: ''}\","
+
+            w << "\"${fieldMapping.biocacheField?.name ?: ''}\","
+            w << "\"${fieldMapping.biocacheField?.jsonName ?: ''}\","
+            w << "\"${fieldMapping.biocacheField?.dwcTerm ?: ''}\","
+            w << "\"${fieldMapping.biocacheField?.downloadName ?: ''}\","
+            w << "\"${fieldMapping.biocacheField?.dataType ?: ''}\","
+            w << "\"${fieldMapping.biocacheField?.classs ?: ''}\","
+            w << "${fieldMapping.biocacheField?.indexed ?: ''},"
+            w << "${fieldMapping.biocacheField?.docvalue ?: ''},"
+            w << "${fieldMapping.biocacheField?.stored ?: ''},"
+            w << "${fieldMapping.biocacheField?.multivalue ?: ''},"
+            w << "\"${fieldMapping.biocacheField?.i18nValues ?: ''}\","
+            w << "\"${fieldMapping.biocacheField?.description ?: ''}\","
+            w << "\"${fieldMapping.biocacheField?.downloadDescription ?: ''}\","
+            w << "\"${fieldMapping.biocacheField?.info ?: ''}\","
+            w << "\"${fieldMapping.biocacheField?.infoUrl ?: ''}\""
+            w << '\n'
+        }
     }
 }
 
 Map<String, String> deprecatedFields = [:]
 
 fieldMappings.each { FieldMapping fieldMapping ->
-    if (fieldMapping.legacySolrField && fieldMapping.pipelinesSolrField && !fieldMapping.pipelinesSolrField.name.contains('*') && fieldMapping.legacySolrField.name != fieldMapping.pipelinesSolrField.name) {
+    if (fieldMapping.legacySolrField
+            && fieldMapping.pipelinesSolrField
+            && !fieldMapping.pipelinesSolrField.name.contains('*')
+            && fieldMapping.legacySolrField.name != fieldMapping.pipelinesSolrField.name) {
         deprecatedFields[fieldMapping.legacySolrField.name] = fieldMapping.pipelinesSolrField.name
     } else if (fieldMapping.legacySolrField?.deprecated) {
         deprecatedFields[fieldMapping.legacySolrField.name] = null
