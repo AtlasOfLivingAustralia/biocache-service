@@ -1,18 +1,11 @@
 package au.org.ala.biocache.util;
 
 import au.org.ala.biocache.dao.QidCacheDAO;
-import au.org.ala.biocache.dao.SearchDAOImpl;
-import au.org.ala.biocache.dto.Facet;
-import au.org.ala.biocache.dto.SearchRequestParams;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
-import au.org.ala.biocache.model.Qid;
-import au.org.ala.biocache.service.AuthService;
-import au.org.ala.biocache.service.DataQualityService;
-import au.org.ala.biocache.service.LayersService;
-import au.org.ala.biocache.service.ListsService;
+import au.org.ala.biocache.dto.*;
+import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.service.ListsService.SpeciesListSearchDTO;
-import au.org.ala.biocache.service.SpeciesLookupService;
 import com.google.common.collect.Iterables;
+import com.google.common.html.HtmlEscapers;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -29,7 +22,7 @@ import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.google.common.html.HtmlEscapers.htmlEscaper;
+import static au.org.ala.biocache.dto.OccurrenceIndex.CONTAINS_SENSITIVE_PATTERN;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.StreamSupport.stream;
@@ -77,7 +70,8 @@ public class QueryFormatUtils {
     protected Pattern urnPattern = Pattern.compile("\\burn:[a-zA-Z0-9\\.:-]*");
     protected Pattern httpPattern = Pattern.compile("http:[a-zA-Z0-9/\\.:\\-_]*");
     protected Pattern spacesPattern = Pattern.compile("[^\\s\"\\(\\)\\[\\]{}']+|\"[^\"]*\"|'[^']*'");
-    protected Pattern uidPattern = Pattern.compile("(?:[\"]*)?([a-z_]*_uid:)([a-z0-9]*)(?:[\"]*)?");
+    protected Pattern uidPattern10 = Pattern.compile("(?:[\"]*)?([a-z_]*_uid:)([a-z0-9]*)(?:[\"]*)?");
+    protected Pattern uidPattern20 = Pattern.compile("(?:[\"]*)?([a-z]*Uid:)([a-z0-9]*)(?:[\"]*)?");
     protected Pattern spatialPattern = Pattern.compile(spatialField + ":\"Intersects\\([a-zA-Z=\\-\\s0-9\\.\\,():]*\\)\\\"");
     protected Pattern qidPattern = QidCacheDAO.qidPattern;//Pattern.compile("qid:[0-9]*");
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
@@ -346,9 +340,11 @@ public class QueryFormatUtils {
      *
      * @param current String [] { displayString, formattedQuery } to update.
      */
-    private String [] formatTerms(String [] current) {
+    private String[] formatTerms(String[] current) {
         // look for field:term sub queries and catch fields: matched_name & matched_name_children
-        if (current != null && current.length >=2 && current[1] != null && current[1].contains(":")) {
+        if (current != null && current.length >= 2 && current[1] != null && current[1].contains(":")) {
+            String taxonName = OccurrenceIndex.TAXON_NAME;
+
             StringBuffer queryString = new StringBuffer();
 
             // will match foo:bar, foo:"bar bash" & foo:bar\ bash
@@ -380,15 +376,15 @@ public class QueryFormatUtils {
                             }
 
                             if (acceptedName != null && !acceptedName.isEmpty()) {
-                                field = "taxon_name";
+                                field = taxonName;
                                 queryText = acceptedName;
                             }
                         } else {
-                            field = "taxon_name";
+                            field = taxonName;
                         }
 
                         // also change the display query
-                        current[0] = current[0].replaceAll("matched_name", "taxon_name");
+                        current[0] = current[0].replaceAll("matched_name", taxonName);
                     }
 
                     if (StringUtils.containsAny(queryText, CHARS) && !queryText.startsWith("[") && !queryText.startsWith("\"")) {
@@ -416,7 +412,7 @@ public class QueryFormatUtils {
                             field = "lsid";
                             queryText = guid;
                         } else {
-                            field = "taxon_name";
+                            field = taxonName;
                         }
                     }
 
@@ -488,8 +484,8 @@ public class QueryFormatUtils {
      *
      * @param current String [] { displayString, formattedQuery } to update.
      */
-    private void formatSpeciesList(String [] current) {
-        if(current == null || current.length < 2 || current[1] == null){
+    private void formatSpeciesList(String[] current) {
+        if (current == null || current.length < 2 || current[1] == null) {
             return;
         }
 
@@ -504,11 +500,14 @@ public class QueryFormatUtils {
             try {
                 List<String> lsids = listsService.getListItems(speciesList);
 
-                List<String> strings = lsids.stream()
-                        .map(searchUtils::getTaxonSearch)
+                List<String> strings;
+
+                strings = lsids.stream()
+                        .map(searchUtils::getTaxonSearch20)
                         .filter(t -> t.length > 1)
                         .map(t -> t[0])
                         .collect(toList());
+
                 Iterable<List<String>> partition = Iterables.partition(strings, max - 10);
                 String q = stream(partition.spliterator(), false)
                         .map(part -> part.stream()
@@ -533,15 +532,15 @@ public class QueryFormatUtils {
             String speciesList = m.group(2);
             String prefix = m.group(1);
             if (failedLists.contains(speciesList)) {
-                m.appendReplacement(sb,prefix + "<span class=\"species_list failed\" id='" + htmlEscaper().escape(speciesList) + "'>" + htmlEscaper().escape(speciesList) + " (FAILED)</span>");
+                m.appendReplacement(sb, prefix + "<span class=\"species_list failed\" id='" + HtmlEscapers.htmlEscaper().escape(speciesList) + "'>" + HtmlEscapers.htmlEscaper().escape(speciesList) + " (FAILED)</span>");
             } else {
                 try {
                     SpeciesListSearchDTO.SpeciesListDTO dto = listsService.getListInfo(speciesList);
                     String name = dto.listName;
-                    m.appendReplacement(sb, prefix + "<span class='species_list' id='" + htmlEscaper().escape(speciesList) + "'>" + htmlEscaper().escape(name) + "</span>");
+                    m.appendReplacement(sb, prefix + "<span class='species_list' id='" + HtmlEscapers.htmlEscaper().escape(speciesList) + "'>" + HtmlEscapers.htmlEscaper().escape(name) + "</span>");
                 } catch (Exception e) {
                     logger.error("Couldn't get species list name for " + speciesList, e);
-                    m.appendReplacement(sb, prefix + "<span class='species_list' id='" + htmlEscaper().escape(speciesList) + "'>Species list</span>");
+                    m.appendReplacement(sb, prefix + "<span class='species_list' id='" + HtmlEscapers.htmlEscaper().escape(speciesList) + "'>Species list</span>");
                 }
             }
         }
@@ -554,8 +553,8 @@ public class QueryFormatUtils {
      *
      * @param current String [] { displayString, formattedQuery } to update.
      */
-    private void formatLsid(String [] current) {
-        if(current == null || current.length < 2 || current[1] == null){
+    private void formatLsid(String[] current) {
+        if (current == null || current.length < 2 || current[1] == null) {
             return;
         }
 
@@ -590,12 +589,14 @@ public class QueryFormatUtils {
                     }
                     String[] values = searchUtils.getTaxonSearch(lsid);
 
-                    if( value != null && values.length > 0) {
+                    String taxonConceptId = OccurrenceIndex.TAXON_CONCEPT_ID;
+
+                    if (value != null && values.length > 0) {
 
                         matcher.appendReplacement(queryString, lsidHeader + values[0]);
 
                         displaySb.append(current[0].substring(last, matcher.start()));
-                        if (!values[1].startsWith("taxon_concept_lsid:")) {
+                        if (!values[1].startsWith(taxonConceptId + ":")) {
                             displaySb.append(lsidHeader).append("<span class='lsid' id='").append(lsid).append("'>").append(values[1]).append("</span>");
                         } else {
                             displaySb.append(lsidHeader).append(values[1]);
@@ -764,10 +765,11 @@ public class QueryFormatUtils {
         Matcher matcher;
         StringBuffer displaySb = new StringBuffer();
         //substitute better display strings for collection/inst etc searches
-        if (current[0].contains("_uid")) {
+        if (current[0].contains("_uid") || current[0].contains("Uid")) {
             displaySb.setLength(0);
             String normalised = current[0].replaceAll("\"", "");
-            matcher = uidPattern.matcher(normalised);
+            matcher = uidPattern20.matcher(normalised);
+
             while (matcher.find()) {
                 String newVal = "<span>" + searchUtils.getUidDisplayString(matcher.group(1), matcher.group(2)) + "</span>";
                 matcher.appendReplacement(displaySb, newVal);
@@ -847,7 +849,7 @@ public class QueryFormatUtils {
     /**
      * Substitute text with i18n properties or escape for SOLR.
      *
-     * @param text String to format
+     * @param text    String to format
      * @param isQuery
      * @return
      */
@@ -1000,11 +1002,16 @@ public class QueryFormatUtils {
     private String formatValue(String fn, String fv) {
         fv = SearchUtils.stripEscapedQuotes(fv);
 
-        if (StringUtils.equals(fn, "speciesID") || StringUtils.equals(fn, "genusID")) {
-            fv = searchUtils.substituteLsidsForNames(fv.replaceAll("\"",""));
-        } else if (StringUtils.equals(fn, "occurrence_year")) {
+        String speciesGuid = OccurrenceIndex.SPECIESID;
+        String genusGuid = OccurrenceIndex.GENUSID;
+        String occurrenceYear = OccurrenceIndex.OCCURRENCE_YEAR_INDEX_FIELD;
+        String month = OccurrenceIndex.MONTH;
+
+        if (StringUtils.equals(fn, speciesGuid) || StringUtils.equals(fn, genusGuid)) {
+            fv = searchUtils.substituteLsidsForNames(fv.replaceAll("\"", ""));
+        } else if (StringUtils.equals(fn, occurrenceYear)) {
             fv = searchUtils.substituteYearsForDates(fv);
-        } else if (StringUtils.equals(fn, "month")) {
+        } else if (StringUtils.equals(fn, month)) {
             fv = searchUtils.substituteMonthNamesForNums(fv);
         } else if (searchUtils.getAuthIndexFields().contains(fn)) {
             if (authService.getMapOfAllUserNamesById().containsKey(StringUtils.remove(fv, "\"")))
@@ -1055,11 +1062,12 @@ public class QueryFormatUtils {
     }
 
     public String[] getQueryContextAsArray(String queryContext) {
+        String dataHubUid = OccurrenceIndex.DATA_HUB_UID;
         if (StringUtils.isNotEmpty(queryContext)) {
             String[] values = queryContext.split(",");
             for (int i = 0; i < values.length; i++) {
                 String field = values[i];
-                values[i] = field.replace("hub:", "data_hub_uid:");
+                values[i] = field.replace("hub:", dataHubUid + ":");
             }
             //add the query context to the filter query
             return values;
@@ -1183,8 +1191,8 @@ public class QueryFormatUtils {
     }
 
     public static void assertNoSensitiveValues(Class c, String property, String input) {
-        if (input != null && input.matches(SearchDAOImpl.CONTAINS_SENSITIVE_PATTERN)) {
-            InvalidPropertyException e = new InvalidPropertyException(c, property, "Input cannot contain any of: " + org.apache.commons.lang3.StringUtils.join(SearchDAOImpl.sensitiveSOLRHdr, ", "));
+        if (input != null && input.matches(CONTAINS_SENSITIVE_PATTERN)) {
+            InvalidPropertyException e = new InvalidPropertyException(c, property, "Input cannot contain any of: " + org.apache.commons.lang3.StringUtils.join(OccurrenceIndex.sensitiveSOLRHdr, ", "));
             logger.error("Input matches a sensitive field", e);
             throw e;
         }

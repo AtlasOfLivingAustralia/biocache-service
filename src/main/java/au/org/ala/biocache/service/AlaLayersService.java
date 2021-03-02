@@ -25,6 +25,7 @@ import org.springframework.web.client.RestOperations;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import java.io.Reader;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -230,5 +231,15 @@ public class AlaLayersService implements LayersService {
         }
 
         return map;
+    }
+
+    public String getLayersServiceUrl() {
+        return layersServiceUrl;
+    }
+
+    @Override
+    public Reader sample(String[] analysisLayers, double[][] points, Object o) {
+        // TODO: for on the fly intersection of layers not indexed
+        return null;
     }
 }

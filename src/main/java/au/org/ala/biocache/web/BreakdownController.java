@@ -16,6 +16,7 @@ package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.BreakdownRequestParams;
+import au.org.ala.biocache.dto.OccurrenceIndex;
 import au.org.ala.biocache.dto.TaxaRankCountDTO;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -30,7 +31,7 @@ import javax.servlet.http.HttpServletResponse;
 
 /**
  * A simple controller for providing breakdowns on top of the biocache.
- *  
+ *
  * @author Dave Martin (David.Martin@csiro.au)
  * @author Natasha Carter (Natasha.Carter@csiro.au)
  */
@@ -39,68 +40,82 @@ public class BreakdownController {
 
     private final static Logger logger = Logger.getLogger(BreakdownController.class);
 
-	@Inject
-	protected SearchDAO searchDAO;
-	
-	/**
-	 * Performs a breakdown based on a collection
-	 * @param requestParams
-	 * @param uid
-	 * @return
-	 * @throws Exception
-	 */
-	@RequestMapping(value = "/breakdown/collections/{uid}*", method = RequestMethod.GET)
-	public @ResponseBody TaxaRankCountDTO breakdownByCollection(BreakdownRequestParams requestParams,
-	            @PathVariable("uid") String uid, HttpServletResponse response) throws Exception{
-	    return performBreakdown("collection_uid", uid, requestParams, response);
-	}
-	/**
-	 * Performs a breakdown based on an institution
-	 * @param requestParams
-	 * @param uid
-	 * @return
-	 * @throws Exception
-	 */
-	@RequestMapping(value = "/breakdown/institutions/{uid}*", method = RequestMethod.GET)
-    public @ResponseBody TaxaRankCountDTO breakdownByInstitution(BreakdownRequestParams requestParams,
-                @PathVariable("uid") String uid, HttpServletResponse response) throws Exception{
-        return performBreakdown("institution_uid", uid, requestParams, response);
+    @Inject
+    protected SearchDAO searchDAO;
+
+    /**
+     * Performs a breakdown based on a collection
+     *
+     * @param requestParams
+     * @param uid
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/breakdown/collections/{uid}*", method = RequestMethod.GET)
+    public @ResponseBody
+    TaxaRankCountDTO breakdownByCollection(BreakdownRequestParams requestParams,
+                                           @PathVariable("uid") String uid, HttpServletResponse response) throws Exception {
+        return performBreakdown(OccurrenceIndex.COLLECTION_UID, uid, requestParams, response);
     }
-	/**
-	 * Performs a breakdown based on a data resource
-	 * @param requestParams
-	 * @param uid
-	 * @return
-	 * @throws Exception
-	 */
-	@RequestMapping(value = "/breakdown/dataResources/{uid}*", method = RequestMethod.GET)
-    public @ResponseBody TaxaRankCountDTO breakdownByDataResource(BreakdownRequestParams requestParams,
-                @PathVariable("uid") String uid, HttpServletResponse response) throws Exception{
-        return performBreakdown("data_resource_uid", uid, requestParams, response);
+
+    /**
+     * Performs a breakdown based on an institution
+     *
+     * @param requestParams
+     * @param uid
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/breakdown/institutions/{uid}*", method = RequestMethod.GET)
+    public @ResponseBody
+    TaxaRankCountDTO breakdownByInstitution(BreakdownRequestParams requestParams,
+                                            @PathVariable("uid") String uid, HttpServletResponse response) throws Exception {
+        return performBreakdown(OccurrenceIndex.INSTITUTION_UID, uid, requestParams, response);
     }
-	/**
-	 * Performs a breakdown based on a data provider
-	 * @param requestParams
-	 * @param uid
-	 * @return
-	 * @throws Exception
-	 */
-	@RequestMapping(value = "/breakdown/dataProviders/{uid}*", method = RequestMethod.GET)
-    public @ResponseBody TaxaRankCountDTO breakdownByDataProvider(BreakdownRequestParams requestParams,
-                @PathVariable("uid") String uid, HttpServletResponse response) throws Exception{
-        return performBreakdown("data_provider_uid", uid, requestParams, response);
+
+    /**
+     * Performs a breakdown based on a data resource
+     *
+     * @param requestParams
+     * @param uid
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/breakdown/dataResources/{uid}*", method = RequestMethod.GET)
+    public @ResponseBody
+    TaxaRankCountDTO breakdownByDataResource(BreakdownRequestParams requestParams,
+                                             @PathVariable("uid") String uid, HttpServletResponse response) throws Exception {
+        return performBreakdown(OccurrenceIndex.DATA_RESOURCE_UID, uid, requestParams, response);
     }
-	/**
-	 * Performs a breakdown based on a data hub
-	 * @param requestParams
-	 * @param uid
-	 * @return
-	 * @throws Exception
-	 */
-	@RequestMapping(value = "/breakdown/dataHubs/{uid}*", method = RequestMethod.GET)
-    public @ResponseBody TaxaRankCountDTO breakdownByDataHub(BreakdownRequestParams requestParams,
-                @PathVariable("uid") String uid, HttpServletResponse response) throws Exception{
-        return performBreakdown("data_hub_uid", uid, requestParams, response);
+
+    /**
+     * Performs a breakdown based on a data provider
+     *
+     * @param requestParams
+     * @param uid
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/breakdown/dataProviders/{uid}*", method = RequestMethod.GET)
+    public @ResponseBody
+    TaxaRankCountDTO breakdownByDataProvider(BreakdownRequestParams requestParams,
+                                             @PathVariable("uid") String uid, HttpServletResponse response) throws Exception {
+        return performBreakdown(OccurrenceIndex.DATA_PROVIDER_UID, uid, requestParams, response);
+    }
+
+    /**
+     * Performs a breakdown based on a data hub
+     *
+     * @param requestParams
+     * @param uid
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/breakdown/dataHubs/{uid}*", method = RequestMethod.GET)
+    public @ResponseBody
+    TaxaRankCountDTO breakdownByDataHub(BreakdownRequestParams requestParams,
+                                        @PathVariable("uid") String uid, HttpServletResponse response) throws Exception {
+        return performBreakdown(OccurrenceIndex.DATA_HUB_UID, uid, requestParams, response);
     }
 	
 	@RequestMapping(value= "/breakdown*", method = RequestMethod.GET)

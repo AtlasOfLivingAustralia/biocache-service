@@ -14,7 +14,6 @@
  ***************************************************************************/
 package au.org.ala.biocache.web;
 
-import au.org.ala.biocache.Store;
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.Element;
@@ -31,7 +30,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.Arrays;
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -253,14 +254,11 @@ public class AbstractSecureController {
      * @throws Exception
      */
     public boolean shouldPerformOperation(String apiKey,HttpServletResponse response, boolean checkReadOnly) throws Exception {
-        if(checkReadOnly && Store.isReadOnly()){
-            response.sendError(HttpServletResponse.SC_CONFLICT, "Server is in read only mode.  Try again later.");
-            return false;
-        } else if(!isValidKey(apiKey)){
+        if (!isValidKey(apiKey)) {
             response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
             return false;
-        } else if(response.isCommitted()) {
-        	return false;
+        } else if (response.isCommitted()) {
+            return false;
         }
         
         return true;

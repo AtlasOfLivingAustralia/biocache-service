@@ -14,10 +14,10 @@
  ***************************************************************************/
 package au.org.ala.biocache.writer;
 
+import au.org.ala.biocache.util.RecordWriter;
+
 import java.io.Closeable;
 import java.util.List;
-
-import au.org.ala.biocache.RecordWriter;
 
 /**
  * Method for catching RecordWriter errors

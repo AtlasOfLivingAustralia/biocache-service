@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.web;
 
+import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import io.swagger.annotations.Api;
@@ -54,6 +55,9 @@ public class ChartController extends AbstractSecureController implements Seriali
      */
     @Inject
     protected SearchDAO searchDAO;
+    @Inject
+    protected IndexDAO indexDao;
+
 
     @Autowired
     private ServletContext servletContext;
@@ -407,7 +411,7 @@ public class ChartController extends AbstractSecureController implements Seriali
 
     private boolean isNumber(String field) throws Exception {
         String[] numberType = new String[]{"int", "tint", "double", "tdouble", "long", "tlong", "float", "tfloat"};
-        for (IndexFieldDTO f : searchDAO.getIndexedFields()) {
+        for (IndexFieldDTO f : indexDao.getIndexedFields()) {
             if (f.getName().equalsIgnoreCase(field) && ArrayUtils.contains(numberType, f.getDataType())) return true;
         }
         return false;
@@ -415,7 +419,7 @@ public class ChartController extends AbstractSecureController implements Seriali
 
     private boolean isDecimal(String field) throws Exception {
         String[] numberType = new String[]{"double", "tdouble", "float", "tfloat"};
-        for (IndexFieldDTO f : searchDAO.getIndexedFields()) {
+        for (IndexFieldDTO f : indexDao.getIndexedFields()) {
             if (f.getName().equalsIgnoreCase(field) && ArrayUtils.contains(numberType, f.getDataType())) {
                 return true;
             }
@@ -424,14 +428,15 @@ public class ChartController extends AbstractSecureController implements Seriali
     }
 
     private boolean isDate(String field) throws Exception {
-        for (IndexFieldDTO f : searchDAO.getIndexedFields()) {
-            if (f.getName().equalsIgnoreCase(field) && f.getDataType().equalsIgnoreCase("tdate")) return true;
+        for (IndexFieldDTO f : indexDao.getIndexedFields()) {
+            if (f.getName().equalsIgnoreCase(field) && (f.getDataType().equalsIgnoreCase("tdate") || f.getDataType().equalsIgnoreCase("date")))
+                return true;
         }
         return false;
     }
 
     private String getFieldDescription(String field) throws Exception {
-        for (IndexFieldDTO f : searchDAO.getIndexedFields()) {
+        for (IndexFieldDTO f : indexDao.getIndexedFields()) {
             if (f.getName().equalsIgnoreCase(field) && f.getDescription() != null) return f.getDescription();
         }
         return field;

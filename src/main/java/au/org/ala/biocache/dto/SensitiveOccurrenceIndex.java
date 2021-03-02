@@ -17,27 +17,36 @@ package au.org.ala.biocache.dto;
 import org.apache.solr.client.solrj.beans.Field;
 /**
  * DTO for sensitive field values.
- * 
+ *
  * @author Natasha Carter
  */
 public class SensitiveOccurrenceIndex extends OccurrenceIndex {
-	
-    @Field("sensitive_latitude")  Double sensitiveDecimalLatitude;
-    @Field("sensitive_longitude")  Double sensitiveDecimalLongitude;
-    @Field("sensitive_coordinate_uncertainty") Double sensitiveCoordinateUncertaintyInMeters;
-    @Field("sensitive_event_date") String sensitiveEventDate;
-    @Field("sensitive_event_date_end") String sensitiveEventDateEnd;
-    @Field("sensitive_grid_reference") String sensitiveGridReference;
-    
-    public  Double getSensitiveDecimalLatitude() {
+
+    public static final String SENSITIVE_LONGITUDE = "sensitive_longitude";
+    public static final String SENSITIVE_LATITUDE = "sensitive_latitude";
+
+    @Field("sensitive_latitude")
+    Double sensitiveDecimalLatitude;
+    @Field("sensitive_longitude")
+    Double sensitiveDecimalLongitude;
+    @Field("sensitive_coordinate_uncertainty")
+    Double sensitiveCoordinateUncertaintyInMeters;
+    @Field("sensitive_event_date")
+    String sensitiveEventDate;
+    @Field("sensitive_event_date_end")
+    String sensitiveEventDateEnd;
+    @Field("sensitive_grid_reference")
+    String sensitiveGridReference;
+
+    public Double getSensitiveDecimalLatitude() {
         return sensitiveDecimalLatitude;
     }
 
-    public void setSensitiveDecimalLatitude( Double sensitiveDecimalLatitude) {
+    public void setSensitiveDecimalLatitude(Double sensitiveDecimalLatitude) {
         this.sensitiveDecimalLatitude = sensitiveDecimalLatitude;
     }
 
-    public  Double getSensitiveDecimalLongitude() {
+    public Double getSensitiveDecimalLongitude() {
         return sensitiveDecimalLongitude;
     }
 

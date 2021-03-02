@@ -1,17 +1,13 @@
 package au.org.ala.biocache.util;
 
-import au.org.ala.biocache.Config;
+import au.org.ala.biocache.dto.OccurrenceIndex;
 import au.org.ala.biocache.dto.OccurrenceSourceDTO;
 import au.org.ala.biocache.dto.SearchRequestParams;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.service.SpeciesLookupService;
-import au.org.ala.names.model.NameSearchResult;
-import au.org.ala.names.model.RankType;
-import au.org.ala.names.search.ALANameSearcher;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
-import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
@@ -57,20 +53,20 @@ public class SearchUtils {
     @Value("${name.index.dir:/data/lucene/namematching}")
     protected String nameIndexLocation;
 
-    ALANameSearcher nameIndex = null;
+    //ALANameSearcher nameIndex = null;
 
     protected static List<String> defaultParams = new ArrayList<String>();
 
     static {
-        java.lang.reflect.Field[] fields = (java.lang.reflect.Field[]) ArrayUtils.addAll(SpatialSearchRequestParams.class.getDeclaredFields(),SearchRequestParams.class.getDeclaredFields());
-        for(java.lang.reflect.Field field:fields){
+        java.lang.reflect.Field[] fields = (java.lang.reflect.Field[]) ArrayUtils.addAll(SpatialSearchRequestParams.class.getDeclaredFields(), SearchRequestParams.class.getDeclaredFields());
+        for (java.lang.reflect.Field field : fields) {
             defaultParams.add(field.getName());
         }
     }
 
-    private  final List<String> ranks = (List<String>) org.springframework.util.CollectionUtils
-      .arrayToList(new String[]{"kingdom", "phylum", "class", "order",
-              "family", "genus", "species"});
+    private final List<String> ranks = (List<String>) org.springframework.util.CollectionUtils
+            .arrayToList(new String[]{OccurrenceIndex.KINGDOM, OccurrenceIndex.PHYLUM, OccurrenceIndex.CLASS, OccurrenceIndex.ORDER,
+                    OccurrenceIndex.FAMILY, OccurrenceIndex.GENUS, OccurrenceIndex.SPECIES});
 
     /**
      * Util to filter SimpleOrderedMap output from a SOLR json.facet query and return the result of
@@ -163,10 +159,10 @@ public class SearchUtils {
         }
     }
 
-    public String getUIDSearchString(String[] uids){
+    public String getUIDSearchString(String[] uids) {
         StringBuilder sb = new StringBuilder();
-        for(String uid : uids){
-            if(sb.length()>0)
+        for (String uid : uids) {
+            if (sb.length() > 0)
                 sb.append(" OR ");
             sb.append(getUidSearchField(uid));
             sb.append(":");
@@ -254,20 +250,20 @@ public class SearchUtils {
         Pattern rankAndName = Pattern.compile("([a-z]{1,})\\:([A-Za-z \\(\\)\\.]{1,})");
         int position = 0;
         Matcher m = rankAndName.matcher(query);
-        if(m.find(position) && m.groupCount()==2){
+        if (m.find(position) && m.groupCount() == 2) {
             String rank = m.group(1);
             String scientificName = m.group(2);
-            RankType rankType = RankType.getForName(rank.toLowerCase());
-            if(rankType != null){
-                try {
-                    NameSearchResult r = Config.nameIndex().searchForRecord(scientificName, rankType);
-                    if(r != null){
-                        return "lft:[" + r.getLeft() + " TO " + r.getRight() + "]";
-                    }
-                } catch (Exception e) {
-                    //fail silently if the parse failed
-                }
-            }
+//            RankType rankType = RankType.getForName(rank.toLowerCase());
+//            if(rankType != null){
+//                try {
+//                    NameSearchResult r = null;//TODO: Config.nameIndex().searchForRecord(scientificName, rankType);
+//                    if(r != null){
+//                        return OccurrenceIndex.LFT + ":[" + r.getLeft() + " TO " + r.getRight() + "]";
+//                    }
+//                } catch (Exception e) {
+//                    //fail silently if the parse failed
+//                }
+//            }
         }
         return query;
     }
@@ -279,30 +275,35 @@ public class SearchUtils {
      * @param lsid
      * @return
      */
+    public String[] getTaxonSearch20(String lsid) {
+        return getTaxonSearch(lsid);
+    }
+
     public String[] getTaxonSearch(String lsid) {
+        String taxon_concept_lsid = OccurrenceIndex.TAXON_CONCEPT_ID;
 
         String[] result = new String[0];
         //use the name matching index
-        try {
-            if(nameIndex == null){
-                nameIndex = new ALANameSearcher(nameIndexLocation);
-            }
-            NameSearchResult nsr = nameIndex.searchForRecordByLsid(lsid);
-            if(nsr != null ){
-                String rank = nsr.getRank() != null ? nsr.getRank().toString() : "Unknown Rank";
-                String scientificName = nsr.getRankClassification() != null ? nsr.getRankClassification().getScientificName():null;
-                StringBuffer dispSB = new StringBuffer(rank + ": " + scientificName);
-                StringBuilder sb = new StringBuilder("lft:[");
-                String lft = nsr.getLeft() != null ? nsr.getLeft():"0";
-                String rgt = nsr.getRight() != null ? nsr.getRight():"0";
-                sb.append(lft).append(" TO ").append(rgt).append("]");
-                return new String[]{sb.toString(), dispSB.toString()};
-            } else {
-                return new String[]{"taxonConceptID:\"" + ClientUtils.escapeQueryChars(lsid) + "\"", "taxonConceptID:\"" + lsid + "\""};
-            }
-        } catch(Exception e){
-            logger.error(e.getMessage(), e);
-        }
+//        try {
+//            if (nameIndex == null) {
+//                nameIndex = new ALANameSearcher(nameIndexLocation);
+//            }
+//            NameSearchResult nsr = nameIndex.searchForRecordByLsid(lsid);
+//            if (nsr != null) {
+//                String rank = nsr.getRank() != null ? nsr.getRank().toString() : "Unknown Rank";
+//                String scientificName = nsr.getRankClassification() != null ? nsr.getRankClassification().getScientificName():null;
+//                StringBuffer dispSB = new StringBuffer(rank + ": " + scientificName);
+//                StringBuilder sb = new StringBuilder(OccurrenceIndex.LFT + ":[");
+//                String lft = nsr.getLeft() != null ? nsr.getLeft() : "0";
+//                String rgt = nsr.getRight() != null ? nsr.getRight():"0";
+//                sb.append(lft).append(" TO ").append(rgt).append("]");
+//                return new String[]{sb.toString(), dispSB.toString()};
+//            } else {
+//                return new String[]{taxon_concept_lsid + ":\"" + ClientUtils.escapeQueryChars(lsid) + "\"", taxon_concept_lsid + ":\"" + lsid + "\""};
+//            }
+//        } catch(Exception e){
+//            logger.error(e.getMessage(), e);
+//        }
 
         return result;
     }
@@ -337,16 +338,11 @@ public class SearchUtils {
      * @return
      */
     public String getUidSearchField(String uid) {
-        if (uid.startsWith("co"))
-            return "collection_uid";
-        if (uid.startsWith("in"))
-            return "institution_uid";
-        if (uid.startsWith("dr"))
-            return "data_resource_uid";
-        if (uid.startsWith("dp"))
-            return "data_provider_uid";
-        if (uid.startsWith("dh"))
-            return "data_hub_uid";
+        if (uid.startsWith("co")) return OccurrenceIndex.COLLECTION_UID;
+        if (uid.startsWith("in")) return OccurrenceIndex.INSTITUTION_UID;
+        if (uid.startsWith("dr")) return OccurrenceIndex.DATA_RESOURCE_UID;
+        if (uid.startsWith("dp")) return OccurrenceIndex.DATA_PROVIDER_UID;
+        if (uid.startsWith("dh")) return OccurrenceIndex.DATA_HUB_UID;
         return null;
     }
 
@@ -450,17 +446,6 @@ public class SearchUtils {
         for(String field : defaultParams)
             extraParams.remove(field);
         return extraParams;
-    }
-
-    private boolean isDynamicField(String fieldName){
-        return fieldName.endsWith("_s") || fieldName.endsWith("_i") || fieldName.endsWith("_d");
-    }
-
-    public static String formatDynamicFieldName(String fieldName){
-        if(fieldName.length()>2){
-            return StringUtils.capitalize(fieldName.substring(0, fieldName.length() - 2).replace("_", " "));
-        }
-        return fieldName;
     }
 
     /**

@@ -17,7 +17,6 @@ package au.org.ala.biocache.dao;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.LegendItem;
 import org.apache.solr.client.solrj.response.FacetField;
-import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocumentList;
 
@@ -26,7 +25,6 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -50,8 +48,6 @@ public interface SearchDAO {
     /**
      * Returns species that only occur in the supplied subQueryQid
      * and not in the requestParams query.
-     *
-     * If no requestParams defined the default q=geospatial_kosher:* is used.
      *
      * @param subQuery
      * @param parentQuery
@@ -98,18 +94,6 @@ public interface SearchDAO {
      */
     int writeSpeciesCountByCircleToStream(SpatialSearchRequestParams requestParams, String speciesGroup, ServletOutputStream out) throws Exception;
 
-    /**
-     * Write out the results of this query to the output stream
-     * 
-     * @param searchParams
-     * @param out
-     * @param maxNoOfRecords
-     * @param includeSensitive Whether or not the sensitive values should be included in the download
-     * @return A map of uids and counts that needs to be logged to the ala-logger
-     * @throws Exception
-     */
-	ConcurrentMap<String, AtomicInteger> writeResultsToStream(DownloadRequestParams searchParams, OutputStream out, int maxNoOfRecords, boolean includeSensitive, DownloadDetailsDTO dd, boolean limit) throws Exception;
-	
 	/**
 	 * Writes the results of this query to the output stream using the index as a source of the data.
 	 * @param downloadParams
@@ -166,30 +150,6 @@ public interface SearchDAO {
      * @throws Exception
      */
     void writeEndemicFacetToStream(SpatialSearchRequestParams subQuery, SpatialSearchRequestParams parentQuery, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out) throws Exception;
-
-    /**
-     * Retrieve a Set of the indexed fields.
-     *
-     * @return A Set containing the set of indexed fields made unique using {@link IndexFieldDTO#getDownloadName()}.
-     * @throws Exception
-     */
-    Set<IndexFieldDTO> getIndexedFields() throws Exception;
-    
-    /**
-     * Retrieve a map of indexed fields based on {@link IndexFieldDTO#getName()}
-     *
-     * @return A map of indexed fields based on the field name.
-     * @throws Exception
-     */
-    Map<String, IndexFieldDTO> getIndexedFieldsMap() throws Exception;
-
-    /**
-     * Returns the up to date statistics for the supplied field
-     * @param field
-     * @return
-     * @throws Exception
-     */
-    Set<IndexFieldDTO> getIndexFieldDetails(String... field) throws Exception;
 
     /**
      * Retrieve an OccurrencePoint (distinct list of points - lat-long to 4 decimal places) for a given search
@@ -277,6 +237,7 @@ public interface SearchDAO {
 
     /**
      * Returns the occurrence counts based on lft and rgt values for each of the supplied taxa.
+     *
      * @param taxa
      * @return
      * @throws Exception
@@ -308,13 +269,6 @@ public interface SearchDAO {
      * @throws Exception
      */
     SolrDocumentList findByFulltext(SpatialSearchRequestParams searchParams) throws Exception;
-    /**
-     * Statistics for each of the fields included as facets.  Statistics are only possible for numeric fields.
-     * @param searchParams
-     * @return
-     * @throws Exception
-     */
-    Map<String, FieldStatsInfo> getStatistics(SpatialSearchRequestParams searchParams) throws Exception;
 
     /**
      * Get legend items for a query and specified facet.
@@ -367,16 +321,6 @@ public interface SearchDAO {
      * @throws Exception
      */
     List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception;
-
-    /**
-     * Get the SOLR index version. Trigger a background refresh on a timeout.
-     *
-     * Forcing an updated value will perform a new SOLR query for each request to be run in the foreground.
-     *
-     * @return
-     * @param force
-     */
-    Long getIndexVersion(Boolean force);
 
     /**
      * Perform grouped facet query.

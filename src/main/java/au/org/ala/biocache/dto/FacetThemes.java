@@ -171,70 +171,65 @@ public class FacetThemes {
     private void defaultInit() {
         allThemes.clear();
         allThemes.add(new FacetTheme("Taxonomic",
-                new FacetDTO("taxon_name","index",null,null,null),
-                new FacetDTO("raw_taxon_name","index",null,null,null),
-                new FacetDTO("common_name","index",null,null,null),
-                new FacetDTO("subspecies_name","index",null,null,null),
-                new FacetDTO("species","index",null,null,null),
-                new FacetDTO("genus","index",null,null,null),
-                new FacetDTO("family","index",null,null,null),
-                new FacetDTO("order","index",null,null,null),
-                new FacetDTO("class","index",null,null,null),
-                new FacetDTO("phylum","index",null,null,null),
-                new FacetDTO("kingdom","index",null,null,null),
-                new FacetDTO("species_group","index",null,null,null),
-                new FacetDTO("rank","count",null,null,null),
-                new FacetDTO("interaction","count",null,null,null),
-                new FacetDTO("species_habitats","count",null,null,null)));
+                new FacetDTO(OccurrenceIndex.TAXON_NAME, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.RAW_TAXON_NAME, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.COMMON_NAME, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.SUBSPECIES_NAME, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.SPECIES, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.GENUS, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.FAMILY, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.ORDER, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.CLASS, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.PHYLUM, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.KINGDOM, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.SPECIES_GROUP, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.RANK, "count", null, null, null),
+                new FacetDTO(OccurrenceIndex.SPECIES_HABITATS, "count", null, null, null)));
 
         allThemes.add(new FacetTheme("Geospatial",
-                new FacetDTO("uncertainty","index",null,null,null),
-                new FacetDTO("sensitive","count",null,null,null),
-                new FacetDTO("state_conservation","count",null,null,null),
-                new FacetDTO("raw_state_conservation","count",null,null,null),
-                new FacetDTO("cl966","count",null,null,null),
-                new FacetDTO("cl959","count",null,null,null),
-                new FacetDTO("state","count",null,null,null),
-                new FacetDTO("country","index",null,null,null),
-                new FacetDTO("biogeographic_region","count",null,null,null),
-                new FacetDTO("ibra","count",null,null,null),
-                new FacetDTO("imcra", "count",null,null,null),
-                new FacetDTO("cl1918","count",null,null,null),
-                new FacetDTO("cl617", "count",null,null,null),
-                new FacetDTO("cl620","count",null,null,null),
-                new FacetDTO("geospatial_kosher","count",null,null,null)
+                new FacetDTO(OccurrenceIndex.COORDINATE_UNCERTAINTY, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.SENSITIVE, "count", null, null, null),
+                new FacetDTO(OccurrenceIndex.STATE_CONSERVATION, "count", null, null, null),
+                new FacetDTO(OccurrenceIndex.RAW_STATE_CONSERVATION, "count", null, null, null),
+                new FacetDTO("cl966", "count", null, null, null),
+                new FacetDTO("cl959", "count", null, null, null),
+                new FacetDTO(OccurrenceIndex.STATE, "count", null, null, null),
+                new FacetDTO(OccurrenceIndex.COUNTRY, "index", null, null, null),
+                new FacetDTO("cl1918", "count", null, null, null),
+                new FacetDTO("cl617", "count", null, null, null),
+                new FacetDTO("cl620", "count", null, null, null)
         ));
 
         allThemes.add(new FacetTheme("Temporal",
-                new FacetDTO("month","index",null,null,null),
-                new FacetDTO("year","index",null,null,null),
-                new FacetDTO("decade","index",null,null,null))
+                new FacetDTO(OccurrenceIndex.MONTH, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.YEAR, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.DECADE_FACET_NAME, "index", null, null, null))
         );
 
         allThemes.add(new FacetTheme("Record details",
-                new FacetDTO("basis_of_record","index",null,null,null),
-                new FacetDTO("type_status","index",null,null,null),
-                new FacetDTO("multimedia","count",null,null,null),
-                new FacetDTO("collector","index",null,null,null),
-                new FacetDTO("occurrence_status","index",null,null,null))
+                new FacetDTO(OccurrenceIndex.BASIS_OF_RECORD, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.TYPE_STATUS, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.MULTIMEDIA, "count", null, null, null),
+                new FacetDTO(OccurrenceIndex.COLLECTOR, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.OCCURRENCE_STATUS, "index", null, null, null))
         );
 
         allThemes.add(new FacetTheme("Attribution",
-                new FacetDTO("alau_user_id","count",null,null,null),
-                new FacetDTO("data_provider_uid","count",null,null,null),
-                new FacetDTO("data_resource_uid","count",null,null,null),
-                new FacetDTO("institution_uid","count",null,null,null),
-                new FacetDTO("collection_uid", "count",null,null,null),
-                new FacetDTO("provenance", "count",null,null,null))
+                new FacetDTO(OccurrenceIndex.ALA_USER_ID, "count", null, null, null),
+                new FacetDTO(OccurrenceIndex.DATA_PROVIDER_UID, "count", null, null, null),
+                new FacetDTO(OccurrenceIndex.DATA_RESOURCE_UID, "count", null, null, null),
+                new FacetDTO(OccurrenceIndex.INSTITUTION_UID, "count", null, null, null),
+                new FacetDTO(OccurrenceIndex.COLLECTION_UID, "count", null, null, null),
+                new FacetDTO(OccurrenceIndex.PROVENANCE, "count", null, null, null))
         );
 
         allThemes.add(new FacetTheme("Record assertions",
-                new FacetDTO("assertions","count",null,null,null),
-                new FacetDTO("assertion_user_id","index",null,null,null),
-                new FacetDTO("outlier_layer","count",null,null,null),
-                new FacetDTO("outlier_layer_count","count",null,null,null),
-                new FacetDTO("taxonomic_issue","count",null,null,null),
-                new FacetDTO("duplicate_status","count",null,null,null)
+                new FacetDTO(OccurrenceIndex.ASSERTIONS, "count", null, null, null),
+                new FacetDTO(OccurrenceIndex.ASSERTION_USER_ID, "index", null, null, null),
+                new FacetDTO(OccurrenceIndex.OUTLIER_LAYER, "count", null, null, null),
+                new FacetDTO(OccurrenceIndex.OUTLIER_LAYER_COUNT, "count", null, null, null),
+                new FacetDTO(OccurrenceIndex.TAXONOMIC_ISSUE, "count", null, null, null),
+                new FacetDTO(OccurrenceIndex.DUPLICATE_STATUS, "count", null, null, null)
         ));
 
         initAllFacets();

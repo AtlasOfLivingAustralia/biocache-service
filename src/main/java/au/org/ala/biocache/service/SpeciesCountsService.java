@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import org.apache.commons.collections.map.LRUMap;
@@ -39,6 +40,9 @@ public class SpeciesCountsService {
      */
     @Inject
     protected SearchDAO searchDAO;
+
+    @Inject
+    protected IndexDAO indexDao;
 
     /**
      * Refresh cache every 30 minutes.
@@ -106,7 +110,7 @@ public class SpeciesCountsService {
         }
 
         //refresh if cache missing and not refreshed recently (cacheMinAge)
-        long indexVersion = searchDAO.getIndexVersion(false);
+        long indexVersion = indexDao.getIndexVersion(false);
         if (counts == null || (cacheMinAge + counts.getAge() < System.currentTimeMillis() && indexVersion != counts.getIndexVersion())) {
             //old counts that need one update scheduled
             synchronized (updatingLock) {
@@ -227,7 +231,7 @@ class UpdateThread extends Thread {
                     leftCount[i] = map.get(left[i]);
                 }
 
-                SpeciesCountDTO counts = new SpeciesCountDTO(left, leftCount, speciesCountsService.searchDAO.getIndexVersion(false));
+                SpeciesCountDTO counts = new SpeciesCountDTO(left, leftCount, speciesCountsService.indexDao.getIndexVersion(false));
 
                 //store in map
                 synchronized (speciesCountsService.cacheLock) {

@@ -14,7 +14,6 @@
  ***************************************************************************/
 package au.org.ala.biocache.util;
 
-import au.org.ala.biocache.Config;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.service.LayersService;
 import au.org.ala.biocache.service.ListsService;
@@ -69,26 +68,24 @@ public class DownloadFields {
                 updateThread.interrupt();
             }
             lastUpdate = System.currentTimeMillis();
-            updateThread = new Thread() {
-                public void run() {
-                    Properties newDownloadProperties = new Properties();
-                    try {
-                        if(StringUtils.isNotEmpty(Config.layersServiceUrl())) {
-                            Map<String, String> fields = new LayersStore(Config.layersServiceUrl()).getFieldIdsAndDisplayNames();
-                            for (String fieldId : fields.keySet()) {
-                                newDownloadProperties.put(fieldId, fields.get(fieldId));
-                            }
+            updateThread =
+                    new Thread() {
+                        public void run() {
+                            Properties newDownloadProperties = new Properties();
+                            try {
+                                if (StringUtils.isNotEmpty(layersService.getLayersServiceUrl())) {
+                                    newDownloadProperties.putAll(layersService.getLayerNameMap());
 
-                            //something might have gone wrong if empty
-                            if (newDownloadProperties.size() > 0) {
-                                layerProperties = newDownloadProperties;
+                                    // something might have gone wrong if empty
+                                    if (newDownloadProperties.size() > 0) {
+                                        layerProperties = newDownloadProperties;
+                                    }
+                                }
+                            } catch (Exception e) {
+                                logger.error("failed to update layer names", e);
                             }
                         }
-                    } catch (Exception e) {
-                        logger.error("failed to update layer names from url: " + Config.layersServiceUrl() + " " + e.getMessage(), e);
-                    }
-                }
-            };
+                    };
             if (layerProperties == null || layerProperties.size() == 0) {
                 //wait
                 updateThread.run();
@@ -155,7 +152,7 @@ public class DownloadFields {
      * @param fieldNames
      * @return
      */
-    public List<String>[] getIndexFields(String[] fieldNames, boolean dwcHeaders, String layersServiceUrl){
+    public List<String>[] getIndexFields(String[] fieldNames, boolean dwcHeaders, String layersServiceUrl) {
         updateLayerNames();
 
         java.util.List<String> mappedNames = new java.util.LinkedList<String>();

@@ -1,5 +1,6 @@
 package au.org.ala.biocache.web;
 
+import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
@@ -25,8 +26,8 @@ import javax.servlet.http.HttpServletResponse;
 import java.awt.*;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
-import java.util.*;
 import java.util.List;
+import java.util.*;
 
 /**
  * This controller is responsible for providing basic scatterplot services.
@@ -54,19 +55,21 @@ public class ScatterplotController {
     private final static String DEFAULT_SCATTERPLOT_WIDTH = "256";
     private final static String DEFAULT_SCATTERPLOT_POINTCOLOUR = "0000FF";
     private final static String DEFAULT_SCATTERPLOT_POINTRADIUS = "3";
-    private final static String [] VALID_DATATYPES = {"float","double","int","long","tfloat","tdouble","tint","tlong"};
+    private final static String[] VALID_DATATYPES = {"float", "double", "int", "long", "tfloat", "tdouble", "tint", "tlong"};
 
     @Inject
     protected SearchDAO searchDAO;
+    @Inject
+    protected IndexDAO indexDao;
 
     @RequestMapping(value = {"/scatterplot"}, method = RequestMethod.GET)
     public void scatterplot(SpatialSearchRequestParams requestParams,
                             @RequestParam(value = "x", required = true) String x,
                             @RequestParam(value = "y", required = true) String y,
-                            @RequestParam(value = "height", required = false, defaultValue=DEFAULT_SCATTERPLOT_HEIGHT) Integer height,
-                            @RequestParam(value = "width", required = false, defaultValue=DEFAULT_SCATTERPLOT_WIDTH) Integer width,
-                            @RequestParam(value = "title", required = false, defaultValue=DEFAULT_SCATTERPLOT_TITLE) String title,
-                            @RequestParam(value = "pointcolour", required = false, defaultValue=DEFAULT_SCATTERPLOT_POINTCOLOUR) String pointcolour,
+                            @RequestParam(value = "height", required = false, defaultValue = DEFAULT_SCATTERPLOT_HEIGHT) Integer height,
+                            @RequestParam(value = "width", required = false, defaultValue = DEFAULT_SCATTERPLOT_WIDTH) Integer width,
+                            @RequestParam(value = "title", required = false, defaultValue = DEFAULT_SCATTERPLOT_TITLE) String title,
+                            @RequestParam(value = "pointcolour", required = false, defaultValue = DEFAULT_SCATTERPLOT_POINTCOLOUR) String pointcolour,
                             @RequestParam(value = "pointradius", required = false, defaultValue = DEFAULT_SCATTERPLOT_POINTRADIUS) Double pointradius,
                             HttpServletResponse response) throws Exception {
         JFreeChart jChart = makeScatterplot(requestParams, x, y, title, pointcolour, pointradius);
@@ -144,7 +147,7 @@ public class ScatterplotController {
         String displayNameX = null;
         String displayNameY = null;
         List<String> validDatatypes = Arrays.asList(VALID_DATATYPES);
-        Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
+        Set<IndexFieldDTO> indexedFields = indexDao.getIndexedFields();
         
         Exception toThrowX = null;
         

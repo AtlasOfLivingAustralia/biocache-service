@@ -14,9 +14,9 @@
  ***************************************************************************/
 package au.org.ala.biocache.dao;
 
+import au.org.ala.biocache.dto.OccurrenceIndex;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
-import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.QueryResponse;
@@ -32,35 +32,34 @@ import java.util.List;
 public class TaxonDAOImpl implements TaxonDAO {
 
     private static final Logger logger = Logger.getLogger(TaxonDAOImpl.class);
-    protected SolrClient server;
 
     /**
      * SOLR client instance
      */
     @Inject
-    private SolrClient solrClient;
+    private IndexDAO indexDAO;
 
     public void extractBySpeciesGroups(String metadataUrl, String q, String[] fq, Writer writer) throws Exception{
 
-        List<FacetField.Count> speciesGroups = extractFacet(q,fq, "speciesGroup");
+        List<FacetField.Count> speciesGroups = extractFacet(q, fq, OccurrenceIndex.SPECIES_GROUP);
         for(FacetField.Count spg: speciesGroups){
             if (spg.getName() != null) {
-                List<FacetField.Count> orders = extractFacet(q, (String[]) ArrayUtils.add(fq, "speciesGroup:" + spg.getName()), "order");
+                List<FacetField.Count> orders = extractFacet(q, (String[]) ArrayUtils.add(fq, OccurrenceIndex.SPECIES_GROUP + ":" + spg.getName()), OccurrenceIndex.ORDER);
                 for (FacetField.Count o : orders) {
                     if (o.getName() != null) {
-                        outputNestedMappableLayerStart("order", o.getName(), writer);
-                        List<FacetField.Count> families = extractFacet(q, (String[]) ArrayUtils.add(fq, "order:" + o.getName()), "family");
+                        outputNestedMappableLayerStart(OccurrenceIndex.ORDER, o.getName(), writer);
+                        List<FacetField.Count> families = extractFacet(q, (String[]) ArrayUtils.add(fq, OccurrenceIndex.ORDER + ":" + o.getName()), OccurrenceIndex.FAMILY);
                         for (FacetField.Count f : families) {
                             if (f.getName() != null) {
-                                outputNestedMappableLayerStart("family", f.getName(), writer);
-                                List<FacetField.Count> genera = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{"family:" + f.getName(), "speciesGroup:" + spg.getName()}), "genus");
+                                outputNestedMappableLayerStart(OccurrenceIndex.FAMILY, f.getName(), writer);
+                                List<FacetField.Count> genera = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{OccurrenceIndex.FAMILY + ":" + f.getName(), OccurrenceIndex.SPECIES_GROUP + ":" + spg.getName()}), OccurrenceIndex.GENUS);
                                 for (FacetField.Count g : genera) {
                                     if (g.getName() != null) {
-                                        outputNestedMappableLayerStart("genus", g.getName(), writer);
-                                        List<FacetField.Count> species = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{"genus:" + g.getName(), "speciesGroup:" + spg.getName(), "family:" + f.getName()}), "species");
+                                        outputNestedMappableLayerStart(OccurrenceIndex.GENUS, g.getName(), writer);
+                                        List<FacetField.Count> species = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{OccurrenceIndex.GENUS + ":" + g.getName(), OccurrenceIndex.SPECIES_GROUP + ":" + spg.getName(), OccurrenceIndex.FAMILY + ":" + f.getName()}), OccurrenceIndex.SPECIES);
                                         for (FacetField.Count s : species) {
                                             if (s.getName() != null) {
-                                                outputLayer(metadataUrl, "species", s.getName(), writer);
+                                                outputLayer(metadataUrl, OccurrenceIndex.SPECIES, s.getName(), writer);
                                             }
                                         }
                                         outputNestedLayerEnd(writer);
@@ -80,34 +79,34 @@ public class TaxonDAOImpl implements TaxonDAO {
     @Override
     public void extractHierarchy(String metadataUrl, String q, String[] fq, Writer writer) throws Exception {
 
-        List<FacetField.Count> kingdoms = extractFacet(q,fq,"kingdom");
+        List<FacetField.Count> kingdoms = extractFacet(q, fq, OccurrenceIndex.KINGDOM);
         for(FacetField.Count k: kingdoms){
             if (k.getName() != null) {
                 outputNestedLayerStart(k.getName(), writer);
-                List<FacetField.Count> phyla = extractFacet(q, (String[]) ArrayUtils.add(fq, "kingdom:" + k.getName()), "phylum");
+                List<FacetField.Count> phyla = extractFacet(q, (String[]) ArrayUtils.add(fq, OccurrenceIndex.KINGDOM + ":" + k.getName()), OccurrenceIndex.PHYLUM);
                 for (FacetField.Count p : phyla) {
                     if (p.getName() != null) {
-                        outputNestedMappableLayerStart("phylum", p.getName(), writer);
-                        List<FacetField.Count> classes = extractFacet(q, (String[]) ArrayUtils.add(fq, "phylum:" + p.getName()), "class");
+                        outputNestedMappableLayerStart(OccurrenceIndex.PHYLUM, p.getName(), writer);
+                        List<FacetField.Count> classes = extractFacet(q, (String[]) ArrayUtils.add(fq, OccurrenceIndex.PHYLUM + ":" + p.getName()), OccurrenceIndex.CLASS);
                         for (FacetField.Count c : classes) {
                             if (c.getName() != null) {
-                                outputNestedMappableLayerStart("class", c.getName(), writer);
-                                List<FacetField.Count> orders = extractFacet(q, (String[]) ArrayUtils.add(fq, "class:" + c.getName()), "order");
+                                outputNestedMappableLayerStart(OccurrenceIndex.CLASS, c.getName(), writer);
+                                List<FacetField.Count> orders = extractFacet(q, (String[]) ArrayUtils.add(fq, OccurrenceIndex.CLASS + ":" + c.getName()), OccurrenceIndex.ORDER);
                                 for (FacetField.Count o : orders) {
                                     if (o.getName() != null) {
-                                        outputNestedMappableLayerStart("order", o.getName(), writer);
-                                        List<FacetField.Count> families = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{"order:" + o.getName(), "kingdom:" + k.getName()}), "family");
+                                        outputNestedMappableLayerStart(OccurrenceIndex.ORDER, o.getName(), writer);
+                                        List<FacetField.Count> families = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{OccurrenceIndex.ORDER + ":" + o.getName(), OccurrenceIndex.KINGDOM + ":" + k.getName()}), OccurrenceIndex.FAMILY);
                                         for (FacetField.Count f : families) {
                                             if (f.getName() != null) {
-                                                outputNestedMappableLayerStart("family", f.getName(), writer);
-                                                List<FacetField.Count> genera = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{"family:" + f.getName(), "kingdom:" + k.getName()}), "genus");
+                                                outputNestedMappableLayerStart(OccurrenceIndex.FAMILY, f.getName(), writer);
+                                                List<FacetField.Count> genera = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{OccurrenceIndex.FAMILY + ":" + f.getName(), OccurrenceIndex.KINGDOM + ":" + k.getName()}), OccurrenceIndex.GENUS);
                                                 for (FacetField.Count g : genera) {
                                                     if (g.getName() != null) {
-                                                        outputNestedMappableLayerStart("genus", g.getName(), writer);
-                                                        List<FacetField.Count> species = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{"genus:" + g.getName(), "kingdom:" + k.getName(), "family:" + f.getName()}), "species");
+                                                        outputNestedMappableLayerStart(OccurrenceIndex.GENUS, g.getName(), writer);
+                                                        List<FacetField.Count> species = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{OccurrenceIndex.GENUS + ":" + g.getName(), OccurrenceIndex.KINGDOM + ":" + k.getName(), OccurrenceIndex.FAMILY + ":" + f.getName()}), OccurrenceIndex.SPECIES);
                                                         for (FacetField.Count s : species) {
                                                             if (s.getName() != null) {
-                                                                outputLayer(metadataUrl, "species", s.getName(), writer);
+                                                                outputLayer(metadataUrl, OccurrenceIndex.SPECIES, s.getName(), writer);
                                                             }
                                                         }
                                                         outputNestedLayerEnd(writer);
@@ -175,7 +174,7 @@ public class TaxonDAOImpl implements TaxonDAO {
         if(filterQueries != null){
             for(String fq: filterQueries) query.addFilterQuery(fq);
         }
-        QueryResponse response = solrClient.query(query);
+        QueryResponse response = indexDAO.query(query);
         List<FacetField.Count> fc = response.getFacetField(facetName).getValues();
         if(fc == null){
             fc = new ArrayList<FacetField.Count>();

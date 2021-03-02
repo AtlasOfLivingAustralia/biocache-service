@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.writer;
 
+import au.org.ala.biocache.dto.OccurrenceIndex;
 import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import au.org.ala.biocache.util.AlaFileUtils;
 import com.vividsolutions.jts.geom.Coordinate;
@@ -39,19 +40,11 @@ import org.opengis.feature.simple.SimpleFeatureType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -110,14 +103,9 @@ public class ShapeFileRecordWriter implements RecordWriterError {
         headerMappings = AlaFileUtils.generateShapeHeader(header);
         //set the outputStream
         outputStream = out;
-        //get the indices for the lat and long
-        if (ArrayUtils.indexOf(header, "latitude") < 0 || ArrayUtils.indexOf(header, "longitude") < 0) {
-            latIdx = ArrayUtils.indexOf(header, "decimalLatitude_p");
-            longIdx = ArrayUtils.indexOf(header, "decimalLongitude_p");
-        } else {
-            latIdx = ArrayUtils.indexOf(header, "latitude");
-            longIdx = ArrayUtils.indexOf(header, "longitude");
-        }
+        // get the indices for the lat and long
+        latIdx = ArrayUtils.indexOf(header, OccurrenceIndex.LATITUDE);
+        longIdx = ArrayUtils.indexOf(header, OccurrenceIndex.LONGITUDE);
 
         simpleFeature = createFeatureType(headerMappings.keySet(), null);
         featureBuilder = new SimpleFeatureBuilder(simpleFeature);
