@@ -23,6 +23,7 @@ public class LegendItem implements Comparable<LegendItem> {
 
     String name;
     String i18nCode;
+    String facetValue;
     long count;
     int colour;
     String fq;
@@ -31,16 +32,18 @@ public class LegendItem implements Comparable<LegendItem> {
     int green;
     boolean remainder = false;
 
-    public LegendItem(String name, String i18nCode, long count, String fq) {
+    public LegendItem(String name, String i18nCode, String facetValue, long count, String fq) {
         this.name = name != null ? name : "";
+        this.facetValue = facetValue;
         this.i18nCode = i18nCode;
         this.count = count;
         this.fq = fq;
     }
 
-    public LegendItem(String name, String i18nCode, long count, String fq, boolean remainder) {
+    public LegendItem(String name, String i18nCode,  String facetValue, long count, String fq, boolean remainder) {
         this.name = name != null ? name : "";
         this.i18nCode = i18nCode;
+        this.facetValue = facetValue;
         this.count = count;
         this.fq = fq;
         this.remainder = remainder;
@@ -111,6 +114,13 @@ public class LegendItem implements Comparable<LegendItem> {
         this.remainder = remainder;
     }
 
+    public String getFacetValue() {
+        return facetValue;
+    }
+
+    public void setFacetValue(String facetValue) {
+        this.facetValue = facetValue;
+    }
     /**
      * Sort 'count', descending, then 'name' ascending.
      * @param o

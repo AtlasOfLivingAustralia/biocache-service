@@ -226,6 +226,13 @@ public class SearchDAOImpl implements SearchDAO {
     protected Long downloadCheckBusyWaitSleep = 100L;
 
     /**
+     * Occurrence count where < uses pivot and > uses facet for retrieving points. Can be fine tuned with
+     * multiple queries and comparing DEBUG *
+     */
+    @Value("${wms.legendMaxItems:30}")
+    private int wmslegendMaxItems;
+
+    /**
      * thread pool for multipart endemic queries
      */
     private volatile ExecutorService endemicExecutor = null;
@@ -2870,11 +2877,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         //is facet query?
         if (cutpoints == null) {
-            //special case for the decade
-            if (DECADE_FACET_NAME.equals(facetField))
-                initDecadeBasedFacet(solrQuery, OccurrenceIndex.OCCURRENCE_YEAR_INDEX_FIELD);
-            else
-                solrQuery.addFacetField(facetField);    // PIPELINES: SolrQuery::addFacetField entry point
+            solrQuery.addFacetField(facetField);    // PIPELINES: SolrQuery::addFacetField entry point
         } else {
             solrQuery.addFacetQuery("-" + facetField + ":[* TO *]");
 
@@ -2885,38 +2888,65 @@ public class SearchDAOImpl implements SearchDAO {
 
         solrQuery.setFacetMinCount(1);
         solrQuery.setFacetLimit(-1);//MAX_DOWNLOAD_SIZE);  // unlimited = -1
-
+        solrQuery.setFacetSort("count");
         solrQuery.setFacetMissing(true);
 
         QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFormattedFq(), 1, 0, "score", "asc");
-        List<FacetField> facets = qr.getFacetFields();
+        List<FacetField> facets = qr.getFacetFields();  // TODO: PIPELINES: QueryResponse::getFacetFields entry point
         if (facets != null) {
-            for (FacetField facet : facets) {
-                List<FacetField.Count> facetEntries = facet.getValues();
-                if (facet.getName().contains(facetField) && (facetEntries != null) && (facetEntries.size() > 0)) {
-                    int i = 0;
-                    for (i = 0; i < facetEntries.size(); i++) {
-                        FacetField.Count fcount = facetEntries.get(i);
-                        if (fcount.getCount() > 0) {
-                            String fq = facetField + ":\"" + fcount.getName() + "\"";
-                            if (fcount.getName() == null) {
+            for (FacetField facet : facets) {           // TODO: PIPELINES: List<FacetField>::iterator entry point
+                List<FacetField.Count> facetEntries = facet.getValues();    // TODO: PIPELINES: FacetField::getValues entry point
+                if (facet.getName().contains(facetField) && facetEntries != null && !facetEntries.isEmpty()) {  // TODO: PIPELINES: FacetField::getName & List<FacetField.Count>::size entry point
+
+                    List<String> addedFqs = new ArrayList<>();
+
+                    for (int i = 0; i < facetEntries.size() && i < wmslegendMaxItems; i++) {         // TODO: PIPELINES: List<FacetField.Count>::size entry point
+                        FacetField.Count fcount = facetEntries.get(i);  // TODO: PIPELINES: List<FacetField.Count>::get entry point
+                        if (fcount.getCount() > 0) {                    // TODO: PIPELINES: FacetField.Count::getCount entry point
+                            String fq = facetField + ":\"" + fcount.getName() + "\"";   // TODO: PIPELINES: FacetField.Count::getName entry point
+                            if (fcount.getName() == null) {             // TODO: PIPELINES: FacetField.Count::getName entry point
                                 fq = "-" + facetField + ":[* TO *]";
                             }
 
+                            if (fcount.getName() != null) {
+                                addedFqs.add(fq);
+                            }
+
                             if (skipI18n) {
-                                legend.add(new LegendItem(fcount.getName(), null, fcount.getCount(), fq));
+                                legend.add(new LegendItem(fcount.getName(), null, fcount.getName(), fcount.getCount(), fq));  // TODO: PIPELINES: FacetField.Count::getName & FacetField.Count::getCount entry point
                             } else {
                                 String i18nCode = null;
-                                if (StringUtils.isNotBlank(fcount.getName())) {
-                                    i18nCode = facetField + "." + fcount.getName();
+                                if (StringUtils.isNotBlank(fcount.getName())) {     // TODO: PIPELINES: FacetField.Count::getName entry point
+                                    i18nCode = facetField + "." + fcount.getName(); // TODO: PIPELINES: FacetField.Count::getName entry point
                                 } else {
                                     i18nCode = facetField + ".novalue";
                                 }
 
-                                legend.add(new LegendItem(getFacetValueDisplayName(facetField, fcount.getName()), i18nCode, fcount.getCount(), fq));
+                                legend.add(new LegendItem(getFacetValueDisplayName(facetField, fcount.getName()), i18nCode,fcount.getName(), fcount.getCount(), fq));    // TODO: PIPELINES: FacetField.Count::getName & FacetField.Count::getCount entry point
                             }
                         }
                     }
+
+                    if (facetEntries.size() > wmslegendMaxItems){
+
+                        long remainderCount = 0;
+                        for (int i = wmslegendMaxItems; i < facetEntries.size(); i++) {
+                            FacetField.Count fcount = facetEntries.get(i);
+                            remainderCount += fcount.getCount();
+                        }
+
+                        String theFq = "-(" + StringUtils.join(addedFqs, " OR ") +")";
+                            // create a single catch remainder facet
+                        legend.add(legend.size(), new LegendItem(
+                            "Other " + facetField,
+                                facetField + ".other",
+                                "",
+                                remainderCount,
+                                theFq,
+                                true
+                        ));
+                    }
+
                     break;
                 }
             }
@@ -2925,7 +2955,7 @@ public class SearchDAOImpl implements SearchDAO {
         Map<String, Integer> facetq = qr.getFacetQuery();
         if (facetq != null && facetq.size() > 0) {
             for (Entry<String, Integer> es : facetq.entrySet()) {
-                legend.add(new LegendItem( getFacetValueDisplayName(facetField, es.getKey()), facetField + "." + es.getKey() , es.getValue(), es.getKey()));
+                legend.add(new LegendItem( getFacetValueDisplayName(facetField, es.getKey()), facetField + "." + es.getKey() , es.getKey(), es.getValue(), es.getKey()));
             }
         }
 
@@ -2951,8 +2981,9 @@ public class SearchDAOImpl implements SearchDAO {
                         new LegendItem(
                                 getFacetValueDisplayName(facetEntry.getFacetField().getName(), facetEntry.getName()),
                                 facetEntry.getFacetField().getName() + "." + facetEntry.getName(),
+                                facetEntry.getFacetField().getName(),
                                 facetEntry.getCount(),
-                                OccurrenceIndex.OCCURRENCE_YEAR_INDEX_FIELD + ":[" + startDate + " TO " + finishDate + "]")
+                                "occurrence_year:[" + startDate + " TO " + finishDate + "]")
                 );
             }
         }
@@ -3437,15 +3468,15 @@ public class SearchDAOImpl implements SearchDAO {
      * @see au.org.ala.biocache.dao.SearchDAO#getColours
      */
     @Cacheable(cacheName = "getColours")
-    public List<LegendItem> getColours(SpatialSearchRequestParams request, String colourMode) throws Exception {
+        public List<LegendItem> getColours(SpatialSearchRequestParams request, String colourMode) throws Exception {
         List<LegendItem> colours = new ArrayList<LegendItem>();
         if (colourMode.equals("grid")) {
             for (int i = 0; i <= 500; i += 100) {
                 LegendItem li;
                 if (i == 0) {
-                    li = new LegendItem(">0", "",0, null);
+                    li = new LegendItem(">0", "", "", 0, null);
                 } else {
-                    li = new LegendItem(String.valueOf(i),  "",0, null);
+                    li = new LegendItem(String.valueOf(i),  "", "", 0, null);
                 }
                 li.setColour((((500 - i) / 2) << 8) | 0x00FF0000);
                 colours.add(li);
@@ -3477,18 +3508,23 @@ public class SearchDAOImpl implements SearchDAO {
                 if (cutpoints == null) {     //do not sort if cutpoints are provided
                     java.util.Collections.sort(legend);
                 }
-                int i = 0;
                 int offset = 0;
-                for (i = 0; i < legend.size() && i < ColorUtil.colourList.length - 1; i++) {
+
+                for (int i = 0; i < legend.size(); i++) {
 
                     LegendItem li = legend.get(i);
 
-                    colours.add(new LegendItem(li.getName(), li.getName(), li.getCount(), li.getFq()));
+                    colours.add(new LegendItem(li.getName(), li.getName(), li.getFacetValue(), li.getCount(), li.getFq(), li.isRemainder()));
                     int colour = DEFAULT_COLOUR;
                     if (cutpoints == null) {
                         colour = ColorUtil.colourList[i];
                     } else if (cutpoints != null && i - offset < cutpoints.length) {
-                        if (StringUtils.isEmpty(legend.get(i).getName()) || legend.get(i).getName().equals("Unknown") || legend.get(i).getName().startsWith("-")) {
+                        if (li.isRemainder()){
+                            colour = ColorUtil.getRangedColour(i - offset, cutpoints.length / 2);
+                        } else if ( StringUtils.isEmpty(legend.get(i).getName())
+                                || legend.get(i).getName().equals("Unknown")
+                                || legend.get(i).getName().startsWith("-")
+                            ) {
                             offset++;
                         } else {
                             colour = ColorUtil.getRangedColour(i - offset, cutpoints.length / 2);
