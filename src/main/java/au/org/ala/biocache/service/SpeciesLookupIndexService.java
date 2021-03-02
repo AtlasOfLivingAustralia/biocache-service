@@ -10,6 +10,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.util.ClientUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 
 import javax.annotation.PostConstruct;
@@ -49,8 +50,13 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
 
     private volatile ALANameUsageMatchServiceClient nameIndex = null;
 
-    String nameSearchUrl = "";
+    @Value("${namesearch.url:http://localhost:9179}")
+    String nameSearchUrl = "http://localhost:9179";
+
+    @Value("${namesearch.timeout:30}")
     Integer nameSearchTimeout = 30;
+
+    @Value("${namesearch.cache.size:50}")
     Integer nameSearchCacheSize = 50;
 
     @PostConstruct

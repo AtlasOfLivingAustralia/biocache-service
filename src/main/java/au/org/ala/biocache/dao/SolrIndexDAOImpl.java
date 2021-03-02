@@ -9,8 +9,12 @@ import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang.StringUtils;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.cache.CacheConfig;
+import org.apache.http.impl.client.cache.CachingHttpClientBuilder;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -18,6 +22,7 @@ import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudHttp2SolrClient;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
+import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
 import org.apache.solr.client.solrj.impl.Http2SolrClient;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
@@ -179,60 +184,60 @@ public class SolrIndexDAOImpl implements IndexDAO {
           solrClient = builder.build();
         }
       }
-//      else {
-//        logger.info("Initialising the solr server " + solrHome);
-//        PoolingHttpClientConnectionManager poolingConnectionPoolManager =
-//            new PoolingHttpClientConnectionManager();
-//        poolingConnectionPoolManager.setMaxTotal(solrConnectionPoolSize);
-//        poolingConnectionPoolManager.setDefaultMaxPerRoute(solrConnectionMaxPerRoute);
-//
-//        CacheConfig cacheConfig =
-//            CacheConfig.custom()
-//                .setMaxCacheEntries(solrConnectionCacheEntries)
-//                .setMaxObjectSize(solrConnectionCacheObjectSize)
-//                .setSharedCache(false)
-//                .build();
-//        RequestConfig requestConfig =
-//            RequestConfig.custom()
-//                .setConnectTimeout(solrConnectionConnectTimeout)
-//                .setConnectionRequestTimeout(solrConnectionRequestTimeout)
-//                .setSocketTimeout(solrConnectionSocketTimeout)
-//                .build();
-//        httpClient =
-//            CachingHttpClientBuilder.create()
-//                .setCacheConfig(cacheConfig)
-//                .setDefaultRequestConfig(requestConfig)
-//                .setConnectionManager(connectionPoolManager)
-//                .setUserAgent(userAgent)
-//                .useSystemProperties()
-//                .build();
-//
-//        if (!solrHome.startsWith("http://")) {
-//          if (solrHome.contains(":")) {
-//            // assume that it represents a SolrCloud using ZooKeeper
-//            CloudSolrClient cloudServer =
-//                new CloudSolrClient.Builder()
-//                    .withZkHost(solrHome)
-//                    .withHttpClient(httpClient)
-//                    .build();
-//            cloudServer.setDefaultCollection(solrCollection);
-//            solrClient = cloudServer;
-//            try {
-//              solrClient.ping();
-//            } catch (Exception e) {
-//              logger.error("ping failed", e);
-//            }
-//          }
-//        } else {
-//          logger.info("Initialising connection to SOLR server..... with solrHome:  " + solrHome);
-//          solrClient =
-//              new ConcurrentUpdateSolrClient.Builder(solrHome)
-//                  .withThreadCount(solrUpdateThreads)
-//                  .withQueueSize(solrBatchSize)
-//                  .build();
-//          logger.info("Initialising connection to SOLR server - done.");
-//        }
-//      }
+      else {
+        logger.info("Initialising the solr server " + solrHome);
+        PoolingHttpClientConnectionManager poolingConnectionPoolManager =
+            new PoolingHttpClientConnectionManager();
+        poolingConnectionPoolManager.setMaxTotal(solrConnectionPoolSize);
+        poolingConnectionPoolManager.setDefaultMaxPerRoute(solrConnectionMaxPerRoute);
+
+        CacheConfig cacheConfig =
+            CacheConfig.custom()
+                .setMaxCacheEntries(solrConnectionCacheEntries)
+                .setMaxObjectSize(solrConnectionCacheObjectSize)
+                .setSharedCache(false)
+                .build();
+        RequestConfig requestConfig =
+            RequestConfig.custom()
+                .setConnectTimeout(solrConnectionConnectTimeout)
+                .setConnectionRequestTimeout(solrConnectionRequestTimeout)
+                .setSocketTimeout(solrConnectionSocketTimeout)
+                .build();
+        httpClient =
+            CachingHttpClientBuilder.create()
+                .setCacheConfig(cacheConfig)
+                .setDefaultRequestConfig(requestConfig)
+                .setConnectionManager(connectionPoolManager)
+                .setUserAgent(userAgent)
+                .useSystemProperties()
+                .build();
+
+        if (!solrHome.startsWith("http://")) {
+          if (solrHome.contains(":")) {
+            // assume that it represents a SolrCloud using ZooKeeper
+            CloudSolrClient cloudServer =
+                new CloudSolrClient.Builder()
+                    .withZkHost(solrHome)
+                    .withHttpClient(httpClient)
+                    .build();
+            cloudServer.setDefaultCollection(solrCollection);
+            solrClient = cloudServer;
+            try {
+              solrClient.ping();
+            } catch (Exception e) {
+              logger.error("ping failed", e);
+            }
+          }
+        } else {
+          logger.info("Initialising connection to SOLR server..... with solrHome:  " + solrHome);
+          solrClient =
+              new ConcurrentUpdateSolrClient.Builder(solrHome)
+                  .withThreadCount(solrUpdateThreads)
+                  .withQueueSize(solrBatchSize)
+                  .build();
+          logger.info("Initialising connection to SOLR server - done.");
+        }
+      }
     }
   }
 
