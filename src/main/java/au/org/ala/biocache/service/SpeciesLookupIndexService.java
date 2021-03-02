@@ -260,12 +260,12 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
             @Override
             public int compare(Map o1, Map o2) {
                 //exact match is above everything, hopefully
-                int sort = new Float(
+                int sort = new Double(
                             (
-                                (Float) o2.get("score") * (10000 - (Integer) o2.get("rankId"))
+                                (Double) o2.get("score") * (10000 - (Integer) o2.get("rankId"))
                             )
                         ).compareTo(
-                                (Float) o1.get("score") * (10000 - (Integer) o1.get("rankId")
+                                (Double) o1.get("score") * (10000 - (Integer) o1.get("rankId")
                         )
                 );
 
