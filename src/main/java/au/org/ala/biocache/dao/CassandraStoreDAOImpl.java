@@ -62,6 +62,7 @@ public class CassandraStoreDAOImpl implements StoreDAO {
     @Value("${cassandra.keyspace.default.cql:CREATE KEYSPACE biocache WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'}  AND durable_writes = true;}")
     String createKeyspaceCql;
 
+
     @PostConstruct
     public void init() throws Exception {
         logger.debug("Initialising CassandraStoreDAOImpl");
@@ -74,22 +75,22 @@ public class CassandraStoreDAOImpl implements StoreDAO {
                                 CodecRegistry.DEFAULT_INSTANCE.register(
                                         new TimestampAsStringCodec(TypeCodec.timestamp(), String.class)));
 
-//        String[] host_port = host.split(":");
-//        if (host_port.length > 1) {
-//            builder.withPort(Integer.parseInt(host_port[1])).addContactPoint(host_port[0]);
-//        } else {
-//            builder.withPort(port).addContactPoint(host_port[0]);
-//        }
-//
-//        cluster = builder.build();
-//
-//        if (cluster.getMetadata().getKeyspace(keyspace) == null) {
-//            logger.warn("Keyspace '" + keyspace + "' not found. Creating the keyspace with: " + createKeyspaceCql);
-//
-//            // Create keyspace
-//            cluster.connect().execute(createKeyspaceCql);
-//        }
-//        session = cluster.connect(keyspace);
+        String[] host_port = host.split(":");
+        if (host_port.length > 1) {
+            builder.withPort(Integer.parseInt(host_port[1])).addContactPoint(host_port[0]);
+        } else {
+            builder.withPort(port).addContactPoint(host_port[0]);
+        }
+
+        cluster = builder.build();
+
+        if (cluster.getMetadata().getKeyspace(keyspace) == null) {
+            logger.warn("Keyspace '" + keyspace + "' not found. Creating the keyspace with: " + createKeyspaceCql);
+
+            // Create keyspace
+            cluster.connect().execute(createKeyspaceCql);
+        }
+        session = cluster.connect(keyspace);
     }
 
     class TimestampAsStringCodec extends MappingCodec<String, Date> {

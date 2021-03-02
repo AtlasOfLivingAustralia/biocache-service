@@ -1,18 +1,14 @@
 dwcTerms: https://raw.githubusercontent.com/tdwg/dwc/master/vocabulary/term_versions.csv
 biocache:
-    fields: https://biocache-ws.ala.org.au/ws/index/fields
+    fields: https://biocache-ws.ala.org.au/ws/index/fields?isMisc=true
     solr:
-        host: http://localhost:8982
-        collection: biocache
+        host: 'http://localhost:8984'
+        collection: 'biocache'
 pipelines:
-    fields: https://biocache-quoll.ala.org.au/ws/index/fields
+    fields:
     solr:
-        host: http://localhost:8985
+        host: http://localhost:8983
         collection: biocache
 
 mappingJson: deprecated-fields.json
 mappingCsv: pipeline_field_mappings.csv
-
-# This CSV contains details of what do with fields that slip through
-# deprecated-fields.json
-missingFieldsMap: https://docs.google.com/spreadsheets/d/1i-sXcAZfUB-7gix8cZDIZw5JXVzBeeVwmDtJEvsxbjc/gviz/tq?tqx=out:csv&sheet=missing_fields
