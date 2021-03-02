@@ -1,17 +1,13 @@
 package au.org.ala.biocache.config;
 
-import au.org.ala.biocache.index.IndexDAO;
-import au.org.ala.biocache.index.SolrIndexDAO;
 import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.service.SpeciesLookupIndexService;
 import au.org.ala.biocache.service.SpeciesLookupRestService;
 import au.org.ala.biocache.service.SpeciesLookupService;
-import au.org.ala.biocache.util.solr.FieldMappedSolrClient;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import au.org.ala.dataquality.client.ApiClient;
 import org.apache.log4j.Logger;
-import org.apache.solr.client.solrj.SolrClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -121,24 +117,6 @@ public class AppConfig {
         }
     }
 
-    public @Bean(name = "solrClient")
-    SolrClient solrClientBean() {
-
-        SolrClient result;
-
-        SolrIndexDAO dao = (SolrIndexDAO) au.org.ala.biocache.Config
-                .getInstance(IndexDAO.class);
-        dao.init();
-        result = dao.solrServer();
-
-        if (logger.isDebugEnabled()) {
-            logger.debug("solrClient initialised, Type: " + result.getClass());
-        }
-
-        return new FieldMappedSolrClient(fieldMappingUtilBuilder, result);
-
-    }
-
     @Bean("dataQualityApiClient")
     public ApiClient dataQualityApiClient() {
         ApiClient apiClient = new ApiClient();
@@ -150,5 +128,4 @@ public class AppConfig {
     public QualityServiceRpcApi dataQualityApi(@Qualifier("dataQualityApiClient") ApiClient dataQualityApiClient) {
         return dataQualityApiClient.createService(QualityServiceRpcApi.class);
     }
-
 }

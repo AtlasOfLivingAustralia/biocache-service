@@ -15,6 +15,7 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dao.SearchDAO;
+import au.org.ala.biocache.dto.OccurrenceIndex;
 import au.org.ala.biocache.dto.OccurrencePoint;
 import au.org.ala.biocache.dto.PointType;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
@@ -404,12 +405,15 @@ public class MapController implements ServletConfigAware {
      */
     protected void bboxToQuery(String bbox, ArrayList<String> fqList) {
         // e.g. bbox=122.013671875,-53.015625,172.990234375,-10.828125
+        String latitude = OccurrenceIndex.LATITUDE;
+        String longitude = OccurrenceIndex.LONGITUDE;
+
         if (bbox != null && !bbox.isEmpty()) {
             String[] bounds = StringUtils.split(bbox, ",");
             if (bounds.length == 4) {
-                String fq1 = "longitude:[" + bounds[0] + " TO " + bounds[2] + "]";
+                String fq1 = latitude + ":[" + bounds[0] + " TO " + bounds[2] + "]";
                 fqList.add(fq1);
-                String fq2 = "latitude:[" + bounds[1] + " TO " + bounds[3] + "]";
+                String fq2 = longitude + ":[" + bounds[1] + " TO " + bounds[3] + "]";
                 fqList.add(fq2);
             } else {
                 logger.warn("BBOX does not contain the expected number of coords (4). Found: " + bounds.length);

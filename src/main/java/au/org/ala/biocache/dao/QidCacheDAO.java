@@ -14,8 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.dao;
 
+import au.org.ala.biocache.dto.Qid;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
-import au.org.ala.biocache.model.Qid;
 import au.org.ala.biocache.util.QidMissingException;
 import au.org.ala.biocache.util.QidSizeException;
 

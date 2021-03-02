@@ -1,31 +1,23 @@
 package au.org.ala.biocache.util.thread;
 
-import static org.junit.Assert.*;
-
-import java.nio.file.Path;
-import java.util.Queue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.Timeout;
-
 import au.org.ala.biocache.dao.JsonPersistentQueueDAOImpl;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.FacetThemes;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.rules.Timeout;
+
+import java.nio.file.Path;
+import java.util.Queue;
+import java.util.concurrent.*;
+
+import static org.junit.Assert.*;
 
 public class DownloadControlThreadTest {
 
@@ -356,7 +348,7 @@ public class DownloadControlThreadTest {
         testRunningThread.start();
         for (int i = 0; i < count; i++) {
             DownloadDetailsDTO nextDownload = new DownloadDetailsDTO("does-not-exist-" + i, "127.0.0.1", "",
-                    DownloadType.RECORDS_DB);
+                    DownloadType.RECORDS_INDEX);
             nextDownload.setEmail("test@csiro.au.example");
             DownloadRequestParams requestParams = new DownloadRequestParams();
             requestParams.setFile("my-download-!@#$%^&*()_+{}|:\"\'\\/" + i + ".txt");

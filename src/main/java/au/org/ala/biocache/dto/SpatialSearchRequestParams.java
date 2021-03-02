@@ -26,7 +26,7 @@ import java.util.Arrays;
  */
 public class SpatialSearchRequestParams extends SearchRequestParams {
 
-    public final static String[] gkFq = new String[]{"geospatial_kosher:true"};
+    public final static String[] gkFq = new String[]{OccurrenceIndex.GEOSPATIAL_KOSHER + ":true"};
 
     protected Float radius = null;
     protected Float lat = null;

@@ -1,9 +1,9 @@
 package au.org.ala.biocache.web;
 
+import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.*;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.geotools.geometry.GeneralDirectPosition;
@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-import scala.Option;
 
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
@@ -27,8 +26,8 @@ import javax.servlet.http.HttpServletResponse;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.text.MessageFormat;
-import java.util.*;
 import java.util.List;
+import java.util.*;
 
 /**
  * WMS controller that supports OS grid rendering.
@@ -40,40 +39,43 @@ public class WMSOSGridController {
 
     @Inject
     protected SearchDAO searchDAO;
+    @Inject
+    protected IndexDAO indexDao;
 
     @Inject
     protected WMSUtils wmsUtils;
 
 
     @RequestMapping(value = {"/osgrid/lookup.json"}, method = RequestMethod.GET)
-    public @ResponseBody Map<String, Object> parseGridReference(
-            @RequestParam(value = "q", required = true) String gridReference){
+    public @ResponseBody
+    Map<String, Object> parseGridReference(
+            @RequestParam(value = "q", required = true) String gridReference) {
 
         Map<String, Object> response = new LinkedHashMap<String, Object>();
 
         //validation
-        if(gridReference == null || StringUtils.isBlank(gridReference)){
+        if (gridReference == null || StringUtils.isBlank(gridReference)) {
             response.put("valid", false);
             return response;
         }
 
-        String cleanedRef = gridReference.replaceAll("[^a-zA-Z0-9]+","").toUpperCase();
+        String cleanedRef = gridReference.replaceAll("[^a-zA-Z0-9]+", "").toUpperCase();
 
-        Option<GISPoint> point = GridUtil.processGridReference(cleanedRef);
-        if(!point.isEmpty()){
+        GISPoint point = GridUtil.processGridReference(cleanedRef);
+        if (point != null) {
             response.put("valid", true);
             Map<String, String> resolutions = GridUtil.getGridRefAsResolutions(cleanedRef);
-            response.put("decimalLatitude", point.get().latitude());
-            response.put("decimalLongitude", point.get().longitude());
-            response.put("coordinateUncertaintyInMeters", point.get().coordinateUncertaintyInMeters());
-            response.put("geodeticDatum", point.get().datum());
-            response.put("bbox", point.get().bboxString());
-            response.put("easting", point.get().easting());
-            response.put("northing", point.get().northing());
-            response.put("minLat", point.get().minLatitude());
-            response.put("minLong", point.get().minLongitude());
-            response.put("maxLat", point.get().maxLatitude());
-            response.put("maxLong", point.get().maxLongitude());
+            response.put("decimalLatitude", point.getLatitude());
+            response.put("decimalLongitude", point.getLongitude());
+            response.put("coordinateUncertaintyInMeters", point.getCoordinateUncertaintyInMeters());
+            response.put("geodeticDatum", point.getDatum());
+            response.put("bbox", point.getBboxString());
+            response.put("easting", point.getEasting());
+            response.put("northing", point.getNorthing());
+            response.put("minLat", point.getMinLatitude());
+            response.put("minLong", point.getMinLongitude());
+            response.put("maxLat", point.getMaxLatitude());
+            response.put("maxLong", point.getMaxLongitude());
             response.put("resolutions", resolutions);
         } else {
             response.put("valid", false);
@@ -181,15 +183,15 @@ public class WMSOSGridController {
                 int gridSize = (Integer) map.get("gridSize");
                 String gridRef = (String) map.get("gridRef");
 
-                Option<GridRef> result = GridUtil.gridReferenceToEastingNorthing(gridRef);
-                if(!result.isEmpty()){
+                GridRef result = GridUtil.gridReferenceToEastingNorthing(gridRef);
+                if (result != null) {
 
-                    int[] enForGrid = new int[]{result.get().easting(), result.get().northing()};
+                    int[] enForGrid = new int[]{result.getEasting(), result.getNorthing()};
 
-                    double[] sw = reprojectPoint((double) enForGrid[0], (double) enForGrid[1], GridUtil.OSGB_CRS(), GISUtil.WGS84_EPSG_Code());
-                    double[] se = reprojectPoint((double) enForGrid[0] + gridSize, (double) enForGrid[1], GridUtil.OSGB_CRS(), GISUtil.WGS84_EPSG_Code());
-                    double[] nw = reprojectPoint((double) enForGrid[0], (double) enForGrid[1] + gridSize, GridUtil.OSGB_CRS(), GISUtil.WGS84_EPSG_Code());
-                    double[] ne = reprojectPoint((double) enForGrid[0] + gridSize, (double) enForGrid[1] + gridSize, GridUtil.OSGB_CRS(), GISUtil.WGS84_EPSG_Code());
+                    double[] sw = reprojectPoint((double) enForGrid[0], (double) enForGrid[1], GridUtil.OSGB_CRS, GISUtil.WGS84_EPSG_Code);
+                    double[] se = reprojectPoint((double) enForGrid[0] + gridSize, (double) enForGrid[1], GridUtil.OSGB_CRS, GISUtil.WGS84_EPSG_Code);
+                    double[] nw = reprojectPoint((double) enForGrid[0], (double) enForGrid[1] + gridSize, GridUtil.OSGB_CRS, GISUtil.WGS84_EPSG_Code);
+                    double[] ne = reprojectPoint((double) enForGrid[0] + gridSize, (double) enForGrid[1] + gridSize, GridUtil.OSGB_CRS, GISUtil.WGS84_EPSG_Code);
 
                     map.put("sw", sw);
                     map.put("se", se);
@@ -349,10 +351,10 @@ public class WMSOSGridController {
             if(boundingBoxSizeInKm >= 1000 ) {
                 facets = new String[]{"grid_ref_100000"};
                 buff = 1.0;
-            } else if(boundingBoxSizeInKm > 39 && boundingBoxSizeInKm < 1000 ){
+            } else if (boundingBoxSizeInKm > 39 && boundingBoxSizeInKm < 1000) {
                 facets = new String[]{"grid_ref_10000"};
                 buff = 0.75;
-            } else if(boundingBoxSizeInKm >= 19 && boundingBoxSizeInKm <= 39){
+            } else if (boundingBoxSizeInKm >= 19 && boundingBoxSizeInKm <= 39) {
                 buff = 0.5;
                 facets = new String[]{"grid_ref_1000", "grid_ref_10000"};
             } else {
@@ -361,21 +363,25 @@ public class WMSOSGridController {
             }
         }
 
-        double oneUnitInRequestedProjXInPixels = (double) width / (double)(maxx - minx);
-        double oneUnitInRequestedProjYInPixels = (double) height / (double)(maxy - miny);
+        double oneUnitInRequestedProjXInPixels = (double) width / (double) (maxx - minx);
+        double oneUnitInRequestedProjYInPixels = (double) height / (double) (maxy - miny);
 
         //get a bounding box in WGS84 decimal latitude/longitude
         double[] minLatLng = convertProjectionToWGS84(minx, miny, srs);
         double[] maxLatLng = convertProjectionToWGS84(maxx, maxy, srs);
 
-        String bboxFilterQuery = "(longitude:[{0} TO {2}] AND latitude:[{1} TO {3}])";
+        String longitudeField = OccurrenceIndex.LONGITUDE;
+        String latitudeField = OccurrenceIndex.LATITUDE;
+
+
+        String bboxFilterQuery = "({4}:[{0} TO {2}] AND {5}:[{1} TO {3}])";
 
         double minX = minLatLng[1] - buff;
         double maxX = maxLatLng[1] + buff;
         double minY = minLatLng[0] - buff;
         double maxY = maxLatLng[0] + buff;
 
-        if(minX > maxX){
+        if (minX > maxX) {
             double tmp = maxX;
             maxX = minX;
             minX = tmp;
@@ -387,7 +393,7 @@ public class WMSOSGridController {
             minY = tmp;
         }
 
-        String fq = MessageFormat.format(bboxFilterQuery, minX, minY, maxX, maxY);
+        String fq = MessageFormat.format(bboxFilterQuery, minX, minY, maxX, maxY, longitudeField, latitudeField);
         String[] fqs = wmsUtils.getFq(requestParams);
         if(fqs ==null || fqs.length==1 && StringUtils.isBlank(fqs[0])){
             fqs = new String[0];
@@ -459,7 +465,7 @@ public class WMSOSGridController {
             //grid lines are rendered after cell fills
             renderGridLines(wmsImg, linesToRender, outlineColour);
         }
-        
+
         if (wmsImg != null && wmsImg.g != null) {
             wmsImg.g.dispose();
             try {
@@ -496,24 +502,24 @@ public class WMSOSGridController {
     private Set<int[]> renderGrid(WMSImg wmsImg, String gridRef, double minx, double miny, double oneUnitXInPixels,
                                   double oneUnitYInPixels, String targetSrs, int imageWidth, int imageHeight, WmsEnv wmsEnv, List<String> renderedLines){
 
-        if(StringUtils.isEmpty(gridRef)) return new HashSet<int[]>();
+        if (StringUtils.isEmpty(gridRef)) return new HashSet<int[]>();
 
-        Option<au.org.ala.biocache.util.GridRef> gridRefOption = GridUtil.gridReferenceToEastingNorthing(gridRef);
+        GridRef gridRefOption = GridUtil.gridReferenceToEastingNorthing(gridRef);
 
-        if(gridRefOption.isEmpty()) return new HashSet<int[]>();
+        if (gridRefOption == null) return new HashSet<int[]>();
 
         Set<int[]> linesToRender = new HashSet<int[]>();
 
-        au.org.ala.biocache.util.GridRef gr = gridRefOption.get();
+        au.org.ala.biocache.util.GridRef gr = gridRefOption;
 
-        int easting = gr.easting();
-        int northing = gr.northing();
-        int gridSize = (Integer) gr.coordinateUncertainty().get();
+        int easting = gr.getEasting();
+        int northing = gr.getNorthing();
+        int gridSize = gr.getCoordinateUncertainty();
 
         //coordinates in easting / northing of the nearest 10km grid to the bottom,left of this tile
-        Integer minEastingOfGridCell  = easting; //may need to use the minimum of each
+        Integer minEastingOfGridCell = easting; //may need to use the minimum of each
         Integer minNorthingOfGridCell = northing;
-        Integer maxEastingOfGridCell  = minEastingOfGridCell + gridSize;
+        Integer maxEastingOfGridCell = minEastingOfGridCell + gridSize;
         Integer maxNorthingOfGridCell = minNorthingOfGridCell + gridSize;
 
         double[][] polygonInMercator = convertEastingNorthingToTargetSRS(
@@ -523,7 +529,7 @@ public class WMSOSGridController {
                         new double[]{maxEastingOfGridCell, maxNorthingOfGridCell},
                         new double[]{minEastingOfGridCell, maxNorthingOfGridCell},
                 },
-                gr.datum(),
+                gr.getDatum(),
                 targetSrs
         );
 

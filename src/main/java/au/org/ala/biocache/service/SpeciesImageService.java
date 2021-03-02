@@ -15,6 +15,7 @@
 package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dao.SearchDAO;
+import au.org.ala.biocache.dto.OccurrenceIndex;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.dto.SpeciesImageDTO;
 import au.org.ala.biocache.dto.SpeciesImagesDTO;
@@ -69,22 +70,22 @@ public class SpeciesImageService {
                 SpatialSearchRequestParams params = new SpatialSearchRequestParams();
                 params.setPageSize(1);
                 params.setFacet(true);
-                params.setFacets(new String[]{"lft"});
+                params.setFacets(new String[]{OccurrenceIndex.LFT});
                 params.setFlimit(99999999);
-                params.setFl("dataResourceUid,image_url");  // PIPELINES: recheck pipelines field mapping
-                params.setQ("image_url:*");
+                params.setFl(OccurrenceIndex.DATA_RESOURCE_UID + "," + OccurrenceIndex.IMAGE_URL);
+                params.setQ(OccurrenceIndex.IMAGE_URL + ":*");
 
                 QueryResponse qr = searchDAO.searchGroupedFacets(params);
 
                 Map<Long, SpeciesImageDTO> map = new HashMap();
 
-                for (SimpleOrderedMap item : SearchUtils.getList(qr.getResponse(), "facets", "lft", "buckets")) {       // PIPELINES: recheck pipelines field mapping
-                    String dataResourceUid = (String) SearchUtils.getVal(item, "dataResourceUid", "buckets", 0, 0);   // PIPELINES: recheck pipelines field mapping
-                    String imageUrl = (String) SearchUtils.getVal(item, "image_url", "buckets", 0, 0);                  // PIPELINES: recheck pipelines field mapping
+                for (SimpleOrderedMap item : SearchUtils.getList(qr.getResponse(), "facets", OccurrenceIndex.LFT, "buckets")) {
+                    String dataResourceUid = (String) SearchUtils.getVal(item, OccurrenceIndex.DATA_RESOURCE_UID, "buckets", 0, 0);
+                    String imageUrl = (String) SearchUtils.getVal(item, OccurrenceIndex.IMAGE_URL, "buckets", 0, 0);
                     SpeciesImageDTO image = new SpeciesImageDTO(dataResourceUid, imageUrl);
-                    image.setCount((Long) item.getVal(1));
+                    image.setCount((Integer) item.getVal(1));
                     try {
-                        map.put((Long) item.getVal(0), image);
+                        map.put(((Integer) item.getVal(0)).longValue(), image);
                     } catch (Exception e) {
                     }
                 }

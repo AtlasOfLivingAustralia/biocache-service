@@ -14,8 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.dao;
 
+import au.org.ala.biocache.dto.Qid;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
-import au.org.ala.biocache.model.Qid;
 import au.org.ala.biocache.service.DataQualityService;
 import au.org.ala.biocache.util.QidMissingException;
 import au.org.ala.biocache.util.QidSizeException;
@@ -104,9 +104,9 @@ public class QidCacheDAOImpl implements QidCacheDAO {
     private long cacheSize;
     
     private CountDownLatch counter;
-    
+
     private long triggerCleanSize = minCacheSize + (maxCacheSize - minCacheSize) / 2;
-    
+
     /**
      * thread for cache size limitation
      */
@@ -115,7 +115,11 @@ public class QidCacheDAOImpl implements QidCacheDAO {
     @Inject
     private SearchDAO searchDAO;
 
-    protected QidDAO qidDao = (QidDAO) au.org.ala.biocache.Config.getInstance(QidDAO.class);
+    @Inject
+    private StoreDAO storeDao;
+
+    //protected QidDAO qidDao = (QidDAO) au.org.ala.biocache.Config.getInstance(QidDAO.class);
+
     /**
      * init
      */
@@ -169,10 +173,10 @@ public class QidCacheDAOImpl implements QidCacheDAO {
      * @return id to retrieve stored value as long.
      */
     public String put(String q, String displayQ, String wkt, double[] bbox, String[] fqs, long maxAge, String source) throws QidSizeException {
-        Qid qid = new Qid(null, q, displayQ, wkt, bbox, 0, fqs, maxAge, source);
+        Qid qid = new Qid(null, q, displayQ, wkt, bbox, 0L, fqs, maxAge, source);
 
-        if (qid.size() > largestCacheableSize) {
-            throw new QidSizeException(qid.size());
+        if (qid.getSize() > largestCacheableSize) {
+            throw new QidSizeException(qid.getSize());
         }
 
         save(qid);
@@ -194,16 +198,16 @@ public class QidCacheDAOImpl implements QidCacheDAO {
         boolean runCleaner = false;
         synchronized (counterLock) {
             logger.debug("new cache size: " + cacheSize);
-            if (cacheSize + qid.size() > maxCacheSize) {
+            if (cacheSize + qid.getSize() > maxCacheSize) {
                 //run outside of counterLock
                 runCleaner = true;
                 logger.debug("not putting qid");
             } else {
-                if (cacheSize + qid.size() > triggerCleanSize) {
+                if (cacheSize + qid.getSize() > triggerCleanSize) {
                     counter.countDown();
                 }
 
-                cacheSize += qid.size();
+                cacheSize += qid.getSize();
                 logger.debug("putting qid");
                 cache.put(qid.getRowKey(), qid);
             }
@@ -319,12 +323,12 @@ public class QidCacheDAOImpl implements QidCacheDAO {
         long size = 0;
         int numberRemoved = 0;
         for (int i = 0; i < entries.size(); i++) {
-            if (size + entries.get(i).getValue().size() > minCacheSize) {
+            if (size + entries.get(i).getValue().getSize() > minCacheSize) {
                 String key = entries.get(i).getKey();
                 cache.remove(key);
                 numberRemoved++;
             } else {
-                size += entries.get(i).getValue().size();
+                size += entries.get(i).getValue().getSize();
             }
         }
 
@@ -342,8 +346,9 @@ public class QidCacheDAOImpl implements QidCacheDAO {
      * @param value
      */
     void save(Qid value) {
+        value.setRowKey(String.valueOf(nextId()));
         try {
-            qidDao.put(value);
+            storeDao.put(value.getRowKey(), value);
         } catch (Exception e) {
             logger.error("faild to save qid to db", e);
         }
@@ -358,7 +363,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
      */
     Qid load(String key) throws QidMissingException {
         try {
-            return qidDao.get(key);
+            return storeDao.get(Qid.class, key);
         } catch (Exception e) {
             logger.error("failed to find qid:" + key, e);
             throw new QidMissingException(key);
@@ -487,5 +492,20 @@ public class QidCacheDAOImpl implements QidCacheDAO {
     @Cacheable(cacheName = "fixWkt")
     private String fixWkt(String wkt) {
         return SpatialUtils.simplifyWkt(wkt, maxWktPoints, wktSimplificationFactor, wktSimplificationInitialPrecision, wktSimplificationMaxPrecision);
+    }
+
+    /**
+     * qid's had numeric ids (long), want to keep the same so nothing breaks
+     */
+    Object idLock = new Object();
+    long lastId = 0;
+
+    private long nextId() {
+        synchronized (idLock) {
+            long id = System.currentTimeMillis();
+            if (id == lastId) id = id + 1;
+            lastId = id;
+            return id;
+        }
     }
 }

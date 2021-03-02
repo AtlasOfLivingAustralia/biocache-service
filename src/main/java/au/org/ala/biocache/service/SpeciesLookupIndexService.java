@@ -1,18 +1,21 @@
 package au.org.ala.biocache.service;
 
-import au.org.ala.biocache.Config;
 import au.org.ala.biocache.dto.SpeciesCountDTO;
 import au.org.ala.biocache.dto.SpeciesImageDTO;
-import au.org.ala.names.model.LinnaeanRankClassification;
-import au.org.ala.names.model.NameSearchResult;
-import au.org.ala.names.search.*;
+import au.org.ala.biocache.util.OccurrenceUtils;
+import au.org.ala.names.ws.api.NameUsageMatch;
+import au.org.ala.names.ws.client.ALANameUsageMatchServiceClient;
+import au.org.ala.ws.ClientConfiguration;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.springframework.context.support.AbstractMessageSource;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.inject.Inject;
+import java.net.URL;
 import java.util.*;
 
 /**
@@ -34,6 +37,9 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
     protected ImageMetadataService imageMetadataService;
 
     @Inject
+    protected OccurrenceUtils occurrenceUtils;
+
+    @Inject
     protected ListsService listsService;
 
     @Inject
@@ -41,43 +47,41 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
 
     protected String nameIndexLocation;
 
-    private volatile ALANameSearcher nameIndex = null;
+    private volatile ALANameUsageMatchServiceClient nameIndex = null;
 
-    private ALANameSearcher getNameIndex() throws RuntimeException {
-        ALANameSearcher result = nameIndex;
-        if(result == null){
-            synchronized(this) {
-            	result = nameIndex;
-            	if(result == null) {
-                    try {
-                        result = nameIndex = new ALANameSearcher(nameIndexLocation);
-                    } catch (Exception e){
-                        throw new RuntimeException(e.getMessage(), e);
-                    }
-                }
-            }
+    String nameSearchUrl = "";
+    Integer nameSearchTimeout = 30;
+    Integer nameSearchCacheSize = 50;
+
+    @PostConstruct
+    public void init() throws Exception {
+        ClientConfiguration clientConfiguration =
+                ClientConfiguration.builder()
+                        .baseUrl(new URL(nameSearchUrl))
+                        .timeOut(nameSearchTimeout * 1000) // Geocode service connection time-out
+                        .cacheSize(nameSearchCacheSize * 1024 * 1024)
+                        .build();
+
+        nameIndex = new ALANameUsageMatchServiceClient(clientConfiguration);
+    }
+
+    @PreDestroy
+    public void destroy() {
+        try {
+            nameIndex.close();
+        } catch (Exception e) {
+            //log.error("Unable to close", e);
+            throw new RuntimeException("Unable to close");
         }
-        return result;
     }
 
     @Override
     public String getGuidForName(String name) {
         String lsid = null;
         try {
-            lsid = getNameIndex().searchForLSID(name);
-        } catch (ExcludedNameException e) {
-            if (e.getNonExcludedName() != null)
-                lsid = e.getNonExcludedName().getLsid();
-            else
-                lsid = e.getExcludedName().getLsid();
-        } catch (ParentSynonymChildException e) {
-            //the child is the one we want
-            lsid = e.getChildResult().getLsid();
-        } catch (MisappliedException e) {
-            if (e.getMisappliedResult() != null)
-                lsid = e.getMatchedResult().getLsid();
-        } catch (SearchResultException e) {
-            logger.debug("Error searching for name: " + name +" -  " + e.getMessage(), e);
+            lsid = nameIndex.searchForLSID(name);
+        } catch (Exception e) {
+            logger.debug("Error searching for name: " + name + " -  " + e.getMessage(), e);
         }
 
         return lsid;
@@ -85,9 +89,9 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
 
     @Override
     public String getAcceptedNameForGuid(String guid) {
-        NameSearchResult nsr = getNameIndex().searchForRecordByLsid(guid);
-        if(nsr != null ){
-            return nsr.getRankClassification() != null ? nsr.getRankClassification().getScientificName() : null;
+        NameUsageMatch nsr = nameIndex.match(guid);
+        if (nsr != null) {
+            return nsr.getScientificName();
         } else {
             return null;
         }
@@ -109,37 +113,36 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         List<String[]> results = new ArrayList<String[]>(guids.size());
         int idx = 0;
         for(String guid : guids){
-            NameSearchResult nsr = getNameIndex().searchForRecordByLsid(guid);
+            NameUsageMatch nsr = nameIndex.match(guid);
             if(nsr == null){
-                String lsid = getNameIndex().searchForLsidById(guid);
+                String lsid = nameIndex.searchForLSID(guid);
                 if(lsid != null){
-                    nsr = getNameIndex().searchForRecordByLsid(lsid);
+                    nsr = nameIndex.match(lsid);
                 } else if (guid != null && StringUtils.countMatches(guid, "|") == 4){
                     //is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
                     if (guid.startsWith("\"") && guid.endsWith("\"") && guid.length() > 2) guid = guid.substring(1, guid.length() - 1);
                     lsid = guid.split("\\|", 6)[1];
-                    nsr = getNameIndex().searchForRecordByLsid(lsid);
+                    nsr = nameIndex.match(lsid);
                 }
             }
 
             String[] result = null;
             List<String> lsids = new ArrayList<String>();
             if(nsr != null) {
-                LinnaeanRankClassification classification = nsr.getRankClassification();
-                lsids.add(classification.getGid());
-                lsids.add(classification.getFid());
-                lsids.add(classification.getSid());
+                lsids.add(nsr.getGenusID());
+                lsids.add(nsr.getFamilyID());
+                lsids.add(nsr.getSpeciesID());
                 result = new String[]{
-                        classification.getScientificName(),
-                        classification.getAuthorship(),
-                        classification.getKingdom(),
-                        classification.getPhylum(),
-                        classification.getKlass(),
-                        classification.getOrder(),
-                        classification.getFamily(),
-                        classification.getGenus(),
-                        classification.getSpecies(),
-                        classification.getSubspecies()
+                        nsr.getScientificName(),
+                        nsr.getScientificNameAuthorship(),
+                        nsr.getKingdom(),
+                        nsr.getPhylum(),
+                        nsr.getClasss(),
+                        nsr.getOrder(),
+                        nsr.getFamily(),
+                        nsr.getGenus(),
+                        nsr.getSpecies(),
+                        nsr.getRankID() < 7000 /* TODO: replace 7000 with RANK.species */ ? nsr.getTaxonConceptID() : null
                 };
             } else if (StringUtils.countMatches(guid, "|") == 4){
                 //not matched and is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
@@ -225,7 +228,7 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
 
     @Override
     public List<String> getGuidsForTaxa(List<String> taxaQueries) {
-        return getNameIndex().getGuidsForTaxa(taxaQueries);
+        return nameIndex.getGuidsForTaxa(taxaQueries);
     }
 
     public void setMessageSource(AbstractMessageSource messageSource) {
@@ -240,7 +243,7 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         // TODO: better method of dealing with records with 0 occurrences being removed. 
         int maxFind = includeAll ? max : max + 1000;
 
-        List<Map> results = getNameIndex().autocomplete(ClientUtils.escapeQueryChars(query), maxFind, includeSynonyms);
+        List<Map> results = nameIndex.autocomplete(ClientUtils.escapeQueryChars(query), maxFind, includeSynonyms);
 
         List<Map> output = new ArrayList();
 
@@ -342,25 +345,25 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         formatted.put("left", m.get("left"));
         formatted.put("right", m.get("right"));
 
-        LinnaeanRankClassification cl = (LinnaeanRankClassification) m.get("cl");
+        Map cl = (Map) m.get("cl");
         String parentUid = null;
         if (cl != null) {
             //TODO: get parent from names index
-            if (guid.equals(cl.getSid())) parentUid = cl.getGid();
-            if (guid.equals(cl.getGid())) parentUid = cl.getFid();
-            if (guid.equals(cl.getFid())) parentUid = cl.getOid();
-            if (guid.equals(cl.getOid())) parentUid = cl.getCid();
-            if (guid.equals(cl.getCid())) parentUid = cl.getPid();
-            if (guid.equals(cl.getPid())) parentUid = cl.getKid();
+            if (guid.equals(cl.get("sid"))) parentUid = (String) cl.get("gid");
+            if (guid.equals(cl.get("gid"))) parentUid = (String) cl.get("fid");
+            if (guid.equals(cl.get("fid"))) parentUid = (String) cl.get("oid");
+            if (guid.equals(cl.get("oid"))) parentUid = (String) cl.get("cid");
+            if (guid.equals(cl.get("cid"))) parentUid = (String) cl.get("pid");
+            if (guid.equals(cl.get("pid"))) parentUid = (String) cl.get("kid");
             formatted.put("parentGuid", parentUid);
 
-            formatted.put("kingdom", cl.getKingdom());
-            formatted.put("phylum", cl.getPhylum());
-            formatted.put("classs", cl.getKlass());
-            formatted.put("order", cl.getOrder());
-            formatted.put("family", cl.getFamily());
-            formatted.put("genus", cl.getGenus());
-            formatted.put("author", cl.getAuthorship());
+            formatted.put("kingdom", cl.get("kingdom"));
+            formatted.put("phylum", cl.get("phylum"));
+            formatted.put("classs", cl.get("klass"));
+            formatted.put("order", cl.get("order"));
+            formatted.put("family", cl.get("family"));
+            formatted.put("genus", cl.get("genus"));
+            formatted.put("author", cl.get("authorship"));
         }
 
         //TODO: ?
@@ -396,8 +399,11 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         formatted.put("highlight", highlight);
 
         if (m.get("commonname") == null) {
-            m.put("commonname", getNameIndex().getCommonNameForLSID((String) m.get("lsid")));
-            m.put("commonnames", getNameIndex().getCommonNamesForLSID((String) m.get("lsid"),1000));
+            Set<String> commonNames = nameIndex.getCommonNamesForLSID((String) m.get("lsid"), 1000);
+            if (!commonNames.isEmpty()) {
+                m.put("commonname", commonNames.iterator().next());
+                m.put("commonnames", commonNames);
+            }
         }
         if (m.get("commonname") != null) {
             formatted.put("commonName", m.get("commonnames"));
@@ -415,7 +421,7 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
 
         if (speciesImage != null && speciesImage.getImage() != null) {
             try {
-                Map im = Config.mediaStore().getImageFormats(speciesImage.getImage());
+                Map im = occurrenceUtils.getImageFormats(speciesImage.getImage());
                 formatted.put("imageSource", speciesImage.getDataResourceUid());
                 //number of occurrences with images
                 formatted.put("imageCount", speciesImage.getCount());

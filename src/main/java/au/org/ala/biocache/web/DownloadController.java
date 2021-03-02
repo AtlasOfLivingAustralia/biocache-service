@@ -18,19 +18,16 @@ import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadRequestParams;
-import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
 import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
 import net.sf.json.JsonConfig;
 import net.sf.json.util.PropertyFilter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocumentList;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -130,7 +127,7 @@ public class DownloadController extends AbstractSecureController {
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
 
-        DownloadDetailsDTO.DownloadType downloadType = "index".equals(type.toLowerCase()) ? DownloadDetailsDTO.DownloadType.RECORDS_INDEX : DownloadDetailsDTO.DownloadType.RECORDS_DB;
+        DownloadDetailsDTO.DownloadType downloadType = DownloadDetailsDTO.DownloadType.RECORDS_INDEX;
 
         return download(requestParams, ip, getUserAgent(request), apiKey, email, response, request, downloadType);
     }
@@ -159,33 +156,10 @@ public class DownloadController extends AbstractSecureController {
             return null;
         }
 
-        try {
-            //download from index only when there are no CASSANDRA fields requested and not everything is in SOLR
-            boolean hasDBColumn = !downloadService.downloadSolrOnly && requestParams.getIncludeMisc();
-            if (!downloadService.downloadSolrOnly) {
-                String fields = requestParams.getFields() + "," + requestParams.getExtra();
-                if (fields.length() > 1) {
-                    Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
-                    for (String column : fields.split(",")) {
-                        for (IndexFieldDTO field : indexedFields) {
-                            if (!field.isStored() && field.getDownloadName() != null && field.getDownloadName().equals(column)) {
-                                hasDBColumn = true;
-                                break;
-                            }
-                        }
-                        if (hasDBColumn) break;
-                    }
-                }
-            }
+        DownloadDetailsDTO.DownloadType downloadType = DownloadDetailsDTO.DownloadType.RECORDS_INDEX;
 
-            DownloadDetailsDTO.DownloadType downloadType = hasDBColumn ? DownloadDetailsDTO.DownloadType.RECORDS_DB : DownloadDetailsDTO.DownloadType.RECORDS_INDEX;
+        return download(requestParams, ip, getUserAgent(request), apiKey, email, response, request, downloadType);
 
-            return download(requestParams, ip, getUserAgent(request), apiKey, email, response, request, downloadType);
-
-        } catch (Exception e) {
-            logger.error("download exception: ", e);
-            throw e;
-        }
     }
 
     private Object download(DownloadRequestParams requestParams, String ip, String userAgent, String apiKey, String email,
@@ -427,8 +401,7 @@ public class DownloadController extends AbstractSecureController {
             //check downloads directory for a status file
             File file = new File(downloadService.biocacheDownloadDir + File.separator + cleanId + "/status.json");
             if (file.exists()) {
-                JSONParser jp = new JSONParser();
-                status.putAll((JSONObject) jp.parse(FileUtils.readFileToString(file, "UTF-8")));
+                status.putAll(JSONObject.fromObject(FileUtils.readFileToString(file, "UTF-8")));
 
                 // the status.json is only used when a download request is 'lost'. Use an appropriate status.
                 status.put("status", "unavailable");
@@ -487,7 +460,7 @@ public class DownloadController extends AbstractSecureController {
      * @return Null if the user does not have access to sensitive data, and a Solr query string containing the filters giving the user access to sensitive data based on their assigned role otherwise
      * @throws ParseException If the sensitiveAccessRoles configuration was not parseable
      */
-    private String getSensitiveFq(HttpServletRequest request) throws ParseException {
+    private String getSensitiveFq(HttpServletRequest request) {
         if (!isValidKey(request.getHeader("apiKey"))) {
             return null;
         } else {

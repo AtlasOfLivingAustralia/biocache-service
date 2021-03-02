@@ -19,7 +19,6 @@ import org.junit.*;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
-import org.mockito.AdditionalAnswers;
 import org.mockito.ArgumentCaptor;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -34,26 +33,19 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Maps.newConcurrentMap;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 import static org.mockito.AdditionalAnswers.returnsFirstArg;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.isA;
 import static org.mockito.Mockito.*;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
@@ -108,7 +100,7 @@ public class DownloadServiceTest {
 
         testService = new DownloadService() {
             {
-                sensitiveAccessRoles = "{}";
+                sensitiveAccessRoles20 = "{}";
                 concurrentDownloadsJSON = "[]";
             }
 
@@ -838,7 +830,7 @@ public class DownloadServiceTest {
     private DownloadService createDownloadServiceForOfflineTest() {
         DownloadService testService = new DownloadService() {
             {
-                sensitiveAccessRoles = "{}";
+                sensitiveAccessRoles20 = "{}";
                 concurrentDownloadsJSON = "[]";
             }
         };

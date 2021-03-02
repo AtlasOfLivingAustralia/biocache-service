@@ -16,14 +16,11 @@ package au.org.ala.biocache.service;
 
 import au.com.bytecode.opencsv.CSVReader;
 import au.com.bytecode.opencsv.CSVWriter;
+import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
-import au.org.ala.biocache.dto.DownloadDetailsDTO;
+import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
-import au.org.ala.biocache.dto.DownloadDoiDTO;
-import au.org.ala.biocache.dto.DownloadRequestParams;
-import au.org.ala.biocache.dto.IndexFieldDTO;
-import au.org.ala.biocache.dto.QualityFilterDTO;
 import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import au.org.ala.biocache.util.AlaFileUtils;
 import au.org.ala.biocache.util.thread.DownloadControlThread;
@@ -32,7 +29,6 @@ import au.org.ala.biocache.writer.RecordWriterException;
 import au.org.ala.doi.CreateDoiResponse;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import com.google.common.io.Files;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.httpclient.HttpException;
@@ -50,7 +46,6 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import org.scale7.cassandra.pelops.exceptions.PelopsException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextClosedEvent;
@@ -120,6 +115,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Inject
     protected SearchDAO searchDAO;
     @Inject
+    protected IndexDAO indexDao;
+    @Inject
     protected RestOperations restTemplate;
     @Inject
     protected com.fasterxml.jackson.databind.ObjectMapper objectMapper;
@@ -138,10 +135,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     @Inject
     protected DataQualityService dataQualityService;
-
-    // when everything is indexed in SOLR, there will be no cassandra download unless requested
-    @Value("${download.solr.only:false}")
-    public Boolean downloadSolrOnly = Boolean.FALSE;
 
     // default value is supplied for the property below
     @Value("${webservices.root:http://localhost:8080/biocache-service}")
@@ -259,23 +252,24 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     protected String biocacheUiUrl = "https://biocache.ala.org.au";
 
     //TODO: this should be retrieved from SDS
-    @Value("${sensitiveAccessRoles:{\n" +
+    @Value("${sensitiveAccessRoles20:{\n" +
             "\n" +
-            "\"ROLE_SDS_ACT\" : \"sensitive:\\\"generalised\\\" AND (cl927:\\\"Australian Captial Territory\\\" OR cl927:\\\"Jervis Bay Territory\\\") AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
-            "\"ROLE_SDS_NSW\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"New South Wales (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_NZ\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr2707 OR data_resource_uid:dr812 OR data_resource_uid:dr814 OR data_resource_uid:dr808 OR data_resource_uid:dr806 OR data_resource_uid:dr815 OR data_resource_uid:dr802 OR data_resource_uid:dr805 OR data_resource_uid:dr813) AND -cl927:* AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_NT\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Northern Territory (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_QLD\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Queensland (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_SA\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"South Australia (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_TAS\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Tasmania (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_VIC\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Victoria (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_WA\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Western Australia (including Coastal Waters)\\\" AND -(data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\",\n" +
-            "\"ROLE_SDS_BIRDLIFE\" : \"sensitive:\\\"generalised\\\" AND (data_resource_uid:dr359 OR data_resource_uid:dr571 OR data_resource_uid:dr570)\"\n" +
+            "\"ROLE_SDS_ACT\" : \"sensitive:\\\"generalised\\\" AND (cl927:\\\"Australian Captial Territory\\\" OR cl927:\\\"Jervis Bay Territory\\\") AND -(dataResourceUid:dr359 OR dataResourceUid:dr571 OR dataResourceUid:dr570)\"\n" +
+            "\"ROLE_SDS_NSW\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"New South Wales (including Coastal Waters)\\\" AND -(dataResourceUid:dr359 OR dataResourceUid:dr571 OR dataResourceUid:dr570)\",\n" +
+            "\"ROLE_SDS_NZ\" : \"sensitive:\\\"generalised\\\" AND (dataResourceUid:dr2707 OR dataResourceUid:dr812 OR dataResourceUid:dr814 OR dataResourceUid:dr808 OR dataResourceUid:dr806 OR dataResourceUid:dr815 OR dataResourceUid:dr802 OR dataResourceUid:dr805 OR dataResourceUid:dr813) AND -cl927:* AND -(dataResourceUid:dr359 OR dataResourceUid:dr571 OR dataResourceUid:dr570)\",\n" +
+            "\"ROLE_SDS_NT\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Northern Territory (including Coastal Waters)\\\" AND -(dataResourceUid:dr359 OR dataResourceUid:dr571 OR dataResourceUid:dr570)\",\n" +
+            "\"ROLE_SDS_QLD\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Queensland (including Coastal Waters)\\\" AND -(dataResourceUid:dr359 OR dataResourceUid:dr571 OR dataResourceUid:dr570)\",\n" +
+            "\"ROLE_SDS_SA\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"South Australia (including Coastal Waters)\\\" AND -(dataResourceUid:dr359 OR dataResourceUid:dr571 OR dataResourceUid:dr570)\",\n" +
+            "\"ROLE_SDS_TAS\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Tasmania (including Coastal Waters)\\\" AND -(dataResourceUid:dr359 OR dataResourceUid:dr571 OR dataResourceUid:dr570)\",\n" +
+            "\"ROLE_SDS_VIC\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Victoria (including Coastal Waters)\\\" AND -(dataResourceUid:dr359 OR dataResourceUid:dr571 OR dataResourceUid:dr570)\",\n" +
+            "\"ROLE_SDS_WA\" : \"sensitive:\\\"generalised\\\" AND cl927:\\\"Western Australia (including Coastal Waters)\\\" AND -(dataResourceUid:dr359 OR dataResourceUid:dr571 OR dataResourceUid:dr570)\",\n" +
+            "\"ROLE_SDS_BIRDLIFE\" : \"sensitive:\\\"generalised\\\" AND (dataResourceUid:dr359 OR dataResourceUid:dr571 OR dataResourceUid:dr570)\"\n" +
             "\n" +
             "}}")
-    protected String sensitiveAccessRoles = "{}";;
+    protected String sensitiveAccessRoles20 = "{}";
+    ;
 
-    private JSONObject sensitiveAccessRolesToSolrFilters;
+    private JSONObject sensitiveAccessRolesToSolrFilters20;
 
     @Value("${download.offline.max.url:https://downloads.ala.org.au}")
     public String dowloadOfflineMaxUrl = "https://downloads.ala.org.au";
@@ -345,15 +339,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     public void init() throws ParseException {
 
         // Simple JSON initialisation, let's follow the default Spring semantics
-        sensitiveAccessRolesToSolrFilters = (JSONObject) new JSONParser().parse(sensitiveAccessRoles);
+        sensitiveAccessRolesToSolrFilters20 = (JSONObject) new JSONParser().parse(sensitiveAccessRoles20);
 
-        if(initialised.compareAndSet(false, true)) {
+        if (initialised.compareAndSet(false, true)) {
             //init on thread so as to not hold up other PostConstruct that this may depend on
             new Thread() {
                 @Override
                 public void run() {
-                    try
-                    {
+                    try {
                         ExecutorService nextParallelExecutor = getOfflineThreadPoolExecutor();
                         // Create the implementation for the threads running in the DownloadControlThread
                         DownloadCreator nextDownloadCreator = getNewDownloadCreator();
@@ -370,10 +363,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 Long pollDelayMs = jo.containsKey("pollDelay") ? (Long) jo.get("pollDelay") : null;
                                 Long executionDelayMs = jo.containsKey("executionDelay") ? (Long) jo.get("executionDelay") : null;
                                 Integer threadPriority = jo.containsKey("threadPriority") ? ((Long) jo.get("threadPriority")).intValue() : Thread.NORM_PRIORITY;
-                                DownloadType dt = null;
-                                if (type != null) {
-                                    dt = "index".equals(type) ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
-                                }
+                                DownloadType dt = DownloadType.RECORDS_INDEX;
 
                                 String nextThreadName = "biocache-download-control-";
                                 nextThreadName += label;
@@ -603,26 +593,25 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         String filename = requestParams.getFile();
         String originalParams = requestParams.toString();
 
+        String assertions = OccurrenceIndex.ASSERTIONS;
+        String data_resource_uid = OccurrenceIndex.DATA_RESOURCE_UID;
+
         // Use a zip output stream to include the data and citation together in
         // the download.
         // Note: When producing a shp the output will stream a csv followed by a zip.
-        try(OptionalZipOutputStream sp = new OptionalZipOutputStream(
+        try (OptionalZipOutputStream sp = new OptionalZipOutputStream(
                 zip ? OptionalZipOutputStream.Type.zipped : OptionalZipOutputStream.Type.unzipped, new CloseShieldOutputStream(out), maxMB);) {
             String suffix = requestParams.getFileType().equals("shp") ? "csv" : requestParams.getFileType();
             sp.putNextEntry(filename + "." + suffix);
             // put the facets
             if ("all".equals(requestParams.getQa())) {
-                requestParams.setFacets(new String[] { "assertions", "data_resource_uid" });
+                requestParams.setFacets(new String[]{assertions, data_resource_uid});
             } else {
-                requestParams.setFacets(new String[] { "data_resource_uid" });
+                requestParams.setFacets(new String[]{data_resource_uid});
             }
             
             final ConcurrentMap<String, AtomicInteger> uidStats;
-            if (fromIndex) {
-                uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, sp, includeSensitive, dd, limit, parallelExecutor);
-            } else {
-                uidStats = searchDAO.writeResultsToStream(requestParams, sp, 100, includeSensitive, dd, limit);
-            }
+            uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, sp, includeSensitive, dd, limit, parallelExecutor);
 
             sp.closeEntry();
 
@@ -698,7 +687,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             doiDetails.setApplicationUrl(dqFixedSearchUrl);
                             doiDetails.setRequesterId(requesterId);
                             if (dd.getSensitiveFq() != null) {
-                                doiDetails.setAuthorisedRoles(getSensitiveRolesForUser(requesterId));
+                                doiDetails.setAuthorisedRoles(
+                                        getSensitiveRolesForUser(requesterId));
                             }
 
                             doiDetails.setRequesterName(requesterName);
@@ -766,7 +756,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                     String readmeTemplate = "";
                     if (new File(readmeFile).exists()) {
-                        readmeTemplate = Files.asCharSource(new File(readmeFile), StandardCharsets.UTF_8).read();
+                        readmeTemplate = FileUtils.readFileToString(new File(readmeFile), StandardCharsets.UTF_8);
                     }
 
                     String dataQualityFilters = "";
@@ -922,7 +912,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             response.setContentType("text/plain");
         }
 
-        DownloadDetailsDTO.DownloadType type = fromIndex ? DownloadType.RECORDS_INDEX : DownloadType.RECORDS_DB;
+        DownloadDetailsDTO.DownloadType type = DownloadType.RECORDS_INDEX;
         DownloadDetailsDTO dd = registerDownload(requestParams, ip, userAgent, type);
         writeQueryToStream(dd, requestParams, ip, new CloseShieldOutputStream(out), includeSensitive, fromIndex, true, zip, parallelQueryExecutor, null);
     }
@@ -1050,7 +1040,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 // Object[] citations =
                 // restfulClient.restPost(citationServiceUrl, "text/json",
                 // uidStats.keySet());
-                Set<IndexFieldDTO> indexedFields = searchDAO.getIndexedFields();
+                Set<IndexFieldDTO> indexedFields = indexDao.getIndexedFields();
 
                 // header
                 writer.writeNext(new String[] { "Column name", "Requested field", "DwC Name", "Field name",
@@ -1301,6 +1291,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     /**
      * Generates the Solr filter to query sensitive data for the user sensitive roles
+     *
      * @param userId The user the filter is built for
      * @return A String with a Solr filter
      */
@@ -1316,7 +1307,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             if (sensitiveFq.length() > 0) {
                 sensitiveFq += " OR ";
             }
-            sensitiveFq += "(" + sensitiveAccessRolesToSolrFilters.get(sensitiveRole) + ")";
+            sensitiveFq += "(" + sensitiveAccessRolesToSolrFilters20.get(sensitiveRole) + ")";
         }
 
         if (sensitiveFq.length() == 0) {
@@ -1333,13 +1324,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     /**
      * List the sensitive roles for a given user
+     *
      * @param userId The user
      * @return The sensitive roles for the user, the list will be empty if the user has no sensitive roles
      */
     public List<String> getSensitiveRolesForUser(String userId) {
         List<String> userRoles = authService.getUserRoles(userId);
 
-        List<String> result = new ArrayList<>(sensitiveAccessRolesToSolrFilters.keySet());
+        List<String> result = new ArrayList<>(sensitiveAccessRolesToSolrFilters20.keySet());
 
         result.retainAll(userRoles);
 
@@ -1459,7 +1451,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     }
 
                                     emailTemplateFile = getEmailTemplateFile();
-                                    emailTemplate = Files.asCharSource(new File(emailTemplateFile), StandardCharsets.UTF_8).read();
+                                    emailTemplate = FileUtils.readFileToString(new File(emailTemplateFile), StandardCharsets.UTF_8);
                                     String emailBody = generateEmailContent(emailTemplate, substitutions);
 
                                     // save the statistics to the download directory
@@ -1485,16 +1477,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             throw e;
                         } catch (CancellationException e) {
                             //download cancelled, do not send an email
-                        } catch (com.datastax.driver.core.exceptions.DriverException e) {
-                            logger.warn("Offline download failed. Cassandra driver error. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage(), e);
-                            //return to queue in 5mins as long as the VM is not restarted during that time, in which case it could be permanently stuck in a broken state
-                            doRetry = true;
-                            newRetryThread(currentDownload).start();
-                        } catch (PelopsException e) {
-                            logger.warn("Offline download failed. Cassandra error. Retrying in 5 mins. Task file: " + currentDownload.getFileLocation() + " : " + e.getMessage(), e);
-                            //return to queue in 5mins as long as the VM is not restarted during that time, in which case it could be permanently stuck in a broken state
-                            doRetry = true;
-                            newRetryThread(currentDownload).start();
                         } catch (Exception e) {
                             logger.error("Error in offline download, sending email. download path: "
                                     + currentDownload.getFileLocation(), e);

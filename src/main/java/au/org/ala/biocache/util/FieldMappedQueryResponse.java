@@ -52,7 +52,7 @@ public class FieldMappedQueryResponse extends QueryResponse {
     }
 
     @Override
-    public Map<String, String> getExplainMap() {
+    public Map<String, Object> getExplainMap() {
         return queryResponse.getExplainMap();
     }
 
