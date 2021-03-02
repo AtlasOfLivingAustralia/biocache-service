@@ -43,7 +43,7 @@ public class DuplicateRecordDetails {
         this.id = (String) d.getFieldValue(OccurrenceIndex.ID);
         this.status = (String) d.getFieldValue(OccurrenceIndex.DUPLICATE_STATUS);
 
-        if ("D".equals(status)) {
+        if ("ASSOCIATED".equals(status)) {
             // is duplicate
             this.dupTypes = new ArrayList();
             for (Object dupType : d.getFieldValues(OccurrenceIndex.DUPLICATE_REASONS)) {
@@ -62,7 +62,7 @@ public class DuplicateRecordDetails {
         collector = (String) d.getFieldValue(OccurrenceIndex.COLLECTOR);
         recordNumber = (String) d.getFieldValue(OccurrenceIndex.RECORD_NUMBER);
         catalogueNumber = (String) d.getFieldValue(OccurrenceIndex.CATALOGUE_NUMBER);
-        precision = (Integer) d.getFieldValue(OccurrenceIndex.PRECISION);
+        precision = null; // This is not in pipelines (Integer) d.getFieldValue(OccurrenceIndex.PRECISION);
 
         // depricated fields for backward compatability
         rowKey = (String) d.getFieldValue(OccurrenceIndex.ID);

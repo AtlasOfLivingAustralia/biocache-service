@@ -26,12 +26,15 @@ import java.util.Arrays;
  */
 public class SpatialSearchRequestParams extends SearchRequestParams {
 
-    public final static String[] gkFq = new String[]{OccurrenceIndex.GEOSPATIAL_KOSHER + ":true"};
+    @Deprecated
+    public final static String[] gkFq = new String[]{};
 
     protected Float radius = null;
     protected Float lat = null;
     protected Float lon = null;
     protected String wkt = "";
+
+    @Deprecated
     protected Boolean gk = false;   //include only the geospatially kosher records
 
     /**

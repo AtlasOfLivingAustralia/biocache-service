@@ -49,8 +49,6 @@ public interface SearchDAO {
      * Returns species that only occur in the supplied subQueryQid
      * and not in the requestParams query.
      *
-     * If no requestParams defined the default q=geospatial_kosher:* is used.
-     *
      * @param subQuery
      * @param parentQuery
      * @return

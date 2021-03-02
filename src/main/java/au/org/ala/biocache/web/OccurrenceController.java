@@ -648,7 +648,7 @@ public class OccurrenceController extends AbstractSecureController {
                         + " AND "
                         + "(" + COUNTRY + ":\""
                         + nativeCountry
-                        + "\" OR " + STATE + ":[* TO *]) AND " + GEOSPATIAL_KOSHER + ":true";
+                        + "\" OR " + STATE + ":[* TO *])";
         requestParams.setQ(query);
         NativeDTO adto = new NativeDTO();
         adto.setTaxonGuid(guid);
@@ -1623,9 +1623,9 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, occurrence, "establishmentMeans", prefix);
         add(sd, occurrence, "fieldNotes", prefix);
         add(sd, occurrence, "fieldNumber", prefix);
-        add(sd, occurrence, "identifier", prefix);
+        occurrence.put("identifier", "");  // Not in pipeline
         add(sd, occurrence, "individualCount", prefix);
-        add(sd, occurrence, "individualID", prefix);
+        occurrence.put("individualID", "");  // Not in pipeline
         add(sd, occurrence, "informationWithheld", prefix);   //used for sensitive data information
         add(sd, occurrence, "institutionCode", prefix);
         add(sd, occurrence, "institutionID", prefix);
@@ -1633,6 +1633,7 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, occurrence, "license", prefix);
         add(sd, occurrence, "lifeStage", prefix);
         add(sd, occurrence, "modified", prefix);
+        occurrence.put("occurrenceAttributes", "");  // Not in pipeline
         add(sd, occurrence, "occurrenceAttributes", prefix);
         add(sd, occurrence, "occurrenceDetails", prefix);
         add(sd, occurrence, "occurrenceRemarks", prefix);
@@ -1653,7 +1654,7 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, occurrence, "resourceID", prefix);
         add(sd, occurrence, "resourceRelationshipID", prefix);
         add(sd, occurrence, "rights", prefix);
-        add(sd, occurrence, "rightsholder", prefix);
+        add(sd, occurrence, "rightsHolder", prefix);
         add(sd, occurrence, "samplingProtocol", prefix);
         add(sd, occurrence, "samplingEffort", prefix);
         add(sd, occurrence, "sex", prefix);
@@ -1678,30 +1679,24 @@ public class OccurrenceController extends AbstractSecureController {
         //this property is in use in flickr tagging - currently no equivalent in DwC
         add(sd, occurrence, "validDistribution", prefix);
         //custom fields
-        add(sd, occurrence, "sounds", prefix);
+        add(sd, occurrence, "soundIDs", prefix);
         //custom fields
-        add(sd, occurrence, "videos", prefix);
+        add(sd, occurrence, "videoIDs", prefix);
         add(sd, occurrence, "interactions", prefix);
-        //stores either U,R or D.  U - a unique record, R - a representative record in a group of duplicates, D - a tool record in a group
-        // when null a value of "U" is assumed
-  /*
-    D has been split into categories:
-    D1- tool belongs to the same data resource as the representative record.
-    D2- tool belongs to a different data resource as the representative record
-  */
-        add(sd, occurrence, "duplicationStatus", prefix);
-        add(sd, occurrence, "duplicationType", prefix);
+
+        add(sd, occurrence, "duplicateStatus", prefix);
+        add(sd, occurrence, "duplicateType", prefix);
         //Store the conservation status
         //austConservation = national conservation status.
         //FIXME These should be removed and just accessed at index time from list tool.
         add(sd, occurrence, "countryConservation", prefix);
         add(sd, occurrence, "stateConservation", prefix);
         add(sd, occurrence, "globalConservation", prefix);
-        add(sd, occurrence, "outlierForLayers", prefix);
+        add(sd, occurrence, "outlierLayer", prefix);
         add(sd, occurrence, "photographer", prefix);
         // support for schema change
         addFirst(sd, occurrence, "recordedBy", prefix);
-        addImages(sd, occurrence, "images", "all_image_url", "");
+        addImages(sd, occurrence, "images", "imageIDs", "");
 
 
         // au.org.ala.biocache.model.Classification
@@ -1714,7 +1709,7 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, classification, "taxonID", prefix);
         add(sd, classification, "kingdom", prefix);
         add(sd, classification, "phylum", prefix);
-        add(sd, classification, "classs", prefix);
+        add(sd, classification, "class", prefix);
         add(sd, classification, "order", prefix);
         add(sd, classification, "superfamily", prefix);    //an addition to darwin core
         add(sd, classification, "family", prefix);
@@ -1930,8 +1925,8 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, fullRecord, "userAssertionStatus", "");
         add(sd, fullRecord, "locationDetermined", "");
         add(sd, fullRecord, "defaultValuesUsed", "");
-        fullRecord.put("geospatiallyKosher", sd.getFieldValue("geospatial_kosher"));
-        fullRecord.put("taxonomicallyKosher", sd.getFieldValue("taxonomic_kosher"));
+        fullRecord.put("geospatiallyKosher", "");
+        fullRecord.put("taxonomicallyKosher", "");
         fullRecord.put("deleted", false); // no deletion flags in use
         add(sd, fullRecord, "userVerified", ""); // same value for both raw and processed
         Object value = sd.getFieldValue("first_loaded_date");

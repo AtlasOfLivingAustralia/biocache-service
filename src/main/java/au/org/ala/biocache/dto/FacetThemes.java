@@ -184,7 +184,6 @@ public class FacetThemes {
                 new FacetDTO(OccurrenceIndex.KINGDOM, "index", null, null, null),
                 new FacetDTO(OccurrenceIndex.SPECIES_GROUP, "index", null, null, null),
                 new FacetDTO(OccurrenceIndex.RANK, "count", null, null, null),
-                new FacetDTO(OccurrenceIndex.INTERACTION, "count", null, null, null),
                 new FacetDTO(OccurrenceIndex.SPECIES_HABITATS, "count", null, null, null)));
 
         allThemes.add(new FacetTheme("Geospatial",
@@ -198,8 +197,7 @@ public class FacetThemes {
                 new FacetDTO(OccurrenceIndex.COUNTRY, "index", null, null, null),
                 new FacetDTO("cl1918", "count", null, null, null),
                 new FacetDTO("cl617", "count", null, null, null),
-                new FacetDTO("cl620", "count", null, null, null),
-                new FacetDTO(OccurrenceIndex.GEOSPATIAL_KOSHER, "count", null, null, null)
+                new FacetDTO("cl620", "count", null, null, null)
         ));
 
         allThemes.add(new FacetTheme("Temporal",

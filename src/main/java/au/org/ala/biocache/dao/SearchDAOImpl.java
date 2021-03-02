@@ -254,8 +254,8 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${index.fields.tohide:collector_text,location_determined,row_key,matched_name,decimal_latitudelatitude,collectors,default_values_used,generalisation_to_apply_in_metres,geohash,ibra_subregion,identifier_by,occurrence_details,text,photo_page_url,photographer,places,portal_id,quad,rem_text,occurrence_status_s,identification_qualifier_s}")
     protected String indexFieldsToHide;
 
-    @Value("${default.download.fields:id,dataResourceUid,dataResourceName,license,catalogueNumber,taxonConceptID,raw_scientificName,raw_vernacularName,scientificName,taxonRank,vernacularName,kingdom,phylum,class,order,family,genus,species,subspecies,institutionCode,collectionCode,raw_locality,raw_decimalLatitude,raw_decimalLongitude,raw_geodeticDatum,decimalLatitude,decimalLongitude,coordinatePrecision,coordinateUncertaintyInMeters,country,stateProvince,cl959,minimumElevationInMeters,maximumElevationInMeters,minimumDepthInMeters,maximumDepthInMeters,individualCount,recordedBy,year,month,day,verbatimEventDate,basisOfRecord,raw_basisOfRecord,sex,preparations,informationWithheld,dataGeneralizations,outlierLayer,geospatial_kosher}")
-    protected String defaultDownloadFields20;
+    @Value("${default.download.fields:id,dataResourceUid,dataResourceName,license,catalogNumber,taxonConceptID,raw_scientificName,raw_vernacularName,scientificName,taxonRank,vernacularName,kingdom,phylum,class,order,family,genus,species,subspecies,institutionCode,collectionCode,raw_locality,raw_decimalLatitude,raw_decimalLongitude,raw_geodeticDatum,decimalLatitude,decimalLongitude,coordinatePrecision,coordinateUncertaintyInMeters,country,stateProvince,cl959,minimumElevationInMeters,maximumElevationInMeters,minimumDepthInMeters,maximumDepthInMeters,individualCount,recordedBy,year,month,day,verbatimEventDate,basisOfRecord,raw_basisOfRecord,sex,preparations,informationWithheld,dataGeneralizations,outlierLayer}")
+    protected String defaultDownloadFields;
 
     @Value("${wms.colour:0x00000000}")
     protected int DEFAULT_COLOUR;
@@ -1087,7 +1087,7 @@ public class SearchDAOImpl implements SearchDAO {
                         sensitiveHdr[0].toArray(new String[]{}));
 
                 //use general fields when sensitive data is not permitted
-                notSensitiveFields = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[0].toArray(new String[]{}), notSensitiveSOLRHdr20);
+                notSensitiveFields = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[0].toArray(new String[]{}), notSensitiveSOLRHdr);
             } else {
                 sensitiveFields = new String[0];
                 notSensitiveFields = fields;
@@ -1280,7 +1280,7 @@ public class SearchDAOImpl implements SearchDAO {
                     queries.add(0, solrQuery);
                 }
 
-                String[] notSensitiveSOLRHdr = notSensitiveSOLRHdr20;
+                String[] notSensitiveSOLRHdr = OccurrenceIndex.notSensitiveSOLRHdr;
 
                 //split into sensitive and non-sensitive queries when
                 // - not including all sensitive values
@@ -1756,7 +1756,7 @@ public class SearchDAOImpl implements SearchDAO {
     private String getDownloadFields(DownloadRequestParams downloadParams) {
         String dFields = downloadParams.getFields();
         if (StringUtils.isEmpty(dFields)) {
-            dFields = defaultDownloadFields20;
+            dFields = defaultDownloadFields;
         }
         return dFields;
     }

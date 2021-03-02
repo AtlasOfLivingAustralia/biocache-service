@@ -254,10 +254,7 @@ public class AbstractSecureController {
      * @throws Exception
      */
     public boolean shouldPerformOperation(String apiKey,HttpServletResponse response, boolean checkReadOnly) throws Exception {
-        if (checkReadOnly) {
-            response.sendError(HttpServletResponse.SC_CONFLICT, "Server is in read only mode.  Try again later.");
-            return false;
-        } else if (!isValidKey(apiKey)) {
+        if (!isValidKey(apiKey)) {
             response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
             return false;
         } else if (response.isCommitted()) {

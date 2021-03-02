@@ -31,111 +31,15 @@ import java.util.Map;
  */
 public class OccurrenceIndex {
 
-    // SOLR fields that used in biocache-service and have the same name and type in all schema versions
     final static public String ROW_KEY = "id";
-    final static public String IMAGES = "images";
-    final static public String SOUNDS = "sounds";
-    final static public String GEOSPATIAL_KOSHER = "geospatial_kosher";
+    final static public String IMAGES = "imageIDs";
+    final static public String SOUNDS = "soundIDs";
+    //final static public String GEOSPATIAL_KOSHER = "geospatial_kosher"; // Not in pipelines
     final static public String COUNTRY = "country";
-    final static public String STATE = "state";
+    final static public String STATE = "stateProvince";
     final static public String PROVENANCE = "provenance";
 
     public static final String OCCURRENCE_YEAR_INDEX_FIELD = "occurrence_year";
-
-//    @Field("id") String uuid;
-//    @Field("occurrenceID") String occurrenceID;
-//    //processed values
-//    /*@Field("data_hub_uid")*/ String[] dataHubUid;                     // PIPELINES: missing field mapping
-//    /*@Field("data_hub")*/String dataHub;                               // PIPELINES: missing field mapping
-//    @Field("institutionUid") String institutionUid;
-//    @Field("institutionCode") String raw_institutionCode;
-//    @Field("institutionName") String institutionName;
-//    @Field("collectionUid") String collectionUid;
-//    @Field("collectionCode") String raw_collectionCode;
-//    @Field("collectionName") String collectionName;
-//    @Field("catalogNumber") String raw_catalogNumber;
-//    @Field("taxonConceptID") String taxonConceptID;
-//    @Field("eventDate") java.util.Date eventDate;
-//    /*@Field("occurrence_date_end_dt")*/ java.util.Date eventDateEnd;   // PIPELINES: missing field mapping
-//    /*@Field("occurrence_year")*/ java.util.Date occurrenceYear;        // PIPELINES: missing field mapping
-//    @Field("taxon_name") String scientificName;
-//    @Field("common_name") String vernacularName;
-//    @Field("rank") String taxonRank;
-//    @Field("rank_id") Integer taxonRankID;
-//    @Field("countryCode") String raw_countryCode;
-//    @Field("country") String country;
-//    @Field("kingdom") String kingdom;
-//    @Field("phylum") String phylum;
-//    @Field("class") String classs;
-//    @Field("order") String order;
-//    @Field("family") String family;
-//    @Field("genus") String genus;
-//    @Field("genusID") String genusGuid;
-//    @Field("species") String species;
-//    @Field("speciesID") String speciesGuid;
-//    /*@Field("subspecies")*/ String subspecies;                         // PIPELINES: missing field mapping
-//    /*@Field("subspecies_guid")*/ String subspeciesGuid;                // PIPELINES: missing field mapping
-//    @Field("stateProvince") String stateProvince;
-//    @Field("decimalLatitude") Double decimalLatitude;
-//    @Field("decimalLongitude") Double decimalLongitude;
-//    @Field("coordinateUncertaintyInMeters") Double coordinateUncertaintyInMeters;
-//    @Field("year") Integer year;
-//    @Field("month") Integer month;
-//    @Field("basisOfRecord") String basisOfRecord;
-//    @Field("typeStatus") String typeStatus;
-//    @Field("locationRemarks") String raw_locationRemarks;
-//    @Field("occurrenceRemarks") String raw_occurrenceRemarks;
-//    @Field("lft") Integer left;
-//    @Field("rgt") Integer right;
-//    /*@Field("ibra")*/ String ibra;                                     // PIPELINES: field DEPRECATED
-//    /*@Field("imcra")*/ String imcra;                                   // PIPELINES: field DEPRECATED
-//    /*@Field("places")*/ String lga;                                    // PIPELINES: missing field mapping
-//    @Field("dataProviderUid") String dataProviderUid;
-//    @Field("dataProviderName") String dataProviderName;
-//    @Field("dataResourceUid") String dataResourceUid;
-//    @Field("dataResourceName") String dataResourceName;
-//    @Field("assertions") String[] assertions;
-//    /*@Field("user_assertions")*/ String hasUserAssertions;             // PIPELINES: missing field mapping
-//    @Field("species_group") String[] speciesGroups;
-//    @Field("image_url") String image;
-//    /*@Field("all_image_url")*/ String[] images;                        // PIPELINES: missing field mapping
-//    @Field("geospatial_kosher") Boolean geospatialKosher;
-//    /*@Field("taxonomic_kosher")*/ String taxonomicKosher;              // PIPELINES: field DEPRECATED
-//    @Field("recordedBy") String[] collector;
-//    /*@Field("collectors")*/ String[] collectors;                       // PIPELINES: missing field mapping
-//    //extra raw record fields
-//    @Field("scientificName") String raw_scientificName;
-//    @Field("raw_basisOfRecord") String raw_basisOfRecord;
-//    @Field("raw_type_status") String raw_typeStatus;
-//    @Field("raw_common_name") String raw_vernacularName;
-//    //constructed fields
-//    @Field("lat_long") String latLong;
-//    @Field("point-1") String point1;
-//    @Field("point-0.1") String point01;
-//    @Field("point-0.01") String point001;
-//    @Field("point-0.001") String point0001;
-//    @Field("point-0.0001") String point00001;
-//    @Field("names_and_lsid") String namesLsid;
-//    /*@Field("multimedia")*/ String[] multimedia;                       // PIPELINES: missing field mapping
-//    @Field("license") String license;
-//    @Field("identificationVerificationStatus") String identificationVerificationStatus;
-//    //conservation status field
-//    /*@Field("aust_conservation")*/ String austConservation;            // PIPELINES: field DEPRECATED
-//    /*@Field("state_conservation") */String stateConservation;          // PIPELINES: missing field mapping
-//    /*@Field("sensitive")*/ String sensitive;                           // PIPELINES: missing field mapping
-//    //AVH extra fields
-//    @Field("recordNumber") String recordNumber;
-//    //For harvesting of images into the BIE
-//    /*@Field("occurrence_details")*/ String occurrenceDetails;          // PIPELINES: missing field mapping
-//    /*@Field("rights")*/ String rights;                                 // PIPELINES: missing field mapping
-//    @Field("photographer_s") String photographer;
-//    /*@Field("grid_ref")*/ String gridReference;                        // PIPELINES: missing field mapping
-//    @Field("*_s") Map<String, Object> miscStringProperties;
-//    @Field("*_i") Map<String, Object> miscIntProperties;
-//    @Field("*_d") Map<String, Object> miscDoubleProperties;
-//    @Field("*_dt") Map<String, Object> miscDateProperties;
-//    List<Map<String, Object>> imageMetadata;
-//
 
     public static final String TAXON_NAME = "scientificName";
     public static final String RAW_TAXON_NAME = "raw_scientificName";
@@ -153,18 +57,18 @@ public class OccurrenceIndex {
     public static final String MULTIMEDIA = "multimedia";
     public static final String COLLECTOR = "recordedBy";
     public static final String OCCURRENCE_STATUS = "occurrenceStatus";
-    public static final String ALA_USER_ID = "alau_user_id";
-    public static final String ASSERTION_USER_ID = "assertion_user_id";
+    public static final String ALA_USER_ID = "userId";
+    public static final String ASSERTION_USER_ID = "assertionUserId"; // TODO: add to pipeline
     public static final String OUTLIER_LAYER = "outlierLayer";
     public static final String OUTLIER_LAYER_COUNT = "outlierLayerCount";
-    public static final String TAXONOMIC_ISSUE = "taxonomicIssue";
+    public static final String TAXONOMIC_ISSUE = "taxonomicIssues";
     public static final String FAMILYID = "familyID";
     public static final String KINGDOMID = "kingdomID";
     public static final String PHYLUMID = "phylumID";
     public static final String OCCURRENCE_DATE = "eventDate";
     public static final String RECORD_NUMBER = "recordNumber";
-    public static final String CATALOGUE_NUMBER = "catalogueNumber";
-    public static final String PRECISION = "precision";
+    public static final String CATALOGUE_NUMBER = "catalogNumber";
+    public static final String PRECISION = "precision"; //TODO: not in pipeline
     public static final String RANK_ID = "rankID";
     protected static final Logger logger = Logger.getLogger(OccurrenceIndex.class);
 
@@ -184,44 +88,44 @@ public class OccurrenceIndex {
 
     @Field("id")
     String uuid;
-    @Field("raw_occurrenceID")
+    @Field("occurrenceID")
     String occurrenceID;
     //processed values
     @Field("dataHubUid")
     String[] dataHubUid;
-    @Field("dataHub")
-    String dataHub;
+    @Field("dataHubName")
+    String[] dataHub;
     @Field("institutionUid")
     String institutionUid;
-    @Field("raw_institutionCode")
+    @Field("institutionCode")
     String raw_institutionCode;
     @Field("institutionName")
     String institutionName;
     @Field("collectionUid")
     String collectionUid;
-    @Field("raw_collectionCode")
+    @Field("collectionCode")
     String raw_collectionCode;
     @Field("collectionName")
     String collectionName;
-    @Field("raw_catalogNumber")
+    @Field("catalogNumber")
     String raw_catalogNumber;
     @Field("taxonConceptID")
     String taxonConceptID;
-    @Field("eventDateSingle")
+    @Field("eventDate")
     Date eventDate;
     @Field("eventDateEnd")
     Date eventDateEnd;
-    @Field("eventDateSingle")
+    // @Field for occurrenceYear is on Setter
     Date occurrenceYear;
     @Field("scientificName")
     String scientificName;
     @Field("vernacularName")
     String vernacularName;
-    @Field("rank")
+    @Field("taxonRank")
     String taxonRank;
     @Field("rankID")
     Integer taxonRankID;
-    @Field("countryCode")
+    @Field("raw_countryCode")
     String raw_countryCode;
     @Field("country")
     String country;
@@ -271,11 +175,11 @@ public class OccurrenceIndex {
     Integer left;
     @Field("rgt")
     Integer right;
-    @Field("ibra")
+    //@Field("ibra")
     String ibra;
-    @Field("imcra")
+    //@Field("imcra")
     String imcra;
-    @Field("places")
+    //@Field("places")
     String lga;
     @Field("dataProviderUid")
     String dataProviderUid;
@@ -291,17 +195,17 @@ public class OccurrenceIndex {
     String hasUserAssertions;
     @Field("species_group")
     String[] speciesGroups;
-    @Field("image_url")
+    @Field("imageID")
     String image;
-    @Field("all_image_url")
+    @Field("imageIDs")
     String[] images;
-    @Field("geospatial_kosher")
+    //@Field("geospatial_kosher")
     Boolean geospatialKosher;
-    @Field("taxonomic_kosher")
+    //@Field("taxonomic_kosher")
     String taxonomicKosher;
     @Field("recordedBy")
     String[] collector;
-    @Field("collectors")
+    //@Field("collectors")
     String[] collectors;
     //extra raw record fields
     @Field("raw_scientificName")
@@ -331,26 +235,26 @@ public class OccurrenceIndex {
     String[] multimedia;
     @Field("license")
     String license;
-    @Field("raw_identificationVerificationStatus")
+    //@Field("raw_identificationVerificationStatus")
     String identificationVerificationStatus;
     //conservation status field
-    @Field("aust_conservation")
+    //@Field("aust_conservation")
     String austConservation;
-    @Field("state_conservation")
+    //@Field("state_conservation")
     String stateConservation;
     @Field("sensitive")
     String sensitive;
     //AVH extra fields
-    @Field("raw_recordNumber")
+    //@Field("raw_recordNumber")
     String recordNumber;
     //For harvesting of images into the BIE
-    @Field("raw_occurrenceDetails")
+    //@Field("raw_occurrenceDetails")
     String occurrenceDetails;
-    @Field("raw_rights")
+    //@Field("raw_rights")
     String rights;
-    @Field("photographer_s")
+    //@Field("photographer_s")
     String photographer;
-    @Field("grid_ref")
+    //@Field("grid_ref")
     String gridReference;
     @Field("*_s")
     Map<String, Object> miscStringProperties;
@@ -369,8 +273,26 @@ public class OccurrenceIndex {
     String[] imageUrls;
 
     //sensitive fields and their non-sensitive replacements
-    public static final String[] sensitiveSOLRHdr = {"sensitive_longitude", "sensitive_latitude", "sensitive_locality", "sensitive_event_date", "sensitive_event_date_end", "sensitive_grid_reference"};
-    public static final String[] notSensitiveSOLRHdr20 = {LONGITUDE, LATITUDE, LOCALITY};
+    public static final String EVENT_DATE = "eventDate";
+    public static final String EVENT_DATE_END = "eventDateEnd";
+    public static final String GRID_REFERENCE = "gridReference";
+    public static final String DAY = "day";
+    public static final String EVENT_ID = "eventID";
+    public static final String FOOTPRINT_WKT = "footprintWKT";
+
+    public static final String[] sensitiveSOLRHdr = {
+            "sensitive_decimalLongitude",
+            "sensitive_decimalLatitude",
+            "sensitive_locality",
+            "sensitive_eventDate",
+            "sensitive_eventDateEnd",
+            "sensitive_gridReference",
+            "sensitive_coordinateUncertaintyInMeters",
+            "sensitive_day",
+            "sensitive_eventID",
+            "sensitive_eventTime",
+            "sensitive_footprintWKT"};
+    public static final String[] notSensitiveSOLRHdr = {LONGITUDE, LATITUDE, LOCALITY, EVENT_DATE, EVENT_DATE_END, GRID_REFERENCE, COORDINATE_UNCERTAINTY, DAY, EVENT_ID, FOOTPRINT_WKT};
     public static final String CONTAINS_SENSITIVE_PATTERN = StringUtils.join(sensitiveSOLRHdr, "|");
 
     public static final String NAMES_AND_LSID = "names_and_lsid";
@@ -381,21 +303,21 @@ public class OccurrenceIndex {
 
     //featureAssertions
 
-    public static final String DUPLICATE_OF = "duplicate_record";
-    public static final String DUPLICATE_STATUS = "duplicate_status";
-    public static final String DUPLICATE_REASONS = "duplicate_type";
+    public static final String DUPLICATE_OF = "isDuplicateOf";
+    public static final String DUPLICATE_STATUS = "duplicateStatus";
+    public static final String DUPLICATE_REASONS = "duplicateType";
     public static final String ID = "id";
 
-    public static final String SPECIES_SUBGROUP = "species_subgroup";
-    public static final String SPECIES_GROUP = "species_group";
-    public static final String IMAGE_URL = "image_url";
+    public static final String SPECIES_SUBGROUP = "speciesSubgroup";
+    public static final String SPECIES_GROUP = "speciesGroup";
+    public static final String IMAGE_URL = "imageID";
     public static final String LAT_LNG = "lat_long";
-    public static final String ALL_IMAGE_URL = "all_image_url";
-    public static final String RAW_NAME = "raw_name";
+    public static final String ALL_IMAGE_URL = "imageIDs";
+    public static final String RAW_NAME = "raw_scientificName"; // TODO: check mapping (this is a guess)
     public static final String LFT = "lft";
     public static final String MONTH = "month";
     public static final String ASSERTIONS = "assertions";
-    public static String SUBSPECIES_NAME = "subspecies_name";
+    public static String SUBSPECIES_NAME = "subspecies";
     public static String SPECIES = "species";
     public static String GENUS = "genus";
     public static String FAMILY = "family";
@@ -403,7 +325,6 @@ public class OccurrenceIndex {
     public static String CLASS = "class";
     public static String PHYLUM = "phylum";
     public static String KINGDOM = "kingdom";
-    public static String INTERACTION = "interaction";
     public static String SENSITIVE = "sensitive";
     public static String RGT = "rgt";
 
@@ -507,11 +428,11 @@ public class OccurrenceIndex {
         this.dataHubUid = dataHubUid;
     }
 
-    public String getDataHub() {
+    public String [] getDataHub() {
         return dataHub;
     }
 
-    public void setDataHub(String dataHub) {
+    public void setDataHub(String []dataHub) {
         this.dataHub = dataHub;
     }
 
@@ -597,6 +518,15 @@ public class OccurrenceIndex {
 
     public Date getOccurrenceYear() {
         return occurrenceYear;
+    }
+
+    @Field("occurrenceYear")
+    public void setOccurrenceYear(List<Date> occurrenceYears) {
+        if (occurrenceYears != null && occurrenceYears.size() > 0) {
+            this.occurrenceYear = occurrenceYears.get(0);
+        } else {
+            this.occurrenceYear = null;
+        }
     }
 
     public void setOccurrenceYear(Date occurrenceYear) {
@@ -932,7 +862,7 @@ public class OccurrenceIndex {
     }
 
     public String getGeospatialKosher() {
-        return geospatialKosher.toString();
+        return geospatialKosher != null ? geospatialKosher.toString() : null;
     }
 
     public void setGeospatialKosher(String geospatialKosher) {

@@ -519,7 +519,7 @@ public class ExploreController {
      *
      * The facet is defined in the parentQuery. Default facet is SearchDAOImpl.NAMES_AND_LSID
      *
-     * If no requestParams defined the default q=geospatial_kosher:* is used.
+     * If no requestParams defined the default q=*:* is used.
      *
      * @return
      */
@@ -532,7 +532,7 @@ public class ExploreController {
         subQuery.setQ("qid:" + subQueryQid);
 
         if (parentQuery.getQ() == null) {
-            parentQuery.setQ(OccurrenceIndex.GEOSPATIAL_KOSHER + ":*");
+            parentQuery.setQ("*:*");
         }
         if (parentQuery.getFacets() == null || parentQuery.getFacets().length == 0) {
             parentQuery.setFacets(new String[]{OccurrenceIndex.NAMES_AND_LSID});
@@ -557,7 +557,7 @@ public class ExploreController {
      *
      * The facet is defined in the parentQuery. Default facet is SearchDAOImpl.NAMES_AND_LSID
      *
-     * If no requestParams defined the default q=geospatial_kosher:* is used.
+     * If no requestParams defined the default q=*:* is used.
      *
      * @return
      */
@@ -611,7 +611,7 @@ public class ExploreController {
      *
      * The facet is defined in the parentQuery. Default facet is SearchDAOImpl.NAMES_AND_LSID
      *
-     * If no requestParams defined the default q=geospatial_kosher:* is used.
+     * If no requestParams defined the default q=*:* is used.
      *
      * @return
      */
@@ -629,7 +629,7 @@ public class ExploreController {
         subQuery.setQ("qid:" + subQueryQid);
 
         if (parentQuery.getQ() == null) {
-            parentQuery.setQ(OccurrenceIndex.GEOSPATIAL_KOSHER + ":*");
+            parentQuery.setQ("*:*");
         }
         if (parentQuery.getFacets() == null || parentQuery.getFacets().length == 0) {
             parentQuery.setFacets(new String[]{OccurrenceIndex.NAMES_AND_LSID});

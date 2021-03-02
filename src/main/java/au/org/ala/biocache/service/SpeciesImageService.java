@@ -83,9 +83,17 @@ public class SpeciesImageService {
                     String dataResourceUid = (String) SearchUtils.getVal(item, OccurrenceIndex.DATA_RESOURCE_UID, "buckets", 0, 0);
                     String imageUrl = (String) SearchUtils.getVal(item, OccurrenceIndex.IMAGE_URL, "buckets", 0, 0);
                     SpeciesImageDTO image = new SpeciesImageDTO(dataResourceUid, imageUrl);
-                    image.setCount((Integer) item.getVal(1));
+                    if (item.getVal(1) instanceof Integer) {
+                        image.setCount(((Integer) item.getVal(1)).longValue());
+                    } else if (item.getVal(1) instanceof Long){
+                        image.setCount((Long) item.getVal(1));
+                    }
                     try {
-                        map.put(((Integer) item.getVal(0)).longValue(), image);
+                        if (item.getVal(0) instanceof Integer) {
+                            map.put(((Integer) item.getVal(0)).longValue(), image);
+                        } else if(item.getVal(0) instanceof Long) {
+                            map.put((Long) item.getVal(0), image);
+                        }
                     } catch (Exception e) {
                     }
                 }

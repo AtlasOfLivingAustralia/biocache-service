@@ -1097,7 +1097,10 @@ public class WMSController extends AbstractSecureController{
             @RequestParam(value = "fq", required = false) String[] filterQueries,
             @RequestParam(value = "X", required = true, defaultValue = "0") Double x,
             @RequestParam(value = "Y", required = true, defaultValue = "0") Double y,
+
+            // Depricated RequestParam
             @RequestParam(value = "spatiallyValidOnly", required = false, defaultValue = "true") boolean spatiallyValidOnly,
+
             @RequestParam(value = "marineSpecies", required = false, defaultValue = "false") boolean marineOnly,
             @RequestParam(value = "terrestrialSpecies", required = false, defaultValue = "false") boolean terrestrialOnly,
             @RequestParam(value = "limitToFocus", required = false, defaultValue = "false") boolean limitToFocus,
@@ -1264,10 +1267,6 @@ public class WMSController extends AbstractSecureController{
             );
 
             writer.write(generateStylesForPoints());
-
-            if (spatiallyValidOnly) {
-                filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, OccurrenceIndex.GEOSPATIAL_KOSHER + ":true");
-            }
 
             if (marineOnly) {
                 filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, OccurrenceIndex.SPECIES_HABITATS + ":Marine OR " + OccurrenceIndex.SPECIES_HABITATS + ":\"Marine and Non-marine\"");
