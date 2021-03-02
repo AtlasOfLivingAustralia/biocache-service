@@ -422,7 +422,36 @@ public class WMSController extends AbstractSecureController{
         requestParams.setFormattedQuery(null);
         List<LegendItem> legend = searchDAO.getLegend(requestParams, s[0], cutpoints);
         if (cutpoints == null) {
-            java.util.Collections.sort(legend);
+            if (s[0].equals("month")){
+                //ascending month
+                java.util.Collections.sort(legend, new Comparator<LegendItem>() {
+                    @Override
+                    public int compare(LegendItem o1, LegendItem o2) {
+
+                        if (StringUtils.isEmpty(o1.getFacetValue()))
+                            return -1;
+                        if (StringUtils.isEmpty(o2.getFacetValue()))
+                            return 1;
+
+                        return Integer.parseInt(o1.getFacetValue()) > Integer.parseInt(o2.getFacetValue()) ? 1 : -1;
+                    }
+                });
+            } else if (s[0].equals("year") || s[0].equals("decade")){
+                //descending years
+                java.util.Collections.sort(legend, new Comparator<LegendItem>() {
+                    @Override
+                    public int compare(LegendItem o1, LegendItem o2) {
+                        if (StringUtils.isEmpty(o1.getFacetValue()))
+                            return -1;
+                        if (StringUtils.isEmpty(o2.getFacetValue()))
+                            return 1;
+
+                        return Integer.parseInt(o1.getFacetValue()) > Integer.parseInt(o2.getFacetValue()) ? -1 : 1;
+                    }
+                });
+            } else {
+                java.util.Collections.sort(legend);
+            }
         }
         StringBuilder sb = new StringBuilder();
         if (isCsv) {
