@@ -31,7 +31,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrQuery;
-import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.client.solrj.response.FacetField.Count;
@@ -86,6 +85,8 @@ public class SearchDAOImpl implements SearchDAO {
     public static final String DECADE_FACET_START_DATE = "1850-01-01T00:00:00Z";
     public static final String DECADE_PRE_1850_LABEL = "before";
     public static final String SOLR_DATE_FORMAT = "yyyy-MM-dd'T'hh:mm:ss'Z'";
+    public static final String ALL = "all";
+    public static final String INCLUDEALL = "includeall";
 
     /**
      * SOLR client instance
@@ -631,8 +632,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             QueryResponse qr = indexDao.runSolrQuery(solrQuery, searchParams);
             //need to set the original q to the processed value so that we remove the wkt etc that is added from paramcache object
-            Class resultClass;
-            resultClass = includeSensitive ? au.org.ala.biocache.dto.SensitiveOccurrenceIndex.class : OccurrenceIndex.class;
+            Class resultClass = includeSensitive ? au.org.ala.biocache.dto.SensitiveOccurrenceIndex.class : OccurrenceIndex.class;
 
             searchResults = processSolrResponse(original, qr, solrQuery, resultClass);
             searchResults.setQueryTitle(searchParams.getDisplayString());
@@ -1025,7 +1025,7 @@ public class SearchDAOImpl implements SearchDAO {
             solrQuery.setFacetLimit(-1);
 
             //get the assertion facets to add them to the download fields
-            boolean getAssertionsFromFacets = "all".equals(downloadParams.getQa()) || "includeall".equals(downloadParams.getQa());
+            boolean getAssertionsFromFacets = ALL.equals(downloadParams.getQa()) || INCLUDEALL.equals(downloadParams.getQa());
             SolrQuery monthAssertionsQuery = getAssertionsFromFacets ? solrQuery.getCopy().addFacetField(OccurrenceIndex.MONTH, OccurrenceIndex.ASSERTIONS) : solrQuery.getCopy().addFacetField(OccurrenceIndex.MONTH);
             if (getAssertionsFromFacets) {
                 //set the order for the facet to be based on the index - this will force the assertions to be returned in the same order each time
@@ -2089,7 +2089,7 @@ public class SearchDAOImpl implements SearchDAO {
     @Deprecated
     public List<FieldResultDTO> findRecordByStateFor(String query)
             throws Exception {
-        String dataProviderName = OccurrenceIndex.DATA_PROVIDER_NAME;
+        String dataProviderName = DATA_PROVIDER_NAME;
         List<FieldResultDTO> fDTOs = new ArrayList<FieldResultDTO>(); // new OccurrencePoint(PointType.POINT);
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
@@ -3630,6 +3630,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         List<List<List<Integer>>> layers = new ArrayList<>();
 
+        // single layers
         if (isGrid || legend == null || legend.isEmpty()){
             //single layer
             SolrQuery solrQuery = createHeatmapQuery(searchParams, minx, miny, maxx, maxy, isGrid);
@@ -3649,8 +3650,8 @@ public class SearchDAOImpl implements SearchDAO {
 
         } else {
 
+            // multiple layers
             Integer gridLevel= -1;
-            // max number of layers....
 
             for (int legendIdx = 0; legendIdx < legend.size(); legendIdx ++){
 

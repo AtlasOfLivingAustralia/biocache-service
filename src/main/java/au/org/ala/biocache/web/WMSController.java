@@ -56,9 +56,11 @@ import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import static au.org.ala.biocache.dto.OccurrenceIndex.*;
 
 /**
  * This controller provides mapping services which include WMS services. Includes support for:
@@ -363,9 +365,6 @@ public class WMSController extends AbstractSecureController{
                         if (nameLsid.length >= 3) {
                             commonName = nameLsid[2];
                         }
-//                        if(nameLsid.length >= 4) {
-//                            kingdom = nameLsid[3];
-//                        }
                     } else {
                         name = NULL_NAME;
                     }
@@ -379,7 +378,7 @@ public class WMSController extends AbstractSecureController{
         response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
         response.setHeader("ETag", wmsETag.get());
 
-        writeBytes(response, sb.toString().getBytes("UTF-8"));
+        writeBytes(response, sb.toString().getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -413,21 +412,20 @@ public class WMSController extends AbstractSecureController{
         }
         boolean isCsv = returnType.equals("application/csv");
         //test for cutpoints on the back of colourMode
-        String[] s = colourMode.split(",");
+        String[] colourModes = colourMode.split(",");
         String[] cutpoints = null;
-        if (s.length > 1) {
-            cutpoints = new String[s.length - 1];
-            System.arraycopy(s, 1, cutpoints, 0, cutpoints.length);
+        if (colourModes.length > 1) {
+            cutpoints = new String[colourModes.length - 1];
+            System.arraycopy(colourModes, 1, cutpoints, 0, cutpoints.length);
         }
         requestParams.setFormattedQuery(null);
-        List<LegendItem> legend = searchDAO.getLegend(requestParams, s[0], cutpoints);
+        List<LegendItem> legend = searchDAO.getLegend(requestParams, colourModes[0], cutpoints);
         if (cutpoints == null) {
-            if (s[0].equals("month")){
+            if (colourModes[0].equals(MONTH)){
                 //ascending month
                 java.util.Collections.sort(legend, new Comparator<LegendItem>() {
                     @Override
                     public int compare(LegendItem o1, LegendItem o2) {
-
                         if (StringUtils.isEmpty(o1.getFacetValue()))
                             return -1;
                         if (StringUtils.isEmpty(o2.getFacetValue()))
@@ -436,7 +434,7 @@ public class WMSController extends AbstractSecureController{
                         return Integer.parseInt(o1.getFacetValue()) > Integer.parseInt(o2.getFacetValue()) ? 1 : -1;
                     }
                 });
-            } else if (s[0].equals("year") || s[0].equals("decade")){
+            } else if (colourModes[0].equals(YEAR) || colourModes[0].equals(DECADE_FACET_NAME)){
                 //descending years
                 java.util.Collections.sort(legend, new Comparator<LegendItem>() {
                     @Override
@@ -457,10 +455,10 @@ public class WMSController extends AbstractSecureController{
         if (isCsv) {
             sb.append("name,red,green,blue,count");
         }
-        int i = 0;
+
         //add legend entries.
         int offset = 0;
-        for (i = 0; i < legend.size(); i++) {
+        for (int i = 0; i < legend.size(); i++) {
             LegendItem li = legend.get(i);
             String name = li.getName();
             if (StringUtils.isEmpty(name)) {
@@ -491,7 +489,7 @@ public class WMSController extends AbstractSecureController{
         if (returnType.equals("application/json")) {
             return legend;
         } else {
-            writeBytes(response, sb.toString().getBytes("UTF-8"));
+            writeBytes(response, sb.toString().getBytes(StandardCharsets.UTF_8));
             return null;
         }
     }
@@ -534,7 +532,7 @@ public class WMSController extends AbstractSecureController{
             bbox = searchDAO.getBBox(requestParams);
         }
 
-        writeBytes(response, (bbox[0] + "," + bbox[1] + "," + bbox[2] + "," + bbox[3]).getBytes("UTF-8"));
+        writeBytes(response, (bbox[0] + "," + bbox[1] + "," + bbox[2] + "," + bbox[3]).getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -618,7 +616,6 @@ public class WMSController extends AbstractSecureController{
             HttpServletResponse response) {
 
         response.setContentType("text/plain");
-//        response.setCharacterEncoding("gzip");
 
         try {
             ServletOutputStream outStream = response.getOutputStream();
@@ -636,9 +633,9 @@ public class WMSController extends AbstractSecureController{
     private void writeOccurrencesCsvToStream(SpatialSearchRequestParams requestParams, OutputStream stream) throws Exception {
         SolrDocumentList sdl = searchDAO.findByFulltext(requestParams);
 
-        byte[] bComma = ",".getBytes("UTF-8");
-        byte[] bNewLine = "\n".getBytes("UTF-8");
-        byte[] bDblQuote = "\"".getBytes("UTF-8");
+        byte[] bComma = ",".getBytes(StandardCharsets.UTF_8);
+        byte[] bNewLine = "\n".getBytes(StandardCharsets.UTF_8);
+        byte[] bDblQuote = "\"".getBytes(StandardCharsets.UTF_8);
 
         if (sdl != null && sdl.size() > 0) {
             //header field identification
@@ -663,7 +660,7 @@ public class WMSController extends AbstractSecureController{
                 if (i > 0) {
                     stream.write(bComma);
                 }
-                stream.write(header.get(i).getBytes("UTF-8"));
+                stream.write(header.get(i).getBytes(StandardCharsets.UTF_8));
             }
 
             //write records
@@ -1126,10 +1123,8 @@ public class WMSController extends AbstractSecureController{
             @RequestParam(value = "fq", required = false) String[] filterQueries,
             @RequestParam(value = "X", required = true, defaultValue = "0") Double x,
             @RequestParam(value = "Y", required = true, defaultValue = "0") Double y,
-
-            // Depricated RequestParam
+            // Deprecated RequestParam
             @RequestParam(value = "spatiallyValidOnly", required = false, defaultValue = "true") boolean spatiallyValidOnly,
-
             @RequestParam(value = "marineSpecies", required = false, defaultValue = "false") boolean marineOnly,
             @RequestParam(value = "terrestrialSpecies", required = false, defaultValue = "false") boolean terrestrialOnly,
             @RequestParam(value = "limitToFocus", required = false, defaultValue = "false") boolean limitToFocus,
