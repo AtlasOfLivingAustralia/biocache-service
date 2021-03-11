@@ -83,6 +83,7 @@
     "georeferenced_by": "georeferencedBy",
     "georeferenced_date": "georeferencedDate",
     "geospatial_issue": null,
+    "geospatial_kosher": "spatiallyValid",
     "geospatially_kosher": null,
     "higher_classification": "higherClassification",
     "higher_geography": "higherGeography",
