@@ -6,6 +6,7 @@ import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.util.DwCTerms;
 import au.org.ala.biocache.util.DwcTermDetails;
 import au.org.ala.biocache.util.QueryFormatUtils;
+import au.org.ala.biocache.util.solr.FieldMappedSolrClient;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang.StringUtils;
@@ -162,7 +163,11 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
   @PostConstruct
   public void init() {
+
     if (solrClient == null) {
+
+      SolrClient solrClient = null;
+
       if (usehttp2) {
         // TODO - this is experimental. Requires more configuration params for tuning timeouts etc
         if (!solrHome.startsWith("http")) {
@@ -227,6 +232,8 @@ public class SolrIndexDAOImpl implements IndexDAO {
             } catch (Exception e) {
               logger.error("ping failed", e);
             }
+          } else {
+            logger.error("Failed to initialise connection to SOLR server with solrHome: " + solrHome);
           }
         } else {
           logger.info("Initialising connection to SOLR server..... with solrHome:  " + solrHome);
@@ -237,6 +244,10 @@ public class SolrIndexDAOImpl implements IndexDAO {
                   .build();
           logger.info("Initialising connection to SOLR server - done.");
         }
+      }
+
+      if (solrClient != null) {
+        this.solrClient = new FieldMappedSolrClient(fieldMappingUtilBuilder, solrClient);
       }
     }
   }
@@ -812,7 +823,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
   }
 
   /**
-   * @see au.org.ala.biocache.dao.SearchDAO#getStatistics(SpatialSearchRequestParams)
+   * @see au.org.ala.biocache.dao.IndexDAO#getStatistics(SpatialSearchRequestParams)
    */
   @Override
   public Map<String, FieldStatsInfo> getStatistics(SpatialSearchRequestParams searchParams)

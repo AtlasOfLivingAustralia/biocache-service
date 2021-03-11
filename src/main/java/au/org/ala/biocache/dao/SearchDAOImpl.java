@@ -2604,7 +2604,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         if (searchParams.getFl().length() > 0) {
 
-            solrQuery.setFields(searchParams.getFl().split(",")); // PIPELINES: SolrQuery::setFields entry point
+            solrQuery.setFields(searchParams.getFl()); // PIPELINES: SolrQuery::setFields entry point
         }
 
         //add the extra SOLR params

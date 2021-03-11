@@ -267,13 +267,17 @@ public class FieldMappedSolrClient extends SolrClient {
     @Override
     public QueryResponse query(String collection, SolrParams params) throws SolrServerException, IOException {
 
+        if (FieldMappingUtil.isMappingDisabled()) {
+            return delegate.query(collection, params);
+        }
+
         FieldMappingUtil fieldMappingUtil = fieldMappingUtilBuilder.newInstance();
 
-        SolrParams translatedParams = fieldMappingUtil.translateSolrParams(params);
+        FieldMappedSolrParams translatedParams = new FieldMappedSolrParams(fieldMappingUtil, params);
 
         QueryResponse queryResponse = delegate.query(collection, translatedParams);
 
-        return fieldMappingUtil.translateQueryResponse(queryResponse);
+        return new FieldMappedQueryResponse(translatedParams, queryResponse);
     }
 
     @Override
@@ -284,13 +288,17 @@ public class FieldMappedSolrClient extends SolrClient {
     @Override
     public QueryResponse query(String collection, SolrParams params, SolrRequest.METHOD method) throws SolrServerException, IOException {
 
+        if (FieldMappingUtil.isMappingDisabled()) {
+            return delegate.query(collection, params, method);
+        }
+
         FieldMappingUtil fieldMappingUtil = fieldMappingUtilBuilder.newInstance();
 
-        SolrParams translatedParams = fieldMappingUtil.translateSolrParams(params);
+        FieldMappedSolrParams translatedParams = new FieldMappedSolrParams(fieldMappingUtil, params);
 
         QueryResponse queryResponse = delegate.query(collection, translatedParams, method);
 
-        return fieldMappingUtil.translateQueryResponse(queryResponse);
+        return new FieldMappedQueryResponse(translatedParams, queryResponse);
     }
 
     @Override
@@ -303,11 +311,11 @@ public class FieldMappedSolrClient extends SolrClient {
 
         FieldMappingUtil fieldMappingUtil = fieldMappingUtilBuilder.newInstance();
 
-        SolrParams translatedParams = fieldMappingUtil.translateSolrParams(params);
+        FieldMappedSolrParams translatedParams = new FieldMappedSolrParams(fieldMappingUtil, params);
 
         QueryResponse queryResponse = delegate.queryAndStreamResponse(collection, translatedParams, callback);
 
-        return fieldMappingUtil.translateQueryResponse(queryResponse);
+        return new FieldMappedQueryResponse(translatedParams, queryResponse);
     }
 
     public QueryResponse queryAndStreamResponse(SolrParams params, StreamingResponseCallback callback) throws SolrServerException, IOException {

@@ -1,46 +1,35 @@
 package au.org.ala.biocache.util.solr;
 
+import com.google.common.base.Strings;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrResponse;
 import org.apache.solr.client.solrj.response.*;
+import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.util.NamedList;
 
 import java.util.*;
-import java.util.function.Function;
 
 public class FieldMappedQueryResponse extends QueryResponse {
 
+    private static final Logger logger = Logger.getLogger(FieldMappedQueryResponse.class);
+
+    final private FieldMappedSolrParams solrParams;
     final private QueryResponse delegate;
-    final private Map<String, String> facetMap;
-    final private Map<String, String> reverseFacetMap;
-    final private Set<String> deprecatedFacets;
 
-    public FieldMappedQueryResponse(Map<String, String> facetMap,
+    SolrDocumentList _results;
+    private List<FacetField> _facetFields = null;
+    private List<FacetField> _facetDates = null;
+    private List<RangeFacet> _rangeFacets = null;
+    private List<IntervalFacet> _intervalFacets = null;
+
+    public FieldMappedQueryResponse(FieldMappedSolrParams solrParams,
                                     QueryResponse delegate) {
-        this.facetMap = facetMap;
+
+        this.solrParams = solrParams;
         this.delegate = delegate;
-
-        if (facetMap == null) {
-            reverseFacetMap = null;
-            deprecatedFacets = null;
-        } else {
-
-            reverseFacetMap = new HashMap<>();
-            deprecatedFacets = new HashSet<>();
-
-            this.facetMap.entrySet()
-                .stream()
-                .forEach((Map.Entry<String, String> facetMapping) -> {
-
-                    if (facetMapping.getValue() == null) {
-                        deprecatedFacets.add(facetMapping.getKey());
-                    } else {
-                        reverseFacetMap.put(facetMapping.getValue(), facetMapping.getKey());
-                    }
-                });
-        }
     }
-
 
     @Override
     public void setResponse(NamedList<Object> res) {
@@ -59,7 +48,73 @@ public class FieldMappedQueryResponse extends QueryResponse {
 
     @Override
     public SolrDocumentList getResults() {
-        return delegate.getResults();
+
+        if (this._results == null) {
+
+            this._results = delegate.getResults();
+
+            if (this._results == null) {
+                return null;
+            }
+
+            logger.debug("before results translation: " + this._results);
+
+            Map<String, String[]> flMappings = this.solrParams.paramsInverseTranslations.get("fl");
+
+//            List<Pair<String, String>> fieldMappings =
+//                    Arrays.stream(this.solrParams.originalParams.getParams("fl"))
+//                            .flatMap((String fl) -> Arrays.stream(fl.split(",")))
+//                            .filter(Strings::isNullOrEmpty)
+//                            .flatMap((String fl) -> Arrays.stream(flMappings.get(fl)).collect())
+//                            .map((String fl) -> {
+//
+//                                Pair<String, String> flMapping = flMappings.stream().findFirst((Pair<String, String> mapping) -> fl.equals(mapping.first()));
+//
+//                                if (flMapping != null) {
+//                                    return flMapping;
+//                                }
+//                                return new Pair(fl, fl);
+//                            })
+//                            .collect(Collectors.toList());
+
+
+
+            this._results.forEach((SolrDocument solrDocument) -> {
+
+                Set<Pair<String, Object>> addFields = new HashSet();
+                Set<String> removeFields = new HashSet();
+
+                for (String fieldName : solrDocument.getFieldNames()) {
+
+                    String[] legacyFieldNames = flMappings.get(fieldName);
+
+                    if (legacyFieldNames != null) {
+
+                        boolean removeMappedField = true;
+                        for (String legacyFieldName : legacyFieldNames) {
+
+                            if (fieldName.equals(legacyFieldName)) {
+                                removeMappedField = false;
+                            } else if (legacyFieldName != null) {
+                                addFields.add(Pair.of(legacyFieldName, solrDocument.getFieldValue(fieldName)));
+                            }
+                        }
+
+                        if (removeMappedField) {
+                            removeFields.add(fieldName);
+                        }
+                    }
+                }
+
+                addFields.forEach((Pair<String, Object> field) -> solrDocument.setField(field.getLeft(), field.getRight()));
+
+                removeFields.forEach(solrDocument::removeFields);
+            });
+
+            logger.debug("after results translation: " + this._results);
+        }
+
+        return this._results;
     }
 
     @Override
@@ -124,84 +179,131 @@ public class FieldMappedQueryResponse extends QueryResponse {
 
     @Override
     public List<FacetField> getFacetFields() {
-        return translateFacetFields(delegate.getFacetFields());
+
+        if (this._facetFields == null) {
+
+            List<FacetField> facetFields = delegate.getFacetFields();
+
+            if (facetFields == null) {
+                return null;
+            }
+
+            this._facetFields = new ArrayList<>();
+            Map<String, String[]> facetMappings = this.solrParams.paramsInverseTranslations.get("facet.field");
+
+            if (facetMappings != null) {
+
+                for (FacetField facetField : facetFields) {
+
+                    String facetName = facetField.getName();
+                    String[] legacyFacetNames = facetMappings.getOrDefault(facetName, new String[0]);
+
+                    for (String legacyFacetName : legacyFacetNames) {
+
+                        if (facetName.equals(legacyFacetName)) {
+
+                            this._facetFields.add(facetField);
+
+                        } else if (legacyFacetName != null) {
+
+                            FacetField legacyFacet = new FacetField(legacyFacetName);
+                            for (FacetField.Count facetFieldCount : facetField.getValues()) {
+                                legacyFacet.add(facetFieldCount.getName(), facetFieldCount.getCount());
+                            }
+
+                            this._facetFields.add(legacyFacet);
+                        }
+                    }
+                }
+            }
+        }
+
+        return this._facetFields;
     }
 
     @Override
     public List<FacetField> getFacetDates() {
-        return translateFacetFields(delegate.getFacetDates());
+
+        if (this._facetDates == null) {
+
+            List<FacetField> facetFields = delegate.getFacetDates();
+
+            if (facetFields == null) {
+                return null;
+            }
+
+            this._facetDates = new ArrayList<>();
+            Map<String, String[]> facetMappings = this.solrParams.paramsInverseTranslations.get("facet.field");
+
+            if (facetMappings != null) {
+
+                for (FacetField facetField : facetFields) {
+
+                    String facetName = facetField.getName();
+                    String[] legacyFacetNames = facetMappings.getOrDefault(facetName, new String[0]);
+
+                    for (String legacyFacetName : legacyFacetNames) {
+
+                        if (facetName.equals(legacyFacetName)) {
+
+                            this._facetDates.add(facetField);
+
+                        } else if (legacyFacetName != null) {
+
+                            FacetField legacyFacet = new FacetField(legacyFacetName);
+                            for (FacetField.Count facetFieldCount : facetField.getValues()) {
+                                legacyFacet.add(facetFieldCount.getName(), facetFieldCount.getCount());
+                            }
+
+                            this._facetDates.add(legacyFacet);
+                        }
+                    }
+                }
+            }
+        }
+
+        return this._facetDates;
     }
 
     @Override
     public List<RangeFacet> getFacetRanges() {
-/*
-        List<FacetField> translatedFacetFields = new ArrayList<>();
 
-        for (RangeFacet rangeFacet : delegate.getFacetRanges()) {
+        if (this._rangeFacets == null) {
 
-            RangeFacet translatedRangeFacet = rangeFacet;
+            List<RangeFacet> facetRanges = delegate.getFacetRanges();
 
-            String legacyFacetName = reverseFacetMap.get(rangeFacet.getName());
-
-            if (legacyFacetName != null) {
-                translatedRangeFacet = new RangeFacet() {
-
-                }
-                for (FacetField.Count facetFieldCount : rangeFacet.getValues()) {
-                    translatedRangeFacet.add(facetFieldCount.getName(), facetFieldCount.getCount());
-                }
+            if (facetRanges == null) {
+                return null;
             }
 
-            translatedFacetFields.add(translatedRangeFacet);
-        }
+            this._rangeFacets = new ArrayList<>();
+            Map<String, String[]> facetMappings = this.solrParams.paramsInverseTranslations.get("facet.range");
 
-        for (String deprecatedFacetName : deprecatedFacets) {
+            if (facetMappings != null) {
 
-            FacetField deprecatedFacet = new FacetField(deprecatedFacetName);
+                for (RangeFacet rangeFacet : facetRanges) {
 
-            translatedFacetFields.add(deprecatedFacet);
-        }
+                    String facetName = rangeFacet.getName();
+                    String[] legacyFacetNames = facetMappings.getOrDefault(facetName, new String[0]);
 
-        return translatedFacetFields;
-*/
+                    for (String legacyFacetName : legacyFacetNames) {
 
-        return delegate.getFacetRanges();
-    }
+                        if (facetName.equals(legacyFacetName)) {
 
-    private List<FacetField> translateFacetFields(List<FacetField> facetFields) {
+                            this._rangeFacets.add(rangeFacet);
 
-        List<FacetField> translatedFacetFields = new ArrayList<>();
+                        } else if (legacyFacetName != null) {
 
-        if (facetFields != null) {
+                            RangeFacet legacyFacet = new WrappedRangeFacet(legacyFacetName, rangeFacet);
 
-            for (FacetField facetField : facetFields) {
-
-                FacetField translatedFacetField = facetField;
-
-                String legacyFacetName = reverseFacetMap.get(facetField.getName());
-
-                if (legacyFacetName != null) {
-                    translatedFacetField = new FacetField(legacyFacetName);
-                    for (FacetField.Count facetFieldCount : facetField.getValues()) {
-                        translatedFacetField.add(facetFieldCount.getName(), facetFieldCount.getCount());
+                            this._rangeFacets.add(legacyFacet);
+                        }
                     }
                 }
-
-                translatedFacetFields.add(translatedFacetField);
             }
         }
 
-        if (deprecatedFacets != null) {
-
-            for (String deprecatedFacetName : deprecatedFacets) {
-
-                FacetField deprecatedFacet = new FacetField(deprecatedFacetName);
-
-                translatedFacetFields.add(deprecatedFacet);
-            }
-        }
-
-        return translatedFacetFields;
+        return this._rangeFacets;
     }
 
     @Override
@@ -212,56 +314,90 @@ public class FieldMappedQueryResponse extends QueryResponse {
     @Override
     public List<IntervalFacet> getIntervalFacets() {
 
-        // TODO: PIPELINES: unable to wrap IntervalFacet due to private constructor
-        return delegate.getIntervalFacets();
+        if (this._intervalFacets == null) {
+
+            List<IntervalFacet> intervalFacets = delegate.getIntervalFacets();
+
+            if (intervalFacets == null) {
+                return null;
+            }
+
+            this._intervalFacets = new ArrayList<>();
+            Map<String, String[]> facetMappings = this.solrParams.paramsInverseTranslations.get("facet.interval");
+
+            if (facetMappings != null) {
+
+                for (IntervalFacet intervalFacet : intervalFacets) {
+
+                    String facetName = intervalFacet.getField();
+                    String[] legacyFacetNames = facetMappings.getOrDefault(facetName, new String[0]);
+
+                    for (String legacyFacetName : legacyFacetNames) {
+
+                        if (facetName.equals(legacyFacetName)) {
+
+                            this._intervalFacets.add(intervalFacet);
+
+                        } else if (legacyFacetName != null) {
+
+//                            IntervalFacet legacyFacet = new IntervalFacet() {
+//
+//                                public String getField() {
+//                                    return legacyFacetName;
+//                                }
+//
+//                                public List<IntervalFacet.Count> getIntervals() {
+//                                    return intervalFacet.getIntervals();
+//                                }
+//                            };
+//
+//                            this._intervalFacets.add(legacyFacet);
+                        }
+                    }
+                }
+            }
+        }
+
+        return this._intervalFacets;
     }
 
     @Override
     public FacetField getFacetField(String name) {
 
-//        return delegate.getFacetField(name);
-        return translateFacetField(name, (String n) -> {
-            FacetField facetField = delegate.getFacetField(n);
-            return facetField;
-        });
+        List<FacetField> facetFields = this.getFacetFields();
+
+        if (facetFields == null || facetFields.isEmpty()) {
+
+            return null;
+        }
+
+        // find the facet field filtered by facet.name
+        return facetFields.stream()
+                .filter((FacetField ff) -> ff.getName().equals(name))
+                .findFirst()
+                .orElse(null);
     }
 
     @Override
     public FacetField getFacetDate(String name) {
 
-        return translateFacetField(name, (String n) -> delegate.getFacetDate(n));
-    }
+        List<FacetField> facetFields = this.getFacetDates();
 
-    private FacetField translateFacetField(String name, Function<String, FacetField> callback) {
+        if (facetFields == null || facetFields.isEmpty()) {
 
-        String newFacetFieldName = facetMap.getOrDefault(name, "\0");
-
-        FacetField translatedFacetField;
-
-        if ("\0".equals(newFacetFieldName)) {
-            translatedFacetField = callback.apply(name);
-        } else if (newFacetFieldName == null) {
-
-            translatedFacetField = new FacetField(name);
-
-        } else {
-
-            translatedFacetField = new FacetField(name);
-            FacetField newFacetField = callback.apply(newFacetFieldName);
-
-            if (newFacetField != null) {
-                for (FacetField.Count facetFieldCount : newFacetField.getValues()) {
-                    translatedFacetField.add(facetFieldCount.getName(), facetFieldCount.getCount());
-                }
-            }
+            return null;
         }
 
-        return translatedFacetField;
+        // find the facet date filtered by facet.name
+        return facetFields.stream()
+                .filter((FacetField ff) -> ff.getName().equals(name))
+                .findFirst()
+                .orElse(null);
     }
 
     @Override
     public List<FacetField> getLimitingFacets() {
-        return translateFacetFields(delegate.getLimitingFacets());
+        return delegate.getLimitingFacets();
     }
 
     @Override
@@ -332,5 +468,20 @@ public class FieldMappedQueryResponse extends QueryResponse {
         return SolrResponse.deserialize(bytes);
     }
 
+    class WrappedRangeFacet<B, G> extends RangeFacet<B, G> {
 
+        protected WrappedRangeFacet(String name, B start, B end, G gap, Number before, Number after, Number between) {
+            super(name, start, end, gap, before, after, between);
+        }
+
+        public WrappedRangeFacet(String name, RangeFacet<B, G> rangedFacet) {
+            super(name,
+                    rangedFacet.getStart(),
+                    rangedFacet.getEnd(),
+                    rangedFacet.getGap(),
+                    rangedFacet.getBefore(),
+                    rangedFacet.getAfter(),
+                    rangedFacet.getBetween());
+        }
+    }
 }
