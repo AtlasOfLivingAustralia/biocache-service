@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.CharSource;
 import com.google.common.io.Files;
 import org.ala.client.model.LogEventVO;
+import org.apache.commons.io.FileUtils;
 import org.junit.*;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
@@ -30,6 +31,8 @@ import org.springframework.core.io.ClassPathResource;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -55,7 +58,7 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
  * @author Peter Ansell
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(Files.class)
+@PrepareForTest(FileUtils.class)
 public class DownloadServiceTest {
 
     @Rule
@@ -542,9 +545,15 @@ public class DownloadServiceTest {
         testService = createDownloadServiceForOfflineTest();
 
         // mock the reading of the downloadEmailTemplate
-        mockStatic(Files.class);
-        given(Files.asCharSource(any(), eq(StandardCharsets.UTF_8))).willReturn(CharSource.wrap(""));
+//        mockStatic(Files.class);
+//        given(Files.asCharSource(any(), eq(StandardCharsets.UTF_8))).willReturn(CharSource.wrap(""));
 
+        mockStatic(FileUtils.class);
+        given(FileUtils.readFileToString(any(), eq(StandardCharsets.UTF_8))).willReturn("");
+
+        testService.support = "support@ala.org.au";
+        testService.myDownloadsUrl = "https://dev.ala.org.au/myDownloads";
+        testService.biocacheDownloadUrl = "http://dev.ala.org.au/biocache-download";
         testService.biocacheDownloadEmailTemplate = "/tmp/download-email.html";
         testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
 
@@ -557,6 +566,7 @@ public class DownloadServiceTest {
 
         DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, "::1", "", DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
+//        registerDownload.setFileLocation("/tmp/download.tmp");
         testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
         Thread.sleep(5000);
 
@@ -569,9 +579,13 @@ public class DownloadServiceTest {
         testService = createDownloadServiceForOfflineTest();
 
         // mock the reading of the downloadEmailTemplate
-        mockStatic(Files.class);
-        given(Files.asCharSource(any(), eq(StandardCharsets.UTF_8))).willReturn(CharSource.wrap(""));
+        mockStatic(FileUtils.class);
+        given(FileUtils.readFileToString(any(), eq(StandardCharsets.UTF_8))).willReturn("");
+        given(FileUtils.openOutputStream(any())).willReturn(new FileOutputStream(File.createTempFile("junit", "")));
 
+        testService.support = "support@ala.org.au";
+        testService.myDownloadsUrl = "https://dev.ala.org.au/myDownloads";
+        testService.biocacheDownloadUrl = "http://dev.ala.org.au/biocache-download";
         testService.biocacheDownloadEmailTemplate = "/tmp/download-email.html";
         testService.biocacheDownloadDoiEmailTemplate = "/tmp/download-email.html";
         testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
@@ -650,9 +664,12 @@ public class DownloadServiceTest {
         testService = createDownloadServiceForOfflineTest();
 
         // mock the reading of the downloadEmailTemplate
-        mockStatic(Files.class);
-        given(Files.asCharSource(any(), eq(StandardCharsets.UTF_8))).willReturn(CharSource.wrap(""));
+        mockStatic(FileUtils.class);
+        given(FileUtils.readFileToString(any(), eq(StandardCharsets.UTF_8))).willReturn("");
 
+        testService.support = "support@dev.ala.org.au";
+        testService.myDownloadsUrl = "https://dev.ala.org.au/myDownloads";
+        testService.biocacheDownloadUrl = "http://dev.ala.org.au/biocache-download";
         testService.biocacheDownloadEmailTemplate = "/tmp/download-email.html";
         testService.biocacheDownloadDoiEmailTemplate = "/tmp/download-email.html";
         testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
