@@ -60,6 +60,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+
 import static au.org.ala.biocache.dto.OccurrenceIndex.*;
 
 /**
@@ -108,6 +109,29 @@ public class WMSController extends AbstractSecureController{
      */
     @Value("${wms.cache.enabled:true}")
     private boolean wmsCacheEnabled;
+    /**
+     * max WMS point width in pixels. This makes better use of the searchDAO.getHeatMap cache.
+     */
+    @Value("${wms.cache.point.width.max:15}")
+    private Integer wmsMaxPointWidth;
+    /**
+     * uncertainty distance grouping used by WMS
+     */
+    @Value("${wms.uncertainty.grouping:0,1000,2000,4000,8000,16000,30000}")
+    private String uncertaintyGroupingStr;
+    private double[] uncertaintyGrouping;
+
+    private double[] getUncertaintyGrouping() {
+        if (uncertaintyGrouping == null) {
+            try {
+                uncertaintyGrouping = Arrays.stream(uncertaintyGroupingStr.split(",")).mapToDouble((a -> Double.parseDouble(a))).toArray();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return uncertaintyGrouping;
+    }
+
     /**
      * Logger initialisation
      */
@@ -1458,8 +1482,6 @@ public class WMSController extends AbstractSecureController{
             logger.debug("vars.colourMode = " + vars.colourMode);
         }
 
-        // add a buffer of 10px
-        // add buffer
         float pointWidth = (float) (vars.size * 2);
 
         // format the query -  this will deal with radius / wkt
@@ -1468,20 +1490,59 @@ public class WMSController extends AbstractSecureController{
         //retrieve legend
         List<LegendItem> legend = searchDAO.getColours(requestParams, vars.colourMode);
 
-        if (!isGrid) {
-            // increase BBOX by pointWidth either side
-            bbox[0] = bbox[0] - ((pointWidth / (256f)) * (bbox[2] - bbox[0]));
-            bbox[1] = bbox[1] - ((pointWidth / (256f)) * (bbox[3] - bbox[1]));
-            bbox[2] = bbox[2] + ((pointWidth / (256f)) * (bbox[2] - bbox[0]));
-            bbox[3] = bbox[3] + ((pointWidth / (256f)) * (bbox[3] - bbox[1]));
+        HeatmapDTO heatmapDTO;
+
+        // Increase size of area requested to incude occurrences around the edge that overlap with the target area when drawn.
+        int additionalBuffer = 2;   // hide rounding errors and some projection errors
+        double bWidth = ((bbox[2] - bbox[0]) / (double) width) * (Math.max(wmsMaxPointWidth, pointWidth) + additionalBuffer);
+        double bHeight = ((bbox[3] - bbox[1]) / (double) height) * (Math.max(wmsMaxPointWidth, pointWidth) + additionalBuffer);
+
+        heatmapDTO = searchDAO.getHeatMap(requestParams.getFormattedQuery(), requestParams.getFormattedFq(), bbox[0] - bWidth, bbox[1] - bHeight, bbox[2] + bWidth, bbox[3] + bHeight, legend, isGrid ? (int) Math.ceil(width / (double) gridDivisionCount) : 1);
+        heatmapDTO.setTileExtents(bbox);
+
+        if (hiddenFacets != null) {
+            for (Integer hf : hiddenFacets) {
+                if (heatmapDTO.layers.size() < hf) {
+                    heatmapDTO.layers.set(hf, null);
+                }
+            }
         }
 
-        HeatmapDTO heatmapDTO = searchDAO.getHeatMap(requestParams, bbox[0], bbox[1], bbox[2], bbox[3], legend, hiddenFacets, isGrid);
+        HeatmapDTO uncertaintyHeatmap = null;
+        legend = new ArrayList();
+        if (!isGrid && vars.uncertainty) {
+            List<LegendItem> uncertaintyLegend = new ArrayList();
+            Double lastDistance = null;
+            for (Double d : getUncertaintyGrouping()) {
+                LegendItem li;
+                if (lastDistance == null) {
+
+                    li = new LegendItem(
+                            null, null, null, 0, "coordinateUncertaintyInMeters:[* TO " + d + "]");
+                } else if (lastDistance == getUncertaintyGrouping()[getUncertaintyGrouping().length - 1]) {
+                    li =
+                            new LegendItem(null, null, null, 0, "coordinateUncertaintyInMeters:(" + d + " TO *]");
+                } else {
+                    li =
+                            new LegendItem(null, null, null, 0, "coordinateUncertaintyInMeters:(" + lastDistance + " TO " + d + "]");
+                }
+                legend.add(li);
+                lastDistance = d;
+            }
+
+            uncertaintyHeatmap = searchDAO.getHeatMap(requestParams.getFormattedQuery(), requestParams.getFormattedFq(), bbox[0] - bWidth, bbox[1] - bHeight, bbox[2] + bWidth, bbox[3] + bHeight, uncertaintyLegend, 1);
+            uncertaintyHeatmap.setTileExtents(bbox);
+        }
 
         if (heatmapDTO.layers == null) {
             displayBlankImage(response);
             return null;
         }
+
+        CRSAuthorityFactory factory = CRS.getAuthorityFactory(true);
+        CoordinateReferenceSystem sourceCRS = factory.createCoordinateReferenceSystem(srs);
+        CoordinateReferenceSystem targetCRS = factory.createCoordinateReferenceSystem("EPSG:4326");
+        CoordinateOperation transformFrom4326 = new DefaultCoordinateOperationFactory().createOperation(targetCRS, sourceCRS);
 
         // render PNG...
         ImgObj tile = renderHeatmap(heatmapDTO,
@@ -1490,7 +1551,8 @@ public class WMSController extends AbstractSecureController{
                 outlinePoints,
                 outlineColour,
                 width,
-                height
+                height, transformFrom4326, tilebbox,
+                uncertaintyHeatmap
         );
 
         if (tile != null && tile.g != null) {
@@ -2695,17 +2757,18 @@ public class WMSController extends AbstractSecureController{
     }
 
     private ImgObj renderHeatmap(HeatmapDTO heatmapDTO,
-                               WmsEnv vars,
-                               float pointWidth,
-                               boolean outlinePoints,
-                               String outlineColour,
-                               int tileWidthInPx,
-                               int tileHeightInPx
-    )  {
+                                 WmsEnv vars,
+                                 float pointWidth,
+                                 boolean outlinePoints,
+                                 String outlineColour,
+                                 int tileWidthInPx,
+                                 int tileHeightInPx, CoordinateOperation transformFrom4326, double[] tilebbox,
+                                 HeatmapDTO uncertaintyHeatmap
+    ) {
 
         List<List<List<Integer>>> layers = heatmapDTO.layers;
 
-        if (layers.isEmpty()){
+        if (layers.isEmpty()) {
             return null;
         }
 
@@ -2713,24 +2776,24 @@ public class WMSController extends AbstractSecureController{
             logger.debug("Image width:" + tileWidthInPx + ", height:" + tileHeightInPx);
         }
 
-        ImgObj imgObj = ImgObj.create( (int)(tileWidthInPx ), (int) (tileHeightInPx ));
+        ImgObj imgObj = ImgObj.create((int) (tileWidthInPx), (int) (tileHeightInPx));
 
         int layerIdx = 0;
 
-        // render layers remainder layers
-        for (List<List<Integer>> rows : layers){
-
-            if (heatmapDTO.legend !=null && heatmapDTO.legend.get(layerIdx) != null && heatmapDTO.legend.get(layerIdx).isRemainder()) {
+        // render layers remainder
+        for (List<List<Integer>> rows : layers) {
+            if (heatmapDTO.legend != null && heatmapDTO.legend.get(layerIdx) != null && heatmapDTO.legend.get(layerIdx).isRemainder()) {
                 renderLayer(heatmapDTO,
                         vars,
                         pointWidth,
                         outlinePoints,
                         outlineColour,
+                        true,
                         (float) tileWidthInPx,
                         (float) tileHeightInPx,
                         imgObj,
                         layerIdx,
-                        rows);
+                        rows, transformFrom4326, tilebbox);
             }
             layerIdx++;
         }
@@ -2738,121 +2801,198 @@ public class WMSController extends AbstractSecureController{
         layerIdx = 0;
 
         // render layers
-        for (List<List<Integer>> rows : layers){
-
+        for (List<List<Integer>> rows : layers) {
             if (heatmapDTO.legend == null || heatmapDTO.legend.get(layerIdx) == null || !heatmapDTO.legend.get(layerIdx).isRemainder()) {
                 renderLayer(heatmapDTO,
                         vars,
                         pointWidth,
                         outlinePoints,
                         outlineColour,
+                        true,
                         (float) tileWidthInPx,
                         (float) tileHeightInPx,
                         imgObj,
                         layerIdx,
-                        rows);
+                        rows, transformFrom4326, tilebbox);
             }
             layerIdx++;
+        }
+
+        // render uncertainty layer
+        if (uncertaintyHeatmap != null && uncertaintyHeatmap.layers != null) {
+            layerIdx = 0;
+            try {
+                for (List<List<Integer>> rows : uncertaintyHeatmap.layers) {
+                    // aproximate conversion of meters to decimal degrees (1:100000) followed by conversion to pixels
+                    GeneralDirectPosition coord1 = new GeneralDirectPosition(getUncertaintyGrouping()[layerIdx] / 100000.0, 0);
+                    GeneralDirectPosition coord2 = new GeneralDirectPosition(0, 0);
+                    DirectPosition pos1 = transformFrom4326.getMathTransform().transform(coord1, null);
+                    DirectPosition pos2 = transformFrom4326.getMathTransform().transform(coord2, null);
+                    int px1 = scaleLongitudeForImage(pos1.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
+                    int px2 = scaleLatitudeForImage(pos2.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
+                    int uncertaintyWidthInPixels = Math.abs(px1 - px2);
+
+                    // legacy colours for uncertainty circles
+                    String colour;
+                    if (layerIdx == getUncertaintyGrouping().length - 1) {
+                        colour = "0x32ff32";
+                    } else {
+                        colour = "0xffaa00";
+                    }
+
+                    renderLayer(
+                            uncertaintyHeatmap,
+                            vars,
+                            uncertaintyWidthInPixels,
+                            outlinePoints,
+                            colour,
+                            false,
+                            (float) tileWidthInPx,
+                            (float) tileHeightInPx,
+                            imgObj,
+                            layerIdx,
+                            rows,
+                            transformFrom4326,
+                            tilebbox
+                    );
+                    layerIdx++;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         return imgObj;
     }
 
-    private void renderLayer(HeatmapDTO heatmapDTO, WmsEnv vars, float pointWidth, boolean outlinePoints, String outlineColour, float tileWidthInPx, float tileHeightInPx, ImgObj imgObj, int layerIdx, List<List<Integer>> rows) {
+    private void renderLayer(HeatmapDTO heatmapDTO, WmsEnv vars, float pointWidth, boolean outlinePoints, String outlineColour, boolean drawPointFill,
+                             float tileWidthInPx,
+                             float tileHeightInPx, ImgObj imgObj, int layerIdx, List<List<Integer>> rows, CoordinateOperation transformFrom4326, double[] tilebbox) {
+
         if (rows != null && !rows.isEmpty()) {
 
             final int numberOfRows = rows.size();
-            Integer nofOfColumns = -1;
-            for (List<Integer> row : rows) {
-                if (row != null) {
-                    nofOfColumns = row.size();
-                    break;
-                }
-            }
 
-            if (logger.isDebugEnabled()) {
-                logger.debug("Rows:" + numberOfRows + ", columns:" + nofOfColumns);
-            }
-
-            float cellWidth = tileWidthInPx / (float) nofOfColumns;
-            float cellHeight = tileHeightInPx / (float) numberOfRows;
-
-            if (logger.isDebugEnabled()) {
-                logger.debug("cellWidth:" + cellWidth + ", cellHeight:" + cellHeight);
-            }
+            // heatmap cell size
+            double cellWidth = heatmapDTO.columnWidth();
+            double cellHeight = heatmapDTO.rowHeight();
 
             Color oColour = Color.decode(outlineColour);
 
-            for (int row = 0; row < numberOfRows; row++) {
+            // default colour
+            Paint currentFill = null;
+
+            if (heatmapDTO.legend == null || heatmapDTO.legend.isEmpty()) {
+                currentFill = new Color(vars.colour);
+                imgObj.g.setPaint(currentFill);
+            }
+
+            int rowStep = 1;
+            int columnStep = 1;
+
+            // determine if grid cells should be aggregated
+            if (heatmapDTO.gridSizeInPixels > 1) {
+                while (tileWidthInPx / (double) heatmapDTO.gridSizeInPixels < heatmapDTO.columns / columnStep) {
+                    columnStep++;
+                }
+                while (tileHeightInPx / (double) heatmapDTO.gridSizeInPixels < heatmapDTO.rows / rowStep) {
+                    rowStep++;
+                }
+            }
+
+            // heatmap contains counts of an underlying grid
+            for (int row = 0; row < numberOfRows; row += rowStep) {
+                // heatmap grid cell centre latitude
+                double lat = heatmapDTO.maxy - (cellHeight * (row + 0.5));
 
                 List<Integer> columns = rows.get(row);
 
                 if (columns != null) {
                     // render each column with a point
-                    for (int column = 0; column < columns.size(); column++) {
+                    for (int column = 0; column < columns.size(); column += columnStep) {
+
                         Integer cellValue = columns.get(column);
 
+                        // aggregate grid cells
+                        if (rowStep > 1 || columnStep > 1) {
+                            cellValue = 0;
+                            for (int r = 0; r < rowStep && row + r < rows.size(); r++) {
+                                List<Integer> rw = rows.get(row + r);
+                                for (int c = 0; rw != null && c < columnStep && column + c < rw.size(); c++) {
+                                    cellValue += rw.get(column + c);
+                                }
+                            }
+                        }
+
                         if (cellValue > 0) {
+                            try {
+                                if (heatmapDTO.gridSizeInPixels > 1) {
+                                    double minLat = heatmapDTO.maxy - (cellHeight * (row + rowStep));
+                                    double maxLat = heatmapDTO.maxy - (cellHeight * (row));
+                                    double minLng = heatmapDTO.minx + cellWidth * (column);
+                                    double maxLng = heatmapDTO.minx + cellWidth * (column + columnStep);
 
-                            if (heatmapDTO.isGrid) {
+                                    // make coordinates to match target SRS
+                                    GeneralDirectPosition sourceCoordsBottomLeft = new GeneralDirectPosition(minLng, minLat);
+                                    GeneralDirectPosition sourceCoordsTopRight = new GeneralDirectPosition(maxLng, maxLat);
+                                    DirectPosition targetCoordsBottomLeft = transformFrom4326.getMathTransform().transform(sourceCoordsBottomLeft, null);
+                                    DirectPosition targetCoordsTopRight = transformFrom4326.getMathTransform().transform(sourceCoordsTopRight, null);
+                                    int px1 = scaleLongitudeForImage(targetCoordsBottomLeft.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
+                                    int py1 = scaleLatitudeForImage(targetCoordsBottomLeft.getOrdinate(1), tilebbox[3], tilebbox[1], (int) tileHeightInPx);
+                                    int px2 = scaleLongitudeForImage(targetCoordsTopRight.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
+                                    int py2 = scaleLatitudeForImage(targetCoordsTopRight.getOrdinate(1), tilebbox[3], tilebbox[1], (int) tileHeightInPx);
 
-                                int x = -1;
-                                int y = -1;
-
-                                if (column == 0) {
-                                    x = 0;
+                                    int v = cellValue;
+                                    if (v > 500) {
+                                        v = 500;
+                                    }
+                                    int colour = (((500 - v) / 2) << 8) | (vars.alpha << 24) | 0x00FF0000;
+                                    if (drawPointFill) {
+                                        imgObj.g.setColor(new Color(colour));
+                                        imgObj.g.fillRect(
+                                                Math.min(px1, px2),
+                                                Math.min(py1, py2),
+                                                Math.abs(px2 - px1),
+                                                Math.abs(py2 - py1));
+                                    }
+                                    if (outlinePoints) {
+                                        imgObj.g.setPaint(oColour);
+                                        imgObj.g.drawRect(Math.min(px1, px2), Math.min(py1, py2), Math.abs(px2 - px1), Math.abs(py2 - py1));
+                                    }
                                 } else {
-                                    x = Math.round(cellWidth * (float) column);
-                                }
-                                if (row == 0) {
-                                    y = 0;
-                                } else {
-                                    y = Math.round(cellHeight * (float) row);
-                                }
 
-                                int v = cellValue;
-                                if (v > 500) {
-                                    v = 500;
+                                    // heatmap grid cell centre longitude
+                                    double lng = heatmapDTO.minx + cellWidth * (column + 0.5);
+
+                                    // make coordinates to match target SRS
+                                    GeneralDirectPosition sourceCoords = new GeneralDirectPosition(lng, lat);
+                                    DirectPosition targetCoords = transformFrom4326.getMathTransform().transform(sourceCoords, null);
+                                    int px = scaleLongitudeForImage(targetCoords.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
+                                    int py = scaleLatitudeForImage(targetCoords.getOrdinate(1), tilebbox[3], tilebbox[1], (int) tileHeightInPx);
+
+                                    if (heatmapDTO.legend != null && !heatmapDTO.legend.isEmpty()) {
+                                        currentFill = new Color(heatmapDTO.legend.get(layerIdx).getColour() | (vars.alpha << 24));
+                                        imgObj.g.setPaint(currentFill);
+                                    }
+                                    imgObj.g.fillOval(
+                                            px - (int) (pointWidth / 2),
+                                            py - (int) (pointWidth / 2),
+                                            (int) pointWidth,
+                                            (int) pointWidth);
+
+                                    if (outlinePoints) {
+                                        imgObj.g.setPaint(oColour);
+                                        imgObj.g.drawOval(
+                                                px - (int) (pointWidth / 2),
+                                                py - (int) (pointWidth / 2),
+                                                (int) pointWidth,
+                                                (int) pointWidth);
+                                        imgObj.g.setPaint(currentFill);
+                                    }
                                 }
-                                int colour = (((500 - v) / 2) << 8) | (vars.alpha << 24) | 0x00FF0000;
-                                imgObj.g.setColor(new Color(colour));
-                                imgObj.g.fillRect(x, y, (int) Math.ceil(cellWidth), (int) Math.ceil(cellHeight));
-                                if (outlinePoints) {
-                                    imgObj.g.setPaint(Color.BLACK);
-                                    imgObj.g.drawRect(x, y, (int) Math.ceil(cellWidth), (int) Math.ceil(cellHeight));
-                                }
-                            } else {
-
-                                // cell width / height adjustment to take in padding
-                                float cellWidthWithPadding = (tileWidthInPx + (pointWidth * 2f)) / (float) nofOfColumns;
-                                float cellHeightWithPadding = (tileHeightInPx + (pointWidth * 2f)) / (float) numberOfRows;
-
-                                int x = (int) ((cellWidthWithPadding  * (float) column) - pointWidth);
-                                int y = (int) ((cellHeightWithPadding * (float) row)    - pointWidth);
-
-                                Paint currentFill = null;
-                                if (heatmapDTO.legend != null && !heatmapDTO.legend.isEmpty()){
-                                    currentFill = new Color(heatmapDTO.legend.get(layerIdx).getColour() | (vars.alpha << 24));
-                                } else {
-                                    currentFill = new Color(vars.colour | (vars.alpha << 24), true);
-                                }
-                                imgObj.g.setPaint(currentFill);
-
-                                imgObj.g.fillOval(
-                                        x, //+ (int) (( pointWidth) / 2),
-                                        y, // + (int) (( pointWidth) / 2),
-                                        (int) pointWidth,
-                                        (int) pointWidth);
-
-                                if (outlinePoints) {
-                                    imgObj.g.setPaint(oColour);
-                                    imgObj.g.drawOval(
-                                        x, //   + (int) (( pointWidth) / 2),
-                                        y, // + (int) (( pointWidth) / 2),
-                                        (int) pointWidth,
-                                        (int) pointWidth);
-                                    imgObj.g.setPaint(currentFill);
-                                }
+                            } catch (MismatchedDimensionException e) {
+                            } catch (TransformException e) {
+                                // failure to transform a coordinate will result in it not rendering
                             }
                         }
                     }

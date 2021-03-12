@@ -31,9 +31,9 @@
         <solr.version>8.4.1</solr.version>
         <cassandra.version>3.10.2</cassandra.version>
         <jackson.version>2.9.8</jackson.version>
-        <gt.version>11.1</gt.version>
+        <gt.version>22.2</gt.version>
         <guava.hbase.version>23.0</guava.hbase.version>
-        <ala-namematching-service.version>1.1</ala-namematching-service.version>
+        <ala-namematching-service.version>1.1.1</ala-namematching-service.version>
         <solr8.zk.port>9983</solr8.zk.port>
         <solr8.http.port>8983</solr8.http.port>
         <solr8.zk.host>localhost</solr8.zk.host>
@@ -136,11 +136,6 @@
         <!-- geotools GML support -->
         <dependency>
             <groupId>org.geotools</groupId>
-            <artifactId>gt-api</artifactId>
-            <version>${gt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.geotools</groupId>
             <artifactId>gt-main</artifactId>
             <version>${gt.version}</version>
         </dependency>
@@ -149,11 +144,11 @@
             <artifactId>gt-opengis</artifactId>
             <version>${gt.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.geotools</groupId>
-            <artifactId>gt-coverage</artifactId>
-            <version>${gt.version}</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.geotools</groupId>-->
+<!--            <artifactId>gt-coverage</artifactId>-->
+<!--            <version>${gt.version}</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>org.geotools</groupId>
             <artifactId>gt-shapefile</artifactId>
@@ -162,11 +157,6 @@
         <dependency>
             <groupId>org.geotools</groupId>
             <artifactId>gt-graph</artifactId>
-            <version>${gt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.geotools</groupId>
-            <artifactId>gt-data</artifactId>
             <version>${gt.version}</version>
         </dependency>
         <dependency>

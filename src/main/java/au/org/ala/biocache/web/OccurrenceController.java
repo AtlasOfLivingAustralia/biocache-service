@@ -2242,6 +2242,7 @@ public class OccurrenceController extends AbstractSecureController {
      * <p/>
      * facets is the pivot facet list
      */
+    @Deprecated
     @RequestMapping("occurrence/pivot")
     public
     @ResponseBody
@@ -2261,6 +2262,7 @@ public class OccurrenceController extends AbstractSecureController {
      * <p/>
      * Requires valid apiKey because it is very slow.
      */
+    @Deprecated
     @RequestMapping("occurrences/facets/available")
     public
     @ResponseBody

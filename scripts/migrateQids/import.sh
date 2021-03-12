@@ -11,7 +11,7 @@ echo "records in Cassandra before the import"
 cqlsh -e "SELECT count(*) FROM biocache.qid;"
 
 # Import
-cqlsh -e "COPY qid FROM '/data/tmp/qid.csv' WITH CHUNKSIZE=1 AND DELIMITER='\t';"
+cqlsh -e "COPY biocache.qid FROM '/data/tmp/qid.csv' WITH CHUNKSIZE=1 AND DELIMITER='\t';"
 
 # Report
 echo "records in Cassandra after the import"

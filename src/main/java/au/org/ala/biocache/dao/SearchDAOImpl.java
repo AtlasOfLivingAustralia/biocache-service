@@ -3656,104 +3656,182 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     @Override
-    public HeatmapDTO getHeatMap(SpatialSearchRequestParams searchParams,
-                                 Double minx,
-                                 Double miny,
-                                 Double maxx,
-                                 Double maxy,
-                                 List<LegendItem> legend,
-                                 Set<Integer> hiddenFacets,
-                                 boolean isGrid) throws Exception {
+    @Cacheable(cacheName = "heatmapCache")
+    public HeatmapDTO getHeatMap(
+            String query,
+            String[] filterQueries,
+            Double minx,
+            Double miny,
+            Double maxx,
+            Double maxy,
+            List<LegendItem> legend,
+            int gridSizeInPixels)
+            throws Exception {
 
         List<List<List<Integer>>> layers = new ArrayList<>();
 
+        // limit miny maxy to -90 90
+        if (miny < -90) miny = 90.0;
+        if (maxy > 90) maxy = 90.0;
+
+        // fix date line
+        while (maxx > 180) {
+            maxx -= 360;
+            minx -= 360;
+        }
+        while (minx < -180) {
+            maxx += 360;
+            minx += 360;
+        }
+
         // single layers
-        if (isGrid || legend == null || legend.isEmpty()){
-            //single layer
-            SolrQuery solrQuery = createHeatmapQuery(searchParams, minx, miny, maxx, maxy, isGrid);
-            QueryResponse qr = query(solrQuery); // can throw exception
+        if (gridSizeInPixels > 1 || legend == null || legend.isEmpty()) {
+            // single layer
+            QueryResponse qr = null;
+            int zoomOffset = 0;
+            while (qr == null && zoomOffset < 10) {
+                try {
+                    SolrQuery solrQuery =
+                            createHeatmapQuery(
+                                    query, filterQueries, minx, miny, maxx, maxy, gridSizeInPixels, zoomOffset);
+                    qr = query(solrQuery); // can throw exception
+                } catch (Exception e) {
+                    zoomOffset++;
+                }
+            }
             // FIXME UGLY - not needed with SOLR8, but current constraint is SOLR 6 API
             // See SpatialHeatmapFacets.HeatmapFacet in SOLR 8 API
-            SimpleOrderedMap facetHeatMaps = ((SimpleOrderedMap)((SimpleOrderedMap)((qr.getResponse().get("facet_counts")))).get("facet_heatmaps"));
+            SimpleOrderedMap facetHeatMaps =
+                    ((SimpleOrderedMap)
+                            ((SimpleOrderedMap) ((qr.getResponse().get("facet_counts")))).get("facet_heatmaps"));
 
-            Integer gridLevel = - 1;
+            Integer gridLevel = -1;
             if (facetHeatMaps != null) {
-                SimpleOrderedMap heatmap = (SimpleOrderedMap)  facetHeatMaps.get(spatialField);
+                SimpleOrderedMap heatmap = (SimpleOrderedMap) facetHeatMaps.get(spatialField);
                 gridLevel = (Integer) heatmap.get("gridLevel");
+                Integer rows = (Integer) heatmap.get("rows");
+                Integer columns = (Integer) heatmap.get("columns");
                 List<List<Integer>> layer = (List<List<Integer>>) heatmap.get("counts_ints2D");
+                Double hminx = (Double) heatmap.get("minX");
+                Double hminy = (Double) heatmap.get("minY");
+                Double hmaxx = (Double) heatmap.get("maxX");
+                Double hmaxy = (Double) heatmap.get("maxY");
                 layers.add(layer);
-                return new HeatmapDTO(gridLevel, layers, legend, isGrid);
+                return new HeatmapDTO(
+                        gridLevel, layers, legend, gridSizeInPixels, rows, columns, hminx, hminy, hmaxx, hmaxy);
             }
-
         } else {
-
             // multiple layers
-            Integer gridLevel= -1;
+            Integer gridLevel = -1;
+            Integer rows = 0;
+            Integer columns = 0;
+            Double hminx = minx;
+            Double hminy = miny;
+            Double hmaxx = maxx;
+            Double hmaxy = maxy;
 
-            for (int legendIdx = 0; legendIdx < legend.size(); legendIdx ++){
+            int zoomOffset = 0;
+            for (int legendIdx = 0; legendIdx < legend.size(); legendIdx++) {
+                LegendItem legendItem = legend.get(legendIdx);
 
-                if (!hiddenFacets.contains(legendIdx)){
+                // add the FQ for the legend item
 
-                    LegendItem legendItem = legend.get(legendIdx);
+                QueryResponse qr = null;
 
-                    SolrQuery solrQuery = createHeatmapQuery(searchParams, minx, miny, maxx, maxy, isGrid);
+                while (qr == null && zoomOffset < 10) {
+                    try {
+                        SolrQuery solrQuery =
+                                createHeatmapQuery(
+                                        query, filterQueries, minx, miny, maxx, maxy, gridSizeInPixels, zoomOffset);
+                        String[] fqs =
+                                Arrays.copyOf(
+                                        solrQuery.getFilterQueries(), solrQuery.getFilterQueries().length + 1);
+                        fqs[fqs.length - 1] = legendItem.getFq();
+                        solrQuery.setFilterQueries(fqs);
 
-                    //add the FQ for the legend item
-                    String[] filterQueries = Arrays.copyOf(solrQuery.getFilterQueries(), solrQuery.getFilterQueries().length + 1);
-                    filterQueries[filterQueries.length - 1] = legendItem.getFq();
-                    solrQuery.setFilterQueries(filterQueries);
-
-                    // query
-                    QueryResponse qr = query(solrQuery); // can throw exception
-                    SimpleOrderedMap facetHeatMaps = ((SimpleOrderedMap)((SimpleOrderedMap)((qr.getResponse().get("facet_counts")))).get("facet_heatmaps"));
-
-                    if (facetHeatMaps != null) {
-
-                        //iterate over legend
-                        SimpleOrderedMap heatmap = (SimpleOrderedMap)  facetHeatMaps.get(spatialField);
-                        gridLevel = (Integer) heatmap.get("gridLevel");
-                        List<List<Integer>> layer = (List<List<Integer>>) heatmap.get("counts_ints2D");
-                        layers.add(layer);
+                        // query
+                        qr = query(solrQuery); // can throw exception
+                    } catch (Exception ex) {
+                        zoomOffset++;
                     }
-                } else {
-                    layers.add(null);
+                }
+                SimpleOrderedMap facetHeatMaps =
+                        ((SimpleOrderedMap)
+                                ((SimpleOrderedMap) ((qr.getResponse().get("facet_counts"))))
+                                        .get("facet_heatmaps"));
+
+                if (facetHeatMaps != null) {
+                    // iterate over legend
+                    SimpleOrderedMap heatmap = (SimpleOrderedMap) facetHeatMaps.get(spatialField);
+                    gridLevel = (Integer) heatmap.get("gridLevel");
+                    List<List<Integer>> layer = (List<List<Integer>>) heatmap.get("counts_ints2D");
+                    rows = (Integer) heatmap.get("rows");
+                    columns = (Integer) heatmap.get("columns");
+                    hminx = (Double) heatmap.get("minX");
+                    hminy = (Double) heatmap.get("minY");
+                    hmaxx = (Double) heatmap.get("maxX");
+                    hmaxy = (Double) heatmap.get("maxY");
+                    layers.add(layer);
                 }
             }
 
-            return new HeatmapDTO(gridLevel, layers, legend, isGrid);
+            return new HeatmapDTO(
+                    gridLevel, layers, legend, gridSizeInPixels, rows, columns, hminx, hminy, hmaxx, hmaxy);
         }
 
         return null;
     }
 
-private SolrQuery createHeatmapQuery(SpatialSearchRequestParams searchParams, Double minx, Double miny, Double maxx, Double maxy, boolean isGrid) throws QidMissingException {
-
-        queryFormatUtils.formatSearchQuery(searchParams, true);
+    private SolrQuery createHeatmapQuery(
+            String query,
+            String[] filterQueries,
+            Double minx,
+            Double miny,
+            Double maxx,
+            Double maxy,
+            int gridSize,
+            int zoomOffset) {
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
         solrQuery.set("facet.heatmap", spatialField);
 
         // heatmaps support international date line
-        if (minx < -180){
+        if (minx < -180) {
             minx = minx + 360;
         }
 
-        if (maxx > 180){
+        if (maxx > 180) {
             maxx = maxx - 360;
         }
 
         String geom = "[\"" + minx + " " + miny + "\" TO \"" + maxx + " " + maxy + "\"]";
         solrQuery.set("facet.heatmap.geom", geom);
-        if (isGrid) {
-            solrQuery.set("facet.heatmap.distErrPct", "0.4"); //good for points
-        } else {
-            solrQuery.set("facet.heatmap.distErrPct", "0.05"); //good for points
+
+        // limit output grid to < distErr
+        double tileWidthInDecimalDegrees = maxx - minx;
+        double tileHeightInDecimalDegrees = maxy - miny;
+        int zoomLevel = 0;
+        double tileWidthInDDAtZoomLevel = 360;
+        while (Math.max(tileWidthInDecimalDegrees, tileHeightInDecimalDegrees)
+                < tileWidthInDDAtZoomLevel / (double) gridSize) {
+            zoomLevel++;
+            tileWidthInDDAtZoomLevel /= 2.0;
         }
+        // max grid level is 11
+        if (zoomLevel > 11) {
+            zoomLevel = 11;
+        }
+
+        // TODO: Zoom level is calculated poorly. zoomOffset is a temporary fix.
+        solrQuery.set(
+                "facet.heatmap.gridLevel",
+                String.valueOf(zoomLevel - zoomOffset)); // good for points, probably
+
         solrQuery.setFacetLimit(-1);
         solrQuery.setFacet(true);
-        solrQuery.setFilterQueries(searchParams.getFormattedFq());
+        solrQuery.setFilterQueries(filterQueries);
         solrQuery.setRows(0);
-        solrQuery.setQuery(searchParams.getFormattedQuery());
+        solrQuery.setQuery(query);
         return solrQuery;
     }
 }

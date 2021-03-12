@@ -400,19 +400,19 @@ public interface SearchDAO {
     /**
      * Query for heatmaps.
      *
-     * @param searchParams
+     * @param query
+     * @param filterQueries
      * @param minx
      * @param miny
      * @param maxx
      * @param maxy
      * @param legend
-     * @param hiddenFacets
      * @param isGrid
      * @return
      * @throws Exception
      */
-    HeatmapDTO getHeatMap(SpatialSearchRequestParams searchParams, Double minx, Double miny, Double maxx, Double maxy,
+    HeatmapDTO getHeatMap(String query, String [] filterQueries, Double minx, Double miny, Double maxx, Double maxy,
                           List<LegendItem> legend,
-                          Set<Integer> hiddenFacets,
-                          boolean isGrid) throws Exception;
+                          int gridSize) throws Exception;
+
 }

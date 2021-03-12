@@ -1,12 +1,15 @@
 package au.org.ala.biocache.util;
 
-import com.vividsolutions.jts.geom.Envelope;
-import com.vividsolutions.jts.geom.Geometry;
-import com.vividsolutions.jts.geom.GeometryCollection;
-import com.vividsolutions.jts.io.WKTReader;
-import com.vividsolutions.jts.simplify.TopologyPreservingSimplifier;
 import org.apache.log4j.Logger;
+import org.geotools.geometry.Envelope2D;
 import org.geotools.geometry.jts.JTS;
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.io.WKTReader;
+import org.locationtech.jts.simplify.TopologyPreservingSimplifier;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.opengis.referencing.operation.TransformException;
 
 /**
  * Supplies spatial utilities that can be used for the geospatial seaches
@@ -17,7 +20,7 @@ public class SpatialUtils {
 
     private final static Logger logger = Logger.getLogger(SpatialUtils.class);
   
-    private static final Geometry THE_WORLD=JTS.toGeometry(new Envelope(-180.0,180.0, -90.0, 90.0));
+    private static final Geometry THE_WORLD= JTS.toGeometry(new Envelope(-180, -90, 180, 90));
     private static final double TO_DEG = Math.toDegrees(1.0);
     /**
     * The Authalic mean radius (A<subscript>r</subscript>) of the earth
