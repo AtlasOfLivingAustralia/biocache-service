@@ -1004,7 +1004,7 @@ public class QueryFormatUtils {
 
         String speciesGuid = OccurrenceIndex.SPECIESID;
         String genusGuid = OccurrenceIndex.GENUSID;
-        String occurrenceYear = OccurrenceIndex.OCCURRENCE_YEAR_INDEX_FIELD;
+        String occurrenceYear = OccurrenceIndex.OCCURRENCE_YEAR;
         String month = OccurrenceIndex.MONTH;
 
         if (StringUtils.equals(fn, speciesGuid) || StringUtils.equals(fn, genusGuid)) {

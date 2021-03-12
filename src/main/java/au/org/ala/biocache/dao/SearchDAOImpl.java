@@ -1282,7 +1282,7 @@ public class SearchDAOImpl implements SearchDAO {
                         }
                     }
                     if (splitByFacet.size() > 0) {
-                        SolrQuery remainderQuery = solrQuery.getCopy().addFilterQuery("-" + splitByFacet.get(0).getFacetField().getName() + ":[* TO *]");
+                        SolrQuery remainderQuery = solrQuery.getCopy().addFilterQuery("-" + splitByFacet.get(0).getFacetField().getName() + ":*");
                         queries.add(0, remainderQuery);
                     }
                 } else {
@@ -2564,7 +2564,7 @@ public class SearchDAOImpl implements SearchDAO {
         if (searchParams.getFacet()) {
             for (String facet : searchParams.getFacets()) {
                 if (facet.equals(DECADE_FACET_NAME) || facet.equals("date")) {
-                    String fname = facet.equals(DECADE_FACET_NAME) ? OCCURRENCE_YEAR_INDEX_FIELD : occurrenceDate;
+                    String fname = facet.equals(DECADE_FACET_NAME) ? OCCURRENCE_YEAR : occurrenceDate;
                     initDecadeBasedFacet(solrQuery, fname);
                     rangeAdded = true; // the initDecadeBasedFacet adds a range
                 } else if (facet.equals("uncertainty")) {
@@ -2879,7 +2879,7 @@ public class SearchDAOImpl implements SearchDAO {
         if (cutpoints == null) {
             solrQuery.addFacetField(facetField);    // PIPELINES: SolrQuery::addFacetField entry point
         } else {
-            solrQuery.addFacetQuery("-" + facetField + ":[* TO *]");
+            solrQuery.addFacetQuery("-" + facetField + ":*");
 
             for (int i = 0; i < cutpoints.length; i += 2) {
                 solrQuery.addFacetQuery(facetField + ":[" + cutpoints[i] + " TO " + cutpoints[i + 1] + "]");
@@ -2905,11 +2905,10 @@ public class SearchDAOImpl implements SearchDAO {
                         if (fcount.getCount() > 0) {                    // TODO: PIPELINES: FacetField.Count::getCount entry point
                             String fq = facetField + ":\"" + fcount.getName() + "\"";   // TODO: PIPELINES: FacetField.Count::getName entry point
                             if (fcount.getName() == null) {             // TODO: PIPELINES: FacetField.Count::getName entry point
-                                fq = "-" + facetField + ":[* TO *]";
-                            }
-
-                            if (fcount.getName() != null) {
-                                addedFqs.add(fq);
+                                fq = "-" + facetField + ":*";
+                                addedFqs.add(facetField + ":*");
+                            } else {
+                                addedFqs.add("-" + fq);
                             }
 
                             if (skipI18n) {
@@ -2935,7 +2934,7 @@ public class SearchDAOImpl implements SearchDAO {
                             remainderCount += fcount.getCount();
                         }
 
-                        String theFq = "-(" + StringUtils.join(addedFqs, " OR ") +")";
+                        String theFq = "-(" + StringUtils.join(addedFqs, " AND ") +")";
                             // create a single catch remainder facet
                         legend.add(legend.size(), new LegendItem(
                             "Other " + facetField,
@@ -2983,7 +2982,7 @@ public class SearchDAOImpl implements SearchDAO {
                                 facetEntry.getFacetField().getName() + "." + facetEntry.getName(),
                                 facetEntry.getFacetField().getName(),
                                 facetEntry.getCount(),
-                                "occurrence_year:[" + startDate + " TO " + finishDate + "]")
+                                OCCURRENCE_YEAR + ":[" + startDate + " TO " + finishDate + "]")
                 );
             }
         }
@@ -3250,7 +3249,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      */
     String getFormattedFqQuery(String facet, String value) {
-        if (facet.equals(OCCURRENCE_YEAR_INDEX_FIELD)) {
+        if (facet.equals(OCCURRENCE_YEAR)) {
 
             if (value.equals(DECADE_PRE_1850_LABEL)) {
                 return facet + ":" + "[* TO " + DECADE_FACET_START_DATE + "]";
@@ -3281,7 +3280,7 @@ public class SearchDAOImpl implements SearchDAO {
     String getFacetValueDisplayName(String facet, String value) {
         if (facet.endsWith("_uid") || facet.endsWith("Uid")) {
             return searchUtils.getUidDisplayString(facet, value, false);
-        } else if (OccurrenceIndex.OCCURRENCE_YEAR_INDEX_FIELD.equals(facet) && value != null) {
+        } else if (OccurrenceIndex.OCCURRENCE_YEAR.equals(facet) && value != null) {
             try {
                 if (DECADE_PRE_1850_LABEL.equals(value)) {
                     return messageSource.getMessage("decade.pre.start", null, "pre 1850", null); // "pre 1850";

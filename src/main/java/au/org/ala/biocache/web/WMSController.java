@@ -1406,6 +1406,13 @@ public class WMSController extends AbstractSecureController{
             HttpServletResponse response)
             throws Exception {
 
+        // replace requestParams.q with cql_filter or layers if present
+        if (StringUtils.trimToNull(cql_filter) != null) {
+            requestParams.setQ(WMSUtils.getQ(cql_filter));
+        } else if (StringUtils.trimToNull(layers) != null && !"ALA:Occurrences".equalsIgnoreCase(layers)) {
+            requestParams.setQ(WMSUtils.convertLayersParamToQ(layers));
+        }
+
         //for OS Grids, hand over to WMS OS controller
         if (env != null && env.contains("osgrid")) {
             wmsosGridController.generateWmsTile(requestParams, cql_filter, env, srs, styles, bboxString, layers, width, height, outlinePoints, outlineColour, request, response);
