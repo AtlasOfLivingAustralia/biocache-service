@@ -1,8 +1,7 @@
-// https://mvnrepository.com/artifact/com.opencsv/opencsv
 @Grapes([
         @Grab(group = 'com.opencsv', module = 'opencsv', version = '5.3'),
         @Grab(group='org.apache.httpcomponents', module='httpmime', version='4.3.1'),
-        @Grab(group = 'org.codehaus.groovy.modules.http-builder', module='http-builder', version='0.7.1')
+        @Grab(group = 'org.codehaus.groovy.modules.http-builder', module='http-builder', version='0.7.1'),
 ])
 
 
@@ -14,7 +13,6 @@ import groovy.json.JsonOutput
 import groovy.yaml.YamlSlurper
 
 import groovyx.net.http.*
-
 
 class SolrField {
     String name
@@ -169,7 +167,7 @@ def biocacheV2Fields = slurper.parse(config.biocache.fields.toURL())
 Map<String, SolrField> pipelinesSolrFields = parseSolrFields(config.pipelines.solr.host, config.pipelines.solr.collection)
 Map<String, SolrField> legacySolrFields = parseSolrFields(config.biocache.solr.host, config.biocache.solr.collection)
 
-File fieldMappingJson = new File(config.mappingJson)
+File fieldMappingJson = new File(config.fields.mappingJson)
 
 Map<String, String> fieldNameMappings = [:]
 
@@ -178,7 +176,6 @@ if (fieldMappingJson.exists()) {
 }
 
 println "${pipelinesSolrFields.size()} : ${legacySolrFields.size()} : ${biocacheV2Fields.size()}, ${fieldNameMappings.size()}"
-
 
 // process the biocache fields mapping to the solr schema fields
 List<FieldMapping> fieldMappings = biocacheV2Fields.collect { field ->
@@ -205,7 +202,7 @@ List<FieldMapping> fieldMappings = biocacheV2Fields.collect { field ->
 
         } else {
 
-            println "no field mapping for ${biocacheField.name} -> ${pipelinesFieldName}"
+            println "no field manual mapping for ${biocacheField.name} -> ${pipelinesFieldName}"
         }
 
     } else if (!biocacheField.name.startsWith('raw_') && !biocacheField.name.startsWith('_') && pipelinesSolrFields[biocacheField.dwcTerm]) {
@@ -237,25 +234,6 @@ List<FieldMapping> fieldMappings = biocacheV2Fields.collect { field ->
 //            pipelinesSolrFields.remove(biocacheField.dwcTerm)
         }
     }
-
-//    if (dwcFields[biocacheField.name]) {
-//
-//        // check the DwC term exact match against field name
-//        fieldMapping.dwcField = dwcFields[biocacheField.name]
-//        dwcFields.remove(biocacheField.name)
-//
-//    } else if (fieldMapping.pipelinesSolrField && dwcFields[fieldMapping.pipelinesSolrField.name]) {
-//
-//        // check the DwC term matches the pipelines field name
-//        fieldMapping.dwcField = dwcFields[fieldMapping.pipelinesSolrField.name]
-//        dwcFields.remove(fieldMapping.pipelinesSolrField.name)
-//
-//    } else if (dwcFields[biocacheField.dwcTerm]) {
-//
-//        // check the DwC term exact match against field DWC term
-//        fieldMapping.dwcField = dwcFields[biocacheField.dwcTerm]
-//        dwcFields.remove(biocacheField.dwcTerm)
-//    }
 
     return fieldMapping
 }
@@ -456,7 +434,7 @@ def fieldNameComparitor = { lft, rgt ->
 
 }
 
-File fieldMappingCsv = new File(config.mappingCsv)
+File fieldMappingCsv = new File(config.fields.export)
 
 fieldMappingCsv.newWriter().withWriter { Writer w ->
 
@@ -530,7 +508,7 @@ fieldMappingCsv.newWriter().withWriter { Writer w ->
     }
 }
 
-Map<String, String> deprecatedFields = [:]
+Map<String, String> deprecatedFields = fieldNameMappings.clone()
 
 fieldMappings.each { FieldMapping fieldMapping ->
     if (fieldMapping.legacySolrField && fieldMapping.pipelinesSolrField && !fieldMapping.pipelinesSolrField.name.contains('*') && fieldMapping.legacySolrField.name != fieldMapping.pipelinesSolrField.name) {
@@ -540,6 +518,6 @@ fieldMappings.each { FieldMapping fieldMapping ->
     }
 }
 
-new File('deprecated-fields.json').newWriter().withWriter { Writer w ->
-    w << JsonOutput.prettyPrint(JsonOutput.toJson(deprecatedFields))
+new File(config.fields.mappingJson).newWriter().withWriter { Writer w ->
+    w << JsonOutput.prettyPrint(JsonOutput.toJson(deprecatedFields.sort {it.key }))
 }
