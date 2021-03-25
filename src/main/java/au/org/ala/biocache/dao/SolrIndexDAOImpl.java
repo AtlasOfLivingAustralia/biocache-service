@@ -913,10 +913,6 @@ class FacetFieldRenamed extends FacetField {
     facetField.insert(name, cnt);
   }
 
-  //    public String getName() {
-  //        return this.getName();
-  //    }
-
   public List<FacetField.Count> getValues() {
     return facetField.getValues();
   }

@@ -1,7 +1,9 @@
 package au.org.ala.biocache.controller;
 
+import au.org.ala.biocache.util.SolrUtils;
 import junit.framework.TestCase;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +34,11 @@ public class AssertionsControllerTest extends TestCase {
     WebApplicationContext wac;
 
     MockMvc mockMvc;
+
+    @BeforeClass
+    public static void setupBeforeClass() throws Exception {
+        SolrUtils.setupIndex();
+    }
 
     @Before
     public void setup() {

@@ -23,8 +23,10 @@ import org.springframework.test.context.ContextConfiguration;
  *
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
-@RunWith(MockitoJUnitRunner.class)
-@ContextConfiguration(locations = {"classpath:springTest.xml"})
+//@RunWith(MockitoJUnitRunner.class)
+//@ContextConfiguration(locations = {"classpath:springTest.xml"})
+// FIXME
+
 public class QueryFormatTest {
 //
 //    @Mock
