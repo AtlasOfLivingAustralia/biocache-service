@@ -267,10 +267,6 @@ public class FieldMappedSolrClient extends SolrClient {
     @Override
     public QueryResponse query(String collection, SolrParams params) throws SolrServerException, IOException {
 
-        if (FieldMappingUtil.isMappingDisabled()) {
-            return delegate.query(collection, params);
-        }
-
         FieldMappingUtil fieldMappingUtil = fieldMappingUtilBuilder.newInstance();
 
         FieldMappedSolrParams translatedParams = new FieldMappedSolrParams(fieldMappingUtil, params);
@@ -287,10 +283,6 @@ public class FieldMappedSolrClient extends SolrClient {
 
     @Override
     public QueryResponse query(String collection, SolrParams params, SolrRequest.METHOD method) throws SolrServerException, IOException {
-
-        if (FieldMappingUtil.isMappingDisabled()) {
-            return delegate.query(collection, params, method);
-        }
 
         FieldMappingUtil fieldMappingUtil = fieldMappingUtilBuilder.newInstance();
 

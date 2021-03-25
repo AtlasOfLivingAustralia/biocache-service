@@ -14,6 +14,7 @@ class FieldMappingUtilSpec extends Specification {
 
         FieldMappingUtil.Builder builder = new FieldMappingUtil.Builder()
         builder.deprecatedFieldsConfig = '/data/biocache/config/deprecated-fields.json'
+        builder.deprecatedEnumValuesConfig = '/data/biocache/config/deprecated-enum-values.json'
 
         fieldMappingUtil = builder.newInstance()
     }
@@ -31,6 +32,10 @@ class FieldMappingUtilSpec extends Specification {
         '-taxon_name:*' || '-scientificName:*'
         'taxon_name:* AND -(common_name:"test")' || 'scientificName:* AND -(vernacularName:"test")'
         'deleted:*' || 'deprecated_deleted:*'
+        'assertions:*' || 'assertions:*'
+        'assertions:badlyFormedBasisOfRecord' || 'assertions:BASIS_OF_RECORD_INVALID'
+        'assertions:(badlyFormedBasisOfRecord coordinatesOutOfRange)' || 'assertions:(BASIS_OF_RECORD_INVALID COORDINATE_OUT_OF_RANGE)'
+        'taxon_name:* assertions:badlyFormedBasisOfRecord AND -(common_name:"test")' || 'scientificName:* assertions:BASIS_OF_RECORD_INVALID AND -(vernacularName:"test")'
     }
 
     def 'translateFieldList'() {

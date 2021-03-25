@@ -21,76 +21,22 @@ import java.util.stream.Stream;
 public class FieldMappingUtil {
 
     private Map<String, String> fieldMappings;
+    private Map<String, Map<String, String>> enumValueMappings;
 
     private Map<String, String> facetMap;
     private Map<String, String> facetRangeMap;
 
     static Consumer<Pair<String, String>> NOOP_TRANSLATION = (Pair<String, String> m) -> {};
 
-    static String DEPRECATED_PREFIX = "deprecated_";
-    static Pattern QUERY_TERM_PATTERN = Pattern.compile("(^|\\s|-|\\()(\\w+):");
+    static final String DEPRECATED_PREFIX = "deprecated_";
+    static final Pattern ENUM_VALUE_PATTERN = Pattern.compile("(\\w+)");
+    static final Pattern QUERY_TERM_PATTERN = Pattern.compile("(^|\\s|-|\\()(\\w+):");
 
-    static private ThreadLocal<Boolean> disableMapping = new ThreadLocal<>();
-
-    protected FieldMappingUtil(Map<String, String> fieldMappings) {
+    protected FieldMappingUtil(Map<String, String> fieldMappings, Map<String, Map<String, String>> enumValueMappings) {
 
         this.fieldMappings = fieldMappings;
+        this.enumValueMappings = enumValueMappings;
     }
-
-    static public void disableMapping() {
-        disableMapping.set(true);
-    }
-
-    static public boolean isMappingDisabled() {
-
-        Boolean disabled = disableMapping.get();
-        disableMapping.set(false);
-
-        return disabled == null ? false : disabled;
-    }
-/*
-    SolrParams translateSolrParams(SolrParams params) {
-
-        System.out.println("before translation: " + params.toQueryString());
-
-        facetMap = null;
-        facetRangeMap = null;
-
-        // TODO: PIPELINES: translate the params performing field mappings
-        ModifiableSolrParams translatedSolrParams = ModifiableSolrParams.of(params);
-        translatedSolrParams.getParameterNamesIterator().forEachRemaining((String paramName) -> {
-            switch (paramName) {
-                case "q":
-                    translatedSolrParams.set("q", translateQueryFields((Map.Entry<String, String> mapping) -> {
-                        System.out.println("query mapping: " + mapping.getKey() + " -> " + mapping.getValue());
-                    }, translatedSolrParams.get("q")));
-                    break;
-
-                case "fl":
-                    translatedSolrParams.set("fl", translateFieldArray((Map.Entry<String, String> mapping) -> {}, translatedSolrParams.getParams("fl")));
-                    break;
-
-                case "facet.field":
-                    facetMap = new HashMap();
-                    translatedSolrParams.set("facet.field", translateFieldArray((Map.Entry<String, String> mapping) -> facetMap.put(mapping.getKey(), mapping.getValue()), translatedSolrParams.getParams("facet.field")));
-                    break;
-                case "facet.range":
-                    facetRangeMap = new HashMap<>();
-                    translatedSolrParams.set("facet.range", translateFieldArray((Map.Entry<String, String> mapping) -> facetRangeMap.put(mapping.getKey(), mapping.getValue()), translatedSolrParams.getParams("facet.range")));
-                    break;
-            }
-        });
-
-        System.out.println("after translation: " + params.toQueryString());
-
-        return translatedSolrParams;
-    }
-*/
-//    QueryResponse translateQueryResponse(QueryResponse queryResponse) {
-//
-//        // TODO: PIPELINES: translate the query response performing reverse field mappings
-//        return new FieldMappedQueryResponse(facetMap, queryResponse);
-//    }
 
     public String translateQueryFields(String query) {
 
@@ -103,6 +49,10 @@ public class FieldMappingUtil {
             return null;
         }
 
+        if (this.fieldMappings == null) {
+            return query;
+        }
+
         Matcher matcher = QUERY_TERM_PATTERN.matcher(query);
         boolean result = matcher.find();
 
@@ -110,8 +60,13 @@ public class FieldMappingUtil {
 
             StringBuffer sb = new StringBuffer();
 
+            String prevTerm = null;
+            int prevEnd = 0;
+
+            // loop through all matched pattern groups
             do {
 
+                String prefix = matcher.group(1);
                 String queryTerm = matcher.group(2);
 
                 // default not found query terms to "null" character string to distinguish from null (deprecated) field mappings
@@ -119,67 +74,82 @@ public class FieldMappingUtil {
 
                 if (translatedFieldName == null) {
                     // query term matched deprecated field
-                    matcher.appendReplacement(sb, "$1" + DEPRECATED_PREFIX + queryTerm + ":");
+                    translatedFieldName = DEPRECATED_PREFIX + queryTerm;
                     translation.accept(Pair.of(queryTerm, null));
 
                 } else if ("\0".equals(translatedFieldName)) {
                     // query term not found in field mappings
-                    matcher.appendReplacement(sb, "$1" + queryTerm + ":");
-                    Pair.of(queryTerm, queryTerm);
+                    translatedFieldName = queryTerm;
 
                 } else {
                     // query term has translated field name
-                    matcher.appendReplacement(sb, "$1" + translatedFieldName + ":");
                     translation.accept(Pair.of(queryTerm, translatedFieldName));
                 }
+
+                // collect the value between the end of the previous group and the start of the current
+                String value = query.substring(prevEnd, matcher.start());
+                sb.append(translateQueryValue(prevTerm, value));
+
+                // append the translated term with prefix
+                sb.append(prefix);
+                sb.append(translatedFieldName);
+                sb.append(":");
+
+                prevTerm = queryTerm;
+                prevEnd = matcher.end();
 
                 result = matcher.find();
 
             } while (result);
 
-            matcher.appendTail(sb);
+            // collect the term value after the last term match 
+            String value = query.substring(prevEnd);
+            sb.append(translateQueryValue(prevTerm, value));
+
             return sb.toString();
         }
 
         return query;
+    }
 
-        /* this is the bruit force way of translating query terms
-         * loop through all mappings and try each one, this should be slower then the above implementation
-        return this.fieldMappings.entrySet()
-                .stream()
-                .reduce(query,
-                        (String transformedQuery, Map.Entry<String, String> deprecatedField) -> {
+    private String translateQueryValue(String term, String value) {
 
-                            // transformedQuery.replaceAll("(^|\\s|-|\\()" + deprecatedField.getKey() + ":", "$1" + deprecatedField.getValue() + ":"),
+        if (enumValueMappings == null) {
+            return value;
+        }
 
-                            // loop through all the regex matcher results manually to allow translation callback
-                            Matcher matcher = Pattern.compile("(^|\\s|-|\\()" + deprecatedField.getKey() + ":").matcher(transformedQuery);
+        Map<String, String> enumValueMapping = enumValueMappings.get(term);
+        if (enumValueMapping != null) {
 
-                            boolean result = matcher.find();
-                            if (result) {
+            Matcher matcher = ENUM_VALUE_PATTERN.matcher(value);
+            boolean result = matcher.find();
 
-                                StringBuffer sb = new StringBuffer();
+            if (result) {
 
-                                do {
-                                    String requestedField = m.group(1);
+                StringBuffer sb = new StringBuffer();
 
-                                    if (deprecatedField.getValue() == null) {
-                                        matcher.appendReplacement(sb, "$1" + DEPRECATED_PREFIX + deprecatedField.getKey() + ":");
-                                    } else {
-                                        matcher.appendReplacement(sb, "$1" + deprecatedField.getValue() + ":");
-                                    }
-                                    translation.accept(deprecatedField);
-                                    result = matcher.find();
-                                } while (result);
+                do {
 
-                                matcher.appendTail(sb);
-                                return sb.toString();
-                            }
+                    String enumValue = matcher.group(1);
+                    String translatedEnumValue = enumValueMapping.get(enumValue);
 
-                            return transformedQuery;
-                        },
-                        (a, e) -> { throw new IllegalStateException("unable to combine deprecated field replacement, use sequential stream"); });
-        */
+                    if (translatedEnumValue == null) {
+                        matcher.appendReplacement(sb, enumValue);
+                    } else {
+                        matcher.appendReplacement(sb, translatedEnumValue);
+                    }
+
+                    result = matcher.find();
+
+                } while (result);
+
+                matcher.appendTail(sb);
+
+                return sb.toString();
+            }
+        }
+
+        return value;
     }
 
     public String translateFieldName(String fieldName) {
@@ -249,7 +219,18 @@ public class FieldMappingUtil {
     @Component("fieldMappingUtilBuilder")
     public static class Builder {
 
+        private Map<String, Map<String, String>> enumValueMappings;
         private Map<String, String> fieldMappings;
+
+        @Value("${solr.deprecated.enumvalues.config:/data/biocache/config/deprecated-enum-values.json}")
+        void setDeprecatedEnumValuesConfig(String deprecatedEnumValuesConfig) throws IOException {
+
+            if (deprecatedEnumValuesConfig != null && new File(deprecatedEnumValuesConfig).exists()) {
+
+                ObjectMapper om = new ObjectMapper();
+                enumValueMappings = om.readValue(new File(deprecatedEnumValuesConfig), HashMap.class);
+            }
+        }
 
         @Value("${solr.deprecated.fields.config:/data/biocache/config/deprecated-fields.json}")
         void setDeprecatedFieldsConfig(String deprecatedFieldsConfig) throws IOException {
@@ -263,7 +244,7 @@ public class FieldMappingUtil {
 
         FieldMappingUtil newInstance() {
 
-            return new FieldMappingUtil(fieldMappings);
+            return new FieldMappingUtil(fieldMappings, enumValueMappings);
         }
 
         public Map<String, String> getFieldMappings() {
