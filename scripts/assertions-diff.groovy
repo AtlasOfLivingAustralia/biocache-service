@@ -4,7 +4,7 @@
         @Grab(group='org.apache.httpcomponents', module='httpmime', version='4.3.1'),
         @Grab(group = 'org.codehaus.groovy.modules.http-builder', module='http-builder', version='0.7.1'),
         @Grab(group='org.gbif', module='gbif-api', version='0.138'),
-        @Grab(group='au.org.ala', module='livingatlas', version='2.8.0-SNAPSHOT')
+//        @Grab(group='au.org.ala', module='livingatlas', version='2.8.2-SNAPSHOT')
 ])
 
 import groovy.json.JsonSlurper
@@ -14,7 +14,7 @@ import groovy.yaml.YamlSlurper
 import groovyx.net.http.*
 
 import org.gbif.api.vocabulary.OccurrenceIssue
-import au.org.ala.pipelines.vocabulary.ALAOccurrenceIssue
+//import au.org.ala.pipelines.vocabulary.ALAOccurrenceIssue
 
 YamlSlurper yamlSlurper = new YamlSlurper()
 
@@ -72,14 +72,14 @@ def toSnakeCase = { it.replaceAll( /([A-Z])/, /_$1/ ).toLowerCase().replaceAll( 
 Collection<AssertionFacet> biocacheAssertions = parseAssertions(config.biocache.solr.host, config.biocache.solr.collection)
 Collection<AssertionFacet> pipelinesAssertions = parseAssertions(config.pipelines.solr.host, config.pipelines.solr.collection)
 
-File assertionMappingJson = new File(config.assertions.mappingJson)
+File enumValueMappingJson = new File(config.assertions.mappingJson)
 
-Map<String, String> assertionNameMappings = [:]
+Map<String, String> enumValueMappings = [:]
 
 JsonSlurper slurper = new JsonSlurper()
 
-if (assertionMappingJson.exists()) {
-    assertionNameMappings = slurper.parse(assertionMappingJson)
+if (enumValueMappingJson.exists()) {
+    enumValueMappings = slurper.parse(enumValueMappingJson)
 }
 
 Collection<AssertionMapping> assertionMappings = pipelinesAssertions.collect { AssertionFacet assertionFacet ->
@@ -108,7 +108,7 @@ OccurrenceIssue.values().each { OccurrenceIssue gbifOccurrenceIssue ->
         assertionMappings << new AssertionMapping(gbifOccurrenceIssue: gbifOccurrenceIssue)
     }
 }
-
+/*
 ALAOccurrenceIssue.values().each { ALAOccurrenceIssue alaOccurrenceIssue ->
 
     AssertionMapping assertionMapping = assertionMappings.find { AssertionMapping assertionMapping ->
@@ -128,10 +128,10 @@ ALAOccurrenceIssue.values().each { ALAOccurrenceIssue alaOccurrenceIssue ->
         assertionMappings << new AssertionMapping(alaOccurrenceIssue: alaOccurrenceIssue)
     }
 }
-
+*/
 biocacheAssertions.each { AssertionFacet assertionFacet ->
 
-    String mappedAssertionName = assertionNameMappings[assertionFacet.name]
+    String mappedAssertionName = enumValueMappings.assertions[assertionFacet.name]
     println "biocache[${assertionFacet.name}] -> ${mappedAssertionName}"
 
     AssertionMapping assertionMapping = assertionMappings.find { AssertionMapping assertionMapping ->
@@ -204,7 +204,7 @@ assertionsCsv.newWriter().withWriter { Writer w ->
     }
 }
 
-assertionNameMappings = [:]
+//enumValueMappings = [:]
 
 assertionMappings.each {
 
@@ -212,10 +212,10 @@ assertionMappings.each {
 
     if (assertionName && it.biocacheAssertion && assertionName != it.biocacheAssertion.name) {
 
-        assertionNameMappings[it.biocacheAssertion.name] = assertionName
+        enumValueMappings.assertions[it.biocacheAssertion.name] = assertionName
     }
 }
 
 new File(config.assertions.mappingJson).newWriter().withWriter { Writer w ->
-    w << JsonOutput.prettyPrint(JsonOutput.toJson(assertionNameMappings))
+    w << JsonOutput.prettyPrint(JsonOutput.toJson(enumValueMappings))
 }

@@ -20,6 +20,8 @@ class SolrField {
     boolean multi
     long count = 0
     boolean deprecated = false
+    boolean dynamic = false
+    boolean multiMappings = false
 }
 
 class BiocacheField {
@@ -65,6 +67,7 @@ class FieldMapping {
 
     SolrField legacySolrField
     SolrField pipelinesSolrField
+    boolean multiMappings = false
 }
 
 
@@ -177,6 +180,8 @@ if (fieldMappingJson.exists()) {
 
 println "${pipelinesSolrFields.size()} : ${legacySolrFields.size()} : ${biocacheV2Fields.size()}, ${fieldNameMappings.size()}"
 
+List matchedPipelinesFieldNames = []
+
 // process the biocache fields mapping to the solr schema fields
 List<FieldMapping> fieldMappings = biocacheV2Fields.collect { field ->
 
@@ -193,7 +198,9 @@ List<FieldMapping> fieldMappings = biocacheV2Fields.collect { field ->
         if (pipelinesSolrFields[pipelinesFieldName]) {
 
             fieldMapping.pipelinesSolrField = pipelinesSolrFields[pipelinesFieldName]
-            pipelinesSolrFields.remove(pipelinesFieldName)
+            fieldMapping.pipelinesSolrField.multiMappings = (pipelinesFieldName in matchedPipelinesFieldNames)
+            matchedPipelinesFieldNames += pipelinesFieldName
+            // pipelinesSolrFields.remove(pipelinesFieldName)
 
         } else if (pipelinesFieldName == null) {
 
@@ -209,13 +216,17 @@ List<FieldMapping> fieldMappings = biocacheV2Fields.collect { field ->
 
         // check the pipelines solr field name matchs DwC term
         fieldMapping.pipelinesSolrField = pipelinesSolrFields[biocacheField.dwcTerm]
-        pipelinesSolrFields.remove(biocacheField.dwcTerm)
+        fieldMapping.pipelinesSolrField.multiMappings = (biocacheField.dwcTerm in matchedPipelinesFieldNames)
+        matchedPipelinesFieldNames += biocacheField.dwcTerm
+        // pipelinesSolrFields.remove(biocacheField.dwcTerm)
 
     } else if (pipelinesSolrFields[biocacheField.name]) {
 
         // check the pipelines solr field name exact match
         fieldMapping.pipelinesSolrField = pipelinesSolrFields[biocacheField.name]
-        pipelinesSolrFields.remove(biocacheField.name)
+        fieldMapping.pipelinesSolrField.multiMappings = (biocacheField.name in matchedPipelinesFieldNames)
+        matchedPipelinesFieldNames += biocacheField.name
+        //pipelinesSolrFields.remove(biocacheField.name)
 
     } else {
 
@@ -225,13 +236,15 @@ List<FieldMapping> fieldMappings = biocacheV2Fields.collect { field ->
 
             // check for camel case version of biocache field name
             fieldMapping.pipelinesSolrField = pipelinesSolrFields[camelFieldName]
-            pipelinesSolrFields.remove(camelFieldName)
+            fieldMapping.pipelinesSolrField.multiMappings = (camelFieldName in matchedPipelinesFieldNames)
+            matchedPipelinesFieldNames += camelFieldName
+            // pipelinesSolrFields.remove(camelFieldName)
 
 //        } else if (pipelinesSolrFields[biocacheField.dwcTerm]) {
 //
 //            // check pipelines solr field name exact match to DWC term
 //            fieldMapping.pipelinesSolrField = pipelinesSolrFields[biocacheField.dwcTerm]
-//            pipelinesSolrFields.remove(biocacheField.dwcTerm)
+//            matchedPipelinesFieldNames += biocacheField.dwcTerm
         }
     }
 
@@ -249,7 +262,9 @@ fieldMappings += legacySolrFields.collect { fieldName, solrField ->
         if (pipelinesSolrFields[pipelinesFieldName]) {
 
             fieldMapping.pipelinesSolrField = pipelinesSolrFields[pipelinesFieldName]
-            pipelinesSolrFields.remove(pipelinesFieldName)
+            fieldMapping.pipelinesSolrField.multiMappings = (pipelinesFieldName in matchedPipelinesFieldNames)
+            matchedPipelinesFieldNames += pipelinesFieldName
+            // pipelinesSolrFields.remove(pipelinesFieldName)
 
         } else if (pipelinesFieldName == null) {
 
@@ -264,7 +279,9 @@ fieldMappings += legacySolrFields.collect { fieldName, solrField ->
 
         // check the pipelines solr exact legacy solr field name
         fieldMapping.pipelinesSolrField = pipelinesSolrFields[fieldName]
-        pipelinesSolrFields.remove(fieldName)
+        fieldMapping.pipelinesSolrField.multiMappings = (fieldName in matchedPipelinesFieldNames)
+        matchedPipelinesFieldNames += fieldName
+        // pipelinesSolrFields.remove(fieldName)
 
     } else if (!fieldName.startsWith('_')) {
 
@@ -274,33 +291,19 @@ fieldMappings += legacySolrFields.collect { fieldName, solrField ->
 
             // check the pipelines solr camel case version of legacy solr field name
             fieldMapping.pipelinesSolrField = pipelinesSolrFields[camelField]
-            pipelinesSolrFields.remove(camelField)
+            fieldMapping.pipelinesSolrField.multiMappings = (camelField in matchedPipelinesFieldNames)
+            matchedPipelinesFieldNames += camelField
+            // pipelinesSolrFields.remove(camelField)
         }
     }
-
-//    if (dwcFields[fieldName]) {
-//
-//        // check the DWC term against exact legacy solr field name
-//        fieldMapping.dwcField = dwcFields[fieldName]
-//        dwcFields.remove(fieldName)
-//
-//    } else if (!fieldName.startsWith('_')) {
-//
-//        String camelField = toCamelCase(fieldName)
-//
-//        if (dwcFields[camelField]) {
-//
-//            // check the DWC term against camel case version of legacy solr field name
-//            fieldMapping.dwcField = dwcFields[camelField]
-//            dwcFields.remove(camelField)
-//        }
-//    }
 
     return fieldMapping
 }
 
 // try and match unmatched pipelines solr fields
-pipelinesSolrFields.each { fieldName, pipelinesSolrField ->
+pipelinesSolrFields
+        .findAll { fieldName, pipelinesSolrField -> !(fieldName in matchedPipelinesFieldNames) }
+        .each { fieldName, pipelinesSolrField ->
 
     // perform a case insensitive search for biocache field or camel case version
     FieldMapping unmatchedField = fieldMappings.find { FieldMapping fieldMapping ->
@@ -350,7 +353,7 @@ http.request(Method.GET, ContentType.JSON) {
 
                 if (!fieldMapping.pipelinesSolrField) {
 
-                    fieldMapping.pipelinesSolrField = new SolrField(name: dynamicField.name, type: dynamicField.type)
+                    fieldMapping.pipelinesSolrField = new SolrField(name: dynamicField.name, type: dynamicField.type, dynamic: true)
                 }
             }
         }
@@ -387,27 +390,38 @@ fieldMappings.each { FieldMapping fieldMapping ->
         fieldMapping.dwcField = dwcField
         dwcFields.remove(dwcFieldName)
 
-    } else {
+        return
+    }
 
-        dwcFieldName = fieldMapping.pipelinesSolrField?.name
-        dwcField = dwcFields[dwcFieldName]
+    dwcFieldName = fieldMapping.biocacheField?.dwcTerm
 
-        if (dwcField) {
+    dwcField = dwcFields[dwcFieldName]
+    if (dwcField) {
 
-            fieldMapping.dwcField = dwcField
-            dwcFields.remove(dwcFieldName)
+        fieldMapping.dwcField = dwcField
+        dwcFields.remove(dwcFieldName)
 
-        } else {
+        return
+    }
 
-            dwcFieldName = fieldMapping.legacySolrField?.name
-            dwcField = dwcFields[dwcFieldName]
+    dwcFieldName = fieldMapping.pipelinesSolrField?.name
+    dwcField = dwcFields[dwcFieldName]
 
-            if (dwcField) {
+    if (dwcField) {
 
-                fieldMapping.dwcField = dwcField
-                dwcFields.remove(dwcFieldName)
-            }
-        }
+        fieldMapping.dwcField = dwcField
+        dwcFields.remove(dwcFieldName)
+
+        return
+    }
+
+    dwcFieldName = fieldMapping.legacySolrField?.name
+    dwcField = dwcFields[dwcFieldName]
+
+    if (dwcField) {
+
+        fieldMapping.dwcField = dwcField
+        dwcFields.remove(dwcFieldName)
     }
 }
 
@@ -438,9 +452,12 @@ File fieldMappingCsv = new File(config.fields.export)
 
 fieldMappingCsv.newWriter().withWriter { Writer w ->
 
-    w << "\"Solr V8 (pipelines)\",,,,\"Solr v6\",,,,,\"Biocache Index Fields\",,\"DwC Fields\"\n"
+    w << ",\"Solr V8 (pipelines)\",,,,,\"Solr v6\",,,,,\"Biocache Index Fields\",,\"DwC Fields\"\n"
+
+    w << "\"multiple mappings\","
 
     w << "\"field_name\","
+    w << "\"dynamic\","
     w << "\"field_type\","
     w << "\"multi_value\","
     w << "\"record_count\","
@@ -474,7 +491,10 @@ fieldMappingCsv.newWriter().withWriter { Writer w ->
 
     fieldMappings.sort(fieldNameComparitor).each { FieldMapping fieldMapping ->
 
+        w << "${fieldMapping.pipelinesSolrField?.multiMappings ?: ''},"
+
         w << "\"${fieldMapping.pipelinesSolrField?.name ?: ''}\","
+        w << "${fieldMapping.pipelinesSolrField?.dynamic ?: ''},"
         w << "\"${fieldMapping.pipelinesSolrField?.type ?: ''}\","
         w << "${fieldMapping.pipelinesSolrField ? fieldMapping.pipelinesSolrField.multi : ''},"
         w << "${fieldMapping.pipelinesSolrField ? fieldMapping.pipelinesSolrField?.count : ''},"

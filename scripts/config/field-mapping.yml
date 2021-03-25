@@ -11,9 +11,9 @@ pipelines:
         collection: biocache
 
 fields:
-    mappingJson: deprecated-fields.json
+    mappingJson: ../config/deprecated-fields.json
     export: pipeline_field_mappings.csv
 
 assertions:
-    mappingJson: assertions-mapping.json
+    mappingJson: ../config/deprecated-enum-values.json
     export: pipeline_assertion_mappings.csv
