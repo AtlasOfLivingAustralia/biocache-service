@@ -1982,15 +1982,17 @@ public class OccurrenceController extends AbstractSecureController {
         systemAssertions.put("passed", passed); // no longer available
 
         List<ErrorCode> allErrorCodes = new ArrayList(Arrays.asList(AssertionCodes.getAll()));
-        for (Object assertion : assertions) {
-            ErrorCode ec = AssertionCodes.getByName((String) assertion);
-            if (ec != null) {
-                allErrorCodes.remove(ec);
+        if (assertions != null) {
+            for (Object assertion : assertions) {
+                ErrorCode ec = AssertionCodes.getByName((String) assertion);
+                if (ec != null) {
+                    allErrorCodes.remove(ec);
 
-                if (ErrorCode.Category.Missing.toString().equalsIgnoreCase(ec.getCategory())) {
-                    missing.add(formatAssertion((String) assertion, 0, false, "" + sd.getFieldValue("modified")));
-                } else {
-                    warning.add(formatAssertion((String) assertion, 0, false, "" + sd.getFieldValue("modified")));
+                    if (ErrorCode.Category.Missing.toString().equalsIgnoreCase(ec.getCategory())) {
+                        missing.add(formatAssertion((String) assertion, 0, false, "" + sd.getFieldValue("modified")));
+                    } else {
+                        warning.add(formatAssertion((String) assertion, 0, false, "" + sd.getFieldValue("modified")));
+                    }
                 }
             }
         }

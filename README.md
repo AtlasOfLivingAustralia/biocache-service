@@ -11,6 +11,7 @@ There are currently two supported versions:
 
 * 1.9.x  - SOLR 4 and Cassandra 1.2.x. See the 1.9.x branch.
 * 2.x - SOLR 7 with SOLR Cloud support and Cassandra 3.x. See the master branch.
+* 3.x - SOLR 8 with SOLR Cloud support and Cassandra 3.x. See the epic/pipelines/develop branch.
 
 ## Dev Setup
 
@@ -22,13 +23,12 @@ Integration testing is supported using docker containers.
 To start the required containers, run the following:
 
 ```
-docker-compose -f src/test/docker/solr7-cassandra3.yml up -d
+mvn docker:start
 ```
 
 To shutdown, run the following:
 ```
-docker-compose -f src/test/docker/solr7-cassandra3.yml kill
+mvn docker:stop
 ```
-
 
 Pre-requistes are Docker version 17+. For more details see this [readme](/src/test/docker/README.md).

@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -13,8 +14,9 @@
     <version>3.0.0-SNAPSHOT</version>
     <name>biocache-service</name>
     <url>https://biocache-ws.ala.org.au/ws</url>
-    <description>This is a the service layer for the ALA Biocache.
-        The 2.x version of this app supports cassandra 3.x and SOLR Cloud 5/6/7
+    <description>
+        This is a the service layer for the ALA Biocache.
+        The 3.x version of this app supports cassandra 3.x and SOLR Cloud 8
     </description>
     <properties>
         <!-- This project uses UTF8 for Regular Expressions -->
@@ -32,6 +34,11 @@
         <gt.version>11.1</gt.version>
         <guava.hbase.version>23.0</guava.hbase.version>
         <ala-namematching-service.version>1.1-SNAPSHOT</ala-namematching-service.version>
+        <solr8.zk.port>9983</solr8.zk.port>
+        <solr8.http.port>8983</solr8.http.port>
+        <solr8.zk.host>localhost</solr8.zk.host>
+        <solr8.http.host>localhost</solr8.http.host>
+        <docker-maven-plugin.version>0.34.1</docker-maven-plugin.version>
     </properties>
     <!-- AN SCM entry that points to the SVN directory that contains the pom file for the project  -->
     <scm>
@@ -46,7 +53,6 @@
             <artifactId>httpclient-cache</artifactId>
             <version>4.5.6</version>
         </dependency>
-
 
         <!-- JSR 303 validation support -->
         <dependency>
@@ -368,12 +374,6 @@
             <version>2.0.7</version>
             <scope>test</scope>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>com.github.tomakehurst</groupId>-->
-<!--            <artifactId>wiremock-jre8</artifactId>-->
-<!--            <version>2.27.2</version>-->
-<!--            <scope>test</scope>-->
-<!--        </dependency>-->
         <!-- Mandatory dependencies for using Spock -->
         <dependency>
             <groupId>org.spockframework</groupId>
@@ -691,6 +691,69 @@
         </resources>
         <plugins>
             <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <version>${docker-maven-plugin.version}</version>
+                <extensions>true</extensions>
+                <executions>
+                    <execution>
+                        <id>start</id>
+                        <phase>process-test-classes</phase>
+                        <goals>
+                            <goal>start</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>stop</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>stop</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <images>
+                        <image>
+                            <alias>cassandra3</alias>
+                            <name>cassandra:3.11.9</name>
+                            <run>
+                                <ports>
+                                    <port>9042:9042</port>
+                                    <port>9160:9160</port>
+                                    <port>7199:7199</port>
+                                </ports>
+                            </run>
+                        </image>
+                        <image>
+                            <alias>solr8</alias>
+                            <name>djtfmartin/biocache-pipelines-solr8:v3</name>
+                            <run>
+                                <ports>
+                                    <port>${solr8.zk.port}:${solr8.zk.port}</port>
+                                    <port>${solr8.http.port}:${solr8.http.port}</port>
+                                </ports>
+                                <wait>
+                                    <http>
+                                        <url>http://${solr8.http.host}:${solr8.http.port}/solr/</url>
+                                        <method>GET</method>
+                                        <status>200</status>
+                                    </http>
+                                    <time>20000</time>
+                                </wait>
+                                <env>
+                                    <ZK_HOST>localhost:${solr8.zk.port}</ZK_HOST>
+                                    <SOLR_PORT>${solr8.http.port}</SOLR_PORT>
+                                    <SOLR_HOST>localhost</SOLR_HOST>
+                                </env>
+                                <entrypoint>
+                                    <shell>solr start -c -f  -p ${solr8.http.port}</shell>
+                                </entrypoint>
+                            </run>
+                        </image>
+                    </images>
+                </configuration>
+            </plugin>
+            <plugin>
                 <!-- The gmavenplus plugin is used to compile Groovy code. To learn more about this plugin,
                 visit https://github.com/groovy/GMavenPlus/wiki -->
                 <groupId>org.codehaus.gmavenplus</groupId>
@@ -804,6 +867,10 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-war-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>io.fabric8</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
                     </plugin>
                 </plugins>
             </build>

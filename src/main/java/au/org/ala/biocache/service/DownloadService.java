@@ -385,7 +385,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         }
                         // If no threads were created, then add a single default thread
                         if(runningDownloadControllers.isEmpty()) {
-                            logger.error("No offline download threads were created from configuration, creating a single default download thread instead.");
+                            logger.warn("No offline download threads were created from configuration, creating a single default download thread instead.");
                             DownloadControlThread nextRunnable = new DownloadControlThread(
                                     null,
                                     null,
