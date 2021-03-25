@@ -222,7 +222,7 @@ public class FieldMappingUtil {
         private Map<String, Map<String, String>> enumValueMappings;
         private Map<String, String> fieldMappings;
 
-        @Value("${solr.deprecated.enumvalues.config:/data/biocache/config/deprecated-enum-values-mapping.json}")
+        @Value("${solr.deprecated.enumvalues.config:/data/biocache/config/deprecated-enum-values.json}")
         void setDeprecatedEnumValuesConfig(String deprecatedEnumValuesConfig) throws IOException {
 
             if (deprecatedEnumValuesConfig != null && new File(deprecatedEnumValuesConfig).exists()) {

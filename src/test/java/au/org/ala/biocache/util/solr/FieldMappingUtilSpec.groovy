@@ -14,7 +14,7 @@ class FieldMappingUtilSpec extends Specification {
 
         FieldMappingUtil.Builder builder = new FieldMappingUtil.Builder()
         builder.deprecatedFieldsConfig = '/data/biocache/config/deprecated-fields.json'
-        builder.deprecatedEnumValuesConfig = '/data/biocache/config/deprecated-enum-values-mapping.json'
+        builder.deprecatedEnumValuesConfig = '/data/biocache/config/deprecated-enum-values.json'
 
         fieldMappingUtil = builder.newInstance()
     }
