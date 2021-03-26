@@ -61,7 +61,6 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(FileUtils.class)
 @ContextConfiguration(locations = {"classpath:springTest.xml"})
-@Ignore
 public class DownloadServiceTest {
 
     @Rule
@@ -577,7 +576,6 @@ public class DownloadServiceTest {
     }
 
     @Test
-    @Ignore
     public final void testOfflineDownloadWithQualityFiltersAndDoi() throws Exception {
 
         testService = createDownloadServiceForOfflineTest();
@@ -663,7 +661,6 @@ public class DownloadServiceTest {
     }
 
     @Test
-    @Ignore
     public final void testOfflineDownloadWithQualityFiltersAndDoiAndProvidedSearchUrl() throws Exception {
 
         testService = createDownloadServiceForOfflineTest();

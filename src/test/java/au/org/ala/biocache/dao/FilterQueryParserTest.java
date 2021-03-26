@@ -12,7 +12,6 @@ import au.org.ala.biocache.util.RangeBasedFacets;
 import au.org.ala.biocache.util.SearchUtils;
 import org.apache.commons.lang.StringUtils;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
@@ -37,7 +36,6 @@ import static org.junit.Assert.*;
 
 //TODO: update hubs, then remove fqs[0].substring(0, fqs[0].indexOf(':'))
 @RunWith(MockitoJUnitRunner.class)
-@Ignore
 public class FilterQueryParserTest {
 
     @Mock
@@ -57,10 +55,10 @@ public class FilterQueryParserTest {
 
     protected Map<String, Facet> facetMap = null;
 
-    String[] fqs = {"species_guid:urn:lsid:biodiversity.org.au:afd.taxon:2482313b-9d1e-4694-8f51-795213c8bb56",
-            "collection_uid:co10",
-            "institution_uid:in4 OR institution_uid:in22 OR institution_uid:in16 OR institution_uid:in6",
-            "occurrence_year:[1940-01-01T00:00:00Z%20TO%201949-12-31T00:00:00Z]",
+    String[] fqs = {"speciesID:urn:lsid:biodiversity.org.au:afd.taxon:2482313b-9d1e-4694-8f51-795213c8bb56",
+            "collectionUid:co10",
+            "institutionUid:in4 OR institution_uid:in22 OR institution_uid:in16 OR institution_uid:in6",
+            "occurrenceYear:[1940-01-01T00:00:00Z%20TO%201949-12-31T00:00:00Z]",
             "collector:\"Copland, S J\" OR collector:\"Sadlier, R.\" OR collector:\"Mcreaddie, W\" OR collector:\"Rollo, G\" OR collector:\"Harlow, Pete\"",
             "month:09 OR month:10 OR month:11"};
 
@@ -113,7 +111,6 @@ public class FilterQueryParserTest {
     }
 
     @Test
-    @Ignore
     public void testAddFacetMap1() {
         //FIXME
         Facet sp = facetMap.get(fqs[0].substring(0, fqs[0].indexOf(':')));
@@ -133,7 +130,6 @@ public class FilterQueryParserTest {
     }
 
     @Test
-    @Ignore
     public void testAddFacetMap3() {
         //FIXME
         Facet co = facetMap.get(fqs[1].substring(0, fqs[1].indexOf(':')));
