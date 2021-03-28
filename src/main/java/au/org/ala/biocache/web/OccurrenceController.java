@@ -1645,9 +1645,9 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, occurrence, "establishmentMeans", prefix);
         add(sd, occurrence, "fieldNotes", prefix);
         add(sd, occurrence, "fieldNumber", prefix);
-        occurrence.put("identifier", "");  // Not in pipeline
+//        occurrence.put("identifier", "");  // Not in pipeline
         add(sd, occurrence, "individualCount", prefix);
-        occurrence.put("individualID", "");  // Not in pipeline
+//        occurrence.put("individualID", "");  // Not in pipeline
         add(sd, occurrence, "informationWithheld", prefix);   //used for sensitive data information
         add(sd, occurrence, "institutionCode", prefix);
         add(sd, occurrence, "institutionID", prefix);
@@ -1655,7 +1655,7 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, occurrence, "license", prefix);
         add(sd, occurrence, "lifeStage", prefix);
         add(sd, occurrence, "modified", prefix);
-        occurrence.put("occurrenceAttributes", "");  // Not in pipeline
+//        occurrence.put("occurrenceAttributes", "");  // Not in pipeline
         add(sd, occurrence, "occurrenceAttributes", prefix);
         add(sd, occurrence, "occurrenceDetails", prefix);
         add(sd, occurrence, "occurrenceRemarks", prefix);
@@ -1709,8 +1709,6 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, occurrence, "duplicateStatus", prefix);
         add(sd, occurrence, "duplicateType", prefix);
         //Store the conservation status
-        //austConservation = national conservation status.
-        //FIXME These should be removed and just accessed at index time from list tool.
         add(sd, occurrence, "countryConservation", prefix);
         add(sd, occurrence, "stateConservation", prefix);
         add(sd, occurrence, "globalConservation", prefix);
@@ -1719,7 +1717,6 @@ public class OccurrenceController extends AbstractSecureController {
         // support for schema change
         addFirst(sd, occurrence, "recordedBy", prefix);
         addImages(sd, occurrence, "images", "imageIDs", "");
-
 
         // au.org.ala.biocache.model.Classification
         Map classification = new HashMap();
