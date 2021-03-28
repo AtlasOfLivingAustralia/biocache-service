@@ -23,6 +23,7 @@ before_install:
   - sudo ln -s namematching-20181120 namematching
   - ls -laF
   - cd $TRAVIS_BUILD_DIR
+  - mvn docker:stop
 script:
   - "[ \"${TRAVIS_PULL_REQUEST}\" = \"false\" ] && mvn -P travis clean deploy || mvn -P travis clean install"
 after_success:
