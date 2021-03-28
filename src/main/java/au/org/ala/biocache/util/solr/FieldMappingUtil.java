@@ -17,11 +17,31 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-
+@Component("fieldMappingUtil")
 public class FieldMappingUtil {
 
-    private Map<String, String> fieldMappings;
-    private Map<String, Map<String, String>> enumValueMappings;
+    private Map<String, String> fieldMappings = new Hashtable<>();
+    private Map<String, Map<String, String>> enumValueMappings = new Hashtable<>();
+
+    @Value("${solr.deprecated.enumvalues.config:/data/biocache/config/deprecated-enum-values.json}")
+    void setDeprecatedEnumValuesConfig(String deprecatedEnumValuesConfig) throws IOException {
+
+        if (deprecatedEnumValuesConfig != null && new File(deprecatedEnumValuesConfig).exists()) {
+
+            ObjectMapper om = new ObjectMapper();
+            enumValueMappings = om.readValue(new File(deprecatedEnumValuesConfig), HashMap.class);
+        }
+    }
+
+    @Value("${solr.deprecated.fields.config:/data/biocache/config/deprecated-fields.json}")
+    void setDeprecatedFieldsConfig(String deprecatedFieldsConfig) throws IOException {
+
+        if (deprecatedFieldsConfig != null && new File(deprecatedFieldsConfig).exists()) {
+
+            ObjectMapper om = new ObjectMapper();
+            fieldMappings = om.readValue(new File(deprecatedFieldsConfig), HashMap.class);
+        }
+    }
 
     private Map<String, String> facetMap;
     private Map<String, String> facetRangeMap;
@@ -32,10 +52,15 @@ public class FieldMappingUtil {
     static final Pattern ENUM_VALUE_PATTERN = Pattern.compile("(\\w+)");
     static final Pattern QUERY_TERM_PATTERN = Pattern.compile("(^|\\s|-|\\()(\\w+):");
 
-    protected FieldMappingUtil(Map<String, String> fieldMappings, Map<String, Map<String, String>> enumValueMappings) {
+//    protected FieldMappingUtil(Map<String, String> fieldMappings, Map<String, Map<String, String>> enumValueMappings) {
+//
+//        this.fieldMappings = fieldMappings;
+//        this.enumValueMappings = enumValueMappings;
+//    }
 
-        this.fieldMappings = fieldMappings;
-        this.enumValueMappings = enumValueMappings;
+    public Stream<Pair<String, String>> getFieldMappingStream() {
+
+        return this.fieldMappings.entrySet().stream().map((Map.Entry<String, String> entry) -> Pair.of(entry.getKey(), entry.getValue()));
     }
 
     public String translateQueryFields(String query) {
@@ -215,7 +240,7 @@ public class FieldMappingUtil {
                 .map((String field) -> translateFieldName(translation, field))
                 .toArray(String[]::new);
     }
-
+/*
     @Component("fieldMappingUtilBuilder")
     public static class Builder {
 
@@ -256,4 +281,5 @@ public class FieldMappingUtil {
             return this.fieldMappings.entrySet().stream();
         }
     }
+ */
 }
