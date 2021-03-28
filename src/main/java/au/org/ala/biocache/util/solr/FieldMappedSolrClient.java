@@ -21,12 +21,13 @@ import java.util.List;
 
 public class FieldMappedSolrClient extends SolrClient {
 
-    final FieldMappingUtil.Builder fieldMappingUtilBuilder;
+//    final FieldMappingUtil.Builder fieldMappingUtilBuilder;
+    final FieldMappingUtil fieldMappingUtil;
     final SolrClient delegate;
 
-    public FieldMappedSolrClient(FieldMappingUtil.Builder fieldMappingUtilBuilder, SolrClient delegate) {
+    public FieldMappedSolrClient(FieldMappingUtil fieldMappingUtil, SolrClient delegate) {
 
-        this.fieldMappingUtilBuilder = fieldMappingUtilBuilder;
+        this.fieldMappingUtil = fieldMappingUtil;
         this.delegate = delegate;
     }
 
@@ -267,8 +268,6 @@ public class FieldMappedSolrClient extends SolrClient {
     @Override
     public QueryResponse query(String collection, SolrParams params) throws SolrServerException, IOException {
 
-        FieldMappingUtil fieldMappingUtil = fieldMappingUtilBuilder.newInstance();
-
         FieldMappedSolrParams translatedParams = new FieldMappedSolrParams(fieldMappingUtil, params);
 
         QueryResponse queryResponse = delegate.query(collection, translatedParams);
@@ -284,8 +283,6 @@ public class FieldMappedSolrClient extends SolrClient {
     @Override
     public QueryResponse query(String collection, SolrParams params, SolrRequest.METHOD method) throws SolrServerException, IOException {
 
-        FieldMappingUtil fieldMappingUtil = fieldMappingUtilBuilder.newInstance();
-
         FieldMappedSolrParams translatedParams = new FieldMappedSolrParams(fieldMappingUtil, params);
 
         QueryResponse queryResponse = delegate.query(collection, translatedParams, method);
@@ -300,8 +297,6 @@ public class FieldMappedSolrClient extends SolrClient {
 
     @Override
     public QueryResponse queryAndStreamResponse(String collection, SolrParams params, StreamingResponseCallback callback) throws SolrServerException, IOException {
-
-        FieldMappingUtil fieldMappingUtil = fieldMappingUtilBuilder.newInstance();
 
         FieldMappedSolrParams translatedParams = new FieldMappedSolrParams(fieldMappingUtil, params);
 

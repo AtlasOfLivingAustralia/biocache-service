@@ -20,6 +20,7 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import au.org.ala.biocache.util.*;
+import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import au.org.ala.biocache.util.thread.EndemicCallable;
 import au.org.ala.biocache.writer.*;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -162,6 +163,9 @@ public class SearchDAOImpl implements SearchDAO {
 
     @Inject
     protected QueryFormatUtils queryFormatUtils;
+
+    @Inject
+    protected FieldMappingUtil fieldMappingUtil;
 
     @Inject
     protected CollectionsCache collectionCache;
@@ -2448,20 +2452,20 @@ public class SearchDAOImpl implements SearchDAO {
 
                     String label = "";
                     if(messageSource != null){
-                        label = messageSource.getMessage(facetName + ".novalue", null, "Not supplied", null);
+                        label = messageSource.getMessage(fieldMappingUtil.translateFieldName(facetName) + ".novalue", null, "Not supplied", null);
                     }
                     r.add(new FieldResultDTO(label, facetName + ".novalue", entryCount, "-" + facetName + ":*"));
                 } else {
                     if (countEntryName.equals(DECADE_PRE_1850_LABEL)) {
                         r.add(0, new FieldResultDTO(
-                                getFacetValueDisplayName(facetName, countEntryName),
+                                getFacetValueDisplayName(fieldMappingUtil.translateFieldName(facetName), countEntryName),
                                 facetName + "." + countEntryName,
                                 entryCount,
                                 getFormattedFqQuery(facetName, countEntryName)
                         ));
                     } else {
                         r.add(new FieldResultDTO(
-                                getFacetValueDisplayName(facetName, countEntryName),
+                                getFacetValueDisplayName(fieldMappingUtil.translateFieldName(facetName), countEntryName),
                                 facetName + "." + countEntryName,
                                 entryCount,
                                 getFormattedFqQuery(facetName, countEntryName)
@@ -2906,12 +2910,12 @@ public class SearchDAOImpl implements SearchDAO {
                             } else {
                                 String i18nCode = null;
                                 if (StringUtils.isNotBlank(fcount.getName())) {
-                                    i18nCode = facetField + "." + fcount.getName();
+                                    i18nCode = fieldMappingUtil.translateFieldName(facetField) + "." + fcount.getName();
                                 } else {
-                                    i18nCode = facetField + ".novalue";
+                                    i18nCode = fieldMappingUtil.translateFieldName(facetField) + ".novalue";
                                 }
 
-                                legend.add(new LegendItem(getFacetValueDisplayName(facetField, fcount.getName()), i18nCode, fcount.getCount(), fq));
+                                legend.add(new LegendItem(getFacetValueDisplayName(fieldMappingUtil.translateFieldName(facetField), fcount.getName()), i18nCode, fcount.getCount(), fq));
                             }
                         }
                     }
@@ -2919,11 +2923,14 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             }
         }
+
+        String tFacetField = fieldMappingUtil.translateFieldName(facetField);
+
         //check if we have query based facets
         Map<String, Integer> facetq = qr.getFacetQuery();
         if (facetq != null && facetq.size() > 0) {
             for (Entry<String, Integer> es : facetq.entrySet()) {
-                legend.add(new LegendItem( getFacetValueDisplayName(facetField, es.getKey()), facetField + "." + es.getKey() , es.getValue(), es.getKey()));
+                legend.add(new LegendItem( getFacetValueDisplayName(tFacetField, es.getKey()), tFacetField + "." + es.getKey() , es.getValue(), es.getKey()));
             }
         }
 
@@ -3270,13 +3277,13 @@ public class SearchDAOImpl implements SearchDAO {
 
                 if(StringUtils.isNotBlank(value)) {
                     return messageSource.getMessage(
-                            facet + "." + value,
+                            fieldMappingUtil.translateFieldName(facet) + "." + value,
                             null,
                             value,
                             (Locale) null);
                 } else {
                     return messageSource.getMessage(
-                            facet + ".novalue",
+                            fieldMappingUtil.translateFieldName(facet) + ".novalue",
                             null,
                             "Not supplied",
                             (Locale) null);

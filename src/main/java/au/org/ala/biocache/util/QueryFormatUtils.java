@@ -4,6 +4,7 @@ import au.org.ala.biocache.dao.QidCacheDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.service.ListsService.SpeciesListSearchDTO;
+import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.google.common.collect.Iterables;
 import com.google.common.html.HtmlEscapers;
 import org.apache.commons.lang.ArrayUtils;
@@ -59,6 +60,9 @@ public class QueryFormatUtils {
     @Inject
     private DataQualityService dataQualityService;
 
+    @Inject
+    private FieldMappingUtil fieldMappingUtil;
+
     protected static final String QUOTE = "\"";
     protected static final char[] CHARS = {' ', ':'};
 
@@ -70,14 +74,15 @@ public class QueryFormatUtils {
     protected Pattern urnPattern = Pattern.compile("\\burn:[a-zA-Z0-9\\.:-]*");
     protected Pattern httpPattern = Pattern.compile("http:[a-zA-Z0-9/\\.:\\-_]*");
     protected Pattern spacesPattern = Pattern.compile("[^\\s\"\\(\\)\\[\\]{}']+|\"[^\"]*\"|'[^']*'");
-    protected Pattern uidPattern10 = Pattern.compile("(?:[\"]*)?([a-z_]*_uid:)([a-z0-9]*)(?:[\"]*)?");
-    protected Pattern uidPattern20 = Pattern.compile("(?:[\"]*)?([a-z]*Uid:)([a-z0-9]*)(?:[\"]*)?");
+    protected Pattern uidPattern = Pattern.compile("(?:[\"]*)?((?:[a-z_]*_uid:)|(?:[a-zA-Z]*Uid:))(\\w*)(?:[\"]*)?");
+    protected Pattern uidPattern10 = Pattern.compile("(?:[\"]*)?([a-z_]*_uid:)(\\w*)(?:[\"]*)?");
+    protected Pattern uidPattern20 = Pattern.compile("(?:[\"]*)?([a-zA-Z]*Uid:)(\\w*)(?:[\"]*)?");
     protected Pattern spatialPattern = Pattern.compile(spatialField + ":\"Intersects\\([a-zA-Z=\\-\\s0-9\\.\\,():]*\\)\\\"");
     protected Pattern qidPattern = QidCacheDAO.qidPattern;//Pattern.compile("qid:[0-9]*");
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
-    protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("<span.*?</span>|(\\b|-)[a-z_0-9*\\(]{1,}:");
+    protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("<span.*?</span>|(\\b|-)[\\w*\\(]{1,}:");
     protected Pattern layersPattern = Pattern.compile("(^|\\b)(el|cl)[0-9abc]+:");
-    protected Pattern taxaPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')taxa:\"?([a-zA-Z0-9\\s\\(\\)\\.:\\-_]*)\"?");
+    protected Pattern taxaPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')taxa:\"?([\\w\\s\\(\\)\\.:\\-_]*)\"?");
 
     private int maxBooleanClauses = 1024;
 
@@ -768,7 +773,7 @@ public class QueryFormatUtils {
         if (current[0].contains("_uid") || current[0].contains("Uid")) {
             displaySb.setLength(0);
             String normalised = current[0].replaceAll("\"", "");
-            matcher = uidPattern20.matcher(normalised);
+            matcher = uidPattern.matcher(normalised);
 
             while (matcher.find()) {
                 String newVal = "<span>" + searchUtils.getUidDisplayString(matcher.group(1), matcher.group(2)) + "</span>";
@@ -894,7 +899,7 @@ public class QueryFormatUtils {
                             i18n = layersService.getName(matchedIndexTerm);
                         }
                         if (i18n == null) {
-                            i18n = messageSource.getMessage("facet." + matchedIndexTerm, null, matchedIndexTerm, null);
+                            i18n = messageSource.getMessage("facet." + fieldMappingUtil.translateFieldName(matchedIndexTerm), null, matchedIndexTerm, null);
                         }
                         i18n += ":";
                     }
@@ -976,7 +981,7 @@ public class QueryFormatUtils {
                         }
                     } else {
                         String formattedExtractedValue = formatValue(matchedIndexTerm, extractedValue);
-                        i18nForValue = messageSource.getMessage(matchedIndexTerm + "." + formattedExtractedValue, null, "", null);
+                        i18nForValue = messageSource.getMessage(fieldMappingUtil.translateFieldName(matchedIndexTerm) + "." + formattedExtractedValue, null, "", null);
                         if (i18nForValue.length() == 0)
                             i18nForValue = messageSource.getMessage(formattedExtractedValue, null, formattedExtractedValue, null);
                     }
@@ -1007,13 +1012,15 @@ public class QueryFormatUtils {
         String occurrenceYear = OccurrenceIndex.OCCURRENCE_YEAR_INDEX_FIELD;
         String month = OccurrenceIndex.MONTH;
 
-        if (StringUtils.equals(fn, speciesGuid) || StringUtils.equals(fn, genusGuid)) {
+        String tfn = fieldMappingUtil.translateFieldName(fn);
+
+        if (StringUtils.equals(tfn, speciesGuid) || StringUtils.equals(tfn, genusGuid)) {
             fv = searchUtils.substituteLsidsForNames(fv.replaceAll("\"", ""));
-        } else if (StringUtils.equals(fn, occurrenceYear)) {
+        } else if (StringUtils.equals(tfn, occurrenceYear)) {
             fv = searchUtils.substituteYearsForDates(fv);
-        } else if (StringUtils.equals(fn, month)) {
+        } else if (StringUtils.equals(tfn, month)) {
             fv = searchUtils.substituteMonthNamesForNums(fv);
-        } else if (searchUtils.getAuthIndexFields().contains(fn)) {
+        } else if (searchUtils.getAuthIndexFields().contains(tfn)) {
             if (authService.getMapOfAllUserNamesById().containsKey(StringUtils.remove(fv, "\"")))
                 fv = authService.getMapOfAllUserNamesById().get(StringUtils.remove(fv, "\""));
             else if (authService.getMapOfAllUserNamesByNumericId().containsKey(StringUtils.remove(fv, "\"")))
@@ -1026,7 +1033,7 @@ public class QueryFormatUtils {
                 fv = fv.replaceAll("\\@\\w+", "@.."); // hide email addresses
             }
         } else {
-            fv = searchUtils.getUidDisplayString(fn, fv, false);
+            fv = searchUtils.getUidDisplayString(tfn, fv, false);
         }
 
         return fv;

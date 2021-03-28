@@ -10,6 +10,7 @@ import au.org.ala.biocache.util.solr.FieldMappedSolrClient;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -77,7 +78,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
   private final Object solrIndexVersionLock = new Object();
 
   @Inject
-  private FieldMappingUtil.Builder fieldMappingUtilBuilder;
+  private FieldMappingUtil fieldMappingUtil;
 
 
   /**
@@ -247,7 +248,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
       }
 
       if (solrClient != null) {
-        this.solrClient = new FieldMappedSolrClient(fieldMappingUtilBuilder, solrClient);
+        this.solrClient = new FieldMappedSolrClient(fieldMappingUtil, solrClient);
       }
     }
   }
@@ -398,8 +399,8 @@ public class SolrIndexDAOImpl implements IndexDAO {
       }
     }
 
-    fieldMappingUtilBuilder.getFieldMappingStream()
-            .forEach((Map.Entry<String, String> fieldMapping) -> {
+    fieldMappingUtil.getFieldMappingStream()
+            .forEach((Pair<String, String> fieldMapping) -> {
 
               IndexFieldDTO deprecatedFields = new IndexFieldDTO();
               deprecatedFields.setName(fieldMapping.getKey());
@@ -605,6 +606,8 @@ public class SolrIndexDAOImpl implements IndexDAO {
           f.setDocvalue(schema.contains("D"));
         }
 
+
+
         // now add the i18n and associated strings to the field.
         // 1. description: display name from fieldName= in i18n
         // 2. info: details about this field from description.fieldName= in i18n
@@ -637,6 +640,9 @@ public class SolrIndexDAOImpl implements IndexDAO {
           if (downloadField != null) {
             f.setDownloadName(downloadField);
           }
+
+          fieldName = fieldMappingUtil.translateFieldName(fieldName);
+          downloadField = fieldMappingUtil.translateFieldName(downloadField);
 
           // (6) downloadField description
           String downloadFieldDescription =

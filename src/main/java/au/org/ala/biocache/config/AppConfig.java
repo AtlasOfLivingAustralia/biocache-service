@@ -29,9 +29,6 @@ public class AppConfig {
     @Inject
     private AbstractMessageSource messageSource; // use for i18n of the headers
 
-    @Inject
-    private FieldMappingUtil.Builder fieldMappingUtilBuilder;
-
     @Value("${name.index.dir:/data/lucene/namematching}")
     protected String nameIndexLocation;
 
