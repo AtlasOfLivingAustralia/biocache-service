@@ -19,6 +19,7 @@ import au.org.ala.biocache.model.Qid;
 import au.org.ala.biocache.service.DataQualityService;
 import au.org.ala.biocache.util.QidMissingException;
 import au.org.ala.biocache.util.QidSizeException;
+import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.SpatialUtils;
 import com.googlecode.ehcache.annotations.Cacheable;
 import org.apache.log4j.Logger;
@@ -90,6 +91,9 @@ public class QidCacheDAOImpl implements QidCacheDAO {
 
     @Inject
     private DataQualityService dataQualityService;
+
+    @Inject
+    protected QueryFormatUtils queryFormatUtils;
 
     /**
      * in memory store of params
@@ -461,10 +465,10 @@ public class QidCacheDAOImpl implements QidCacheDAO {
             if (bbox != null && bbox.equals("true")) {
                 bb = searchDAO.getBBox(requestParams);
             } else {
-                //get a formatted Q by running a query
                 requestParams.setPageSize(0);
                 requestParams.setFacet(false);
-                searchDAO.findByFulltext(requestParams);
+                //get a formatted Q
+                queryFormatUtils.formatSearchQuery(requestParams);
             }
 
             //store the title if necessary
