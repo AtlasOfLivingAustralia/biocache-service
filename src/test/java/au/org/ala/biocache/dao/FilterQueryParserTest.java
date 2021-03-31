@@ -35,7 +35,6 @@ import static org.mockito.Matchers.anyList;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.*;
 
-//TODO: update hubs, then remove fqs[0].substring(0, fqs[0].indexOf(':'))
 @RunWith(MockitoJUnitRunner.class)
 public class FilterQueryParserTest {
 
@@ -58,15 +57,6 @@ public class FilterQueryParserTest {
     QueryFormatUtils queryFormatUtils;
 
     protected Map<String, Facet> facetMap = null;
-
-//    String[] fqs = {
-//            "speciesID:urn:lsid:biodiversity.org.au:afd.taxon:2482313b-9d1e-4694-8f51-795213c8bb56",
-//            "collectionUid:co10",
-//            "institutionUid:in4 OR institutionUid:in22 OR institutionUid:in16 OR institution_uid:in6",
-//            "occurrenceYear:[1940-01-01T00:00:00Z%20TO%201949-12-31T00:00:00Z]",
-//            "collector:\"Copland, S J\" OR collector:\"Sadlier, R.\" OR collector:\"Mcreaddie, W\" OR collector:\"Rollo, G\" OR collector:\"Harlow, Pete\"",
-//            "month:09 OR month:10 OR month:11"
-//    };
 
     @Before
     public void setUp() throws Exception {
@@ -91,84 +81,8 @@ public class FilterQueryParserTest {
         ReflectionTestUtils.setField(queryFormatUtils, "fieldMappingUtil", fieldMappingUtil);
 
         new FacetThemes("", null, 30, 30, true);
-
-//        final LinkedHashMap<String, String> collections =  new LinkedHashMap<String, String>();
-//        collections.put("co10", "found co10");
-//        collections.put("in4", "found in4");
-//        collections.put("in22", "found in22");
-//        collections.put("in16", "found in16");
-//        collections.put("in6", "found in6");
-//
-//        Mockito.when(speciesLookupService.getNamesForGuids(anyList())).thenReturn(Arrays.asList(new String[] {"found guid"}));
-//        Mockito.when(collectionCache.getCollections()).thenReturn(collections);
-//        Mockito.when(collectionCache.getInstitutions()).thenReturn(collections);
-
-        //update the collections cache - necessary because this is on a timer
-//        Set set = new java.util.HashSet<String>();
-//        CollectionUtils.mergeArrayIntoCollection("assertion_user_id,user_id,alau_user_id".split(","), set);
-//        SpatialSearchRequestParams query = new SpatialSearchRequestParams();
-//        query.setFq(fqs);
-//        facetMap = queryFormatUtils.formatSearchQuery(query, true)[0];
-
     }
 
-//    @Test
-//    public void testFacetMapInit() {
-//        assertNotNull(facetMap);
-//    }
-/*
-    @Test
-    public void testAddFacetMap1() {
-        //FIXME
-        Facet sp = facetMap.get(fqs[0].substring(0, fqs[0].indexOf(':')));
-        assertNotNull(sp);
-        assertTrue(StringUtils.containsIgnoreCase(sp.getValue(),
-                "urn:lsid:biodiversity.org.au:afd.taxon:2482313b-9d1e-4694-8f51-795213c8bb56"));
-        assertTrue("got: " + sp.getDisplayName(), StringUtils.containsIgnoreCase(sp.getDisplayName(),
-                "Species:found guid"));
-    }
-
-    @Test
-    public void testAddFacetMap2() {
-        Facet in = facetMap.get(fqs[2].substring(0, fqs[2].indexOf(':')));
-        assertNotNull(in);
-        assertTrue(StringUtils.containsIgnoreCase(in.getValue(), "in4 OR institutionUid:in22 OR institutionUid:in16 OR institution_uid:in6"));
-        assertTrue("got: " + in.getDisplayName(), StringUtils.containsIgnoreCase(in.getDisplayName(), "<span>Institution: found in4</span> OR <span>Institution: found in22</span> OR <span>Institution: found in16</span> OR <span>Institution: found in6</span>"));
-    }
-
-    @Test
-    public void testAddFacetMap3() {
-        //FIXME
-        Facet co = facetMap.get(fqs[1].substring(0, fqs[1].indexOf(':')));
-        assertNotNull(co);
-        assertTrue(StringUtils.containsIgnoreCase(co.getValue(), "co10"));
-        assertTrue("got: " + co.getDisplayName(), StringUtils.containsIgnoreCase(co.getDisplayName(), "<span>Collection: found co10</span>"));
-    }
-
-    @Test
-    public void testAddFacetMap4() {
-        Facet od = facetMap.get(fqs[3].substring(0, fqs[3].indexOf(':')));
-        assertNotNull(od);
-        assertTrue(StringUtils.containsIgnoreCase(od.getValue(), "[1940-01-01T00:00:00Z%20TO%201949-12-31T00:00:00Z]"));
-        assertTrue("got: " + od.getDisplayName(), StringUtils.containsIgnoreCase(od.getDisplayName(), "Date (by decade):[1940-1949]"));
-    }
-
-    @Test
-    public void testAddFacetMap5() {
-        Facet col = facetMap.get(fqs[4].substring(0, fqs[4].indexOf(':')));
-        assertNotNull(col);
-        assertTrue("got: " + col.getValue(), StringUtils.containsIgnoreCase(col.getValue(), "Copland, S J\" OR collector:\"Sadlier, R.\" OR collector:\"Mcreaddie, W\" OR collector:\"Rollo, G\" OR collector:\"Harlow, Pete"));
-        assertTrue("got: " + col.getDisplayName(), StringUtils.containsIgnoreCase(col.getDisplayName(), "Collector:\"Copland, S J\" OR Collector:\"Sadlier, R.\" OR Collector:\"Mcreaddie, W\" OR Collector:\"Rollo, G\" OR Collector:\"Harlow, Pete\""));
-    }
-
-    @Test
-    public void testAddFacetMap6() {
-        Facet month = facetMap.get(fqs[5].substring(0, fqs[5].indexOf(':')));
-        assertNotNull(month);
-        assertTrue("got: " + month.getValue(), StringUtils.containsIgnoreCase(month.getValue(), "09 OR month:10 OR month:11"));
-        assertTrue("got: " + month.getDisplayName(), StringUtils.containsIgnoreCase(month.getDisplayName(), "Month:September OR Month:October OR Month:November"));
-    }
-*/
     @Test
     public void testFacetMap() {
 
