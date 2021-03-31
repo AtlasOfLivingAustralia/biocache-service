@@ -33,7 +33,6 @@ import static org.mockito.Mockito.doAnswer;
 /**
  * This test isnt written in a fashion that can be executed as part of a build.
  */
-//@Ignore("Requires external environment to be setup")
 @RunWith(MockitoJUnitRunner.class)
 @ContextConfiguration(locations = {"classpath:springTest.xml"})
 public class QidCacheTest {
