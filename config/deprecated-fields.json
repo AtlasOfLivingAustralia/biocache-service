@@ -83,6 +83,7 @@
     "georeferenced_by": "georeferencedBy",
     "georeferenced_date": "georeferencedDate",
     "geospatial_issue": null,
+    "geospatial_kosher": "spatiallyValid",
     "geospatially_kosher": null,
     "higher_classification": "higherClassification",
     "higher_geography": "higherGeography",
@@ -224,6 +225,7 @@
     "sensitive_event_date": "sensitive_eventDate",
     "sensitive_latitude": "sensitive_decimalLatitude",
     "sensitive_longitude": "sensitive_decimalLongitude",
+    "sounds": "soundIDs",
     "species_group": "speciesGroup",
     "species_guid": "speciesID",
     "species_habitats": "speciesHabitats",
@@ -243,6 +245,7 @@
     "taxon_id": "taxonID",
     "taxon_name": "scientificName",
     "taxon_remarks": "taxonRemarks",
+    "taxonomic_issue": "taxonomicIssues",
     "taxonomic_kosher": null,
     "taxonomic_status": "taxonomicStatus",
     "taxonomically_kosher": null,
@@ -264,5 +267,6 @@
     "verification_date": null,
     "verification_notes": null,
     "verifier": null,
+    "videos": "videoIDs",
     "water_body": "waterBody"
 }
