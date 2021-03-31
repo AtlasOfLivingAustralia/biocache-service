@@ -18,6 +18,8 @@ import au.org.ala.biocache.dto.FacetThemes;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.util.*;
+import au.org.ala.biocache.util.solr.FieldMappingUtil;
+import au.org.ala.names.ws.api.NameUsageMatch;
 import org.apache.commons.lang.StringUtils;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -33,6 +35,7 @@ import org.springframework.context.support.ReloadableResourceBundleMessageSource
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -42,6 +45,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 /**
@@ -64,6 +68,9 @@ public class QueryFormatTest {
 
     @Mock
     protected AbstractMessageSource messageSource;
+
+    @Mock
+    protected FieldMappingUtil fieldMappingUtil;
 
     @Mock
     protected SpeciesLookupService speciesLookupService;
@@ -89,8 +96,8 @@ public class QueryFormatTest {
     @Mock
     protected ListsService listsService;
 
-//    @Mock
-//    protected ALANameSearcher alaNameSearcher;
+    @Mock
+    protected SearchUtils searchUtils;
 
     @Mock DataQualityService dataQualityService;
 
@@ -101,13 +108,21 @@ public class QueryFormatTest {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
 
-        //Mockito.when(searchUtils.getTaxonSearch(anyString())).thenReturn(new String[] {"lft:[0 TO 1]", "found"});
-        //Mockito.when(searchUtils.getUidDisplayString(anyString(), anyString(), anyBoolean())).thenReturn("");
-//        NameSearchResult nsr = new NameSearchResult("", "", null);
-//        nsr.setLeft("0");
-//        nsr.setRight("1");
-//        nsr.setRank(RankType.SPECIES);
-//        when(alaNameSearcher.searchForRecordByLsid(anyString())).thenReturn(nsr);
+        Map<String, String> fieldMapping = new HashMap<String, String>() {{
+            put("basis_of_record", "basisOfRecord");
+            put("species_guid", "speciesID");
+            put("occurrence_year", "occurrenceYear");
+        }};
+
+        when(fieldMappingUtil.translateFieldName(anyString())).thenAnswer(invocation -> fieldMapping.getOrDefault(invocation.getArguments()[0], (String) invocation.getArguments()[0]));
+
+        NameUsageMatch nameUsageMatch = NameUsageMatch.builder()
+                .success(true)
+                .lft(0)
+                .rgt(1)
+                .rank("SPECIES")
+                .build();
+        when(speciesLookupService.getNameUsage(anyString())).thenReturn(nameUsageMatch);
 
         ReloadableResourceBundleMessageSource messageSource = new ReloadableResourceBundleMessageSource();
         messageSource.setDefaultEncoding("UTF-8");
@@ -142,13 +157,13 @@ public class QueryFormatTest {
                 new SearchQueryTester("geohash:\"Intersects(Circle(125.0 -14.0 d=0.9009009))\" AND *:*","Intersects(Circle","within", false),
                 new SearchQueryTester("qid:"+ 1, "", "", false),
                 new SearchQueryTester("water", "water", "water", true),
-                new SearchQueryTester("basis_of_record:PreservedSpecimen", "basis_of_record:PreservedSpecimen", "Record type:Preserved Specimen", true),
+                new SearchQueryTester("basis_of_record:PreservedSpecimen", "basis_of_record:PreservedSpecimen", "Record type:Preserved specimen", true),
                 new SearchQueryTester("state:\"New South Wales\"", "state:\"New\\ South\\ Wales\"", "State/Territory:\"New South Wales\"", true),
                 new SearchQueryTester("text:water species_group:Animals","text:water species_group:Animals","text:water Lifeform:Animals", true),
                 new SearchQueryTester("urn:lsid:biodiversity.org.au:afd.taxon:a7b69905-7163-4017-a2a2-e92ce5dffb84","urn\\:lsid\\:biodiversity.org.au\\:afd.taxon\\:a7b69905\\-7163\\-4017\\-a2a2\\-e92ce5dffb84","urn:lsid:biodiversity.org.au:afd.taxon:a7b69905-7163-4017-a2a2-e92ce5dffb84", true),
                 new SearchQueryTester("species_guid:urn:lsid:biodiversity.org.au:apni.taxon:254666","species_guid:urn\\:lsid\\:biodiversity.org.au\\:apni.taxon\\:254666","Species:urn:lsid:biodiversity.org.au:apni.taxon:254666", true),
                 new SearchQueryTester("occurrence_year:[1990-01-01T12:00:00Z TO *]","occurrence_year:[1990-01-01T12:00:00Z TO *]","Date (by decade):[1990-*]", true),
-                new SearchQueryTester("matched_name:\"kangurus lanosus\"", "taxon_name:\"kangurus\\ lanosus\"","Scientific name:\"kangurus lanosus\"", true),
+                //new SearchQueryTester("matched_name:\"kangurus lanosus\"", "taxon_name:\"kangurus\\ lanosus\"","Scientific name:\"kangurus lanosus\"", true),
                 //new SearchQueryTester("matched_name_children:\"kangurus lanosus\"", "lft:[", "found", false),
                 //new SearchQueryTester("(matched_name_children:Mammalia OR matched_name_children:whales)", "lft:[", "class:", false),
                 //new SearchQueryTester("collector_text:Latz AND matched_name_children:\"Pluchea tetranthera\"", "as","as",false)
@@ -162,7 +177,6 @@ public class QueryFormatTest {
      * Run the tests
      */
     @Test
-    @Ignore
     public void testQueryFormatting() {
         for (SearchQueryTester sqt : data()) {
             SpatialSearchRequestParams ssrp = new SpatialSearchRequestParams();
