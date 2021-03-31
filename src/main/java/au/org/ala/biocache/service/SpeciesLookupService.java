@@ -14,6 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import au.org.ala.names.ws.api.NameUsageMatch;
+
 import java.util.List;
 import java.util.Map;
 
@@ -23,7 +25,15 @@ import java.util.Map;
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
 public interface SpeciesLookupService {
-	
+
+    /**
+     *
+     *
+     * @param taxonID
+     * @return
+     */
+    NameUsageMatch getNameUsage(String taxonID);
+
     /**
      * Lookup a GUID for a given scientific name (returns best match/accepted concept)
      * 
@@ -84,4 +94,6 @@ public interface SpeciesLookupService {
      * @return
      */
     public Map search(String query, String [] filterQuery, int max, boolean includeSynonyms, boolean includeAll, boolean counts);
+
+
 }

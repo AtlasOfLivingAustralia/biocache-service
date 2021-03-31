@@ -81,6 +81,17 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         }
     }
 
+    public NameUsageMatch getNameUsage(String taxonID) {
+
+        try {
+            return nameIndex.get(taxonID);
+        } catch (Exception e) {
+            logger.debug("Error getting name usage for taxonID: " + taxonID + " -  " + e.getMessage(), e);
+        }
+
+        return null;
+    }
+
     @Override
     public String getGuidForName(String name) {
         String lsid = null;

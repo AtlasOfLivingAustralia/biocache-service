@@ -5,9 +5,11 @@ import au.org.ala.biocache.dto.OccurrenceSourceDTO;
 import au.org.ala.biocache.dto.SearchRequestParams;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.service.SpeciesLookupService;
+import au.org.ala.names.ws.api.NameUsageMatch;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
+import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
@@ -48,12 +50,11 @@ public class SearchUtils {
     //for i18n of display values for facets
     @Inject
     private MessageSource messageSource;
+
     @Inject
     private SpeciesLookupService speciesLookupService;
-    @Value("${name.index.dir:/data/lucene/namematching}")
-    protected String nameIndexLocation;
 
-    //ALANameSearcher nameIndex = null;
+
 
     protected static List<String> defaultParams = new ArrayList<String>();
 
@@ -272,38 +273,33 @@ public class SearchUtils {
      * Returns an array where the first value is the search string and the
      * second is a display string.
      *
-     * @param lsid
+     * @param taxonId
      * @return
      */
-    public String[] getTaxonSearch20(String lsid) {
-        return getTaxonSearch(lsid);
-    }
-
-    public String[] getTaxonSearch(String lsid) {
-        String taxon_concept_lsid = OccurrenceIndex.TAXON_CONCEPT_ID;
+     public String[] getTaxonSearch(String taxonId) {
 
         String[] result = new String[0];
         //use the name matching index
-//        try {
-//            if (nameIndex == null) {
-//                nameIndex = new ALANameSearcher(nameIndexLocation);
-//            }
-//            NameSearchResult nsr = nameIndex.searchForRecordByLsid(lsid);
-//            if (nsr != null) {
-//                String rank = nsr.getRank() != null ? nsr.getRank().toString() : "Unknown Rank";
-//                String scientificName = nsr.getRankClassification() != null ? nsr.getRankClassification().getScientificName():null;
-//                StringBuffer dispSB = new StringBuffer(rank + ": " + scientificName);
-//                StringBuilder sb = new StringBuilder(OccurrenceIndex.LFT + ":[");
-//                String lft = nsr.getLeft() != null ? nsr.getLeft() : "0";
-//                String rgt = nsr.getRight() != null ? nsr.getRight():"0";
-//                sb.append(lft).append(" TO ").append(rgt).append("]");
-//                return new String[]{sb.toString(), dispSB.toString()};
-//            } else {
-//                return new String[]{taxon_concept_lsid + ":\"" + ClientUtils.escapeQueryChars(lsid) + "\"", taxon_concept_lsid + ":\"" + lsid + "\""};
-//            }
-//        } catch(Exception e){
-//            logger.error(e.getMessage(), e);
-//        }
+        try {
+
+            NameUsageMatch nameUsageMatch = speciesLookupService.getNameUsage(taxonId);
+
+            if (nameUsageMatch != null) {
+                String rank = nameUsageMatch.getRank() != null ? nameUsageMatch.getRank() : "Unknown Rank";
+                String scientificName = nameUsageMatch.getScientificName() != null ? nameUsageMatch.getScientificName() : null;
+                StringBuffer dispSB = new StringBuffer(rank + ": " + scientificName);
+                StringBuilder sb = new StringBuilder(OccurrenceIndex.LFT + ":[");
+                int lft = nameUsageMatch.getLft() != null ? nameUsageMatch.getLft() : 0;
+                int rgt = nameUsageMatch.getRgt() != null ? nameUsageMatch.getRgt() : 0;
+                sb.append(lft).append(" TO ").append(rgt).append("]");
+                return new String[]{ sb.toString(), dispSB.toString() };
+            } else {
+                return new String[]{OccurrenceIndex.TAXON_CONCEPT_ID + ":\"" + ClientUtils.escapeQueryChars(taxonId) + "\"", OccurrenceIndex.TAXON_CONCEPT_ID + ":\"" + taxonId + "\""};
+            }
+
+        } catch(Exception e){
+            logger.error(e.getMessage(), e);
+        }
 
         return result;
     }
