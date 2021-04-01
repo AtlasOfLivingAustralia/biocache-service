@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import au.org.ala.names.ws.api.NameUsageMatch;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
@@ -54,6 +55,11 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
 
 
     private Map<String, String> guidForNameCache = new HashMap();
+
+    @Override
+    public NameUsageMatch getNameUsage(String taxonID) {
+        return null;
+    }
 
     /**
      * @see SpeciesLookupService#getGuidForName(String)

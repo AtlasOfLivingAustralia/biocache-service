@@ -82,7 +82,6 @@ public class AppConfig {
     protected SpeciesLookupService getSpeciesLookupIndexService() {
         logger.info("Initialising local index-based species lookup services.");
         SpeciesLookupIndexService service = new SpeciesLookupIndexService();
-        service.setNameIndexLocation(nameIndexLocation);
         service.setMessageSource(messageSource);
         return service;
     }

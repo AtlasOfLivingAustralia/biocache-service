@@ -508,7 +508,7 @@ public class QueryFormatUtils {
                 List<String> strings;
 
                 strings = lsids.stream()
-                        .map(searchUtils::getTaxonSearch20)
+                        .map(searchUtils::getTaxonSearch)
                         .filter(t -> t.length > 1)
                         .map(t -> t[0])
                         .collect(toList());
