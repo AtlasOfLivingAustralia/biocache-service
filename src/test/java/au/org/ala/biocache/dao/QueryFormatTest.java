@@ -20,6 +20,7 @@ import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.util.*;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import au.org.ala.names.ws.api.NameUsageMatch;
+import au.org.ala.names.ws.client.ALANameUsageMatchServiceClient;
 import org.apache.commons.lang.StringUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -70,9 +71,6 @@ public class QueryFormatTest {
 //    protected AbstractMessageSource messageSource;
 
     @Mock
-    protected SpeciesLookupService speciesLookupService;
-
-    @Mock
     protected AuthService authService;
 
     @Mock
@@ -89,6 +87,12 @@ public class QueryFormatTest {
 
     @Mock
     protected SpeciesImageService speciesImageService;
+
+    @Mock
+    protected SpeciesLookupService speciesLookupService;
+
+    @Mock
+    protected ALANameUsageMatchServiceClient nameUsageMatchService;
 
     @Mock
     protected ListsService listsService;
@@ -115,14 +119,13 @@ public class QueryFormatTest {
         FieldMappingUtil fieldMappingUtil = new FieldMappingUtil();
         ReflectionTestUtils.setField(fieldMappingUtil, "fieldMappings", fieldMappings);
 
-
         NameUsageMatch nameUsageMatch = NameUsageMatch.builder()
                 .success(true)
                 .lft(0)
                 .rgt(1)
                 .rank("SPECIES")
                 .build();
-        when(speciesLookupService.getNameUsage(anyString())).thenReturn(nameUsageMatch);
+        when(nameUsageMatchService.get(anyString())).thenReturn(nameUsageMatch);
 
         ReloadableResourceBundleMessageSource messageSource = new ReloadableResourceBundleMessageSource();
         messageSource.setDefaultEncoding("UTF-8");
@@ -134,7 +137,7 @@ public class QueryFormatTest {
         ReflectionTestUtils.setField(queryFormatUtils, "searchUtils", searchUtils);
 
         ReflectionTestUtils.setField(searchUtils, "collectionCache", collectionCache);
-        ReflectionTestUtils.setField(searchUtils, "speciesLookupIndexService", speciesLookupService);
+        ReflectionTestUtils.setField(searchUtils, "nameUsageMatchService", nameUsageMatchService);
         ReflectionTestUtils.setField(searchUtils, "messageSource", messageSource);
         ReflectionTestUtils.setField(queryFormatUtils, "fieldMappingUtil", fieldMappingUtil);
 

@@ -11,6 +11,8 @@ import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.RangeBasedFacets;
 import au.org.ala.biocache.util.SearchUtils;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
+import au.org.ala.names.ws.api.NameUsageMatch;
+import au.org.ala.names.ws.client.ALANameUsageMatchServiceClient;
 import org.apache.commons.lang.StringUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,14 +42,17 @@ import static org.junit.Assert.*;
 @RunWith(MockitoJUnitRunner.class)
 public class FilterQueryParserTest {
 
-    @Mock
-    private SpeciesLookupService speciesLookupService;
+//    @Mock
+//    private SpeciesLookupService speciesLookupService;
 
     @Mock
     private CollectionsCache collectionCache;
 
     @Mock
     protected MessageSource messageSource;
+
+    @Mock
+    protected ALANameUsageMatchServiceClient nameUsageMatchService;
 
     @Mock
     private FieldMappingUtil fieldMappingUtil;
@@ -87,7 +92,7 @@ public class FilterQueryParserTest {
         ReflectionTestUtils.setField(queryFormatUtils, "searchUtils", searchUtils);
 
         ReflectionTestUtils.setField(searchUtils, "collectionCache", collectionCache);
-        ReflectionTestUtils.setField(searchUtils, "speciesLookupIndexService", speciesLookupService);
+        ReflectionTestUtils.setField(searchUtils, "nameUsageMatchService", nameUsageMatchService);
         ReflectionTestUtils.setField(searchUtils, "messageSource", messageSource);
         ReflectionTestUtils.setField(queryFormatUtils, "fieldMappingUtil", fieldMappingUtil);
 
@@ -182,7 +187,9 @@ public class FilterQueryParserTest {
         collections.put("in16", "found in16");
         collections.put("in6", "found in6");
 
-        Mockito.when(speciesLookupService.getNamesForGuids(anyList())).thenReturn(Arrays.asList(new String[] {"found guid"}));
+//        Mockito.when(speciesLookupService.getNamesForGuids(anyList())).thenReturn(Arrays.asList(new String[] {"found guid"}));
+        Mockito.when(nameUsageMatchService.get(anyString())).thenReturn(NameUsageMatch.builder().scientificName("found guid").build());
+
         Mockito.when(collectionCache.getCollections()).thenReturn(collections);
         Mockito.when(collectionCache.getInstitutions()).thenReturn(collections);
         Mockito.when(fieldMappingUtil.translateFieldName("speciesID")).thenReturn("speciesID");

@@ -7,6 +7,8 @@ import au.org.ala.biocache.service.SpeciesLookupService;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import au.org.ala.dataquality.client.ApiClient;
+import au.org.ala.names.ws.client.ALANameUsageMatchServiceClient;
+import au.org.ala.ws.ClientConfiguration;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,7 +17,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.web.client.RestOperations;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import java.io.IOException;
+import java.net.URL;
 
 /**
  * This class handles the switching between implementations of interfaces based on
@@ -68,6 +73,28 @@ public class AppConfig {
         RestartDataService.dir = dir;
     }
 
+    @Value("${namesearch.url:http://localhost:9179}")
+    String nameSearchUrl = "http://localhost:9179";
+
+    @Value("${namesearch.timeout:30}")
+    Integer nameSearchTimeout = 30;
+
+    @Value("${namesearch.cache.size:50}")
+    Integer nameSearchCacheSize = 50;
+
+
+    public @Bean(name = "nameUsageMatchService")
+    ALANameUsageMatchServiceClient nameUsageMatchService() throws IOException {
+
+        ClientConfiguration clientConfiguration =
+                ClientConfiguration.builder()
+                        .baseUrl(new URL(nameSearchUrl))
+                        .timeOut(nameSearchTimeout * 1000) // Geocode service connection time-out
+                        .cacheSize(nameSearchCacheSize * 1024 * 1024)
+                        .build();
+
+        return new ALANameUsageMatchServiceClient(clientConfiguration);
+    }
 
     protected SpeciesLookupService getSpeciesLookupRestService() {
         logger.info("Initialising rest-based species lookup services.");

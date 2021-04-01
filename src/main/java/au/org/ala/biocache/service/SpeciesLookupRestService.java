@@ -56,10 +56,6 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
 
     private Map<String, String> guidForNameCache = new HashMap();
 
-    @Override
-    public NameUsageMatch getNameUsage(String taxonID) {
-        return null;
-    }
 
     /**
      * @see SpeciesLookupService#getGuidForName(String)

@@ -27,14 +27,6 @@ import java.util.Map;
 public interface SpeciesLookupService {
 
     /**
-     *
-     *
-     * @param taxonID
-     * @return
-     */
-    NameUsageMatch getNameUsage(String taxonID);
-
-    /**
      * Lookup a GUID for a given scientific name (returns best match/accepted concept)
      * 
      * @param name
