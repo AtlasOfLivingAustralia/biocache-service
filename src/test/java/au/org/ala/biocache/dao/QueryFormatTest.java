@@ -154,6 +154,7 @@ public class QueryFormatTest {
     public static SearchQueryTester[] data() {
         return new SearchQueryTester[] {
                 new SearchQueryTester("lsid:urn:lsid:biodiversity.org.au:afd.taxon:31a9b8b8-4e8f-4343-a15f-2ed24e0bf1ae", "lft:[", "species", false),
+                new SearchQueryTester("taxonConceptID:urn:lsid:biodiversity.org.au:afd.taxon:31a9b8b8-4e8f-4343-a15f-2ed24e0bf1ae", "lft:[", "species", false),
                 //new SearchQueryTester("lsid:urn:lsid:biodiversity.org.au:afd.taxon:7790064f-4ef7-4742-8112-6b0528d5f3fb", "lft:[", "species:", false),
                 new SearchQueryTester("lsid:urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb", "lft:[0 TO 1]","<span class='lsid' id='urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb'>SPECIES: null</span>", true),
                 new SearchQueryTester("lsid:urn:lsid:biodiversity.org.au:afd.taxon:7790064f-4ef7-4742-8112-6b0528d5ftest OR lsid:urn:lsid:biodiversity.org.au:afd.taxon:0064f-4ef7-4742-8112-6b0528d5f3fb", "lft:[0 TO 1] OR lft:[0 TO 1]","<span class='lsid' id='urn:lsid:biodiversity.org.au:afd.taxon:7790064f-4ef7-4742-8112-6b0528d5ftest'>SPECIES: null</span> OR <span class='lsid' id='urn:lsid:biodiversity.org.au:afd.taxon:0064f-4ef7-4742-8112-6b0528d5f3fb'>SPECIES: null</span>", true),
@@ -162,6 +163,7 @@ public class QueryFormatTest {
                 new SearchQueryTester("qid:"+ 1, "", "", false),
                 new SearchQueryTester("water", "water", "water", true),
                 new SearchQueryTester("basis_of_record:PreservedSpecimen", "basis_of_record:PreservedSpecimen", "Record type:Preserved specimen", true),
+                new SearchQueryTester("basisOfRecord:PreservedSpecimen", "basisOfRecord:PreservedSpecimen", "Record type:Preserved specimen", true),
                 new SearchQueryTester("state:\"New South Wales\"", "state:\"New\\ South\\ Wales\"", "State/Territory:\"New South Wales\"", true),
                 new SearchQueryTester("text:water species_group:Animals","text:water species_group:Animals","text:water Lifeform:Animals", true),
                 new SearchQueryTester("urn:lsid:biodiversity.org.au:afd.taxon:a7b69905-7163-4017-a2a2-e92ce5dffb84","urn\\:lsid\\:biodiversity.org.au\\:afd.taxon\\:a7b69905\\-7163\\-4017\\-a2a2\\-e92ce5dffb84","urn:lsid:biodiversity.org.au:afd.taxon:a7b69905-7163-4017-a2a2-e92ce5dffb84", true),

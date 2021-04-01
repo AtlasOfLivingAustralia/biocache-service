@@ -61,23 +61,9 @@ public class FieldMappedQueryResponse extends QueryResponse {
 
             Map<String, String[]> flMappings = this.solrParams.paramsInverseTranslations.get("fl");
 
-//            List<Pair<String, String>> fieldMappings =
-//                    Arrays.stream(this.solrParams.originalParams.getParams("fl"))
-//                            .flatMap((String fl) -> Arrays.stream(fl.split(",")))
-//                            .filter(Strings::isNullOrEmpty)
-//                            .flatMap((String fl) -> Arrays.stream(flMappings.get(fl)).collect())
-//                            .map((String fl) -> {
-//
-//                                Pair<String, String> flMapping = flMappings.stream().findFirst((Pair<String, String> mapping) -> fl.equals(mapping.first()));
-//
-//                                if (flMapping != null) {
-//                                    return flMapping;
-//                                }
-//                                return new Pair(fl, fl);
-//                            })
-//                            .collect(Collectors.toList());
-
-
+            if (flMappings == null) {
+                return _results;
+            }
 
             this._results.forEach((SolrDocument solrDocument) -> {
 

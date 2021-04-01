@@ -69,7 +69,7 @@ public class QueryFormatUtils {
     private String spatialField = "geohash";
 
     //Patterns that are used to prepare a SOLR query for execution
-    protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|'|-)lsid:\"?([a-zA-Z0-9/\\.:\\-_]*)\"?");
+    protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|'|-)taxonConceptID:\"?([a-zA-Z0-9/\\.:\\-_]*)\"?");
     protected Pattern speciesListPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|'|-)species_list:\"?(dr[0-9]*)\"?");
     protected Pattern urnPattern = Pattern.compile("\\burn:[a-zA-Z0-9\\.:-]*");
     protected Pattern httpPattern = Pattern.compile("http:[a-zA-Z0-9/\\.:\\-_]*");
@@ -563,17 +563,19 @@ public class QueryFormatUtils {
             return;
         }
 
+        String translatedQuery = fieldMappingUtil.translateQueryFields(current[1]);
+
         //if the query string contains lsid: we will need to replace it with the corresponding lft range
-        if (current[1].contains("lsid:")) {
+        if (translatedQuery.contains("taxonConceptID:")) {
             StringBuffer queryString = new StringBuffer();
             StringBuffer displaySb = new StringBuffer();
             int last = 0;
 
-            Matcher matcher = lsidPattern.matcher(current[1]);
+            Matcher matcher = lsidPattern.matcher(translatedQuery);
             queryString.setLength(0);
             while (matcher.find()) {
                 //only want to process the "lsid" if it does not represent taxon_concept_lsid etc...
-                if ((matcher.start() > 0 && current[1].charAt(matcher.start() - 1) != '_') || matcher.start() == 0) {
+                if ((matcher.start() > 0 && translatedQuery.charAt(matcher.start() - 1) != '_') || matcher.start() == 0) {
                     String value = matcher.group();
                     if (logger.isDebugEnabled()) {
                         logger.debug("pre-processing " + value);
@@ -600,7 +602,7 @@ public class QueryFormatUtils {
 
                         matcher.appendReplacement(queryString, lsidHeader + values[0]);
 
-                        displaySb.append(current[0].substring(last, matcher.start()));
+                        displaySb.append(translatedQuery.substring(last, matcher.start()));
                         if (!values[1].startsWith(taxonConceptId + ":")) {
                             displaySb.append(lsidHeader).append("<span class='lsid' id='").append(lsid).append("'>").append(values[1]).append("</span>");
                         } else {
@@ -615,7 +617,7 @@ public class QueryFormatUtils {
 
             if (last > 0) {
                 matcher.appendTail(queryString);
-                displaySb.append(current[1].substring(last, current[1].length()));
+                displaySb.append(translatedQuery.substring(last));
 
                 current[0] = displaySb.toString();
                 current[1] = queryString.toString();
