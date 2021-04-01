@@ -22,12 +22,12 @@ import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import au.org.ala.names.ws.api.NameUsageMatch;
 import org.apache.commons.lang.StringUtils;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.theories.DataPoints;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.springframework.context.support.AbstractMessageSource;
@@ -66,11 +66,8 @@ public class QueryFormatTest {
     @Mock
     protected CollectionsCache collectionCache;
 
-    @Mock
-    protected AbstractMessageSource messageSource;
-
-    @Mock
-    protected FieldMappingUtil fieldMappingUtil;
+//    @Mock
+//    protected AbstractMessageSource messageSource;
 
     @Mock
     protected SpeciesLookupService speciesLookupService;
@@ -108,13 +105,16 @@ public class QueryFormatTest {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
 
-        Map<String, String> fieldMapping = new HashMap<String, String>() {{
+        Map<String, String> fieldMappings = new HashMap<String, String>() {{
+            put("lsid", "taxonConceptID");
             put("basis_of_record", "basisOfRecord");
             put("species_guid", "speciesID");
             put("occurrence_year", "occurrenceYear");
         }};
 
-        when(fieldMappingUtil.translateFieldName(anyString())).thenAnswer(invocation -> fieldMapping.getOrDefault(invocation.getArguments()[0], (String) invocation.getArguments()[0]));
+        FieldMappingUtil fieldMappingUtil = new FieldMappingUtil();
+        ReflectionTestUtils.setField(fieldMappingUtil, "fieldMappings", fieldMappings);
+
 
         NameUsageMatch nameUsageMatch = NameUsageMatch.builder()
                 .success(true)
@@ -134,9 +134,9 @@ public class QueryFormatTest {
         ReflectionTestUtils.setField(queryFormatUtils, "searchUtils", searchUtils);
 
         ReflectionTestUtils.setField(searchUtils, "collectionCache", collectionCache);
-        ReflectionTestUtils.setField(searchUtils, "speciesLookupService", speciesLookupService);
+        ReflectionTestUtils.setField(searchUtils, "speciesLookupIndexService", speciesLookupService);
         ReflectionTestUtils.setField(searchUtils, "messageSource", messageSource);
-//        ReflectionTestUtils.setField(searchUtils, "nameIndex", alaNameSearcher);
+        ReflectionTestUtils.setField(queryFormatUtils, "fieldMappingUtil", fieldMappingUtil);
 
         new FacetThemes("", null, 30, 30, true);
     }

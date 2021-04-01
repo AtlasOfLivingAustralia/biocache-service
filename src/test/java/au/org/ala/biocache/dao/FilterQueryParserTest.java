@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.anyList;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -86,9 +87,11 @@ public class FilterQueryParserTest {
         ReflectionTestUtils.setField(queryFormatUtils, "searchUtils", searchUtils);
 
         ReflectionTestUtils.setField(searchUtils, "collectionCache", collectionCache);
-        ReflectionTestUtils.setField(searchUtils, "speciesLookupService", speciesLookupService);
+        ReflectionTestUtils.setField(searchUtils, "speciesLookupIndexService", speciesLookupService);
         ReflectionTestUtils.setField(searchUtils, "messageSource", messageSource);
         ReflectionTestUtils.setField(queryFormatUtils, "fieldMappingUtil", fieldMappingUtil);
+
+        Mockito.when(fieldMappingUtil.translateQueryFields(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
 
         new FacetThemes("", null, 30, 30, true);
 

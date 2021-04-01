@@ -52,9 +52,7 @@ public class SearchUtils {
     private MessageSource messageSource;
 
     @Inject
-    private SpeciesLookupService speciesLookupService;
-
-
+    private SpeciesLookupService speciesLookupIndexService;
 
     protected static List<String> defaultParams = new ArrayList<String>();
 
@@ -254,6 +252,7 @@ public class SearchUtils {
         if (m.find(position) && m.groupCount() == 2) {
             String rank = m.group(1);
             String scientificName = m.group(2);
+
 //            RankType rankType = RankType.getForName(rank.toLowerCase());
 //            if(rankType != null){
 //                try {
@@ -282,7 +281,7 @@ public class SearchUtils {
         //use the name matching index
         try {
 
-            NameUsageMatch nameUsageMatch = speciesLookupService.getNameUsage(taxonId);
+            NameUsageMatch nameUsageMatch = speciesLookupIndexService.getNameUsage(taxonId);
 
             if (nameUsageMatch != null) {
                 String rank = nameUsageMatch.getRank() != null ? nameUsageMatch.getRank() : "Unknown Rank";
@@ -454,7 +453,7 @@ public class SearchUtils {
         String name = fieldValue;
         List<String> guids = new ArrayList<String>();
         guids.add(fieldValue);
-        List<String> names = speciesLookupService.getNamesForGuids(guids);
+        List<String> names = speciesLookupIndexService.getNamesForGuids(guids);
         
         if (names != null && names.size() >= 1) {
             name = names.get(0);
