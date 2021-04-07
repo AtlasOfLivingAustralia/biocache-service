@@ -14,7 +14,6 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
-import au.org.ala.names.ws.api.NameUsageMatch;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
@@ -32,9 +31,9 @@ import java.util.*;
  *
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
-public class SpeciesLookupRestService implements SpeciesLookupService {
+public class BieSpeciesLookupService implements SpeciesLookupService {
 
-    private final static Logger logger = Logger.getLogger(SpeciesLookupRestService.class);
+    private final static Logger logger = Logger.getLogger(BieSpeciesLookupService.class);
 
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
 

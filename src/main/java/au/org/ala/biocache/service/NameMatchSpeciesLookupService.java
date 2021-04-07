@@ -11,16 +11,15 @@ import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.springframework.context.support.AbstractMessageSource;
 
-import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import java.util.*;
 
 /**
  * Index based lookup index serice
  */
-public class SpeciesLookupIndexService implements SpeciesLookupService {
+public class NameMatchSpeciesLookupService implements SpeciesLookupService {
     /** Logger initialisation */
-    private final static Logger logger = Logger.getLogger(SpeciesLookupIndexService.class);
+    private final static Logger logger = Logger.getLogger(NameMatchSpeciesLookupService.class);
 
     private AbstractMessageSource messageSource; // use for i18n of the headers
 
@@ -217,7 +216,8 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
     }
     
     public Map search(String query, String[] filterQuery, int max, boolean includeSynonyms, boolean includeAll, boolean includeCounts) {
-        // TODO: better method of dealing with records with 0 occurrences being removed. 
+
+        // TODO: better method of dealing with records with 0 occurrences being removed.
         int maxFind = includeAll ? max : max + 1000;
 
         List<Map> results = nameUsageMatchService.autocomplete(ClientUtils.escapeQueryChars(query), maxFind, includeSynonyms);
