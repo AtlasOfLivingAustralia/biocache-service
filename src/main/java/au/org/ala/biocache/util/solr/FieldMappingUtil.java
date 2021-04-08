@@ -43,20 +43,12 @@ public class FieldMappingUtil {
         }
     }
 
-    private Map<String, String> facetMap;
-    private Map<String, String> facetRangeMap;
-
     static Consumer<Pair<String, String>> NOOP_TRANSLATION = (Pair<String, String> m) -> {};
 
     static final String DEPRECATED_PREFIX = "deprecated_";
     static final Pattern ENUM_VALUE_PATTERN = Pattern.compile("(\\w+)");
     static final Pattern QUERY_TERM_PATTERN = Pattern.compile("(^|\\s|-|\\()(\\w+):");
 
-//    protected FieldMappingUtil(Map<String, String> fieldMappings, Map<String, Map<String, String>> enumValueMappings) {
-//
-//        this.fieldMappings = fieldMappings;
-//        this.enumValueMappings = enumValueMappings;
-//    }
 
     public Stream<Pair<String, String>> getFieldMappingStream() {
 
@@ -219,9 +211,6 @@ public class FieldMappingUtil {
         return Arrays.stream(fls)
                 .map((String fl) -> String.join(",", translateFieldArray(translation, fl.split(","))))
                 .toArray(String[]::new);
-
-
-//        return translateFieldArray(translation, fls.split(","));
     }
 
     public String[] translateFieldArray(String ...fields) {
@@ -240,46 +229,4 @@ public class FieldMappingUtil {
                 .map((String field) -> translateFieldName(translation, field))
                 .toArray(String[]::new);
     }
-/*
-    @Component("fieldMappingUtilBuilder")
-    public static class Builder {
-
-        private Map<String, Map<String, String>> enumValueMappings;
-        private Map<String, String> fieldMappings;
-
-        @Value("${solr.deprecated.enumvalues.config:/data/biocache/config/deprecated-enum-values.json}")
-        void setDeprecatedEnumValuesConfig(String deprecatedEnumValuesConfig) throws IOException {
-
-            if (deprecatedEnumValuesConfig != null && new File(deprecatedEnumValuesConfig).exists()) {
-
-                ObjectMapper om = new ObjectMapper();
-                enumValueMappings = om.readValue(new File(deprecatedEnumValuesConfig), HashMap.class);
-            }
-        }
-
-        @Value("${solr.deprecated.fields.config:/data/biocache/config/deprecated-fields.json}")
-        void setDeprecatedFieldsConfig(String deprecatedFieldsConfig) throws IOException {
-
-            if (deprecatedFieldsConfig != null && new File(deprecatedFieldsConfig).exists()) {
-
-                ObjectMapper om = new ObjectMapper();
-                fieldMappings = om.readValue(new File(deprecatedFieldsConfig), HashMap.class);
-            }
-        }
-
-        FieldMappingUtil newInstance() {
-
-            return new FieldMappingUtil(fieldMappings, enumValueMappings);
-        }
-
-        public Map<String, String> getFieldMappings() {
-            return Collections.unmodifiableMap(fieldMappings);
-        }
-
-        public Stream<Map.Entry<String, String>> getFieldMappingStream() {
-
-            return this.fieldMappings.entrySet().stream();
-        }
-    }
- */
 }
