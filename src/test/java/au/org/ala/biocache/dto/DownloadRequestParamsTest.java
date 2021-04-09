@@ -1,6 +1,10 @@
 package au.org.ala.biocache.dto;
 
+import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.service.DownloadService;
+import au.org.ala.biocache.service.SpeciesImageService;
+import au.org.ala.biocache.util.SolrUtils;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.InvalidPropertyException;
@@ -24,8 +28,19 @@ public class DownloadRequestParamsTest {
     @Autowired
     private DownloadService downloadService;
 
+    @Autowired
+    private SpeciesImageService speciesImageService;
+
+    @Autowired
+    private IndexDAO indexDAO;
+
     static {
         System.setProperty("biocache.config", System.getProperty("user.dir") + "/src/test/resources/biocache-test-config.properties");
+    }
+
+    @BeforeClass
+    public static void setupBeforeClass() throws Exception {
+        SolrUtils.setupIndex();
     }
 
     /**

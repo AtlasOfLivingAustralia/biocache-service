@@ -32,36 +32,42 @@ class FieldMappedSolrClientSpec extends Specification {
         desc | query || result
         'basic taxon_name'  | [ fields: [ 'taxon_name' ], query: 'taxon_name:*' ] || { QueryResponse resp ->
             assert resp.results.size() > 0
-            assert resp.results.get(0).getFieldValue('taxon_name') == null
+            assert resp.results.get(0).getFieldValue('taxon_name') != null
+            assert resp.results.get(0).getFieldValue('scientificName') == null
+        }
+        'basic taxon_name & scientificName'  | [ fields: [ 'taxon_name', 'scientificName' ], query: 'taxon_name:*' ] || { QueryResponse resp ->
+            assert resp.results.size() > 0
+            assert resp.results.get(0).getFieldValue('taxon_name') != null
             assert resp.results.get(0).getFieldValue('scientificName') != null
         }
         'combination query' | [ fields: [ 'taxon_name' ], query: 'taxon_name:* AND -(common_name:"test")' ] || { QueryResponse resp ->
             assert resp.results.size() > 0
-            assert resp.results.get(0).getFieldValue('taxon_name') == null
-            assert resp.results.get(0).getFieldValue('scientificName') != null
+            assert resp.results.get(0).getFieldValue('taxon_name') != null
+            assert resp.results.get(0).getFieldValue('scientificName') == null
         }
-        'deprecated field'  | [ fields: [ 'aust_conservation' ], query: 'aust_conservation:*' ] || { QueryResponse resp ->
+        'deprecated field'  | [ fields: [ 'deleted' ], query: 'deleted:*' ] || { QueryResponse resp ->
             assert resp.results.size() == 0
         }
-        'deprecated field (string)' | [ fields: [ 'aust_conservation' ], query: 'aust_conservation:""' ] || { QueryResponse resp ->
+        'deprecated field (string)' | [ fields: [ 'deleted' ], query: 'deleted:""' ] || { QueryResponse resp ->
             assert resp.results.size() == 0
         }
-        'deprecated field (number)' | [ fields: [ 'aust_conservation' ], query: 'aust_conservation:100' ] || { QueryResponse resp ->
+        'deprecated field (number)' | [ fields: [ 'deleted' ], query: 'deleted:100' ] || { QueryResponse resp ->
             assert resp.results.size() == 0
         }
-        'deprecated field (range)' | [ fields: [ 'aust_conservation' ], query: 'aust_conservation:[* TO 100]' ] || { QueryResponse resp ->
+        'deprecated field (range)' | [ fields: [ 'deleted' ], query: 'deleted:[* TO 100]' ] || { QueryResponse resp ->
             assert resp.results.size() == 0
         }
-        'deprecated field combination' | [ fields: [ 'aust_conservation' ], query: '*:* aust_conservation:*' ] || { QueryResponse resp ->
+        'deprecated field combination' | [ fields: [ 'deleted' ], query: '*:* deleted:*' ] || { QueryResponse resp ->
             assert resp.results.size() > 0
+            assert resp.results.get(0).getFieldValue('delete') == null
         }
-        'deprecated field combination' | [ fields: [ 'aust_conservation' ], query: '*:* AND aust_conservation:*' ] || { QueryResponse resp ->
+        'deprecated field combination' | [ fields: [ 'deleted' ], query: '*:* AND deleted:*' ] || { QueryResponse resp ->
             assert resp.results.size() == 0
         }
         'basic filter query' | [ fields: [ 'taxon_name' ], query: '*:*', filterQueries: [ 'taxon_name:*', 'scientificName:*' ] ] || { QueryResponse resp ->
             assert resp.results.size() > 0
-            assert resp.results.get(0).getFieldValue('taxon_name') == null
-            assert resp.results.get(0).getFieldValue('scientificName') != null
+            assert resp.results.get(0).getFieldValue('taxon_name') != null
+            assert resp.results.get(0).getFieldValue('scientificName') == null
         }
 //        'facet query' | [ query: '*:*', addFacetField: ('scientificName') ] || { QueryResponse resp ->
 //            assert resp.facetFields.get(0).name == 'scientificName'

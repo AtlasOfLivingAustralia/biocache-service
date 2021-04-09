@@ -20,6 +20,7 @@ import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.dto.SpeciesImageDTO;
 import au.org.ala.biocache.dto.SpeciesImagesDTO;
 import au.org.ala.biocache.util.SearchUtils;
+import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.response.QueryResponse;
@@ -72,13 +73,15 @@ public class SpeciesImageService {
                 params.setFacet(true);
                 params.setFacets(new String[]{OccurrenceIndex.LFT});
                 params.setFlimit(99999999);
-                params.setFl(OccurrenceIndex.DATA_RESOURCE_UID + "," + OccurrenceIndex.IMAGE_URL);
+                params.setFl(OccurrenceIndex.DATA_RESOURCE_UID + "," + OccurrenceIndex.IMAGE_URL);  // PIPELINES: recheck pipelines field mapping
                 params.setQ(OccurrenceIndex.IMAGE_URL + ":*");
 
+                // TODO: PIPELINES: no need to perform mapping of fields in query params or response
+                // FieldMappingUtil.disableMapping();
                 QueryResponse qr = searchDAO.searchGroupedFacets(params);
 
                 Map<Long, SpeciesImageDTO> map = new HashMap();
-
+                
                 for (SimpleOrderedMap item : SearchUtils.getList(qr.getResponse(), "facets", OccurrenceIndex.LFT, "buckets")) {
                     String dataResourceUid = (String) SearchUtils.getVal(item, OccurrenceIndex.DATA_RESOURCE_UID, "buckets", 0, 0);
                     String imageUrl = (String) SearchUtils.getVal(item, OccurrenceIndex.IMAGE_URL, "buckets", 0, 0);

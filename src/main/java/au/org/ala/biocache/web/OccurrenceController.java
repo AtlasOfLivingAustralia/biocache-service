@@ -31,6 +31,7 @@ import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrDocumentList;
 import org.gbif.utils.file.FileUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,6 +54,8 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.io.*;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -1429,8 +1432,15 @@ public class OccurrenceController extends AbstractSecureController {
         SpatialSearchRequestParams idRequest = new SpatialSearchRequestParams();
         idRequest.setQ(OccurrenceIndex.ID + ":\"" + uuid + "\"");
         idRequest.setFacet(false);
-        idRequest.setFl(StringUtils.join(indexDao.getIndexedFieldsMap().keySet(), ","));
-        SolrDocument sd = searchDAO.findByFulltext(idRequest).get(0);
+//        idRequest.setFl(StringUtils.join(indexDao.getIndexedFieldsMap().keySet(), ","));
+        idRequest.setFl("*");
+
+        SolrDocumentList sdl = searchDAO.findByFulltext(idRequest);
+        if (sdl.size() == 0) {
+            return new HashMap();
+        }
+
+        SolrDocument sd = sdl.get(0);
 
         // obscure email addresses, or anything else containing @
         Set<String> keys = new HashSet<>();
@@ -1516,14 +1526,15 @@ public class OccurrenceController extends AbstractSecureController {
                                 JSONArray.fromObject(sd.getFieldValue(ALL_IMAGE_URL)).toArray(new String[0]),
                         im == null || !im.equalsIgnoreCase("false"));
             }
+        }
 
+        if (occurrenceLogEnabled) {
             //log the statistics for viewing the record
-            logViewEvent(ip, sd, null, null, "Viewing Occurrence Record " + uuid);
+            logViewEvent(ip, sd, getUserAgent(request), null, "Viewing Occurrence Record " + uuid);
         }
 
         boolean includeImageMetadata = (im == null || !im.equalsIgnoreCase("false"));
         return mapAsFullRecord(sd, includeImageMetadata);
-
     }
 
     /**
@@ -1554,7 +1565,7 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     private void addLayerValues(SolrDocument sd, Map map, String key, String prefix) {
-        String regex = "^" + key + "[0-9]+$";
+        String regex = "^" + prefix + key + "[0-9]+$";
         for (Map.Entry<String, Object> es : sd.entrySet()) {
             if (es.getKey().matches(regex)) {
                 map.put(es.getKey(), es.getValue());
@@ -1564,6 +1575,17 @@ public class OccurrenceController extends AbstractSecureController {
 
     private void add(SolrDocument sd, Map map, String key, String prefix) {
         map.put(key, sd.getFieldValue(prefix + key));
+    }
+
+    private void addLocalDate(SolrDocument sd, Map map, String key, String prefix) {
+
+        Object value = sd.getFieldValue(prefix + key);
+
+        if (value != null && value instanceof Date) {
+
+            LocalDate localDate = ((Date) value).toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            map.put(key, localDate.toString());
+        }
     }
 
     private void addImages(SolrDocument sd, Map map, String dstKey, String srcKey, String prefix) {
@@ -1597,7 +1619,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     Map fullRecord(String prefix, SolrDocument sd) {
         Map fullRecord = new HashMap();
-        fullRecord.put("rowKey", ID); // Use the processed ID for compatability
+        fullRecord.put("rowKey",  sd.getFieldValue(ID)); // Use the processed ID for compatability
 
         // au.org.ala.biocache.model.Occurrence
         Map occurrence = new HashMap();
@@ -1623,9 +1645,9 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, occurrence, "establishmentMeans", prefix);
         add(sd, occurrence, "fieldNotes", prefix);
         add(sd, occurrence, "fieldNumber", prefix);
-        occurrence.put("identifier", "");  // Not in pipeline
+//        occurrence.put("identifier", "");  // Not in pipeline
         add(sd, occurrence, "individualCount", prefix);
-        occurrence.put("individualID", "");  // Not in pipeline
+//        occurrence.put("individualID", "");  // Not in pipeline
         add(sd, occurrence, "informationWithheld", prefix);   //used for sensitive data information
         add(sd, occurrence, "institutionCode", prefix);
         add(sd, occurrence, "institutionID", prefix);
@@ -1633,7 +1655,7 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, occurrence, "license", prefix);
         add(sd, occurrence, "lifeStage", prefix);
         add(sd, occurrence, "modified", prefix);
-        occurrence.put("occurrenceAttributes", "");  // Not in pipeline
+//        occurrence.put("occurrenceAttributes", "");  // Not in pipeline
         add(sd, occurrence, "occurrenceAttributes", prefix);
         add(sd, occurrence, "occurrenceDetails", prefix);
         add(sd, occurrence, "occurrenceRemarks", prefix);
@@ -1687,8 +1709,6 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, occurrence, "duplicateStatus", prefix);
         add(sd, occurrence, "duplicateType", prefix);
         //Store the conservation status
-        //austConservation = national conservation status.
-        //FIXME These should be removed and just accessed at index time from list tool.
         add(sd, occurrence, "countryConservation", prefix);
         add(sd, occurrence, "stateConservation", prefix);
         add(sd, occurrence, "globalConservation", prefix);
@@ -1697,7 +1717,6 @@ public class OccurrenceController extends AbstractSecureController {
         // support for schema change
         addFirst(sd, occurrence, "recordedBy", prefix);
         addImages(sd, occurrence, "images", "imageIDs", "");
-
 
         // au.org.ala.biocache.model.Classification
         Map classification = new HashMap();
@@ -1745,7 +1764,7 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, classification, "scientificNameWithoutAuthor", prefix);
         add(sd, classification, "scientificNameAddendum", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0334
         //custom additional fields
-        add(sd, classification, "taxonRankID", prefix);
+        add(sd, classification, "rankID", prefix);
         add(sd, classification, "kingdomID", prefix);
         add(sd, classification, "phylumID", prefix);
         add(sd, classification, "classID", prefix);
@@ -1759,9 +1778,9 @@ public class OccurrenceController extends AbstractSecureController {
         classification.put("right", sd.getFieldValue("rgt"));
         add(sd, classification, "speciesHabitats", prefix);
         add(sd, classification, "speciesGroups", prefix);
-        add(sd, classification, "nameMatchMetric", prefix); //stores the type of name match that was performed
-        add(sd, classification, "taxonomicIssue", prefix); //stores if no issue, questionableSpecies, conferSpecies or affinitySpecies
-        add(sd, classification, "nameParseType", prefix);
+        add(sd, classification, "matchType", prefix); //stores the type of name match that was performed
+        add(sd, classification, "taxonomicIssues", prefix); //stores if no issue, questionableSpecies, conferSpecies or affinitySpecies
+        add(sd, classification, "nameType", prefix);
 
         // au.org.ala.biocache.model.Location
         Map location = new HashMap();
@@ -1836,8 +1855,8 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, event, "day", prefix);
         add(sd, event, "endDayOfYear", prefix);
         add(sd, event, "eventAttributes", prefix);
-        add(sd, event, "eventDate", prefix);
-        add(sd, event, "eventDateEnd", prefix);
+        addLocalDate(sd, event, "eventDate", prefix);
+        addLocalDate(sd, event, "eventDateEnd", prefix);
         add(sd, event, "eventRemarks", prefix);
         add(sd, event, "eventTime", prefix);
         add(sd, event, "verbatimEventDate", prefix);
@@ -1907,11 +1926,11 @@ public class OccurrenceController extends AbstractSecureController {
 
         Map el = new HashMap();
         fullRecord.put("el", el);
-        addLayerValues(sd, el, "el", "");
+        addLayerValues(sd, el, "el", prefix);
 
         Map cl = new HashMap();
         fullRecord.put("cl", cl);
-        addLayerValues(sd, cl, "cl", "");
+        addLayerValues(sd, cl, "cl", prefix);
 
         Map miscProperties = new HashMap();
         fullRecord.put("miscProperties", miscProperties);
@@ -1925,16 +1944,17 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, fullRecord, "userAssertionStatus", "");
         add(sd, fullRecord, "locationDetermined", "");
         add(sd, fullRecord, "defaultValuesUsed", "");
-        fullRecord.put("geospatiallyKosher", "");
+        add(sd, fullRecord,"spatiallyValid", "");
+//        fullRecord.put("geospatiallyKosher", "");
         fullRecord.put("taxonomicallyKosher", "");
         fullRecord.put("deleted", false); // no deletion flags in use
         add(sd, fullRecord, "userVerified", ""); // same value for both raw and processed
-        Object value = sd.getFieldValue("first_loaded_date");
+        Object value = sd.getFieldValue("firstLoadedDate");
         if (value != null) {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss'Z'");
             fullRecord.put("firstLoaded", sdf.format((Date) value));
         }
-        fullRecord.put("lastModifiedTime", sd.getFieldValue(prefix + "modified"));
+        fullRecord.put("lastModifiedTime", sd.getFieldValue(prefix + "lastLoadDate"));
         fullRecord.put("dateDeleted", ""); // no deletion flags in use
         add(sd, fullRecord, "lastUserAssertionDate", "");
 
@@ -1959,15 +1979,17 @@ public class OccurrenceController extends AbstractSecureController {
         systemAssertions.put("passed", passed); // no longer available
 
         List<ErrorCode> allErrorCodes = new ArrayList(Arrays.asList(AssertionCodes.getAll()));
-        for (Object assertion : assertions) {
-            ErrorCode ec = AssertionCodes.getByName((String) assertion);
-            if (ec != null) {
-                allErrorCodes.remove(ec);
+        if (assertions != null) {
+            for (Object assertion : assertions) {
+                ErrorCode ec = AssertionCodes.getByName((String) assertion);
+                if (ec != null) {
+                    allErrorCodes.remove(ec);
 
-                if (ErrorCode.Category.Missing.toString().equalsIgnoreCase(ec.getCategory())) {
-                    missing.add(formatAssertion((String) assertion, 0, false, "" + sd.getFieldValue("modified")));
-                } else {
-                    warning.add(formatAssertion((String) assertion, 0, false, "" + sd.getFieldValue("modified")));
+                    if (ErrorCode.Category.Missing.toString().equalsIgnoreCase(ec.getCategory())) {
+                        missing.add(formatAssertion((String) assertion, 0, false, "" + sd.getFieldValue("modified")));
+                    } else {
+                        warning.add(formatAssertion((String) assertion, 0, false, "" + sd.getFieldValue("modified")));
+                    }
                 }
             }
         }

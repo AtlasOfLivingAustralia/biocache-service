@@ -39,7 +39,7 @@ public class OccurrenceIndex {
     final static public String STATE = "stateProvince";
     final static public String PROVENANCE = "provenance";
 
-    public static final String OCCURRENCE_YEAR = "occurrence_year";
+    public static final String OCCURRENCE_YEAR_INDEX_FIELD = "occurrenceYear";
 
     public static final String TAXON_NAME = "scientificName";
     public static final String RAW_TAXON_NAME = "raw_scientificName";

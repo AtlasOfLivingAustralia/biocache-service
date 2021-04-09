@@ -6,9 +6,11 @@ import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.util.DwCTerms;
 import au.org.ala.biocache.util.DwcTermDetails;
 import au.org.ala.biocache.util.QueryFormatUtils;
+import au.org.ala.biocache.util.solr.FieldMappedSolrClient;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -76,7 +78,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
   private final Object solrIndexVersionLock = new Object();
 
   @Inject
-  private FieldMappingUtil.Builder fieldMappingUtilBuilder;
+  private FieldMappingUtil fieldMappingUtil;
 
 
   /**
@@ -162,7 +164,11 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
   @PostConstruct
   public void init() {
+
     if (solrClient == null) {
+
+      SolrClient solrClient = null;
+
       if (usehttp2) {
         // TODO - this is experimental. Requires more configuration params for tuning timeouts etc
         if (!solrHome.startsWith("http")) {
@@ -227,6 +233,8 @@ public class SolrIndexDAOImpl implements IndexDAO {
             } catch (Exception e) {
               logger.error("ping failed", e);
             }
+          } else {
+            logger.error("Failed to initialise connection to SOLR server with solrHome: " + solrHome);
           }
         } else {
           logger.info("Initialising connection to SOLR server..... with solrHome:  " + solrHome);
@@ -237,6 +245,10 @@ public class SolrIndexDAOImpl implements IndexDAO {
                   .build();
           logger.info("Initialising connection to SOLR server - done.");
         }
+      }
+
+      if (solrClient != null) {
+        this.solrClient = new FieldMappedSolrClient(fieldMappingUtil, solrClient);
       }
     }
   }
@@ -387,8 +399,8 @@ public class SolrIndexDAOImpl implements IndexDAO {
       }
     }
 
-    fieldMappingUtilBuilder.getFieldMappingStream()
-            .forEach((Map.Entry<String, String> fieldMapping) -> {
+    fieldMappingUtil.getFieldMappingStream()
+            .forEach((Pair<String, String> fieldMapping) -> {
 
               IndexFieldDTO deprecatedFields = new IndexFieldDTO();
               deprecatedFields.setName(fieldMapping.getKey());
@@ -594,6 +606,8 @@ public class SolrIndexDAOImpl implements IndexDAO {
           f.setDocvalue(schema.contains("D"));
         }
 
+
+
         // now add the i18n and associated strings to the field.
         // 1. description: display name from fieldName= in i18n
         // 2. info: details about this field from description.fieldName= in i18n
@@ -626,6 +640,9 @@ public class SolrIndexDAOImpl implements IndexDAO {
           if (downloadField != null) {
             f.setDownloadName(downloadField);
           }
+
+          fieldName = fieldMappingUtil.translateFieldName(fieldName);
+          downloadField = fieldMappingUtil.translateFieldName(downloadField);
 
           // (6) downloadField description
           String downloadFieldDescription =
@@ -812,7 +829,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
   }
 
   /**
-   * @see au.org.ala.biocache.dao.SearchDAO#getStatistics(SpatialSearchRequestParams)
+   * @see au.org.ala.biocache.dao.IndexDAO#getStatistics(SpatialSearchRequestParams)
    */
   @Override
   public Map<String, FieldStatsInfo> getStatistics(SpatialSearchRequestParams searchParams)
@@ -901,10 +918,6 @@ class FacetFieldRenamed extends FacetField {
   public void insert(String name, long cnt) {
     facetField.insert(name, cnt);
   }
-
-  //    public String getName() {
-  //        return this.getName();
-  //    }
 
   public List<FacetField.Count> getValues() {
     return facetField.getValues();

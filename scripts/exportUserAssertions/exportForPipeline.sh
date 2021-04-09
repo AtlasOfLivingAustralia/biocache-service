@@ -4,7 +4,7 @@
 #
 
 # export table
-cqlsh -e "COPY userassertions TO '/data/tmp/userassertions.dump' WITH DELIMITER='\t' AND HEADER=true;"
+cqlsh -e "COPY biocache.userassertions TO '/data/tmp/userassertions.dump' WITH DELIMITER='\t' AND HEADER=true;"
 
 # Report
 echo "records exported: $(wc -l /data/tmp/userassertions.dump)"

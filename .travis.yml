@@ -16,7 +16,6 @@ branches:
     - epic/pipelines/develop
     - /^hotfix\/.*$/
 before_install:
-  - docker-compose -f src/test/docker/solr7-cassandra3.yml up -d
   - mkdir -p ~/.m2; wget -q -O ~/.m2/settings.xml https://raw.githubusercontent.com/AtlasOfLivingAustralia/travis-build-configuration/master/travis_maven_settings.xml
   - sudo mkdir -p /data/lucene; sudo wget -O /data/lucene/namematching-20181120.tgz https://archives.ala.org.au/archives/nameindexes/20181120/namematching-20181120.tgz
   - cd /data/lucene
@@ -27,9 +26,7 @@ before_install:
 script:
   - "[ \"${TRAVIS_PULL_REQUEST}\" = \"false\" ] && mvn -P travis clean deploy || mvn -P travis clean install"
 after_success:
-  - mvn clean test jacoco:report coveralls:report
-after_script:
-  - docker-compose -f src/test/docker/solr7-cassandra3.yml kill
+  - mvn jacoco:report coveralls:report
 env:
   global:
     - secure: Cz3CJDjuIm52LplBphLsQwNv055US4oxG51PgpJE6IYdta8KJxv04QwK+ytgb3eDNA6ec7XpGPuCaMnDXhpTTdMiluN0ATZY4dEkCIVTnHWGW0Fr0ydlwutkYx/kFUYIJwu9FueEPJYMYgPZ2LTxa6rrUATJ2U13N7R2ul3A5kQ=

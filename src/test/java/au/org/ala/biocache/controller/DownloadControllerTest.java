@@ -5,12 +5,14 @@ import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.service.LoggerService;
+import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.web.DownloadController;
 import au.org.ala.biocache.web.OccurrenceController;
 import com.google.common.collect.ImmutableMap;
 import junit.framework.TestCase;
 import org.ala.client.model.LogEventVO;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -50,10 +52,6 @@ public class DownloadControllerTest extends TestCase {
         System.setProperty("biocache.config", System.getProperty("user.dir") + "/src/test/resources/biocache-test-config.properties");
     }
 
-    public final int TEST_INDEX_SIZE = 1000;
-    public final int DEFAULT_SEARCH_PAGE_SIZE = 10;
-    public final int INDEXED_FIELD_SIZE = 377;
-
     @Autowired
     DownloadController downloadController;
 
@@ -70,6 +68,11 @@ public class DownloadControllerTest extends TestCase {
 
     @Rule
     public TemporaryFolder tempDir = new TemporaryFolder();
+
+    @BeforeClass
+    public static void setupBeforeClass() throws Exception {
+        SolrUtils.setupIndex();
+    }
 
     @Before
     public void setup() throws Exception {

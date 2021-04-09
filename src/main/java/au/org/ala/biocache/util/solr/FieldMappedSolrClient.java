@@ -2,15 +2,12 @@ package au.org.ala.biocache.util.solr;
 
 import org.apache.solr.client.solrj.*;
 import org.apache.solr.client.solrj.beans.DocumentObjectBinder;
-import org.apache.solr.client.solrj.impl.StreamingBinaryResponseParser;
-import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.client.solrj.response.SolrPingResponse;
 import org.apache.solr.client.solrj.response.UpdateResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.SolrInputDocument;
-import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 
@@ -21,12 +18,13 @@ import java.util.List;
 
 public class FieldMappedSolrClient extends SolrClient {
 
-    final FieldMappingUtil.Builder fieldMappingUtilBuilder;
+//    final FieldMappingUtil.Builder fieldMappingUtilBuilder;
+    final FieldMappingUtil fieldMappingUtil;
     final SolrClient delegate;
 
-    public FieldMappedSolrClient(FieldMappingUtil.Builder fieldMappingUtilBuilder, SolrClient delegate) {
+    public FieldMappedSolrClient(FieldMappingUtil fieldMappingUtil, SolrClient delegate) {
 
-        this.fieldMappingUtilBuilder = fieldMappingUtilBuilder;
+        this.fieldMappingUtil = fieldMappingUtil;
         this.delegate = delegate;
     }
 
@@ -267,13 +265,11 @@ public class FieldMappedSolrClient extends SolrClient {
     @Override
     public QueryResponse query(String collection, SolrParams params) throws SolrServerException, IOException {
 
-        FieldMappingUtil fieldMappingUtil = fieldMappingUtilBuilder.newInstance();
-
-        SolrParams translatedParams = fieldMappingUtil.translateSolrParams(params);
+        FieldMappedSolrParams translatedParams = new FieldMappedSolrParams(fieldMappingUtil, params);
 
         QueryResponse queryResponse = delegate.query(collection, translatedParams);
 
-        return fieldMappingUtil.translateQueryResponse(queryResponse);
+        return new FieldMappedQueryResponse(this, translatedParams, queryResponse);
     }
 
     @Override
@@ -284,13 +280,11 @@ public class FieldMappedSolrClient extends SolrClient {
     @Override
     public QueryResponse query(String collection, SolrParams params, SolrRequest.METHOD method) throws SolrServerException, IOException {
 
-        FieldMappingUtil fieldMappingUtil = fieldMappingUtilBuilder.newInstance();
-
-        SolrParams translatedParams = fieldMappingUtil.translateSolrParams(params);
+        FieldMappedSolrParams translatedParams = new FieldMappedSolrParams(fieldMappingUtil, params);
 
         QueryResponse queryResponse = delegate.query(collection, translatedParams, method);
 
-        return fieldMappingUtil.translateQueryResponse(queryResponse);
+        return new FieldMappedQueryResponse(this, translatedParams, queryResponse);
     }
 
     @Override
@@ -301,13 +295,11 @@ public class FieldMappedSolrClient extends SolrClient {
     @Override
     public QueryResponse queryAndStreamResponse(String collection, SolrParams params, StreamingResponseCallback callback) throws SolrServerException, IOException {
 
-        FieldMappingUtil fieldMappingUtil = fieldMappingUtilBuilder.newInstance();
-
-        SolrParams translatedParams = fieldMappingUtil.translateSolrParams(params);
+        FieldMappedSolrParams translatedParams = new FieldMappedSolrParams(fieldMappingUtil, params);
 
         QueryResponse queryResponse = delegate.queryAndStreamResponse(collection, translatedParams, callback);
 
-        return fieldMappingUtil.translateQueryResponse(queryResponse);
+        return new FieldMappedQueryResponse(this, translatedParams, queryResponse);
     }
 
     public QueryResponse queryAndStreamResponse(SolrParams params, StreamingResponseCallback callback) throws SolrServerException, IOException {
