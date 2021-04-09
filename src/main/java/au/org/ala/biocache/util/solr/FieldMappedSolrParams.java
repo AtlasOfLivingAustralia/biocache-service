@@ -60,7 +60,12 @@ public class FieldMappedSolrParams extends SolrParams {
                 case "q":
                 case "fq":
 
-                    translatedSolrParams.set(paramName, fieldMappingUtil.translateQueryFields(addParamTranslation, solrParams.get(paramName)));
+                    translatedSolrParams.set(paramName,
+                            Arrays.stream(solrParams.getParams(paramName))
+                                    .map((String param) -> fieldMappingUtil.translateQueryFields(addParamTranslation, param))
+                                    .toArray(String[]::new)
+                    );
+
                     break;
 
                 case "fl":
