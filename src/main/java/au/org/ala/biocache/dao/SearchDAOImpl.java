@@ -2924,7 +2924,13 @@ public class SearchDAOImpl implements SearchDAO {
                                     i18nCode = fieldMappingUtil.translateFieldName(facetField) + ".novalue";
                                 }
 
-                                legend.add(new LegendItem(getFacetValueDisplayName(fieldMappingUtil.translateFieldName(facetField), fcount.getName()), i18nCode, fcount.getCount(), fq));
+                                legend.add(new LegendItem(
+                                        getFacetValueDisplayName(fieldMappingUtil.translateFieldName(facetField), fcount.getName()),
+                                        i18nCode,
+                                        getFacetValueDisplayName(fieldMappingUtil.translateFieldName(facetField), fcount.getName()),
+                                        fcount.getCount(),
+                                        fq)
+                                );
                             }
                         }
                     }
@@ -2988,7 +2994,7 @@ public class SearchDAOImpl implements SearchDAO {
                                 facetEntry.getFacetField().getName() + "." + facetEntry.getName(),
                                 facetEntry.getFacetField().getName(),
                                 facetEntry.getCount(),
-                                OCCURRENCE_YEAR + ":[" + startDate + " TO " + finishDate + "]")
+                                OCCURRENCE_YEAR_INDEX_FIELD + ":[" + startDate + " TO " + finishDate + "]")
                 );
             }
         }

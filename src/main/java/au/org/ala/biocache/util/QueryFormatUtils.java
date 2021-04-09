@@ -1009,7 +1009,7 @@ public class QueryFormatUtils {
 
         String speciesGuid = OccurrenceIndex.SPECIESID;
         String genusGuid = OccurrenceIndex.GENUSID;
-        String occurrenceYear = OccurrenceIndex.OCCURRENCE_YEAR;
+        String occurrenceYear = OccurrenceIndex.OCCURRENCE_YEAR_INDEX_FIELD;
         String month = OccurrenceIndex.MONTH;
 
         String tfn = fieldMappingUtil.translateFieldName(fn);
