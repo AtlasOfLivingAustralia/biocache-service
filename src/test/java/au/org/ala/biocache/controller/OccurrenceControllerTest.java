@@ -25,8 +25,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import javax.servlet.http.HttpServletResponse;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -82,18 +81,34 @@ public class OccurrenceControllerTest extends TestCase {
 
     @Test
     public void getRecordTest() throws Exception {
+
+        ReflectionTestUtils.setField(occurrenceController, "occurrenceLogEnabled", true);
+
         this.mockMvc.perform(get("/occurrence/41fcf3f2-fa7b-4ba6-a88c-4ac5240c8aab")
                 .header("user-agent", "test User-Agent")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.raw.rowKey").value("41fcf3f2-fa7b-4ba6-a88c-4ac5240c8aab"));
 
-        // FIXME
-//        ArgumentCaptor<LogEventVO> argument = ArgumentCaptor.forClass(LogEventVO.class);
-//        verify(loggerService).logEvent(argument.capture());
-//
-//        LogEventVO logEventVO = argument.getValue();
-//        assertEquals(logEventVO.getUserAgent(), "test User-Agent");
+        ArgumentCaptor<LogEventVO> argument = ArgumentCaptor.forClass(LogEventVO.class);
+        verify(loggerService).logEvent(argument.capture());
+
+        LogEventVO logEventVO = argument.getValue();
+        assertEquals(logEventVO.getUserAgent(), "test User-Agent");
+    }
+
+    @Test
+    public void getRecordTestWithoutLogging() throws Exception {
+
+        ReflectionTestUtils.setField(occurrenceController, "occurrenceLogEnabled", false);
+
+        this.mockMvc.perform(get("/occurrence/41fcf3f2-fa7b-4ba6-a88c-4ac5240c8aab")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.raw.rowKey").value("41fcf3f2-fa7b-4ba6-a88c-4ac5240c8aab"));
+
+        // log event should never be called
+        verify(loggerService, never()).logEvent(any());
     }
 
     @Test
