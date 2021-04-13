@@ -2892,6 +2892,13 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFacetMinCount(1);
         solrQuery.setFacetLimit(-1);//MAX_DOWNLOAD_SIZE);  // unlimited = -1
 
+        FacetDTO facetDTO = FacetThemes.getFacetsMap().get(fieldMappingUtil.translateFieldName(facetField));
+        if (facetDTO != null) {
+            String thisSort = facetDTO.getSort();
+            if (thisSort != null) {
+                solrQuery.setFacetSort(thisSort);
+            }
+        }
         solrQuery.setFacetMissing(true);
 
         QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFormattedFq(), 1, 0, "score", "asc");
@@ -2927,7 +2934,7 @@ public class SearchDAOImpl implements SearchDAO {
                                 legend.add(new LegendItem(
                                         getFacetValueDisplayName(fieldMappingUtil.translateFieldName(facetField), fcount.getName()),
                                         i18nCode,
-                                        getFacetValueDisplayName(fieldMappingUtil.translateFieldName(facetField), fcount.getName()),
+                                        fcount.getName(),
                                         fcount.getCount(),
                                         fq)
                                 );

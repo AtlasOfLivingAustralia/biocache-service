@@ -1577,6 +1577,10 @@ public class OccurrenceController extends AbstractSecureController {
         map.put(key, sd.getFieldValue(prefix + key));
     }
 
+    private void add(SolrDocument sd, Map map, String key, String prefix, String fieldNameToUse) {
+        map.put(fieldNameToUse, sd.getFieldValue(prefix + key));
+    }
+
     private void addLocalDate(SolrDocument sd, Map map, String key, String prefix) {
 
         Object value = sd.getFieldValue(prefix + key);
@@ -1728,7 +1732,7 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, classification, "taxonID", prefix);
         add(sd, classification, "kingdom", prefix);
         add(sd, classification, "phylum", prefix);
-        add(sd, classification, "class", prefix);
+        add(sd, classification, "class", prefix, "classs");
         add(sd, classification, "order", prefix);
         add(sd, classification, "superfamily", prefix);    //an addition to darwin core
         add(sd, classification, "family", prefix);

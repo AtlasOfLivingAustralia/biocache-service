@@ -2825,7 +2825,7 @@ public class WMSController extends AbstractSecureController{
                                 if (heatmapDTO.legend != null && !heatmapDTO.legend.isEmpty()){
                                     currentFill = new Color(heatmapDTO.legend.get(layerIdx).getColour() | (vars.alpha << 24));
                                 } else {
-                                    currentFill = Color.RED;
+                                    currentFill = new Color(vars.colour | (vars.alpha << 24), true);
                                 }
                                 imgObj.g.setPaint(currentFill);
 
