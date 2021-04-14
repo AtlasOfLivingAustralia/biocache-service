@@ -65,6 +65,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static au.org.ala.biocache.dto.OccurrenceIndex.*;
 
@@ -105,7 +106,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * The threshold to use the export handler instead of search handler when streaming from SOLR.
      */
-    @Value("${solr.export.handler.threashold:10000}")
+    @Value("${solr.export.handler.threshold:10000}")
     public Integer EXPORT_THREASHOLD = 10000;
 
     /**
@@ -301,7 +302,7 @@ public class SearchDAOImpl implements SearchDAO {
         // TODO: There was a note about possible issues with the following two lines
         Set<IndexFieldDTO> indexedFields = indexDao.getIndexedFields();
         if (downloadFields == null) {
-            downloadFields = new DownloadFields(indexedFields, messageSource, layersService, listsService);
+            downloadFields = new DownloadFields(fieldMappingUtil, indexedFields, messageSource, layersService, listsService);
         } else {
             downloadFields.update(indexedFields);
         }
@@ -942,9 +943,9 @@ public class SearchDAOImpl implements SearchDAO {
 
                 //include raw latitude and longitudes
                 if (requestedFieldsParam.contains(",decimalLatitude")) {
-                    requestedFieldsParam = requestedFieldsParam.replaceFirst(",decimalLatitude", ",sensitive_latitude,sensitive_longitude,decimalLatitude");
+                    requestedFieldsParam = requestedFieldsParam.replaceFirst(",decimalLatitude", ",sensitive_decimalLatitude,sensitive_decimalLongitude,decimalLatitude");
                 } else if (requestedFieldsParam.contains("raw_decimalLatitude")) {
-                    requestedFieldsParam = requestedFieldsParam.replaceFirst("raw_decimalLatitude", "sensitive_latitude,sensitive_longitude,raw_decimalLatitude");
+                    requestedFieldsParam = requestedFieldsParam.replaceFirst("raw_decimalLatitude", "sensitive_decimalLatitude,sensitive_decimalLongitude,raw_decimalLatitude");
                 }
                 if (requestedFieldsParam.contains(",raw_locality,")) {
                     requestedFieldsParam = requestedFieldsParam.replaceFirst(",raw_locality,", ",raw_locality,sensitive_locality,");
@@ -959,17 +960,33 @@ public class SearchDAOImpl implements SearchDAO {
                 dbFieldsBuilder.append(",").append(downloadParams.getExtra());
             }
 
-            String[] requestedFields = dbFieldsBuilder.toString().split(",");
+            List<String> requestedFields = Arrays.stream(dbFieldsBuilder.toString()
+                    .split(","))
+                    .map(field -> fieldMappingUtil.translateFieldName(field))
+                    .collect(Collectors.toList());
+
             List<String>[] indexedFields;
             if (downloadFields == null) {
                 //default to include everything
-                java.util.List<String> mappedNames = new java.util.LinkedList<String>();
-                for (int i = 0; i < requestedFields.length; i++) mappedNames.add(requestedFields[i]);
-
-                indexedFields = new List[]{mappedNames, new java.util.LinkedList<String>(), mappedNames, mappedNames, new ArrayList(), new ArrayList()};
+                java.util.List<String> mappedNames = new java.util.LinkedList<>();
+                for (int i = 0; i < requestedFields.size(); i++) {
+                    mappedNames.add(requestedFields.get(i));
+                }
+                indexedFields = new List[]{
+                        mappedNames,
+                        new java.util.LinkedList<String>(),
+                        mappedNames,
+                        mappedNames,
+                        new ArrayList(),
+                        new ArrayList()};
             } else {
-                indexedFields = downloadFields.getIndexFields(requestedFields, downloadParams.getDwcHeaders(), downloadParams.getLayersServiceUrl());
+                indexedFields = downloadFields.getIndexFields(
+                        requestedFields.toArray(new String[0]),
+                        downloadParams.getDwcHeaders(),
+                        downloadParams.getLayersServiceUrl()
+                );
             }
+
             //apply custom header
             String[] customHeader = dd.getRequestParams().getCustomHeader().split(",");
             for (int i = 0; i + 1 < customHeader.length; i += 2) {

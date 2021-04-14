@@ -381,7 +381,7 @@ public class OccurrenceController extends AbstractSecureController {
             @RequestParam(value="isDwc", required=false) Boolean isDwc) throws Exception {
 
         Set<IndexFieldDTO> result;
-        if(fields == null) {
+        if (fields == null) {
             result = indexDao.getIndexedFields();
         } else {
             result = indexDao.getIndexFieldDetails(fields.split(","));
@@ -397,14 +397,13 @@ public class OccurrenceController extends AbstractSecureController {
                         && (multivalue == null || i.isMultivalue() == multivalue)
                         && (dataType == null || dataTypes.contains(i.getDataType()))
                         && (classs == null || classss.contains(i.getClasss()))
-                        && (isMisc || !i.getName().startsWith("_"))
+                        && (isMisc || !i.getName().startsWith("dynamicProperties_"))
                         && (isDwc == null || isDwc == StringUtils.isNotEmpty(i.getDwcTerm()))) {
                     filtered.add(i);
                 }
             }
             result = filtered;
         }
-
 
         List myList = new ArrayList(result);
         Collections.sort(myList, new Comparator<IndexFieldDTO>() {

@@ -86,7 +86,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
    * API to avoid confusion.
    */
   @Value(
-          "${index.fields.tohide:collector_text,location_determined,row_key,matched_name,decimal_latitudelatitude,collectors,default_values_used,generalisation_to_apply_in_metres,geohash,ibra_subregion,identifier_by,occurrence_details,text,photo_page_url,photographer,places,portal_id,quad,rem_text,occurrence_status_s,identification_qualifier_s}")
+          "${index.fields.tohide:_root_,_version_,collector_text,location_determined,row_key,matched_name,decimal_latitudelatitude,collectors,default_values_used,generalisation_to_apply_in_metres,geohash,ibra_subregion,identifier_by,occurrence_details,text,photo_page_url,photographer,places,portal_id,quad,rem_text,occurrence_status_s,identification_qualifier_s}")
   protected String indexFieldsToHide;
 
   protected Pattern layersPattern = Pattern.compile("(el|cl)[0-9abc]+");
@@ -262,8 +262,6 @@ public class SolrIndexDAOImpl implements IndexDAO {
       logger.error("failed to close solrClient", e);
     }
   }
-
-  boolean legacyTranslation = true;
 
   @Override
   public QueryResponse query(SolrParams query) throws Exception {
@@ -606,8 +604,6 @@ public class SolrIndexDAOImpl implements IndexDAO {
           f.setDocvalue(schema.contains("D"));
         }
 
-
-
         // now add the i18n and associated strings to the field.
         // 1. description: display name from fieldName= in i18n
         // 2. info: details about this field from description.fieldName= in i18n
@@ -679,12 +675,10 @@ public class SolrIndexDAOImpl implements IndexDAO {
           }
 
           // (3) check as a dwcTerm
-          String camelCase = LOWER_UNDERSCORE.to(LOWER_CAMEL, fieldName);
-
           Term term = null;
           try {
             // find matching Darwin core term
-            term = DwcTerm.valueOf(camelCase);
+            term = DwcTerm.valueOf(fieldName);
           } catch (IllegalArgumentException e) {
             // enum not found
           }
@@ -692,7 +686,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
           try {
             // find matching Dublin core terms that are not in miscProperties
             // include case fix for rightsHolder
-            term = DcTerm.valueOf(camelCase.replaceAll("rightsholder", "rightsHolder"));
+            term = DcTerm.valueOf(fieldName);
             dcterm = true;
           } catch (IllegalArgumentException e) {
             // enum not found
@@ -799,7 +793,6 @@ public class SolrIndexDAOImpl implements IndexDAO {
   /**
    * Returns details about the fields in the index.
    */
-  // @Cacheable(cacheName = "getIndexedFields")
   public Set<IndexFieldDTO> getIndexedFields(boolean update) throws Exception {
     Set<IndexFieldDTO> result = indexFields;
     if (result.size() == 0 || update) {
