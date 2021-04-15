@@ -18,8 +18,10 @@ import com.datastax.driver.core.*;
 import com.datastax.driver.core.policies.ExponentialReconnectionPolicy;
 import com.datastax.driver.extras.codecs.MappingCodec;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.reflect.TypeToken;
+import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
@@ -30,6 +32,7 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
 
@@ -147,7 +150,12 @@ public class CassandraStoreDAOImpl implements StoreDAO {
     public <T> void put(String key, T data) throws IOException {
         String className = data.getClass().getSimpleName();
 
-        String value = JSONObject.fromObject(data).toString();
+        String value;
+        if (data instanceof Collection) {
+            value = JSONArray.fromObject(data).toString();
+        } else {
+            value = JSONObject.fromObject(data).toString();
+        }
 
         try {
             BoundStatement boundStatement = createPutStatement(key, className, value);
