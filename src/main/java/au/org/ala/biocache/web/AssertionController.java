@@ -35,10 +35,13 @@ import org.springframework.web.bind.annotation.*;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * This controller provides web services for assertion creation/deletion.
@@ -146,10 +149,72 @@ public class AssertionController extends AbstractSecureController {
         try {
             //check to see that the assertions have come from a valid source before adding
             if (shouldPerformOperation(request, response)) {
+
                 List<java.util.Map<String, String>> assertions = om.readValue(json, new TypeReference<List<Map<String, String>>>() {
                 });
                 logger.debug("The assertions in a list of maps: " + assertions);
+
+
+                assertions.stream().map((java.util.Map<String, String> assertion) -> {
+
+                    Integer code = Integer.parseInt(assertion.get("code"));
+                    String comment = assertion.get("comment");
+                    String recordUuid = assertion.get("recordUuid");
+                    String assertionUuid = assertion.get("assertionUuid");
+                    String userAssertionStatus = String.valueOf(assertion.get("userAssertionStatus"));
+
+                    ErrorCode errorCode = AssertionCodes.getById(code);
+
+                    if (errorCode != null) {
+
+                        QualityAssertion qa = new QualityAssertion(errorCode, comment);
+                        qa.setCode(code);
+                        qa.setUserId(userId);
+                        qa.setUserDisplayName(userDisplayName);
+                        if (code.equals(Integer.toString(AssertionCodes.VERIFIED.getCode()))) {
+                            qa.setRelatedUuid(assertionUuid);
+                            qa.setQaStatus(Integer.parseInt(userAssertionStatus));
+                        } else {
+                            qa.setQaStatus(AssertionStatus.QA_UNCONFIRMED);
+                        }
+
+                        // get dataResourceUid
+                        try {
+                            SolrDocument sd = occurrenceUtils.getOcc(recordUuid);
+                            if (sd != null) {
+                                qa.setDataResourceUid((String) sd.getFieldValue("dataResourceUid"));
+                            }
+                        } catch (Exception e) {
+                        }
+
+                        return qa;
+                    }
+
+                    return null;
+                })
+                        .collect(Collectors.groupingBy(QualityAssertion::getReferenceRowKey))
+                        .forEach((uuid, qualityAssertions) -> {
+//                            try {
+//                                UserAssertions userAssertions = storeDao.get(UserAssertions.class, uuid);
+//                                if (userAssertions == null) {
+//                                    userAssertions = new UserAssertions();
+//                                }
+
+//                                for (QualityAssertion qa: qualityAssertions) {
+//
+//                                    userAssertions.add(qa);
+//                                }
+//
+//                                storeDao.put(uuid, userAssertions);
+//                            } catch (IOException e) {
+//                                e.printStackTrace();
+//                            }
+                        });
+
+
+/*
                 for (java.util.Map<String, String> assertion : assertions) {
+
                     String code = String.valueOf(assertion.get("code"));
                     String comment = assertion.get("comment");
                     String recordUuid = assertion.get("recordUuid");
@@ -176,6 +241,8 @@ public class AssertionController extends AbstractSecureController {
 
                     storeDao.put(qa.getUuid(), qa);
                 }
+*/
+
             }
         } catch(Exception e) {
             logger.error(e.getMessage(),e);
@@ -205,8 +272,13 @@ public class AssertionController extends AbstractSecureController {
                         + ",userAssertionStatus: " + userAssertionStatus + ", assertionUuid: " + assertionUuid
                         + ", userId:" + userId + ", userDisplayName:" + userDisplayName);
 
+                UserAssertions userAssertions = storeDao.get(UserAssertions.class, recordUuid);
+                if (userAssertions == null) {
+                    userAssertions = new UserAssertions();
+                }
+
                 QualityAssertion qa = new QualityAssertion();
-                qa.setUuid(recordUuid);
+                qa.setUuid(UUID.randomUUID().toString());
                 qa.setCode(Integer.parseInt(code));
                 qa.setComment(comment);
                 qa.setUserId(userId);
@@ -224,7 +296,9 @@ public class AssertionController extends AbstractSecureController {
                     qa.setDataResourceUid((String) sd.getFieldValue("dataResourceUid"));
                 }
 
-                storeDao.put(recordUuid, qa);
+                userAssertions.add(qa);
+
+                storeDao.put(recordUuid, userAssertions);
 
                 String server = request.getSession().getServletContext().getInitParameter("serverName");
                 response.setHeader("Location", server + "/occurrences/" + recordUuid + "/assertions/" + qa.getUuid());
