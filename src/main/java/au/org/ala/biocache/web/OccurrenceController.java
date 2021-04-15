@@ -1574,7 +1574,20 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     private void add(SolrDocument sd, Map map, String key, String prefix) {
-        map.put(key, sd.getFieldValue(prefix + key));
+        if ("raw_".equals(prefix)) {
+
+            if (sd.containsKey(prefix + key)) {
+                map.put(key, sd.getFieldValue(prefix + key));
+            } else {
+                map.put(key, sd.getFieldValue(key));
+            }
+
+        } else {
+
+            if (sd.containsKey("raw_" + key)) {
+                map.put(key, sd.getFieldValue(key));
+            }
+        }
     }
 
     private void addLocalDate(SolrDocument sd, Map map, String key, String prefix) {
