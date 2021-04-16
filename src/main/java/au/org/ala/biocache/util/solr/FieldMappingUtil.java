@@ -23,6 +23,23 @@ public class FieldMappingUtil {
     private Map<String, String> fieldMappings = new Hashtable<>();
     private Map<String, Map<String, String>> enumValueMappings = new Hashtable<>();
 
+    private Set<String> processedFields = new HashSet<>();
+
+    @Value("${solr.pipelines.field.config:/data/biocache/config/pipelines-field-config.json}")
+    void setPipelinesFieldConfig(String pipelinesFieldConfig) throws IOException {
+
+        if (pipelinesFieldConfig != null && new File(pipelinesFieldConfig).exists()) {
+
+            ObjectMapper om = new ObjectMapper();
+            Map<String, Object> fieldConfig = om.readValue(new File(pipelinesFieldConfig), HashMap.class);
+
+            fieldMappings = (Map<String, String>) fieldConfig.get("fieldNameMapping");
+            enumValueMappings = (Map<String, Map<String, String>>) fieldConfig.get("fieldValueMapping");
+
+            processedFields = new HashSet((List<String>) fieldConfig.get("processedFields"));
+        }
+    }
+/*
     @Value("${solr.deprecated.enumvalues.config:/data/biocache/config/deprecated-enum-values.json}")
     void setDeprecatedEnumValuesConfig(String deprecatedEnumValuesConfig) throws IOException {
 
@@ -42,7 +59,7 @@ public class FieldMappingUtil {
             fieldMappings = om.readValue(new File(deprecatedFieldsConfig), HashMap.class);
         }
     }
-
+*/
     static Consumer<Pair<String, String>> NOOP_TRANSLATION = (Pair<String, String> m) -> {};
 
     static final String DEPRECATED_PREFIX = "deprecated_";
@@ -228,5 +245,23 @@ public class FieldMappingUtil {
                 .filter((String field) -> field != null && !field.equals(""))
                 .map((String field) -> translateFieldName(translation, field))
                 .toArray(String[]::new);
+    }
+
+    public boolean isProcessed(String fieldName) {
+
+        if (fieldName == null) {
+            return false;
+        }
+        if (fieldName.startsWith("raw_")) {
+            return false;
+        }
+
+        if (processedFields.contains(fieldName)) {
+            return true;
+        }
+
+        // if there is a raw version of this field then this is processed
+
+        return false;
     }
 }

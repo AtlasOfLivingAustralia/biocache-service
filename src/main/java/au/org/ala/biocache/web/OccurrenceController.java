@@ -21,6 +21,7 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.util.*;
+import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.sf.ehcache.CacheManager;
 import net.sf.json.JSONArray;
@@ -79,6 +80,10 @@ public class OccurrenceController extends AbstractSecureController {
      * Logger initialisation
      */
     private static final Logger logger = Logger.getLogger(OccurrenceController.class);
+    
+    private enum FieldType {
+        RAW, PROCESSED
+    }
     /**
      * Fulltext search DAO
      */
@@ -124,6 +129,9 @@ public class OccurrenceController extends AbstractSecureController {
     private LayersService layersService;
     @Inject
     private StoreDAO storeDao;
+
+    @Inject
+    private FieldMappingUtil fieldMappingUtil;
 
     /**
      * Name of view for site home page
@@ -1544,8 +1552,8 @@ public class OccurrenceController extends AbstractSecureController {
     private Map mapAsFullRecord(SolrDocument sd, Boolean includeImageMetadata) {
         Map map = new HashMap();
 
-        map.put("raw", fullRecord("raw_", sd));
-        map.put("processed", fullRecord("", sd));
+        map.put("raw", fullRecord(FieldType.RAW, sd));
+        map.put("processed", fullRecord(FieldType.PROCESSED, sd));
         map.put("systemAssertions", systemAssertions(sd));
         map.put("userAssertions", userAssertions(sd));
 
@@ -1564,8 +1572,8 @@ public class OccurrenceController extends AbstractSecureController {
         return map;
     }
 
-    private void addLayerValues(SolrDocument sd, Map map, String key, String prefix) {
-        String regex = "^" + prefix + key + "[0-9]+$";
+    private void addLayerValues(SolrDocument sd, Map map, String key) {
+        String regex = "^" + key + "[0-9]+$";
         for (Map.Entry<String, Object> es : sd.entrySet()) {
             if (es.getKey().matches(regex)) {
                 map.put(es.getKey(), es.getValue());
@@ -1573,31 +1581,68 @@ public class OccurrenceController extends AbstractSecureController {
         }
     }
 
-    private void add(SolrDocument sd, Map map, String key, String prefix) {
-        if ("raw_".equals(prefix)) {
+    private void addField(FieldType fieldType, SolrDocument sd, Map map, String fieldName) {
 
-            if (sd.containsKey(prefix + key)) {
-                map.put(key, sd.getFieldValue(prefix + key));
-            } else {
-                map.put(key, sd.getFieldValue(key));
+        boolean processedField = fieldMappingUtil.isProcessed(fieldName);
+
+        if (fieldType == FieldType.RAW) {
+
+            if (sd.containsKey("raw_" + fieldName)) {
+                map.put(fieldName, sd.getFieldValue("raw_" + fieldName));
+            } else if (!processedField) {
+                map.put(fieldName, sd.getFieldValue(fieldName));
             }
 
-        } else {
+        } else if (fieldType == FieldType.PROCESSED) {
 
-            if (sd.containsKey("raw_" + key)) {
-                map.put(key, sd.getFieldValue(key));
+            if (processedField) {
+                map.put(fieldName, sd.getFieldValue(fieldName));
+            } if (sd.containsKey("raw_" + fieldName)) {
+                map.put(fieldName, sd.getFieldValue(fieldName));
             }
         }
     }
 
-    private void addLocalDate(SolrDocument sd, Map map, String key, String prefix) {
+    private void addFirst(FieldType fieldType, SolrDocument sd, Map map, String fieldName) {
 
-        Object value = sd.getFieldValue(prefix + key);
+        boolean processedField = fieldMappingUtil.isProcessed(fieldName);
+
+        if (fieldType == FieldType.PROCESSED && processedField) {
+
+            map.put(fieldName, sd.getFirstValue(fieldName));
+
+        } else if (fieldType == FieldType.RAW) {
+
+            if (sd.containsKey("raw_" + fieldName)) {
+                map.put(fieldName, sd.getFirstValue("raw_" + fieldName));
+            } else if (!processedField) {
+                map.put(fieldName, sd.getFirstValue(fieldName));
+            }
+        }
+    }
+
+    private void addLocalDate(FieldType fieldType, SolrDocument sd, Map map, String fieldName) {
+
+        boolean processedField = fieldMappingUtil.isProcessed(fieldName);
+        Object value = null;
+
+        if (fieldType == FieldType.PROCESSED && processedField) {
+
+            value = sd.getFieldValue(fieldName);
+
+        } else if (fieldType == FieldType.RAW) {
+
+            if (sd.containsKey("raw_" + fieldName)) {
+                value = sd.getFieldValue("raw_" + fieldName);
+            } else if (!processedField) {
+                value = sd.getFieldValue(fieldName);
+            }
+        }
 
         if (value != null && value instanceof Date) {
 
             LocalDate localDate = ((Date) value).toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-            map.put(key, localDate.toString());
+            map.put(fieldName, localDate.toString());
         }
     }
 
@@ -1613,10 +1658,6 @@ public class OccurrenceController extends AbstractSecureController {
         }
     }
 
-    private void addFirst(SolrDocument sd, Map map, String key, String prefix) {
-        map.put(key, sd.getFirstValue(prefix + key));
-    }
-
     private List userAssertions(SolrDocument sd) {
         return new ArrayList();
     }
@@ -1626,350 +1667,352 @@ public class OccurrenceController extends AbstractSecureController {
      * <p>
      * Only for use with Version 1.0 requests.
      *
-     * @param prefix Version 2.0 SOLR schema uses a prefix "raw_" for all raw fields.
+     * @param fieldType
      * @param sd     SolrDocument
      * @return
      */
-    Map fullRecord(String prefix, SolrDocument sd) {
+    Map fullRecord(FieldType fieldType, SolrDocument sd) {
         Map fullRecord = new HashMap();
         fullRecord.put("rowKey",  sd.getFieldValue(ID)); // Use the processed ID for compatability
 
         // au.org.ala.biocache.model.Occurrence
         Map occurrence = new HashMap();
         fullRecord.put("occurrence", occurrence);
-        add(sd, occurrence, "occurrenceID", prefix);
-        add(sd, occurrence, "accessRights", prefix);
-        add(sd, occurrence, "associatedMedia", prefix);
-        add(sd, occurrence, "associatedOccurrences", prefix);
-        add(sd, occurrence, "associatedReferences", prefix);
-        add(sd, occurrence, "associatedSequences", prefix);
-        add(sd, occurrence, "associatedTaxa", prefix);
-        add(sd, occurrence, "basisOfRecord", prefix);
-        add(sd, occurrence, "behavior", prefix);
-        add(sd, occurrence, "bibliographicCitation", prefix);
-        add(sd, occurrence, "catalogNumber", prefix);
-        add(sd, occurrence, "collectionCode", prefix);
-        add(sd, occurrence, "collectionID", prefix);
-        add(sd, occurrence, "dataGeneralizations", prefix);        //used for sensitive data information
-        add(sd, occurrence, "datasetID", prefix);
-        add(sd, occurrence, "datasetName", prefix);
-        add(sd, occurrence, "disposition", prefix);
-        add(sd, occurrence, "dynamicProperties", prefix);
-        add(sd, occurrence, "establishmentMeans", prefix);
-        add(sd, occurrence, "fieldNotes", prefix);
-        add(sd, occurrence, "fieldNumber", prefix);
+        addField(fieldType, sd, occurrence, "occurrenceID");
+        addField(fieldType, sd, occurrence, "accessRights");
+        addField(fieldType, sd, occurrence, "associatedMedia");
+        addField(fieldType, sd, occurrence, "associatedOccurrences");
+        addField(fieldType, sd, occurrence, "associatedReferences");
+        addField(fieldType, sd, occurrence, "associatedSequences");
+        addField(fieldType, sd, occurrence, "associatedTaxa");
+        addField(fieldType, sd, occurrence, "basisOfRecord");
+        addField(fieldType, sd, occurrence, "behavior");
+        addField(fieldType, sd, occurrence, "bibliographicCitation");
+        addField(fieldType, sd, occurrence, "catalogNumber");
+        addField(fieldType, sd, occurrence, "collectionCode");
+        addField(fieldType, sd, occurrence, "collectionID");
+        addField(fieldType, sd, occurrence, "dataGeneralizations");        //used for sensitive data information
+        addField(fieldType, sd, occurrence, "datasetID");
+        addField(fieldType, sd, occurrence, "datasetName");
+        addField(fieldType, sd, occurrence, "disposition");
+        addField(fieldType, sd, occurrence, "dynamicProperties");
+        addField(fieldType, sd, occurrence, "establishmentMeans");
+        addField(fieldType, sd, occurrence, "fieldNotes");
+        addField(fieldType, sd, occurrence, "fieldNumber");
 //        occurrence.put("identifier", "");  // Not in pipeline
-        add(sd, occurrence, "individualCount", prefix);
+        addField(fieldType, sd, occurrence, "individualCount");
 //        occurrence.put("individualID", "");  // Not in pipeline
-        add(sd, occurrence, "informationWithheld", prefix);   //used for sensitive data information
-        add(sd, occurrence, "institutionCode", prefix);
-        add(sd, occurrence, "institutionID", prefix);
-        add(sd, occurrence, "language", prefix);
-        add(sd, occurrence, "license", prefix);
-        add(sd, occurrence, "lifeStage", prefix);
-        add(sd, occurrence, "modified", prefix);
+        addField(fieldType, sd, occurrence, "informationWithheld");   //used for sensitive data information
+        addField(fieldType, sd, occurrence, "institutionCode");
+        addField(fieldType, sd, occurrence, "institutionID");
+        addField(fieldType, sd, occurrence, "language");
+        addField(fieldType, sd, occurrence, "license");
+        addField(fieldType, sd, occurrence, "lifeStage");
+        addField(fieldType, sd, occurrence, "modified");
 //        occurrence.put("occurrenceAttributes", "");  // Not in pipeline
-        add(sd, occurrence, "occurrenceAttributes", prefix);
-        add(sd, occurrence, "occurrenceDetails", prefix);
-        add(sd, occurrence, "occurrenceRemarks", prefix);
-        add(sd, occurrence, "occurrenceStatus", prefix);
-        add(sd, occurrence, "organismQuantity", prefix);
-        add(sd, occurrence, "organismQuantityType", prefix);
-        add(sd, occurrence, "otherCatalogNumbers", prefix);
-        add(sd, occurrence, "ownerInstitutionCode", prefix);
-        add(sd, occurrence, "preparations", prefix);
-        add(sd, occurrence, "previousIdentifications", prefix);
-        add(sd, occurrence, "recordNumber", prefix);
-        add(sd, occurrence, "relatedResourceID", prefix);
-        add(sd, occurrence, "relationshipAccordingTo", prefix);
-        add(sd, occurrence, "relationshipEstablishedDate", prefix);
-        add(sd, occurrence, "relationshipOfResource", prefix);
-        add(sd, occurrence, "relationshipRemarks", prefix);
-        add(sd, occurrence, "reproductiveCondition", prefix);
-        add(sd, occurrence, "resourceID", prefix);
-        add(sd, occurrence, "resourceRelationshipID", prefix);
-        add(sd, occurrence, "rights", prefix);
-        add(sd, occurrence, "rightsHolder", prefix);
-        add(sd, occurrence, "samplingProtocol", prefix);
-        add(sd, occurrence, "samplingEffort", prefix);
-        add(sd, occurrence, "sex", prefix);
-        add(sd, occurrence, "source", prefix);
-        add(sd, occurrence, "userId", prefix);  //this is the ALA ID for the user
+        addField(fieldType, sd, occurrence, "occurrenceAttributes");
+        addField(fieldType, sd, occurrence, "occurrenceDetails");
+        addField(fieldType, sd, occurrence, "occurrenceRemarks");
+        addField(fieldType, sd, occurrence, "occurrenceStatus");
+        addField(fieldType, sd, occurrence, "organismQuantity");
+        addField(fieldType, sd, occurrence, "organismQuantityType");
+        addField(fieldType, sd, occurrence, "otherCatalogNumbers");
+        addField(fieldType, sd, occurrence, "ownerInstitutionCode");
+        addField(fieldType, sd, occurrence, "preparations");
+        addField(fieldType, sd, occurrence, "previousIdentifications");
+        addField(fieldType, sd, occurrence, "recordNumber");
+        addField(fieldType, sd, occurrence, "relatedResourceID");
+        addField(fieldType, sd, occurrence, "relationshipAccordingTo");
+        addField(fieldType, sd, occurrence, "relationshipEstablishedDate");
+        addField(fieldType, sd, occurrence, "relationshipOfResource");
+        addField(fieldType, sd, occurrence, "relationshipRemarks");
+        addField(fieldType, sd, occurrence, "reproductiveCondition");
+        addField(fieldType, sd, occurrence, "resourceID");
+        addField(fieldType, sd, occurrence, "resourceRelationshipID");
+        addField(fieldType, sd, occurrence, "rights");
+        addField(fieldType, sd, occurrence, "rightsHolder");
+        addField(fieldType, sd, occurrence, "samplingProtocol");
+        addField(fieldType, sd, occurrence, "samplingEffort");
+        addField(fieldType, sd, occurrence, "sex");
+        addField(fieldType, sd, occurrence, "source");
+        addField(fieldType, sd, occurrence, "userId");  //this is the ALA ID for the user
         //Additional fields for HISPID support
-        add(sd, occurrence, "collectorFieldNumber", prefix);  //This value now maps to the correct DWC field http://rs.tdwg.org/dwc/terms/fieldNumber
-        add(sd, occurrence, "cultivated", prefix); //http://www.chah.org.au/hispid/terms/cultivatedOccurrence
-        add(sd, occurrence, "duplicates", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0711
-        add(sd, occurrence, "duplicatesOriginalInstitutionID", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0580
-        add(sd, occurrence, "duplicatesOriginalUnitID", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0579
-        add(sd, occurrence, "loanIdentifier", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0712
-        add(sd, occurrence, "loanSequenceNumber", prefix);  //this one would be http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0713 but not in current archive
-        add(sd, occurrence, "loanDestination", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0714
-        add(sd, occurrence, "loanForBotanist", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0715
-        add(sd, occurrence, "loanDate", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0717
-        add(sd, occurrence, "loanReturnDate", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0718
-        add(sd, occurrence, "phenology", prefix); //http://www.chah.org.au/hispid/terms/phenology
-        add(sd, occurrence, "preferredFlag", prefix);
-        add(sd, occurrence, "secondaryCollectors", prefix); //http://www.chah.org.au/hispid/terms/secondaryCollectors
-        add(sd, occurrence, "naturalOccurrence", prefix); //http://www.chah.org.au/hispid/terms/naturalOccurrence
+        addField(fieldType, sd, occurrence, "collectorFieldNumber");  //This value now maps to the correct DWC field http://rs.tdwg.org/dwc/terms/fieldNumber
+        addField(fieldType, sd, occurrence, "cultivated"); //http://www.chah.org.au/hispid/terms/cultivatedOccurrence
+        addField(fieldType, sd, occurrence, "duplicates"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0711
+        addField(fieldType, sd, occurrence, "duplicatesOriginalInstitutionID"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0580
+        addField(fieldType, sd, occurrence, "duplicatesOriginalUnitID"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0579
+        addField(fieldType, sd, occurrence, "loanIdentifier"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0712
+        addField(fieldType, sd, occurrence, "loanSequenceNumber");  //this one would be http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0713 but not in current archive
+        addField(fieldType, sd, occurrence, "loanDestination"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0714
+        addField(fieldType, sd, occurrence, "loanForBotanist"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0715
+        addField(fieldType, sd, occurrence, "loanDate"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0717
+        addField(fieldType, sd, occurrence, "loanReturnDate"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0718
+        addField(fieldType, sd, occurrence, "phenology"); //http://www.chah.org.au/hispid/terms/phenology
+        addField(fieldType, sd, occurrence, "preferredFlag");
+        addField(fieldType, sd, occurrence, "secondaryCollectors"); //http://www.chah.org.au/hispid/terms/secondaryCollectors
+        addField(fieldType, sd, occurrence, "naturalOccurrence"); //http://www.chah.org.au/hispid/terms/naturalOccurrence
         //this property is in use in flickr tagging - currently no equivalent in DwC
-        add(sd, occurrence, "validDistribution", prefix);
+        addField(fieldType, sd, occurrence, "validDistribution");
         //custom fields
-        add(sd, occurrence, "soundIDs", prefix);
+        addField(fieldType, sd, occurrence, "soundIDs");
         //custom fields
-        add(sd, occurrence, "videoIDs", prefix);
-        add(sd, occurrence, "interactions", prefix);
+        addField(fieldType, sd, occurrence, "videoIDs");
+        addField(fieldType, sd, occurrence, "interactions");
 
-        add(sd, occurrence, "duplicateStatus", prefix);
-        add(sd, occurrence, "duplicateType", prefix);
+        addField(fieldType, sd, occurrence, "duplicateStatus");
+        addField(fieldType, sd, occurrence, "duplicateType");
         //Store the conservation status
-        add(sd, occurrence, "countryConservation", prefix);
-        add(sd, occurrence, "stateConservation", prefix);
-        add(sd, occurrence, "globalConservation", prefix);
-        add(sd, occurrence, "outlierLayer", prefix);
-        add(sd, occurrence, "photographer", prefix);
+        addField(fieldType, sd, occurrence, "countryConservation");
+        addField(fieldType, sd, occurrence, "stateConservation");
+        addField(fieldType, sd, occurrence, "globalConservation");
+        addField(fieldType, sd, occurrence, "outlierLayer");
+        addField(fieldType, sd, occurrence, "photographer");
         // support for schema change
-        addFirst(sd, occurrence, "recordedBy", prefix);
+        addFirst(fieldType, sd, occurrence, "recordedBy");
         addImages(sd, occurrence, "images", "imageIDs", "");
 
         // au.org.ala.biocache.model.Classification
         Map classification = new HashMap();
         fullRecord.put("classification", classification);
-        add(sd, classification, "scientificName", prefix);
-        add(sd, classification, "scientificNameAuthorship", prefix);
-        add(sd, classification, "scientificNameID", prefix);
-        add(sd, classification, "taxonConceptID", prefix);
-        add(sd, classification, "taxonID", prefix);
-        add(sd, classification, "kingdom", prefix);
-        add(sd, classification, "phylum", prefix);
-        add(sd, classification, "class", prefix);
-        add(sd, classification, "order", prefix);
-        add(sd, classification, "superfamily", prefix);    //an addition to darwin core
-        add(sd, classification, "family", prefix);
-        add(sd, classification, "subfamily", prefix); //an addition to darwin core
-        add(sd, classification, "genus", prefix);
-        add(sd, classification, "subgenus", prefix);
-        add(sd, classification, "species", prefix);
-        add(sd, classification, "specificEpithet", prefix);
-        add(sd, classification, "subspecies", prefix);
-        add(sd, classification, "infraspecificEpithet", prefix);
-        add(sd, classification, "infraspecificMarker", prefix);
-        add(sd, classification, "cultivarName", prefix); //an addition to darwin core for http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0315
-        add(sd, classification, "higherClassification", prefix);
-        add(sd, classification, "parentNameUsage", prefix);
-        add(sd, classification, "parentNameUsageID", prefix);
-        add(sd, classification, "acceptedNameUsage", prefix);
-        add(sd, classification, "acceptedNameUsageID", prefix);
-        add(sd, classification, "originalNameUsage", prefix);
-        add(sd, classification, "originalNameUsageID", prefix);
-        add(sd, classification, "taxonRank", prefix);
-        add(sd, classification, "taxonomicStatus", prefix);
-        add(sd, classification, "taxonRemarks", prefix);
-        add(sd, classification, "verbatimTaxonRank", prefix);
-        add(sd, classification, "vernacularName", prefix);
-        add(sd, classification, "nameAccordingTo", prefix);
-        add(sd, classification, "nameAccordingToID", prefix);
-        add(sd, classification, "namePublishedIn", prefix);
-        add(sd, classification, "namePublishedInYear", prefix);
-        add(sd, classification, "namePublishedInID", prefix);
-        add(sd, classification, "nomenclaturalCode", prefix);
-        add(sd, classification, "nomenclaturalStatus", prefix);
+        addField(fieldType, sd, classification, "scientificName");
+        addField(fieldType, sd, classification, "scientificNameAuthorship");
+        addField(fieldType, sd, classification, "scientificNameID");
+        addField(fieldType, sd, classification, "taxonConceptID");
+        addField(fieldType, sd, classification, "taxonID");
+        addField(fieldType, sd, classification, "kingdom");
+        addField(fieldType, sd, classification, "phylum");
+        addField(fieldType, sd, classification, "class");
+        addField(fieldType, sd, classification, "order");
+        addField(fieldType, sd, classification, "superfamily");    //an addition to darwin core
+        addField(fieldType, sd, classification, "family");
+        addField(fieldType, sd, classification, "subfamily"); //an addition to darwin core
+        addField(fieldType, sd, classification, "genus");
+        addField(fieldType, sd, classification, "subgenus");
+        addField(fieldType, sd, classification, "species");
+        addField(fieldType, sd, classification, "specificEpithet");
+        addField(fieldType, sd, classification, "subspecies");
+        addField(fieldType, sd, classification, "infraspecificEpithet");
+        addField(fieldType, sd, classification, "infraspecificMarker");
+        addField(fieldType, sd, classification, "cultivarName"); //an addition to darwin core for http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0315
+        addField(fieldType, sd, classification, "higherClassification");
+        addField(fieldType, sd, classification, "parentNameUsage");
+        addField(fieldType, sd, classification, "parentNameUsageID");
+        addField(fieldType, sd, classification, "acceptedNameUsage");
+        addField(fieldType, sd, classification, "acceptedNameUsageID");
+        addField(fieldType, sd, classification, "originalNameUsage");
+        addField(fieldType, sd, classification, "originalNameUsageID");
+        addField(fieldType, sd, classification, "taxonRank");
+        addField(fieldType, sd, classification, "taxonomicStatus");
+        addField(fieldType, sd, classification, "taxonRemarks");
+        addField(fieldType, sd, classification, "verbatimTaxonRank");
+        addField(fieldType, sd, classification, "vernacularName");
+        addField(fieldType, sd, classification, "nameAccordingTo");
+        addField(fieldType, sd, classification, "nameAccordingToID");
+        addField(fieldType, sd, classification, "namePublishedIn");
+        addField(fieldType, sd, classification, "namePublishedInYear");
+        addField(fieldType, sd, classification, "namePublishedInID");
+        addField(fieldType, sd, classification, "nomenclaturalCode");
+        addField(fieldType, sd, classification, "nomenclaturalStatus");
         //additional fields for HISPID support
-        add(sd, classification, "scientificNameWithoutAuthor", prefix);
-        add(sd, classification, "scientificNameAddendum", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0334
+        addField(fieldType, sd, classification, "scientificNameWithoutAuthor");
+        addField(fieldType, sd, classification, "scientificNameAddendum"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0334
         //custom additional fields
-        add(sd, classification, "rankID", prefix);
-        add(sd, classification, "kingdomID", prefix);
-        add(sd, classification, "phylumID", prefix);
-        add(sd, classification, "classID", prefix);
-        add(sd, classification, "orderID", prefix);
-        add(sd, classification, "familyID", prefix);
-        add(sd, classification, "genusID", prefix);
-        add(sd, classification, "subgenusID", prefix);
-        add(sd, classification, "speciesID", prefix);
-        add(sd, classification, "subspeciesID", prefix);
+        addField(fieldType, sd, classification, "rankID");
+        addField(fieldType, sd, classification, "kingdomID");
+        addField(fieldType, sd, classification, "phylumID");
+        addField(fieldType, sd, classification, "classID");
+        addField(fieldType, sd, classification, "orderID");
+        addField(fieldType, sd, classification, "familyID");
+        addField(fieldType, sd, classification, "genusID");
+        addField(fieldType, sd, classification, "subgenusID");
+        addField(fieldType, sd, classification, "speciesID");
+        addField(fieldType, sd, classification, "subspeciesID");
         classification.put("left", sd.getFieldValue("lft"));
         classification.put("right", sd.getFieldValue("rgt"));
-        add(sd, classification, "speciesHabitats", prefix);
-        add(sd, classification, "speciesGroups", prefix);
-        add(sd, classification, "matchType", prefix); //stores the type of name match that was performed
-        add(sd, classification, "taxonomicIssues", prefix); //stores if no issue, questionableSpecies, conferSpecies or affinitySpecies
-        add(sd, classification, "nameType", prefix);
+        addField(fieldType, sd, classification, "speciesHabitats");
+        addField(fieldType, sd, classification, "speciesGroups");
+        addField(fieldType, sd, classification, "matchType"); //stores the type of name match that was performed
+        addField(fieldType, sd, classification, "taxonomicIssues"); //stores if no issue, questionableSpecies, conferSpecies or affinitySpecies
+        addField(fieldType, sd, classification, "nameType");
 
         // au.org.ala.biocache.model.Location
         Map location = new HashMap();
         fullRecord.put("location", location);
         //dwc terms
-        add(sd, location, "continent", prefix);
-        add(sd, location, "coordinatePrecision", prefix);
-        add(sd, location, "coordinateUncertaintyInMeters", prefix);
-        add(sd, location, "country", prefix);
-        add(sd, location, "countryCode", prefix);
-        add(sd, location, "county", prefix);
-        add(sd, location, "decimalLatitude", prefix);
-        add(sd, location, "decimalLongitude", prefix);
-        add(sd, location, "footprintSpatialFit", prefix);
-        add(sd, location, "footprintWKT", prefix);
-        add(sd, location, "footprintSRS", prefix);
-        add(sd, location, "geodeticDatum", prefix);
-        add(sd, location, "georeferencedBy", prefix);
-        add(sd, location, "georeferencedDate", prefix);
-        add(sd, location, "georeferenceProtocol", prefix);
-        add(sd, location, "georeferenceRemarks", prefix);
-        add(sd, location, "georeferenceSources", prefix);
-        add(sd, location, "georeferenceVerificationStatus", prefix);
-        add(sd, location, "habitat", prefix);
-        add(sd, location, "biome", prefix);
-        add(sd, location, "higherGeography", prefix);
-        add(sd, location, "higherGeographyID", prefix);
-        add(sd, location, "island", prefix);
-        add(sd, location, "islandGroup", prefix);
-        add(sd, location, "locality", prefix);
-        add(sd, location, "locationAccordingTo", prefix);
-        add(sd, location, "locationAttributes", prefix);
-        add(sd, location, "locationID", prefix);
-        add(sd, location, "locationRemarks", prefix);
-        add(sd, location, "maximumDepthInMeters", prefix);
-        add(sd, location, "maximumDistanceAboveSurfaceInMeters", prefix);
-        add(sd, location, "maximumElevationInMeters", prefix);
-        add(sd, location, "minimumDepthInMeters", prefix);
-        add(sd, location, "minimumDistanceAboveSurfaceInMeters", prefix);
-        add(sd, location, "minimumElevationInMeters", prefix);
-        add(sd, location, "municipality", prefix);
-        add(sd, location, "pointRadiusSpatialFit", prefix);
-        add(sd, location, "stateProvince", prefix);
-        add(sd, location, "verbatimCoordinates", prefix);
-        add(sd, location, "verbatimCoordinateSystem", prefix);
-        add(sd, location, "verbatimDepth", prefix);
-        add(sd, location, "verbatimElevation", prefix);
-        add(sd, location, "verbatimLatitude", prefix);
-        add(sd, location, "verbatimLocality", prefix);
-        add(sd, location, "verbatimLongitude", prefix);
-        add(sd, location, "verbatimSRS", prefix);
-        add(sd, location, "waterBody", prefix);
+        addField(fieldType, sd, location, "continent");
+        addField(fieldType, sd, location, "coordinatePrecision");
+        addField(fieldType, sd, location, "coordinateUncertaintyInMeters");
+        addField(fieldType, sd, location, "country");
+        addField(fieldType, sd, location, "countryCode");
+        addField(fieldType, sd, location, "county");
+        addField(fieldType, sd, location, "decimalLatitude");
+        addField(fieldType, sd, location, "decimalLongitude");
+        addField(fieldType, sd, location, "footprintSpatialFit");
+        addField(fieldType, sd, location, "footprintWKT");
+        addField(fieldType, sd, location, "footprintSRS");
+        addField(fieldType, sd, location, "geodeticDatum");
+        addField(fieldType, sd, location, "georeferencedBy");
+        addField(fieldType, sd, location, "georeferencedDate");
+        addField(fieldType, sd, location, "georeferenceProtocol");
+        addField(fieldType, sd, location, "georeferenceRemarks");
+        addField(fieldType, sd, location, "georeferenceSources");
+        addField(fieldType, sd, location, "georeferenceVerificationStatus");
+        addField(fieldType, sd, location, "habitat");
+        addField(fieldType, sd, location, "biome");
+        addField(fieldType, sd, location, "higherGeography");
+        addField(fieldType, sd, location, "higherGeographyID");
+        addField(fieldType, sd, location, "island");
+        addField(fieldType, sd, location, "islandGroup");
+        addField(fieldType, sd, location, "locality");
+        addField(fieldType, sd, location, "locationAccordingTo");
+        addField(fieldType, sd, location, "locationAttributes");
+        addField(fieldType, sd, location, "locationID");
+        addField(fieldType, sd, location, "locationRemarks");
+        addField(fieldType, sd, location, "maximumDepthInMeters");
+        addField(fieldType, sd, location, "maximumDistanceAboveSurfaceInMeters");
+        addField(fieldType, sd, location, "maximumElevationInMeters");
+        addField(fieldType, sd, location, "minimumDepthInMeters");
+        addField(fieldType, sd, location, "minimumDistanceAboveSurfaceInMeters");
+        addField(fieldType, sd, location, "minimumElevationInMeters");
+        addField(fieldType, sd, location, "municipality");
+        addField(fieldType, sd, location, "pointRadiusSpatialFit");
+        addField(fieldType, sd, location, "stateProvince");
+        addField(fieldType, sd, location, "verbatimCoordinates");
+        addField(fieldType, sd, location, "verbatimCoordinateSystem");
+        addField(fieldType, sd, location, "verbatimDepth");
+        addField(fieldType, sd, location, "verbatimElevation");
+        addField(fieldType, sd, location, "verbatimLatitude");
+        addField(fieldType, sd, location, "verbatimLocality");
+        addField(fieldType, sd, location, "verbatimLongitude");
+        addField(fieldType, sd, location, "verbatimSRS");
+        addField(fieldType, sd, location, "waterBody");
         // custom additional fields not in darwin core
-        add(sd, location, "lga", prefix);
+        addField(fieldType, sd, location, "lga");
         // AVH additions
-        add(sd, location, "generalisedLocality", prefix); ///http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0977
-        add(sd, location, "nearNamedPlaceRelationTo", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0980
-        add(sd, location, "australianHerbariumRegion", prefix); //http://www.chah.org.au/hispid/terms/australianHerbariumRegion
+        addField(fieldType, sd, location, "generalisedLocality"); ///http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0977
+        addField(fieldType, sd, location, "nearNamedPlaceRelationTo"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0980
+        addField(fieldType, sd, location, "australianHerbariumRegion"); //http://www.chah.org.au/hispid/terms/australianHerbariumRegion
         // For occurrences found to be outside the expert distribution range for the associated speces.
-        add(sd, location, "distanceOutsideExpertRange", prefix);
-        add(sd, location, "easting", prefix);
-        add(sd, location, "northing", prefix);
-        add(sd, location, "zone", prefix);
-        add(sd, location, "gridReference", prefix);
-        add(sd, location, "bbox", prefix); //stored in minX,minY,maxX,maxy format (not in JSON)
+        addField(fieldType, sd, location, "distanceOutsideExpertRange");
+        addField(fieldType, sd, location, "easting");
+        addField(fieldType, sd, location, "northing");
+        addField(fieldType, sd, location, "zone");
+        addField(fieldType, sd, location, "gridReference");
+        addField(fieldType, sd, location, "bbox"); //stored in minX,minY,maxX,maxy format (not in JSON)
         location.put("marine", "Marine".equalsIgnoreCase(String.valueOf(sd.getFieldValue("biome"))));
         location.put("terrestrial", "Terrestrial".equalsIgnoreCase(String.valueOf(sd.getFieldValue("biome"))));
 
         // au.org.ala.biocache.model.Event
         Map event = new HashMap();
         fullRecord.put("event", event);
-        add(sd, event, "day", prefix);
-        add(sd, event, "endDayOfYear", prefix);
-        add(sd, event, "eventAttributes", prefix);
-        addLocalDate(sd, event, "eventDate", prefix);
-        addLocalDate(sd, event, "eventDateEnd", prefix);
-        add(sd, event, "eventRemarks", prefix);
-        add(sd, event, "eventTime", prefix);
-        add(sd, event, "verbatimEventDate", prefix);
-        add(sd, event, "year", prefix);
-        add(sd, event, "month", prefix);
-        add(sd, event, "startDayOfYear", prefix);
+        addField(fieldType, sd, event, "day");
+        addField(fieldType, sd, event, "endDayOfYear");
+        addField(fieldType, sd, event, "eventAttributes");
+        addLocalDate(fieldType, sd, event, "eventDate");
+        addLocalDate(fieldType, sd, event, "eventDateEnd");
+        addField(fieldType, sd, event, "eventRemarks");
+        addField(fieldType, sd, event, "eventTime");
+        addField(fieldType, sd, event, "verbatimEventDate");
+        addField(fieldType, sd, event, "year");
+        addField(fieldType, sd, event, "month");
+        addField(fieldType, sd, event, "startDayOfYear");
         //custom date range fields in biocache-store
-        add(sd, event, "startYear", prefix);
-        add(sd, event, "endYear", prefix);
-        add(sd, event, "datePrecision", prefix);
+        addField(fieldType, sd, event, "startYear");
+        addField(fieldType, sd, event, "endYear");
+        addField(fieldType, sd, event, "datePrecision");
 
         // au.org.ala.biocache.model.Attribution
         Map attribution = new HashMap();
         fullRecord.put("attribution", attribution);
-        add(sd, attribution, "dataResourceName", prefix);
-        add(sd, attribution, "dataResourceUid", prefix);
-        add(sd, attribution, "dataProviderUid", prefix);
-        add(sd, attribution, "dataProviderName", prefix);
-        add(sd, attribution, "collectionUid", prefix);
-        add(sd, attribution, "institutionUid", prefix);
-        add(sd, attribution, "dataHubUid", prefix);
-        add(sd, attribution, "dataHubName", prefix);
-        add(sd, attribution, "institutionName", prefix);
-        add(sd, attribution, "collectionName", prefix);
-        add(sd, attribution, "citation", prefix);
-        add(sd, attribution, "provenance", prefix);
-        add(sd, attribution, "license", prefix);
+        addField(fieldType, sd, attribution, "dataResourceName");
+        addField(fieldType, sd, attribution, "dataResourceUid");
+        addField(fieldType, sd, attribution, "dataProviderUid");
+        addField(fieldType, sd, attribution, "dataProviderName");
+        addField(fieldType, sd, attribution, "collectionUid");
+        addField(fieldType, sd, attribution, "institutionUid");
+        addField(fieldType, sd, attribution, "dataHubUid");
+        addField(fieldType, sd, attribution, "dataHubName");
+        addField(fieldType, sd, attribution, "institutionName");
+        addField(fieldType, sd, attribution, "collectionName");
+        addField(fieldType, sd, attribution, "citation");
+        addField(fieldType, sd, attribution, "provenance");
+        addField(fieldType, sd, attribution, "license");
 
         // au.org.ala.biocache.model.Identification
         Map identification = new HashMap();
         fullRecord.put("identification", identification);
-        add(sd, identification, "dateIdentified", prefix);
-        add(sd, identification, "identificationAttributes", prefix);
-        add(sd, identification, "identificationID", prefix);
-        add(sd, identification, "identificationQualifier", prefix);
-        add(sd, identification, "identificationReferences", prefix);
-        add(sd, identification, "identificationRemarks", prefix);
-        add(sd, identification, "identificationVerificationStatus", prefix);
-        add(sd, identification, "identifiedBy", prefix);
-        add(sd, identification, "identifierRole", prefix); //HISPID addition http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0376
-        add(sd, identification, "typeStatus", prefix);
+        addField(fieldType, sd, identification, "dateIdentified");
+        addField(fieldType, sd, identification, "identificationAttributes");
+        addField(fieldType, sd, identification, "identificationID");
+        addField(fieldType, sd, identification, "identificationQualifier");
+        addField(fieldType, sd, identification, "identificationReferences");
+        addField(fieldType, sd, identification, "identificationRemarks");
+        addField(fieldType, sd, identification, "identificationVerificationStatus");
+        addField(fieldType, sd, identification, "identifiedBy");
+        addField(fieldType, sd, identification, "identifierRole"); //HISPID addition http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0376
+        addField(fieldType, sd, identification, "typeStatus");
         /* AVH addition */
-        add(sd, identification, "abcdTypeStatus", prefix); //ABCD addition for AVH http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0645
-        add(sd, identification, "typeStatusQualifier", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0647
-        add(sd, identification, "typifiedName", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0604
-        add(sd, identification, "verbatimDateIdentified", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0383
-        add(sd, identification, "verifier", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0649
-        add(sd, identification, "verificationDate", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0657
-        add(sd, identification, "verificationNotes", prefix); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0658
-        add(sd, identification, "abcdIdentificationQualifier", prefix); //ABCD addition for AVH http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0332
-        add(sd, identification, "abcdIdentificationQualifierInsertionPoint", prefix); //ABCD addition for AVH http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0333
+        addField(fieldType, sd, identification, "abcdTypeStatus"); //ABCD addition for AVH http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0645
+        addField(fieldType, sd, identification, "typeStatusQualifier"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0647
+        addField(fieldType, sd, identification, "typifiedName"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0604
+        addField(fieldType, sd, identification, "verbatimDateIdentified"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0383
+        addField(fieldType, sd, identification, "verifier"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0649
+        addField(fieldType, sd, identification, "verificationDate"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0657
+        addField(fieldType, sd, identification, "verificationNotes"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0658
+        addField(fieldType, sd, identification, "abcdIdentificationQualifier"); //ABCD addition for AVH http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0332
+        addField(fieldType, sd, identification, "abcdIdentificationQualifierInsertionPoint"); //ABCD addition for AVH http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0333
 
         // au.org.ala.biocache.model.Measurement
         Map measurement = new HashMap();
         fullRecord.put("measurement", measurement);
-        add(sd, measurement, "measurementAccuracy", prefix);
-        add(sd, measurement, "measurementDeterminedBy", prefix);
-        add(sd, measurement, "measurementDeterminedDate", prefix);
-        add(sd, measurement, "measurementID", prefix);
-        add(sd, measurement, "measurementMethod", prefix);
-        add(sd, measurement, "measurementRemarks", prefix);
-        add(sd, measurement, "measurementType", prefix);
-        add(sd, measurement, "measurementUnit", prefix);
-        add(sd, measurement, "measurementValue", prefix);
+        addField(fieldType, sd, measurement, "measurementAccuracy");
+        addField(fieldType, sd, measurement, "measurementDeterminedBy");
+        addField(fieldType, sd, measurement, "measurementDeterminedDate");
+        addField(fieldType, sd, measurement, "measurementID");
+        addField(fieldType, sd, measurement, "measurementMethod");
+        addField(fieldType, sd, measurement, "measurementRemarks");
+        addField(fieldType, sd, measurement, "measurementType");
+        addField(fieldType, sd, measurement, "measurementUnit");
+        addField(fieldType, sd, measurement, "measurementValue");
 
-        add(sd, fullRecord, "assertions", "");
+        addField(fieldType, sd, fullRecord, "assertions");
 
         Map el = new HashMap();
-        fullRecord.put("el", el);
-        addLayerValues(sd, el, "el", prefix);
-
         Map cl = new HashMap();
+        fullRecord.put("el", el);
         fullRecord.put("cl", cl);
-        addLayerValues(sd, cl, "cl", prefix);
+
+        if (fieldType == FieldType.PROCESSED) {
+            addLayerValues(sd, el, "el");
+            addLayerValues(sd, cl, "cl");
+        }
 
         Map miscProperties = new HashMap();
         fullRecord.put("miscProperties", miscProperties);
-        add(sd, miscProperties, "references", "");
-        add(sd, miscProperties, "numIdentificationAgreements", "");
+        addField(fieldType, sd, miscProperties, "references");
+        addField(fieldType, sd, miscProperties, "numIdentificationAgreements");
 
         Map queryAssertions = new HashMap();
         fullRecord.put("queryAssertions", queryAssertions);
 
-        add(sd, fullRecord, "userQualityAssertion", "");
-        add(sd, fullRecord, "userAssertionStatus", "");
-        add(sd, fullRecord, "locationDetermined", "");
-        add(sd, fullRecord, "defaultValuesUsed", "");
-        add(sd, fullRecord,"spatiallyValid", "");
+        addField(fieldType, sd, fullRecord, "userQualityAssertion");
+        addField(fieldType, sd, fullRecord, "userAssertionStatus");
+        addField(fieldType, sd, fullRecord, "locationDetermined");
+        addField(fieldType, sd, fullRecord, "defaultValuesUsed");
+        addField(fieldType, sd, fullRecord,"spatiallyValid");
 //        fullRecord.put("geospatiallyKosher", "");
         fullRecord.put("taxonomicallyKosher", "");
         fullRecord.put("deleted", false); // no deletion flags in use
-        add(sd, fullRecord, "userVerified", ""); // same value for both raw and processed
+        addField(fieldType, sd, fullRecord, "userVerified"); // same value for both raw and processed
         Object value = sd.getFieldValue("firstLoadedDate");
         if (value != null) {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss'Z'");
             fullRecord.put("firstLoaded", sdf.format((Date) value));
         }
-        fullRecord.put("lastModifiedTime", sd.getFieldValue(prefix + "lastLoadDate"));
+        fullRecord.put("lastModifiedTime", sd.getFieldValue("lastLoadDate"));
         fullRecord.put("dateDeleted", ""); // no deletion flags in use
-        add(sd, fullRecord, "lastUserAssertionDate", "");
+        addField(fieldType, sd, fullRecord, "lastUserAssertionDate");
 
         return fullRecord;
     }
