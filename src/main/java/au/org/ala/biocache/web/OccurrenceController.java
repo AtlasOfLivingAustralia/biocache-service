@@ -389,7 +389,7 @@ public class OccurrenceController extends AbstractSecureController {
             @RequestParam(value="isDwc", required=false) Boolean isDwc) throws Exception {
 
         Set<IndexFieldDTO> result;
-        if(fields == null) {
+        if (fields == null) {
             result = indexDao.getIndexedFields();
         } else {
             result = indexDao.getIndexFieldDetails(fields.split(","));
@@ -405,14 +405,13 @@ public class OccurrenceController extends AbstractSecureController {
                         && (multivalue == null || i.isMultivalue() == multivalue)
                         && (dataType == null || dataTypes.contains(i.getDataType()))
                         && (classs == null || classss.contains(i.getClasss()))
-                        && (isMisc || !i.getName().startsWith("_"))
+                        && (isMisc || !i.getName().startsWith("dynamicProperties_"))
                         && (isDwc == null || isDwc == StringUtils.isNotEmpty(i.getDwcTerm()))) {
                     filtered.add(i);
                 }
             }
             result = filtered;
         }
-
 
         List myList = new ArrayList(result);
         Collections.sort(myList, new Comparator<IndexFieldDTO>() {
@@ -1582,23 +1581,27 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     private void addField(FieldType fieldType, SolrDocument sd, Map map, String fieldName) {
+        addField(fieldType, sd, map, fieldName, fieldName);
+    }
+
+    private void addField(FieldType fieldType, SolrDocument sd, Map map, String fieldName, String fieldNameToUser) {
 
         boolean processedField = fieldMappingUtil.isProcessed(fieldName);
 
         if (fieldType == FieldType.RAW) {
 
             if (sd.containsKey("raw_" + fieldName)) {
-                map.put(fieldName, sd.getFieldValue("raw_" + fieldName));
+                map.put(fieldNameToUser, sd.getFieldValue("raw_" + fieldName));
             } else if (!processedField) {
-                map.put(fieldName, sd.getFieldValue(fieldName));
+                map.put(fieldNameToUser, sd.getFieldValue(fieldName));
             }
 
         } else if (fieldType == FieldType.PROCESSED) {
 
             if (processedField) {
-                map.put(fieldName, sd.getFieldValue(fieldName));
+                map.put(fieldNameToUser, sd.getFieldValue(fieldName));
             } if (sd.containsKey("raw_" + fieldName)) {
-                map.put(fieldName, sd.getFieldValue(fieldName));
+                map.put(fieldNameToUser, sd.getFieldValue(fieldName));
             }
         }
     }
@@ -1775,6 +1778,7 @@ public class OccurrenceController extends AbstractSecureController {
         // au.org.ala.biocache.model.Classification
         Map classification = new HashMap();
         fullRecord.put("classification", classification);
+
         addField(fieldType, sd, classification, "scientificName");
         addField(fieldType, sd, classification, "scientificNameAuthorship");
         addField(fieldType, sd, classification, "scientificNameID");
@@ -1782,7 +1786,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(fieldType, sd, classification, "taxonID");
         addField(fieldType, sd, classification, "kingdom");
         addField(fieldType, sd, classification, "phylum");
-        addField(fieldType, sd, classification, "class");
+        addField(fieldType, sd, classification, "class", "classs");
         addField(fieldType, sd, classification, "order");
         addField(fieldType, sd, classification, "superfamily");    //an addition to darwin core
         addField(fieldType, sd, classification, "family");
@@ -1814,6 +1818,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(fieldType, sd, classification, "namePublishedInID");
         addField(fieldType, sd, classification, "nomenclaturalCode");
         addField(fieldType, sd, classification, "nomenclaturalStatus");
+
         //additional fields for HISPID support
         addField(fieldType, sd, classification, "scientificNameWithoutAuthor");
         addField(fieldType, sd, classification, "scientificNameAddendum"); //http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0334

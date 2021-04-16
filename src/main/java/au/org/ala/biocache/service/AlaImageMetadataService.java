@@ -54,7 +54,7 @@ public class AlaImageMetadataService implements ImageMetadataService {
     @Override
     public Map<String, List<Map<String, Object>>> getImageMetadataForOccurrences(List<String> occurrenceIDs) throws Exception {
 
-        if(StringUtils.isBlank(imageServiceUrl) || occurrenceIDs == null || occurrenceIDs.isEmpty()){
+        if (StringUtils.isBlank(imageServiceUrl) || occurrenceIDs == null || occurrenceIDs.isEmpty()){
             return new HashMap<String, List<Map<String, Object>>>();
         }
 

@@ -23,19 +23,30 @@ public class LegendItem implements Comparable<LegendItem> {
 
     String name;
     String i18nCode;
+    String facetValue;
     long count;
     int colour;
     String fq;
     int red;
     int blue;
     int green;
+    boolean remainder = false;
 
-
-    public LegendItem(String name, String i18nCode, long count, String fq) {
+    public LegendItem(String name, String i18nCode, String facetValue, long count, String fq) {
         this.name = name != null ? name : "";
+        this.facetValue = facetValue;
         this.i18nCode = i18nCode;
         this.count = count;
         this.fq = fq;
+    }
+
+    public LegendItem(String name, String i18nCode,  String facetValue, long count, String fq, boolean remainder) {
+        this.name = name != null ? name : "";
+        this.i18nCode = i18nCode;
+        this.facetValue = facetValue;
+        this.count = count;
+        this.fq = fq;
+        this.remainder = remainder;
     }
 
     public void setRGB(int colour) {
@@ -94,6 +105,22 @@ public class LegendItem implements Comparable<LegendItem> {
         return green;
     }
 
+
+    public boolean isRemainder() {
+        return remainder;
+    }
+
+    public void setRemainder(boolean remainder) {
+        this.remainder = remainder;
+    }
+
+    public String getFacetValue() {
+        return facetValue;
+    }
+
+    public void setFacetValue(String facetValue) {
+        this.facetValue = facetValue;
+    }
     /**
      * Sort 'count', descending, then 'name' ascending.
      * @param o
@@ -101,18 +128,24 @@ public class LegendItem implements Comparable<LegendItem> {
      */
     @Override
     public int compareTo(LegendItem o) {
+        if (remainder){
+            return 1000;
+        }
+        if (o.remainder){
+            return -1000;
+        }
         long c = count - o.count;
-        if(c == 0) {
-           if(name == null && o.name == null) {
+        if (c == 0) {
+           if (name == null && o.name == null) {
                 return 0;
-            } else if(name == null) {
+            } else if (name == null) {
                 return 1;
-            } else if(o.name == null) {
+            } else if (o.name == null) {
                 return -1;
             }
             return name.compareTo(o.name);
         } else {
-            return (c>0)?-1:1;
+            return (c > 0) ? -1 : 1;
         }
     }
 }
