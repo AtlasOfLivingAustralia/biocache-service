@@ -22,7 +22,7 @@ public class ErrorCode {
 
     // Compatible with biocache-store
     public enum Category {
-        Error, Missing, Warning, Verified, Comment, geospatial, taxonomic
+        Error, Missing, Warning, Verified, Comment, Geospatial, Taxonomic
     }
 
     public ErrorCode() {

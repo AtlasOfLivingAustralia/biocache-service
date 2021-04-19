@@ -18,11 +18,11 @@ import com.datastax.driver.core.*;
 import com.datastax.driver.core.policies.ExponentialReconnectionPolicy;
 import com.datastax.driver.extras.codecs.MappingCodec;
 import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.reflect.TypeToken;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+import net.sf.json.JsonConfig;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,10 +31,12 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.text.ParseException;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.Optional;
 
 /**
  * Cassandra 3 based implementation of a persistence manager.
@@ -124,14 +126,16 @@ public class CassandraStoreDAOImpl implements StoreDAO {
     }
 
     @Override
-    public <T> T get(Class<T> dataClass, String key) throws IOException {
+    public <T> Optional<T> get(Class<T> dataClass, String key) throws IOException {
         String className = dataClass.getSimpleName();
 
+        T result = null;
         PreparedStatement stmt =
                 getPreparedStmt("SELECT * FROM " + className + " where key = ? ", className);
         BoundStatement boundStatement = stmt.bind(key);
         ResultSet rs = session.execute(boundStatement);
         Iterator<Row> rows = rs.iterator();
+
         if (rows.hasNext()) {
             Row row = rows.next();
 
@@ -140,23 +144,26 @@ public class CassandraStoreDAOImpl implements StoreDAO {
             ObjectMapper mapper = new ObjectMapper();
             mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-            return mapper.readValue(jsonString, dataClass);
+            result = mapper.readValue(jsonString, dataClass);
         }
 
-        return null;
+        return Optional.ofNullable(result);
     }
 
     @Override
     public <T> void put(String key, T data) throws IOException {
-        String className = data.getClass().getSimpleName();
+        JsonConfig jsonConfig = new JsonConfig();
+        // don't save null fields
+        jsonConfig.setJsonPropertyFilter((Object source, String name, Object val) -> val == null);
 
         String value;
         if (data instanceof Collection) {
-            value = JSONArray.fromObject(data).toString();
+            value = JSONArray.fromObject(data, jsonConfig).toString();
         } else {
-            value = JSONObject.fromObject(data).toString();
+            value = JSONObject.fromObject(data, jsonConfig).toString();
         }
 
+        String className = data.getClass().getSimpleName();
         try {
             BoundStatement boundStatement = createPutStatement(key, className, value);
             executeWithRetries(session, boundStatement);

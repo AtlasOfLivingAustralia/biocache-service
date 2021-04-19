@@ -363,7 +363,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
      */
     Qid load(String key) throws QidMissingException {
         try {
-            return storeDao.get(Qid.class, key);
+            return storeDao.get(Qid.class, key).orElse(null);
         } catch (Exception e) {
             logger.error("failed to find qid:" + key, e);
             throw new QidMissingException(key);
