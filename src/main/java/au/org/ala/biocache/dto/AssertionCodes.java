@@ -161,11 +161,18 @@ public class AssertionCodes {
     static final public ErrorCode[] userAssertionCodes = new ErrorCode[]{GEOSPATIAL_ISSUE, COORDINATE_HABITAT_MISMATCH, DETECTED_OUTLIER, TAXONOMIC_ISSUE, IDENTIFICATION_INCORRECT, TEMPORAL_ISSUE, USER_ASSERTION_OTHER};
 
     public static ErrorCode[] getAll() {
-        List<ErrorCode> list = new ArrayList();
+        return getAllCodesInRange(null);
+    }
+
+    private static ErrorCode[] getAllCodesInRange(int[] range) {
+        List<ErrorCode> list = new ArrayList<>();
         for (Field field : AssertionCodes.class.getFields()) {
             if (field.getType() == ErrorCode.class) {
                 try {
-                    list.add((ErrorCode) field.get(null));
+                    ErrorCode errorCode = (ErrorCode)field.get(null);
+                    if (range == null || (errorCode.code >= range[0] && errorCode.code < range[1])) {
+                        list.add(errorCode);
+                    }
                 } catch (Exception e) {
                     // Igore exceptions
                 }
@@ -173,7 +180,26 @@ public class AssertionCodes {
             }
         }
         return list.toArray(new ErrorCode[0]);
+    }
 
+    private static final int[] GEOSPATIAL_BOUNDS = {0, 10000};
+    public static ErrorCode[] getGeospatialCodes() {
+        return getAllCodesInRange(GEOSPATIAL_BOUNDS);
+    }
+
+    private static final int[] TAXONOMIC_BOUNDS = {10000, 20000};
+    public static ErrorCode[] getTaxonomicCodes() {
+        return getAllCodesInRange(TAXONOMIC_BOUNDS);
+    }
+
+    private static final int[] MISCELLANEOUS_BOUNDS = {20000, 30000};
+    public static ErrorCode[] getMiscellaneousCodes() {
+        return getAllCodesInRange(MISCELLANEOUS_BOUNDS);
+    }
+
+    private static final int[] TEMPORAL_BOUNDS = {30000, 40000};
+    public static ErrorCode[] getTemporalCodes() {
+        return getAllCodesInRange(TEMPORAL_BOUNDS);
     }
 
     public static ErrorCode getById(int code) {

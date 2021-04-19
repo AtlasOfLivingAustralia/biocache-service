@@ -1497,10 +1497,10 @@ public class OccurrenceController extends AbstractSecureController {
             sd.addField("dbSystemAssertions", sd.getFieldValue("qualityAssertion"));
 
             // set the user assertions after retrieving them from the persistent store (not SOLR)
-            UserAssertions userAssertions = storeDao.get(UserAssertions.class, uuid);
+            Optional<UserAssertions> userAssertions = storeDao.get(UserAssertions.class, uuid);
             //Legacy integration - fix up the user assertions - legacy - to add replace with CAS IDs....
-            if (userAssertions != null) {
-                for (QualityAssertion ua : userAssertions) {
+            userAssertions.ifPresent(assertions -> {
+                for (QualityAssertion ua : assertions) {
                     // remove snapshot
                     ua.setSnapshot(null);
 
@@ -1511,8 +1511,8 @@ public class OccurrenceController extends AbstractSecureController {
                         ua.setUserId(authService.getDisplayNameFor(userId));
                     }
                 }
-                sd.addField("dbUserAssertions", userAssertions);
-            }
+                sd.addField("dbUserAssertions", assertions);
+            });
 
             //retrieve details of the media files
             if (sd.getFieldValue(SOUNDS) != null) {
