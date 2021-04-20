@@ -15,15 +15,13 @@
 package au.org.ala.biocache.web;
 
 
-import au.org.ala.biocache.dao.StoreDAO;
 import au.org.ala.biocache.dto.*;
+import au.org.ala.biocache.service.AssertionService;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.util.AssertionUtils;
-import au.org.ala.biocache.util.OccurrenceUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.log4j.Logger;
-import org.apache.solr.common.SolrDocument;
 import org.gbif.api.vocabulary.InterpretationRemarkSeverity;
 import org.gbif.api.vocabulary.NameUsageIssue;
 import org.gbif.api.vocabulary.OccurrenceIssue;
@@ -36,7 +34,6 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -59,9 +56,7 @@ public class AssertionController extends AbstractSecureController {
     @Inject
     private AbstractMessageSource messageSource;
     @Inject
-    private StoreDAO storeDao;
-    @Inject
-    private OccurrenceUtils occurrenceUtils;
+    private AssertionService assertionService;
 
     /**
      * Retrieve an array of the assertion codes in use by the processing system
@@ -142,40 +137,34 @@ public class AssertionController extends AbstractSecureController {
                                   @RequestParam(value = "userId", required = true) String userId,
                                   @RequestParam(value = "userDisplayName", required = true) String userDisplayName,
                                   HttpServletResponse response) throws Exception {
-        ObjectMapper om = new ObjectMapper();
-        try {
-            //check to see that the assertions have come from a valid source before adding
-            if (shouldPerformOperation(request, response)) {
-                List<Map<String, String>> assertions = om.readValue(json, new TypeReference<List<Map<String, String>>>() {});
-                logger.debug("The assertions in a list of maps: " + assertions);
+        //check to see that the assertions have come from a valid source before adding
+        if (shouldPerformOperation(request, response)) {
+            ObjectMapper om = new ObjectMapper();
+            List<Map<String, String>> assertions = om.readValue(json, new TypeReference<List<Map<String, String>>>() {});
+            logger.debug("The assertions in a list of maps: " + assertions);
 
-                // uuid -> [assertion, assertion]
-                Map<String, List<Map<String, String>>> uuidMappedAssertions = assertions.stream().collect(Collectors.groupingBy(assertion -> (String)assertion.get("recordUuid")));
+            // uuid -> [assertion, assertion]
+            Map<String, List<Map<String, String>>> uuidMappedAssertions = assertions.stream().collect(Collectors.groupingBy(assertion -> (String)assertion.get("recordUuid")));
 
-                uuidMappedAssertions.forEach((uuid, maps) -> {
-                    try {
-                        UserAssertions userAssertions = storeDao.get(UserAssertions.class, uuid).orElse(new UserAssertions());
-                        for (Map<String, String> as : maps) {
-                            QualityAssertion qa = new QualityAssertion();
-                            Integer code = Integer.parseInt(as.get("code"));
-                            qa.setCode(code);
-                            qa.setComment(as.get("comment"));
-                            qa.setUserId(userId);
-                            qa.setUserDisplayName(userDisplayName);
-                            userAssertions.add(qa);
-                        }
-
-                        if (!userAssertions.isEmpty()) {
-                            storeDao.put(uuid, userAssertions);
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
+            uuidMappedAssertions.forEach((uuid, maps) -> {
+                try {
+                    UserAssertions userAssertions = new UserAssertions();
+                    for (Map<String, String> as : maps) {
+                        QualityAssertion qa = new QualityAssertion();
+                        Integer code = Integer.parseInt(as.get("code"));
+                        qa.setCode(code);
+                        qa.setComment(as.get("comment"));
+                        qa.setUserId(userId);
+                        qa.setUserDisplayName(userDisplayName);
+                        userAssertions.add(qa);
                     }
-                });
-            }
-        } catch(Exception e) {
-            logger.error(e.getMessage(),e);
-            response.sendError(HttpURLConnection.HTTP_BAD_REQUEST);
+
+                    assertionService.bulkAddAssertions(uuid, userAssertions);
+                } catch (IOException e) {
+                    logger.error("Failed to bulk add assertions for record: " + uuid);
+                    logger.error(e.getMessage(), e);
+                }
+            });
         }
     }
 
@@ -197,39 +186,18 @@ public class AssertionController extends AbstractSecureController {
 
         if (shouldPerformOperation(request, response)) {
             try {
-                logger.debug("Adding assertion to:" + recordUuid + ", code:" + code + ", comment:" + comment
-                        + ",userAssertionStatus: " + userAssertionStatus + ", assertionUuid: " + assertionUuid
-                        + ", userId:" + userId + ", userDisplayName:" + userDisplayName);
-
-                QualityAssertion qa = new QualityAssertion();
-                qa.setUuid(UUID.randomUUID().toString());
-                qa.setCode(Integer.parseInt(code));
-                qa.setComment(comment);
-                qa.setUserId(userId);
-                qa.setUserDisplayName(userDisplayName);
-                qa.setReferenceRowKey(recordUuid);
-                if (code.equals(Integer.toString(AssertionCodes.VERIFIED.getCode()))) {
-                    qa.setRelatedUuid(assertionUuid);
-                    qa.setQaStatus(Integer.parseInt(userAssertionStatus));
+                Optional<QualityAssertion> qa = assertionService.addAssertion(recordUuid, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid);
+                if (qa.isPresent()) {
+                    String server = request.getSession().getServletContext().getInitParameter("serverName");
+                    response.setHeader("Location", server + "/occurrences/" + recordUuid + "/assertions/" + qa.get().getUuid());
+                    response.setStatus(HttpServletResponse.SC_CREATED);
                 } else {
-                    qa.setQaStatus(AssertionStatus.QA_UNCONFIRMED);
+                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 }
-                // get dataResourceUid
-                SolrDocument sd = occurrenceUtils.getOcc(recordUuid);
-                if (sd != null) {
-                    qa.setDataResourceUid((String) sd.getFieldValue("dataResourceUid"));
-                }
-
-                UserAssertions existingAssertions = storeDao.get(UserAssertions.class, recordUuid).orElse(new UserAssertions());
-                existingAssertions.add(qa);
-                storeDao.put(recordUuid, existingAssertions);
-
-                String server = request.getSession().getServletContext().getInitParameter("serverName");
-                response.setHeader("Location", server + "/occurrences/" + recordUuid + "/assertions/" + qa.getUuid());
-                response.setStatus(HttpServletResponse.SC_CREATED);
-            } catch (Exception e) {
+            } catch (IOException e) {
+                logger.error("Failed to add assertion for record " + recordUuid);
                 logger.error(e.getMessage(), e);
-                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
             }
         }
     }
@@ -269,15 +237,15 @@ public class AssertionController extends AbstractSecureController {
 
         if(shouldPerformOperation(request, response)) {
             try {
-                UserAssertions userAssertions = storeDao.get(UserAssertions.class, recordUuid).orElse(new UserAssertions());
-                // if there's any change made
-                // TODO: if userAssertions.size() == 0, we actually need to remove the key/value pair instead of having an empty value in Cassandra
-                if (userAssertions.deleteUuid(assertionUuid)) {
-                    storeDao.put(recordUuid, userAssertions);
+                if (assertionService.deleteAssertion(recordUuid, assertionUuid)) {
+                    response.setStatus(HttpServletResponse.SC_OK);
+                } else {
+                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "recordUuid " + recordUuid + " or assertionUuid " + assertionUuid + " doesn't exist");
                 }
-                response.setStatus(HttpServletResponse.SC_OK);
-            } catch (Exception e) {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+            } catch (IOException e) {
+                logger.error("Failed to delete assertion [id: " + assertionUuid + "] for record " + recordUuid);
+                logger.error(e.getMessage(), e);
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
             }
         }
     }
@@ -303,18 +271,18 @@ public class AssertionController extends AbstractSecureController {
             @PathVariable(value = "recordUuid") String recordUuid,
             @PathVariable(value = "assertionUuid") String assertionUuid,
             HttpServletResponse response) throws Exception {
-        UserAssertions userAssertions = storeDao.get(UserAssertions.class, recordUuid).orElse(new UserAssertions());
-        if (userAssertions.isEmpty()) {
-            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-        } else {
-            for (QualityAssertion qa : userAssertions) {
-                if (qa.getUuid().equals(assertionUuid)) {
-                    // do not return the snapshot
-                    qa.setSnapshot(null);
-                    return qa;
-                }
+
+        try {
+            QualityAssertion assertion = assertionService.getAssertion(recordUuid, assertionUuid);
+            if (assertion != null) {
+                return assertion;
+            } else {
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
             }
-            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+        } catch (IOException e) {
+            logger.error("Failed to get assertion [id: " + assertionUuid + "] for record " + recordUuid);
+            logger.error(e.getMessage(), e);
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
         }
         return null;
     }
@@ -328,12 +296,14 @@ public class AssertionController extends AbstractSecureController {
         @PathVariable(value="recordUuid") String recordUuid,
         HttpServletResponse response
     ) throws Exception {
-        UserAssertions userAssertions = storeDao.get(UserAssertions.class, recordUuid).orElse(new UserAssertions());
-        for (QualityAssertion qa : userAssertions) {
-            qa.setSnapshot(null);
+        try {
+            return assertionService.getAssertions(recordUuid);
+        } catch (Exception e) {
+            logger.error("Failed to get assertions for record " + recordUuid);
+            logger.error(e.getMessage(), e);
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+            return null;
         }
-
-        return userAssertions;
     }
 
     @Deprecated
