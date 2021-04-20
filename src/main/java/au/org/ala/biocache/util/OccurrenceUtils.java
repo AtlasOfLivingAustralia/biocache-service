@@ -19,6 +19,8 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -30,6 +32,8 @@ import java.util.regex.Pattern;
 @Component("OccurrenceUtils")
 public class OccurrenceUtils {
 
+    private static final Logger logger = LoggerFactory.getLogger(OccurrenceUtils.class);
+
     @Inject
     protected SearchDAO searchDAO;
 
@@ -38,16 +42,18 @@ public class OccurrenceUtils {
     static final Pattern EL_REGEX = Pattern.compile("el[0-9]{1,}");
     static final Pattern CL_REGEX = Pattern.compile("cl[0-9]{1,}");
 
-    private SolrDocument lookupRecordFromSolr(String uuid) throws Exception {
+    private SolrDocument lookupRecordFromSolr(String uuid) {
         SpatialSearchRequestParams idRequest = new SpatialSearchRequestParams();
         idRequest.setQ("id:\"" + uuid + "\"");
         idRequest.setFacet(false);
         idRequest.setFl("*");
-        SolrDocumentList list = searchDAO.findByFulltext(idRequest);
-        if (list.size() > 0) {
-            return list.get(0);
+        SolrDocumentList list = null;
+        try {
+            list = searchDAO.findByFulltext(idRequest);
+        } catch (Exception ignored) {
+            logger.debug("Failed to find occurrence with id " + uuid);
         }
-        return null;
+        return (list != null && list.size() > 0) ? list.get(0) : null;
     }
 
 //    private FullRecord[] getFullRecord(String uuid, SolrDocumentList result) {
@@ -86,8 +92,7 @@ public class OccurrenceUtils {
 //    }
 
 
-    public SolrDocument getOcc(String uuid) throws Exception {
-        SolrDocument sd = lookupRecordFromSolr(uuid);
+    public SolrDocument getOcc(String uuid) {
 
 //        Map<String, List<QualityAssertion>> assertions = new HashMap<String, List<QualityAssertion>>();
 //        SolrDocument doc = result.iterator().next();
@@ -116,7 +121,7 @@ public class OccurrenceUtils {
 //        assertions.put("failed", failed);
 //        assertions.put("passed", passed);
 //        occ.setSystemAssertions(assertions);
-        return sd;
+        return lookupRecordFromSolr(uuid);
     }
 
     @Value("${media.store.url:}")
