@@ -37,19 +37,28 @@ public class DuplicateRecordDetails {
     public DuplicateRecordDetails() {
     }
 
-    ;
-
     public DuplicateRecordDetails(SolrDocument d) {
         this.id = (String) d.getFieldValue(OccurrenceIndex.ID);
-        this.status = (String) d.getFieldValue(OccurrenceIndex.DUPLICATE_STATUS);
+
+        Object duplicateStatusIndex = d.getFieldValue(OccurrenceIndex.DUPLICATE_STATUS);
+
+        if (duplicateStatusIndex instanceof java.util.List){
+            this.status = (String) ((java.util.List) duplicateStatusIndex).get(0);
+        } else {
+            this.status = (String) duplicateStatusIndex;
+        }
 
         if ("ASSOCIATED".equals(status)) {
             // is duplicate
             this.dupTypes = new ArrayList();
-            for (Object dupType : d.getFieldValues(OccurrenceIndex.DUPLICATE_REASONS)) {
-                dupTypes.add(dupType.toString());
+
+            Object isDuplicateOfIndex = d.getFieldValue(OccurrenceIndex.DUPLICATE_OF);
+
+            if (isDuplicateOfIndex instanceof java.util.List){
+                this.duplicateOf = (String) ((java.util.List) isDuplicateOfIndex).get(0);
+            } else {
+                this.duplicateOf = (String) isDuplicateOfIndex;
             }
-            this.duplicateOf = (String) d.getFieldValue(OccurrenceIndex.DUPLICATE_OF);
         }
 
         taxonConceptLsid = (String) d.getFieldValue(OccurrenceIndex.TAXON_CONCEPT_ID);
@@ -59,15 +68,19 @@ public class DuplicateRecordDetails {
         point0_0001 = (String) d.getFieldValue(PointType.POINT_0001.getLabel());
         latLong = (String) d.getFieldValue(OccurrenceIndex.LAT_LNG);
         rawScientificName = (String) d.getFieldValue(OccurrenceIndex.RAW_TAXON_NAME);
-        collector = (String) d.getFieldValue(OccurrenceIndex.COLLECTOR);
+
+//        collector = (String) d.getFieldValue(OccurrenceIndex.COLLECTOR);
+
+
+
         recordNumber = (String) d.getFieldValue(OccurrenceIndex.RECORD_NUMBER);
         catalogueNumber = (String) d.getFieldValue(OccurrenceIndex.CATALOGUE_NUMBER);
         precision = null; // This is not in pipelines (Integer) d.getFieldValue(OccurrenceIndex.PRECISION);
 
-        // depricated fields for backward compatability
+        // deprecated fields for backward compatibility
         rowKey = (String) d.getFieldValue(OccurrenceIndex.ID);
         uuid = (String) d.getFieldValue(OccurrenceIndex.ID);
-        druid = (String) d.getFieldValue(OccurrenceIndex.ID);
+        druid = (String) d.getFieldValue(OccurrenceIndex.DATA_RESOURCE_UID);
     }
 
     public String getId() {
