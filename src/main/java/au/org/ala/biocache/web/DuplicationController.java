@@ -44,8 +44,6 @@ public class DuplicationController {
      * Logger initialisation
      */
     private final static Logger logger = Logger.getLogger(DuplicationController.class);
-    public static final String REPRESENTATIVE = "REPRESENTATIVE";
-    public static final String ASSOCIATED = "ASSOCIATED";
     /**
      * Fulltext search DAO
      */
@@ -84,16 +82,15 @@ public class DuplicationController {
 
             DuplicateRecordDetails drd = new DuplicateRecordDetails(sd);
 
-            if (REPRESENTATIVE.equals(drd.getStatus())) {
+            if (DuplicateRecordDetails.REPRESENTATIVE.equals(drd.getStatus())) {
                 // is representative id
                 List<DuplicateRecordDetails> dups = new ArrayList<>();
                 SolrDocumentList list = searchDuplicates(DUPLICATE_OF, guid);
-                for (int i = 0; i < list.size(); i++) {
-                    SolrDocument d = list.get(i);
+                for (SolrDocument d: list) {
                     dups.add(new DuplicateRecordDetails(d));
                 }
                 drd.setDuplicates(dups);
-            } else if (ASSOCIATED.equals(drd.getStatus())) {
+            } else if (DuplicateRecordDetails.ASSOCIATED.equals(drd.getStatus())) {
                 // is duplicate id, return result for the representative id
                 return getDuplicateStatsForGuid(drd.getDuplicateOf());
             } else {
@@ -117,6 +114,7 @@ public class DuplicationController {
                 DUPLICATE_OF,
                 DUPLICATE_REASONS,
                 DUPLICATE_STATUS,
+                DUPLICATE_JUSTIFICATION,
                 TAXON_CONCEPT_ID,
                 PointType.POINT_1.getLabel(),
                 PointType.POINT_01.getLabel(),

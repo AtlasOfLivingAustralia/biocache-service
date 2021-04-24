@@ -65,6 +65,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
+import static au.org.ala.biocache.dto.DuplicateRecordDetails.ASSOCIATED;
+import static au.org.ala.biocache.dto.DuplicateRecordDetails.REPRESENTATIVE;
 import static au.org.ala.biocache.dto.OccurrenceIndex.*;
 
 /**
@@ -1635,20 +1637,23 @@ public class OccurrenceController extends AbstractSecureController {
             add(sd, occurrence, "associatedOccurrences", prefix);
         } else {
 
-            List duplicateStatuses = (List) sd.get("duplicateStatus");
-            if (duplicateStatuses != null && !duplicateStatuses.isEmpty()) {
-                String duplicateStatus = (String) duplicateStatuses.get(0);
-                // and duplicate details
-
-                occurrence.put("duplicateStatus", duplicateStatus);
-                if ("REPRESENTATIVE".equals(duplicateStatus)){
-                    occurrence.put("duplicationStatus", "R");  //backwards compatibility
-                    List<String> associatedOccurrences = (List) sd.get("isRepresentativeOf");
+            String duplicateStatus = (String) sd.get("duplicateStatus");
+            occurrence.put("duplicateStatus", duplicateStatus);
+            if (REPRESENTATIVE.equals(duplicateStatus)){
+                occurrence.put("duplicationStatus", "R");  //backwards compatibility
+                List<String> associatedOccurrences = (List) sd.get("isRepresentativeOf");
+                if (associatedOccurrences != null) {
                     occurrence.put("associatedOccurrences", String.join("|", associatedOccurrences));
-                } else if ("ASSOCIATED".equals(duplicateStatus)){
-                    occurrence.put("duplicationStatus", "D");  //backwards compatibility
-                    List<String> associatedOccurrences = (List) sd.get("isDuplicateOf");
+                } else {
+                    occurrence.put("associatedOccurrences", "");
+                }
+            } else if (ASSOCIATED.equals(duplicateStatus)){
+                occurrence.put("duplicationStatus", "D");  //backwards compatibility
+                List<String> associatedOccurrences = (List) sd.get("isDuplicateOf");
+                if (associatedOccurrences != null) {
                     occurrence.put("associatedOccurrences", String.join("|", associatedOccurrences));
+                } else {
+                    occurrence.put("associatedOccurrences", "");
                 }
             }
         }

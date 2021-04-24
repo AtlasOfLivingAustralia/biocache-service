@@ -3,17 +3,23 @@ package au.org.ala.biocache.dto;
 import org.apache.solr.common.SolrDocument;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
  * Merged from biocache-store
  */
 public class DuplicateRecordDetails {
+
+    public static final String ASSOCIATED = "ASSOCIATED";
+    public static final String REPRESENTATIVE = "REPRESENTATIVE";
+
     String id;
     String status;
     String duplicateOf;
     List<DuplicateRecordDetails> duplicates;
     List<String> dupTypes;
+    List<String> justification;
 
     // fields that may be used to determine associated records
     String taxonConceptLsid;
@@ -27,15 +33,16 @@ public class DuplicateRecordDetails {
     String collector;
     String recordNumber;
     String catalogueNumber;
-    Integer precision;
+    Double precision;
+    Double coordinateUncertaintyInMeters;
 
-    // depricated fields for backward compatability
+    // deprecated fields for backward compatibility
     String rowKey;
     String uuid;
     String druid;
 
-    public DuplicateRecordDetails() {
-    }
+
+    public DuplicateRecordDetails() {}
 
     public DuplicateRecordDetails(SolrDocument d) {
         this.id = (String) d.getFieldValue(OccurrenceIndex.ID);
@@ -48,17 +55,19 @@ public class DuplicateRecordDetails {
             this.status = (String) duplicateStatusIndex;
         }
 
-        if ("ASSOCIATED".equals(status)) {
+        if (ASSOCIATED.equals(status)) {
             // is duplicate
             this.dupTypes = new ArrayList();
 
             Object isDuplicateOfIndex = d.getFieldValue(OccurrenceIndex.DUPLICATE_OF);
-
             if (isDuplicateOfIndex instanceof java.util.List){
                 this.duplicateOf = (String) ((java.util.List) isDuplicateOfIndex).get(0);
             } else {
                 this.duplicateOf = (String) isDuplicateOfIndex;
             }
+
+            Collection justificationIndex = d.getFieldValues(OccurrenceIndex.DUPLICATE_JUSTIFICATION);
+            this.justification = new ArrayList<>(justificationIndex);
         }
 
         taxonConceptLsid = (String) d.getFieldValue(OccurrenceIndex.TAXON_CONCEPT_ID);
@@ -68,14 +77,11 @@ public class DuplicateRecordDetails {
         point0_0001 = (String) d.getFieldValue(PointType.POINT_0001.getLabel());
         latLong = (String) d.getFieldValue(OccurrenceIndex.LAT_LNG);
         rawScientificName = (String) d.getFieldValue(OccurrenceIndex.RAW_TAXON_NAME);
-
-//        collector = (String) d.getFieldValue(OccurrenceIndex.COLLECTOR);
-
-
-
+        collector = (String) d.getFieldValue(OccurrenceIndex.RAW_RECORDED_BY);
         recordNumber = (String) d.getFieldValue(OccurrenceIndex.RECORD_NUMBER);
         catalogueNumber = (String) d.getFieldValue(OccurrenceIndex.CATALOGUE_NUMBER);
-        precision = null; // This is not in pipelines (Integer) d.getFieldValue(OccurrenceIndex.PRECISION);
+        precision =  (Double) d.getFieldValue(OccurrenceIndex.COORDINATE_PRECISION);
+        coordinateUncertaintyInMeters = (Double) d.getFieldValue(OccurrenceIndex.COORDINATE_UNCERTAINTY);
 
         // deprecated fields for backward compatibility
         rowKey = (String) d.getFieldValue(OccurrenceIndex.ID);
@@ -91,11 +97,11 @@ public class DuplicateRecordDetails {
         this.id = id;
     }
 
-    public Integer getPrecision() {
+    public Double getPrecision() {
         return precision;
     }
 
-    public void setPrecision(Integer precision) {
+    public void setPrecision(Double precision) {
         this.precision = precision;
     }
 
@@ -241,5 +247,21 @@ public class DuplicateRecordDetails {
 
     public void setDruid(String druid) {
         this.druid = druid;
+    }
+
+    public List<String> getJustification() {
+        return justification;
+    }
+
+    public void setJustification(List<String> justification) {
+        this.justification = justification;
+    }
+
+    public Double getCoordinateUncertaintyInMeters() {
+        return coordinateUncertaintyInMeters;
+    }
+
+    public void setCoordinateUncertaintyInMeters(Double coordinateUncertaintyInMeters) {
+        this.coordinateUncertaintyInMeters = coordinateUncertaintyInMeters;
     }
 }
