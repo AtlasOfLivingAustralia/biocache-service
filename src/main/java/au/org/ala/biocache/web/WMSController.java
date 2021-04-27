@@ -1454,7 +1454,9 @@ public class WMSController extends AbstractSecureController{
         double[] bbox = reprojectBBox(tilebbox, srs);
 
         boolean isGrid = vars.colourMode.equals("grid");
-        logger.info("vars.colourMode = " + vars.colourMode);
+        if (logger.isDebugEnabled()) {
+            logger.debug("vars.colourMode = " + vars.colourMode);
+        }
 
         // add a buffer of 10px
         // add buffer
@@ -2707,7 +2709,9 @@ public class WMSController extends AbstractSecureController{
             return null;
         }
 
-        logger.info("Image width:" + tileWidthInPx + ", height:" + tileHeightInPx);
+        if (logger.isDebugEnabled()) {
+            logger.debug("Image width:" + tileWidthInPx + ", height:" + tileHeightInPx);
+        }
 
         ImgObj imgObj = ImgObj.create( (int)(tileWidthInPx ), (int) (tileHeightInPx ));
 
@@ -2766,12 +2770,16 @@ public class WMSController extends AbstractSecureController{
                 }
             }
 
-            logger.info("Rows:" + numberOfRows + ", columns:" + nofOfColumns);
+            if (logger.isDebugEnabled()) {
+                logger.debug("Rows:" + numberOfRows + ", columns:" + nofOfColumns);
+            }
 
             float cellWidth = tileWidthInPx / (float) nofOfColumns;
             float cellHeight = tileHeightInPx / (float) numberOfRows;
 
-            logger.info("cellWidth:" + cellWidth + ", cellHeight:" + cellHeight);
+            if (logger.isDebugEnabled()) {
+                logger.debug("cellWidth:" + cellWidth + ", cellHeight:" + cellHeight);
+            }
 
             Color oColour = Color.decode(outlineColour);
 
