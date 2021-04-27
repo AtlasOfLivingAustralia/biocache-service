@@ -1494,6 +1494,7 @@ public class WMSController extends AbstractSecureController{
         if (tile != null && tile.g != null) {
             tile.g.dispose();
             try (ServletOutputStream outStream = response.getOutputStream();) {
+                response.setContentType("image/png");
                 ImageIO.write(tile.img, "png", outStream);
                 outStream.flush();
             } catch (Exception e) {

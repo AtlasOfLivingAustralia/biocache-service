@@ -31,20 +31,19 @@ import java.util.Map;
  */
 public class OccurrenceIndex {
 
-    final static public String ROW_KEY = "id";
+    protected static final Logger logger = Logger.getLogger(OccurrenceIndex.class);
+
     final static public String IMAGES = "imageIDs";
     final static public String SOUNDS = "soundIDs";
     //final static public String GEOSPATIAL_KOSHER = "geospatial_kosher"; // Not in pipelines
     final static public String COUNTRY = "country";
     final static public String STATE = "stateProvince";
     final static public String PROVENANCE = "provenance";
-
     public static final String OCCURRENCE_YEAR_INDEX_FIELD = "occurrenceYear";
-
     public static final String TAXON_NAME = "scientificName";
     public static final String RAW_TAXON_NAME = "raw_scientificName";
     public static final String RAW_RECORDED_BY = "raw_recordedBy";
-    public static final String RANK = "taxonRank";
+    public static final String TAXON_RANK = "taxonRank";
     public static final String LATITUDE = "decimalLatitude";
     public static final String LONGITUDE = "decimalLongitude";
     public static final String DATA_RESOURCE_NAME = "dataResourceName";
@@ -63,18 +62,12 @@ public class OccurrenceIndex {
     public static final String OUTLIER_LAYER = "outlierLayer";
     public static final String OUTLIER_LAYER_COUNT = "outlierLayerCount";
     public static final String TAXONOMIC_ISSUE = "taxonomicIssues";
-    public static final String FAMILYID = "familyID";
-    public static final String KINGDOMID = "kingdomID";
-    public static final String PHYLUMID = "phylumID";
     public static final String OCCURRENCE_DATE = "eventDate";
     public static final String RECORD_NUMBER = "recordNumber";
     public static final String CATALOGUE_NUMBER = "catalogNumber";
     public static final String COORDINATE_PRECISION = "coordinatePrecision";
-    public static final String RANK_ID = "rankID";
-    protected static final Logger logger = Logger.getLogger(OccurrenceIndex.class);
-
+    public static final String TAXON_RANK_ID = "taxonRankID";
     public static final String TAXON_CONCEPT_ID = "taxonConceptID";
-    public static final String SUBSPECIESID = "subspeciesID";
     public static final String SPECIESID = "speciesID";
     public static final String GENUSID = "genusID";
     public static final String DATA_PROVIDER_NAME = "dataProviderName";
@@ -124,7 +117,7 @@ public class OccurrenceIndex {
     String vernacularName;
     @Field("taxonRank")
     String taxonRank;
-    @Field("rankID")
+    @Field("taxonRankID")
     Integer taxonRankID;
     @Field("raw_countryCode")
     String raw_countryCode;

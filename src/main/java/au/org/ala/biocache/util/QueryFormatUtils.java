@@ -262,27 +262,6 @@ public class QueryFormatUtils {
         }
     }
 
-    public Qid extractQid(String query){
-
-        if (query == null){
-            return null;
-        }
-
-        Qid qid = null;
-        Matcher matcher = qidPattern.matcher(query);
-        while (matcher.find()) {
-            String value = matcher.group();
-            try {
-                String qidValue = SearchUtils.stripEscapedQuotes(value.substring(4));
-                qid = qidCacheDao.get(qidValue);
-            } catch (Exception e){
-                logger.error("Unable to retrieve QID from query " + query, e);
-            }
-        }
-
-        return qid;
-    }
-
     /**
      * Replace query qid value with actual query.
      *
