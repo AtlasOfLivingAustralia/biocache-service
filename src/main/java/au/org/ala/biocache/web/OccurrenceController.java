@@ -21,6 +21,7 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.util.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.sf.ehcache.CacheManager;
 import net.sf.json.JSONArray;
@@ -1544,7 +1545,18 @@ public class OccurrenceController extends AbstractSecureController {
     private Map mapAsFullRecord(SolrDocument sd, Boolean includeImageMetadata) {
         Map map = new HashMap();
 
-        map.put("raw", fullRecord("raw_", sd));
+        Map<String, Object> raw = fullRecord("raw_", sd);
+
+        //and misc properties
+        try {
+            ObjectMapper om = new ObjectMapper();
+            Map<String, Object> miscProperties = om.readValue((String) sd.getFieldValue("dynamicProperties"), Map.class);
+            raw.put("miscProperties", miscProperties);
+        } catch (Exception e){
+           // best effort service
+        }
+
+        map.put("raw", raw);
         map.put("processed", fullRecord("", sd));
         map.put("systemAssertions", systemAssertions(sd));
         map.put("userAssertions", userAssertions(sd));
@@ -1631,33 +1643,7 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, occurrence, "occurrenceID", prefix);
         add(sd, occurrence, "accessRights", prefix);
         add(sd, occurrence, "associatedMedia", prefix);
-
-        if (!StringUtils.isEmpty(prefix)) {
-            // add raw content
-            add(sd, occurrence, "associatedOccurrences", prefix);
-        } else {
-
-            String duplicateStatus = (String) sd.get("duplicateStatus");
-            occurrence.put("duplicateStatus", duplicateStatus);
-            if (REPRESENTATIVE.equals(duplicateStatus)){
-                occurrence.put("duplicationStatus", "R");  //backwards compatibility
-                List<String> associatedOccurrences = (List) sd.get("isRepresentativeOf");
-                if (associatedOccurrences != null) {
-                    occurrence.put("associatedOccurrences", String.join("|", associatedOccurrences));
-                } else {
-                    occurrence.put("associatedOccurrences", "");
-                }
-            } else if (ASSOCIATED.equals(duplicateStatus)){
-                occurrence.put("duplicationStatus", "D");  //backwards compatibility
-                List<String> associatedOccurrences = (List) sd.get("isDuplicateOf");
-                if (associatedOccurrences != null) {
-                    occurrence.put("associatedOccurrences", String.join("|", associatedOccurrences));
-                } else {
-                    occurrence.put("associatedOccurrences", "");
-                }
-            }
-        }
-
+        add(sd, occurrence, "associatedOccurrences", prefix);
         add(sd, occurrence, "associatedReferences", prefix);
         add(sd, occurrence, "associatedSequences", prefix);
         add(sd, occurrence, "associatedTaxa", prefix);
@@ -1972,7 +1958,7 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, fullRecord, "locationDetermined", "");
         add(sd, fullRecord, "defaultValuesUsed", "");
         add(sd, fullRecord,"spatiallyValid", "");
-//        fullRecord.put("geospatiallyKosher", "");
+//        fullRecord.put("geospatiallyKosher", (Boolean) sd.getFieldValue("spatiallyValid"));
         fullRecord.put("taxonomicallyKosher", "");
         fullRecord.put("deleted", false); // no deletion flags in use
         add(sd, fullRecord, "userVerified", ""); // same value for both raw and processed
@@ -1985,7 +1971,22 @@ public class OccurrenceController extends AbstractSecureController {
         fullRecord.put("dateDeleted", ""); // no deletion flags in use
         add(sd, fullRecord, "lastUserAssertionDate", "");
 
+        // duplicate status
+        addDuplicateStatus(prefix, sd, occurrence);
+
         return fullRecord;
+    }
+
+    private void addDuplicateStatus(String prefix, SolrDocument sd, Map occurrence) {
+        if (StringUtils.isEmpty(prefix)) {
+            String duplicateStatus = (String) sd.get("duplicateStatus");
+            occurrence.put("duplicateStatus", duplicateStatus);
+            if (REPRESENTATIVE.equals(duplicateStatus)){
+                occurrence.put("duplicationStatus", "R");  //backwards compatibility
+            } else if (ASSOCIATED.equals(duplicateStatus)){
+                occurrence.put("duplicationStatus", "D");  //backwards compatibility
+            }
+        }
     }
 
     private Map systemAssertions(SolrDocument sd) {
