@@ -3724,7 +3724,9 @@ public class SearchDAOImpl implements SearchDAO {
         return null;
     }
 
-    private SolrQuery createHeatmapQuery(SpatialSearchRequestParams searchParams, Double minx, Double miny, Double maxx, Double maxy, boolean isGrid) {
+private SolrQuery createHeatmapQuery(SpatialSearchRequestParams searchParams, Double minx, Double miny, Double maxx, Double maxy, boolean isGrid) throws QidMissingException {
+
+        queryFormatUtils.formatSearchQuery(searchParams, true);
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
         solrQuery.set("facet.heatmap", spatialField);

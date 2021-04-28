@@ -65,6 +65,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
+import static au.org.ala.biocache.dto.DuplicateRecordDetails.ASSOCIATED;
+import static au.org.ala.biocache.dto.DuplicateRecordDetails.REPRESENTATIVE;
 import static au.org.ala.biocache.dto.OccurrenceIndex.*;
 
 /**
@@ -1431,11 +1433,10 @@ public class OccurrenceController extends AbstractSecureController {
         SpatialSearchRequestParams idRequest = new SpatialSearchRequestParams();
         idRequest.setQ(OccurrenceIndex.ID + ":\"" + uuid + "\"");
         idRequest.setFacet(false);
-//        idRequest.setFl(StringUtils.join(indexDao.getIndexedFieldsMap().keySet(), ","));
         idRequest.setFl("*");
 
         SolrDocumentList sdl = searchDAO.findByFulltext(idRequest);
-        if (sdl.size() == 0) {
+        if (sdl.isEmpty()) {
             return new HashMap();
         }
 
@@ -1623,14 +1624,40 @@ public class OccurrenceController extends AbstractSecureController {
     Map fullRecord(String prefix, SolrDocument sd) {
         Map fullRecord = new HashMap();
         fullRecord.put("rowKey",  sd.getFieldValue(ID)); // Use the processed ID for compatability
-
+        fullRecord.put("uuid",  sd.getFieldValue(ID));
         // au.org.ala.biocache.model.Occurrence
         Map occurrence = new HashMap();
         fullRecord.put("occurrence", occurrence);
         add(sd, occurrence, "occurrenceID", prefix);
         add(sd, occurrence, "accessRights", prefix);
         add(sd, occurrence, "associatedMedia", prefix);
-        add(sd, occurrence, "associatedOccurrences", prefix);
+
+        if (!StringUtils.isEmpty(prefix)) {
+            // add raw content
+            add(sd, occurrence, "associatedOccurrences", prefix);
+        } else {
+
+            String duplicateStatus = (String) sd.get("duplicateStatus");
+            occurrence.put("duplicateStatus", duplicateStatus);
+            if (REPRESENTATIVE.equals(duplicateStatus)){
+                occurrence.put("duplicationStatus", "R");  //backwards compatibility
+                List<String> associatedOccurrences = (List) sd.get("isRepresentativeOf");
+                if (associatedOccurrences != null) {
+                    occurrence.put("associatedOccurrences", String.join("|", associatedOccurrences));
+                } else {
+                    occurrence.put("associatedOccurrences", "");
+                }
+            } else if (ASSOCIATED.equals(duplicateStatus)){
+                occurrence.put("duplicationStatus", "D");  //backwards compatibility
+                List<String> associatedOccurrences = (List) sd.get("isDuplicateOf");
+                if (associatedOccurrences != null) {
+                    occurrence.put("associatedOccurrences", String.join("|", associatedOccurrences));
+                } else {
+                    occurrence.put("associatedOccurrences", "");
+                }
+            }
+        }
+
         add(sd, occurrence, "associatedReferences", prefix);
         add(sd, occurrence, "associatedSequences", prefix);
         add(sd, occurrence, "associatedTaxa", prefix);
@@ -1648,9 +1675,7 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, occurrence, "establishmentMeans", prefix);
         add(sd, occurrence, "fieldNotes", prefix);
         add(sd, occurrence, "fieldNumber", prefix);
-//        occurrence.put("identifier", "");  // Not in pipeline
         add(sd, occurrence, "individualCount", prefix);
-//        occurrence.put("individualID", "");  // Not in pipeline
         add(sd, occurrence, "informationWithheld", prefix);   //used for sensitive data information
         add(sd, occurrence, "institutionCode", prefix);
         add(sd, occurrence, "institutionID", prefix);
@@ -1658,7 +1683,6 @@ public class OccurrenceController extends AbstractSecureController {
         add(sd, occurrence, "license", prefix);
         add(sd, occurrence, "lifeStage", prefix);
         add(sd, occurrence, "modified", prefix);
-//        occurrence.put("occurrenceAttributes", "");  // Not in pipeline
         add(sd, occurrence, "occurrenceAttributes", prefix);
         add(sd, occurrence, "occurrenceDetails", prefix);
         add(sd, occurrence, "occurrenceRemarks", prefix);
@@ -1708,13 +1732,13 @@ public class OccurrenceController extends AbstractSecureController {
         //custom fields
         add(sd, occurrence, "videoIDs", prefix);
         add(sd, occurrence, "interactions", prefix);
-
-        add(sd, occurrence, "duplicateStatus", prefix);
-        add(sd, occurrence, "duplicateType", prefix);
         //Store the conservation status
         add(sd, occurrence, "countryConservation", prefix);
         add(sd, occurrence, "stateConservation", prefix);
         add(sd, occurrence, "globalConservation", prefix);
+        add(sd, occurrence, "stateInvasive", prefix);
+        add(sd, occurrence, "countryInvasive", prefix);
+
         add(sd, occurrence, "outlierLayer", prefix);
         add(sd, occurrence, "photographer", prefix);
         // support for schema change

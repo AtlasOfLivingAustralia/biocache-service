@@ -6,10 +6,7 @@ import au.org.ala.biocache.dto.FacetThemes;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.service.DataQualityService;
 import au.org.ala.biocache.service.SpeciesLookupService;
-import au.org.ala.biocache.util.CollectionsCache;
-import au.org.ala.biocache.util.QueryFormatUtils;
-import au.org.ala.biocache.util.RangeBasedFacets;
-import au.org.ala.biocache.util.SearchUtils;
+import au.org.ala.biocache.util.*;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import org.apache.commons.lang.StringUtils;
 import org.junit.Before;
@@ -170,7 +167,7 @@ public class FilterQueryParserTest {
     }
 */
     @Test
-    public void testFacetMap() {
+    public void testFacetMap() throws QidMissingException  {
 
         final LinkedHashMap<String, String> collections =  new LinkedHashMap<String, String>();
         collections.put("co10", "found co10");
@@ -247,7 +244,7 @@ public class FilterQueryParserTest {
     }
 
     @Test
-    public void testFqFormat() {
+    public void testFqFormat() throws QidMissingException {
 
         Mockito.when(fieldMappingUtil.translateFieldName("month")).thenReturn("month");
 
@@ -273,7 +270,7 @@ public class FilterQueryParserTest {
     }
 
     @Test
-    public void testActiveFacetObj_validfq() {
+    public void testActiveFacetObj_validfq() throws QidMissingException {
         // test valid fqs
         List<Facet> facetList = new ArrayList<>();
         facetList.add(new Facet("month", "Month:\"August\"", "month:\"08\""));
@@ -303,7 +300,7 @@ public class FilterQueryParserTest {
         runFqParsingTest(facetList);
     }
 
-    private void runFqParsingTest(List<Facet> facets) {
+    private void runFqParsingTest(List<Facet> facets) throws QidMissingException {
         SpatialSearchRequestParams query = new SpatialSearchRequestParams();
 
         // collect values into fq list
@@ -314,7 +311,7 @@ public class FilterQueryParserTest {
     }
 
     @Test
-    public void testActiveFacetObj_invalidfq() {
+    public void testActiveFacetObj_invalidfq() throws QidMissingException {
         SpatialSearchRequestParams query = new SpatialSearchRequestParams();
         // Construct fq
         query.setFq(new String[] {null, "", " ", "month", "   month  ", "(month", "month)", "(month:\"11\"", "month\"11\"", ":\"11\"", "    :\"11\"", "(:\"11\")", "(    :\"11\")", "month:", "month:   ",  "(month:   )", "-(month:   )"});
