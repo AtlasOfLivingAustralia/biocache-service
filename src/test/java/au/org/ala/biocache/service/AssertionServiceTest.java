@@ -12,6 +12,7 @@ import org.junit.Test;
 import org.mockito.*;
 
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -78,7 +79,7 @@ public class AssertionServiceTest {
 
         List<UserAssertions> userAssertions = myUserAssertions.getAllValues();
         assert(userAssertions.size() == 2);
-        assert(userAssertions.get(0).size() == 2);
+        assert(userAssertions.get(0).size() == 1);
 
         QualityAssertion qa = userAssertions.get(0).get(0);
 
@@ -90,7 +91,7 @@ public class AssertionServiceTest {
         assert(qa.getRelatedUuid().equals("assertionUuid1"));
         assert(qa.getQaStatus() == 2000);
 
-        qa = userAssertions.get(0).get(1);
+        qa = userAssertions.get(1).get(0);
 
         assert(qa.getUserId().equals("userId2"));
         assert(qa.getReferenceRowKey().equals("recordUuid2"));
@@ -121,11 +122,9 @@ public class AssertionServiceTest {
         when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(qualityAssertions));
         assert(assertionService.deleteAssertion("recordUuid", "test_uuid"));
 
-        ArgumentCaptor<String> myUuids = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<UserAssertions> myUserAssertions = ArgumentCaptor.forClass(UserAssertions.class);
-        Mockito.verify(store).put(myUuids.capture(), myUserAssertions.capture());
-        assert(myUuids.getValue().equals("recordUuid"));
-        assert(myUserAssertions.getValue().size() == 0);
+        ArgumentCaptor<String> uuidCaptor = ArgumentCaptor.forClass(String.class);
+        Mockito.verify(store).delete(Mockito.any(), uuidCaptor.capture());
+        assert(uuidCaptor.getValue().equals("recordUuid"));
 
         // delete non-exist assertion
         when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(qualityAssertions));
@@ -177,12 +176,28 @@ public class AssertionServiceTest {
         when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
 
         UserAssertions existingAssertions = new UserAssertions();
-        existingAssertions.add(new QualityAssertion());
-        existingAssertions.add(new QualityAssertion());
+        QualityAssertion qa1 = new QualityAssertion();
+        qa1.setReferenceRowKey("record_uuid_1");
+        qa1.setCode(0);
+        qa1.setUserId("userId");
+        QualityAssertion qa2 = new QualityAssertion();
+        qa1.setReferenceRowKey("record_uuid_1");
+        qa2.setCode(2000);
+        qa2.setUserId("userId");
+        existingAssertions.add(qa1);
+        existingAssertions.add(qa2);
 
         UserAssertions newAssertions = new UserAssertions();
-        newAssertions.add(new QualityAssertion());
-        newAssertions.add(new QualityAssertion());
+        QualityAssertion qa3 = new QualityAssertion();
+        qa3.setReferenceRowKey("record_uuid_1");
+        qa3.setCode(1000);
+        qa3.setUserId("userId");
+        QualityAssertion qa4 = new QualityAssertion();
+        qa4.setReferenceRowKey("record_uuid_1");
+        qa4.setCode(3000);
+        qa4.setUserId("userId");
+        newAssertions.add(qa3);
+        newAssertions.add(qa4);
 
         when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(existingAssertions));
         assert(assertionService.bulkAddAssertions("recordUuid", newAssertions));
@@ -191,9 +206,11 @@ public class AssertionServiceTest {
 
         Mockito.verify(store).put(myUuids.capture(), myUserAssertions.capture());
         assert(myUserAssertions.getValue().size() == 4);
-        assert(myUserAssertions.getValue().get(0).getUuid().equals(existingAssertions.get(0).getUuid()));
-        assert(myUserAssertions.getValue().get(1).getUuid().equals(existingAssertions.get(1).getUuid()));
-        assert(myUserAssertions.getValue().get(2).getUuid().equals(newAssertions.get(0).getUuid()));
-        assert(myUserAssertions.getValue().get(3).getUuid().equals(newAssertions.get(1).getUuid()));
+        UserAssertions assertions = myUserAssertions.getValue();
+        assertions.sort(Comparator.comparingInt(QualityAssertion::getCode));
+        assert(assertions.get(0).getUuid().equals(qa1.getUuid()));
+        assert(assertions.get(1).getUuid().equals(qa3.getUuid()));
+        assert(assertions.get(2).getUuid().equals(qa2.getUuid()));
+        assert(assertions.get(3).getUuid().equals(qa4.getUuid()));
     }
 }
