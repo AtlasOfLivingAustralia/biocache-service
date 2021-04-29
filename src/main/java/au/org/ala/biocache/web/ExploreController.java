@@ -336,7 +336,7 @@ public class ExploreController {
      * @param facetValue
      */
     private void addFacetFilterToQuery(SpatialSearchRequestParams requestParams, String facetName, String facetValue) {
-        String rankId = OccurrenceIndex.RANK_ID;
+        String rankId = OccurrenceIndex.TAXON_RANK_ID;
 
         List<String> fqs = new ArrayList<>();
 

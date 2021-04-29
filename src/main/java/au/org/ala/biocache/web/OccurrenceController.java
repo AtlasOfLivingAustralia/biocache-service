@@ -21,7 +21,7 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.util.*;
-import au.org.ala.biocache.util.solr.FieldMappingUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.sf.ehcache.CacheManager;
 import net.sf.json.JSONArray;
@@ -68,6 +68,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
+import static au.org.ala.biocache.dto.DuplicateRecordDetails.ASSOCIATED;
+import static au.org.ala.biocache.dto.DuplicateRecordDetails.REPRESENTATIVE;
 import static au.org.ala.biocache.dto.OccurrenceIndex.*;
 
 /**
@@ -131,9 +133,6 @@ public class OccurrenceController extends AbstractSecureController {
     private LayersService layersService;
     @Inject
     private StoreDAO storeDao;
-
-    @Inject
-    private FieldMappingUtil fieldMappingUtil;
 
     /**
      * Name of view for site home page
@@ -1441,11 +1440,10 @@ public class OccurrenceController extends AbstractSecureController {
         SpatialSearchRequestParams idRequest = new SpatialSearchRequestParams();
         idRequest.setQ(OccurrenceIndex.ID + ":\"" + uuid + "\"");
         idRequest.setFacet(false);
-//        idRequest.setFl(StringUtils.join(indexDao.getIndexedFieldsMap().keySet(), ","));
         idRequest.setFl("*");
 
         SolrDocumentList sdl = searchDAO.findByFulltext(idRequest);
-        if (sdl.size() == 0) {
+        if (sdl.isEmpty()) {
             return new HashMap();
         }
 
@@ -1559,6 +1557,7 @@ public class OccurrenceController extends AbstractSecureController {
         Map raw = fullRecord(sd, (String fieldName) -> schemaFields.contains("raw_" + fieldName) ? ("raw_" + fieldName) : fieldName);
         Map processed = fullRecord(sd, (String fieldName) -> schemaFields.contains("raw_" + fieldName) ? fieldName : null);
 
+        // add extra processed fields
         Map el = new HashMap();
         processed.put("el", el);
         addLayerValues(sd, el, "el");
@@ -1570,6 +1569,26 @@ public class OccurrenceController extends AbstractSecureController {
         Map location = (Map) processed.get("location");
         location.put("marine", "Marine".equalsIgnoreCase(String.valueOf(sd.getFieldValue("biome"))));
         location.put("terrestrial", "Terrestrial".equalsIgnoreCase(String.valueOf(sd.getFieldValue("biome"))));
+
+        // duplicate status
+        Map occurrence = (Map) processed.get("occurrence");
+        String duplicateStatus = (String) sd.getFieldValue("duplicateStatus");
+        occurrence.put("duplicateStatus", duplicateStatus);
+        if (REPRESENTATIVE.equals(duplicateStatus)){
+            occurrence.put("duplicationStatus", "R");  //backwards compatibility
+        } else if (ASSOCIATED.equals(duplicateStatus)){
+            occurrence.put("duplicationStatus", "D");  //backwards compatibility
+        }
+
+        // add extra raw fields
+        // and misc properties
+        try {
+            ObjectMapper om = new ObjectMapper();
+            Map<String, Object> miscProperties = om.readValue((String) sd.getFieldValue("dynamicProperties"), Map.class);
+            raw.put("miscProperties", miscProperties);
+        } catch (Exception e){
+            // best effort service
+        }
 
         map.put("raw", raw);
         map.put("processed", processed);
@@ -1670,7 +1689,7 @@ public class OccurrenceController extends AbstractSecureController {
     Map fullRecord(SolrDocument sd, Function<String, String> getFieldName) {
         Map fullRecord = new HashMap();
         fullRecord.put("rowKey",  sd.getFieldValue(ID)); // Use the processed ID for compatability
-
+        fullRecord.put("uuid",  sd.getFieldValue(ID));
         // au.org.ala.biocache.model.Occurrence
         Map occurrence = new HashMap();
         fullRecord.put("occurrence", occurrence);
@@ -1695,9 +1714,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, occurrence, "establishmentMeans", getFieldName);
         addField(sd, occurrence, "fieldNotes", getFieldName);
         addField(sd, occurrence, "fieldNumber", getFieldName);
-//        occurrence.put("identifier", "");  // Not in pipeline
         addField(sd, occurrence, "individualCount", getFieldName);
-//        occurrence.put("individualID", "");  // Not in pipeline
         addField(sd, occurrence, "informationWithheld", getFieldName);   //used for sensitive data information
         addField(sd, occurrence, "institutionCode", getFieldName);
         addField(sd, occurrence, "institutionID", getFieldName);
@@ -1732,6 +1749,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, occurrence, "sex", getFieldName);
         addField(sd, occurrence, "source", getFieldName);
         addField(sd, occurrence, "userId", getFieldName);  //this is the ALA ID for the user
+
         //Additional fields for HISPID support
         addField(sd, occurrence, "collectorFieldNumber", getFieldName);  //This value now maps to the correct DWC field http://rs.tdwg.org/dwc/terms/fieldNumber
         addField(sd, occurrence, "cultivated", getFieldName); //http://www.chah.org.au/hispid/terms/cultivatedOccurrence
@@ -1755,15 +1773,15 @@ public class OccurrenceController extends AbstractSecureController {
         //custom fields
         addField(sd, occurrence, "videoIDs", getFieldName);
         addField(sd, occurrence, "interactions", getFieldName);
-
-        addField(sd, occurrence, "duplicateStatus", getFieldName);
-        addField(sd, occurrence, "duplicateType", getFieldName);
         //Store the conservation status
         addField(sd, occurrence, "countryConservation", getFieldName);
         addField(sd, occurrence, "stateConservation", getFieldName);
         addField(sd, occurrence, "globalConservation", getFieldName);
         addField(sd, occurrence, "outlierLayer", getFieldName);
         addField(sd, occurrence, "photographer", getFieldName);
+        addField(sd, occurrence, "stateInvasive", getFieldName);
+        addField(sd, occurrence, "countryInvasive", getFieldName);
+
         // support for schema change
         addFirst(sd, occurrence, "recordedBy", getFieldName);
         addImages(sd, occurrence, "images", "imageIDs", "");
@@ -1991,7 +2009,8 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, fullRecord, "locationDetermined", getFieldName);
         addField(sd, fullRecord, "defaultValuesUsed", getFieldName);
         addField(sd, fullRecord,"spatiallyValid", getFieldName);
-//        fullRecord.put("geospatiallyKosher", "");
+//        fullRecord.put("geospatiallyKosher", (Boolean) sd.getFieldValue("spatiallyValid"));
+
         fullRecord.put("taxonomicallyKosher", "");
         fullRecord.put("deleted", false); // no deletion flags in use
         addField(sd, fullRecord, "userVerified", getFieldName); // same value for both raw and processed
@@ -2002,6 +2021,18 @@ public class OccurrenceController extends AbstractSecureController {
         fullRecord.put("dateDeleted", ""); // no deletion flags in use
 
         return fullRecord;
+    }
+
+    private void addDuplicateStatus(String prefix, SolrDocument sd, Map occurrence) {
+        if (StringUtils.isEmpty(prefix)) {
+            String duplicateStatus = (String) sd.get("duplicateStatus");
+            occurrence.put("duplicateStatus", duplicateStatus);
+            if (REPRESENTATIVE.equals(duplicateStatus)){
+                occurrence.put("duplicationStatus", "R");  //backwards compatibility
+            } else if (ASSOCIATED.equals(duplicateStatus)){
+                occurrence.put("duplicationStatus", "D");  //backwards compatibility
+            }
+        }
     }
 
     private Map systemAssertions(SolrDocument sd) {

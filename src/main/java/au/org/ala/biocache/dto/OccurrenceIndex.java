@@ -31,19 +31,19 @@ import java.util.Map;
  */
 public class OccurrenceIndex {
 
-    final static public String ROW_KEY = "id";
+    protected static final Logger logger = Logger.getLogger(OccurrenceIndex.class);
+
     final static public String IMAGES = "imageIDs";
     final static public String SOUNDS = "soundIDs";
     //final static public String GEOSPATIAL_KOSHER = "geospatial_kosher"; // Not in pipelines
     final static public String COUNTRY = "country";
     final static public String STATE = "stateProvince";
     final static public String PROVENANCE = "provenance";
-
     public static final String OCCURRENCE_YEAR_INDEX_FIELD = "occurrenceYear";
-
     public static final String TAXON_NAME = "scientificName";
     public static final String RAW_TAXON_NAME = "raw_scientificName";
-    public static final String RANK = "taxonRank";
+    public static final String RAW_RECORDED_BY = "raw_recordedBy";
+    public static final String TAXON_RANK = "taxonRank";
     public static final String LATITUDE = "decimalLatitude";
     public static final String LONGITUDE = "decimalLongitude";
     public static final String DATA_RESOURCE_NAME = "dataResourceName";
@@ -62,18 +62,12 @@ public class OccurrenceIndex {
     public static final String OUTLIER_LAYER = "outlierLayer";
     public static final String OUTLIER_LAYER_COUNT = "outlierLayerCount";
     public static final String TAXONOMIC_ISSUE = "taxonomicIssues";
-    public static final String FAMILYID = "familyID";
-    public static final String KINGDOMID = "kingdomID";
-    public static final String PHYLUMID = "phylumID";
     public static final String OCCURRENCE_DATE = "eventDate";
     public static final String RECORD_NUMBER = "recordNumber";
     public static final String CATALOGUE_NUMBER = "catalogNumber";
-    public static final String PRECISION = "precision"; //TODO: not in pipeline
-    public static final String RANK_ID = "rankID";
-    protected static final Logger logger = Logger.getLogger(OccurrenceIndex.class);
-
+    public static final String COORDINATE_PRECISION = "coordinatePrecision";
+    public static final String TAXON_RANK_ID = "taxonRankID";
     public static final String TAXON_CONCEPT_ID = "taxonConceptID";
-    public static final String SUBSPECIESID = "subspeciesID";
     public static final String SPECIESID = "speciesID";
     public static final String GENUSID = "genusID";
     public static final String DATA_PROVIDER_NAME = "dataProviderName";
@@ -123,7 +117,7 @@ public class OccurrenceIndex {
     String vernacularName;
     @Field("taxonRank")
     String taxonRank;
-    @Field("rankID")
+    @Field("taxonRankID")
     Integer taxonRankID;
     @Field("raw_countryCode")
     String raw_countryCode;
@@ -191,21 +185,21 @@ public class OccurrenceIndex {
     String dataResourceName;
     @Field("assertions")
     String[] assertions;
-    @Field("user_assertions")
+    @Field("userAssertions")
     String hasUserAssertions;
-    @Field("species_group")
+    @Field("speciesGroup")
     String[] speciesGroups;
     @Field("imageID")
     String image;
     @Field("imageIDs")
     String[] images;
-    //@Field("geospatial_kosher")
+    @Field("spatiallyValid")
     Boolean geospatialKosher;
     //@Field("taxonomic_kosher")
     String taxonomicKosher;
     @Field("recordedBy")
     String[] collector;
-    //@Field("collectors")
+    @Field("recordedBy")
     String[] collectors;
     //extra raw record fields
     @Field("raw_scientificName")
@@ -235,22 +229,22 @@ public class OccurrenceIndex {
     String[] multimedia;
     @Field("license")
     String license;
-    //@Field("raw_identificationVerificationStatus")
+    @Field("identificationVerificationStatus")
     String identificationVerificationStatus;
     //conservation status field
-    //@Field("aust_conservation")
+    @Field("countryConservation")
     String austConservation;
-    //@Field("state_conservation")
+    @Field("stateConservation")
     String stateConservation;
     @Field("sensitive")
     String sensitive;
     //AVH extra fields
-    //@Field("raw_recordNumber")
+    @Field("recordNumber")
     String recordNumber;
     //For harvesting of images into the BIE
-    //@Field("raw_occurrenceDetails")
+    @Field("references")
     String occurrenceDetails;
-    //@Field("raw_rights")
+    @Field("rights")
     String rights;
     //@Field("photographer_s")
     String photographer;
@@ -306,6 +300,7 @@ public class OccurrenceIndex {
     public static final String DUPLICATE_OF = "isDuplicateOf";
     public static final String DUPLICATE_STATUS = "duplicateStatus";
     public static final String DUPLICATE_REASONS = "duplicateType";
+    public static final String DUPLICATE_JUSTIFICATION = "duplicateJustification";
     public static final String ID = "id";
 
     public static final String SPECIES_SUBGROUP = "speciesSubgroup";

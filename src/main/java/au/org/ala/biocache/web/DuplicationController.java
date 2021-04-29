@@ -1,4 +1,4 @@
-/**************************************************************************
+    /**************************************************************************
  *  Copyright (C) 2013 Atlas of Living Australia
  *  All Rights Reserved.
  * 
@@ -17,9 +17,9 @@ package au.org.ala.biocache.web;
 import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.DuplicateRecordDetails;
+import au.org.ala.biocache.dto.PointType;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.util.SearchUtils;
-import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.common.SolrDocument;
@@ -72,20 +72,25 @@ public class DuplicationController {
 
     private DuplicateRecordDetails getDuplicateStatsForGuid(String guid) {
         try {
-            SolrDocument sd = searchDuplicates(ID, guid).get(0);
+
+            SolrDocumentList sdl = searchDuplicates(ID, guid);
+            if (sdl.isEmpty()){
+                return null;
+            }
+
+            SolrDocument sd = sdl.get(0);
 
             DuplicateRecordDetails drd = new DuplicateRecordDetails(sd);
 
-            if ("R".equals(drd.getStatus())) {
+            if (DuplicateRecordDetails.REPRESENTATIVE.equals(drd.getStatus())) {
                 // is representative id
                 List<DuplicateRecordDetails> dups = new ArrayList<>();
                 SolrDocumentList list = searchDuplicates(DUPLICATE_OF, guid);
-                for (int i = 0; i < list.size(); i++) {
-                    SolrDocument d = list.get(i);
+                for (SolrDocument d: list) {
                     dups.add(new DuplicateRecordDetails(d));
                 }
                 drd.setDuplicates(dups);
-            } else if ("D".equals(drd.getStatus())) {
+            } else if (DuplicateRecordDetails.ASSOCIATED.equals(drd.getStatus())) {
                 // is duplicate id, return result for the representative id
                 return getDuplicateStatsForGuid(drd.getDuplicateOf());
             } else {
@@ -103,8 +108,25 @@ public class DuplicationController {
     private SolrDocumentList searchDuplicates(String field, String value) throws Exception {
         SpatialSearchRequestParams query = new SpatialSearchRequestParams();
         query.setFacet(false);
-        query.setQ(field + ":" + value);
-        query.setFl(StringUtils.join(new String[]{ID, DUPLICATE_OF, DUPLICATE_REASONS, DUPLICATE_STATUS}));
+        query.setQ(field + ":" + value );
+        query.setFl(String.join(",",
+                ID,
+                DUPLICATE_OF,
+                DUPLICATE_REASONS,
+                DUPLICATE_STATUS,
+                DUPLICATE_JUSTIFICATION,
+                TAXON_CONCEPT_ID,
+                PointType.POINT_1.getLabel(),
+                PointType.POINT_01.getLabel(),
+                PointType.POINT_001.getLabel(),
+                PointType.POINT_0001.getLabel(),
+                LAT_LNG,
+                RAW_TAXON_NAME,
+                COLLECTOR,
+                RECORD_NUMBER,
+                CATALOGUE_NUMBER,
+                DATA_RESOURCE_UID
+        ));
         return searchDAO.findByFulltext(query);
     }
 
