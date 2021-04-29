@@ -12,7 +12,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import javax.inject.Inject;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Component
 public class AssertionService {
@@ -56,8 +58,10 @@ public class AssertionService {
             qa.setDataResourceUid((String) sd.getFieldValue("dataResourceUid"));
 
             UserAssertions existingAssertions = store.get(UserAssertions.class, recordUuid).orElse(new UserAssertions());
-            existingAssertions.add(qa);
-            store.put(recordUuid, existingAssertions);
+            UserAssertions newAssertions = new UserAssertions();
+            newAssertions.add(qa);
+            UserAssertions combinedAssertions = getCombinedAssertions(existingAssertions, newAssertions);
+            store.put(recordUuid, combinedAssertions);
             return Optional.of(qa);
         }
 
@@ -105,14 +109,31 @@ public class AssertionService {
         SolrDocument sd = occurrenceUtils.getOcc(recordUuid);
         // only when record uuid is valid
         if (sd != null) {
-            UserAssertions existing = store.get(UserAssertions.class, recordUuid).orElse(new UserAssertions());
-            existing.addAll(userAssertions);
-            if (!existing.isEmpty()) {
-                store.put(recordUuid, existing);
+            UserAssertions existingAssertions = store.get(UserAssertions.class, recordUuid).orElse(new UserAssertions());
+            UserAssertions combinedAssertions = getCombinedAssertions(existingAssertions, userAssertions);
+            if (!combinedAssertions.isEmpty()) {
+                store.put(recordUuid, combinedAssertions);
             }
             return true;
         }
 
         return false;
+    }
+
+    // recordId + userId + code should be unique
+    private UserAssertions getCombinedAssertions(UserAssertions existingAssertions, UserAssertions newAssertions) {
+        // combined key (recorduuid, userid, code) -> qa
+        Map<Integer, QualityAssertion> existingAssertionMap =
+                existingAssertions.stream().collect(Collectors.toMap(QualityAssertion::hashCode, qa -> qa));
+
+        UserAssertions combined = new UserAssertions();
+
+        // for those have unique keys
+        combined.addAll(newAssertions.stream().filter(qa -> !existingAssertionMap.containsKey(qa.hashCode())).collect(Collectors.toList()));
+        // for those duplicate key
+        newAssertions.stream().filter(qa -> existingAssertionMap.containsKey(qa.hashCode())).forEach(qa -> existingAssertionMap.put(qa.hashCode(), qa));
+
+        combined.addAll(existingAssertionMap.values());
+        return combined;
     }
 }
