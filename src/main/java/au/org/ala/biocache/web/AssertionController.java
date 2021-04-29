@@ -153,9 +153,17 @@ public class AssertionController extends AbstractSecureController {
                         QualityAssertion qa = new QualityAssertion();
                         Integer code = Integer.parseInt(as.get("code"));
                         qa.setCode(code);
+                        if (code.equals(AssertionCodes.VERIFIED.getCode())) {
+                            qa.setRelatedUuid(as.get("assertionUuid"));
+                            qa.setQaStatus(Integer.parseInt(as.get("userAssertionStatus")));
+                        } else {
+                            qa.setQaStatus(AssertionStatus.QA_UNCONFIRMED);
+                        }
+
                         qa.setComment(as.get("comment"));
                         qa.setUserId(userId);
                         qa.setUserDisplayName(userDisplayName);
+                        qa.setReferenceRowKey(uuid);
                         userAssertions.add(qa);
                     }
 
