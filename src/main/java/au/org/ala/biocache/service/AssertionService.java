@@ -12,7 +12,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import javax.inject.Inject;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -124,20 +126,53 @@ public class AssertionService {
         return false;
     }
 
-    // recordId + userId + code should be unique
+    // recordId + userId + code should be unique for normal assertions
+    // verification should be per assertion
     private UserAssertions getCombinedAssertions(UserAssertions existingAssertions, UserAssertions newAssertions) {
-        // combined key (recorduuid, userid, code) -> qa
-        Map<Integer, QualityAssertion> existingAssertionMap =
-                existingAssertions.stream().collect(Collectors.toMap(QualityAssertion::hashCode, qa -> qa));
+        // un-verified assertions grouped by recordId + code + userId
+        Map<Integer, QualityAssertion> existingAssertionsMap =
+                existingAssertions.stream().filter(qa -> !qa.getCode().equals(AssertionCodes.VERIFIED.getCode())).collect(Collectors.toMap(qa -> Objects.hash(qa.getReferenceRowKey(), qa.getCode(), qa.getUserId()), qa -> qa));
+
+        // verifications grouped by related uuid
+        Map<String, QualityAssertion> existingVerificationMap =
+                existingAssertions.stream().filter(qa -> qa.getCode().equals(AssertionCodes.VERIFIED.getCode())).collect(Collectors.toMap(QualityAssertion::getRelatedUuid, qa -> qa));
 
         UserAssertions combined = new UserAssertions();
 
-        // for those have unique keys
-        combined.addAll(newAssertions.stream().filter(qa -> !existingAssertionMap.containsKey(qa.hashCode())).collect(Collectors.toList()));
-        // for those duplicate key
-        newAssertions.stream().filter(qa -> existingAssertionMap.containsKey(qa.hashCode())).forEach(qa -> existingAssertionMap.put(qa.hashCode(), qa));
+        // new un-verified assertions
+        List<QualityAssertion> newAssertionsList =
+                newAssertions.stream().filter(qa -> !qa.getCode().equals(AssertionCodes.VERIFIED.getCode())).collect(Collectors.toList());
 
-        combined.addAll(existingAssertionMap.values());
+        // new verifications
+        List<QualityAssertion> newVerificationList =
+                newAssertions.stream().filter(qa -> qa.getCode().equals(AssertionCodes.VERIFIED.getCode())).collect(Collectors.toList());
+
+        for (QualityAssertion qa : newAssertionsList) {
+            int hash = Objects.hash(qa.getReferenceRowKey(), qa.getCode(), qa.getUserId());
+            if (!existingAssertionsMap.containsKey(hash)) {
+                // for those new assertions with unique keys
+                combined.add(qa);
+            } else {
+                existingAssertionsMap.put(hash, qa);
+            }
+        }
+
+        // for those new assertions with duplicate keys
+        combined.addAll(existingAssertionsMap.values());
+
+        for (QualityAssertion verification : newVerificationList) {
+            String relatedUuid = verification.getRelatedUuid();
+            if (!existingVerificationMap.containsKey(relatedUuid)) {
+                // for those verifications on new assertions
+                combined.add(verification);
+            } else {
+                existingVerificationMap.put(relatedUuid, verification);
+            }
+        }
+
+        // for those verifications overwriting previous ones
+        combined.addAll(existingVerificationMap.values());
+
         return combined;
     }
 }
