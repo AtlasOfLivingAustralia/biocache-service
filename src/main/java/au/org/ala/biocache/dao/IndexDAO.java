@@ -39,6 +39,10 @@ public interface IndexDAO {
 
     Set<IndexFieldDTO> getIndexedFields(boolean update) throws Exception;
 
+    Set<String> getSchemaFields() throws Exception;
+
+    Set<String> getSchemaFields(boolean update) throws Exception;
+
     Map<String, IndexFieldDTO> getIndexedFieldsMap() throws Exception;
 
     Map<String, FieldStatsInfo> getStatistics(SpatialSearchRequestParams searchParams) throws Exception;

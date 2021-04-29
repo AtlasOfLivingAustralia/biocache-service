@@ -300,7 +300,9 @@ public class SearchDAOImpl implements SearchDAO {
         logger.debug("Initialising SearchDAOImpl");
 
         // TODO: There was a note about possible issues with the following two lines
-        Set<IndexFieldDTO> indexedFields = indexDao.getIndexedFields();
+        Set<IndexFieldDTO> indexedFields = indexDao.getIndexedFields(true);
+        indexDao.getSchemaFields(true);
+
         if (downloadFields == null) {
             downloadFields = new DownloadFields(fieldMappingUtil, indexedFields, messageSource, layersService, listsService);
         } else {
