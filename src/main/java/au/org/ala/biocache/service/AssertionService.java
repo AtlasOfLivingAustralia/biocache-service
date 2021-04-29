@@ -76,8 +76,12 @@ public class AssertionService {
             UserAssertions userAssertions = store.get(UserAssertions.class, recordUuid).orElse(new UserAssertions());
             // if there's any change made
             if (userAssertions.deleteUuid(assertionUuid)) {
-                // TODO: if userAssertions.size() == 0, we actually need to remove the key/value pair instead of having an empty value in Cassandra
-                store.put(recordUuid, userAssertions);
+                // Update assertions
+                if (!userAssertions.isEmpty()) {
+                    store.put(recordUuid, userAssertions);
+                } else { // no assertions, delete the entry
+                    store.delete(UserAssertions.class, recordUuid);
+                }
                 return true;
             }
         }
