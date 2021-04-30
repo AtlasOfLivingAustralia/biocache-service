@@ -111,12 +111,14 @@ public class AuthService {
     }
 
     private void loadMapOfAllUserNamesById() {
-        if(StringUtils.isNotBlank(userDetailsUrl)) {
+        if (StringUtils.isNotBlank(userDetailsUrl)) {
             final String jsonUri = userDetailsUrl + userNamesForIdPath;
             try {
-                logger.info("authCache requesting: " + jsonUri);
+                logger.debug("authCache requesting: " + jsonUri);
                 Map m = restTemplate.postForObject(jsonUri, null, Map.class);
-                if (m != null && m.size() > 0) userNamesById = m;
+                if (m != null && m.size() > 0) {
+                    userNamesById = m;
+                }
             } catch (Exception ex) {
                 logger.error("RestTemplate error for " + jsonUri + ": " + ex.getMessage(), ex);
             }
@@ -127,9 +129,11 @@ public class AuthService {
         if(StringUtils.isNotBlank(userDetailsUrl)) {
             final String jsonUri = userDetailsUrl + userNamesForNumericIdPath;
             try {
-                logger.info("authCache requesting: " + jsonUri);
+                logger.debug("authCache requesting: " + jsonUri);
                 Map m = restTemplate.postForObject(jsonUri, null, Map.class);
-                if (m != null && m.size() > 0) userNamesByNumericIds = m;
+                if (m != null && m.size() > 0) {
+                    userNamesByNumericIds = m;
+                }
             } catch (Exception ex) {
                 logger.error("RestTemplate error for " + jsonUri + ": " + ex.getMessage(), ex);
             }
@@ -140,11 +144,13 @@ public class AuthService {
         if(StringUtils.isNotBlank(userDetailsUrl)) {
             final String jsonUri = userDetailsUrl + userNamesFullPath;
             try {
-                logger.info("authCache requesting: " + jsonUri);
+                logger.debug("authCache requesting: " + jsonUri);
                 Map m = restTemplate.postForObject(jsonUri, null, Map.class);
-                if (m != null && m.size() > 0) userEmailToId = m;
-                logger.info("authCache userEmail cache: " + userEmailToId.size());
-                if (userEmailToId.size() > 0) {
+                if (m != null && m.size() > 0) {
+                    userEmailToId = m;
+                }
+                logger.debug("authCache userEmail cache: " + userEmailToId.size());
+                if (!userEmailToId.isEmpty()) {
                     String email = userEmailToId.keySet().iterator().next();
                     String id = userEmailToId.get(email);
                     logger.info("authCache userEmail example: " + email + " -> " + id);

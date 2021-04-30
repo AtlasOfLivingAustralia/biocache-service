@@ -17,6 +17,7 @@ package au.org.ala.biocache.web;
 import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
+import au.org.ala.biocache.util.QidMissingException;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -25,6 +26,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.common.util.NamedList;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,6 +35,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletResponse;
 import java.io.Serializable;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -41,12 +44,8 @@ import java.util.*;
 /**
  */
 @Controller
-@Api(basePath = "/", value = "/", description = "Home Controller")
+@Api(basePath = "/", value = "/", description = "Charts")
 public class ChartController extends AbstractSecureController implements Serializable {
-    /**
-     * Logger initialisation
-     */
-    private final static Logger logger = Logger.getLogger(ChartController.class);
     /**
      * Fulltext search DAO
      */
@@ -109,7 +108,7 @@ public class ChartController extends AbstractSecureController implements Seriali
               @RequestParam(value = "x", required = false) String x,
               @RequestParam(value = "xranges", required = false) String xranges,
               @RequestParam(value = "stats", required = false) String stats,
-              // default stats value is only for backwards compatability
+              // default stats value is only for backwards compatibility
               @RequestParam(value = "statType", required = false, defaultValue = "min,max,mean,missing,stddev,count,sum") String statType,
               @RequestParam(value = "series", required = false) String series,
               @RequestParam(value = "seriesranges", required = false) String seriesranges,
@@ -117,8 +116,13 @@ public class ChartController extends AbstractSecureController implements Seriali
               @RequestParam(value = "xother", required = false, defaultValue = "true") Boolean xother,
               @RequestParam(value = "seriesmissing", required = false, defaultValue = "false") Boolean seriesmissing,
               @RequestParam(value = "xmissing", required = false, defaultValue = "true") Boolean xmissing,
-              @RequestParam(value = "fsort", required = false, defaultValue = "index") String fsort) throws Exception {
+              @RequestParam(value = "fsort", required = false, defaultValue = "index") String fsort
+    ) throws Exception {
+        return generateChart(searchParams, x, xranges, stats, statType, series, seriesranges, seriesother, xother, seriesmissing, xmissing, fsort);
+    }
 
+    @NotNull
+    private Map generateChart(SpatialSearchRequestParams searchParams, String x, String xranges, String stats, String statType, String series, String seriesranges, Boolean seriesother, Boolean xother, Boolean seriesmissing, Boolean xmissing, String fsort) throws Exception {
         x = fieldMappingUtil.translateFieldName(x);
 
         List<String> statTypes = Arrays.asList(statType.split(","));
@@ -479,7 +483,7 @@ public class ChartController extends AbstractSecureController implements Seriali
             List list = getSeriesFacets(series, searchParams, maxSeries + 1, includeMissing);
             if (list.size() > maxSeries + (includeMissing ? 1 : 0)) {
                 //get min/max
-                List minMax = (List) chart(searchParams, null, null, series, "max,min", null, null, false, false, false, false, "count").get("data");
+                List minMax = (List) generateChart(searchParams, null, null, series, "max,min", null, null, false, false, false, false, "count").get("data");
                 if (date) {
                     Long min = ((Date) ((FieldStatsItem) ((List) ((Map) minMax.get(0)).get("data")).get(0)).getMin()).getTime();
                     Long max = ((Date) ((FieldStatsItem) ((List) ((Map) minMax.get(0)).get("data")).get(0)).getMax()).getTime();

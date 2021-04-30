@@ -118,8 +118,6 @@ public class QidCacheDAOImpl implements QidCacheDAO {
     @Inject
     private StoreDAO storeDao;
 
-    //protected QidDAO qidDao = (QidDAO) au.org.ala.biocache.Config.getInstance(QidDAO.class);
-
     /**
      * init
      */

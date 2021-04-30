@@ -312,16 +312,16 @@ public class OccurrenceIndex {
     public static final String LFT = "lft";
     public static final String MONTH = "month";
     public static final String ASSERTIONS = "assertions";
-    public static String SUBSPECIES_NAME = "subspecies";
-    public static String SPECIES = "species";
-    public static String GENUS = "genus";
-    public static String FAMILY = "family";
-    public static String ORDER = "order";
-    public static String CLASS = "class";
-    public static String PHYLUM = "phylum";
-    public static String KINGDOM = "kingdom";
-    public static String SENSITIVE = "sensitive";
-    public static String RGT = "rgt";
+    public static final String SUBSPECIES_NAME = "subspecies";
+    public static final String SPECIES = "species";
+    public static final String GENUS = "genus";
+    public static final String FAMILY = "family";
+    public static final String ORDER = "order";
+    public static final String CLASS = "class";
+    public static final String PHYLUM = "phylum";
+    public static final String KINGDOM = "kingdom";
+    public static final String SENSITIVE = "sensitive";
+    public static final String RGT = "rgt";
 
     private void addToMapIfNotNull(Map<String, String> map, String key, String value) {
         if (value != null && value != "") {
@@ -355,14 +355,6 @@ public class OccurrenceIndex {
 
     @JsonIgnore
     public Map<String, String> toMap() {
-        String sdate = null;
-        if (eventDate != null) {
-            sdate = org.apache.commons.lang.time.DateFormatUtils.format(eventDate, "yyyy-MM-dd");
-        }
-        String sdateEnd = null;
-        if (eventDateEnd != null) {
-            sdate = org.apache.commons.lang.time.DateFormatUtils.format(eventDateEnd, "yyyy-MM-dd");
-        }
         Map<String, String> map = new HashMap<String, String>();
         for (java.lang.reflect.Field f : OccurrenceIndex.class.getDeclaredFields()) {
             Field annotation = f.getAnnotation(Field.class);
@@ -705,7 +697,7 @@ public class OccurrenceIndex {
     }
 
     public String getMonth() {
-        return String.format("%02d", month);
+        return month != null ? String.format("%02d", month) : null;
     }
 
     public void setMonth(String month) {

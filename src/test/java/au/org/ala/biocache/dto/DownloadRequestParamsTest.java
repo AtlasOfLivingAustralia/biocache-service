@@ -1,8 +1,10 @@
 package au.org.ala.biocache.dto;
 
 import au.org.ala.biocache.dao.IndexDAO;
+import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.service.SpeciesImageService;
+import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.SolrUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -26,13 +28,19 @@ import static org.junit.Assert.assertTrue;
 public class DownloadRequestParamsTest {
 
     @Autowired
-    private DownloadService downloadService;
+    protected DownloadService downloadService;
 
     @Autowired
-    private SpeciesImageService speciesImageService;
+    protected SpeciesImageService speciesImageService;
 
     @Autowired
-    private IndexDAO indexDAO;
+    protected IndexDAO indexDAO;
+
+    @Autowired
+    protected SearchDAO searchDAO;
+
+    @Autowired
+    protected QueryFormatUtils queryFormatUtils;
 
     static {
         System.setProperty("biocache.config", System.getProperty("user.dir") + "/src/test/resources/biocache-test-config.properties");

@@ -171,7 +171,13 @@ public class CollectionsCache {
      */
     protected LinkedHashMap<String,String> getCodesMap(ResourceType type, List<String> guids) {
         LinkedHashMap<String, String> entityMap = null;
-        logger.info("Updating code map with " + guids);
+        if (logger.isDebugEnabled()) {
+            if (guids != null) {
+                logger.debug("Updating code map with guids: " + guids);
+            } else {
+                logger.debug("Updating code map");
+            }
+        }
         try {
             // grab cached values (map) in case WS is not available (uses reflection)
             Field f = CollectionsCache.class.getDeclaredField(type.getType() + "s"); // field is plural form
@@ -186,7 +192,7 @@ public class CollectionsCache {
             final String jsonUri = registryUrl + "/" + type.getType() + ".json";
             logger.debug("Requesting: " + jsonUri);
             List<LinkedHashMap<String, String>> entities = restTemplate.getForObject(jsonUri, List.class);
-            logger.debug("number of entities = " + entities.size());
+            logger.debug("Number of entities = " + entities.size());
 
             for (LinkedHashMap<String, String> je : entities) {
                 if(addToCodeMap(je.get("uid"), guids)){

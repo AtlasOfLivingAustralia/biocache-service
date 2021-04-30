@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
 import java.util.*;
 
 /**
@@ -54,8 +55,6 @@ import java.util.*;
 @Controller
 public class DownloadController extends AbstractSecureController {
 
-    private final static Logger logger = Logger.getLogger(DownloadController.class);
-
     /** Fulltext search DAO */
     @Inject
     protected SearchDAO searchDAO;
@@ -65,7 +64,6 @@ public class DownloadController extends AbstractSecureController {
 
     @Inject
     protected AuthService authService;
-
 
     @Inject
     protected DownloadService downloadService;
@@ -222,7 +220,6 @@ public class DownloadController extends AbstractSecureController {
 
         // Pre SDS roles the sensitive flag controlled access to sensitive data.
         // After SDS roles were introduced, sensitiveFq variable drives the logic for sensitive data down the excution flow.
-
         // In Summary either sensitive is true or sensitiveFq is not null but not both
 
         //get the fq that includes only the sensitive data that the userId ROLES permits
@@ -296,7 +293,7 @@ public class DownloadController extends AbstractSecureController {
             status.put("downloadParams", dd.getDownloadParams());
             status.put("startDate", dd.getStartDateString());
             status.put("thread", dd.getProcessingThreadName());
-            if(userIdLookup != null) {
+            if (userIdLookup != null) {
                 status.put("userId", authService.getMapOfEmailToId().get(dd.getEmail()));
             }
             status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + id);
@@ -361,7 +358,7 @@ public class DownloadController extends AbstractSecureController {
                 }
                 status.put("totalRecords", dd.getTotalRecords());
                 status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + id);
-                if(authService.getMapOfEmailToId() !=null) {
+                if (authService.getMapOfEmailToId() != null) {
                     status.put("userId", authService.getMapOfEmailToId().get(dd.getEmail()));
                 }
                 break;
@@ -464,7 +461,6 @@ public class DownloadController extends AbstractSecureController {
         if (!isValidKey(request.getHeader("apiKey"))) {
             return null;
         } else {
-            // FIXME: Why are we getting the identification from a header instead of a verified session context?
             String xAlaUserIdHeader = request.getHeader("X-ALA-userId");
             if (xAlaUserIdHeader == null) {
                 return null;

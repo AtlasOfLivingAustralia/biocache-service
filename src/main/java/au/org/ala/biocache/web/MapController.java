@@ -23,6 +23,7 @@ import au.org.ala.biocache.heatmap.HeatMap;
 import au.org.ala.biocache.util.ColorUtil;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.SearchUtils;
+import com.google.common.base.Strings;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ArrayUtils;
@@ -67,6 +68,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * @Deprecated this should be factored out as its been superceded by functionality in WebportalController.
  */
 @Controller("mapController")
+@Deprecated
 public class MapController implements ServletConfigAware {
 
     /** Logger initialisation */
@@ -89,7 +91,6 @@ public class MapController implements ServletConfigAware {
 
     @Value("${heatmap.legend.occurrence.label:occurrence}")
     protected String heatmapLegendOccurrenceLabel;
-
 
     /**
      * The public or private value to use in the Cache-Control HTTP header for WMS tiles. Defaults to public
@@ -474,8 +475,13 @@ public class MapController implements ServletConfigAware {
             HttpServletResponse response) throws Exception {
 
         File outputDir = new File(heatmapOutputDir);
-        if(!outputDir.exists()){
+        if (!outputDir.exists()){
             FileUtils.forceMkdir(outputDir);
+        }
+
+        if (Strings.isNullOrEmpty(request.getQueryString())){
+            response.sendError(400, "   No query parameters provided");
+            return;
         }
 
         //output heatmap path
@@ -522,6 +528,11 @@ public class MapController implements ServletConfigAware {
     }
 
     private String getQueryHash(HttpServletRequest request) throws NoSuchAlgorithmException, UnsupportedEncodingException {
+
+        if (Strings.isNullOrEmpty(request.getQueryString())){
+            return null;
+        }
+
         MessageDigest md = MessageDigest.getInstance("MD5");
         //replace forceRefresh if it is first or not
         String qs = request.getQueryString().replaceAll("&(?i)forceRefresh=true", "").replaceAll("(?i)forceRefresh=true&", "");

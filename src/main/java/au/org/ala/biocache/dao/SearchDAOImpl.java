@@ -43,6 +43,7 @@ import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
+import org.slf4j.MDC;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
@@ -107,7 +108,7 @@ public class SearchDAOImpl implements SearchDAO {
      * The threshold to use the export handler instead of search handler when streaming from SOLR.
      */
     @Value("${solr.export.handler.threshold:10000}")
-    public Integer EXPORT_THREASHOLD = 10000;
+    public Integer EXPORT_THRESHOLD = 10000;
 
     /**
      * Throttle value used to split up large downloads from Solr.
@@ -257,9 +258,6 @@ public class SearchDAOImpl implements SearchDAO {
 
     @Value("${media.url:https://biocache.ala.org.au/biocache-media/}")
     public String biocacheMediaUrl = "https://biocache.ala.org.au/biocache-media/";
-
-    @Value("${media.dir:/data/biocache-media/}")
-    public String biocacheMediaDir = "/data/biocache-media/";
 
     /**
      * A list of fields that are left in the index for legacy reasons, but are removed from the public API to avoid confusion.
@@ -648,11 +646,11 @@ public class SearchDAOImpl implements SearchDAO {
             searchResults.setActiveFacetMap(fqMaps[0]);
             searchResults.setActiveFacetObj(fqMaps[1]);
 
-            if (logger.isInfoEnabled()) {
-                logger.info("spatial search query: " + queryString);
+            if (logger.isDebugEnabled()) {
+                logger.debug("spatial search query: " + queryString);
             }
         } catch (Exception ex) {
-            logger.error("Error executing query with requestParams: " + searchParams.toString(), ex);
+            logError("Error executing query with requestParams: " + searchParams.toString(), ex.getMessage());
             searchResults.setStatus("ERROR"); // TODO also set a message field on this bean with the error message(?)
             searchResults.setErrorMessage(ex.getMessage());
         }
@@ -1502,7 +1500,10 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             }
         } catch (SolrServerException ex) {
-            logger.error("Problem communicating with SOLR server while processing download. " + ex.getMessage(), ex);
+            logError("Problem communicating with SOLR server while processing download. ", ex.getMessage());
+            if (logger.isDebugEnabled()){
+                logger.debug(ex.getMessage(), ex);
+            }
         }
         return uidStats;
     }
@@ -1651,7 +1652,7 @@ public class SearchDAOImpl implements SearchDAO {
                                 "".equals(formatValue(sd.getFieldValue(SENSITIVE))))) {
 
                     // append miscValues for columns found
-                    List<String> miscValues = new ArrayList<String>(miscFields.size());  // TODO: reuse
+                    List<String> miscValues = new ArrayList<>(miscFields.size());  // TODO: reuse
 
                     // maintain miscFields order using synchronized
                     synchronized (miscFields) {
@@ -1699,10 +1700,15 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     private String formatValue(Object value) {
+
+        if (value == null) {
+            return "";
+        }
+
         if (value instanceof Date) {
-            return value == null ? "" : org.apache.commons.lang.time.DateFormatUtils.format((Date) value, "yyyy-MM-dd");
+            return org.apache.commons.lang.time.DateFormatUtils.format((Date) value, "yyyy-MM-dd");
         } else {
-            return value == null ? "" : value.toString();
+            return value.toString();
         }
     }
 
@@ -1820,52 +1826,6 @@ public class SearchDAOImpl implements SearchDAO {
         return fQ;
     }
 
-    /**
-     * Indicates whether or not a records from the supplied data resource should be included
-     * in the download. (based on download limits)
-     *
-     * @param druid
-     * @param limits
-     * @param decrease whether or not to decrease the download limit available
-     */
-    private boolean shouldDownload(String druid, Map<String, Integer> limits, boolean decrease) {
-        if (checkDownloadLimits) {
-            if (!limits.isEmpty() && limits.containsKey(druid)) {
-                Integer remainingLimit = limits.get(druid);
-                if (remainingLimit == 0) {
-                    return false;
-                }
-                if (decrease) {
-                    limits.put(druid, remainingLimit - 1);
-                }
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Initialises the download limit tracking
-     *
-     * @param map
-     * @param facet
-     */
-    private void initDownloadLimits(Map<String, Integer> map, FacetField facet) {
-        //get the download limits from the cache
-        Map<String, Integer> limits = collectionCache.getDownloadLimits();
-        for (FacetField.Count facetEntry : facet.getValues()) {
-            String name = facetEntry.getName() != null ? facetEntry.getName() : "";
-            Integer limit = limits.get(name);
-            if (limit != null && limit > 0) {
-                //check to see if the number of records returned from the query execeeds the limit
-                if (limit < facetEntry.getCount())
-                    map.put(name, limit);
-            }
-        }
-        if (logger.isDebugEnabled() && map.size() > 0) {
-            logger.debug("Downloading with the following limits: " + map);
-        }
-    }
-
     private static void incrementCount(ConcurrentMap<String, AtomicInteger> values, Object uid) {
         if (uid != null) {
             String nextKey = uid.toString();
@@ -1892,10 +1852,10 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     private List<OccurrencePoint> getPoints(SpatialSearchRequestParams searchParams, PointType pointType, int max) throws Exception {
-        List<OccurrencePoint> points = new ArrayList<OccurrencePoint>(); // new OccurrencePoint(PointType.POINT);
+        List<OccurrencePoint> points = new ArrayList<>(); // new OccurrencePoint(PointType.POINT);
         queryFormatUtils.formatSearchQuery(searchParams);
-        if (logger.isInfoEnabled()) {
-            logger.info("search query: " + searchParams.getFormattedQuery());
+        if (logger.isDebugEnabled()) {
+            logger.debug("search query: " + searchParams.getFormattedQuery());
         }
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
@@ -1949,8 +1909,8 @@ public class SearchDAOImpl implements SearchDAO {
     @Override
     public FacetField getFacetPointsShort(SpatialSearchRequestParams searchParams, String pointType) throws Exception {
         queryFormatUtils.formatSearchQuery(searchParams);
-        if (logger.isInfoEnabled()) {
-            logger.info("search query: " + searchParams.getFormattedQuery());
+        if (logger.isDebugEnabled()) {
+            logger.debug("FacetPointsShort : " + searchParams.getFormattedQuery());
         }
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
@@ -1984,17 +1944,12 @@ public class SearchDAOImpl implements SearchDAO {
         queryFormatUtils.formatSearchQuery(searchParams);
         queryString = searchParams.getFormattedQuery();
 
-        if (logger.isInfoEnabled()) {
-            logger.info("search query: " + queryString);
+        if (logger.isDebugEnabled()) {
+            logger.debug("getOccurrences - search query: " + queryString);
         }
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
         solrQuery.setQuery(queryString);
-//        solrQuery.setRows(0);
-//        solrQuery.setFacet(true);
-//        solrQuery.addFacetField(pointType.getLabel());
-//        solrQuery.setFacetMinCount(1);
-//        solrQuery.setFacetLimit(MAX_DOWNLOAD_SIZE);  // unlimited = -1
 
         QueryResponse qr = indexDao.runSolrQuery(solrQuery, searchParams);
         SearchResultDTO searchResults = processSolrResponse(searchParams, qr, solrQuery, OccurrenceIndex.class);
@@ -2025,12 +1980,11 @@ public class SearchDAOImpl implements SearchDAO {
      *
      * @see au.org.ala.biocache.dao.SearchDAO#getDataProviderCounts()
      */
-    //IS THIS BEING USED BY ANYTHING?? maybe dashboard?
     @Override
     @Deprecated
     public List<DataProviderCountDTO> getDataProviderCounts() throws Exception {
 
-        List<DataProviderCountDTO> dpDTOs = new ArrayList<DataProviderCountDTO>(); // new OccurrencePoint(PointType.POINT);
+        List<DataProviderCountDTO> dpDTOs = new ArrayList<>(); // new OccurrencePoint(PointType.POINT);
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
         solrQuery.setQuery("*:*");  // PIPELINES: SolrQuery::setQuery entry point
@@ -2067,8 +2021,8 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             }
         }
-        if (logger.isInfoEnabled()) {
-            logger.info("Find data providers = " + dpDTOs.size());
+        if (logger.isDebugEnabled()) {
+            logger.debug("Find data providers = " + dpDTOs.size());
         }
         return dpDTOs;
     }
@@ -2694,8 +2648,8 @@ public class SearchDAOImpl implements SearchDAO {
             logger.debug("getSpeciesCount query :" + solrQuery.getQuery());
         }
         QueryResponse qr = runSolrQuery(solrQuery, null, 1, 0, "score", sortDirection);
-        if (logger.isInfoEnabled()) {
-            logger.info("SOLR query: " + solrQuery.getQuery() + "; total hits: " + qr.getResults().getNumFound());
+        if (logger.isDebugEnabled()) {
+            logger.debug("SOLR query: " + solrQuery.getQuery() + "; total hits: " + qr.getResults().getNumFound());
         }
         List<FacetField> facets = qr.getFacetFields();
         java.util.regex.Pattern p = java.util.regex.Pattern.compile("\\|");
@@ -2778,8 +2732,8 @@ public class SearchDAOImpl implements SearchDAO {
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
         SolrQuery solrQuery = new SolrQuery();
         queryFormatUtils.formatSearchQuery(searchParams);
-        if (logger.isInfoEnabled()) {
-            logger.info("The query : " + searchParams.getFormattedQuery());
+        if (logger.isDebugEnabled()) {
+            logger.debug("The query : " + searchParams.getFormattedQuery());
         }
         solrQuery.setQuery(searchParams.getFormattedQuery());   // PIPELINES: SolrQuery::setQuery entry point
         solrQuery.setRequestHandler("standard");
@@ -2873,11 +2827,21 @@ public class SearchDAOImpl implements SearchDAO {
 
             sdl = indexDao.runSolrQuery(solrQuery, searchParams).getResults();
         } catch (SolrServerException ex) {
-            logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
+            logError("Problem communicating with SOLR server. ", ex.getMessage());
         }
 
         return sdl;
     }
+
+    private void logError(String description, String message) {
+        String requestID = MDC.get("X-Request-ID");
+        if (requestID != null) {
+            logger.error(description + ", RequestID:" +requestID+ " Error : " + message);
+        } else {
+            logger.error(description + " : " + message);
+        }
+    }
+
 
     public List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facetField, String[] cutpoints) throws Exception {
         return getLegend(searchParams, facetField, cutpoints, false);
@@ -2888,8 +2852,8 @@ public class SearchDAOImpl implements SearchDAO {
         List<LegendItem> legend = new ArrayList<LegendItem>();
 
         queryFormatUtils.formatSearchQuery(searchParams);
-        if (logger.isInfoEnabled()) {
-            logger.info("search query: " + searchParams.getFormattedQuery());
+        if (logger.isDebugEnabled()) {
+            logger.info("getLegend -search query: " + searchParams.getFormattedQuery());
         }
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
@@ -3029,8 +2993,8 @@ public class SearchDAOImpl implements SearchDAO {
 
     public FacetField getFacet(SpatialSearchRequestParams searchParams, String facet) throws Exception {
         queryFormatUtils.formatSearchQuery(searchParams);
-        if (logger.isInfoEnabled()) {
-            logger.info("search query: " + searchParams.getFormattedQuery());
+        if (logger.isDebugEnabled()) {
+            logger.debug("getFacet - search query: " + searchParams.getFormattedQuery());
         }
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
@@ -3051,7 +3015,6 @@ public class SearchDAOImpl implements SearchDAO {
         FacetField facet = getFacet(requestParams, dataProviderUid);
         String[] oldFq = requestParams.getFacets();
         if (facet != null) {
-            String[] dp = new String[1];
             List<FacetField.Count> facetEntries = facet.getValues();
             if (facetEntries != null && facetEntries.size() > 0) {
                 for (int i = 0; i < facetEntries.size(); i++) {
@@ -3656,7 +3619,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     @Override
-    @Cacheable(cacheName = "heatmapCache")
+//    @Cacheable(cacheName = "heatmapCache")
     public HeatmapDTO getHeatMap(
             String query,
             String[] filterQueries,
@@ -3693,7 +3656,14 @@ public class SearchDAOImpl implements SearchDAO {
                 try {
                     SolrQuery solrQuery =
                             createHeatmapQuery(
-                                    query, filterQueries, minx, miny, maxx, maxy, gridSizeInPixels, zoomOffset);
+                                    query,
+                                    filterQueries,
+                                    minx,
+                                    miny,
+                                    maxx,
+                                    maxy,
+                                    gridSizeInPixels,
+                                    zoomOffset);
                     qr = query(solrQuery); // can throw exception
                 } catch (Exception e) {
                     zoomOffset++;
@@ -3735,7 +3705,6 @@ public class SearchDAOImpl implements SearchDAO {
                 LegendItem legendItem = legend.get(legendIdx);
 
                 // add the FQ for the legend item
-
                 QueryResponse qr = null;
 
                 while (qr == null && zoomOffset < 10) {
@@ -3822,6 +3791,9 @@ public class SearchDAOImpl implements SearchDAO {
                 < tileWidthInDDAtZoomLevel / (double) gridSize) {
             zoomLevel++;
             tileWidthInDDAtZoomLevel /= 2.0;
+            if (zoomLevel > 11){
+                break;
+            }
         }
         // max grid level is 11
         if (zoomLevel > 11) {
@@ -3829,10 +3801,12 @@ public class SearchDAOImpl implements SearchDAO {
         }
 
         // TODO: Zoom level is calculated poorly. zoomOffset is a temporary fix.
-        solrQuery.set(
-                "facet.heatmap.gridLevel",
-                String.valueOf(zoomLevel - zoomOffset)); // good for points, probably
-
+        int gridLevel = zoomLevel - zoomOffset;
+        if (gridLevel > 0) {
+            solrQuery.set(
+                    "facet.heatmap.gridLevel",
+                    String.valueOf(gridLevel)); // good for points, probably
+        }
         solrQuery.setFacetLimit(-1);
         solrQuery.setFacet(true);
         solrQuery.setFilterQueries(filterQueries);

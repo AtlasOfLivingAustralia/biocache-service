@@ -554,40 +554,17 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     /**
      * Writes the supplied download to the supplied output stream. It will
      * include all the appropriate citations etc.
-     * 
-     * @param dd
-     * @param requestParams
-     * @param ip
-     * @param out
-     * @param includeSensitive
-     * @param fromIndex
-     * @throws Exception
-     * @deprecated Use {@link #writeQueryToStream(DownloadDetailsDTO, DownloadRequestParams, String, OutputStream, boolean, boolean, boolean, boolean, ExecutorService, List)} instead.
-     */
-    @Deprecated
-    public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
-                                   OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip)
-            throws Exception {
-        afterInitialisation();
-
-        writeQueryToStream(dd, requestParams, ip, out, includeSensitive, fromIndex, limit, zip, getOfflineThreadPoolExecutor(), null);
-    }
-
-    /**
-     * Writes the supplied download to the supplied output stream. It will
-     * include all the appropriate citations etc.
      *
      * @param dd
      * @param requestParams
      * @param ip
      * @param out
      * @param includeSensitive
-     * @param fromIndex
      * @param doiResponseList Return the CreateDoiResponse instance as the first element of the list if requestParams.mintDoi was true
      * @throws Exception
      */
     public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
-                                   OutputStream out, boolean includeSensitive, boolean fromIndex, boolean limit, boolean zip, ExecutorService parallelExecutor, List<CreateDoiResponse> doiResponseList)
+                                   OutputStream out, boolean includeSensitive, boolean limit, boolean zip, ExecutorService parallelExecutor, List<CreateDoiResponse> doiResponseList)
             throws Exception {
         afterInitialisation();
         String filename = requestParams.getFile();
@@ -886,18 +863,18 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param fromIndex
      * @param zip
      * @throws Exception
-     * @deprecated Use {@link #writeQueryToStream(DownloadRequestParams, HttpServletResponse, String, String, OutputStream, boolean, boolean, boolean, ExecutorService)} instead.
+     * @deprecated Use {@link #writeQueryToStream(DownloadDetailsDTO, DownloadRequestParams, String, OutputStream, boolean, boolean, boolean, ExecutorService, List)} 
      */
     @Deprecated
     public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, String userAgent,
             OutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip) throws Exception {
         afterInitialisation();
-        writeQueryToStream(requestParams, response, ip, userAgent, out, includeSensitive, fromIndex, zip, getOfflineThreadPoolExecutor());
+        writeQueryToStream(requestParams, response, ip, userAgent, out, includeSensitive, zip, getOfflineThreadPoolExecutor());
     }
 
 
     public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, String userAgent,
-            OutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip, ExecutorService parallelQueryExecutor) throws Exception {
+            OutputStream out, boolean includeSensitive, boolean zip, ExecutorService parallelQueryExecutor) throws Exception {
         afterInitialisation();
         String filename = requestParams.getFile();
 
@@ -914,7 +891,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
         DownloadDetailsDTO.DownloadType type = DownloadType.RECORDS_INDEX;
         DownloadDetailsDTO dd = registerDownload(requestParams, ip, userAgent, type);
-        writeQueryToStream(dd, requestParams, ip, new CloseShieldOutputStream(out), includeSensitive, fromIndex, true, zip, parallelQueryExecutor, null);
+        writeQueryToStream(dd, requestParams, ip, new CloseShieldOutputStream(out), includeSensitive, true, zip, parallelQueryExecutor, null);
     }
 
     /**
@@ -1004,7 +981,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 logger.error("Record did not have a uid attribute: " + record);
                             }
                         } else {
-                            logger.error("A null record was returned from the collectory citation service: " + entities + ", collected stats were: " + uidStats);
+                            if (logger.isDebugEnabled()) {
+                                logger.error("A null record was returned from the collectory citation service: " + entities + ", collected stats were: " + uidStats);
+                            } else {
+                                logger.error("A null record was returned from the collectory citation service.");
+                            }
                         }
                     }
                 } else {
@@ -1374,7 +1355,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             }
                             writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
                                     currentDownload.getIpAddress(), new CloseShieldOutputStream(fos), currentDownload.getIncludeSensitive(),
-                                    currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, false, true, parallelExecutor, doiResponseList);
+                                    currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, true, parallelExecutor, doiResponseList);
 
                             if(mintDoi && doiResponseList.size() <= 0) {
                                 //DOI Minting failed

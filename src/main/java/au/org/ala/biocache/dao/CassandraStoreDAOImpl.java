@@ -20,6 +20,7 @@ import com.datastax.driver.extras.codecs.MappingCodec;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.MapMaker;
 import com.google.common.reflect.TypeToken;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -36,6 +37,7 @@ import java.text.ParseException;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -67,6 +69,7 @@ public class CassandraStoreDAOImpl implements StoreDAO {
     @Value("${cassandra.keyspace.default.cql:CREATE KEYSPACE biocache WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'}  AND durable_writes = true;}")
     String createKeyspaceCql;
 
+    Map<String, PreparedStatement> preparedStatementCache = new MapMaker().weakValues().makeMap();
 
     @PostConstruct
     public void init() throws Exception {
@@ -239,8 +242,12 @@ public class CassandraStoreDAOImpl implements StoreDAO {
             tryQuery = false;
 
             try {
-                PreparedStatement preparedStatement = session.prepare(cql);
-                result = preparedStatement;
+                PreparedStatement preparedStatement = preparedStatementCache.get(cql);
+                if (preparedStatement == null){
+                    preparedStatement = session.prepare(cql);
+                    preparedStatementCache.put(cql, preparedStatement);
+                }
+                return preparedStatement;
             } catch (com.datastax.driver.core.exceptions.InvalidQueryException e) {
                 logger.info("Creating table " + table);
                 try {

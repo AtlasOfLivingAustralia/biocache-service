@@ -88,7 +88,17 @@
         <filter-name>CorsFilter</filter-name>
         <url-pattern>*</url-pattern>
     </filter-mapping>
-  
+
+    <!-- X-Request-ID Filter -->
+    <filter>
+        <filter-name>XRequestIDFilter</filter-name>
+        <filter-class>au.org.ala.biocache.web.XRequestIDFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>XRequestIDFilter</filter-name>
+        <url-pattern>*</url-pattern>
+    </filter-mapping>
+
     <!-- Case insensitive filter -->
     <!-- Used to make WMS parameters case insensitive, as per OGC specification -->
     <filter>

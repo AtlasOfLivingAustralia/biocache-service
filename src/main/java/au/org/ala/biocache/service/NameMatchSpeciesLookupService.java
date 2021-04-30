@@ -44,17 +44,6 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
     @Inject
     private ALANameUsageMatchServiceClient nameUsageMatchService = null;
 
-
-//    @PreDestroy
-//    public void destroy() {
-//        try {
-//            nameUsageMatchService.close();
-//        } catch (Exception e) {
-//            //log.error("Unable to close", e);
-//            throw new RuntimeException("Unable to close");
-//        }
-//    }
-
     @Override
     public String getGuidForName(String name) {
         String lsid = null;
@@ -81,7 +70,7 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
     public List<String> getNamesForGuids(List<String> guids) {
         List<String> results = new ArrayList<String>(guids.size());
         int idx = 0;
-        for(String guid: guids){
+        for (String guid: guids){
             results.add(idx, getAcceptedNameForGuid(guid));
             idx++;
         }
@@ -92,11 +81,11 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
     public List<String[]> getSpeciesDetails(List<String> guids, List<Long> counts, boolean includeCounts, boolean includeSynonyms, boolean includeLists) {
         List<String[]> results = new ArrayList<String[]>(guids.size());
         int idx = 0;
-        for(String guid : guids){
+        for (String guid : guids){
             NameUsageMatch nsr = nameUsageMatchService.match(guid);
-            if(nsr == null){
+            if (nsr == null){
                 String lsid = nameUsageMatchService.searchForLSID(guid);
-                if(lsid != null){
+                if (lsid != null){
                     nsr = nameUsageMatchService.match(lsid);
                 } else if (guid != null && StringUtils.countMatches(guid, "|") == 4){
                     //is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
@@ -108,7 +97,7 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
 
             String[] result = null;
             List<String> lsids = new ArrayList<String>();
-            if(nsr != null) {
+            if (nsr != null) {
                 lsids.add(nsr.getGenusID());
                 lsids.add(nsr.getFamilyID());
                 lsids.add(nsr.getSpeciesID());
@@ -122,7 +111,7 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
                         nsr.getFamily(),
                         nsr.getGenus(),
                         nsr.getSpecies(),
-                        nsr.getRankID() < 7000 /* TODO: replace 7000 with RANK.species */ ? nsr.getTaxonConceptID() : null
+                        (nsr.getRankID() != null && nsr.getRankID() < 7000) /* TODO: replace 7000 with RANK.species */ ? nsr.getTaxonConceptID() : null
                 };
             } else if (StringUtils.countMatches(guid, "|") == 4){
                 //not matched and is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
@@ -155,7 +144,7 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
                         ""
                 };
             }
-            if(includeCounts) {
+            if (includeCounts) {
                 result = (String[]) ArrayUtils.add(result, counts.get(idx).toString());
             }
             if (includeLists) {
