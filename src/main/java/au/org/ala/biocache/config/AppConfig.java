@@ -47,10 +47,6 @@ public class AppConfig {
     @Value("${service.bie.enabled:false}")
     protected Boolean enabledBie;
 
-    //Disable the default that autocomplete uses the local names index. For use when there are no local names index files.
-    @Value("${service.autocomplete.local.enabled:true}")
-    protected Boolean autocompleteLocalEnabled;
-
     // Configuration for facets
     @Value("${facet.config:/data/biocache/config/facets.json}")
     protected String facetConfig;
@@ -118,23 +114,6 @@ public class AppConfig {
             return getBieSpeciesLookupService();
         } else {
             return getNameMatchSpeciesLookupService();
-        }
-    }
-
-    public @Bean(name = "speciesLookupIndexService")
-    SpeciesLookupService speciesLookupIndexService() {
-        logger.info("Initialising species lookup services.");
-        try {
-            if (autocompleteLocalEnabled) {
-                return getNameMatchSpeciesLookupService();
-            }
-        } catch (Exception e) {
-            logger.error("Failed to initialise local species lookup service for use with the species autocomplete ws. Attempting to use BIE instead.");
-        }
-        if (enabledBie) {
-            return getBieSpeciesLookupService();
-        } else {
-            return null;
         }
     }
 
