@@ -35,27 +35,7 @@ public class FieldMappingUtil {
             enumValueMappings = (Map<String, Map<String, String>>) fieldConfig.get("fieldValueMapping");
         }
     }
-/*
-    @Value("${solr.deprecated.enumvalues.config:/data/biocache/config/deprecated-enum-values.json}")
-    void setDeprecatedEnumValuesConfig(String deprecatedEnumValuesConfig) throws IOException {
 
-        if (deprecatedEnumValuesConfig != null && new File(deprecatedEnumValuesConfig).exists()) {
-
-            ObjectMapper om = new ObjectMapper();
-            enumValueMappings = om.readValue(new File(deprecatedEnumValuesConfig), HashMap.class);
-        }
-    }
-
-    @Value("${solr.deprecated.fields.config:/data/biocache/config/deprecated-fields.json}")
-    void setDeprecatedFieldsConfig(String deprecatedFieldsConfig) throws IOException {
-
-        if (deprecatedFieldsConfig != null && new File(deprecatedFieldsConfig).exists()) {
-
-            ObjectMapper om = new ObjectMapper();
-            fieldMappings = om.readValue(new File(deprecatedFieldsConfig), HashMap.class);
-        }
-    }
-*/
     static Consumer<Pair<String, String>> NOOP_TRANSLATION = (Pair<String, String> m) -> {};
 
     static final String DEPRECATED_PREFIX = "deprecated_";
@@ -125,7 +105,7 @@ public class FieldMappingUtil {
                 sb.append(translatedFieldName);
                 sb.append(":");
 
-                prevTerm = queryTerm;
+                prevTerm = translatedFieldName;
                 prevEnd = matcher.end();
 
                 result = matcher.find();
@@ -144,7 +124,7 @@ public class FieldMappingUtil {
 
     private String translateQueryValue(String term, String value) {
 
-        if (enumValueMappings == null) {
+        if (enumValueMappings == null || term == null) {
             return value;
         }
 
