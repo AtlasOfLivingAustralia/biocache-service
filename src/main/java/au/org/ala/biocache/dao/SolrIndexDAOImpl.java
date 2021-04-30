@@ -33,7 +33,9 @@ import org.apache.solr.client.solrj.response.RangeFacet;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
+import org.apache.solr.common.util.NamedList;
 import org.eclipse.jetty.util.ConcurrentHashSet;
+import org.gbif.common.shaded.com.google.common.collect.Streams;
 import org.gbif.dwc.terms.DcTerm;
 import org.gbif.dwc.terms.DwcTerm;
 import org.gbif.dwc.terms.Term;
@@ -45,8 +47,10 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.CaseFormat.LOWER_CAMEL;
 import static com.google.common.base.CaseFormat.LOWER_UNDERSCORE;
@@ -436,7 +440,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
     params.set("tr", "luke.xsl");
     if (fields != null) {
-      params.set("fl", fields);
+      params.set("fl", String.join(",", fields));
       params.set("numTerms", "1");
     } else {
       // TODO: We should be caching the result locally without calling Solr in this case, as it is
@@ -445,6 +449,47 @@ public class SolrIndexDAOImpl implements IndexDAO {
     }
     QueryResponse response = query(params);
     return parseLukeResponse(response.toString(), fields != null);
+  }
+
+  @Override
+  public Set<String> getSchemaFields() throws Exception {
+
+    return getSchemaFields(false);
+  }
+
+  /**
+   * Returns details about the fields in the schema.
+   */
+  @Override
+  public Set<String> getSchemaFields(boolean update) throws Exception {
+
+    Set<String> result = schemaFields;
+
+    if (result.size() == 0 || update) {
+
+      synchronized (solrIndexVersionLock) {
+
+        result = schemaFields;
+        if (result.size() == 0 || update) {
+
+          ModifiableSolrParams params = new ModifiableSolrParams();
+          params.set("qt", "/admin/luke");
+          params.set("show", "schema");
+
+          QueryResponse response = query(params);
+
+          NamedList<Object> schemaFields = (NamedList) ((NamedList)response.getResponse().get("schema")).get("fields");
+
+          result = Streams.stream(schemaFields.iterator()).map(Map.Entry::getKey).collect(Collectors.toSet());
+
+          if (result != null && result.size() > 0) {
+            this.schemaFields = result;
+          }
+        }
+      }
+    }
+
+    return result;
   }
 
   @Override
@@ -560,6 +605,8 @@ public class SolrIndexDAOImpl implements IndexDAO {
                   new TypeReference<HashMap<String, IndexFieldDTO>>() {
                   },
                   HashMap.class);
+
+  private volatile Set<String> schemaFields = new HashSet();
 
   private void formatIndexField(
           String indexField,
