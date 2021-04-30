@@ -59,39 +59,48 @@ public class FieldMappedQueryResponse extends QueryResponse {
 
             SolrDocumentList results = delegate.getResults();
 
-            logger.debug("before results translation: " + results);
-
-            this._results = new SolrDocumentList();
-            this._results.setMaxScore(results.getMaxScore());
-            this._results.setNumFound(results.getNumFound());
-            this._results.setStart(results.getStart());
-
             Map<String, String[]> flMappings = this.solrParams.paramsInverseTranslations.get("fl");
 
-            results.forEach((SolrDocument solrDocument) -> {
+            if (flMappings == null) {
 
-                SolrDocument translatedSd = new SolrDocument();
+                logger.debug("no field list supplied, no result translation");
 
-                for (String fieldName : solrDocument.getFieldNames()) {
+                this._results = results;
 
-                    String[] legacyFieldNames = flMappings.get(fieldName);
+            } else {
 
-                    if (legacyFieldNames != null) {
+                logger.debug("before results translation: " + results);
 
-                        for (String legacyFieldName : legacyFieldNames) {
-                            translatedSd.addField(legacyFieldName, solrDocument.getFieldValue(fieldName));
+                this._results = new SolrDocumentList();
+                this._results.setMaxScore(results.getMaxScore());
+                this._results.setNumFound(results.getNumFound());
+                this._results.setStart(results.getStart());
+
+                results.forEach((SolrDocument solrDocument) -> {
+
+                    SolrDocument translatedSd = new SolrDocument();
+
+                    for (String fieldName : solrDocument.getFieldNames()) {
+
+                        String[] legacyFieldNames = flMappings.get(fieldName);
+
+                        if (legacyFieldNames != null) {
+
+                            for (String legacyFieldName : legacyFieldNames) {
+                                translatedSd.addField(legacyFieldName, solrDocument.getFieldValue(fieldName));
+                            }
+
+                        } else {
+
+                            translatedSd.addField(fieldName, solrDocument.getFieldValue(fieldName));
                         }
-
-                    } else {
-
-                        translatedSd.addField(fieldName, solrDocument.getFieldValue(fieldName));
                     }
-                }
 
-                this._results.add(translatedSd);
-            });
+                    this._results.add(translatedSd);
+                });
 
-            logger.debug("after results translation: " + this._results);
+                logger.debug("after results translation: " + this._results);
+            }
         }
 
         return this._results;

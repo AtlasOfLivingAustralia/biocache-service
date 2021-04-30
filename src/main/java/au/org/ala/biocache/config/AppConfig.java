@@ -1,12 +1,13 @@
 package au.org.ala.biocache.config;
 
 import au.org.ala.biocache.service.RestartDataService;
-import au.org.ala.biocache.service.SpeciesLookupIndexService;
-import au.org.ala.biocache.service.SpeciesLookupRestService;
+import au.org.ala.biocache.service.NameMatchSpeciesLookupService;
+import au.org.ala.biocache.service.BieSpeciesLookupService;
 import au.org.ala.biocache.service.SpeciesLookupService;
-import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import au.org.ala.dataquality.client.ApiClient;
+import au.org.ala.names.ws.client.ALANameUsageMatchServiceClient;
+import au.org.ala.ws.ClientConfiguration;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +17,8 @@ import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.web.client.RestOperations;
 
 import javax.inject.Inject;
+import java.io.IOException;
+import java.net.URL;
 
 /**
  * This class handles the switching between implementations of interfaces based on
@@ -42,11 +45,7 @@ public class AppConfig {
 
     //NC 20131018: Allow service to be disabled via config (enabled by default)
     @Value("${service.bie.enabled:false}")
-    protected Boolean enabled;
-
-    //Disable the default that autocomplete uses the local names index. For use when there are no local names index files.
-    @Value("${service.autocomplete.local.enabled:true}")
-    protected Boolean autocompleteLocalEnabled;
+    protected Boolean enabledBie;
 
     // Configuration for facets
     @Value("${facet.config:/data/biocache/config/facets.json}")
@@ -68,21 +67,42 @@ public class AppConfig {
         RestartDataService.dir = dir;
     }
 
+    @Value("${namesearch.url:http://localhost:9179}")
+    String nameSearchUrl = "http://localhost:9179";
 
-    protected SpeciesLookupService getSpeciesLookupRestService() {
-        logger.info("Initialising rest-based species lookup services.");
-        SpeciesLookupRestService service = new SpeciesLookupRestService();
+    @Value("${namesearch.timeout:30}")
+    Integer nameSearchTimeout = 30;
+
+    @Value("${namesearch.cache.size:50}")
+    Integer nameSearchCacheSize = 50;
+
+
+    public @Bean(name = "nameUsageMatchService")
+    ALANameUsageMatchServiceClient nameUsageMatchService() throws IOException {
+
+        ClientConfiguration clientConfiguration =
+                ClientConfiguration.builder()
+                        .baseUrl(new URL(nameSearchUrl))
+                        .timeOut(nameSearchTimeout * 1000) // Geocode service connection time-out
+                        .cacheSize(nameSearchCacheSize * 1024 * 1024)
+                        .build();
+
+        return new ALANameUsageMatchServiceClient(clientConfiguration);
+    }
+
+    protected SpeciesLookupService getBieSpeciesLookupService() {
+        logger.info("Initialising BIE rest-based species lookup services.");
+        BieSpeciesLookupService service = new BieSpeciesLookupService();
         service.setBieUriPrefix(bieUriPrefix);
-        service.setEnabled(enabled);
+        service.setEnabled(enabledBie);
         service.setRestTemplate(restTemplate);
         service.setMessageSource(messageSource);
         return service;
     }
 
-    protected SpeciesLookupService getSpeciesLookupIndexService() {
-        logger.info("Initialising local index-based species lookup services.");
-        SpeciesLookupIndexService service = new SpeciesLookupIndexService();
-        service.setNameIndexLocation(nameIndexLocation);
+    protected SpeciesLookupService getNameMatchSpeciesLookupService() {
+        logger.info("Initialising name match species lookup services.");
+        NameMatchSpeciesLookupService service = new NameMatchSpeciesLookupService();
         service.setMessageSource(messageSource);
         return service;
     }
@@ -90,27 +110,10 @@ public class AppConfig {
     public @Bean(name = "speciesLookupService")
     SpeciesLookupService speciesLookupServiceBean() {
         logger.info("Initialising species lookup services.");
-        if(enabled){
-            return getSpeciesLookupRestService();
+        if (enabledBie){
+            return getBieSpeciesLookupService();
         } else {
-            return getSpeciesLookupIndexService();
-        }
-    }
-
-    public @Bean(name = "speciesLookupIndexService")
-    SpeciesLookupService speciesLookupIndexService() {
-        logger.info("Initialising species lookup services.");
-        try {
-            if (autocompleteLocalEnabled) {
-                return getSpeciesLookupIndexService();
-            }
-        } catch (Exception e) {
-            logger.error("Failed to initialise local species lookup service for use with the species autocomplete ws. Attempting to use BIE instead.");
-        }
-        if (enabled) {
-            return getSpeciesLookupRestService();
-        } else {
-            return null;
+            return getNameMatchSpeciesLookupService();
         }
     }
 
