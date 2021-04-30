@@ -42,6 +42,7 @@ import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
+import org.apache.solr.common.util.SimpleOrderedMap;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
@@ -64,6 +65,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static au.org.ala.biocache.dto.OccurrenceIndex.*;
 
@@ -104,7 +106,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * The threshold to use the export handler instead of search handler when streaming from SOLR.
      */
-    @Value("${solr.export.handler.threashold:10000}")
+    @Value("${solr.export.handler.threshold:10000}")
     public Integer EXPORT_THREASHOLD = 10000;
 
     /**
@@ -228,6 +230,13 @@ public class SearchDAOImpl implements SearchDAO {
     protected Long downloadCheckBusyWaitSleep = 100L;
 
     /**
+     * Occurrence count where < uses pivot and > uses facet for retrieving points. Can be fine tuned with
+     * multiple queries and comparing DEBUG *
+     */
+    @Value("${wms.legendMaxItems:30}")
+    private int wmslegendMaxItems;
+
+    /**
      * thread pool for multipart endemic queries
      */
     private volatile ExecutorService endemicExecutor = null;
@@ -293,7 +302,7 @@ public class SearchDAOImpl implements SearchDAO {
         // TODO: There was a note about possible issues with the following two lines
         Set<IndexFieldDTO> indexedFields = indexDao.getIndexedFields();
         if (downloadFields == null) {
-            downloadFields = new DownloadFields(indexedFields, messageSource, layersService, listsService);
+            downloadFields = new DownloadFields(fieldMappingUtil, indexedFields, messageSource, layersService, listsService);
         } else {
             downloadFields.update(indexedFields);
         }
@@ -934,9 +943,9 @@ public class SearchDAOImpl implements SearchDAO {
 
                 //include raw latitude and longitudes
                 if (requestedFieldsParam.contains(",decimalLatitude")) {
-                    requestedFieldsParam = requestedFieldsParam.replaceFirst(",decimalLatitude", ",sensitive_latitude,sensitive_longitude,decimalLatitude");
+                    requestedFieldsParam = requestedFieldsParam.replaceFirst(",decimalLatitude", ",sensitive_decimalLatitude,sensitive_decimalLongitude,decimalLatitude");
                 } else if (requestedFieldsParam.contains("raw_decimalLatitude")) {
-                    requestedFieldsParam = requestedFieldsParam.replaceFirst("raw_decimalLatitude", "sensitive_latitude,sensitive_longitude,raw_decimalLatitude");
+                    requestedFieldsParam = requestedFieldsParam.replaceFirst("raw_decimalLatitude", "sensitive_decimalLatitude,sensitive_decimalLongitude,raw_decimalLatitude");
                 }
                 if (requestedFieldsParam.contains(",raw_locality,")) {
                     requestedFieldsParam = requestedFieldsParam.replaceFirst(",raw_locality,", ",raw_locality,sensitive_locality,");
@@ -951,17 +960,33 @@ public class SearchDAOImpl implements SearchDAO {
                 dbFieldsBuilder.append(",").append(downloadParams.getExtra());
             }
 
-            String[] requestedFields = dbFieldsBuilder.toString().split(",");
+            List<String> requestedFields = Arrays.stream(dbFieldsBuilder.toString()
+                    .split(","))
+                    .map(field -> fieldMappingUtil.translateFieldName(field))
+                    .collect(Collectors.toList());
+
             List<String>[] indexedFields;
             if (downloadFields == null) {
                 //default to include everything
-                java.util.List<String> mappedNames = new java.util.LinkedList<String>();
-                for (int i = 0; i < requestedFields.length; i++) mappedNames.add(requestedFields[i]);
-
-                indexedFields = new List[]{mappedNames, new java.util.LinkedList<String>(), mappedNames, mappedNames, new ArrayList(), new ArrayList()};
+                java.util.List<String> mappedNames = new java.util.LinkedList<>();
+                for (int i = 0; i < requestedFields.size(); i++) {
+                    mappedNames.add(requestedFields.get(i));
+                }
+                indexedFields = new List[]{
+                        mappedNames,
+                        new java.util.LinkedList<String>(),
+                        mappedNames,
+                        mappedNames,
+                        new ArrayList(),
+                        new ArrayList()};
             } else {
-                indexedFields = downloadFields.getIndexFields(requestedFields, downloadParams.getDwcHeaders(), downloadParams.getLayersServiceUrl());
+                indexedFields = downloadFields.getIndexFields(
+                        requestedFields.toArray(new String[0]),
+                        downloadParams.getDwcHeaders(),
+                        downloadParams.getLayersServiceUrl()
+                );
             }
+
             //apply custom header
             String[] customHeader = dd.getRequestParams().getCustomHeader().split(",");
             for (int i = 0; i + 1 < customHeader.length; i += 2) {
@@ -2872,13 +2897,9 @@ public class SearchDAOImpl implements SearchDAO {
 
         //is facet query?
         if (cutpoints == null) {
-            //special case for the decade
-            if (DECADE_FACET_NAME.equals(facetField))
-                initDecadeBasedFacet(solrQuery, OccurrenceIndex.OCCURRENCE_YEAR_INDEX_FIELD);
-            else
-                solrQuery.addFacetField(facetField);    // PIPELINES: SolrQuery::addFacetField entry point
+            solrQuery.addFacetField(facetField);    // PIPELINES: SolrQuery::addFacetField entry point
         } else {
-            solrQuery.addFacetQuery("-" + facetField + ":[* TO *]");
+            solrQuery.addFacetQuery("-" + facetField + ":*");
 
             for (int i = 0; i < cutpoints.length; i += 2) {
                 solrQuery.addFacetQuery(facetField + ":[" + cutpoints[i] + " TO " + cutpoints[i + 1] + "]");
@@ -2888,25 +2909,37 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFacetMinCount(1);
         solrQuery.setFacetLimit(-1);//MAX_DOWNLOAD_SIZE);  // unlimited = -1
 
+        FacetDTO facetDTO = FacetThemes.getFacetsMap().get(fieldMappingUtil.translateFieldName(facetField));
+        if (facetDTO != null) {
+            String thisSort = facetDTO.getSort();
+            if (thisSort != null) {
+                solrQuery.setFacetSort(thisSort);
+            }
+        }
         solrQuery.setFacetMissing(true);
 
         QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFormattedFq(), 1, 0, "score", "asc");
-        List<FacetField> facets = qr.getFacetFields();
+        List<FacetField> facets = qr.getFacetFields();  // TODO: PIPELINES: QueryResponse::getFacetFields entry point
         if (facets != null) {
-            for (FacetField facet : facets) {
-                List<FacetField.Count> facetEntries = facet.getValues();
-                if (facet.getName().contains(facetField) && (facetEntries != null) && (facetEntries.size() > 0)) {
-                    int i = 0;
-                    for (i = 0; i < facetEntries.size(); i++) {
-                        FacetField.Count fcount = facetEntries.get(i);
-                        if (fcount.getCount() > 0) {
-                            String fq = facetField + ":\"" + fcount.getName() + "\"";
-                            if (fcount.getName() == null) {
-                                fq = "-" + facetField + ":[* TO *]";
+            for (FacetField facet : facets) {           // TODO: PIPELINES: List<FacetField>::iterator entry point
+                List<FacetField.Count> facetEntries = facet.getValues();    // TODO: PIPELINES: FacetField::getValues entry point
+                if (facet.getName().contains(facetField) && facetEntries != null && !facetEntries.isEmpty()) {  // TODO: PIPELINES: FacetField::getName & List<FacetField.Count>::size entry point
+
+                    List<String> addedFqs = new ArrayList<>();
+
+                    for (int i = 0; i < facetEntries.size() && i < wmslegendMaxItems; i++) {         // TODO: PIPELINES: List<FacetField.Count>::size entry point
+                        FacetField.Count fcount = facetEntries.get(i);  // TODO: PIPELINES: List<FacetField.Count>::get entry point
+                        if (fcount.getCount() > 0) {                    // TODO: PIPELINES: FacetField.Count::getCount entry point
+                            String fq = facetField + ":\"" + fcount.getName() + "\"";   // TODO: PIPELINES: FacetField.Count::getName entry point
+                            if (fcount.getName() == null) {             // TODO: PIPELINES: FacetField.Count::getName entry point
+                                fq = "-" + facetField + ":*";
+                                addedFqs.add(facetField + ":*");
+                            } else {
+                                addedFqs.add("-" + fq);
                             }
 
                             if (skipI18n) {
-                                legend.add(new LegendItem(fcount.getName(), null, fcount.getCount(), fq));
+                                legend.add(new LegendItem(fcount.getName(), null, fcount.getName(), fcount.getCount(), fq));  // TODO: PIPELINES: FacetField.Count::getName & FacetField.Count::getCount entry point
                             } else {
                                 String i18nCode = null;
                                 if (StringUtils.isNotBlank(fcount.getName())) {
@@ -2915,10 +2948,37 @@ public class SearchDAOImpl implements SearchDAO {
                                     i18nCode = fieldMappingUtil.translateFieldName(facetField) + ".novalue";
                                 }
 
-                                legend.add(new LegendItem(getFacetValueDisplayName(fieldMappingUtil.translateFieldName(facetField), fcount.getName()), i18nCode, fcount.getCount(), fq));
+                                legend.add(new LegendItem(
+                                        getFacetValueDisplayName(fieldMappingUtil.translateFieldName(facetField), fcount.getName()),
+                                        i18nCode,
+                                        fcount.getName(),
+                                        fcount.getCount(),
+                                        fq)
+                                );
                             }
                         }
                     }
+
+                    if (facetEntries.size() > wmslegendMaxItems){
+
+                        long remainderCount = 0;
+                        for (int i = wmslegendMaxItems; i < facetEntries.size(); i++) {
+                            FacetField.Count fcount = facetEntries.get(i);
+                            remainderCount += fcount.getCount();
+                        }
+
+                        String theFq = "-(" + StringUtils.join(addedFqs, " AND ") +")";
+                            // create a single catch remainder facet
+                        legend.add(legend.size(), new LegendItem(
+                            "Other " + facetField,
+                                facetField + ".other",
+                                "",
+                                remainderCount,
+                                theFq,
+                                true
+                        ));
+                    }
+
                     break;
                 }
             }
@@ -2930,7 +2990,7 @@ public class SearchDAOImpl implements SearchDAO {
         Map<String, Integer> facetq = qr.getFacetQuery();
         if (facetq != null && facetq.size() > 0) {
             for (Entry<String, Integer> es : facetq.entrySet()) {
-                legend.add(new LegendItem( getFacetValueDisplayName(tFacetField, es.getKey()), tFacetField + "." + es.getKey() , es.getValue(), es.getKey()));
+                legend.add(new LegendItem( getFacetValueDisplayName(tFacetField, es.getKey()), tFacetField + "." + es.getKey(), es.getKey(), es.getValue(), es.getKey()));
             }
         }
 
@@ -2956,8 +3016,9 @@ public class SearchDAOImpl implements SearchDAO {
                         new LegendItem(
                                 getFacetValueDisplayName(facetEntry.getFacetField().getName(), facetEntry.getName()),
                                 facetEntry.getFacetField().getName() + "." + facetEntry.getName(),
+                                facetEntry.getFacetField().getName(),
                                 facetEntry.getCount(),
-                                OccurrenceIndex.OCCURRENCE_YEAR_INDEX_FIELD + ":[" + startDate + " TO " + finishDate + "]")
+                                OCCURRENCE_YEAR_INDEX_FIELD + ":[" + startDate + " TO " + finishDate + "]")
                 );
             }
         }
@@ -3448,9 +3509,9 @@ public class SearchDAOImpl implements SearchDAO {
             for (int i = 0; i <= 500; i += 100) {
                 LegendItem li;
                 if (i == 0) {
-                    li = new LegendItem(">0", "",0, null);
+                    li = new LegendItem(">0", "", "", 0, null);
                 } else {
-                    li = new LegendItem(String.valueOf(i),  "",0, null);
+                    li = new LegendItem(String.valueOf(i),  "", "", 0, null);
                 }
                 li.setColour((((500 - i) / 2) << 8) | 0x00FF0000);
                 colours.add(li);
@@ -3482,18 +3543,23 @@ public class SearchDAOImpl implements SearchDAO {
                 if (cutpoints == null) {     //do not sort if cutpoints are provided
                     java.util.Collections.sort(legend);
                 }
-                int i = 0;
                 int offset = 0;
-                for (i = 0; i < legend.size() && i < ColorUtil.colourList.length - 1; i++) {
+
+                for (int i = 0; i < legend.size(); i++) {
 
                     LegendItem li = legend.get(i);
 
-                    colours.add(new LegendItem(li.getName(), li.getName(), li.getCount(), li.getFq()));
+                    colours.add(new LegendItem(li.getName(), li.getName(), li.getFacetValue(), li.getCount(), li.getFq(), li.isRemainder()));
                     int colour = DEFAULT_COLOUR;
                     if (cutpoints == null) {
                         colour = ColorUtil.colourList[i];
                     } else if (cutpoints != null && i - offset < cutpoints.length) {
-                        if (StringUtils.isEmpty(legend.get(i).getName()) || legend.get(i).getName().equals("Unknown") || legend.get(i).getName().startsWith("-")) {
+                        if (li.isRemainder()){
+                            colour = ColorUtil.getRangedColour(i - offset, cutpoints.length / 2);
+                        } else if ( StringUtils.isEmpty(legend.get(i).getName())
+                                || legend.get(i).getName().equals("Unknown")
+                                || legend.get(i).getName().startsWith("-")
+                            ) {
                             offset++;
                         } else {
                             colour = ColorUtil.getRangedColour(i - offset, cutpoints.length / 2);
@@ -3585,5 +3651,107 @@ public class SearchDAOImpl implements SearchDAO {
         }
 
         return found;
+    }
+
+    @Override
+    public HeatmapDTO getHeatMap(SpatialSearchRequestParams searchParams,
+                                 Double minx,
+                                 Double miny,
+                                 Double maxx,
+                                 Double maxy,
+                                 List<LegendItem> legend,
+                                 Set<Integer> hiddenFacets,
+                                 boolean isGrid) throws Exception {
+
+        List<List<List<Integer>>> layers = new ArrayList<>();
+
+        // single layers
+        if (isGrid || legend == null || legend.isEmpty()){
+            //single layer
+            SolrQuery solrQuery = createHeatmapQuery(searchParams, minx, miny, maxx, maxy, isGrid);
+            QueryResponse qr = query(solrQuery); // can throw exception
+            // FIXME UGLY - not needed with SOLR8, but current constraint is SOLR 6 API
+            // See SpatialHeatmapFacets.HeatmapFacet in SOLR 8 API
+            SimpleOrderedMap facetHeatMaps = ((SimpleOrderedMap)((SimpleOrderedMap)((qr.getResponse().get("facet_counts")))).get("facet_heatmaps"));
+
+            Integer gridLevel = - 1;
+            if (facetHeatMaps != null) {
+                SimpleOrderedMap heatmap = (SimpleOrderedMap)  facetHeatMaps.get(spatialField);
+                gridLevel = (Integer) heatmap.get("gridLevel");
+                List<List<Integer>> layer = (List<List<Integer>>) heatmap.get("counts_ints2D");
+                layers.add(layer);
+                return new HeatmapDTO(gridLevel, layers, legend, isGrid);
+            }
+
+        } else {
+
+            // multiple layers
+            Integer gridLevel= -1;
+
+            for (int legendIdx = 0; legendIdx < legend.size(); legendIdx ++){
+
+                if (!hiddenFacets.contains(legendIdx)){
+
+                    LegendItem legendItem = legend.get(legendIdx);
+
+                    SolrQuery solrQuery = createHeatmapQuery(searchParams, minx, miny, maxx, maxy, isGrid);
+
+                    //add the FQ for the legend item
+                    String[] filterQueries = Arrays.copyOf(solrQuery.getFilterQueries(), solrQuery.getFilterQueries().length + 1);
+                    filterQueries[filterQueries.length - 1] = legendItem.getFq();
+                    solrQuery.setFilterQueries(filterQueries);
+
+                    // query
+                    QueryResponse qr = query(solrQuery); // can throw exception
+                    SimpleOrderedMap facetHeatMaps = ((SimpleOrderedMap)((SimpleOrderedMap)((qr.getResponse().get("facet_counts")))).get("facet_heatmaps"));
+
+                    if (facetHeatMaps != null) {
+
+                        //iterate over legend
+                        SimpleOrderedMap heatmap = (SimpleOrderedMap)  facetHeatMaps.get(spatialField);
+                        gridLevel = (Integer) heatmap.get("gridLevel");
+                        List<List<Integer>> layer = (List<List<Integer>>) heatmap.get("counts_ints2D");
+                        layers.add(layer);
+                    }
+                } else {
+                    layers.add(null);
+                }
+            }
+
+            return new HeatmapDTO(gridLevel, layers, legend, isGrid);
+        }
+
+        return null;
+    }
+
+private SolrQuery createHeatmapQuery(SpatialSearchRequestParams searchParams, Double minx, Double miny, Double maxx, Double maxy, boolean isGrid) throws QidMissingException {
+
+        queryFormatUtils.formatSearchQuery(searchParams, true);
+        SolrQuery solrQuery = new SolrQuery();
+        solrQuery.setRequestHandler("standard");
+        solrQuery.set("facet.heatmap", spatialField);
+
+        // heatmaps support international date line
+        if (minx < -180){
+            minx = minx + 360;
+        }
+
+        if (maxx > 180){
+            maxx = maxx - 360;
+        }
+
+        String geom = "[\"" + minx + " " + miny + "\" TO \"" + maxx + " " + maxy + "\"]";
+        solrQuery.set("facet.heatmap.geom", geom);
+        if (isGrid) {
+            solrQuery.set("facet.heatmap.distErrPct", "0.4"); //good for points
+        } else {
+            solrQuery.set("facet.heatmap.distErrPct", "0.05"); //good for points
+        }
+        solrQuery.setFacetLimit(-1);
+        solrQuery.setFacet(true);
+        solrQuery.setFilterQueries(searchParams.getFormattedFq());
+        solrQuery.setRows(0);
+        solrQuery.setQuery(searchParams.getFormattedQuery());
+        return solrQuery;
     }
 }

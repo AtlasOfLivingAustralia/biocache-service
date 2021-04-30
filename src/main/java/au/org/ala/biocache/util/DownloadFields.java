@@ -18,6 +18,7 @@ import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.service.LayersService;
 import au.org.ala.biocache.service.ListsService;
 import au.org.ala.biocache.service.RestartDataService;
+import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
@@ -48,7 +49,12 @@ public class DownloadFields {
 
     private Map<String, IndexFieldDTO> indexByDwcMaps;
 
-    public DownloadFields(Set<IndexFieldDTO> indexFields, AbstractMessageSource messageSource, LayersService layersService, ListsService listsService) {
+    protected FieldMappingUtil fieldMappingUtil;
+
+    public DownloadFields(FieldMappingUtil fieldMappingUtil, Set<IndexFieldDTO> indexFields, AbstractMessageSource messageSource, LayersService layersService, ListsService listsService) {
+
+        this.fieldMappingUtil = fieldMappingUtil;
+
         this.messageSource = messageSource;
 
         this.layersService = layersService;
@@ -134,19 +140,6 @@ public class DownloadFields {
     }
 
     /**
-     * This is a backwards compatibility field mapping, for external services using old API and old index field names.
-     *
-     * @param fieldName
-     * @return
-     */
-    public String cleanRequestFieldName(String fieldName){
-        if(fieldName != null && (fieldName.endsWith(".p") || fieldName.endsWith("_p"))){
-            return fieldName.substring(0, fieldName.length() - 2);
-        }
-        return fieldName;
-    }
-
-    /**
      * Returns the index fields that are used for the supplied fieldNames.
      *
      * @param fieldNames
@@ -164,9 +157,9 @@ public class DownloadFields {
         java.util.List<String> listHeaders = new java.util.LinkedList<String>();
         java.util.List<String> listFields = new java.util.LinkedList<String>();
 
-        for(String fieldName : fieldNames){
+        for (String fieldName : fieldNames){
 
-            String indexName = cleanRequestFieldName(fieldName);
+            String indexName = fieldMappingUtil.translateFieldName(fieldName);
 
             //now check to see if this index field is stored
             IndexFieldDTO field = indexFieldMaps.get(indexName);

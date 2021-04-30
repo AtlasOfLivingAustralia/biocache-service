@@ -1,20 +1,23 @@
 package au.org.ala.biocache.util.solr;
 
-import com.google.common.base.Strings;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.Logger;
+import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrResponse;
+import org.apache.solr.client.solrj.beans.DocumentObjectBinder;
 import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.util.NamedList;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class FieldMappedQueryResponse extends QueryResponse {
 
     private static final Logger logger = Logger.getLogger(FieldMappedQueryResponse.class);
 
+    final private SolrClient solrClient;
     final private FieldMappedSolrParams solrParams;
     final private QueryResponse delegate;
 
@@ -24,9 +27,8 @@ public class FieldMappedQueryResponse extends QueryResponse {
     private List<RangeFacet> _rangeFacets = null;
     private List<IntervalFacet> _intervalFacets = null;
 
-    public FieldMappedQueryResponse(FieldMappedSolrParams solrParams,
-                                    QueryResponse delegate) {
-
+    public FieldMappedQueryResponse(SolrClient solrClient, FieldMappedSolrParams solrParams, QueryResponse delegate) {
+        this.solrClient = solrClient;
         this.solrParams = solrParams;
         this.delegate = delegate;
     }
@@ -51,38 +53,24 @@ public class FieldMappedQueryResponse extends QueryResponse {
 
         if (this._results == null) {
 
-            this._results = delegate.getResults();
-
-            if (this._results == null) {
+            if (delegate.getResults() == null) {
                 return null;
             }
 
-            logger.debug("before results translation: " + this._results);
+            SolrDocumentList results = delegate.getResults();
+
+            logger.debug("before results translation: " + results);
+
+            this._results = new SolrDocumentList();
+            this._results.setMaxScore(results.getMaxScore());
+            this._results.setNumFound(results.getNumFound());
+            this._results.setStart(results.getStart());
 
             Map<String, String[]> flMappings = this.solrParams.paramsInverseTranslations.get("fl");
 
-//            List<Pair<String, String>> fieldMappings =
-//                    Arrays.stream(this.solrParams.originalParams.getParams("fl"))
-//                            .flatMap((String fl) -> Arrays.stream(fl.split(",")))
-//                            .filter(Strings::isNullOrEmpty)
-//                            .flatMap((String fl) -> Arrays.stream(flMappings.get(fl)).collect())
-//                            .map((String fl) -> {
-//
-//                                Pair<String, String> flMapping = flMappings.stream().findFirst((Pair<String, String> mapping) -> fl.equals(mapping.first()));
-//
-//                                if (flMapping != null) {
-//                                    return flMapping;
-//                                }
-//                                return new Pair(fl, fl);
-//                            })
-//                            .collect(Collectors.toList());
+            results.forEach((SolrDocument solrDocument) -> {
 
-
-
-            this._results.forEach((SolrDocument solrDocument) -> {
-
-                Set<Pair<String, Object>> addFields = new HashSet();
-                Set<String> removeFields = new HashSet();
+                SolrDocument translatedSd = new SolrDocument();
 
                 for (String fieldName : solrDocument.getFieldNames()) {
 
@@ -90,25 +78,17 @@ public class FieldMappedQueryResponse extends QueryResponse {
 
                     if (legacyFieldNames != null) {
 
-                        boolean removeMappedField = true;
                         for (String legacyFieldName : legacyFieldNames) {
-
-                            if (fieldName.equals(legacyFieldName)) {
-                                removeMappedField = false;
-                            } else if (legacyFieldName != null) {
-                                addFields.add(Pair.of(legacyFieldName, solrDocument.getFieldValue(fieldName)));
-                            }
+                            translatedSd.addField(legacyFieldName, solrDocument.getFieldValue(fieldName));
                         }
 
-                        if (removeMappedField) {
-                            removeFields.add(fieldName);
-                        }
+                    } else {
+
+                        translatedSd.addField(fieldName, solrDocument.getFieldValue(fieldName));
                     }
                 }
 
-                addFields.forEach((Pair<String, Object> field) -> solrDocument.setField(field.getLeft(), field.getRight()));
-
-                removeFields.forEach(solrDocument::removeFields);
+                this._results.add(translatedSd);
             });
 
             logger.debug("after results translation: " + this._results);
@@ -402,7 +382,8 @@ public class FieldMappedQueryResponse extends QueryResponse {
 
     @Override
     public <T> List<T> getBeans(Class<T> type) {
-        return delegate.getBeans(type);
+
+        return this.solrClient == null ? (new DocumentObjectBinder()).getBeans(type, delegate.getResults()) : this.solrClient.getBinder().getBeans(type, delegate.getResults());
     }
 
     @Override

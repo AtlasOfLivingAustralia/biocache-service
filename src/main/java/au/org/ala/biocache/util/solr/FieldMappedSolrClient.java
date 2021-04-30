@@ -2,15 +2,12 @@ package au.org.ala.biocache.util.solr;
 
 import org.apache.solr.client.solrj.*;
 import org.apache.solr.client.solrj.beans.DocumentObjectBinder;
-import org.apache.solr.client.solrj.impl.StreamingBinaryResponseParser;
-import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.client.solrj.response.SolrPingResponse;
 import org.apache.solr.client.solrj.response.UpdateResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.SolrInputDocument;
-import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 
@@ -272,7 +269,7 @@ public class FieldMappedSolrClient extends SolrClient {
 
         QueryResponse queryResponse = delegate.query(collection, translatedParams);
 
-        return new FieldMappedQueryResponse(translatedParams, queryResponse);
+        return new FieldMappedQueryResponse(this, translatedParams, queryResponse);
     }
 
     @Override
@@ -287,7 +284,7 @@ public class FieldMappedSolrClient extends SolrClient {
 
         QueryResponse queryResponse = delegate.query(collection, translatedParams, method);
 
-        return new FieldMappedQueryResponse(translatedParams, queryResponse);
+        return new FieldMappedQueryResponse(this, translatedParams, queryResponse);
     }
 
     @Override
@@ -302,7 +299,7 @@ public class FieldMappedSolrClient extends SolrClient {
 
         QueryResponse queryResponse = delegate.queryAndStreamResponse(collection, translatedParams, callback);
 
-        return new FieldMappedQueryResponse(translatedParams, queryResponse);
+        return new FieldMappedQueryResponse(this, translatedParams, queryResponse);
     }
 
     public QueryResponse queryAndStreamResponse(SolrParams params, StreamingResponseCallback callback) throws SolrServerException, IOException {

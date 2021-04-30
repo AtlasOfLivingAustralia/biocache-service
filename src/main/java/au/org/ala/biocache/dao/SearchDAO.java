@@ -25,6 +25,7 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -395,4 +396,23 @@ public interface SearchDAO {
      * @return
      */
     List<String> listFacets(SpatialSearchRequestParams searchParams) throws Exception;
+
+    /**
+     * Query for heatmaps.
+     *
+     * @param searchParams
+     * @param minx
+     * @param miny
+     * @param maxx
+     * @param maxy
+     * @param legend
+     * @param hiddenFacets
+     * @param isGrid
+     * @return
+     * @throws Exception
+     */
+    HeatmapDTO getHeatMap(SpatialSearchRequestParams searchParams, Double minx, Double miny, Double maxx, Double maxy,
+                          List<LegendItem> legend,
+                          Set<Integer> hiddenFacets,
+                          boolean isGrid) throws Exception;
 }

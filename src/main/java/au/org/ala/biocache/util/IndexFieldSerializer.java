@@ -27,7 +27,7 @@ public class IndexFieldSerializer extends JsonSerializer<IndexFieldDTO> {
         if (!indexFieldDTO.isDeprecated()) {
 
             if (indexFieldDTO.getJsonName() != null) { jsonGenerator.writeStringField("jsonName", indexFieldDTO.getJsonName()); }
-            if (indexFieldDTO.getDwcTerm() != null) { jsonGenerator.writeStringField("dwtTerm", indexFieldDTO.getDwcTerm()); }
+            if (indexFieldDTO.getDwcTerm() != null) { jsonGenerator.writeStringField("dwcTerm", indexFieldDTO.getDwcTerm()); }
             jsonGenerator.writeStringField("downloadName", indexFieldDTO.getDownloadName());
             jsonGenerator.writeStringField("dataType", indexFieldDTO.getDataType());
             if (indexFieldDTO.getClasss() != null) { jsonGenerator.writeStringField("classs", indexFieldDTO.getClasss()); }
