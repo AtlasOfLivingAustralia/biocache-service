@@ -17,6 +17,7 @@ package au.org.ala.biocache.dao;
 import com.datastax.driver.core.*;
 import com.datastax.driver.core.policies.ExponentialReconnectionPolicy;
 import com.datastax.driver.extras.codecs.MappingCodec;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.reflect.TypeToken;
@@ -31,7 +32,6 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.text.ParseException;
 import java.util.Collection;
 import java.util.Date;
@@ -143,7 +143,7 @@ public class CassandraStoreDAOImpl implements StoreDAO {
 
             ObjectMapper mapper = new ObjectMapper();
             mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
+            mapper.configure(JsonParser.Feature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, true);
             result = mapper.readValue(jsonString, dataClass);
         }
 
