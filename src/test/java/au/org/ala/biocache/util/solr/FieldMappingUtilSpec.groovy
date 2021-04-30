@@ -13,10 +13,7 @@ class FieldMappingUtilSpec extends Specification {
     void setup() {
 
         fieldMappingUtil = new FieldMappingUtil()
-        fieldMappingUtil.deprecatedFieldsConfig = '/data/biocache/config/deprecated-fields.json'
-        fieldMappingUtil.deprecatedEnumValuesConfig = '/data/biocache/config/deprecated-enum-values.json'
-
-        fieldMappingUtil = builder.newInstance()
+        fieldMappingUtil.pipelinesFieldConfig = '/data/biocache/config/pipelines-field-config.json'
     }
 
     @Unroll
