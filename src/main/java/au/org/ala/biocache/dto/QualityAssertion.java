@@ -12,7 +12,7 @@ import java.util.UUID;
  * Merged from biocache-store
  */
 public class QualityAssertion {
-    String uuid = UUID.randomUUID().toString();
+    String uuid;
     String dataResourceUid;
     String referenceRowKey;
     String name;
@@ -32,6 +32,7 @@ public class QualityAssertion {
     Boolean problemAsserted = false;
 
     public QualityAssertion() {
+        uuid = UUID.randomUUID().toString();
         // to ISO date format to compatible with existing database records
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
         simpleDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -82,6 +83,12 @@ public class QualityAssertion {
 
     public void setCode(Integer code) {
         this.code = code;
+        if (name == null) {
+            ErrorCode errorCode = AssertionCodes.getByCode(code);
+            if (errorCode != null) {
+                name = errorCode.getName();
+            }
+        }
     }
 
     public String getRelatedUuid() {

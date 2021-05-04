@@ -202,8 +202,8 @@ public class AssertionCodes {
         return getAllCodesInRange(TEMPORAL_BOUNDS);
     }
 
-    public static ErrorCode getById(int code) {
-
+    // Retrieve an error code by the numeric code
+    public static ErrorCode getByCode(int code) {
         return Arrays.stream(getAll())
                 .filter(errorCode -> errorCode.code == code)
                 .findFirst()
