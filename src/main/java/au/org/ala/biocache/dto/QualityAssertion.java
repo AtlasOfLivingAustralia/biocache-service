@@ -1,5 +1,6 @@
 package au.org.ala.biocache.dto;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.UUID;
 
@@ -25,7 +26,7 @@ public class QualityAssertion {
     String userRole;
     String userEntityUid;
     String userEntityName;
-    String created = new Date().toString();
+    String created = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(new Date()); // to ISO date format to compatible with existing database records
     String snapshot;
     Boolean problemAsserted = false;
 
