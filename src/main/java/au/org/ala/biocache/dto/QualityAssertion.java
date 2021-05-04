@@ -2,6 +2,7 @@ package au.org.ala.biocache.dto;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.TimeZone;
 import java.util.UUID;
 
 /**
@@ -26,20 +27,26 @@ public class QualityAssertion {
     String userRole;
     String userEntityUid;
     String userEntityName;
-    String created = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(new Date()); // to ISO date format to compatible with existing database records
+    String created;
     String snapshot;
     Boolean problemAsserted = false;
 
     public QualityAssertion() {
+        // to ISO date format to compatible with existing database records
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        simpleDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        created = simpleDateFormat.format(new Date());
     }
 
     public QualityAssertion(ErrorCode errorCode, String comment) {
+        super();
         this.name = errorCode.name;
         this.code = errorCode.code;
         this.comment = comment;
     }
 
     public QualityAssertion(ErrorCode errorCode, Integer qaStatus) {
+        super();
         this.name = errorCode.name;
         this.code = errorCode.code;
         this.qaStatus = qaStatus;
