@@ -126,8 +126,13 @@ public class AssertionService {
         return false;
     }
 
-    // recordId + userId + code should be unique for normal assertions
-    // verification should be per assertion
+    // this method merge new assertions with existing assertions
+    // 1. for each type of normal assertion, 1 user can only have 1 on a record.
+    //    so if user already created a 'Geospatial issue' assertion and he now creates a new one, new one will overwrite old one
+    //    normal assertion is unique by recordId + userId + code
+    // 2. for verified assertion (whose code == 50000), it's uniquely related to an assertion.
+    //    so if there's already a verification for an assertion, a newly created verification on same assertion will overwrite existing one
+    //    verification is unique per assertion
     private UserAssertions getCombinedAssertions(UserAssertions existingAssertions, UserAssertions newAssertions) {
         // un-verified assertions grouped by recordId + code + userId
         Map<Integer, QualityAssertion> existingAssertionsMap =

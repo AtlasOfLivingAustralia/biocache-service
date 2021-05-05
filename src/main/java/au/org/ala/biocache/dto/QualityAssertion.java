@@ -40,14 +40,14 @@ public class QualityAssertion {
     }
 
     public QualityAssertion(ErrorCode errorCode, String comment) {
-        super();
+        this();
         this.name = errorCode.name;
         this.code = errorCode.code;
         this.comment = comment;
     }
 
     public QualityAssertion(ErrorCode errorCode, Integer qaStatus) {
-        super();
+        this();
         this.name = errorCode.name;
         this.code = errorCode.code;
         this.qaStatus = qaStatus;
