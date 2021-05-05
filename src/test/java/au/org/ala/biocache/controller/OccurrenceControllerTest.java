@@ -113,14 +113,6 @@ public class OccurrenceControllerTest extends TestCase {
     }
 
     @Test
-    public void getRecordAssertionsTest() throws Exception {
-        this.mockMvc.perform(get("/occurrences/41fcf3f2-fa7b-4ba6-a88c-4ac5240c8aab/assertions")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
-    }
-
-    @Test
     public void allRecordsSearchTest() throws Exception {
 
         this.mockMvc.perform(get("/occurrences/search")
