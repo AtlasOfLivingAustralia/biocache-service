@@ -3,6 +3,7 @@ package au.org.ala.biocache.controller;
 import au.org.ala.biocache.dto.QualityAssertion;
 import au.org.ala.biocache.dto.UserAssertions;
 import au.org.ala.biocache.service.AssertionService;
+import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.web.AssertionController;
 import junit.framework.TestCase;
 import org.junit.Before;
@@ -61,6 +62,7 @@ public class AssertionsControllerTest extends TestCase {
 
     @Before
     public void setupBeforeClass() throws Exception {
+        SolrUtils.setupIndex();
         assertionService = mock(AssertionService.class);
         ReflectionTestUtils.setField(assertionController, "assertionService", assertionService);
     }
