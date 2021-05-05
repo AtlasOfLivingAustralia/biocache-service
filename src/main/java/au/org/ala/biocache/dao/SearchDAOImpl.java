@@ -300,7 +300,9 @@ public class SearchDAOImpl implements SearchDAO {
         logger.debug("Initialising SearchDAOImpl");
 
         // TODO: There was a note about possible issues with the following two lines
-        Set<IndexFieldDTO> indexedFields = indexDao.getIndexedFields();
+        Set<IndexFieldDTO> indexedFields = indexDao.getIndexedFields(true);
+        indexDao.getSchemaFields(true);
+
         if (downloadFields == null) {
             downloadFields = new DownloadFields(fieldMappingUtil, indexedFields, messageSource, layersService, listsService);
         } else {
@@ -3724,7 +3726,9 @@ public class SearchDAOImpl implements SearchDAO {
         return null;
     }
 
-    private SolrQuery createHeatmapQuery(SpatialSearchRequestParams searchParams, Double minx, Double miny, Double maxx, Double maxy, boolean isGrid) {
+private SolrQuery createHeatmapQuery(SpatialSearchRequestParams searchParams, Double minx, Double miny, Double maxx, Double maxy, boolean isGrid) throws QidMissingException {
+
+        queryFormatUtils.formatSearchQuery(searchParams, true);
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
         solrQuery.set("facet.heatmap", spatialField);

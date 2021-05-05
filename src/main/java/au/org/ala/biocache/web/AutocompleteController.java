@@ -31,7 +31,7 @@ import java.util.Map;
 public class AutocompleteController extends AbstractSecureController {
 
     @Inject
-    protected SpeciesLookupService speciesLookupIndexService;
+    protected SpeciesLookupService speciesLookupService;
 
     @RequestMapping(value = "autocomplete/search", method = RequestMethod.GET)
     public
@@ -45,6 +45,6 @@ public class AutocompleteController extends AbstractSecureController {
             @RequestParam(value = "counts", required = false, defaultValue = "true") Boolean counts) throws Exception {
 
 
-        return speciesLookupIndexService.search(query, filterQuery, max, searchSynonyms, includeAll, counts);
+        return speciesLookupService.search(query, filterQuery, max, searchSynonyms, includeAll, counts);
     }
 }

@@ -31,9 +31,9 @@ import java.util.*;
  *
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
-public class SpeciesLookupRestService implements SpeciesLookupService {
+public class BieSpeciesLookupService implements SpeciesLookupService {
 
-    private final static Logger logger = Logger.getLogger(SpeciesLookupRestService.class);
+    private final static Logger logger = Logger.getLogger(BieSpeciesLookupService.class);
 
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
 
@@ -54,6 +54,7 @@ public class SpeciesLookupRestService implements SpeciesLookupService {
 
 
     private Map<String, String> guidForNameCache = new HashMap();
+
 
     /**
      * @see SpeciesLookupService#getGuidForName(String)

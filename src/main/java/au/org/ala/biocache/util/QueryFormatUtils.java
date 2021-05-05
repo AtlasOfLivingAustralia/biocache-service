@@ -73,10 +73,7 @@ public class QueryFormatUtils {
     protected Pattern speciesListPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|'|-)species_list:\"?(dr[0-9]*)\"?");
     protected Pattern urnPattern = Pattern.compile("\\burn:[a-zA-Z0-9\\.:-]*");
     protected Pattern httpPattern = Pattern.compile("http:[a-zA-Z0-9/\\.:\\-_]*");
-    protected Pattern spacesPattern = Pattern.compile("[^\\s\"\\(\\)\\[\\]{}']+|\"[^\"]*\"|'[^']*'");
     protected Pattern uidPattern = Pattern.compile("(?:[\"]*)?((?:[a-z_]*_uid:)|(?:[a-zA-Z]*Uid:))(\\w*)(?:[\"]*)?");
-    protected Pattern uidPattern10 = Pattern.compile("(?:[\"]*)?([a-z_]*_uid:)(\\w*)(?:[\"]*)?");
-    protected Pattern uidPattern20 = Pattern.compile("(?:[\"]*)?([a-zA-Z]*Uid:)(\\w*)(?:[\"]*)?");
     protected Pattern spatialPattern = Pattern.compile(spatialField + ":\"Intersects\\([a-zA-Z=\\-\\s0-9\\.\\,():]*\\)\\\"");
     protected Pattern qidPattern = QidCacheDAO.qidPattern;//Pattern.compile("qid:[0-9]*");
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
@@ -109,7 +106,7 @@ public class QueryFormatUtils {
         this.maxBooleanClauses = maxBooleanClauses;
     }
 
-    public Map[] formatSearchQuery(SpatialSearchRequestParams searchParams) {
+    public Map[] formatSearchQuery(SpatialSearchRequestParams searchParams) throws QidMissingException {
         return formatSearchQuery(searchParams, false);
     }
 
@@ -123,7 +120,7 @@ public class QueryFormatUtils {
      * @return
      */
 //    @Cacheable(cacheName = "formatSearchQuery")
-    public Map[] formatSearchQuery(SpatialSearchRequestParams searchParams, boolean forceQueryFormat) {
+    public Map[] formatSearchQuery(SpatialSearchRequestParams searchParams, boolean forceQueryFormat) throws QidMissingException{
         Map<String, Facet> activeFacetMap = new HashMap();
         Map<String, List<Facet>> activeFacetObj = new HashMap<>();
         Map[] fqMaps = {activeFacetMap, activeFacetObj};
@@ -262,27 +259,6 @@ public class QueryFormatUtils {
         }
     }
 
-    public Qid extractQid(String query){
-
-        if (query == null){
-            return null;
-        }
-
-        Qid qid = null;
-        Matcher matcher = qidPattern.matcher(query);
-        while (matcher.find()) {
-            String value = matcher.group();
-            try {
-                String qidValue = SearchUtils.stripEscapedQuotes(value.substring(4));
-                qid = qidCacheDao.get(qidValue);
-            } catch (Exception e){
-                logger.error("Unable to retrieve QID from query " + query, e);
-            }
-        }
-
-        return qid;
-    }
-
     /**
      * Replace query qid value with actual query.
      *
@@ -292,7 +268,7 @@ public class QueryFormatUtils {
      * @param searchParams
      * @return
      */
-    private String [] formatQid(String query, SpatialSearchRequestParams searchParams) {
+    private String [] formatQid(String query, SpatialSearchRequestParams searchParams) throws QidMissingException{
         String q = query;
         String displayString = query;
         if (query != null && query.contains("qid:")) {
@@ -329,10 +305,10 @@ public class QueryFormatUtils {
                         }
 
                         count = count + 1;
+                    } else {
+                        throw new QidMissingException("Unrecognised QID: " + searchParams.getQ()    );
                     }
                 } catch (NumberFormatException e) {
-                    logger.error(e.getMessage(), e);
-                } catch (QidMissingException e) {
                     logger.error(e.getMessage(), e);
                 }
             }
@@ -508,7 +484,7 @@ public class QueryFormatUtils {
                 List<String> strings;
 
                 strings = lsids.stream()
-                        .map(searchUtils::getTaxonSearch20)
+                        .map(searchUtils::getTaxonSearch)
                         .filter(t -> t.length > 1)
                         .map(t -> t[0])
                         .collect(toList());
@@ -699,7 +675,7 @@ public class QueryFormatUtils {
      * @param current String [] { displayString, formattedQuery } to update.
      * @return true iff this is a spatial query.
      */
-    private boolean formatSpatial(String [] current) {
+    private boolean formatSpatial(String [] current) throws QidMissingException {
         if(current == null || current.length < 2 || current[1] == null){
             return false;
         }
@@ -830,7 +806,7 @@ public class QueryFormatUtils {
      * @param searchParams The search parameters.
      * @return String [] { displayString, formattedQuery }
      */
-    public String [] formatQueryTerm(String query, SpatialSearchRequestParams searchParams) {
+    public String [] formatQueryTerm(String query, SpatialSearchRequestParams searchParams) throws QidMissingException {
         String [] formatted = formatQid(query, searchParams);
 
         formatTerms(formatted);

@@ -5,26 +5,21 @@ import au.org.ala.biocache.dto.SpeciesImageDTO;
 import au.org.ala.biocache.util.OccurrenceUtils;
 import au.org.ala.names.ws.api.NameUsageMatch;
 import au.org.ala.names.ws.client.ALANameUsageMatchServiceClient;
-import au.org.ala.ws.ClientConfiguration;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.util.ClientUtils;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import javax.inject.Inject;
-import java.net.URL;
 import java.util.*;
 
 /**
  * Index based lookup index serice
  */
-public class SpeciesLookupIndexService implements SpeciesLookupService {
+public class NameMatchSpeciesLookupService implements SpeciesLookupService {
     /** Logger initialisation */
-    private final static Logger logger = Logger.getLogger(SpeciesLookupIndexService.class);
+    private final static Logger logger = Logger.getLogger(NameMatchSpeciesLookupService.class);
 
     private AbstractMessageSource messageSource; // use for i18n of the headers
 
@@ -46,46 +41,25 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
     @Inject
     protected LayersService layersService;
 
-    protected String nameIndexLocation;
+    @Inject
+    private ALANameUsageMatchServiceClient nameUsageMatchService = null;
 
-    private volatile ALANameUsageMatchServiceClient nameIndex = null;
 
-    @Value("${namesearch.url:http://localhost:9179}")
-    String nameSearchUrl = "http://localhost:9179";
-
-    @Value("${namesearch.timeout:30}")
-    Integer nameSearchTimeout = 30;
-
-    @Value("${namesearch.cache.size:50}")
-    Integer nameSearchCacheSize = 50;
-
-    @PostConstruct
-    public void init() throws Exception {
-        ClientConfiguration clientConfiguration =
-                ClientConfiguration.builder()
-                        .baseUrl(new URL(nameSearchUrl))
-                        .timeOut(nameSearchTimeout * 1000) // Geocode service connection time-out
-                        .cacheSize(nameSearchCacheSize * 1024 * 1024)
-                        .build();
-
-        nameIndex = new ALANameUsageMatchServiceClient(clientConfiguration);
-    }
-
-    @PreDestroy
-    public void destroy() {
-        try {
-            nameIndex.close();
-        } catch (Exception e) {
-            //log.error("Unable to close", e);
-            throw new RuntimeException("Unable to close");
-        }
-    }
+//    @PreDestroy
+//    public void destroy() {
+//        try {
+//            nameUsageMatchService.close();
+//        } catch (Exception e) {
+//            //log.error("Unable to close", e);
+//            throw new RuntimeException("Unable to close");
+//        }
+//    }
 
     @Override
     public String getGuidForName(String name) {
         String lsid = null;
         try {
-            lsid = nameIndex.searchForLSID(name);
+            lsid = nameUsageMatchService.searchForLSID(name);
         } catch (Exception e) {
             logger.debug("Error searching for name: " + name + " -  " + e.getMessage(), e);
         }
@@ -95,7 +69,7 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
 
     @Override
     public String getAcceptedNameForGuid(String guid) {
-        NameUsageMatch nsr = nameIndex.match(guid);
+        NameUsageMatch nsr = nameUsageMatchService.match(guid);
         if (nsr != null) {
             return nsr.getScientificName();
         } else {
@@ -119,16 +93,16 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         List<String[]> results = new ArrayList<String[]>(guids.size());
         int idx = 0;
         for(String guid : guids){
-            NameUsageMatch nsr = nameIndex.match(guid);
+            NameUsageMatch nsr = nameUsageMatchService.match(guid);
             if(nsr == null){
-                String lsid = nameIndex.searchForLSID(guid);
+                String lsid = nameUsageMatchService.searchForLSID(guid);
                 if(lsid != null){
-                    nsr = nameIndex.match(lsid);
+                    nsr = nameUsageMatchService.match(lsid);
                 } else if (guid != null && StringUtils.countMatches(guid, "|") == 4){
                     //is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
                     if (guid.startsWith("\"") && guid.endsWith("\"") && guid.length() > 2) guid = guid.substring(1, guid.length() - 1);
                     lsid = guid.split("\\|", 6)[1];
-                    nsr = nameIndex.match(lsid);
+                    nsr = nameUsageMatchService.match(lsid);
                 }
             }
 
@@ -234,22 +208,19 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
 
     @Override
     public List<String> getGuidsForTaxa(List<String> taxaQueries) {
-        return nameIndex.getGuidsForTaxa(taxaQueries);
+        return nameUsageMatchService.getGuidsForTaxa(taxaQueries);
     }
 
     public void setMessageSource(AbstractMessageSource messageSource) {
         this.messageSource = messageSource;
     }
-
-    public void setNameIndexLocation(String nameIndexLocation) {
-        this.nameIndexLocation = nameIndexLocation;
-    }
     
     public Map search(String query, String[] filterQuery, int max, boolean includeSynonyms, boolean includeAll, boolean includeCounts) {
-        // TODO: better method of dealing with records with 0 occurrences being removed. 
+
+        // TODO: better method of dealing with records with 0 occurrences being removed.
         int maxFind = includeAll ? max : max + 1000;
 
-        List<Map> results = nameIndex.autocomplete(ClientUtils.escapeQueryChars(query), maxFind, includeSynonyms);
+        List<Map> results = nameUsageMatchService.autocomplete(ClientUtils.escapeQueryChars(query), maxFind, includeSynonyms);
 
         List<Map> output = new ArrayList();
 
@@ -405,7 +376,7 @@ public class SpeciesLookupIndexService implements SpeciesLookupService {
         formatted.put("highlight", highlight);
 
         if (m.get("commonname") == null) {
-            Set<String> commonNames = nameIndex.getCommonNamesForLSID((String) m.get("lsid"), 1000);
+            Set<String> commonNames = nameUsageMatchService.getCommonNamesForLSID((String) m.get("lsid"), 1000);
             if (!commonNames.isEmpty()) {
                 m.put("commonname", commonNames.iterator().next());
                 m.put("commonnames", commonNames);

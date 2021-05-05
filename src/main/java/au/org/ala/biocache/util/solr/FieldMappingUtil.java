@@ -23,23 +23,16 @@ public class FieldMappingUtil {
     private Map<String, String> fieldMappings = new Hashtable<>();
     private Map<String, Map<String, String>> enumValueMappings = new Hashtable<>();
 
-    @Value("${solr.deprecated.enumvalues.config:/data/biocache/config/deprecated-enum-values.json}")
-    void setDeprecatedEnumValuesConfig(String deprecatedEnumValuesConfig) throws IOException {
+    @Value("${solr.pipelines.field.config:/data/biocache/config/pipelines-field-config.json}")
+    void setPipelinesFieldConfig(String pipelinesFieldConfig) throws IOException {
 
-        if (deprecatedEnumValuesConfig != null && new File(deprecatedEnumValuesConfig).exists()) {
-
-            ObjectMapper om = new ObjectMapper();
-            enumValueMappings = om.readValue(new File(deprecatedEnumValuesConfig), HashMap.class);
-        }
-    }
-
-    @Value("${solr.deprecated.fields.config:/data/biocache/config/deprecated-fields.json}")
-    void setDeprecatedFieldsConfig(String deprecatedFieldsConfig) throws IOException {
-
-        if (deprecatedFieldsConfig != null && new File(deprecatedFieldsConfig).exists()) {
+        if (pipelinesFieldConfig != null && new File(pipelinesFieldConfig).exists()) {
 
             ObjectMapper om = new ObjectMapper();
-            fieldMappings = om.readValue(new File(deprecatedFieldsConfig), HashMap.class);
+            Map<String, Object> fieldConfig = om.readValue(new File(pipelinesFieldConfig), HashMap.class);
+
+            fieldMappings = (Map<String, String>) fieldConfig.get("fieldNameMapping");
+            enumValueMappings = (Map<String, Map<String, String>>) fieldConfig.get("fieldValueMapping");
         }
     }
 
@@ -112,7 +105,7 @@ public class FieldMappingUtil {
                 sb.append(translatedFieldName);
                 sb.append(":");
 
-                prevTerm = queryTerm;
+                prevTerm = translatedFieldName;
                 prevEnd = matcher.end();
 
                 result = matcher.find();
@@ -131,7 +124,7 @@ public class FieldMappingUtil {
 
     private String translateQueryValue(String term, String value) {
 
-        if (enumValueMappings == null) {
+        if (enumValueMappings == null || term == null) {
             return value;
         }
 
