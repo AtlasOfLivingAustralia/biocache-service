@@ -15,15 +15,13 @@
 package au.org.ala.biocache.web;
 
 
-import au.org.ala.biocache.dao.StoreDAO;
 import au.org.ala.biocache.dto.*;
+import au.org.ala.biocache.service.AssertionService;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.util.AssertionUtils;
-import au.org.ala.biocache.util.OccurrenceUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.log4j.Logger;
-import org.apache.solr.common.SolrDocument;
 import org.gbif.api.vocabulary.InterpretationRemarkSeverity;
 import org.gbif.api.vocabulary.NameUsageIssue;
 import org.gbif.api.vocabulary.OccurrenceIssue;
@@ -35,10 +33,9 @@ import org.springframework.web.bind.annotation.*;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.net.HttpURLConnection;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * This controller provides web services for assertion creation/deletion.
@@ -59,9 +56,7 @@ public class AssertionController extends AbstractSecureController {
     @Inject
     private AbstractMessageSource messageSource;
     @Inject
-    private StoreDAO storeDao;
-    @Inject
-    private OccurrenceUtils occurrenceUtils;
+    private AssertionService assertionService;
 
     /**
      * Retrieve an array of the assertion codes in use by the processing system
@@ -72,27 +67,27 @@ public class AssertionController extends AbstractSecureController {
     @RequestMapping(value = {"/assertions/codes", "/assertions/codes/"}, method = RequestMethod.GET)
     public @ResponseBody
     ErrorCode[] showCodes() throws Exception {
-        return applyi18n(OccurrenceIssue.values());
+        return applyi18n(AssertionCodes.getAll());
     }
 
     @RequestMapping(value = {"/assertions/geospatial/codes", "/assertions/geospatial/codes/"}, method = RequestMethod.GET)
     public @ResponseBody ErrorCode[] showGeospatialCodes() throws Exception {
-        return applyi18n(OccurrenceIssue.values());
+        return applyi18n(AssertionCodes.getGeospatialCodes());
     }
 
     @RequestMapping(value = {"/assertions/taxonomic/codes", "/assertions/taxonomic/codes/"}, method = RequestMethod.GET)
     public @ResponseBody ErrorCode[] showTaxonomicCodes() throws Exception {
-        return applyi18n(NameUsageIssue.values());
+        return applyi18n(AssertionCodes.getTaxonomicCodes());
     }
 
     @RequestMapping(value = {"/assertions/temporal/codes", "/assertions/temporal/codes/"}, method = RequestMethod.GET)
     public @ResponseBody ErrorCode[] showTemporalCodes() throws Exception {
-        return applyi18n(OccurrenceIssue.values());
+        return applyi18n(AssertionCodes.getTemporalCodes());
     }
 
     @RequestMapping(value = {"/assertions/miscellaneous/codes", "/assertions/miscellaneous/codes/"}, method = RequestMethod.GET)
     public @ResponseBody ErrorCode[] showMiscellaneousCodes() throws Exception {
-        return applyi18n(OccurrenceIssue.values());
+        return applyi18n(AssertionCodes.getMiscellaneousCodes());
     }
 
     @RequestMapping(value = {"/assertions/user/codes", "/assertions/user/codes/"}, method = RequestMethod.GET)
@@ -120,7 +115,7 @@ public class AssertionController extends AbstractSecureController {
             @RequestParam(value = "userAssertionStatus", required = false) String userAssertionStatus,
             @RequestParam(value = "assertionUuid", required = false) String assertionUuid,
             HttpServletResponse response) throws Exception {
-        addAssertion(recordUuid, request,apiKey, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, response);
+        addAssertion(recordUuid, request, apiKey, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, response);
     }
     /**
      * Adds a bulk list of assertions.
@@ -142,44 +137,42 @@ public class AssertionController extends AbstractSecureController {
                                   @RequestParam(value = "userId", required = true) String userId,
                                   @RequestParam(value = "userDisplayName", required = true) String userDisplayName,
                                   HttpServletResponse response) throws Exception {
-        ObjectMapper om = new ObjectMapper();
-        try {
-            //check to see that the assertions have come from a valid source before adding
-            if (shouldPerformOperation(request, response)) {
-                List<java.util.Map<String, String>> assertions = om.readValue(json, new TypeReference<List<Map<String, String>>>() {
-                });
-                logger.debug("The assertions in a list of maps: " + assertions);
-                for (java.util.Map<String, String> assertion : assertions) {
-                    String code = String.valueOf(assertion.get("code"));
-                    String comment = assertion.get("comment");
-                    String recordUuid = assertion.get("recordUuid");
-                    String assertionUuid = assertion.get("assertionUuid");
-                    String userAssertionStatus = String.valueOf(assertion.get("userAssertionStatus"));
-                    QualityAssertion qa = new QualityAssertion();
-                    qa.setUuid(recordUuid);
-                    qa.setCode(Integer.parseInt(code));
-                    qa.setComment(comment);
-                    qa.setUserId(userId);
-                    qa.setUserDisplayName(userDisplayName);
-                    if (code.equals(Integer.toString(AssertionCodes.VERIFIED.getCode()))) {
-                        qa.setRelatedUuid(assertionUuid);
-                        qa.setQaStatus(Integer.parseInt(userAssertionStatus));
-                    } else {
-                        qa.setQaStatus(AssertionStatus.QA_UNCONFIRMED);
+        //check to see that the assertions have come from a valid source before adding
+        if (shouldPerformOperation(request, response)) {
+            ObjectMapper om = new ObjectMapper();
+            List<Map<String, String>> assertions = om.readValue(json, new TypeReference<List<Map<String, String>>>() {});
+            logger.debug("The assertions in a list of maps: " + assertions);
+
+            // uuid -> [assertion, assertion]
+            Map<String, List<Map<String, String>>> uuidMappedAssertions = assertions.stream().collect(Collectors.groupingBy(assertion -> (String)assertion.get("recordUuid")));
+
+            uuidMappedAssertions.forEach((uuid, maps) -> {
+                try {
+                    UserAssertions userAssertions = new UserAssertions();
+                    for (Map<String, String> as : maps) {
+                        QualityAssertion qa = new QualityAssertion();
+                        Integer code = Integer.parseInt(as.get("code"));
+                        qa.setCode(code);
+                        if (code.equals(AssertionCodes.VERIFIED.getCode())) {
+                            qa.setRelatedUuid(as.get("assertionUuid"));
+                            qa.setQaStatus(Integer.parseInt(as.get("userAssertionStatus")));
+                        } else {
+                            qa.setQaStatus(AssertionStatus.QA_UNCONFIRMED);
+                        }
+
+                        qa.setComment(as.get("comment"));
+                        qa.setUserId(userId);
+                        qa.setUserDisplayName(userDisplayName);
+                        qa.setReferenceRowKey(uuid);
+                        userAssertions.add(qa);
                     }
 
-                    // get dataResourceUid
-                    SolrDocument sd = occurrenceUtils.getOcc(recordUuid);
-                    if (sd != null) {
-                        qa.setDataResourceUid((String) sd.getFieldValue("dataResourceUid"));
-                    }
-
-                    storeDao.put(qa.getUuid(), qa);
+                    assertionService.bulkAddAssertions(uuid, userAssertions);
+                } catch (IOException e) {
+                    logger.error("Failed to bulk add assertions for record: " + uuid);
+                    logger.error(e.getMessage(), e);
                 }
-            }
-        } catch(Exception e) {
-            logger.error(e.getMessage(),e);
-            response.sendError(HttpURLConnection.HTTP_BAD_REQUEST);
+            });
         }
     }
 
@@ -201,37 +194,18 @@ public class AssertionController extends AbstractSecureController {
 
         if (shouldPerformOperation(request, response)) {
             try {
-                logger.debug("Adding assertion to:" + recordUuid + ", code:" + code + ", comment:" + comment
-                        + ",userAssertionStatus: " + userAssertionStatus + ", assertionUuid: " + assertionUuid
-                        + ", userId:" + userId + ", userDisplayName:" + userDisplayName);
-
-                QualityAssertion qa = new QualityAssertion();
-                qa.setUuid(recordUuid);
-                qa.setCode(Integer.parseInt(code));
-                qa.setComment(comment);
-                qa.setUserId(userId);
-                qa.setUserDisplayName(userDisplayName);
-                if (code.equals(Integer.toString(AssertionCodes.VERIFIED.getCode()))) {
-                    qa.setRelatedUuid(assertionUuid);
-                    qa.setQaStatus(Integer.parseInt(userAssertionStatus));
+                Optional<QualityAssertion> qa = assertionService.addAssertion(recordUuid, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid);
+                if (qa.isPresent()) {
+                    String server = request.getSession().getServletContext().getInitParameter("serverName");
+                    response.setHeader("Location", server + "/occurrences/" + recordUuid + "/assertions/" + qa.get().getUuid());
+                    response.setStatus(HttpServletResponse.SC_CREATED);
                 } else {
-                    qa.setQaStatus(AssertionStatus.QA_UNCONFIRMED);
+                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 }
-
-                // get dataResourceUid
-                SolrDocument sd = occurrenceUtils.getOcc(recordUuid);
-                if (sd != null) {
-                    qa.setDataResourceUid((String) sd.getFieldValue("dataResourceUid"));
-                }
-
-                storeDao.put(recordUuid, qa);
-
-                String server = request.getSession().getServletContext().getInitParameter("serverName");
-                response.setHeader("Location", server + "/occurrences/" + recordUuid + "/assertions/" + qa.getUuid());
-                response.setStatus(HttpServletResponse.SC_CREATED);
-            } catch (Exception e) {
+            } catch (IOException e) {
+                logger.error("Failed to add assertion for record " + recordUuid);
                 logger.error(e.getMessage(), e);
-                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
             }
         }
     }
@@ -271,13 +245,15 @@ public class AssertionController extends AbstractSecureController {
 
         if(shouldPerformOperation(request, response)) {
             try {
-                UserAssertions ua = storeDao.get(UserAssertions.class, recordUuid);
-                ua.deleteUuid(assertionUuid);
-                storeDao.put(recordUuid, ua);
-
-                response.setStatus(HttpServletResponse.SC_OK);
-            } catch (Exception e) {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+                if (assertionService.deleteAssertion(recordUuid, assertionUuid)) {
+                    response.setStatus(HttpServletResponse.SC_OK);
+                } else {
+                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "recordUuid " + recordUuid + " or assertionUuid " + assertionUuid + " doesn't exist");
+                }
+            } catch (IOException e) {
+                logger.error("Failed to delete assertion [id: " + assertionUuid + "] for record " + recordUuid);
+                logger.error(e.getMessage(), e);
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
             }
         }
     }
@@ -303,22 +279,20 @@ public class AssertionController extends AbstractSecureController {
             @PathVariable(value = "recordUuid") String recordUuid,
             @PathVariable(value = "assertionUuid") String assertionUuid,
             HttpServletResponse response) throws Exception {
-        UserAssertions ua = storeDao.get(UserAssertions.class, recordUuid);
-        if (ua != null) {
-            for (QualityAssertion qa : ua) {
-                if (qa.getUuid().equals(assertionUuid)) {
-                    // do not return the snapshot
-                    qa.setSnapshot(null);
 
-                    return qa;
-                }
+        try {
+            QualityAssertion assertion = assertionService.getAssertion(recordUuid, assertionUuid);
+            if (assertion != null) {
+                return assertion;
+            } else {
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
             }
-            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-            return null;
-        } else {
-            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-            return null;
+        } catch (IOException e) {
+            logger.error("Failed to get assertion [id: " + assertionUuid + "] for record " + recordUuid);
+            logger.error(e.getMessage(), e);
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
         }
+        return null;
     }
 
 
@@ -330,15 +304,13 @@ public class AssertionController extends AbstractSecureController {
         @PathVariable(value="recordUuid") String recordUuid,
         HttpServletResponse response
     ) throws Exception {
-        UserAssertions assertions = storeDao.get(UserAssertions.class, recordUuid);
-        if (assertions == null) {
-            return new ArrayList();
-        } else {
-            // do not return the snapshot
-            for (QualityAssertion qa : assertions) {
-                qa.setSnapshot(null);
-            }
-            return assertions;
+        try {
+            return assertionService.getAssertions(recordUuid);
+        } catch (Exception e) {
+            logger.error("Failed to get assertions for record " + recordUuid);
+            logger.error(e.getMessage(), e);
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+            return null;
         }
     }
 
@@ -349,7 +321,7 @@ public class AssertionController extends AbstractSecureController {
             @PathVariable(value = "recordUuid") String recordUuid,
             HttpServletResponse response
     ) throws Exception {
-        return new ArrayList();
+        return new ArrayList<>();
     }
 
     public void setAssertionUtils(AssertionUtils assertionUtils) {
@@ -377,7 +349,7 @@ public class AssertionController extends AbstractSecureController {
                     nameUsageIssues[i].ordinal(),
                     nameUsageIssues[i].getSeverity().equals(InterpretationRemarkSeverity.ERROR),
                     messageSource.getMessage(nameUsageIssues[i].name(), null, nameUsageIssues[i].name(), null),
-                    ErrorCode.Category.taxonomic);
+                    ErrorCode.Category.Taxonomic);
         }
         return formattedErrorCodes;
     }
@@ -391,7 +363,7 @@ public class AssertionController extends AbstractSecureController {
                     occurrenceIssues[i].ordinal(),
                     occurrenceIssues[i].getSeverity().equals(InterpretationRemarkSeverity.ERROR),
                     messageSource.getMessage(occurrenceIssues[i].name(), null, occurrenceIssues[i].name(), null),
-                    ErrorCode.Category.geospatial);
+                    ErrorCode.Category.Geospatial);
         }
         return formattedErrorCodes;
     }
