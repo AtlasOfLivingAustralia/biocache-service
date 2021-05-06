@@ -33,7 +33,9 @@ import org.apache.solr.client.solrj.response.RangeFacet;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
+import org.apache.solr.common.util.NamedList;
 import org.eclipse.jetty.util.ConcurrentHashSet;
+import org.gbif.common.shaded.com.google.common.collect.Streams;
 import org.gbif.dwc.terms.DcTerm;
 import org.gbif.dwc.terms.DwcTerm;
 import org.gbif.dwc.terms.Term;
@@ -45,8 +47,10 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.CaseFormat.LOWER_CAMEL;
 import static com.google.common.base.CaseFormat.LOWER_UNDERSCORE;
@@ -86,7 +90,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
    * API to avoid confusion.
    */
   @Value(
-          "${index.fields.tohide:collector_text,location_determined,row_key,matched_name,decimal_latitudelatitude,collectors,default_values_used,generalisation_to_apply_in_metres,geohash,ibra_subregion,identifier_by,occurrence_details,text,photo_page_url,photographer,places,portal_id,quad,rem_text,occurrence_status_s,identification_qualifier_s}")
+          "${index.fields.tohide:_root_,_version_,collector_text,location_determined,row_key,matched_name,decimal_latitudelatitude,collectors,default_values_used,generalisation_to_apply_in_metres,geohash,ibra_subregion,identifier_by,occurrence_details,text,photo_page_url,photographer,places,portal_id,quad,rem_text,occurrence_status_s,identification_qualifier_s}")
   protected String indexFieldsToHide;
 
   protected Pattern layersPattern = Pattern.compile("(el|cl)[0-9abc]+");
@@ -263,8 +267,6 @@ public class SolrIndexDAOImpl implements IndexDAO {
     }
   }
 
-  boolean legacyTranslation = true;
-
   @Override
   public QueryResponse query(SolrParams query) throws Exception {
     int retry = 0;
@@ -438,7 +440,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
     params.set("tr", "luke.xsl");
     if (fields != null) {
-      params.set("fl", fields);
+      params.set("fl", String.join(",", fields));
       params.set("numTerms", "1");
     } else {
       // TODO: We should be caching the result locally without calling Solr in this case, as it is
@@ -447,6 +449,47 @@ public class SolrIndexDAOImpl implements IndexDAO {
     }
     QueryResponse response = query(params);
     return parseLukeResponse(response.toString(), fields != null);
+  }
+
+  @Override
+  public Set<String> getSchemaFields() throws Exception {
+
+    return getSchemaFields(false);
+  }
+
+  /**
+   * Returns details about the fields in the schema.
+   */
+  @Override
+  public Set<String> getSchemaFields(boolean update) throws Exception {
+
+    Set<String> result = schemaFields;
+
+    if (result.size() == 0 || update) {
+
+      synchronized (solrIndexVersionLock) {
+
+        result = schemaFields;
+        if (result.size() == 0 || update) {
+
+          ModifiableSolrParams params = new ModifiableSolrParams();
+          params.set("qt", "/admin/luke");
+          params.set("show", "schema");
+
+          QueryResponse response = query(params);
+
+          NamedList<Object> schemaFields = (NamedList) ((NamedList)response.getResponse().get("schema")).get("fields");
+
+          result = Streams.stream(schemaFields.iterator()).map(Map.Entry::getKey).collect(Collectors.toSet());
+
+          if (result != null && result.size() > 0) {
+            this.schemaFields = result;
+          }
+        }
+      }
+    }
+
+    return result;
   }
 
   @Override
@@ -563,6 +606,8 @@ public class SolrIndexDAOImpl implements IndexDAO {
                   },
                   HashMap.class);
 
+  private volatile Set<String> schemaFields = new HashSet();
+
   private void formatIndexField(
           String indexField,
           String cassandraField,
@@ -605,8 +650,6 @@ public class SolrIndexDAOImpl implements IndexDAO {
           f.setMultivalue(schema.contains("M"));
           f.setDocvalue(schema.contains("D"));
         }
-
-
 
         // now add the i18n and associated strings to the field.
         // 1. description: display name from fieldName= in i18n
@@ -679,12 +722,10 @@ public class SolrIndexDAOImpl implements IndexDAO {
           }
 
           // (3) check as a dwcTerm
-          String camelCase = LOWER_UNDERSCORE.to(LOWER_CAMEL, fieldName);
-
           Term term = null;
           try {
             // find matching Darwin core term
-            term = DwcTerm.valueOf(camelCase);
+            term = DwcTerm.valueOf(fieldName);
           } catch (IllegalArgumentException e) {
             // enum not found
           }
@@ -692,7 +733,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
           try {
             // find matching Dublin core terms that are not in miscProperties
             // include case fix for rightsHolder
-            term = DcTerm.valueOf(camelCase.replaceAll("rightsholder", "rightsHolder"));
+            term = DcTerm.valueOf(fieldName);
             dcterm = true;
           } catch (IllegalArgumentException e) {
             // enum not found
@@ -799,7 +840,6 @@ public class SolrIndexDAOImpl implements IndexDAO {
   /**
    * Returns details about the fields in the index.
    */
-  // @Cacheable(cacheName = "getIndexedFields")
   public Set<IndexFieldDTO> getIndexedFields(boolean update) throws Exception {
     Set<IndexFieldDTO> result = indexFields;
     if (result.size() == 0 || update) {

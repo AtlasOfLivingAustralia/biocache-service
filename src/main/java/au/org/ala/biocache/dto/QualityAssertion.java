@@ -1,6 +1,8 @@
 package au.org.ala.biocache.dto;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.TimeZone;
 import java.util.UUID;
 
 /**
@@ -10,7 +12,7 @@ import java.util.UUID;
  * Merged from biocache-store
  */
 public class QualityAssertion {
-    String uuid = UUID.randomUUID().toString();
+    String uuid;
     String dataResourceUid;
     String referenceRowKey;
     String name;
@@ -25,20 +27,27 @@ public class QualityAssertion {
     String userRole;
     String userEntityUid;
     String userEntityName;
-    String created = new Date().toString();
+    String created;
     String snapshot;
     Boolean problemAsserted = false;
 
     public QualityAssertion() {
+        uuid = UUID.randomUUID().toString();
+        // to ISO date format to compatible with existing database records
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        simpleDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        created = simpleDateFormat.format(new Date());
     }
 
     public QualityAssertion(ErrorCode errorCode, String comment) {
+        this();
         this.name = errorCode.name;
         this.code = errorCode.code;
         this.comment = comment;
     }
 
     public QualityAssertion(ErrorCode errorCode, Integer qaStatus) {
+        this();
         this.name = errorCode.name;
         this.code = errorCode.code;
         this.qaStatus = qaStatus;
@@ -74,6 +83,12 @@ public class QualityAssertion {
 
     public void setCode(Integer code) {
         this.code = code;
+        if (name == null) {
+            ErrorCode errorCode = AssertionCodes.getByCode(code);
+            if (errorCode != null) {
+                name = errorCode.getName();
+            }
+        }
     }
 
     public String getRelatedUuid() {

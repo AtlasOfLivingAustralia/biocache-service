@@ -26,6 +26,7 @@ import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
 import java.io.IOException;
+import java.util.Optional;
 
 import static au.org.ala.biocache.dto.OccurrenceIndex.ID;
 
@@ -63,7 +64,7 @@ public class AssertionUtils {
     public UserAssertions getUserAssertions(SolrDocument sd, Double version) throws IOException {
         if (sd.containsKey(ID)) {
             //set the user assertions
-            UserAssertions userAssertions = storeDao.get(UserAssertions.class, (String) sd.getFieldValue(OccurrenceIndex.ID));
+            UserAssertions userAssertions = storeDao.get(UserAssertions.class, (String) sd.getFieldValue(OccurrenceIndex.ID)).orElse(new UserAssertions());
             //Legacy integration - fix up the user assertions - legacy - to add replace with CAS IDs....
             for (QualityAssertion ua : userAssertions) {
                 // remove snapshot
@@ -79,11 +80,10 @@ public class AssertionUtils {
                 //add user roles....
                 enhanceQA(sd, ua, version);
             }
-
             return userAssertions;
-        } else {
-            return null;
         }
+
+        return null;
     }
 
     public QualityAssertion enhanceQA(SolrDocument sd, QualityAssertion ua, Double version) {

@@ -45,7 +45,7 @@ public class OccurrenceControllerTest extends TestCase {
 
     public final int TEST_INDEX_SIZE = 1000;
     public final int DEFAULT_SEARCH_PAGE_SIZE = 10;
-    public final int INDEXED_FIELD_SIZE = 272;
+    public final int INDEXED_FIELD_SIZE = 279;
 
     @Autowired
     OccurrenceController occurrenceController;
@@ -109,14 +109,6 @@ public class OccurrenceControllerTest extends TestCase {
 
         // log event should never be called
         verify(loggerService, never()).logEvent(any());
-    }
-
-    @Test
-    public void getRecordAssertionsTest() throws Exception {
-        this.mockMvc.perform(get("/occurrences/41fcf3f2-fa7b-4ba6-a88c-4ac5240c8aab/assertions")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test

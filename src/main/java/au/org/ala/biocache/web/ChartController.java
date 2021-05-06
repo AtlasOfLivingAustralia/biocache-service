@@ -17,15 +17,14 @@ package au.org.ala.biocache.web;
 import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
+import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
-import net.sf.ehcache.CacheManager;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.common.util.NamedList;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,9 +32,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import javax.annotation.Resource;
 import javax.inject.Inject;
-import javax.servlet.ServletContext;
 import java.io.Serializable;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -55,15 +52,12 @@ public class ChartController extends AbstractSecureController implements Seriali
      */
     @Inject
     protected SearchDAO searchDAO;
+
     @Inject
     protected IndexDAO indexDao;
 
-
-    @Autowired
-    private ServletContext servletContext;
-
-    @Resource(name = "cacheManager")
-    private CacheManager cacheManager;
+    @Inject
+    protected FieldMappingUtil fieldMappingUtil;
 
     @Value("${charts.series.max:5}")
     private Integer maxSeriesFacets;
@@ -74,6 +68,8 @@ public class ChartController extends AbstractSecureController implements Seriali
     @Value("${charts.facets.number.max:50}")
     private Integer maxNumberFacets;
 
+    @Value("#{'${charts.facets.numeric.avoid.ranges:month,year,decade}'.split(',')}")
+    private List<String> avoidRanges;
 
     /**
      * Supports various chart types
@@ -100,7 +96,6 @@ public class ChartController extends AbstractSecureController implements Seriali
      * @param x
      * @param xranges
      * @param stats
-     * @param response
      * @return
      * @throws Exception
      */
@@ -123,6 +118,8 @@ public class ChartController extends AbstractSecureController implements Seriali
               @RequestParam(value = "seriesmissing", required = false, defaultValue = "false") Boolean seriesmissing,
               @RequestParam(value = "xmissing", required = false, defaultValue = "true") Boolean xmissing,
               @RequestParam(value = "fsort", required = false, defaultValue = "index") String fsort) throws Exception {
+
+        x = fieldMappingUtil.translateFieldName(x);
 
         List<String> statTypes = Arrays.asList(statType.split(","));
         //construct series subqueries
@@ -410,9 +407,15 @@ public class ChartController extends AbstractSecureController implements Seriali
     }
 
     private boolean isNumber(String field) throws Exception {
+
+        if (avoidRanges.contains(field)){
+            return false;
+        }
+
         String[] numberType = new String[]{"int", "tint", "double", "tdouble", "long", "tlong", "float", "tfloat"};
         for (IndexFieldDTO f : indexDao.getIndexedFields()) {
-            if (f.getName().equalsIgnoreCase(field) && ArrayUtils.contains(numberType, f.getDataType())) return true;
+            if (f.getName().equalsIgnoreCase(field) && ArrayUtils.contains(numberType, f.getDataType()))
+                return true;
         }
         return false;
     }

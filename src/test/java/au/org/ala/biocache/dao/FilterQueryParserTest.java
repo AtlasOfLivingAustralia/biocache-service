@@ -6,11 +6,10 @@ import au.org.ala.biocache.dto.FacetThemes;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.service.DataQualityService;
 import au.org.ala.biocache.service.SpeciesLookupService;
-import au.org.ala.biocache.util.CollectionsCache;
-import au.org.ala.biocache.util.QueryFormatUtils;
-import au.org.ala.biocache.util.RangeBasedFacets;
-import au.org.ala.biocache.util.SearchUtils;
+import au.org.ala.biocache.util.*;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
+import au.org.ala.names.ws.api.NameUsageMatch;
+import au.org.ala.names.ws.client.ALANameUsageMatchServiceClient;
 import org.apache.commons.lang.StringUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -23,7 +22,6 @@ import org.mockito.runners.MockitoJUnitRunner;
 import org.springframework.context.MessageSource;
 import org.springframework.context.support.ReloadableResourceBundleMessageSource;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -31,7 +29,6 @@ import java.util.stream.Collectors;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Matchers.anyList;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.*;
@@ -50,6 +47,9 @@ public class FilterQueryParserTest {
     protected MessageSource messageSource;
 
     @Mock
+    protected ALANameUsageMatchServiceClient nameUsageMatchService;
+
+    @Mock
     private FieldMappingUtil fieldMappingUtil;
 
     @Mock
@@ -59,15 +59,6 @@ public class FilterQueryParserTest {
     QueryFormatUtils queryFormatUtils;
 
     protected Map<String, Facet> facetMap = null;
-
-//    String[] fqs = {
-//            "speciesID:urn:lsid:biodiversity.org.au:afd.taxon:2482313b-9d1e-4694-8f51-795213c8bb56",
-//            "collectionUid:co10",
-//            "institutionUid:in4 OR institutionUid:in22 OR institutionUid:in16 OR institution_uid:in6",
-//            "occurrenceYear:[1940-01-01T00:00:00Z%20TO%201949-12-31T00:00:00Z]",
-//            "collector:\"Copland, S J\" OR collector:\"Sadlier, R.\" OR collector:\"Mcreaddie, W\" OR collector:\"Rollo, G\" OR collector:\"Harlow, Pete\"",
-//            "month:09 OR month:10 OR month:11"
-//    };
 
     @Before
     public void setUp() throws Exception {
@@ -87,93 +78,17 @@ public class FilterQueryParserTest {
         ReflectionTestUtils.setField(queryFormatUtils, "searchUtils", searchUtils);
 
         ReflectionTestUtils.setField(searchUtils, "collectionCache", collectionCache);
-        ReflectionTestUtils.setField(searchUtils, "speciesLookupIndexService", speciesLookupService);
+        ReflectionTestUtils.setField(searchUtils, "nameUsageMatchService", nameUsageMatchService);
         ReflectionTestUtils.setField(searchUtils, "messageSource", messageSource);
         ReflectionTestUtils.setField(queryFormatUtils, "fieldMappingUtil", fieldMappingUtil);
 
         Mockito.when(fieldMappingUtil.translateQueryFields(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
 
         new FacetThemes("", null, 30, 30, true);
-
-//        final LinkedHashMap<String, String> collections =  new LinkedHashMap<String, String>();
-//        collections.put("co10", "found co10");
-//        collections.put("in4", "found in4");
-//        collections.put("in22", "found in22");
-//        collections.put("in16", "found in16");
-//        collections.put("in6", "found in6");
-//
-//        Mockito.when(speciesLookupService.getNamesForGuids(anyList())).thenReturn(Arrays.asList(new String[] {"found guid"}));
-//        Mockito.when(collectionCache.getCollections()).thenReturn(collections);
-//        Mockito.when(collectionCache.getInstitutions()).thenReturn(collections);
-
-        //update the collections cache - necessary because this is on a timer
-//        Set set = new java.util.HashSet<String>();
-//        CollectionUtils.mergeArrayIntoCollection("assertion_user_id,user_id,alau_user_id".split(","), set);
-//        SpatialSearchRequestParams query = new SpatialSearchRequestParams();
-//        query.setFq(fqs);
-//        facetMap = queryFormatUtils.formatSearchQuery(query, true)[0];
-
-    }
-
-//    @Test
-//    public void testFacetMapInit() {
-//        assertNotNull(facetMap);
-//    }
-/*
-    @Test
-    public void testAddFacetMap1() {
-        //FIXME
-        Facet sp = facetMap.get(fqs[0].substring(0, fqs[0].indexOf(':')));
-        assertNotNull(sp);
-        assertTrue(StringUtils.containsIgnoreCase(sp.getValue(),
-                "urn:lsid:biodiversity.org.au:afd.taxon:2482313b-9d1e-4694-8f51-795213c8bb56"));
-        assertTrue("got: " + sp.getDisplayName(), StringUtils.containsIgnoreCase(sp.getDisplayName(),
-                "Species:found guid"));
     }
 
     @Test
-    public void testAddFacetMap2() {
-        Facet in = facetMap.get(fqs[2].substring(0, fqs[2].indexOf(':')));
-        assertNotNull(in);
-        assertTrue(StringUtils.containsIgnoreCase(in.getValue(), "in4 OR institutionUid:in22 OR institutionUid:in16 OR institution_uid:in6"));
-        assertTrue("got: " + in.getDisplayName(), StringUtils.containsIgnoreCase(in.getDisplayName(), "<span>Institution: found in4</span> OR <span>Institution: found in22</span> OR <span>Institution: found in16</span> OR <span>Institution: found in6</span>"));
-    }
-
-    @Test
-    public void testAddFacetMap3() {
-        //FIXME
-        Facet co = facetMap.get(fqs[1].substring(0, fqs[1].indexOf(':')));
-        assertNotNull(co);
-        assertTrue(StringUtils.containsIgnoreCase(co.getValue(), "co10"));
-        assertTrue("got: " + co.getDisplayName(), StringUtils.containsIgnoreCase(co.getDisplayName(), "<span>Collection: found co10</span>"));
-    }
-
-    @Test
-    public void testAddFacetMap4() {
-        Facet od = facetMap.get(fqs[3].substring(0, fqs[3].indexOf(':')));
-        assertNotNull(od);
-        assertTrue(StringUtils.containsIgnoreCase(od.getValue(), "[1940-01-01T00:00:00Z%20TO%201949-12-31T00:00:00Z]"));
-        assertTrue("got: " + od.getDisplayName(), StringUtils.containsIgnoreCase(od.getDisplayName(), "Date (by decade):[1940-1949]"));
-    }
-
-    @Test
-    public void testAddFacetMap5() {
-        Facet col = facetMap.get(fqs[4].substring(0, fqs[4].indexOf(':')));
-        assertNotNull(col);
-        assertTrue("got: " + col.getValue(), StringUtils.containsIgnoreCase(col.getValue(), "Copland, S J\" OR collector:\"Sadlier, R.\" OR collector:\"Mcreaddie, W\" OR collector:\"Rollo, G\" OR collector:\"Harlow, Pete"));
-        assertTrue("got: " + col.getDisplayName(), StringUtils.containsIgnoreCase(col.getDisplayName(), "Collector:\"Copland, S J\" OR Collector:\"Sadlier, R.\" OR Collector:\"Mcreaddie, W\" OR Collector:\"Rollo, G\" OR Collector:\"Harlow, Pete\""));
-    }
-
-    @Test
-    public void testAddFacetMap6() {
-        Facet month = facetMap.get(fqs[5].substring(0, fqs[5].indexOf(':')));
-        assertNotNull(month);
-        assertTrue("got: " + month.getValue(), StringUtils.containsIgnoreCase(month.getValue(), "09 OR month:10 OR month:11"));
-        assertTrue("got: " + month.getDisplayName(), StringUtils.containsIgnoreCase(month.getDisplayName(), "Month:September OR Month:October OR Month:November"));
-    }
-*/
-    @Test
-    public void testFacetMap() {
+    public void testFacetMap() throws QidMissingException  {
 
         final LinkedHashMap<String, String> collections =  new LinkedHashMap<String, String>();
         collections.put("co10", "found co10");
@@ -182,7 +97,9 @@ public class FilterQueryParserTest {
         collections.put("in16", "found in16");
         collections.put("in6", "found in6");
 
-        Mockito.when(speciesLookupService.getNamesForGuids(anyList())).thenReturn(Arrays.asList(new String[] {"found guid"}));
+//        Mockito.when(speciesLookupService.getNamesForGuids(anyList())).thenReturn(Arrays.asList(new String[] {"found guid"}));
+        Mockito.when(nameUsageMatchService.get(anyString())).thenReturn(NameUsageMatch.builder().success(true).scientificName("found guid").build());
+
         Mockito.when(collectionCache.getCollections()).thenReturn(collections);
         Mockito.when(collectionCache.getInstitutions()).thenReturn(collections);
         Mockito.when(fieldMappingUtil.translateFieldName("speciesID")).thenReturn("speciesID");
@@ -250,7 +167,7 @@ public class FilterQueryParserTest {
     }
 
     @Test
-    public void testFqFormat() {
+    public void testFqFormat() throws QidMissingException {
 
         Mockito.when(fieldMappingUtil.translateFieldName("month")).thenReturn("month");
 
@@ -265,8 +182,6 @@ public class FilterQueryParserTest {
                 {"(month:\"09\" OR month:\"10\")", "(Month:\"September\" OR Month:\"October\")"}
         };
 
-
-
         for (String[] fq : fqs) {
             query.setFq(new String[] { fq[0] });
             Map<String, Facet> facetMap = queryFormatUtils.formatSearchQuery(query, true)[0];
@@ -276,7 +191,7 @@ public class FilterQueryParserTest {
     }
 
     @Test
-    public void testActiveFacetObj_validfq() {
+    public void testActiveFacetObj_validfq() throws QidMissingException {
         // test valid fqs
         List<Facet> facetList = new ArrayList<>();
         facetList.add(new Facet("month", "Month:\"August\"", "month:\"08\""));
@@ -306,7 +221,7 @@ public class FilterQueryParserTest {
         runFqParsingTest(facetList);
     }
 
-    private void runFqParsingTest(List<Facet> facets) {
+    private void runFqParsingTest(List<Facet> facets) throws QidMissingException {
         SpatialSearchRequestParams query = new SpatialSearchRequestParams();
 
         // collect values into fq list
@@ -317,7 +232,7 @@ public class FilterQueryParserTest {
     }
 
     @Test
-    public void testActiveFacetObj_invalidfq() {
+    public void testActiveFacetObj_invalidfq() throws QidMissingException {
         SpatialSearchRequestParams query = new SpatialSearchRequestParams();
         // Construct fq
         query.setFq(new String[] {null, "", " ", "month", "   month  ", "(month", "month)", "(month:\"11\"", "month\"11\"", ":\"11\"", "    :\"11\"", "(:\"11\")", "(    :\"11\")", "month:", "month:   ",  "(month:   )", "-(month:   )"});
