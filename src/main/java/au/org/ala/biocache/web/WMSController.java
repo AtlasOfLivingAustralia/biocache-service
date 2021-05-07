@@ -1513,25 +1513,36 @@ public class WMSController extends AbstractSecureController{
         if (!isGrid && vars.uncertainty) {
             List<LegendItem> uncertaintyLegend = new ArrayList();
             Double lastDistance = null;
+            double widthInDecimalDegrees = bbox[2] - bbox[0];
             for (Double d : getUncertaintyGrouping()) {
                 LegendItem li;
-                if (lastDistance == null) {
-
-                    li = new LegendItem(
-                            null, null, null, 0, "coordinateUncertaintyInMeters:[* TO " + d + "]");
-                } else if (lastDistance == getUncertaintyGrouping()[getUncertaintyGrouping().length - 1]) {
-                    li =
-                            new LegendItem(null, null, null, 0, "coordinateUncertaintyInMeters:(" + d + " TO *]");
-                } else {
-                    li =
-                            new LegendItem(null, null, null, 0, "coordinateUncertaintyInMeters:(" + lastDistance + " TO " + d + "]");
+                // skip if uncertainty radius is < pointWidth * 1.5 or radius is > tile width
+                if (widthInDecimalDegrees / (double) width * pointWidth * 1.5 < (d/100000.0) &&
+                        widthInDecimalDegrees > (d/100000.0)) {
+                    if (lastDistance == null) {
+                        li = new LegendItem(
+                                null, null, null, 0, "coordinateUncertaintyInMeters:[* TO " + d + "]");
+                        li.setColour(0xffaa00);
+                    } else if (lastDistance == getUncertaintyGrouping()[getUncertaintyGrouping().length - 2]) {
+                        li =
+                                new LegendItem(null, null, null, lastDistance.intValue(), "coordinateUncertaintyInMeters:{" + d + " TO *]");
+                        li.setColour(0x32ff32);
+                    } else {
+                        li =
+                                new LegendItem(null, null, null, lastDistance.intValue(), "coordinateUncertaintyInMeters:{" + lastDistance + " TO " + d + "]");
+                        li.setColour(0xffaa00);
+                    }
+                    uncertaintyLegend.add(li);
                 }
-                legend.add(li);
                 lastDistance = d;
             }
 
-            uncertaintyHeatmap = searchDAO.getHeatMap(requestParams.getFormattedQuery(), requestParams.getFormattedFq(), bbox[0] - bWidth, bbox[1] - bHeight, bbox[2] + bWidth, bbox[3] + bHeight, uncertaintyLegend, 1);
-            uncertaintyHeatmap.setTileExtents(bbox);
+            if (uncertaintyLegend.size() > 0) {
+                // approximately a 30km buffer
+                double buffer = lastDistance / 100000.0 * 1.01;
+                uncertaintyHeatmap = searchDAO.getHeatMap(requestParams.getFormattedQuery(), requestParams.getFormattedFq(), bbox[0] - buffer, bbox[1] - buffer, bbox[2] + buffer, bbox[3] + buffer, uncertaintyLegend, 1);
+                uncertaintyHeatmap.setTileExtents(bbox);
+            }
         }
 
         if (heatmapDTO.layers == null) {
@@ -2823,38 +2834,35 @@ public class WMSController extends AbstractSecureController{
             layerIdx = 0;
             try {
                 for (List<List<Integer>> rows : uncertaintyHeatmap.layers) {
-                    // aproximate conversion of meters to decimal degrees (1:100000) followed by conversion to pixels
-                    GeneralDirectPosition coord1 = new GeneralDirectPosition(getUncertaintyGrouping()[layerIdx] / 100000.0, 0);
-                    GeneralDirectPosition coord2 = new GeneralDirectPosition(0, 0);
-                    DirectPosition pos1 = transformFrom4326.getMathTransform().transform(coord1, null);
-                    DirectPosition pos2 = transformFrom4326.getMathTransform().transform(coord2, null);
-                    int px1 = scaleLongitudeForImage(pos1.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
-                    int px2 = scaleLatitudeForImage(pos2.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
-                    int uncertaintyWidthInPixels = Math.abs(px1 - px2);
+                    if (rows != null) {
+                        // aproximate conversion of meters to decimal degrees (1:100000) followed by conversion to pixels
+                        GeneralDirectPosition coord1 = new GeneralDirectPosition(uncertaintyHeatmap.legend.get(layerIdx).getCount() / 100000.0, 0);
+                        GeneralDirectPosition coord2 = new GeneralDirectPosition(0, 0);
+                        DirectPosition pos1 = transformFrom4326.getMathTransform().transform(coord1, null);
+                        DirectPosition pos2 = transformFrom4326.getMathTransform().transform(coord2, null);
+                        int px1 = scaleLongitudeForImage(pos1.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
+                        int px2 = scaleLatitudeForImage(pos2.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
+                        int uncertaintyWidthInPixels = Math.abs(px1 - px2);
 
-                    // legacy colours for uncertainty circles
-                    String colour;
-                    if (layerIdx == getUncertaintyGrouping().length - 1) {
-                        colour = "0x32ff32";
-                    } else {
-                        colour = "0xffaa00";
+                        // legacy colours for uncertainty circles
+                        String colour = String.format("0x%06X", uncertaintyHeatmap.legend.get(layerIdx).getColour());
+
+                        renderLayer(
+                                uncertaintyHeatmap,
+                                vars,
+                                uncertaintyWidthInPixels,
+                                true,
+                                colour,
+                                false,
+                                (float) tileWidthInPx,
+                                (float) tileHeightInPx,
+                                imgObj,
+                                layerIdx,
+                                rows,
+                                transformFrom4326,
+                                tilebbox
+                        );
                     }
-
-                    renderLayer(
-                            uncertaintyHeatmap,
-                            vars,
-                            uncertaintyWidthInPixels,
-                            outlinePoints,
-                            colour,
-                            false,
-                            (float) tileWidthInPx,
-                            (float) tileHeightInPx,
-                            imgObj,
-                            layerIdx,
-                            rows,
-                            transformFrom4326,
-                            tilebbox
-                    );
                     layerIdx++;
                 }
             } catch (Exception e) {
@@ -2970,15 +2978,18 @@ public class WMSController extends AbstractSecureController{
                                     int px = scaleLongitudeForImage(targetCoords.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
                                     int py = scaleLatitudeForImage(targetCoords.getOrdinate(1), tilebbox[3], tilebbox[1], (int) tileHeightInPx);
 
-                                    if (heatmapDTO.legend != null && !heatmapDTO.legend.isEmpty()) {
-                                        currentFill = new Color(heatmapDTO.legend.get(layerIdx).getColour() | (vars.alpha << 24));
-                                        imgObj.g.setPaint(currentFill);
+                                    if (drawPointFill) {
+                                        if (heatmapDTO.legend != null && !heatmapDTO.legend.isEmpty()) {
+                                            currentFill = new Color(heatmapDTO.legend.get(layerIdx).getColour() | (vars.alpha << 24));
+                                            imgObj.g.setPaint(currentFill);
+                                        }
+
+                                        imgObj.g.fillOval(
+                                                px - (int) (pointWidth / 2),
+                                                py - (int) (pointWidth / 2),
+                                                (int) pointWidth,
+                                                (int) pointWidth);
                                     }
-                                    imgObj.g.fillOval(
-                                            px - (int) (pointWidth / 2),
-                                            py - (int) (pointWidth / 2),
-                                            (int) pointWidth,
-                                            (int) pointWidth);
 
                                     if (outlinePoints) {
                                         imgObj.g.setPaint(oColour);
@@ -3028,7 +3039,6 @@ public class WMSController extends AbstractSecureController{
                     x = scaleLongitudeForImage(targetCoords.getOrdinate(0), left, right, width);
                     y = scaleLatitudeForImage(targetCoords.getOrdinate(1), top, bottom, height);
 
-                    //System.out.println("Drawing an oval.....");
                     imgObj.g.fillOval(x - vars.size, y - vars.size, pointWidth, pointWidth);
                     if (outlinePoints) {
                         imgObj.g.setPaint(oColour);
