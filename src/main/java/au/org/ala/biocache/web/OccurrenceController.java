@@ -476,7 +476,9 @@ public class OccurrenceController extends AbstractSecureController {
                 "json name",
                 "stored",
                 "indexed",
-                "multivalue"
+                "multivalue",
+                "deprecated",
+                "newFieldName"
         });
 
         Iterator<IndexFieldDTO> iter = indexedFields.iterator();
@@ -494,7 +496,9 @@ public class OccurrenceController extends AbstractSecureController {
                     indexField.getJsonName(),
                     Boolean.toString(indexField.isStored()),
                     Boolean.toString(indexField.isIndexed()),
-                    Boolean.toString(indexField.isMultivalue())
+                    Boolean.toString(indexField.isMultivalue()),
+                    Boolean.toString((indexField.isDeprecated())),
+                    indexField.getNewFieldName()
             });
         }
 
