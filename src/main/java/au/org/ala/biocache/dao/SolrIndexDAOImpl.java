@@ -26,11 +26,11 @@ import org.apache.solr.client.solrj.impl.CloudHttp2SolrClient;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
 import org.apache.solr.client.solrj.impl.Http2SolrClient;
-import org.apache.solr.client.solrj.response.FacetField;
-import org.apache.solr.client.solrj.response.FieldStatsInfo;
-import org.apache.solr.client.solrj.response.QueryResponse;
-import org.apache.solr.client.solrj.response.RangeFacet;
+import org.apache.solr.client.solrj.request.UpdateRequest;
+import org.apache.solr.client.solrj.request.schema.SchemaRequest;
+import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
@@ -47,13 +47,9 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import static com.google.common.base.CaseFormat.LOWER_CAMEL;
-import static com.google.common.base.CaseFormat.LOWER_UNDERSCORE;
 
 /**
  * SOLR index.
@@ -84,6 +80,19 @@ public class SolrIndexDAOImpl implements IndexDAO {
   @Inject
   private FieldMappingUtil fieldMappingUtil;
 
+  /*
+  * The csv header for updating solr
+  */
+  private final List<String> header = Arrays.asList(
+          "user_assertions"
+  );
+
+  /*
+  * The list of field that can hold multiple values
+  */
+  private final List<String> multiValueField = Arrays.asList(
+          "assertion_user_id"
+  );
 
   /**
    * A list of fields that are left in the index for legacy reasons, but are removed from the public
@@ -488,7 +497,6 @@ public class SolrIndexDAOImpl implements IndexDAO {
         }
       }
     }
-
     return result;
   }
 
@@ -935,6 +943,86 @@ public class SolrIndexDAOImpl implements IndexDAO {
       }
     }
     return qr;
+  }
+
+  // read values mapping to csv headers
+  private List<String> getValues(Map<String, Object> map) {
+    String userAssertionStatus = (String)map.getOrDefault("userAssertionStatus", String.valueOf(AssertionStatus.QA_NONE));
+    if (userAssertionStatus.equals(String.valueOf(AssertionStatus.QA_NONE))) {
+      userAssertionStatus = "";
+    }
+    return Arrays.asList(userAssertionStatus);
+  }
+
+  @Override
+  public void indexFromMap(String guid, Map<String, Object> map) throws IOException, SolrServerException {
+    SolrInputDocument doc = new SolrInputDocument();
+    doc.addField("id", guid);
+
+    List<String> values = getValues(map);
+    if (values.size() > 0 && values.size() != header.size()) {
+      logger.error("Values don't match headers");
+      return;
+    }
+
+    for (int i = 0; i < header.size(); i++) {
+      String key = header.get(i);
+      String value = values.get(i);
+      doc.addField(key, new HashMap<String, Object>(){{ put("set", value); }});
+    }
+
+    String assertionUserIdKey = "assertion_user_id";
+    if (map.containsKey(assertionUserIdKey)) {
+      // get list of user ids
+      doc.addField(assertionUserIdKey, new HashMap<String, Object>(){{ put("set", map.get(assertionUserIdKey)); }});
+    } else {
+      doc.addField(assertionUserIdKey, new HashMap<String, Object>(){{ put("set", null); }});
+    }
+
+    // update schema if needed
+    syncDocFieldsWithSOLR(doc);
+
+    UpdateRequest updateRequest = new UpdateRequest();
+    updateRequest.setAction( UpdateRequest.ACTION.COMMIT, false, false);
+    updateRequest.add(doc);
+    try {
+      UpdateResponse rsp = updateRequest.process(solrClient);
+    } catch (Exception e) {
+      logger.error("Failed to update solr doc, id: " + guid + ", error message: " + e.getMessage(), e);
+    }
+  }
+
+  private void syncDocFieldsWithSOLR(SolrInputDocument doc) {
+    doc.getFieldNames().forEach(fieldName -> {
+      if (!schemaFields.contains(fieldName)) {
+        addFieldToSolr(fieldName, "string", multiValueField.contains(fieldName), false, true, true);
+        schemaFields.add(fieldName);
+      }
+    });
+  }
+
+  private void addFieldToSolr(String name, String fieldType, Boolean multiValued, Boolean docValues, Boolean indexed, Boolean stored) {
+    try {
+      SchemaRequest.Field fieldRequest = new SchemaRequest.Field(name);
+      fieldRequest.process(solrClient);
+    } catch (Exception e) {
+      logger.info("Field not in schema: " + name);
+      Map<String, Object> field = new HashMap<>();
+      field.put("name", name);
+      field.put("type", fieldType);
+      field.put("multiValued", multiValued);
+      field.put("docValues", docValues);
+      field.put("indexed", indexed);
+      field.put("stored", stored);
+
+      SchemaRequest.AddField addField = new SchemaRequest.AddField(field);
+      try {
+        logger.info("Adding field: " + name);
+        addField.process(solrClient);
+      } catch (Exception e1) {
+         logger.error("Failed to add a new field '" + name + "' to SOLR schema. " + e1.getMessage());
+      }
+    }
   }
 }
 
