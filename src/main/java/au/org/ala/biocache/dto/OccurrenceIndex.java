@@ -92,17 +92,17 @@ public class OccurrenceIndex {
     @Field("institutionUid")
     String institutionUid;
     @Field("institutionCode")
-    String raw_institutionCode;
+    String institutionCode;
     @Field("institutionName")
     String institutionName;
     @Field("collectionUid")
     String collectionUid;
     @Field("collectionCode")
-    String raw_collectionCode;
+    String collectionCode;
     @Field("collectionName")
     String collectionName;
     @Field("catalogNumber")
-    String raw_catalogNumber;
+    String catalogNumber;
     @Field("taxonConceptID")
     String taxonConceptID;
     @Field("eventDate")
@@ -162,9 +162,9 @@ public class OccurrenceIndex {
     @Field("typeStaus")
     String typeStatus;
     @Field("locationRemarks")
-    String raw_locationRemarks;
+    String locationRemarks;
     @Field("occurrenceRemarks")
-    String raw_occurrenceRemarks;
+    String occurrenceRemarks;
     @Field("lft")
     Integer left;
     @Field("rgt")
@@ -439,12 +439,12 @@ public class OccurrenceIndex {
         this.institutionUid = institutionUid;
     }
 
-    public String getRaw_institutionCode() {
-        return raw_institutionCode;
+    public String getInstitutionCode() {
+        return institutionCode;
     }
 
-    public void setRaw_institutionCode(String raw_institutionCode) {
-        this.raw_institutionCode = raw_institutionCode;
+    public void setInstitutionCode(String institutionCode) {
+        this.institutionCode = institutionCode;
     }
 
     public String getInstitutionName() {
@@ -463,12 +463,12 @@ public class OccurrenceIndex {
         this.collectionUid = collectionUid;
     }
 
-    public String getRaw_collectionCode() {
-        return raw_collectionCode;
+    public String getCollectionCode() {
+        return collectionCode;
     }
 
-    public void setRaw_collectionCode(String raw_collectionCode) {
-        this.raw_collectionCode = raw_collectionCode;
+    public void setCollectionCode(String collectionCode) {
+        this.collectionCode = collectionCode;
     }
 
     public String getCollectionName() {
@@ -479,12 +479,12 @@ public class OccurrenceIndex {
         this.collectionName = collectionName;
     }
 
-    public String getRaw_catalogNumber() {
-        return raw_catalogNumber;
+    public String getCatalogNumber() {
+        return catalogNumber;
     }
 
-    public void setRaw_catalogNumber(String raw_catalogNumber) {
-        this.raw_catalogNumber = raw_catalogNumber;
+    public void setCatalogNumber(String catalogNumber) {
+        this.catalogNumber = catalogNumber;
     }
 
     public String getTaxonConceptID() {
@@ -728,20 +728,20 @@ public class OccurrenceIndex {
         this.typeStatus = typeStatus;
     }
 
-    public String getRaw_locationRemarks() {
-        return raw_locationRemarks;
+    public String getLocationRemarks() {
+        return locationRemarks;
     }
 
-    public void setRaw_locationRemarks(String raw_locationRemarks) {
-        this.raw_locationRemarks = raw_locationRemarks;
+    public void setLocationRemarks(String locationRemarks) {
+        this.locationRemarks = locationRemarks;
     }
 
-    public String getRaw_occurrenceRemarks() {
-        return raw_occurrenceRemarks;
+    public String getOccurrenceRemarks() {
+        return occurrenceRemarks;
     }
 
-    public void setRaw_occurrenceRemarks(String raw_occurrenceRemarks) {
-        this.raw_occurrenceRemarks = raw_occurrenceRemarks;
+    public void setOccurrenceRemarks(String occurrenceRemarks) {
+        this.occurrenceRemarks = occurrenceRemarks;
     }
 
     public Integer getLeft() {
