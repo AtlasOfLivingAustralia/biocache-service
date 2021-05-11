@@ -84,15 +84,22 @@ public class SolrIndexDAOImpl implements IndexDAO {
   * The csv header for updating solr
   */
   private final List<String> header = Arrays.asList(
-          "user_assertions"
+          "userAssertions",
+          "hasUserAssertions"
   );
 
   /*
-  * The list of field that can hold multiple values
+  * This structure holds field properties
+  * Values in the list are:
+  * String fieldType, Boolean multiValued, Boolean docValues, Boolean indexed, Boolean stored
   */
-  private final List<String> multiValueField = Arrays.asList(
-          "assertion_user_id"
-  );
+  private final Map<String, Object[]> fieldProperties =  new HashMap<String, Object[]>() {
+    {
+      put("assertionUserId", new Object[]{"string", true, true, true, true});
+      put("userAssertions",  new Object[]{"string", false, true, true, true});
+      put("hasUserAssertions", new Object[]{"boolean", false, true, true, true});
+    }
+  };
 
   /**
    * A list of fields that are left in the index for legacy reasons, but are removed from the public
@@ -946,12 +953,14 @@ public class SolrIndexDAOImpl implements IndexDAO {
   }
 
   // read values mapping to csv headers
-  private List<String> getValues(Map<String, Object> map) {
-    String userAssertionStatus = (String)map.getOrDefault("userAssertionStatus", String.valueOf(AssertionStatus.QA_NONE));
+  private List<Object> getValues(Map<String, Object> map) {
+    String userAssertionStatus = (String)map.getOrDefault("userAssertions", String.valueOf(AssertionStatus.QA_NONE));
     if (userAssertionStatus.equals(String.valueOf(AssertionStatus.QA_NONE))) {
       userAssertionStatus = "";
     }
-    return Arrays.asList(userAssertionStatus);
+
+    boolean hasUserAssertions = (boolean)map.getOrDefault("hasUserAssertions", false);
+    return Arrays.asList(userAssertionStatus, hasUserAssertions);
   }
 
   @Override
@@ -959,7 +968,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
     SolrInputDocument doc = new SolrInputDocument();
     doc.addField("id", guid);
 
-    List<String> values = getValues(map);
+    List<Object> values = getValues(map);
     if (values.size() > 0 && values.size() != header.size()) {
       logger.error("Values don't match headers");
       return;
@@ -967,11 +976,11 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
     for (int i = 0; i < header.size(); i++) {
       String key = header.get(i);
-      String value = values.get(i);
+      Object value = values.get(i);
       doc.addField(key, new HashMap<String, Object>(){{ put("set", value); }});
     }
 
-    String assertionUserIdKey = "assertion_user_id";
+    String assertionUserIdKey = "assertionUserId";
     if (map.containsKey(assertionUserIdKey)) {
       // get list of user ids
       doc.addField(assertionUserIdKey, new HashMap<String, Object>(){{ put("set", map.get(assertionUserIdKey)); }});
@@ -995,7 +1004,8 @@ public class SolrIndexDAOImpl implements IndexDAO {
   private void syncDocFieldsWithSOLR(SolrInputDocument doc) {
     doc.getFieldNames().forEach(fieldName -> {
       if (!schemaFields.contains(fieldName)) {
-        addFieldToSolr(fieldName, "string", multiValueField.contains(fieldName), false, true, true);
+        Object[] properties = fieldProperties.get(fieldName);
+        addFieldToSolr(fieldName, (String)properties[0], (Boolean)properties[1], (Boolean)properties[2], (Boolean)properties[3], (Boolean)properties[4]);
         schemaFields.add(fieldName);
       }
     });

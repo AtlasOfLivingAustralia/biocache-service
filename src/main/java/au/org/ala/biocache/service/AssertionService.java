@@ -68,7 +68,7 @@ public class AssertionService {
             UserAssertions newAssertions = new UserAssertions();
             newAssertions.add(qa);
             UserAssertions combinedAssertions = getCombinedAssertions(existingAssertions, newAssertions);
-            UpdateUserAssertions(recordUuid, combinedAssertions);
+            updateUserAssertions(recordUuid, combinedAssertions);
             return Optional.of(qa);
         }
 
@@ -84,7 +84,7 @@ public class AssertionService {
             // if there's any change made
             if (userAssertions.deleteUuid(assertionUuid)) {
                 // Update assertions
-                UpdateUserAssertions(recordUuid, userAssertions);
+                updateUserAssertions(recordUuid, userAssertions);
                 return true;
             }
         }
@@ -119,7 +119,7 @@ public class AssertionService {
             UserAssertions existingAssertions = store.get(UserAssertions.class, recordUuid).orElse(new UserAssertions());
             UserAssertions combinedAssertions = getCombinedAssertions(existingAssertions, userAssertions);
             if (!combinedAssertions.isEmpty()) {
-                UpdateUserAssertions(recordUuid, combinedAssertions);
+                updateUserAssertions(recordUuid, combinedAssertions);
             }
             return true;
         }
@@ -188,7 +188,7 @@ public class AssertionService {
     // * OPEN ISSUE: Collection Admin verifies the record and flags the user assertion as Open issue
     // * VERIFIED: Collection Admin verifies the record and flags the user assertion as Verified
     // * CORRECTED: Collection Admin verifies the record and flags the user assertion as Corrected
-    private void UpdateUserAssertions(String recordUuid, UserAssertions userAssertions) throws IOException {
+    private void updateUserAssertions(String recordUuid, UserAssertions userAssertions) throws IOException {
         // update database
         if (!userAssertions.isEmpty()) {
             store.put(recordUuid, userAssertions);
@@ -225,7 +225,9 @@ public class AssertionService {
                 // sort by datetime DESC
                 verifications.sort((qa1, qa2) -> {
                     try {
-                        return simpleDateFormat.parse(qa2.getCreated()).compareTo(simpleDateFormat.parse(qa1.getCreated()));
+                        Date qa2Date = simpleDateFormat.parse(qa2.getCreated());
+                        Date qa1Date = simpleDateFormat.parse(qa1.getCreated());
+                        return qa2Date.compareTo(qa1Date);
                     } catch (ParseException e) {
                         e.printStackTrace();
                         throw new IllegalArgumentException(e);
@@ -237,22 +239,14 @@ public class AssertionService {
         }
 
         // put assertion status into index map
-        indexMap.put("userAssertionStatus", String.valueOf(assertionStatus));
+        indexMap.put("userAssertions", String.valueOf(assertionStatus));
 
-        if (!userAssertions.isEmpty()) {
-            userAssertions.sort((qa1, qa2) -> {
-                try {
-                    return simpleDateFormat.parse(qa2.getCreated()).compareTo(simpleDateFormat.parse(qa1.getCreated()));
-                } catch (ParseException e) {
-                    e.printStackTrace();
-                    throw new IllegalArgumentException(e);
-                }
-            });
-        }
+        // set hasUserAssertions
+        indexMap.put("hasUserAssertions", !assertions.isEmpty());
 
         List<String> assertionUserIds = assertions.stream().map(QualityAssertion::getUserId).distinct().collect(Collectors.toList());
         if (!assertionUserIds.isEmpty()) {
-            indexMap.put("assertion_user_id", assertionUserIds);
+            indexMap.put("assertionUserId", assertionUserIds);
         }
 
         try {
