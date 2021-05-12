@@ -62,14 +62,16 @@ public class AssertionsControllerTest extends TestCase {
     MockMvc mockMvc;
 
     @BeforeClass
-    public void setupBeforeClass() throws Exception {
+    public static void setupBeforeClass() throws Exception {
         SolrUtils.setupIndex();
-        assertionService = mock(AssertionService.class);
-        ReflectionTestUtils.setField(assertionController, "assertionService", assertionService);
     }
 
     @Before
     public void setup() {
+
+        assertionService = mock(AssertionService.class);
+        ReflectionTestUtils.setField(assertionController, "assertionService", assertionService);
+
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).build();
     }
 
