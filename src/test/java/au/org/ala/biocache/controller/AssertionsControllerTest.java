@@ -7,6 +7,7 @@ import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.web.AssertionController;
 import junit.framework.TestCase;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -60,7 +61,7 @@ public class AssertionsControllerTest extends TestCase {
 
     MockMvc mockMvc;
 
-    @Before
+    @BeforeClass
     public void setupBeforeClass() throws Exception {
         SolrUtils.setupIndex();
         assertionService = mock(AssertionService.class);
