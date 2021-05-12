@@ -82,7 +82,7 @@ public class FilterQueryParserTest {
         ReflectionTestUtils.setField(searchUtils, "messageSource", messageSource);
         ReflectionTestUtils.setField(queryFormatUtils, "fieldMappingUtil", fieldMappingUtil);
 
-//        Mockito.when(fieldMappingUtil.translateQueryFields(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
+        Mockito.when(fieldMappingUtil.translateQueryFields(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
 
         new FacetThemes("", null, 30, 30, true);
     }

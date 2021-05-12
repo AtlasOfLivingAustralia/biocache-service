@@ -9,7 +9,6 @@ import junit.framework.TestCase;
 import org.ala.client.model.LogEventVO;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -150,7 +149,6 @@ public class OccurrenceControllerTest extends TestCase {
     }
 
     @Test
-    @Ignore
     public void taxaCountTest() throws Exception {
 
         //FIXME

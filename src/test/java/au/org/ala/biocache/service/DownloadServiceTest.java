@@ -7,12 +7,9 @@ import au.org.ala.biocache.dao.*;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.util.QueryFormatUtils;
-import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.doi.CreateDoiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.io.CharSource;
-import com.google.common.io.Files;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.io.FileUtils;
 import org.junit.*;
@@ -30,10 +27,7 @@ import org.springframework.context.support.ReloadableResourceBundleMessageSource
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.test.context.ContextConfiguration;
 
-import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -547,13 +541,14 @@ public class DownloadServiceTest {
     }
 
     @Test
-    @Ignore
     public final void testOfflineDownload() throws Exception {
 
         testService = createDownloadServiceForOfflineTest();
 
         mockStatic(FileUtils.class);
         given(FileUtils.readFileToString(any(), eq(StandardCharsets.UTF_8))).willReturn("");
+        given(FileUtils.openOutputStream(any())).willCallRealMethod();
+        given(FileUtils.openOutputStream(any(), anyBoolean())).willCallRealMethod();
 
         testService.support = "support@ala.org.au";
         testService.myDownloadsUrl = "https://dev.ala.org.au/myDownloads";
@@ -577,7 +572,6 @@ public class DownloadServiceTest {
     }
 
     @Test
-    @Ignore
     public final void testOfflineDownloadWithQualityFiltersAndDoi() throws Exception {
 
         testService = createDownloadServiceForOfflineTest();
@@ -585,7 +579,8 @@ public class DownloadServiceTest {
         // mock the reading of the downloadEmailTemplate
         mockStatic(FileUtils.class);
         given(FileUtils.readFileToString(any(), eq(StandardCharsets.UTF_8))).willReturn("");
-        given(FileUtils.openOutputStream(any())).willReturn(new FileOutputStream(File.createTempFile("junit", "")));
+        given(FileUtils.openOutputStream(any())).willCallRealMethod();
+        given(FileUtils.openOutputStream(any(), anyBoolean())).willCallRealMethod();
 
         testService.support = "support@ala.org.au";
         testService.myDownloadsUrl = "https://dev.ala.org.au/myDownloads";
@@ -663,7 +658,6 @@ public class DownloadServiceTest {
     }
 
     @Test
-    @Ignore
     public final void testOfflineDownloadWithQualityFiltersAndDoiAndProvidedSearchUrl() throws Exception {
 
         testService = createDownloadServiceForOfflineTest();
@@ -671,6 +665,8 @@ public class DownloadServiceTest {
         // mock the reading of the downloadEmailTemplate
         mockStatic(FileUtils.class);
         given(FileUtils.readFileToString(any(), eq(StandardCharsets.UTF_8))).willReturn("");
+        given(FileUtils.openOutputStream(any())).willCallRealMethod();
+        given(FileUtils.openOutputStream(any(), anyBoolean())).willCallRealMethod();
 
         testService.support = "support@dev.ala.org.au";
         testService.myDownloadsUrl = "https://dev.ala.org.au/myDownloads";
@@ -727,7 +723,6 @@ public class DownloadServiceTest {
         verify(testService.emailService).sendEmail(
                 requestParams.getEmail(),
                 "ALA Occurrence Download Complete - data",
-                "",
                 "");
 
         verify(testService.dataQualityService).getEnabledFiltersByLabel(requestParams);

@@ -3755,23 +3755,29 @@ public class SearchDAOImpl implements SearchDAO {
                         zoomOffset++;
                     }
                 }
-                SimpleOrderedMap facetHeatMaps =
-                        ((SimpleOrderedMap)
-                                ((SimpleOrderedMap) ((qr.getResponse().get("facet_counts"))))
-                                        .get("facet_heatmaps"));
+                if (qr != null) {
+                    SimpleOrderedMap facetHeatMaps =
+                            ((SimpleOrderedMap)
+                                    ((SimpleOrderedMap) ((qr.getResponse().get("facet_counts"))))
+                                            .get("facet_heatmaps"));
 
-                if (facetHeatMaps != null) {
-                    // iterate over legend
-                    SimpleOrderedMap heatmap = (SimpleOrderedMap) facetHeatMaps.get(spatialField);
-                    gridLevel = (Integer) heatmap.get("gridLevel");
-                    List<List<Integer>> layer = (List<List<Integer>>) heatmap.get("counts_ints2D");
-                    rows = (Integer) heatmap.get("rows");
-                    columns = (Integer) heatmap.get("columns");
-                    hminx = (Double) heatmap.get("minX");
-                    hminy = (Double) heatmap.get("minY");
-                    hmaxx = (Double) heatmap.get("maxX");
-                    hmaxy = (Double) heatmap.get("maxY");
-                    layers.add(layer);
+                    if (facetHeatMaps != null) {
+                        // iterate over legend
+                        SimpleOrderedMap heatmap = (SimpleOrderedMap) facetHeatMaps.get(spatialField);
+                        gridLevel = (Integer) heatmap.get("gridLevel");
+                        List<List<Integer>> layer = (List<List<Integer>>) heatmap.get("counts_ints2D");
+                        rows = (Integer) heatmap.get("rows");
+                        columns = (Integer) heatmap.get("columns");
+                        hminx = (Double) heatmap.get("minX");
+                        hminy = (Double) heatmap.get("minY");
+                        hmaxx = (Double) heatmap.get("maxX");
+                        hmaxy = (Double) heatmap.get("maxY");
+                        layers.add(layer);
+                    } else {
+                        layers.add(null);
+                    }
+                } else {
+                    layers.add(null);
                 }
             }
 
