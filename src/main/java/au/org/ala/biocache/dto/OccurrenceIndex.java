@@ -443,8 +443,8 @@ public class OccurrenceIndex {
         return raw_institutionCode;
     }
 
-    public void setRaw_institutionCode(String raw_institutionCode) {
-        this.raw_institutionCode = raw_institutionCode;
+    public void setRaw_institutionCode(String institutionCode) {
+        this.raw_institutionCode = institutionCode;
     }
 
     public String getInstitutionName() {
@@ -467,8 +467,8 @@ public class OccurrenceIndex {
         return raw_collectionCode;
     }
 
-    public void setRaw_collectionCode(String raw_collectionCode) {
-        this.raw_collectionCode = raw_collectionCode;
+    public void setRaw_collectionCode(String collectionCode) {
+        this.raw_collectionCode = collectionCode;
     }
 
     public String getCollectionName() {
@@ -483,8 +483,8 @@ public class OccurrenceIndex {
         return raw_catalogNumber;
     }
 
-    public void setRaw_catalogNumber(String raw_catalogNumber) {
-        this.raw_catalogNumber = raw_catalogNumber;
+    public void setRaw_catalogNumber(String catalogNumber) {
+        this.raw_catalogNumber = catalogNumber;
     }
 
     public String getTaxonConceptID() {
@@ -732,16 +732,16 @@ public class OccurrenceIndex {
         return raw_locationRemarks;
     }
 
-    public void setRaw_locationRemarks(String raw_locationRemarks) {
-        this.raw_locationRemarks = raw_locationRemarks;
+    public void setRaw_locationRemarks(String locationRemarks) {
+        this.raw_locationRemarks = locationRemarks;
     }
 
     public String getRaw_occurrenceRemarks() {
         return raw_occurrenceRemarks;
     }
 
-    public void setRaw_occurrenceRemarks(String raw_occurrenceRemarks) {
-        this.raw_occurrenceRemarks = raw_occurrenceRemarks;
+    public void setRaw_occurrenceRemarks(String occurrenceRemarks) {
+        this.raw_occurrenceRemarks = occurrenceRemarks;
     }
 
     public Integer getLeft() {
