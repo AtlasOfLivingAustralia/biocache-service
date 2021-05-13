@@ -17,11 +17,11 @@ branches:
     - /^hotfix\/.*$/
 before_install:
   - mkdir -p ~/.m2; wget -q -O ~/.m2/settings.xml https://raw.githubusercontent.com/AtlasOfLivingAustralia/travis-build-configuration/master/travis_maven_settings.xml
-  - sudo mkdir -p /data/lucene; sudo wget -O /data/lucene/namematching-20181120.tgz https://archives.ala.org.au/archives/nameindexes/20181120/namematching-20181120.tgz
-  - cd /data/lucene
-  - sudo tar zxvf namematching-20181120.tgz
-  - sudo ln -s namematching-20181120 namematching
-  - ls -laF
+#  - sudo mkdir -p /data/lucene; sudo wget -O /data/lucene/namematching-20181120.tgz https://archives.ala.org.au/archives/nameindexes/20181120/namematching-20181120.tgz
+#  - cd /data/lucene
+#  - sudo tar zxvf namematching-20181120.tgz
+#  - sudo ln -s namematching-20181120 namematching
+#  - ls -laF
   - cd $TRAVIS_BUILD_DIR
 script:
   - "[ \"${TRAVIS_PULL_REQUEST}\" = \"false\" ] && mvn -P travis clean deploy || mvn -P travis clean install"
