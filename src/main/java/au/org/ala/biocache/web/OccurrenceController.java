@@ -387,6 +387,7 @@ public class OccurrenceController extends AbstractSecureController {
             @RequestParam(value="dataType", required=false) String dataType,
             @RequestParam(value="classs", required=false) String classs,
             @RequestParam(value="isMisc", required=false, defaultValue = "false") Boolean isMisc,
+            @RequestParam(value="deprecated", required=false, defaultValue="false") Boolean isDeprecated,
             @RequestParam(value="isDwc", required=false) Boolean isDwc) throws Exception {
 
         Set<IndexFieldDTO> result;
@@ -407,7 +408,9 @@ public class OccurrenceController extends AbstractSecureController {
                         && (dataType == null || dataTypes.contains(i.getDataType()))
                         && (classs == null || classss.contains(i.getClasss()))
                         && (isMisc || !i.getName().startsWith("dynamicProperties_"))
+                        && (isDeprecated || !i.isDeprecated())
                         && (isDwc == null || isDwc == StringUtils.isNotEmpty(i.getDwcTerm()))) {
+
                     filtered.add(i);
                 }
             }
@@ -439,6 +442,7 @@ public class OccurrenceController extends AbstractSecureController {
             @RequestParam(value="dataType", required=false) String dataType,
             @RequestParam(value="classs", required=false) String classs,
             @RequestParam(value="isMisc", required=false, defaultValue = "false") Boolean isMisc,
+            @RequestParam(value="deprecated", required=false, defaultValue="false") Boolean isDeprecated,
             @RequestParam(value="isDwc", required=false) Boolean isDwc,
             HttpServletResponse response
             ) throws Exception {
@@ -450,6 +454,7 @@ public class OccurrenceController extends AbstractSecureController {
                 dataType,
                 classs,
                 isMisc,
+                isDeprecated,
                 isDwc);
 
         response.setHeader("Cache-Control", "must-revalidate");
@@ -471,7 +476,9 @@ public class OccurrenceController extends AbstractSecureController {
                 "json name",
                 "stored",
                 "indexed",
-                "multivalue"
+                "multivalue",
+                "deprecated",
+                "newFieldName"
         });
 
         Iterator<IndexFieldDTO> iter = indexedFields.iterator();
@@ -489,7 +496,9 @@ public class OccurrenceController extends AbstractSecureController {
                     indexField.getJsonName(),
                     Boolean.toString(indexField.isStored()),
                     Boolean.toString(indexField.isIndexed()),
-                    Boolean.toString(indexField.isMultivalue())
+                    Boolean.toString(indexField.isMultivalue()),
+                    Boolean.toString((indexField.isDeprecated())),
+                    indexField.getNewFieldName()
             });
         }
 

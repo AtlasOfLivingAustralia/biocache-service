@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # OPTIONAL (if it does not exist): create keyspace 'biocache'
-cqlsh -e "CREATE KEYSPACE biocache WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'}  AND durable_writes = true;};"
+cqlsh -e "CREATE KEYSPACE biocache WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'}  AND durable_writes = true;"
 
 # OPTIONAL (if it does not exist): create table 'userassertions'
 cqlsh -e "CREATE TABLE biocache.userassertions ( key text PRIMARY KEY, value text );"

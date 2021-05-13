@@ -339,10 +339,6 @@
             "Terrestrial": "TERRESTRIAL",
             "Marine": "MARINE"
         },
-        "biome": {
-            "Terrestrial": "TERRESTRIAL",
-            "Marine": "MARINE"
-        },
         "month": {
             "January": "1",
             "February": "2",
