@@ -216,7 +216,7 @@ public class FilterQueryParserTest {
         facetList.add(new Facet("license", "license:\"CC BY NC\" license:\"CC BY NC 4.0 (Int)\"", "license:\"CC BY NC\" license:\"CC BY NC 4.0 (Int)\""));
 
         Mockito.when(fieldMappingUtil.translateFieldName("month")).thenReturn("month");
-        Mockito.when(fieldMappingUtil.translateFieldName("occurrence_decade_i")).thenReturn("occurrence_decade_i");
+        Mockito.when(fieldMappingUtil.translateFieldName("occurrence_decade_i")).thenReturn("decade");
 
         runFqParsingTest(facetList);
     }
