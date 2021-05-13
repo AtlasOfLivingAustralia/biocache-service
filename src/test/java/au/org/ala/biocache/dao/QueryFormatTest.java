@@ -113,6 +113,8 @@ public class QueryFormatTest {
             put("lsid", "taxonConceptID");
             put("basis_of_record", "basisOfRecord");
             put("species_guid", "speciesID");
+            put("species_group", "speciesGroup");
+            put("state", "stateProvince");
             put("occurrence_year", "occurrenceYear");
         }};
 
