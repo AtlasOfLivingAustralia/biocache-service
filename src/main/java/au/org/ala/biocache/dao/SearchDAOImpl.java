@@ -525,7 +525,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         String[] header = new String[]{facet};
         if (shouldLookup) {
-            header = speciesLookupService.getHeaderDetails(facet, includeCount, includeSynonyms);
+            header = speciesLookupService.getHeaderDetails(fieldMappingUtil.translateFieldName(facet), includeCount, includeSynonyms);
         } else if (includeCount) {
             header = (String[]) ArrayUtils.add(header, "count");
         }
@@ -743,7 +743,7 @@ public class SearchDAOImpl implements SearchDAO {
             if (ff != null) {
                 String[] header = new String[]{ff.getName()};
                 if (shouldLookupTaxon) {
-                    header = speciesLookupService.getHeaderDetails(ff.getName(), includeCount, includeSynonyms);
+                    header = speciesLookupService.getHeaderDetails(fieldMappingUtil.translateFieldName(ff.getName()), includeCount, includeSynonyms);
                 } else if (shouldLookupAttribution) {
                     header = (String[]) ArrayUtils.addAll(header, new String[]{"name", "count"});
                 } else if (includeCount) {
