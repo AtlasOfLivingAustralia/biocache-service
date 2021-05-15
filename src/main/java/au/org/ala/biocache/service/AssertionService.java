@@ -240,9 +240,28 @@ public class AssertionService {
 
         // put assertion status into index map
         indexMap.put("userAssertions", String.valueOf(assertionStatus));
-
         // set hasUserAssertions
         indexMap.put("hasUserAssertions", !assertions.isEmpty());
+
+        if (!userAssertions.isEmpty()) {
+            userAssertions.sort((qa1, qa2) -> {
+                try {
+                    Date date1 = simpleDateFormat.parse(qa1.getCreated());
+                    Date date2 = simpleDateFormat.parse(qa2.getCreated());
+                    return date2.compareTo(date1);
+                } catch (ParseException e) {
+                    e.printStackTrace();
+                    throw new IllegalArgumentException(e);
+                }
+            });
+            Date lastDate = null;
+            try {
+                lastDate = simpleDateFormat.parse(userAssertions.get(0).getCreated());
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+            indexMap.put("lastAssertionDate", lastDate);
+        }
 
         List<String> assertionUserIds = assertions.stream().map(QualityAssertion::getUserId).distinct().collect(Collectors.toList());
         if (!assertionUserIds.isEmpty()) {

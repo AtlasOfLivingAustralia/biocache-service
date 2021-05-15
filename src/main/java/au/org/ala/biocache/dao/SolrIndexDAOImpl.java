@@ -85,7 +85,8 @@ public class SolrIndexDAOImpl implements IndexDAO {
   */
   private final List<String> header = Arrays.asList(
           "userAssertions",
-          "hasUserAssertions"
+          "hasUserAssertions",
+          "lastAssertionDate"
   );
 
   /*
@@ -98,6 +99,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
       put("assertionUserId", new Object[]{"string", true, true, true, true});
       put("userAssertions",  new Object[]{"string", false, true, true, true});
       put("hasUserAssertions", new Object[]{"boolean", false, true, true, true});
+      put("lastAssertionDate", new Object[]{"date", false, true, true, true});
     }
   };
 
@@ -960,7 +962,9 @@ public class SolrIndexDAOImpl implements IndexDAO {
     }
 
     boolean hasUserAssertions = (boolean)map.getOrDefault("hasUserAssertions", false);
-    return Arrays.asList(userAssertionStatus, hasUserAssertions);
+    Date lastAssertionDate = (Date)map.getOrDefault("lastAssertionDate", null);
+
+    return Arrays.asList(userAssertionStatus, hasUserAssertions, lastAssertionDate);
   }
 
   @Override
@@ -980,13 +984,8 @@ public class SolrIndexDAOImpl implements IndexDAO {
       doc.addField(key, new HashMap<String, Object>(){{ put("set", value); }});
     }
 
-    String assertionUserIdKey = "assertionUserId";
-    if (map.containsKey(assertionUserIdKey)) {
-      // get list of user ids
-      doc.addField(assertionUserIdKey, new HashMap<String, Object>(){{ put("set", map.get(assertionUserIdKey)); }});
-    } else {
-      doc.addField(assertionUserIdKey, new HashMap<String, Object>(){{ put("set", null); }});
-    }
+    // get list of user ids
+    doc.addField("assertionUserId", new HashMap<String, Object>(){{ put("set", map.getOrDefault("assertionUserId", null)); }});
 
     // update schema if needed
     syncDocFieldsWithSOLR(doc);
@@ -995,7 +994,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
     updateRequest.setAction( UpdateRequest.ACTION.COMMIT, false, false);
     updateRequest.add(doc);
     try {
-      UpdateResponse rsp = updateRequest.process(solrClient);
+      updateRequest.process(solrClient);
     } catch (Exception e) {
       logger.error("Failed to update solr doc, id: " + guid + ", error message: " + e.getMessage(), e);
     }
