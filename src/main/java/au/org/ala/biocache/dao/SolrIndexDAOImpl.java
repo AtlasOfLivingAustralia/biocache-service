@@ -39,6 +39,7 @@ import org.gbif.common.shaded.com.google.common.collect.Streams;
 import org.gbif.dwc.terms.DcTerm;
 import org.gbif.dwc.terms.DwcTerm;
 import org.gbif.dwc.terms.Term;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
@@ -319,11 +320,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
         // Fix zk disconnects, maybe
         if (solrClient instanceof CloudSolrClient
                 && e.getMessage().contains("Could not load collection")) {
-          logger.error(
-                  "query failed, attempting to reconnect: "
-                          + query.toString()
-                          + " : "
-                          + e.getMessage());
+          logError(query, "query failed, attempting to reconnect: ", e.getMessage());
 
           // zk reconnect
           try {
@@ -353,22 +350,31 @@ public class SolrIndexDAOImpl implements IndexDAO {
             throw e;
           }
         } else {
-          logger.error("query failed: " + query.toString() + " : " + e.getMessage());
+          logError(query, "query failed-1: ", e.getMessage());
           throw e;
         }
 
       } catch (IOException ioe) {
         // report failed query
-        logger.error("query failed: " + query.toString() + " : " + ioe.getMessage());
+        logError(query, "query failed-IOException: ", ioe.getMessage());
         throw new SolrServerException(ioe);
       } catch (Exception ioe) {
         // report failed query
-        logger.error("query failed: " + query.toString() + " : " + ioe.getMessage());
+        logError(query, "query failed-SolrServerException: ", ioe.getMessage());
         throw new SolrServerException(ioe);
       }
     }
 
     return qr;
+  }
+
+  private void  logError(SolrParams query, String s, String message) {
+    String requestID = MDC.get("X-Request-ID");
+    if (requestID != null) {
+      logger.error("RequestID:" + requestID + ", " + s + query.toString() + ", Error : " + message);
+    } else {
+      logger.error(s + query.toString() + " : " + message);
+    }
   }
 
   /**
@@ -906,7 +912,13 @@ public class SolrIndexDAOImpl implements IndexDAO {
       return qr.getFieldStatsInfo();
 
     } catch (SolrServerException ex) {
-      logger.error("Problem communicating with SOLR server. " + ex.getMessage(), ex);
+
+      String requestID = MDC.get("X-Request-ID");
+      if (requestID != null) {
+        logger.error("Problem communicating with SOLR server. RequestID:" + requestID + " Error:" + ex.getMessage(), ex);
+      } else {
+        logger.error("Problem communicating with SOLR server. Error:" + ex.getMessage(), ex);
+      }
     }
     return null;
   }
@@ -923,6 +935,10 @@ public class SolrIndexDAOImpl implements IndexDAO {
   public QueryResponse runSolrQuery(SolrQuery solrQuery, SearchRequestParams requestParams)
           throws Exception {
 
+    if (MDC.get("X-Request-ID") != null) {
+      solrQuery.add("XRequestID", MDC.get("X-Request-ID"));
+    }
+
     if (requestParams.getFormattedFq() != null) {
       for (String fq : requestParams.getFormattedFq()) {
         if (StringUtils.isNotEmpty(fq)) {
@@ -932,6 +948,9 @@ public class SolrIndexDAOImpl implements IndexDAO {
     }
 
     // include null facets
+    if (MDC.get("X-Request-ID") != null) {
+      solrQuery.setParam("XRequestID", MDC.get("X-Request-ID"));
+    }
     solrQuery.setFacetMissing(true);
     solrQuery.setRows(requestParams.getPageSize());
     solrQuery.setStart(requestParams.getStart());

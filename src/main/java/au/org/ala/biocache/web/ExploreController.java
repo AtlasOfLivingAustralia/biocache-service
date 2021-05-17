@@ -39,6 +39,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.OutputStream;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -69,7 +70,7 @@ public class ExploreController {
     @Inject
     protected QidCacheDAO qidCacheDao;
 
-    @Value("${species.subgroups.url:}")
+    @Value("${species.subgroups.url:/data/biocache/config/subgroups.json}")
     protected String speciesSubgroupsUrl;
     private String speciesSubgroups = null;
 
@@ -81,7 +82,7 @@ public class ExploreController {
         return speciesSubgroups;
     }
 
-    @Value("${species.groups.url:}")
+    @Value("${species.groups.url:/data/biocache/config/groups.json}")
     protected String speciesGroupsUrl;
     private String speciesGroups = null;
 
@@ -99,7 +100,7 @@ public class ExploreController {
             if (path.startsWith("http")) {
                 result = StreamUtils.copyToString(URLUtil.inputStreamFromURL(new URL(path)), CharacterSet.UTF_8.toCharset());
             } else {
-                result = FileUtils.readFileToString(new File(path), "UTF-8");
+                result = FileUtils.readFileToString(new File(path), StandardCharsets.UTF_8);
             }
         } catch (Exception e) {
             logger.error("Exception reading from species.subgroups.url: " + speciesSubgroups, e);

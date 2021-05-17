@@ -372,7 +372,7 @@ public class DownloadServiceTest {
                 downloadRequestParams,
                 downloadDetailsDTO.getIpAddress(),
                 out,
-                false, true, true, false, (ExecutorService)null, doiResponseList);
+                true, true, false, (ExecutorService)null, doiResponseList);
 
         ArgumentCaptor<DownloadDoiDTO> argument = ArgumentCaptor.forClass(DownloadDoiDTO.class);
         verify(doiService).mintDoi(argument.capture());
@@ -428,7 +428,7 @@ public class DownloadServiceTest {
                 downloadRequestParams,
                 downloadDetailsDTO.getIpAddress(),
                 out,
-                false, true, true, false, (ExecutorService)null, doiResponseList);
+                true, true, false, (ExecutorService)null, doiResponseList);
 
         ArgumentCaptor<DownloadDoiDTO> argument = ArgumentCaptor.forClass(DownloadDoiDTO.class);
         verify(doiService).mintDoi(argument.capture());
@@ -483,7 +483,7 @@ public class DownloadServiceTest {
                 downloadRequestParams,
                 downloadDetailsDTO.getIpAddress(),
                 out,
-                false, true, true, false, (ExecutorService)null, doiResponseList);
+                true, true, false, (ExecutorService)null, doiResponseList);
 
         ArgumentCaptor<DownloadDoiDTO> argument = ArgumentCaptor.forClass(DownloadDoiDTO.class);
         verify(doiService).mintDoi(argument.capture());
@@ -531,7 +531,7 @@ public class DownloadServiceTest {
                 downloadRequestParams,
                 downloadDetailsDTO.getIpAddress(),
                 out,
-                false, true, true, false, (ExecutorService)null, doiResponseList);
+                true, true, false, (ExecutorService) null, doiResponseList);
 
         ArgumentCaptor<LogEventVO> argument = ArgumentCaptor.forClass(LogEventVO.class);
         verify(loggerService).logEvent(argument.capture());

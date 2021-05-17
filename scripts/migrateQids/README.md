@@ -1,9 +1,17 @@
 1. Export User Assertions from the old Cassandra database used by biocache-service and biocache-store.
 
-   Requires: python3, write access to `/data/tmp`, cqlsh that defaults to old Cassandra database.
+   Requires: groovy, write access to `/data/tmp`, `cqlsh` that defaults to old Cassandra database.
     ```
     ./export.sh
     ```
+   
+   Install groovy using sdkman
+
+   ```aidl
+   curl -s get.sdkman.io | bash
+   source "/root/.sdkman/bin/sdkman-init.sh"
+   sdk install groovy
+   ```
 
 2. Copy the output file to the new server
     ```

@@ -6,10 +6,10 @@
 #
 
 # dump the table
-cqlsh -e "copy occ.qid TO '/data/tmp/qid_dump.cql' with DELIMITER='\t' and header=true;";
+cqlsh -e "copy occ.qid TO '/data/tmp/qid_dump.cql' with DELIMITER='\t' and header=true and NULL='';";
 
 # format for new schema
-python3 qid_format.py
+groovy qid_format.groovy
 
 # Report
 echo "records exported: $(wc -l /data/tmp/qid.csv)"

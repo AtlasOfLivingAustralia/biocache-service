@@ -128,17 +128,6 @@ public class ScatterplotController {
         map.put("yaxis_range",new double[]{y1, y2});
 
         return map;
-
-        /*
-        //add new fqs
-        String [] fqs_old = requestParams.getFq();
-        String [] fqs_new = new String[fqs_old.length + 2];
-        System.arraycopy(fqs_old,0,fqs_new,0,fqs_old.length);
-        fqs_new[fqs_old.length] = x + ":[" + x1 + " TO " + x2 + "]";
-        fqs_new[fqs_old.length + 1] = y + ":[" + y1 + " TO " + y2 + "]";
-        requestParams.setFq(fqs_new);
-        return searchDAO.findByFulltextSpatialQuery(requestParams, null);
-        */
     }
 
     JFreeChart makeScatterplot(SpatialSearchRequestParams requestParams, String x, String y
@@ -166,7 +155,7 @@ public class ScatterplotController {
             }
         }
         
-        if(displayNameX == null) {
+        if (displayNameX == null) {
             throw new Exception("Unknown, unsupported datatype, or not stored, value for x: " + x, toThrowX);
         }
         
@@ -187,7 +176,7 @@ public class ScatterplotController {
             }
         }
         
-        if(displayNameY == null) {
+        if (displayNameY == null) {
             throw new Exception("Unknown, unsupported datatype, or not stored, value for y: " + y, toThrowY);
         }
 
@@ -198,18 +187,18 @@ public class ScatterplotController {
         int size = sdl.size();
         double [][] data = new double[2][size];
         int count = 0;
-        for(int i=0;i<size;i++) {
+        for (int i = 0; i < size; i++) {
             try {
                 Object a = sdl.get(i).getFieldValue(y); // PIPELINES: SolrDocument::getFieldValue entry point
                 Object b = sdl.get(i).getFieldValue(x); // PIPELINES: SolrDocument::getFieldValue entry point
                 data[1][i] = Double.parseDouble(String.valueOf(sdl.get(i).getFieldValue(y)));   // PIPELINES: SolrDocument::getFieldValue entry point
-                if(a instanceof Double) {
+                if (a instanceof Double) {
                     data[0][i] = (Double) a;
                 } else {
                     data[0][i] = Double.parseDouble(String.valueOf(a));
                 }
 
-                if(b instanceof Double) {
+                if (b instanceof Double) {
                     data[1][i] = (Double) b;
                 } else {
                     data[1][i] = Double.parseDouble(String.valueOf(b));
