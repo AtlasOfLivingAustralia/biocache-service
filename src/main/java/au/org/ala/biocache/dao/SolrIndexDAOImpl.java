@@ -101,6 +101,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
       put("userAssertions",  new Object[]{"string", false, true, true, true});
       put("hasUserAssertions", new Object[]{"boolean", false, true, true, true});
       put("lastAssertionDate", new Object[]{"date", false, true, true, true});
+	  put("_version_", new Object[]{"long", false, true, false, false});
     }
   };
 
@@ -987,35 +988,49 @@ public class SolrIndexDAOImpl implements IndexDAO {
   }
 
   @Override
-  public void indexFromMap(String guid, Map<String, Object> map) throws IOException, SolrServerException {
-    SolrInputDocument doc = new SolrInputDocument();
-    doc.addField("id", guid);
-
-    List<Object> values = getValues(map);
-    if (values.size() > 0 && values.size() != header.size()) {
-      logger.error("Values don't match headers");
-      return;
-    }
-
-    for (int i = 0; i < header.size(); i++) {
-      String key = header.get(i);
-      Object value = values.get(i);
-      doc.addField(key, new HashMap<String, Object>(){{ put("set", value); }});
-    }
-
-    // get list of user ids
-    doc.addField("assertionUserId", new HashMap<String, Object>(){{ put("set", map.getOrDefault("assertionUserId", null)); }});
-
-    // update schema if needed
-    syncDocFieldsWithSOLR(doc);
-
+  public void indexFromMap(List<Map<String, Object>> maps) throws IOException, SolrServerException {
     UpdateRequest updateRequest = new UpdateRequest();
     updateRequest.setAction( UpdateRequest.ACTION.COMMIT, false, false);
-    updateRequest.add(doc);
-    try {
-      updateRequest.process(solrClient);
-    } catch (Exception e) {
-      logger.error("Failed to update solr doc, id: " + guid + ", error message: " + e.getMessage(), e);
+
+    for (Map<String, Object> map : maps) {
+      if (map.containsKey("record_uuid")) {
+        SolrInputDocument doc = new SolrInputDocument();
+        doc.addField("id", map.get("record_uuid"));
+
+        List<Object> values = getValues(map);
+        if (values.size() > 0 && values.size() != header.size()) {
+          logger.error("Values don't match headers");
+          return;
+        }
+
+        for (int i = 0; i < header.size(); i++) {
+          String key = header.get(i);
+          Object value = values.get(i);
+          doc.addField(key, new HashMap<String, Object>() {{
+            put("set", value);
+          }});
+        }
+
+        // get list of user ids
+        doc.addField("assertionUserId", new HashMap<String, Object>(){{ put("set", map.getOrDefault("assertionUserId", null)); }});
+
+        // this makes sure update only succeeds when record with specified id exists
+        doc.addField("_version_", 1);
+
+        // update schema if needed
+        syncDocFieldsWithSOLR(doc);
+        logger.debug("Added solr doc for record: " + doc.get("id") + " to updateRequest");
+        updateRequest.add(doc);
+      }
+    }
+
+    // update only when there are docs to update
+    if (updateRequest.getDocuments() != null) {
+      try {
+        updateRequest.process(solrClient);
+      } catch (Exception e) {
+        logger.error("Failed to update solr doc, error message: " + e.getMessage(), e);
+      }
     }
   }
 
