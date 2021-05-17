@@ -1,10 +1,13 @@
 package au.org.ala.biocache.service;
 
+import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.StoreDAO;
+import au.org.ala.biocache.dto.AssertionStatus;
 import au.org.ala.biocache.dto.FacetThemes;
 import au.org.ala.biocache.dto.QualityAssertion;
 import au.org.ala.biocache.dto.UserAssertions;
 import au.org.ala.biocache.util.OccurrenceUtils;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrDocument;
 import org.junit.After;
 import org.junit.Before;
@@ -12,11 +15,10 @@ import org.junit.Test;
 import org.mockito.*;
 
 import java.io.IOException;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 public class AssertionServiceTest {
@@ -25,6 +27,8 @@ public class AssertionServiceTest {
     OccurrenceUtils occurrenceUtils;
     @Mock
     StoreDAO store;
+    @Mock
+    IndexDAO indexDAO;
 
     @InjectMocks
     AssertionService assertionService;
@@ -44,91 +48,304 @@ public class AssertionServiceTest {
         mocks.close();
     }
 
-    @Test
-    public void testAddAssertion() throws IOException {
-        // test when record is not found
-        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(null);
-        Optional<QualityAssertion> qualityAssertion = assertionService.addAssertion("", "", "", "", "", "", "");
-
-        assert(!qualityAssertion.isPresent());
-
-        // test when record is found
-        SolrDocument sd = new SolrDocument();
-
-        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
-        when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(new UserAssertions()));
-
-        // test when add succeed -- code = 50000
-        Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid1", "50000",
-                "comment1", "userId1", "userDisplayName1", "2000", "assertionUuid1");
-        assert(qualityAssertion1.isPresent());
-        // test when add succeed -- code = 50005
-        Optional<QualityAssertion> qualityAssertion2 = assertionService.addAssertion("recordUuid2", "20000",
-                "comment2", "userId2", "userDisplayName2", "2000", "assertionUuid");
-        assert(qualityAssertion2.isPresent());
-
-        ArgumentCaptor<String> myUuids = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<UserAssertions> myUserAssertions = ArgumentCaptor.forClass(UserAssertions.class);
-        Mockito.verify(store, times(2)).put(myUuids.capture(), myUserAssertions.capture());
-
-        List<String> uuids = myUuids.getAllValues();
-        String uuid1 = uuids.get(0);
-        assert(uuid1.equals("recordUuid1"));
-        String uuid2 = uuids.get(1);
-        assert(uuid2.equals("recordUuid2"));
-
-        List<UserAssertions> userAssertions = myUserAssertions.getAllValues();
-        assert(userAssertions.size() == 2);
-        assert(userAssertions.get(0).size() == 1);
-
-        QualityAssertion qa = userAssertions.get(0).get(0);
-
-        assert(qa.getUserId().equals("userId1"));
-        assert(qa.getReferenceRowKey().equals("recordUuid1"));
-        assert(qa.getComment().equals("comment1"));
-        assert(qa.getUserDisplayName().equals("userDisplayName1"));
-        assert(qa.getCode() == 50000);
-        assert(qa.getRelatedUuid().equals("assertionUuid1"));
-        assert(qa.getQaStatus() == 2000);
-
-        qa = userAssertions.get(1).get(0);
-
-        assert(qa.getUserId().equals("userId2"));
-        assert(qa.getReferenceRowKey().equals("recordUuid2"));
-        assert(qa.getComment().equals("comment2"));
-        assert(qa.getUserDisplayName().equals("userDisplayName2"));
-        assert(qa.getCode() == 20000);
-        assert(qa.getQaStatus() == 50005);
+    public UserAssertions getMockAssertions(int numberOfAssertions, int numberOfVerifications) {
+        UserAssertions userAssertions = new UserAssertions();
+        for (int i = 0; i < numberOfAssertions; i++) {
+            QualityAssertion qa = new QualityAssertion();
+            qa.setReferenceRowKey("recordUuid");
+            qa.setCode(i);
+            qa.setUserId("userId");
+            qa.setComment("comment_" + i);
+            userAssertions.add(qa);
+            if (i < numberOfVerifications) {
+                QualityAssertion verification = new QualityAssertion();
+                verification.setReferenceRowKey("recordUuid");
+                verification.setRelatedUuid(qa.getUuid());
+                verification.setCode(50000);
+                verification.setQaStatus(50001);
+                verification.setUserId("userId");
+                userAssertions.add(verification);
+            }
+        }
+        return userAssertions;
     }
 
     @Test
-    public void testDeleteAssertion() throws IOException {
+    public void testAddAssertion_record_not_found() throws Exception {
+        // test when record is not found
+        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(null);
+        Optional<QualityAssertion> qualityAssertion = assertionService.addAssertion("", "", "", "", "", "", "");
+        assert(!qualityAssertion.isPresent());
+    }
+
+    @Test
+    public void testAddAssertion_existing_empty_add_1_assertion() throws Exception {
+        // test when record is found
+        SolrDocument sd = new SolrDocument();
+        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+        when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(getMockAssertions(0, 0)));
+
+        ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<UserAssertions> myUserAssertions = ArgumentCaptor.forClass(UserAssertions.class);
+        ArgumentCaptor<Map<String, Object>> myIndexMap = ArgumentCaptor.forClass(Map.class);
+
+        // test when add succeed -- code = 50000
+        Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "0",
+                "comment", "userId", "userDisplayName", "", "");
+        assert(qualityAssertion1.isPresent());
+
+        // verify combined assertions
+        Mockito.verify(store).put(myUuid.capture(), myUserAssertions.capture());
+        assert(myUserAssertions.getValue().size() == 1);
+        assert(myUserAssertions.getValue().get(0).getComment().equals("comment"));
+
+        // verify indexmap
+        Mockito.verify(indexDAO).indexFromMap(myUuid.capture(), myIndexMap.capture());
+        assert(myIndexMap.getValue().get("userAssertions").equals("50005"));
+        assert((boolean)myIndexMap.getValue().get("hasUserAssertions"));
+        assert(((List<String>)myIndexMap.getValue().get("assertionUserId")).size() == 1);
+        assert(((List<String>)myIndexMap.getValue().get("assertionUserId")).get(0).equals("userId"));
+    }
+
+    @Test
+    public void testAddAssertion_existing_1_add_1_assertion_different_type_coexist() throws Exception {
+        // test when record is found
+        SolrDocument sd = new SolrDocument();
+        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+        when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(getMockAssertions(1, 0)));
+
+        ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<UserAssertions> myUserAssertions = ArgumentCaptor.forClass(UserAssertions.class);
+        ArgumentCaptor<Map<String, Object>> myIndexMap = ArgumentCaptor.forClass(Map.class);
+
+        // test when add succeed -- code = 50000
+        Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "1",
+                "comment", "userId1", "userDisplayName", "", "");
+        assert(qualityAssertion1.isPresent());
+
+        // verify combined assertions
+        Mockito.verify(store).put(myUuid.capture(), myUserAssertions.capture());
+        assert(myUserAssertions.getValue().size() == 2);
+        Set<Integer> codes = myUserAssertions.getValue().stream().map(QualityAssertion::getCode).collect(Collectors.toSet());
+        assert(codes.size() == 2);
+        assert(codes.contains(0));
+        assert(codes.contains(1));
+
+        // verify indexmap
+        Mockito.verify(indexDAO).indexFromMap(myUuid.capture(), myIndexMap.capture());
+        assert(myIndexMap.getValue().get("userAssertions").equals("50005"));
+        assert((boolean)myIndexMap.getValue().get("hasUserAssertions"));
+        Set<String> userIds = new HashSet<>((List<String>)myIndexMap.getValue().get("assertionUserId"));
+        assert(userIds.size() == 2);
+        assert(userIds.contains("userId"));
+        assert(userIds.contains("userId1"));
+    }
+
+    @Test
+    public void testAddAssertion_existing_1_add_1_assertion_same_type_overwrite() throws Exception {
+        // test when record is found
+        SolrDocument sd = new SolrDocument();
+        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+        when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(getMockAssertions(1, 0)));
+
+        ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<UserAssertions> myUserAssertions = ArgumentCaptor.forClass(UserAssertions.class);
+        ArgumentCaptor<Map<String, Object>> myIndexMap = ArgumentCaptor.forClass(Map.class);
+
+        // test when add succeed -- code = 50000
+        Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "0",
+                "comment_new", "userId", "userDisplayName", "", "");
+        assert(qualityAssertion1.isPresent());
+
+        // verify combined assertions
+        Mockito.verify(store).put(myUuid.capture(), myUserAssertions.capture());
+        assert(myUserAssertions.getValue().size() == 1);
+        assert(myUserAssertions.getValue().get(0).getCode() == 0);
+        assert(myUserAssertions.getValue().get(0).getComment().equals("comment_new"));
+
+        // verify indexmap
+        Mockito.verify(indexDAO).indexFromMap(myUuid.capture(), myIndexMap.capture());
+        assert(myIndexMap.getValue().get("userAssertions").equals("50005"));
+        assert((boolean)myIndexMap.getValue().get("hasUserAssertions"));
+        Set<String> userIds = new HashSet<>((List<String>)myIndexMap.getValue().get("assertionUserId"));
+        assert(userIds.size() == 1);
+        assert(userIds.contains("userId"));
+    }
+
+    @Test
+    public void testAddAssertion_existing_1_add_1_verification_50001() throws Exception {
+        // test when record is found
+        SolrDocument sd = new SolrDocument();
+        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+
+        UserAssertions existingAssertions = new UserAssertions();
+        QualityAssertion qa = new QualityAssertion();
+        qa.setReferenceRowKey("recordUuid");
+        qa.setCode(0);
+        qa.setUserId("userId");
+        qa.setComment("comment_old");
+        existingAssertions.add(qa);
+        when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(existingAssertions));
+
+        ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<UserAssertions> myUserAssertions = ArgumentCaptor.forClass(UserAssertions.class);
+        ArgumentCaptor<Map<String, Object>> myIndexMap = ArgumentCaptor.forClass(Map.class);
+
+        // test when add succeed -- code = 50000
+        Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "50000",
+                "comment_verification", "userId2", "userDisplayName", "50001", existingAssertions.get(0).getUuid());
+        assert(qualityAssertion1.isPresent());
+
+        // verify combined assertions
+        Mockito.verify(store).put(myUuid.capture(), myUserAssertions.capture());
+        UserAssertions assertions = myUserAssertions.getValue();
+        assert(assertions.size() == 2);
+
+        assertions.sort(Comparator.comparing(QualityAssertion::getCode));
+        assert(assertions.get(0).getCode() == 0);
+        assert(assertions.get(1).getCode() == 50000);
+
+        // verify indexmap
+        Mockito.verify(indexDAO).indexFromMap(myUuid.capture(), myIndexMap.capture());
+        assert(myIndexMap.getValue().get("userAssertions").equals("50001"));
+        assert((boolean)myIndexMap.getValue().get("hasUserAssertions"));
+        Set<String> userIds = new HashSet<>((List<String>)myIndexMap.getValue().get("assertionUserId"));
+        assert(userIds.size() == 1);
+        assert(userIds.contains("userId"));
+    }
+
+    @Test
+    public void testAddAssertion_existing_1_add_1_verification_50002() throws Exception {
+        // test when record is found
+        SolrDocument sd = new SolrDocument();
+        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+
+        UserAssertions existingAssertions = new UserAssertions();
+        QualityAssertion qa = new QualityAssertion();
+        qa.setReferenceRowKey("recordUuid");
+        qa.setCode(0);
+        qa.setUserId("userId");
+        qa.setComment("comment_old");
+        existingAssertions.add(qa);
+        when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(existingAssertions));
+
+        ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<UserAssertions> myUserAssertions = ArgumentCaptor.forClass(UserAssertions.class);
+        ArgumentCaptor<Map<String, Object>> myIndexMap = ArgumentCaptor.forClass(Map.class);
+
+        // test when add succeed -- code = 50000
+        Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "50000",
+                "comment_verification", "userId2", "userDisplayName", "50002", existingAssertions.get(0).getUuid());
+        assert(qualityAssertion1.isPresent());
+
+        // verify combined assertions
+        Mockito.verify(store).put(myUuid.capture(), myUserAssertions.capture());
+        UserAssertions assertions = myUserAssertions.getValue();
+        assert(assertions.size() == 2);
+
+        assertions.sort(Comparator.comparing(QualityAssertion::getCode));
+        assert(assertions.get(0).getCode() == 0);
+        assert(assertions.get(1).getCode() == 50000);
+        assert(assertions.get(1).getQaStatus() == 50002);
+
+        // verify indexmap
+        Mockito.verify(indexDAO).indexFromMap(myUuid.capture(), myIndexMap.capture());
+        assert(myIndexMap.getValue().get("userAssertions").equals("50002"));
+        assert((boolean)myIndexMap.getValue().get("hasUserAssertions"));
+        Set<String> userIds = new HashSet<>((List<String>)myIndexMap.getValue().get("assertionUserId"));
+        assert(userIds.size() == 1);
+        assert(userIds.contains("userId"));
+    }
+
+    @Test
+    public void testAddAssertion_existing_1_assertion_1_verification_add_1_verification_overwrite() throws Exception {
+        // test when record is found
+        SolrDocument sd = new SolrDocument();
+        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+        UserAssertions existingAssertions = getMockAssertions(1, 1);
+        when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(existingAssertions));
+
+        ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<UserAssertions> myUserAssertions = ArgumentCaptor.forClass(UserAssertions.class);
+        ArgumentCaptor<Map<String, Object>> myIndexMap = ArgumentCaptor.forClass(Map.class);
+
+        // test when add succeed -- code = 50000
+        Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "50000",
+                "comment_verification", "userId", "userDisplayName", "50002", existingAssertions.get(0).getUuid());
+        assert(qualityAssertion1.isPresent());
+
+        // verify combined assertions
+        Mockito.verify(store).put(myUuid.capture(), myUserAssertions.capture());
+        UserAssertions assertions = myUserAssertions.getValue();
+        assert(assertions.size() == 2);
+
+        assertions.sort(Comparator.comparing(QualityAssertion::getCode));
+        assert(assertions.get(0).getCode() == 0);
+        assert(assertions.get(1).getCode() == 50000);
+        assert(assertions.get(1).getQaStatus() == 50002);
+
+        // verify indexmap
+        Mockito.verify(indexDAO).indexFromMap(myUuid.capture(), myIndexMap.capture());
+        assert(myIndexMap.getValue().get("userAssertions").equals("50002"));
+        assert((boolean)myIndexMap.getValue().get("hasUserAssertions"));
+        Set<String> userIds = new HashSet<>((List<String>)myIndexMap.getValue().get("assertionUserId"));
+        assert(userIds.size() == 1);
+        assert(userIds.contains("userId"));
+    }
+
+    @Test
+    public void testDeleteAssertion_record_not_found() throws IOException {
         // test when record is not found
         when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(null);
         assert(!assertionService.deleteAssertion("recordUuid", "assertionUuid"));
+    }
 
+    @Test
+    public void testDeleteAssertion_no_existing_assertion_delete_not_found() throws IOException, SolrServerException {
         // test when record is found
         SolrDocument sd = new SolrDocument();
         when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
         // existing assertions empty so no deletion done
-        when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(new UserAssertions()));
+        when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(getMockAssertions(0, 0)));
         assert(!assertionService.deleteAssertion("recordUuid", "assertionUuid"));
+        Mockito.verify(store, never()).delete(Mockito.any(), Mockito.any());
+        Mockito.verify(indexDAO, never()).indexFromMap(Mockito.any(), Mockito.any());
 
-        // test assertion deleted
-        UserAssertions qualityAssertions = new UserAssertions();
-        QualityAssertion qa = new QualityAssertion();
-        qa.setUuid("test_uuid");
-        qualityAssertions.add(qa);
-        when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(qualityAssertions));
-        assert(assertionService.deleteAssertion("recordUuid", "test_uuid"));
+    }
 
-        ArgumentCaptor<String> uuidCaptor = ArgumentCaptor.forClass(String.class);
-        Mockito.verify(store).delete(Mockito.any(), uuidCaptor.capture());
-        assert(uuidCaptor.getValue().equals("recordUuid"));
+    @Test
+    public void testDeleteAssertion_existing_1_and_delete_not_found() throws IOException, SolrServerException {
+        SolrDocument sd = new SolrDocument();
+        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+        when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(getMockAssertions(1, 0)));
 
-        // delete non-exist assertion
-        when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(qualityAssertions));
-        assert(!assertionService.deleteAssertion("recordUuid", "test_uuid_not_exist"));
+        assert(!assertionService.deleteAssertion("recordUuid", "invalid_assertionUuid"));
+        Mockito.verify(store, never()).put(Mockito.any(), Mockito.any());
+        Mockito.verify(indexDAO, never()).indexFromMap(Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    public void testDeleteAssertion_existing_1_and_delete_found() throws IOException, SolrServerException {
+        SolrDocument sd = new SolrDocument();
+        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+        UserAssertions userAssertions = getMockAssertions(1, 0);
+
+        when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(userAssertions));
+        assert(assertionService.deleteAssertion("recordUuid", userAssertions.get(0).getUuid()));
+
+        // verify delete cassandra called
+        Mockito.verify(store).delete(Mockito.any(), Mockito.any());
+
+        ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Map<String, Object>> myIndexMap = ArgumentCaptor.forClass(Map.class);
+
+        // verify index
+        Mockito.verify(indexDAO).indexFromMap(myUuid.capture(), myIndexMap.capture());
+        Map<String, Object> value = myIndexMap.getValue();
+
+        assert(myIndexMap.getValue().get("userAssertions").equals(String.valueOf(AssertionStatus.QA_NONE)));
+        assert(!(boolean)myIndexMap.getValue().get("hasUserAssertions"));
+        assert(!myIndexMap.getValue().containsKey("assertionUserId"));
     }
 
     @Test
@@ -146,8 +363,7 @@ public class AssertionServiceTest {
         assert(assertionService.getAssertions("recordUuid").get(0).getUuid().equals(qualityAssertions.get(0).getUuid()));
         assert(assertionService.getAssertions("recordUuid").get(1).getUuid().equals(qualityAssertions.get(1).getUuid()));
     }
-
-
+    
     @Test
     public void testGetOneAssertion() throws Exception {
         // store.get(UserAssertions.class, recordUuid).orElse(new UserAssertions());

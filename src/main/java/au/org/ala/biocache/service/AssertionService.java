@@ -1,5 +1,6 @@
 package au.org.ala.biocache.service;
 
+import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.StoreDAO;
 import au.org.ala.biocache.dto.AssertionCodes;
 import au.org.ala.biocache.dto.AssertionStatus;
@@ -9,16 +10,16 @@ import au.org.ala.biocache.util.OccurrenceUtils;
 import org.apache.solr.common.SolrDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+
 import javax.inject.Inject;
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.stream.Collectors;
 
-@Component
+@Service
 public class AssertionService {
 
     private static final Logger logger = LoggerFactory.getLogger(AssertionService.class);
@@ -27,6 +28,10 @@ public class AssertionService {
     private OccurrenceUtils occurrenceUtils;
     @Inject
     private StoreDAO store;
+    @Inject
+    private IndexDAO indexDao;
+
+    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 
     public Optional<QualityAssertion> addAssertion(
             String recordUuid,
@@ -63,7 +68,7 @@ public class AssertionService {
             UserAssertions newAssertions = new UserAssertions();
             newAssertions.add(qa);
             UserAssertions combinedAssertions = getCombinedAssertions(existingAssertions, newAssertions);
-            store.put(recordUuid, combinedAssertions);
+            updateUserAssertions(recordUuid, combinedAssertions);
             return Optional.of(qa);
         }
 
@@ -79,11 +84,7 @@ public class AssertionService {
             // if there's any change made
             if (userAssertions.deleteUuid(assertionUuid)) {
                 // Update assertions
-                if (!userAssertions.isEmpty()) {
-                    store.put(recordUuid, userAssertions);
-                } else { // no assertions, delete the entry
-                    store.delete(UserAssertions.class, recordUuid);
-                }
+                updateUserAssertions(recordUuid, userAssertions);
                 return true;
             }
         }
@@ -118,7 +119,7 @@ public class AssertionService {
             UserAssertions existingAssertions = store.get(UserAssertions.class, recordUuid).orElse(new UserAssertions());
             UserAssertions combinedAssertions = getCombinedAssertions(existingAssertions, userAssertions);
             if (!combinedAssertions.isEmpty()) {
-                store.put(recordUuid, combinedAssertions);
+                updateUserAssertions(recordUuid, combinedAssertions);
             }
             return true;
         }
@@ -179,5 +180,98 @@ public class AssertionService {
         combined.addAll(existingVerificationMap.values());
 
         return combined;
+    }
+
+    // * There are 5 states for User Assertion Status:
+    // * NONE: If no user assertion record exist
+    // * UNCONFIRMED: If there is a user assertion but has not been verified by Collection Admin
+    // * OPEN ISSUE: Collection Admin verifies the record and flags the user assertion as Open issue
+    // * VERIFIED: Collection Admin verifies the record and flags the user assertion as Verified
+    // * CORRECTED: Collection Admin verifies the record and flags the user assertion as Corrected
+    private void updateUserAssertions(String recordUuid, UserAssertions userAssertions) throws IOException {
+        // update database
+        if (!userAssertions.isEmpty()) {
+            store.put(recordUuid, userAssertions);
+        } else { // no assertions, delete the entry
+            store.delete(UserAssertions.class, recordUuid);
+        }
+
+        Map<String, Object> indexMap = new HashMap<>();
+
+        // set default user assertion status QA_NONE, means there's no assertion
+        Integer assertionStatus = AssertionStatus.QA_NONE;
+
+        // original user assertions
+        List<QualityAssertion> assertions =
+                userAssertions.stream().filter(qa -> !qa.getCode().equals(AssertionCodes.VERIFIED.getCode())).collect(Collectors.toList());
+
+        // admin verifications
+        List<QualityAssertion> verifications =
+                userAssertions.stream().filter(qa -> qa.getCode().equals(AssertionCodes.VERIFIED.getCode())).collect(Collectors.toList());
+
+        List<String> assertionIds = assertions.stream().map(QualityAssertion::getUuid).collect(Collectors.toList());
+        List<String> verifiedIds = verifications.stream().map(QualityAssertion::getRelatedUuid).collect(Collectors.toList());
+
+        // only those not yet verified left
+        assertionIds.removeAll(verifiedIds);
+
+        // if there's user assertion not yet verified
+        if (!assertionIds.isEmpty()) {
+            assertionStatus = AssertionStatus.QA_UNCONFIRMED;
+        } else if (!verifications.isEmpty()) { // all verified
+            if (verifications.stream().anyMatch(qa -> qa.getQaStatus().equals(AssertionStatus.QA_OPEN_ISSUE))) {
+                assertionStatus = AssertionStatus.QA_OPEN_ISSUE;
+            } else {
+                // sort by datetime DESC
+                verifications.sort((qa1, qa2) -> {
+                    try {
+                        Date qa2Date = simpleDateFormat.parse(qa2.getCreated());
+                        Date qa1Date = simpleDateFormat.parse(qa1.getCreated());
+                        return qa2Date.compareTo(qa1Date);
+                    } catch (ParseException e) {
+                        e.printStackTrace();
+                        throw new IllegalArgumentException(e);
+                    }
+                });
+
+                assertionStatus = verifications.get(0).getQaStatus();
+            }
+        }
+
+        // put assertion status into index map
+        indexMap.put("userAssertions", String.valueOf(assertionStatus));
+        // set hasUserAssertions
+        indexMap.put("hasUserAssertions", !assertions.isEmpty());
+
+        if (!userAssertions.isEmpty()) {
+            userAssertions.sort((qa1, qa2) -> {
+                try {
+                    Date date1 = simpleDateFormat.parse(qa1.getCreated());
+                    Date date2 = simpleDateFormat.parse(qa2.getCreated());
+                    return date2.compareTo(date1);
+                } catch (ParseException e) {
+                    e.printStackTrace();
+                    throw new IllegalArgumentException(e);
+                }
+            });
+            Date lastDate = null;
+            try {
+                lastDate = simpleDateFormat.parse(userAssertions.get(0).getCreated());
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+            indexMap.put("lastAssertionDate", lastDate);
+        }
+
+        List<String> assertionUserIds = assertions.stream().map(QualityAssertion::getUserId).distinct().collect(Collectors.toList());
+        if (!assertionUserIds.isEmpty()) {
+            indexMap.put("assertionUserId", assertionUserIds);
+        }
+
+        try {
+            indexDao.indexFromMap(recordUuid, indexMap);
+        } catch (Exception e) {
+            logger.error("Failed to update Solr index, e = " + e.getMessage());
+        }
     }
 }
