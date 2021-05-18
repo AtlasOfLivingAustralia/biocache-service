@@ -254,12 +254,19 @@ public class ExploreController {
         //set the counts an indent levels for all the species groups
         for (Object sg : sgs) {
             if (sg instanceof JSONObject
-                    && ((JSONObject) sg).containsKey("parent")
                     && ((JSONObject) sg).containsKey("name")) {
-                String parent = ((JSONObject) sg).getString("parent");
+
+                String parent = null;
+                if (((JSONObject) sg).containsKey("parent")){
+                    parent = ((JSONObject) sg).getString("parent");
+                }
+
                 String name = ((JSONObject) sg).getString("name");
 
-                logger.debug("name: " + name + " parent: " + parent);
+                if (logger.isDebugEnabled()) {
+                    logger.debug("name: " + name + " parent: " + parent);
+                }
+
                 int level = 3;
                 SpeciesGroupDTO sdto = new SpeciesGroupDTO();
                 sdto.setName(name);
@@ -269,7 +276,7 @@ public class ExploreController {
                 }
 
                 oldName = name;
-                if (parent == null) {
+                if (StringUtils.isBlank(parent) || "null".equalsIgnoreCase(parent)) {
                     level = 1;
                     kingdom = name;
                 }
