@@ -11,6 +11,7 @@ import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.params.SolrParams;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -51,5 +52,5 @@ public interface IndexDAO {
 
     QueryResponse runSolrQuery(SolrQuery solrQuery, SearchRequestParams requestParams) throws Exception;
 
-    void indexFromMap(String guid, Map<String, Object> map) throws IOException, SolrServerException;
+    void indexFromMap(List<Map<String, Object>> maps) throws IOException, SolrServerException;
 }

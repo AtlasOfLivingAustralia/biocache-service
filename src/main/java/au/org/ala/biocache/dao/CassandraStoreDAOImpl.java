@@ -34,11 +34,7 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.text.ParseException;
-import java.util.Collection;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * Cassandra 3 based implementation of a persistence manager.
@@ -151,6 +147,24 @@ public class CassandraStoreDAOImpl implements StoreDAO {
         }
 
         return Optional.ofNullable(result);
+    }
+
+    @Override
+    public <T> List<T> getAll(Class<T> dataClass) throws IOException {
+        List<T> result = new ArrayList<>();
+        ResultSet rs = session.execute("SELECT * FROM " + dataClass.getSimpleName());
+
+        for (Row row : rs) {
+            String jsonString = row.get(1, String.class);
+
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            mapper.configure(JsonParser.Feature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, true);
+
+            result.add(mapper.readValue(jsonString, dataClass));
+        }
+
+        return result;
     }
 
     @Override

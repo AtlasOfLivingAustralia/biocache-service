@@ -324,6 +324,21 @@ public class AssertionController extends AbstractSecureController {
         return new ArrayList<>();
     }
 
+    @RequestMapping(value = {"/sync"}, method = RequestMethod.GET)
+    public @ResponseBody Boolean showSensitiveOccurrence(@RequestParam(value="apiKey", required=true) String apiKey,
+                                                        HttpServletResponse response) throws Exception {
+        if (isValidKey(apiKey)) {
+            if (assertionService.indexAll()) {
+                response.setStatus(HttpServletResponse.SC_OK);
+            } else {
+                response.setStatus(HttpServletResponse.SC_OK, "An index all user assertions job already running. Your request won't be processed.");
+            }
+        } else {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
+        }
+        return null;
+    }
+
     public void setAssertionUtils(AssertionUtils assertionUtils) {
         this.assertionUtils = assertionUtils;
     }

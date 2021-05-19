@@ -87,7 +87,7 @@ public class AssertionServiceTest {
 
         ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<UserAssertions> myUserAssertions = ArgumentCaptor.forClass(UserAssertions.class);
-        ArgumentCaptor<Map<String, Object>> myIndexMap = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<List<Map<String, Object>>> myIndexMaps = ArgumentCaptor.forClass(List.class);
 
         // test when add succeed -- code = 50000
         Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "0",
@@ -100,11 +100,13 @@ public class AssertionServiceTest {
         assert(myUserAssertions.getValue().get(0).getComment().equals("comment"));
 
         // verify indexmap
-        Mockito.verify(indexDAO).indexFromMap(myUuid.capture(), myIndexMap.capture());
-        assert(myIndexMap.getValue().get("userAssertions").equals("50005"));
-        assert((boolean)myIndexMap.getValue().get("hasUserAssertions"));
-        assert(((List<String>)myIndexMap.getValue().get("assertionUserId")).size() == 1);
-        assert(((List<String>)myIndexMap.getValue().get("assertionUserId")).get(0).equals("userId"));
+        Mockito.verify(indexDAO).indexFromMap(myIndexMaps.capture());
+        assert(myIndexMaps.getValue().size() == 1);
+        Map<String, Object> indexMap = myIndexMaps.getValue().get(0);
+        assert(indexMap.get("userAssertions").equals("50005"));
+        assert((boolean)indexMap.get("hasUserAssertions"));
+        assert(((List<String>)indexMap.get("assertionUserId")).size() == 1);
+        assert(((List<String>)indexMap.get("assertionUserId")).get(0).equals("userId"));
     }
 
     @Test
@@ -116,7 +118,7 @@ public class AssertionServiceTest {
 
         ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<UserAssertions> myUserAssertions = ArgumentCaptor.forClass(UserAssertions.class);
-        ArgumentCaptor<Map<String, Object>> myIndexMap = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<List<Map<String, Object>>> myIndexMaps = ArgumentCaptor.forClass(List.class);
 
         // test when add succeed -- code = 50000
         Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "1",
@@ -132,10 +134,11 @@ public class AssertionServiceTest {
         assert(codes.contains(1));
 
         // verify indexmap
-        Mockito.verify(indexDAO).indexFromMap(myUuid.capture(), myIndexMap.capture());
-        assert(myIndexMap.getValue().get("userAssertions").equals("50005"));
-        assert((boolean)myIndexMap.getValue().get("hasUserAssertions"));
-        Set<String> userIds = new HashSet<>((List<String>)myIndexMap.getValue().get("assertionUserId"));
+        Mockito.verify(indexDAO).indexFromMap(myIndexMaps.capture());
+        Map<String, Object> indexMap = myIndexMaps.getValue().get(0);
+        assert(indexMap.get("userAssertions").equals("50005"));
+        assert((boolean)indexMap.get("hasUserAssertions"));
+        Set<String> userIds = new HashSet<>((List<String>)indexMap.get("assertionUserId"));
         assert(userIds.size() == 2);
         assert(userIds.contains("userId"));
         assert(userIds.contains("userId1"));
@@ -150,7 +153,7 @@ public class AssertionServiceTest {
 
         ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<UserAssertions> myUserAssertions = ArgumentCaptor.forClass(UserAssertions.class);
-        ArgumentCaptor<Map<String, Object>> myIndexMap = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<List<Map<String, Object>>> myIndexMaps = ArgumentCaptor.forClass(List.class);
 
         // test when add succeed -- code = 50000
         Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "0",
@@ -164,10 +167,11 @@ public class AssertionServiceTest {
         assert(myUserAssertions.getValue().get(0).getComment().equals("comment_new"));
 
         // verify indexmap
-        Mockito.verify(indexDAO).indexFromMap(myUuid.capture(), myIndexMap.capture());
-        assert(myIndexMap.getValue().get("userAssertions").equals("50005"));
-        assert((boolean)myIndexMap.getValue().get("hasUserAssertions"));
-        Set<String> userIds = new HashSet<>((List<String>)myIndexMap.getValue().get("assertionUserId"));
+        Mockito.verify(indexDAO).indexFromMap(myIndexMaps.capture());
+        Map<String, Object> indexMap = myIndexMaps.getValue().get(0);
+        assert(indexMap.get("userAssertions").equals("50005"));
+        assert((boolean)indexMap.get("hasUserAssertions"));
+        Set<String> userIds = new HashSet<>((List<String>)indexMap.get("assertionUserId"));
         assert(userIds.size() == 1);
         assert(userIds.contains("userId"));
     }
@@ -189,7 +193,7 @@ public class AssertionServiceTest {
 
         ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<UserAssertions> myUserAssertions = ArgumentCaptor.forClass(UserAssertions.class);
-        ArgumentCaptor<Map<String, Object>> myIndexMap = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<List<Map<String, Object>>> myIndexMaps = ArgumentCaptor.forClass(List.class);
 
         // test when add succeed -- code = 50000
         Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "50000",
@@ -206,10 +210,11 @@ public class AssertionServiceTest {
         assert(assertions.get(1).getCode() == 50000);
 
         // verify indexmap
-        Mockito.verify(indexDAO).indexFromMap(myUuid.capture(), myIndexMap.capture());
-        assert(myIndexMap.getValue().get("userAssertions").equals("50001"));
-        assert((boolean)myIndexMap.getValue().get("hasUserAssertions"));
-        Set<String> userIds = new HashSet<>((List<String>)myIndexMap.getValue().get("assertionUserId"));
+        Mockito.verify(indexDAO).indexFromMap(myIndexMaps.capture());
+        Map<String, Object> indexMap = myIndexMaps.getValue().get(0);
+        assert(indexMap.get("userAssertions").equals("50001"));
+        assert((boolean)indexMap.get("hasUserAssertions"));
+        Set<String> userIds = new HashSet<>((List<String>)indexMap.get("assertionUserId"));
         assert(userIds.size() == 1);
         assert(userIds.contains("userId"));
     }
@@ -231,7 +236,7 @@ public class AssertionServiceTest {
 
         ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<UserAssertions> myUserAssertions = ArgumentCaptor.forClass(UserAssertions.class);
-        ArgumentCaptor<Map<String, Object>> myIndexMap = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<List<Map<String, Object>>> myIndexMaps = ArgumentCaptor.forClass(List.class);
 
         // test when add succeed -- code = 50000
         Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "50000",
@@ -249,10 +254,11 @@ public class AssertionServiceTest {
         assert(assertions.get(1).getQaStatus() == 50002);
 
         // verify indexmap
-        Mockito.verify(indexDAO).indexFromMap(myUuid.capture(), myIndexMap.capture());
-        assert(myIndexMap.getValue().get("userAssertions").equals("50002"));
-        assert((boolean)myIndexMap.getValue().get("hasUserAssertions"));
-        Set<String> userIds = new HashSet<>((List<String>)myIndexMap.getValue().get("assertionUserId"));
+        Mockito.verify(indexDAO).indexFromMap(myIndexMaps.capture());
+        Map<String, Object> indexMap = myIndexMaps.getValue().get(0);
+        assert(indexMap.get("userAssertions").equals("50002"));
+        assert((boolean)indexMap.get("hasUserAssertions"));
+        Set<String> userIds = new HashSet<>((List<String>)indexMap.get("assertionUserId"));
         assert(userIds.size() == 1);
         assert(userIds.contains("userId"));
     }
@@ -267,7 +273,7 @@ public class AssertionServiceTest {
 
         ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<UserAssertions> myUserAssertions = ArgumentCaptor.forClass(UserAssertions.class);
-        ArgumentCaptor<Map<String, Object>> myIndexMap = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<List<Map<String, Object>>> myIndexMaps = ArgumentCaptor.forClass(List.class);
 
         // test when add succeed -- code = 50000
         Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "50000",
@@ -285,10 +291,11 @@ public class AssertionServiceTest {
         assert(assertions.get(1).getQaStatus() == 50002);
 
         // verify indexmap
-        Mockito.verify(indexDAO).indexFromMap(myUuid.capture(), myIndexMap.capture());
-        assert(myIndexMap.getValue().get("userAssertions").equals("50002"));
-        assert((boolean)myIndexMap.getValue().get("hasUserAssertions"));
-        Set<String> userIds = new HashSet<>((List<String>)myIndexMap.getValue().get("assertionUserId"));
+        Mockito.verify(indexDAO).indexFromMap(myIndexMaps.capture());
+        Map<String, Object> indexMap = myIndexMaps.getValue().get(0);
+        assert(indexMap.get("userAssertions").equals("50002"));
+        assert((boolean)indexMap.get("hasUserAssertions"));
+        Set<String> userIds = new HashSet<>((List<String>)indexMap.get("assertionUserId"));
         assert(userIds.size() == 1);
         assert(userIds.contains("userId"));
     }
@@ -309,7 +316,7 @@ public class AssertionServiceTest {
         when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(getMockAssertions(0, 0)));
         assert(!assertionService.deleteAssertion("recordUuid", "assertionUuid"));
         Mockito.verify(store, never()).delete(Mockito.any(), Mockito.any());
-        Mockito.verify(indexDAO, never()).indexFromMap(Mockito.any(), Mockito.any());
+        Mockito.verify(indexDAO, never()).indexFromMap(Mockito.any());
 
     }
 
@@ -321,7 +328,7 @@ public class AssertionServiceTest {
 
         assert(!assertionService.deleteAssertion("recordUuid", "invalid_assertionUuid"));
         Mockito.verify(store, never()).put(Mockito.any(), Mockito.any());
-        Mockito.verify(indexDAO, never()).indexFromMap(Mockito.any(), Mockito.any());
+        Mockito.verify(indexDAO, never()).indexFromMap(Mockito.any());
     }
 
     @Test
@@ -336,16 +343,15 @@ public class AssertionServiceTest {
         // verify delete cassandra called
         Mockito.verify(store).delete(Mockito.any(), Mockito.any());
 
-        ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Map<String, Object>> myIndexMap = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<List<Map<String, Object>>> myIndexMaps = ArgumentCaptor.forClass(List.class);
 
         // verify index
-        Mockito.verify(indexDAO).indexFromMap(myUuid.capture(), myIndexMap.capture());
-        Map<String, Object> value = myIndexMap.getValue();
+        Mockito.verify(indexDAO).indexFromMap(myIndexMaps.capture());
+        Map<String, Object> indexMap = myIndexMaps.getValue().get(0);
 
-        assert(myIndexMap.getValue().get("userAssertions").equals(String.valueOf(AssertionStatus.QA_NONE)));
-        assert(!(boolean)myIndexMap.getValue().get("hasUserAssertions"));
-        assert(!myIndexMap.getValue().containsKey("assertionUserId"));
+        assert(indexMap.get("userAssertions").equals(String.valueOf(AssertionStatus.QA_NONE)));
+        assert(!(boolean)indexMap.get("hasUserAssertions"));
+        assert(!indexMap.containsKey("assertionUserId"));
     }
 
     @Test
@@ -363,7 +369,7 @@ public class AssertionServiceTest {
         assert(assertionService.getAssertions("recordUuid").get(0).getUuid().equals(qualityAssertions.get(0).getUuid()));
         assert(assertionService.getAssertions("recordUuid").get(1).getUuid().equals(qualityAssertions.get(1).getUuid()));
     }
-    
+
     @Test
     public void testGetOneAssertion() throws Exception {
         // store.get(UserAssertions.class, recordUuid).orElse(new UserAssertions());

@@ -1,17 +1,18 @@
 package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dao.IndexDAO;
+import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dao.StoreDAO;
-import au.org.ala.biocache.dto.AssertionCodes;
-import au.org.ala.biocache.dto.AssertionStatus;
-import au.org.ala.biocache.dto.QualityAssertion;
-import au.org.ala.biocache.dto.UserAssertions;
+import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.OccurrenceUtils;
 import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrDocumentList;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.text.ParseException;
@@ -29,9 +30,33 @@ public class AssertionService {
     @Inject
     private StoreDAO store;
     @Inject
+    private SearchDAO searchDAO;
+    @Inject
     private IndexDAO indexDao;
 
     SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+
+    @PostConstruct
+    public void init() {
+        simpleDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+    }
+
+    // if background indexing is running
+    private boolean indexing = false;
+
+    Runnable indexAll = () -> {
+        indexing = true;
+        try {
+            // get all user assertions from database
+            List<UserAssertions> allAssertions = store.getAll(UserAssertions.class);
+
+            indexDao.indexFromMap(allAssertions.stream().filter(assertions -> !assertions.isEmpty() && ifRecordExist(assertions.get(0).getReferenceRowKey())).
+                    map(assertions -> getIndexMap(assertions.get(0).getReferenceRowKey(), assertions)).collect(Collectors.toList()));
+        } catch (Exception e) {
+            logger.error("Failed to read all assertions, e = " + e.getMessage());
+        }
+        indexing = false;
+    };
 
     public Optional<QualityAssertion> addAssertion(
             String recordUuid,
@@ -195,8 +220,17 @@ public class AssertionService {
         } else { // no assertions, delete the entry
             store.delete(UserAssertions.class, recordUuid);
         }
+        try {
+            indexDao.indexFromMap(Collections.singletonList(getIndexMap(recordUuid, userAssertions)));
+        } catch (Exception e) {
+            logger.error("Failed to update Solr index, e = " + e.getMessage());
+        }
+    }
 
+    @NotNull
+    private Map<String, Object> getIndexMap(String recordUuid, UserAssertions userAssertions) {
         Map<String, Object> indexMap = new HashMap<>();
+        indexMap.put("record_uuid", recordUuid);
 
         // set default user assertion status QA_NONE, means there's no assertion
         Integer assertionStatus = AssertionStatus.QA_NONE;
@@ -267,11 +301,39 @@ public class AssertionService {
         if (!assertionUserIds.isEmpty()) {
             indexMap.put("assertionUserId", assertionUserIds);
         }
+        return indexMap;
+    }
+
+    public Boolean indexAll() {
+        if (!indexing) {
+            new Thread(indexAll).start();
+        } else {
+            logger.debug("An index threading is already running at background");
+            return false;
+        }
+
+        return true;
+    }
+
+    // if solr doc with specified id exists
+    private boolean ifRecordExist(String recordUuid) {
+        logger.debug("Try to retrieve occurrence record with guid: '" + recordUuid + "'");
+
+        SpatialSearchRequestParams idRequest = new SpatialSearchRequestParams();
+        idRequest.setQ(OccurrenceIndex.ID + ":\"" + recordUuid + "\"");
+        idRequest.setFacet(false);
+        idRequest.setFl(OccurrenceIndex.ID);
 
         try {
-            indexDao.indexFromMap(recordUuid, indexMap);
+            SolrDocumentList sdl = searchDAO.findByFulltext(idRequest);
+            boolean resultNotEmpty = !sdl.isEmpty();
+            logger.debug(resultNotEmpty ? "Found " : "Can't find " + "record with uid: " + recordUuid);
+            return resultNotEmpty;
         } catch (Exception e) {
-            logger.error("Failed to update Solr index, e = " + e.getMessage());
+            logger.error("Error happened when searching for record with uid: " + recordUuid + ", e = " + e.getMessage());
+            e.printStackTrace();
         }
+
+        return false;
     }
 }
