@@ -407,12 +407,12 @@ public interface SearchDAO {
      * @param maxx
      * @param maxy
      * @param legend
-     * @param isGrid
+     * @param legend
      * @return
      * @throws Exception
      */
     HeatmapDTO getHeatMap(String query, String [] filterQueries, Double minx, Double miny, Double maxx, Double maxy,
                           List<LegendItem> legend,
-                          int gridSize) throws Exception;
+                          int gridSize,  Set<Integer> hiddenFacets) throws Exception;
 
 }

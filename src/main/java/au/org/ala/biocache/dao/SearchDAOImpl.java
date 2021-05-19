@@ -2847,9 +2847,9 @@ public class SearchDAOImpl implements SearchDAO {
         return getLegend(searchParams, facetField, cutpoints, false);
     }
 
-    @Cacheable(cacheName = "legendCache")
+    //@Cacheable(cacheName = "legendCache")
     public List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facetField, String[] cutpoints, boolean skipI18n) throws Exception {
-        List<LegendItem> legend = new ArrayList<LegendItem>();
+        List<LegendItem> legend = new ArrayList<>();
 
         queryFormatUtils.formatSearchQuery(searchParams);
         if (logger.isDebugEnabled()) {
@@ -2857,7 +2857,8 @@ public class SearchDAOImpl implements SearchDAO {
         }
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
-        solrQuery.setQuery(searchParams.getFormattedQuery());   // PIPELINES: SolrQuery::setQuery entry point
+        solrQuery.setQuery(searchParams.getQ());
+        solrQuery.setFilterQueries(searchParams.getFormattedQuery());
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
 
@@ -3467,7 +3468,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * @see au.org.ala.biocache.dao.SearchDAO#getColours
      */
-    @Cacheable(cacheName = "getColours")
+    //@Cacheable(cacheName = "getColours")
     public List<LegendItem> getColours(SpatialSearchRequestParams request, String colourMode) throws Exception {
         List<LegendItem> colours = new ArrayList<LegendItem>();
         if (colourMode.equals("grid")) {
@@ -3482,16 +3483,16 @@ public class SearchDAOImpl implements SearchDAO {
                 colours.add(li);
             }
         } else {
-            SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
-            requestParams.setFormattedQuery(request.getFormattedQuery());
-            requestParams.setWkt(request.getWkt());
-            requestParams.setRadius(request.getRadius());
-            requestParams.setLat(request.getLat());
-            requestParams.setLon(request.getLon());
-            requestParams.setQ(request.getQ());
-            requestParams.setQc(request.getQc());
-            requestParams.setFq(qidCacheDao.getFq(request));
-            requestParams.setFoffset(-1);
+//            SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
+//            requestParams.setFormattedQuery(request.getFormattedQuery());
+//            requestParams.setWkt(request.getWkt());
+//            requestParams.setRadius(request.getRadius());
+//            requestParams.setLat(request.getLat());
+//            requestParams.setLon(request.getLon());
+//            requestParams.setQ(request.getQ());
+//            requestParams.setQc(request.getQc());
+//            requestParams.setFq(request.getFq());
+//            requestParams.setFoffset(-1);
 
             //test for cutpoints on the back of colourMode
             String[] s = colourMode.split(",");
@@ -3503,7 +3504,7 @@ public class SearchDAOImpl implements SearchDAO {
             if (s[0].equals("-1") || s[0].equals("grid")) {
                 return null;
             } else {
-                List<LegendItem> legend = getLegend(requestParams, s[0], cutpoints, true);
+                List<LegendItem> legend = getLegend(request, s[0], cutpoints, true);
 
                 if (cutpoints == null) {     //do not sort if cutpoints are provided
                     java.util.Collections.sort(legend);
@@ -3628,7 +3629,8 @@ public class SearchDAOImpl implements SearchDAO {
             Double maxx,
             Double maxy,
             List<LegendItem> legend,
-            int gridSizeInPixels)
+            int gridSizeInPixels,
+            Set<Integer> hiddenFacets)
             throws Exception {
 
         List<List<List<Integer>>> layers = new ArrayList<>();
@@ -3650,7 +3652,6 @@ public class SearchDAOImpl implements SearchDAO {
         // single layers
         if (gridSizeInPixels > 1 || legend == null || legend.isEmpty()) {
             // single layer
-            QueryResponse qr = null;
             SolrQuery solrQuery =
                     createHeatmapQuery(
                             query,
@@ -3659,7 +3660,8 @@ public class SearchDAOImpl implements SearchDAO {
                             miny,
                             maxx,
                             maxy);
-            qr = query(solrQuery); // can throw exception
+
+            QueryResponse qr = query(solrQuery); // can throw exception
 
             // FIXME UGLY - not needed with SOLR8, but current constraint is SOLR 6 API
             // See SpatialHeatmapFacets.HeatmapFacet in SOLR 8 API
@@ -3692,43 +3694,46 @@ public class SearchDAOImpl implements SearchDAO {
             Double hmaxx = maxx;
             Double hmaxy = maxy;
 
-            int zoomOffset = 0;
             for (int legendIdx = 0; legendIdx < legend.size(); legendIdx++) {
                 LegendItem legendItem = legend.get(legendIdx);
 
-                // add the FQ for the legend item
-                QueryResponse qr = null;
+                if (!hiddenFacets.contains(legendIdx)){
 
-                SolrQuery solrQuery =
-                        createHeatmapQuery(
-                                query, filterQueries, minx, miny, maxx, maxy);
-                String[] fqs =
-                        Arrays.copyOf(
-                                solrQuery.getFilterQueries(), solrQuery.getFilterQueries().length + 1);
-                fqs[fqs.length - 1] = legendItem.getFq();
-                solrQuery.setFilterQueries(fqs);
+                    SolrQuery solrQuery = createHeatmapQuery(query, filterQueries, minx, miny, maxx, maxy);
 
-                // query
-                qr = query(solrQuery); // can throw exception
+                    String[] fqs =
+                            Arrays.copyOf(
+                                    solrQuery.getFilterQueries(), solrQuery.getFilterQueries().length + 1);
 
-                if (qr != null) {
-                    SimpleOrderedMap facetHeatMaps =
-                            ((SimpleOrderedMap)
-                                    ((SimpleOrderedMap) ((qr.getResponse().get("facet_counts"))))
-                                            .get("facet_heatmaps"));
+                    // add a filter for this legend item
+                    fqs[fqs.length - 1] = legendItem.getFq();
 
-                    if (facetHeatMaps != null) {
-                        // iterate over legend
-                        SimpleOrderedMap heatmap = (SimpleOrderedMap) facetHeatMaps.get(spatialFieldWMS);
-                        gridLevel = (Integer) heatmap.get("gridLevel");
-                        List<List<Integer>> layer = (List<List<Integer>>) heatmap.get("counts_ints2D");
-                        rows = (Integer) heatmap.get("rows");
-                        columns = (Integer) heatmap.get("columns");
-                        hminx = (Double) heatmap.get("minX");
-                        hminy = (Double) heatmap.get("minY");
-                        hmaxx = (Double) heatmap.get("maxX");
-                        hmaxy = (Double) heatmap.get("maxY");
-                        layers.add(layer);
+                    solrQuery.setFilterQueries(fqs);
+
+                    // query
+                    QueryResponse qr = query(solrQuery);
+
+                    if (qr != null) {
+                        SimpleOrderedMap facetHeatMaps =
+                                ((SimpleOrderedMap)
+                                        ((SimpleOrderedMap) ((qr.getResponse().get("facet_counts"))))
+                                                .get("facet_heatmaps"));
+
+                        if (facetHeatMaps != null) {
+                            // iterate over legend
+                            SimpleOrderedMap heatmap = (SimpleOrderedMap) facetHeatMaps.get(spatialFieldWMS);
+                            gridLevel = (Integer) heatmap.get("gridLevel");
+                            List<List<Integer>> layer = (List<List<Integer>>) heatmap.get("counts_ints2D");
+                            rows = (Integer) heatmap.get("rows");
+                            columns = (Integer) heatmap.get("columns");
+                            hminx = (Double) heatmap.get("minX");
+                            hminy = (Double) heatmap.get("minY");
+                            hmaxx = (Double) heatmap.get("maxX");
+                            hmaxy = (Double) heatmap.get("maxY");
+                            layers.add(layer);
+                        } else {
+                            layers.add(null);
+                        }
                     } else {
                         layers.add(null);
                     }

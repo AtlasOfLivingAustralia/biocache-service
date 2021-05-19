@@ -1116,7 +1116,7 @@ public class WMSController extends AbstractSecureController{
             throws Exception {
 
         if ("GetMap".equalsIgnoreCase(requestString)) {
-            generateWmsTileViaHeatmap(
+            generateWmsTile(
                     requestParams,
                     cql_filter,
                     env,
@@ -1365,7 +1365,7 @@ public class WMSController extends AbstractSecureController{
      * @throws Exception
      */
     @RequestMapping(value = {"/webportal/wms/reflect", "/ogc/wms/reflect", "/mapping/wms/reflect"}, method = RequestMethod.GET)
-    public ModelAndView generateWmsTileViaHeatmap(
+    public ModelAndView generateWmsTile(
             SpatialSearchRequestParams requestParams,
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
@@ -1410,7 +1410,7 @@ public class WMSController extends AbstractSecureController{
         }
 
         // Used to hide certain values from the layer
-        Set<Integer> hiddenFacets = new HashSet<Integer>();
+        Set<Integer> hiddenFacets = new HashSet<>();
         if (hqs != null && hqs.length > 0) {
             for (String h : hqs) {
                 hiddenFacets.add(Integer.parseInt(h));
@@ -1450,16 +1450,18 @@ public class WMSController extends AbstractSecureController{
         double bWidth = ((bbox[2] - bbox[0]) / (double) width) * (Math.max(wmsMaxPointWidth, pointWidth) + additionalBuffer);
         double bHeight = ((bbox[3] - bbox[1]) / (double) height) * (Math.max(wmsMaxPointWidth, pointWidth) + additionalBuffer);
 
-        HeatmapDTO heatmapDTO = searchDAO.getHeatMap(requestParams.getFormattedQuery(), requestParams.getFormattedFq(), bbox[0] - bWidth, bbox[1] - bHeight, bbox[2] + bWidth, bbox[3] + bHeight, legend, isGrid ? (int) Math.ceil(width / (double) gridDivisionCount) : 1);
+        HeatmapDTO heatmapDTO = searchDAO.getHeatMap(
+                requestParams.getFormattedQuery(),
+                requestParams.getFormattedFq(),
+                bbox[0] - bWidth,
+                bbox[1] - bHeight,
+                bbox[2] + bWidth,
+                bbox[3] + bHeight,
+                legend,
+                isGrid ? (int) Math.ceil(width / (double) gridDivisionCount) : 1,
+                hiddenFacets
+        );
         heatmapDTO.setTileExtents(bbox);
-
-        if (hiddenFacets != null) {
-            for (Integer hf : hiddenFacets) {
-                if (heatmapDTO.layers.size() < hf) {
-                    heatmapDTO.layers.set(hf, null);
-                }
-            }
-        }
 
         HeatmapDTO uncertaintyHeatmap = null;
         if (!isGrid && vars.uncertainty) {
@@ -1492,7 +1494,12 @@ public class WMSController extends AbstractSecureController{
             if (uncertaintyLegend.size() > 0) {
                 // approximately a 30km buffer
                 double buffer = lastDistance / 100000.0 * 1.01;
-                uncertaintyHeatmap = searchDAO.getHeatMap(requestParams.getFormattedQuery(), requestParams.getFormattedFq(), bbox[0] - buffer, bbox[1] - buffer, bbox[2] + buffer, bbox[3] + buffer, uncertaintyLegend, 1);
+                uncertaintyHeatmap = searchDAO.getHeatMap(
+                        requestParams.getFormattedQuery(),
+                        requestParams.getFormattedFq(),
+                        bbox[0] - buffer,
+                        bbox[1] - buffer, bbox[2] + buffer, bbox[3] + buffer,
+                        uncertaintyLegend, 1, hiddenFacets);
                 uncertaintyHeatmap.setTileExtents(bbox);
             }
         }
