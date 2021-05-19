@@ -2024,6 +2024,9 @@ public class WMSController extends AbstractSecureController{
                                     // heatmap grid cell centre longitude
                                     double lng = heatmapDTO.minx + cellWidth * (column + 0.5);
 
+                                    if (lng < -180) lng += 360;
+                                    if (lng > 180) lng -= 360;
+
                                     // make coordinates to match target SRS
                                     GeneralDirectPosition sourceCoords = new GeneralDirectPosition(lng, lat);
                                     DirectPosition targetCoords = transformFrom4326.getMathTransform().transform(sourceCoords, null);

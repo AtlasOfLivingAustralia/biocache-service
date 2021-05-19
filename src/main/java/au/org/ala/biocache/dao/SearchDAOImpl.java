@@ -3651,24 +3651,16 @@ public class SearchDAOImpl implements SearchDAO {
         if (gridSizeInPixels > 1 || legend == null || legend.isEmpty()) {
             // single layer
             QueryResponse qr = null;
-            int zoomOffset = 0;
-            while (qr == null && zoomOffset < 10) {
-                try {
-                    SolrQuery solrQuery =
-                            createHeatmapQuery(
-                                    query,
-                                    filterQueries,
-                                    minx,
-                                    miny,
-                                    maxx,
-                                    maxy,
-                                    gridSizeInPixels,
-                                    zoomOffset);
-                    qr = query(solrQuery); // can throw exception
-                } catch (Exception e) {
-                    zoomOffset++;
-                }
-            }
+            SolrQuery solrQuery =
+                    createHeatmapQuery(
+                            query,
+                            filterQueries,
+                            minx,
+                            miny,
+                            maxx,
+                            maxy);
+            qr = query(solrQuery); // can throw exception
+
             // FIXME UGLY - not needed with SOLR8, but current constraint is SOLR 6 API
             // See SpatialHeatmapFacets.HeatmapFacet in SOLR 8 API
             SimpleOrderedMap facetHeatMaps =
@@ -3677,7 +3669,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             Integer gridLevel = -1;
             if (facetHeatMaps != null) {
-                SimpleOrderedMap heatmap = (SimpleOrderedMap) facetHeatMaps.get(spatialField);
+                SimpleOrderedMap heatmap = (SimpleOrderedMap) facetHeatMaps.get(spatialFieldWMS);
                 gridLevel = (Integer) heatmap.get("gridLevel");
                 Integer rows = (Integer) heatmap.get("rows");
                 Integer columns = (Integer) heatmap.get("columns");
@@ -3707,23 +3699,18 @@ public class SearchDAOImpl implements SearchDAO {
                 // add the FQ for the legend item
                 QueryResponse qr = null;
 
-                while (qr == null && zoomOffset < 10) {
-                    try {
-                        SolrQuery solrQuery =
-                                createHeatmapQuery(
-                                        query, filterQueries, minx, miny, maxx, maxy, gridSizeInPixels, zoomOffset);
-                        String[] fqs =
-                                Arrays.copyOf(
-                                        solrQuery.getFilterQueries(), solrQuery.getFilterQueries().length + 1);
-                        fqs[fqs.length - 1] = legendItem.getFq();
-                        solrQuery.setFilterQueries(fqs);
+                SolrQuery solrQuery =
+                        createHeatmapQuery(
+                                query, filterQueries, minx, miny, maxx, maxy);
+                String[] fqs =
+                        Arrays.copyOf(
+                                solrQuery.getFilterQueries(), solrQuery.getFilterQueries().length + 1);
+                fqs[fqs.length - 1] = legendItem.getFq();
+                solrQuery.setFilterQueries(fqs);
 
-                        // query
-                        qr = query(solrQuery); // can throw exception
-                    } catch (Exception ex) {
-                        zoomOffset++;
-                    }
-                }
+                // query
+                qr = query(solrQuery); // can throw exception
+
                 if (qr != null) {
                     SimpleOrderedMap facetHeatMaps =
                             ((SimpleOrderedMap)
@@ -3732,7 +3719,7 @@ public class SearchDAOImpl implements SearchDAO {
 
                     if (facetHeatMaps != null) {
                         // iterate over legend
-                        SimpleOrderedMap heatmap = (SimpleOrderedMap) facetHeatMaps.get(spatialField);
+                        SimpleOrderedMap heatmap = (SimpleOrderedMap) facetHeatMaps.get(spatialFieldWMS);
                         gridLevel = (Integer) heatmap.get("gridLevel");
                         List<List<Integer>> layer = (List<List<Integer>>) heatmap.get("counts_ints2D");
                         rows = (Integer) heatmap.get("rows");
@@ -3763,12 +3750,10 @@ public class SearchDAOImpl implements SearchDAO {
             Double minx,
             Double miny,
             Double maxx,
-            Double maxy,
-            int gridSize,
-            int zoomOffset) {
+            Double maxy) {
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
-        solrQuery.set("facet.heatmap", spatialField);
+        solrQuery.set("facet.heatmap", spatialFieldWMS);
 
         // heatmaps support international date line
         if (minx < -180) {
@@ -3782,31 +3767,27 @@ public class SearchDAOImpl implements SearchDAO {
         String geom = "[\"" + minx + " " + miny + "\" TO \"" + maxx + " " + maxy + "\"]";
         solrQuery.set("facet.heatmap.geom", geom);
 
-        // limit output grid to < distErr
-        double tileWidthInDecimalDegrees = maxx - minx;
-        double tileHeightInDecimalDegrees = maxy - miny;
-        int zoomLevel = 0;
-        double tileWidthInDDAtZoomLevel = 360;
-        while (Math.max(tileWidthInDecimalDegrees, tileHeightInDecimalDegrees)
-                < tileWidthInDDAtZoomLevel / (double) gridSize) {
-            zoomLevel++;
-            tileWidthInDDAtZoomLevel /= 2.0;
-            if (zoomLevel > 11){
-                break;
-            }
-        }
-        // max grid level is 11
-        if (zoomLevel > 11) {
-            zoomLevel = 11;
+        // This is the map for the tile width (or tile height) and the facet.heatmap.gridLevel.
+        // gridLevel must be between 1 and 26 inclusive for the SOLR quad index.
+        // At the gridLevel 1 it is a 1x1 cell for the whole world (360 degrees x 180 degrees)
+        // Add 7 grid levels to get a heatmap of size 2^7 x 2^7 grid cells (128x128) - approximately
+        double [] solrGridLevelMap = new double [] {360,180,90,45,22.5,11.25,5.625,2.8125,1.40625,0.703125,0.3515625,0.17578125,0.087890625,0.0439453125,0.02197265625,0.010986328125,0.0054931640625,0.00274658203125,0.001373291015625,0.0006866455078125};
+        int zoomLevelByWidth = 0;
+        while (zoomLevelByWidth < solrGridLevelMap.length && maxx - minx < solrGridLevelMap[zoomLevelByWidth]) {
+            zoomLevelByWidth++;
         }
 
-        // TODO: Zoom level is calculated poorly. zoomOffset is a temporary fix.
-        int gridLevel = zoomLevel - zoomOffset;
-        if (gridLevel > 0) {
-            solrQuery.set(
-                    "facet.heatmap.gridLevel",
-                    String.valueOf(gridLevel)); // good for points, probably
+        int zoomLevelByHeight = 0;
+        while (zoomLevelByHeight + 1 < solrGridLevelMap.length && maxy - miny < solrGridLevelMap[zoomLevelByHeight + 1]) {
+            zoomLevelByHeight++;
         }
+
+        // Add 7 to the min zoom level to get the most appropriate number of cells
+        int gridLevel = Math.min(zoomLevelByWidth, zoomLevelByHeight) + 7;
+        solrQuery.set(
+                "facet.heatmap.gridLevel",
+                String.valueOf(gridLevel)); // good for points, probably
+
         solrQuery.setFacetLimit(-1);
         solrQuery.setFacet(true);
         solrQuery.setFilterQueries(filterQueries);
