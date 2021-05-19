@@ -294,6 +294,7 @@ public class OccurrenceIndex {
     public static final String DECADE_FACET_NAME = "decade";
 
     public static final String spatialField = "geohash";
+    public static final String spatialFieldWMS = "quad";
 
     //featureAssertions
 
