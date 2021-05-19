@@ -283,6 +283,7 @@
     },
     "fieldValueMapping": {
         "assertions": {
+            "altitudeOutOfRange": "ELEVATION_UNLIKELY",
             "badlyFormedBasisOfRecord": "BASIS_OF_RECORD_INVALID",
             "coordinatesOutOfRange": "COORDINATE_OUT_OF_RANGE",
             "coordinatePrecisionMismatch": "COORDINATE_PRECISION_UNCERTAINTY_MISMATCH",
@@ -313,6 +314,9 @@
             "uncertaintyInPrecision": "UNCERTAINTY_IN_PRECISION",
             "unknownCountry": "UNKNOWN_COUNTRY_NAME",
             "unknownKingdom": "UNKNOWN_KINGDOM",
+            "unrecognisedCollectionCode": "COLLECTION_MATCH_NONE",
+            "unrecognisedInstitutionCode": "INSTITUTION_MATCH_NONE",
+            "unrecognisedOccurrenceStatus": "OCCURRENCE_STATUS_UNPARSABLE",
             "zeroCoordinates": "ZERO_COORDINATE"
         },
         "basisOfRecord": {
