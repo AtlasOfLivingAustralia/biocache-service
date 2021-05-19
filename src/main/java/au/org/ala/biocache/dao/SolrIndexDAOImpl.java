@@ -989,9 +989,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
   @Override
   public void indexFromMap(List<Map<String, Object>> maps) throws IOException, SolrServerException {
-    UpdateRequest updateRequest = new UpdateRequest();
-    updateRequest.setAction( UpdateRequest.ACTION.COMMIT, false, false);
-
+    List<SolrInputDocument> batch = new ArrayList<>();
     for (Map<String, Object> map : maps) {
       if (map.containsKey("record_uuid")) {
         SolrInputDocument doc = new SolrInputDocument();
@@ -1020,12 +1018,22 @@ public class SolrIndexDAOImpl implements IndexDAO {
         // update schema if needed
         syncDocFieldsWithSOLR(doc);
         logger.debug("Added solr doc for record: " + doc.get("id") + " to updateRequest");
-        updateRequest.add(doc);
+        batch.add(doc);
+      }
+
+      if (batch.size() == solrBatchSize) {
+        updateBatch(batch);
+        batch.clear();
       }
     }
+    updateBatch(batch);
+  }
 
-    // update only when there are docs to update
-    if (updateRequest.getDocuments() != null) {
+  private void updateBatch(List<SolrInputDocument> batch) {
+    if (!batch.isEmpty()) {
+      UpdateRequest updateRequest = new UpdateRequest();
+      updateRequest.setAction(UpdateRequest.ACTION.COMMIT, false, false);
+      updateRequest.add(batch);
       try {
         updateRequest.process(solrClient);
       } catch (Exception e) {
