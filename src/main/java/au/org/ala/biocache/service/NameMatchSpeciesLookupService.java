@@ -44,6 +44,11 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
     @Inject
     private ALANameUsageMatchServiceClient nameUsageMatchService = null;
 
+    private String[] baseHeader;
+    private String[] countBaseHeader;
+    private String[] synonymHeader;
+    private String[] countSynonymHeader;
+
     @Override
     public String getGuidForName(String name) {
         String lsid = null;
@@ -59,7 +64,7 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
     @Override
     public String getAcceptedNameForGuid(String guid) {
         NameUsageMatch nsr = nameUsageMatchService.match(guid);
-        if (nsr != null) {
+        if (nsr != null && nsr.isSuccess()) {
             return nsr.getScientificName();
         } else {
             return null;
@@ -83,7 +88,7 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
         int idx = 0;
         for (String guid : guids){
             NameUsageMatch nsr = nameUsageMatchService.match(guid);
-            if (nsr == null){
+            if (nsr == null || !nsr.isSuccess()){
                 String lsid = nameUsageMatchService.searchForLSID(guid);
                 if (lsid != null){
                     nsr = nameUsageMatchService.match(lsid);
@@ -97,21 +102,22 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
 
             String[] result = null;
             List<String> lsids = new ArrayList<String>();
-            if (nsr != null) {
+            if (nsr != null && nsr.isSuccess()) {
                 lsids.add(nsr.getGenusID());
                 lsids.add(nsr.getFamilyID());
                 lsids.add(nsr.getSpeciesID());
                 result = new String[]{
+                        guid,
                         nsr.getScientificName(),
                         nsr.getScientificNameAuthorship(),
+                        nsr.getRank(),
                         nsr.getKingdom(),
                         nsr.getPhylum(),
                         nsr.getClasss(),
                         nsr.getOrder(),
                         nsr.getFamily(),
                         nsr.getGenus(),
-                        nsr.getSpecies(),
-                        (nsr.getRankID() != null && nsr.getRankID() < 7000) /* TODO: replace 7000 with RANK.species */ ? nsr.getTaxonConceptID() : null
+                        nsr.getVernacularName()
                 };
             } else if (StringUtils.countMatches(guid, "|") == 4){
                 //not matched and is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
@@ -119,7 +125,9 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
                 String [] split = guid.split("\\|", 6);
                 lsids.add(split[1]);
                 result = new String[]{
+                        guid,
                         split[0],
+                        "",
                         "",
                         split[3],
                         "",
@@ -127,12 +135,12 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
                         "",
                         split[4],
                         "",
-                        "",
-                        ""
+                        split[2]
                 };
             } else {
                 result = new String[]{
                         "unmatched",
+                        "",
                         "",
                         "",
                         "",
@@ -176,23 +184,38 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
 
     @Override
     public String[] getHeaderDetails(String field, boolean includeCounts, boolean includeSynonyms) {
-        String[] baseHeader =  new String[]{
-            messageSource.getMessage("species.name", null,"Species Name", null),
-            messageSource.getMessage("species.author", null,"Scientific Name Author", null),
-            messageSource.getMessage("species.kingdom", null,"Kingdom", null),
-            messageSource.getMessage("species.phylum", null,"Phylum", null),
-            messageSource.getMessage("species.class", null,"Class", null),
-            messageSource.getMessage("species.order", null,"Order", null),
-            messageSource.getMessage("species.family", null,"Family", null),
-            messageSource.getMessage("species.genus", null,"Genus", null),
-            messageSource.getMessage("species.species", null,"Species", null),
-            messageSource.getMessage("species.subspecies", null,"Subspecies", null)
-        };
-        if(includeCounts){
-            return (String[]) ArrayUtils.add(baseHeader, messageSource.getMessage("species.count", null, "Number of Records", null));
-        } else {
-            return baseHeader;
+
+        if (baseHeader == null) {
+            //initialise all the headers
+            initHeaders();
         }
+        String[] startArray = baseHeader;
+        if (includeCounts) {
+            if (includeSynonyms) {
+                startArray = countSynonymHeader;
+            } else {
+                startArray = countBaseHeader;
+            }
+        } else if (includeSynonyms) {
+            startArray = synonymHeader;
+        }
+        return (String[]) ArrayUtils.add(startArray, 0, messageSource.getMessage("facet." + field, null, field, null));
+    }
+
+    private void initHeaders() {
+        baseHeader = new String[]{messageSource.getMessage("species.name", null,"Species Name", null),
+                messageSource.getMessage("species.author", null,"Scientific Name Author", null),
+                messageSource.getMessage("species.rank", null,"Taxon Rank", null),
+                messageSource.getMessage("species.kingdom", null,"Kingdom", null),
+                messageSource.getMessage("species.phylum", null,"Phylum", null),
+                messageSource.getMessage("species.class", null,"Class", null),
+                messageSource.getMessage("species.order", null,"Order", null),
+                messageSource.getMessage("species.family", null,"Family", null),
+                messageSource.getMessage("species.genus", null,"Genus", null),
+                messageSource.getMessage("species.common", null,"Vernacular Name", null)};
+        countBaseHeader = (String[]) ArrayUtils.add(baseHeader,messageSource.getMessage("species.count", null,"Number of Records", null));
+        synonymHeader = (String[]) ArrayUtils.add(baseHeader,messageSource.getMessage("species.synonyms", null,"Synonyms", null));
+        countSynonymHeader = (String[]) ArrayUtils.add(synonymHeader,messageSource.getMessage("species.count", null,"Number of Records", null));
     }
 
     @Override
