@@ -96,6 +96,11 @@ public class FieldMappingUtil {
                     translation.accept(Pair.of(queryTerm, translatedFieldName));
                 }
 
+                if (matcher.start() > 0 && prevTerm == null) {
+                    // append initial prefix
+                    sb.append(query.substring(0, matcher.start()));
+                }
+
                 if (prevTerm != null) {
                     // collect the value between the end of the previous group and the start of the current
                     String value = query.substring(prevEnd, matcher.start());

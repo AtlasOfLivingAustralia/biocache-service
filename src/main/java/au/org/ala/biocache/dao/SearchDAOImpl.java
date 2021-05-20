@@ -2857,7 +2857,8 @@ public class SearchDAOImpl implements SearchDAO {
         }
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
-        solrQuery.setQuery(searchParams.getFormattedQuery());   // PIPELINES: SolrQuery::setQuery entry point
+        solrQuery.setQuery(searchParams.getFormattedQuery());
+        solrQuery.addFilterQuery(searchParams.getFormattedFq());
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
 
@@ -2881,23 +2882,28 @@ public class SearchDAOImpl implements SearchDAO {
             if (thisSort != null) {
                 solrQuery.setFacetSort(thisSort);
             }
+        } else {
+            solrQuery.setFacetSort("count");
         }
+        solrQuery.setFacetLimit(wmslegendMaxItems + 1);
         solrQuery.setFacetMissing(true);
 
         QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFormattedFq(), 1, 0, "score", "asc");
-        List<FacetField> facets = qr.getFacetFields();  // TODO: PIPELINES: QueryResponse::getFacetFields entry point
+        long remainderCount = qr.getResults().getNumFound();
+        List<FacetField> facets = qr.getFacetFields();
         if (facets != null) {
-            for (FacetField facet : facets) {           // TODO: PIPELINES: List<FacetField>::iterator entry point
-                List<FacetField.Count> facetEntries = facet.getValues();    // TODO: PIPELINES: FacetField::getValues entry point
-                if (facet.getName().contains(facetField) && facetEntries != null && !facetEntries.isEmpty()) {  // TODO: PIPELINES: FacetField::getName & List<FacetField.Count>::size entry point
+            for (FacetField facet : facets) {
+                List<FacetField.Count> facetEntries = facet.getValues();
+                if (facet.getName().contains(facetField) && facetEntries != null && !facetEntries.isEmpty()) {
 
                     List<String> addedFqs = new ArrayList<>();
 
-                    for (int i = 0; i < facetEntries.size() && i < wmslegendMaxItems; i++) {         // TODO: PIPELINES: List<FacetField.Count>::size entry point
-                        FacetField.Count fcount = facetEntries.get(i);  // TODO: PIPELINES: List<FacetField.Count>::get entry point
-                        if (fcount.getCount() > 0) {                    // TODO: PIPELINES: FacetField.Count::getCount entry point
-                            String fq = facetField + ":\"" + fcount.getName() + "\"";   // TODO: PIPELINES: FacetField.Count::getName entry point
-                            if (fcount.getName() == null) {             // TODO: PIPELINES: FacetField.Count::getName entry point
+                    for (int i = 0; i < facetEntries.size() && i < wmslegendMaxItems; i++) {
+                        FacetField.Count fcount = facetEntries.get(i);
+                        if (fcount.getCount() > 0) {
+                            remainderCount -= fcount.getCount();
+                            String fq = facetField + ":\"" + fcount.getName() + "\"";
+                            if (fcount.getName() == null) {
                                 fq = "-" + facetField + ":*";
                                 addedFqs.add(facetField + ":*");
                             } else {
@@ -2926,13 +2932,6 @@ public class SearchDAOImpl implements SearchDAO {
                     }
 
                     if (facetEntries.size() > wmslegendMaxItems){
-
-                        long remainderCount = 0;
-                        for (int i = wmslegendMaxItems; i < facetEntries.size(); i++) {
-                            FacetField.Count fcount = facetEntries.get(i);
-                            remainderCount += fcount.getCount();
-                        }
-
                         String theFq = "-(" + StringUtils.join(addedFqs, " AND ") +")";
                             // create a single catch remainder facet
                         legend.add(legend.size(), new LegendItem(
@@ -3634,7 +3633,7 @@ public class SearchDAOImpl implements SearchDAO {
         List<List<List<Integer>>> layers = new ArrayList<>();
 
         // limit miny maxy to -90 90
-        if (miny < -90) miny = 90.0;
+        if (miny < -90) miny = -90.0;
         if (maxy > 90) maxy = 90.0;
 
         // fix date line

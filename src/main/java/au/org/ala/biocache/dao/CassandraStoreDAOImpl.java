@@ -35,6 +35,7 @@ import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Cassandra 3 based implementation of a persistence manager.
@@ -79,13 +80,15 @@ public class CassandraStoreDAOImpl implements StoreDAO {
                                 CodecRegistry.DEFAULT_INSTANCE.register(
                                         new TimestampAsStringCodec(TypeCodec.timestamp(), String.class)));
 
-        String[] host_port = host.split(":");
-        if (host_port.length > 1) {
-            builder.withPort(Integer.parseInt(host_port[1])).addContactPoint(host_port[0]);
-        } else {
-            builder.withPort(port).addContactPoint(host_port[0]);
+        List<String> hosts = Arrays.stream(host.split(",")).map(h -> h.trim()).collect(Collectors.toList());
+        for (String hostString: hosts) {
+            String[] host_port = hostString.split(":");
+            if (host_port.length > 1) {
+                builder.withPort(Integer.parseInt(host_port[1])).addContactPoint(host_port[0]);
+            } else {
+                builder.withPort(port).addContactPoint(host_port[0]);
+            }
         }
-
         cluster = builder.build();
 
         if (cluster.getMetadata().getKeyspace(keyspace) == null) {
