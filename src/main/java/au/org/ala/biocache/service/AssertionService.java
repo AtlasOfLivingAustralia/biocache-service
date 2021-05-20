@@ -18,7 +18,10 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
+
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 @Service
 public class AssertionService {
@@ -35,17 +38,17 @@ public class AssertionService {
     private IndexDAO indexDao;
 
     SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-
+    
+    // max 1 indexAll thread can run at same time
+    ExecutorService executorService = new ThreadPoolExecutor(1, 1, 0, MILLISECONDS,
+            new SynchronousQueue<>(),
+            new ThreadPoolExecutor.AbortPolicy());
     @PostConstruct
     public void init() {
         simpleDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
     }
 
-    // if background indexing is running
-    private boolean indexing = false;
-
     Runnable indexAll = () -> {
-        indexing = true;
         try {
             // get all user assertions from database
             List<UserAssertions> allAssertions = store.getAll(UserAssertions.class);
@@ -55,7 +58,6 @@ public class AssertionService {
         } catch (Exception e) {
             logger.error("Failed to read all assertions, e = " + e.getMessage());
         }
-        indexing = false;
     };
 
     public Optional<QualityAssertion> addAssertion(
@@ -305,13 +307,12 @@ public class AssertionService {
     }
 
     public Boolean indexAll() {
-        if (!indexing) {
-            new Thread(indexAll).start();
-        } else {
+        try {
+            executorService.execute(indexAll);
+        } catch (RejectedExecutionException e){
             logger.debug("An index threading is already running at background");
             return false;
         }
-
         return true;
     }
 
