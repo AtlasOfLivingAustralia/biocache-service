@@ -1453,9 +1453,13 @@ public class WMSController extends AbstractSecureController{
         HeatmapDTO heatmapDTO = searchDAO.getHeatMap(requestParams.getFormattedQuery(), requestParams.getFormattedFq(), bbox[0] - bWidth, bbox[1] - bHeight, bbox[2] + bWidth, bbox[3] + bHeight, legend, isGrid ? (int) Math.ceil(width / (double) gridDivisionCount) : 1);
         heatmapDTO.setTileExtents(bbox);
 
+        // getHeatMap is cached. The process to trigger hiddenFacets is:
+        // 1. map all facets
+        // 2. nominate facets to hide
+        // As the heatmapDTO is cached no additional SOLR requests are required when only adding hiddenFacets (HQ)
         if (hiddenFacets != null) {
             for (Integer hf : hiddenFacets) {
-                if (heatmapDTO.layers.size() < hf) {
+                if (hf < heatmapDTO.layers.size()) {
                     heatmapDTO.layers.set(hf, null);
                 }
             }

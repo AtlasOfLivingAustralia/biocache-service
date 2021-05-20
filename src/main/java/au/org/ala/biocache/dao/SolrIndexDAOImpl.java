@@ -129,13 +129,13 @@ public class SolrIndexDAOImpl implements IndexDAO {
     /**
      * solr connection retry limit
      */
-    @Value("${solr.server.retry.max:6}")
-    protected int maxRetries = 6;
+    @Value("${solr.server.retry.max:1}")
+    protected int maxRetries = 1;
     /**
      * solr connection wait time between retries in ms
      */
-    @Value("${solr.server.retry.wait:50}")
-    protected long retryWait = 50;
+    @Value("${solr.server.retry.wait:1000}")
+    protected long retryWait = 1000;
 
     @Value("${solr.collection:biocache}")
     protected String solrCollection;

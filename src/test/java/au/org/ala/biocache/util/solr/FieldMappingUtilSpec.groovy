@@ -33,6 +33,7 @@ class FieldMappingUtilSpec extends Specification {
         'assertions:badlyFormedBasisOfRecord' || 'assertions:BASIS_OF_RECORD_INVALID'
         'assertions:(badlyFormedBasisOfRecord coordinatesOutOfRange)' || 'assertions:(BASIS_OF_RECORD_INVALID COORDINATE_OUT_OF_RANGE)'
         'taxon_name:* assertions:badlyFormedBasisOfRecord AND -(common_name:"test")' || 'scientificName:* assertions:BASIS_OF_RECORD_INVALID AND -(vernacularName:"test")'
+        '-(taxon_name:* AND -taxon_name:*)' || '-(scientificName:* AND -scientificName:*)'
     }
 
     def 'translateFieldList'() {
