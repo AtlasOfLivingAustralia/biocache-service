@@ -164,7 +164,7 @@ public class AssertionsControllerTest extends TestCase {
         ReflectionTestUtils.setField(assertionController, "apiKeyCheckedEnabled", false);
 
         // add succeed
-        when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
+        when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
                 .thenReturn(Optional.empty());
         this.mockMvc.perform(post("/occurrences/assertions/add")
                 .param("recordUuid", "recordUuid")
@@ -175,7 +175,7 @@ public class AssertionsControllerTest extends TestCase {
                 .andExpect(status().isBadRequest());
 
         // add fail (record uuid wrong)
-        when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
+        when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
                 .thenReturn(Optional.of(new QualityAssertion()));
         this.mockMvc.perform(post("/occurrences/assertions/add")
                 .param("recordUuid", "recordUuid")
@@ -186,7 +186,7 @@ public class AssertionsControllerTest extends TestCase {
                 .andExpect(status().isCreated());
 
         // exception
-        when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
+        when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
                 .thenThrow(IOException.class);
         this.mockMvc.perform(post("/occurrences/assertions/add")
                 .param("recordUuid", "recordUuid")
