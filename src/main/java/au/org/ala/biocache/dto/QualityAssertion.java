@@ -19,6 +19,8 @@ public class QualityAssertion {
     Integer code;
     String relatedUuid;
     Integer qaStatus = 0;
+    String relatedRecordId;
+    String relatedRecordReason;
     String comment;
     String value;
     String userId;
@@ -201,5 +203,21 @@ public class QualityAssertion {
 
     public void setDataResourceUid(String dataResourceUid) {
         this.dataResourceUid = dataResourceUid;
+    }
+
+    public String getRelatedRecordId() {
+        return relatedRecordId;
+    }
+
+    public void setRelatedRecordId(String relatedRecordId) {
+        this.relatedRecordId = relatedRecordId;
+    }
+
+    public String getRelatedRecordReason() {
+        return relatedRecordReason;
+    }
+
+    public void setRelatedRecordReason(String relatedRecordReason) {
+        this.relatedRecordReason = relatedRecordReason;
     }
 }

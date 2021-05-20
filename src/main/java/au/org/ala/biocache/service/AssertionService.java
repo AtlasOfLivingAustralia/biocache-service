@@ -74,13 +74,21 @@ public class AssertionService {
             String relatedRecordReason
     ) throws IOException {
         logger.debug("Adding assertion to: " + recordUuid + ", code: " + code + ", comment: " + comment
-                + ", userId: " + userId + ", userDisplayName: " + userDisplayName +", relatedRecordId: "
-                + ", userAssertionStatus: " + userAssertionStatus + ", assertionUuid: " + assertionUuid);
+                + ", userId: " + userId + ", userDisplayName: " + userDisplayName + ", userAssertionStatus: "
+                + userAssertionStatus + ", assertionUuid: " + assertionUuid + ", relatedRecordId: " + relatedRecordId
+                + ", relatedRecordReason: " + relatedRecordReason);
 
         SolrDocument sd = occurrenceUtils.getOcc(recordUuid);
         // only when record uuid is valid
         if (sd != null) {
             QualityAssertion qa = new QualityAssertion();
+            if (code.equals(Integer.toString(AssertionCodes.USER_DUPLICATE_RECORD.getCode()))) {
+                Preconditions.checkArgument(!Strings.isNullOrEmpty(relatedRecordId), "Related Record ID must be set for User Duplicate Record Assertion");
+                Preconditions.checkArgument(!Objects.equals(recordUuid, relatedRecordId), "User Duplicate Record Assertion can not be related to itself");
+                Preconditions.checkArgument(!Strings.isNullOrEmpty(relatedRecordReason), "Duplicate record must have a reason recorded");
+                qa.setRelatedRecordId(relatedRecordId);
+                qa.setRelatedRecordReason(relatedRecordReason);
+            }
             qa.setCode(Integer.parseInt(code));
             qa.setComment(comment);
             qa.setUserId(userId);
@@ -89,16 +97,6 @@ public class AssertionService {
             if (code.equals(Integer.toString(AssertionCodes.VERIFIED.getCode()))) {
                 qa.setRelatedUuid(assertionUuid);
                 qa.setQaStatus(Integer.parseInt(userAssertionStatus));
-// TODO: handle relatedRecordId & relatedRecordReason properties
-//            } else if (qa.getCode() == AssertionCodes.USER_DUPLICATE_RECORD.getCode()) {
-//
-//                Preconditions.checkArgument(!Strings.isNullOrEmpty(relatedRecordId), "Related Record ID must be set for User Duplicate Record Assertion");
-//                Preconditions.checkArgument(!Objects.equals(recordUuid, relatedRecordId), "User Duplicate Record Assertion can not be related to itself");
-//                Preconditions.checkArgument(!Strings.isNullOrEmpty(relatedRecordReason), "Duplicate record must have a reason recorded");
-//
-//                qa.setRelatedRecordId(relatedRecordId);
-//                qa.setRelatedRecordReason(relatedRecordReason);
-
             } else {
                 qa.setQaStatus(AssertionStatus.QA_UNCONFIRMED);
             }
