@@ -809,7 +809,9 @@ public class QueryFormatUtils {
      * @return String [] { displayString, formattedQuery }
      */
     public String [] formatQueryTerm(String query, SpatialSearchRequestParams searchParams) throws QidMissingException {
-        String [] formatted = formatQid(query, searchParams);
+
+        String tQuery = fieldMappingUtil.translateQueryFields(query);
+        String [] formatted = formatQid(tQuery, searchParams);
 
         formatTerms(formatted);
         formatTaxa(formatted);

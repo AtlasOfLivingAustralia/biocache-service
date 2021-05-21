@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.*;
@@ -49,8 +49,8 @@ public class FilterQueryParserTest {
     @Mock
     protected ALANameUsageMatchServiceClient nameUsageMatchService;
 
-    @Mock
-    private FieldMappingUtil fieldMappingUtil;
+//    @Mock
+//    private FieldMappingUtil fieldMappingUtil;
 
     @Mock
     DataQualityService dataQualityService;
@@ -80,9 +80,24 @@ public class FilterQueryParserTest {
         ReflectionTestUtils.setField(searchUtils, "collectionCache", collectionCache);
         ReflectionTestUtils.setField(searchUtils, "nameUsageMatchService", nameUsageMatchService);
         ReflectionTestUtils.setField(searchUtils, "messageSource", messageSource);
+
+        FieldMappingUtil fieldMappingUtil = new FieldMappingUtil();
+        ReflectionTestUtils.setField(fieldMappingUtil, "fieldMappings", new HashMap<String, String>() {{
+            put("species_id", "speciesID");
+            put("occurrence_decade_i", "decade");
+            put("occurrence_year", "occurrenceYear");
+        }});
+        ReflectionTestUtils.setField(fieldMappingUtil, "enumValueMappings", new HashMap<String, Map<String, String>>() {{
+            put("month", new HashMap<String, String>() {{
+                put("09", "September");
+                put("10", "October");
+                put("11", "November");
+            }});
+        }});
+
         ReflectionTestUtils.setField(queryFormatUtils, "fieldMappingUtil", fieldMappingUtil);
 
-        Mockito.when(fieldMappingUtil.translateQueryFields(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
+//        Mockito.when(fieldMappingUtil.translateQueryFields(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
 
         new FacetThemes("", null, 30, 30, true);
     }
@@ -102,11 +117,22 @@ public class FilterQueryParserTest {
 
         Mockito.when(collectionCache.getCollections()).thenReturn(collections);
         Mockito.when(collectionCache.getInstitutions()).thenReturn(collections);
-        Mockito.when(fieldMappingUtil.translateFieldName("speciesID")).thenReturn("speciesID");
-        Mockito.when(fieldMappingUtil.translateFieldName("species_id")).thenReturn("speciesID");
-        Mockito.when(fieldMappingUtil.translateFieldName("occurrenceYear")).thenReturn("occurrenceYear");
-        Mockito.when(fieldMappingUtil.translateFieldName("occurrence_year")).thenReturn("occurrenceYear");
-        Mockito.when(fieldMappingUtil.translateFieldName("month")).thenReturn("month");
+
+
+
+
+////        Mockito.when(fieldMappingUtil.translateFieldName("speciesID")).thenReturn("speciesID");
+//        Mockito.when(fieldMappingUtil.translateFieldName("species_id")).thenReturn("speciesID");
+////        Mockito.when(fieldMappingUtil.translateFieldName("occurrenceYear")).thenReturn("occurrenceYear");
+////        Mockito.when(fieldMappingUtil.translateFieldName("month")).thenReturn("month");
+//        Mockito.when(fieldMappingUtil.translateFieldName(any(), anyString())).thenCallRealMethod();
+//        Mockito.when(fieldMappingUtil.translateFieldName(anyString())).thenCallRealMethod();
+//        Mockito.when(fieldMappingUtil.translateFieldValue("month", "09")).thenReturn("September");
+//        Mockito.when(fieldMappingUtil.translateFieldValue("month", "10")).thenReturn("October");
+//        Mockito.when(fieldMappingUtil.translateFieldValue("month", "11")).thenReturn("November");
+//        Mockito.when(fieldMappingUtil.translateFieldValue(anyString(), anyString())).thenCallRealMethod();
+//        Mockito.when(fieldMappingUtil.translateQueryFields(any(), anyString())).thenCallRealMethod();
+//        Mockito.when(fieldMappingUtil.translateQueryFields(anyString())).thenCallRealMethod();
 
         String[] fqs = {
                 "speciesID:urn:lsid:biodiversity.org.au:afd.taxon:2482313b-9d1e-4694-8f51-795213c8bb56",
@@ -169,7 +195,9 @@ public class FilterQueryParserTest {
     @Test
     public void testFqFormat() throws QidMissingException {
 
-        Mockito.when(fieldMappingUtil.translateFieldName("month")).thenReturn("month");
+//        Mockito.when(fieldMappingUtil.translateFieldName("month")).thenReturn("month");
+//        Mockito.when(fieldMappingUtil.translateFieldValue("month", "09")).thenReturn("September");
+//        Mockito.when(fieldMappingUtil.translateFieldValue("month", "10")).thenReturn("October");
 
         SpatialSearchRequestParams query = new SpatialSearchRequestParams();
         String[][] fqs = new String[][] {
@@ -186,7 +214,8 @@ public class FilterQueryParserTest {
             query.setFq(new String[] { fq[0] });
             Map<String, Facet> facetMap = queryFormatUtils.formatSearchQuery(query, true)[0];
             assertTrue(facetMap != null && facetMap.size() == 1);
-            assertTrue(facetMap.get(facetMap.keySet().iterator().next()).getDisplayName().equals(fq[1]));
+            Facet facet =  facetMap.get(facetMap.keySet().iterator().next());
+            assertTrue(facet.getDisplayName() + " == " + fq[1], facet.getDisplayName().equals(fq[1]));
         }
     }
 
@@ -213,10 +242,18 @@ public class FilterQueryParserTest {
         facetList.add(new Facet("occurrence_decade_i", "(Decade:\"2010\" OR Decade:\"2000\")", "(occurrence_decade_i:\"2010\" OR occurrence_decade_i:\"2000\")"));
         facetList.add(new Facet("occurrence_decade_i", "(Decade:\"2010\" OR Decade:\"2000\" OR Decade:\"1990\" OR Decade:\"1980\")", "(occurrence_decade_i:\"2010\" OR occurrence_decade_i:\"2000\" OR occurrence_decade_i:\"1990\" OR occurrence_decade_i:\"1980\")"));
 
-        facetList.add(new Facet("license", "license:\"CC BY NC\" license:\"CC BY NC 4.0 (Int)\"", "license:\"CC BY NC\" license:\"CC BY NC 4.0 (Int)\""));
+        facetList.add(new Facet("license", "License:\"CC BY NC\" License:\"CC BY NC 4.0 (Int)\"", "license:\"CC BY NC\" license:\"CC BY NC 4.0 (Int)\""));
 
-        Mockito.when(fieldMappingUtil.translateFieldName("month")).thenReturn("month");
-        Mockito.when(fieldMappingUtil.translateFieldName("occurrence_decade_i")).thenReturn("decade");
+//        Mockito.when(fieldMappingUtil.translateFieldName("month")).thenReturn("month");
+//        Mockito.when(fieldMappingUtil.translateFieldName("occurrence_decade_i")).thenReturn("decade");
+//        Mockito.when(fieldMappingUtil.translateFieldValue("month", "02")).thenReturn("February");
+//        Mockito.when(fieldMappingUtil.translateFieldValue("month", "07")).thenReturn("July");
+//        Mockito.when(fieldMappingUtil.translateFieldValue("month", "08")).thenReturn("August");
+//        Mockito.when(fieldMappingUtil.translateFieldValue("month", "09")).thenReturn("September");
+//        Mockito.when(fieldMappingUtil.translateFieldValue("month", "10")).thenReturn("October");
+//        Mockito.when(fieldMappingUtil.translateFieldValue("month", "11")).thenReturn("November");
+//        Mockito.when(fieldMappingUtil.translateFieldValue("month", "12")).thenReturn("December");
+//        Mockito.when(fieldMappingUtil.translateFieldValue(anyString(), anyString())).thenAnswer(i -> i.getArguments()[1]);
 
         runFqParsingTest(facetList);
     }
