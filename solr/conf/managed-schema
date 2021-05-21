@@ -475,6 +475,7 @@
   <field name="assertionUserId"        type="string"  docValues="true" indexed="true" multiValued="true" />
   <field name="userAssertions"         type="string"  docValues="true" indexed="true" />
   <field name="hasUserAssertions"      type="boolean" docValues="true" indexed="true" />
+  <field name="lastAssertionDate"      type="date"    docValues="true" indexed="true" />
 
   <!-- Free text search fields -->
   <field name="text"         type="text"   multiValued="true" indexed="true" stored="false" />
