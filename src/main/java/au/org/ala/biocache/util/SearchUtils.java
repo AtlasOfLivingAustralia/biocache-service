@@ -198,7 +198,7 @@ public class SearchUtils {
      */
     public String getUidDisplayString(String fieldName, String uid, boolean includeField) {
 
-        if(uid == null) return null;
+        if (uid == null) return null;
 
         uid = stripEscapedQuotes(uid);
 

@@ -3278,8 +3278,12 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      */
     String getFacetValueDisplayName(String facet, String value) {
+
+        String tFacet = fieldMappingUtil.translateFieldName(facet);
+        String tValue = fieldMappingUtil.translateFieldValue(tFacet, value);
+
         if (facet.endsWith("_uid") || facet.endsWith("Uid")) {
-            return searchUtils.getUidDisplayString(facet, value, false);
+            return searchUtils.getUidDisplayString(tFacet, tValue, false);
         } else if (OccurrenceIndex.OCCURRENCE_YEAR_INDEX_FIELD.equals(facet) && value != null) {
             try {
                 if (DECADE_PRE_1850_LABEL.equals(value)) {
@@ -3301,8 +3305,11 @@ public class SearchDAOImpl implements SearchDAO {
             if (messageSource != null) {
 
                 if(StringUtils.isNotBlank(value)) {
+
+
+
                     return messageSource.getMessage(
-                            fieldMappingUtil.translateFieldName(facet) + "." + value,
+                            tFacet + "." + tValue,
                             null,
                             value,
                             (Locale) null);

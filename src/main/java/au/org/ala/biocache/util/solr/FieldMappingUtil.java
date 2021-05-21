@@ -1,11 +1,7 @@
 package au.org.ala.biocache.util.solr;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.solr.client.solrj.response.QueryResponse;
-import org.apache.solr.common.params.ModifiableSolrParams;
-import org.apache.solr.common.params.SolrParams;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -40,7 +36,7 @@ public class FieldMappingUtil {
 
     static final String DEPRECATED_PREFIX = "deprecated_";
     static final Pattern ENUM_VALUE_PATTERN = Pattern.compile("(\\w+)");
-    static final Pattern QUERY_TERM_PATTERN = Pattern.compile("(^|\\s|-|\\()(\\w+):");
+    static final Pattern QUERY_TERM_PATTERN = Pattern.compile("(^|\\s|-|\\(|-\\(|\\(-)(\\w+):");
 
 
     public Stream<Pair<String, String>> getFieldMappingStream() {
@@ -59,10 +55,6 @@ public class FieldMappingUtil {
             return null;
         }
 
-        if (this.fieldMappings == null) {
-            return query;
-        }
-
         Matcher matcher = QUERY_TERM_PATTERN.matcher(query);
         boolean result = matcher.find();
 
@@ -79,22 +71,7 @@ public class FieldMappingUtil {
                 String prefix = matcher.group(1);
                 String queryTerm = matcher.group(2);
 
-                // default not found query terms to "null" character string to distinguish from null (deprecated) field mappings
-                String translatedFieldName = this.fieldMappings.getOrDefault(queryTerm, "\0");
-
-                if (translatedFieldName == null) {
-                    // query term matched deprecated field
-                    translatedFieldName = DEPRECATED_PREFIX + queryTerm;
-                    translation.accept(Pair.of(queryTerm, null));
-
-                } else if ("\0".equals(translatedFieldName)) {
-                    // query term not found in field mappings
-                    translatedFieldName = queryTerm;
-
-                } else {
-                    // query term has translated field name
-                    translation.accept(Pair.of(queryTerm, translatedFieldName));
-                }
+                String translatedFieldName = translateFieldName(translation, queryTerm);
 
                 if (matcher.start() > 0 && prevTerm == null) {
                     // append initial prefix
@@ -104,7 +81,7 @@ public class FieldMappingUtil {
                 if (prevTerm != null) {
                     // collect the value between the end of the previous group and the start of the current
                     String value = query.substring(prevEnd, matcher.start());
-                    sb.append(translateQueryValue(prevTerm, value));
+                    sb.append(translateFieldValue(prevTerm, value));
                 }
 
                 // append the translated term with prefix
@@ -121,7 +98,7 @@ public class FieldMappingUtil {
 
             // collect the term value after the last term match 
             String value = query.substring(prevEnd);
-            sb.append(translateQueryValue(prevTerm, value));
+            sb.append(translateFieldValue(prevTerm, value));
 
             return sb.toString();
         }
@@ -129,7 +106,7 @@ public class FieldMappingUtil {
         return query;
     }
 
-    private String translateQueryValue(String term, String value) {
+    public String translateFieldValue(String term, String value) {
 
         if (enumValueMappings == null || term == null) {
             return value;
@@ -178,6 +155,11 @@ public class FieldMappingUtil {
 
         if (fieldName == null) {
             return null;
+        }
+
+        if (this.fieldMappings == null) {
+            translation.accept(Pair.of(fieldName, fieldName));
+            return fieldName;
         }
 
         String translatedFieldName = this.fieldMappings.getOrDefault(fieldName, "\0");
