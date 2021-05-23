@@ -1521,25 +1521,25 @@ public class OccurrenceController extends AbstractSecureController {
 
             //assertions are based on the row key not uuid
             sd.addField("dbSystemAssertions", sd.getFieldValue("qualityAssertion"));
-
-            // set the user assertions after retrieving them from the persistent store (not SOLR)
-            Optional<UserAssertions> userAssertions = storeDao.get(UserAssertions.class, uuid);
-            //Legacy integration - fix up the user assertions - legacy - to add replace with CAS IDs....
-            userAssertions.ifPresent(assertions -> {
-                for (QualityAssertion ua : assertions) {
-                    // remove snapshot
-                    ua.setSnapshot(null);
-
-                    if (ua.getUserId().contains("@")) {
-                        String email = ua.getUserId();
-                        String userId = authService.getMapOfEmailToId().get(email);
-                        ua.setUserEmail(authService.substituteEmailAddress(email));
-                        ua.setUserId(authService.getDisplayNameFor(userId));
-                    }
-                }
-                sd.addField("dbUserAssertions", userAssertions);
-            });
         }
+
+        // set the user assertions after retrieving them from the persistent store (not SOLR)
+        Optional<UserAssertions> userAssertions = storeDao.get(UserAssertions.class, uuid);
+        //Legacy integration - fix up the user assertions - legacy - to add replace with CAS IDs....
+        userAssertions.ifPresent(assertions -> {
+            for (QualityAssertion ua : assertions) {
+                // remove snapshot
+                ua.setSnapshot(null);
+
+                if (ua.getUserId().contains("@")) {
+                    String email = ua.getUserId();
+                    String userId = authService.getMapOfEmailToId().get(email);
+                    ua.setUserEmail(authService.substituteEmailAddress(email));
+                    ua.setUserId(authService.getDisplayNameFor(userId));
+                }
+            }
+            sd.addField("dbUserAssertions", userAssertions.get());
+        });
 
         if (occurrenceLogEnabled) {
             //log the statistics for viewing the record
