@@ -123,8 +123,9 @@ public class OccurrenceController extends AbstractSecureController {
     private CacheManager cacheManager;
     @Inject
     private LayersService layersService;
+
     @Inject
-    private StoreDAO storeDao;
+    private AssertionService assertionService;
 
     /**
      * Name of view for site home page
@@ -1518,28 +1519,7 @@ public class OccurrenceController extends AbstractSecureController {
                     }
                 }
             }
-
-            //assertions are based on the row key not uuid
-            sd.addField("dbSystemAssertions", sd.getFieldValue("qualityAssertion"));
         }
-
-        // set the user assertions after retrieving them from the persistent store (not SOLR)
-        Optional<UserAssertions> userAssertions = storeDao.get(UserAssertions.class, uuid);
-        //Legacy integration - fix up the user assertions - legacy - to add replace with CAS IDs....
-        userAssertions.ifPresent(assertions -> {
-            for (QualityAssertion ua : assertions) {
-                // remove snapshot
-                ua.setSnapshot(null);
-
-                if (ua.getUserId().contains("@")) {
-                    String email = ua.getUserId();
-                    String userId = authService.getMapOfEmailToId().get(email);
-                    ua.setUserEmail(authService.substituteEmailAddress(email));
-                    ua.setUserId(authService.getDisplayNameFor(userId));
-                }
-            }
-            sd.addField("dbUserAssertions", userAssertions.get());
-        });
 
         if (occurrenceLogEnabled) {
             //log the statistics for viewing the record
@@ -1732,8 +1712,44 @@ public class OccurrenceController extends AbstractSecureController {
         }
     }
 
-    private List userAssertions(SolrDocument sd) {
-        return new ArrayList();
+    private List<Map<String, Object>> userAssertions(SolrDocument sd) throws IOException {
+
+        String occurrenceId = (String) sd.getFieldValue(ID);
+        UserAssertions userAssertions = assertionService.getAssertions(occurrenceId);
+
+        if (userAssertions == null) {
+            return new ArrayList<>();
+        }
+
+        return userAssertions.stream()
+                .map((QualityAssertion qa) -> {
+
+                    Map<String, Object> userAssertion = new HashMap(){{
+                        put("uuid", qa.getUuid());
+                        put("referenceRowKey", qa.getReferenceRowKey());
+                        put("name", qa.getName());
+                        put("code", qa.getCode());
+                        put("problemAsserted", qa.getProblemAsserted());
+                        put("relatedUuid", qa.getRelatedUuid());
+                        put("qaStatus", qa.getQaStatus());
+                        put("comment", qa.getComment());
+                        put("userId", qa.getUserId());
+                        put("userEmail", qa.getUserEmail());
+                        put("userDisplayName", qa.getUserDisplayName());
+                        put("created", qa.getCreated());
+                    }};
+
+                    if (qa.getUserId().contains("@")) {
+                        String email = qa.getUserId();
+                        String userId = authService.getMapOfEmailToId().get(email);
+                        userAssertion.put("userId", userId);
+                        userAssertion.put("userEmail", authService.substituteEmailAddress(email));
+                        userAssertion.put("userDisplayName", authService.getDisplayNameFor(userId));
+                    }
+
+                    return userAssertion;
+                })
+                .collect(Collectors.toList());
     }
 
     /**
@@ -2062,7 +2078,9 @@ public class OccurrenceController extends AbstractSecureController {
         fullRecord.put("queryAssertions", queryAssertions);
 
         addField(sd, fullRecord, "userQualityAssertion", getFieldName);
-        addField(sd, fullRecord, "userAssertionStatus", getFieldName);
+        addField(sd, fullRecord, "hasUserAssertions", getFieldName);
+        addField(sd, fullRecord, "userAssertionStatus", getFieldName.apply("userAssertions"));
+        addField(sd, fullRecord, "assertionUserId", getFieldName);
         addField(sd, fullRecord, "locationDetermined", getFieldName);
         addField(sd, fullRecord, "defaultValuesUsed", getFieldName);
         addField(sd, fullRecord,"spatiallyValid", getFieldName);
@@ -2076,7 +2094,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, fullRecord, "userVerified", getFieldName); // same value for both raw and processed
 
         addInstant(sd, fullRecord, "firstLoaded", getFieldName.apply("firstLoadedDate"));
-        addLocalDate(sd, fullRecord, "lastUserAssertionDate", getFieldName);
+        addInstant(sd, fullRecord, "lastUserAssertionDate", getFieldName.apply("lastAssertionDate"));
 
         // no deletion flags in use in pipelines - field left in for backwards compatibility
         fullRecord.put("dateDeleted", "");
