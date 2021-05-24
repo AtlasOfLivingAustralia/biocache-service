@@ -1565,6 +1565,11 @@ public class OccurrenceController extends AbstractSecureController {
             occurrence.put("duplicationStatus", "D");  //backwards compatibility
         }
 
+        Collection<String> outlierLayer = (Collection) sd.getFieldValues("outlierLayer");
+        if (outlierLayer != null) {
+            occurrence.put("outlierForLayers", outlierLayer);
+        }
+
         // add misc properties
         try {
             ObjectMapper om = new ObjectMapper();
@@ -1851,14 +1856,12 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, occurrence, "countryConservation", getFieldName);
         addField(sd, occurrence, "stateConservation", getFieldName);
         addField(sd, occurrence, "globalConservation", getFieldName);
-        addField(sd, occurrence, "outlierLayer", getFieldName);
         addField(sd, occurrence, "photographer", getFieldName);
         addField(sd, occurrence, "stateInvasive", getFieldName);
         addField(sd, occurrence, "countryInvasive", getFieldName);
 
         // support for schema change
         addFirst(sd, occurrence, "recordedBy", getFieldName);
-
 
         // au.org.ala.biocache.model.Classification
         Map classification = new HashMap();
@@ -1926,6 +1929,9 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, classification, "matchType", getFieldName); //stores the type of name match that was performed
         addField(sd, classification, "taxonomicIssues", getFieldName); //stores if no issue, questionableSpecies, conferSpecies or affinitySpecies
         addField(sd, classification, "nameType", getFieldName);
+
+
+
 
         // au.org.ala.biocache.model.Location
         Map location = new HashMap();

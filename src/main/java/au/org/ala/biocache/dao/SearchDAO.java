@@ -407,7 +407,6 @@ public interface SearchDAO {
      * @param maxx
      * @param maxy
      * @param legend
-     * @param isGrid
      * @return
      * @throws Exception
      */
@@ -415,4 +414,12 @@ public interface SearchDAO {
                           List<LegendItem> legend,
                           int gridSize) throws Exception;
 
+    /**
+     * Retrieval of outlier stats for record.
+     *
+     * @param uuid
+     * @return
+     * @throws Exception
+     */
+    List<RecordJackKnifeStats> getOutlierStatsFor(String uuid) throws Exception;
 }
