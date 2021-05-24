@@ -45,11 +45,7 @@ public class AssertionsControllerTest extends TestCase {
     }
 
     public final int USER_ASSERTION_CODES_LENGTH = 8;
-    public final int MISCELLANEOUS_CODES_LENGTH = 16;
-    public final int TEMPORAL_CODES_LENGTH = 11;
-    public final int TAXONOMIC_CODES_LENGTH = 14;
-    public final int GEOSPATIAL_CODES_LENGTH = 50;
-    public final int ALL_CODES_LENGTH = 95;
+    public final int ALL_CODES_LENGTH = 90;
 
     @Autowired
     AssertionController assertionController;
@@ -82,66 +78,6 @@ public class AssertionsControllerTest extends TestCase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(ALL_CODES_LENGTH));
-    }
-
-    @Test
-    public void getGeospatialCodes() throws Exception {
-        this.mockMvc.perform(get("/assertions/geospatial/codes")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(GEOSPATIAL_CODES_LENGTH));
-
-        this.mockMvc.perform(get("/assertions/geospatial/codes/")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(GEOSPATIAL_CODES_LENGTH));
-    }
-
-    @Test
-    public void getTaxonomicCodes() throws Exception {
-        this.mockMvc.perform(get("/assertions/taxonomic/codes")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(TAXONOMIC_CODES_LENGTH));
-
-        this.mockMvc.perform(get("/assertions/taxonomic/codes/")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(TAXONOMIC_CODES_LENGTH));
-    }
-
-    @Test
-    public void getTemporalCodes() throws Exception {
-        this.mockMvc.perform(get("/assertions/temporal/codes")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(TEMPORAL_CODES_LENGTH));
-
-        this.mockMvc.perform(get("/assertions/temporal/codes/")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(TEMPORAL_CODES_LENGTH));
-    }
-
-    @Test
-    public void getMiscellaneousCodes() throws Exception {
-        this.mockMvc.perform(get("/assertions/miscellaneous/codes")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(MISCELLANEOUS_CODES_LENGTH));
-
-        this.mockMvc.perform(get("/assertions/miscellaneous/codes")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(MISCELLANEOUS_CODES_LENGTH));
     }
 
     @Test
