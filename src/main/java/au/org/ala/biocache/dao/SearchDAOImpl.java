@@ -3804,4 +3804,50 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setQuery(query);
         return solrQuery;
     }
+
+    @Override
+    public List<RecordJackKnifeStats> getOutlierStatsFor(String uuid) throws Exception {
+
+        // query by taxonConceptID, get outlerForLayers
+        SolrQuery query = new SolrQuery();
+        query.setQuery("id: \"" + uuid +"\"");
+        query.setFields("taxonConceptID", "outlierLayer", "el*");
+        query.setRows(1);
+
+        QueryResponse qr = query(query);
+        if (qr.getResults() == null || qr.getResults().isEmpty()){
+            return new ArrayList<>();
+        }
+
+        SolrDocument doc = qr.getResults().get(0);
+
+        Collection outlierLayers = doc.getFieldValues("outlierLayer");
+        String taxonConceptID = (String) doc.getFieldValue("taxonConceptID");
+
+        if (outlierLayers == null  || outlierLayers.isEmpty() || taxonConceptID == null){
+            return new ArrayList<>();
+        }
+
+        List<RecordJackKnifeStats> statsList = new ArrayList<>();
+
+        for (Object layerId: outlierLayers){
+
+            RecordJackKnifeStats stats = new RecordJackKnifeStats();
+            SolrQuery layerQuery = new SolrQuery();
+            layerQuery.setQuery("taxonConceptID: \"" + taxonConceptID + "\" AND outlierLayer:\"" + layerId + "\"");
+            layerQuery.setFacet(true);
+            layerQuery.addFacetField((String) layerId);
+            layerQuery.setRows(0);
+            QueryResponse facetQr = query(layerQuery);
+
+            FacetField ff = facetQr.getFacetFields().get(0);
+            List<Float> outlierFieldValues = ff.getValues().stream().map(count -> Float.parseFloat(count.getName())).collect(Collectors.toList());
+
+            stats.setOutlierValues(outlierFieldValues);
+            stats.setLayerId((String) layerId);
+            stats.setRecordLayerValue((Float) doc.getFieldValue((String) layerId));
+            statsList.add(stats);
+        }
+        return statsList;
+    }
 }

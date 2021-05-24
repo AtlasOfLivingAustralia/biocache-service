@@ -38,6 +38,9 @@
         <solr8.http.port>8983</solr8.http.port>
         <solr8.zk.host>localhost</solr8.zk.host>
         <solr8.http.host>localhost</solr8.http.host>
+        <alanm.port>9179</alanm.port>
+        <alanm.admin.port>9180</alanm.admin.port>
+        <alanm.host>localhost</alanm.host>
         <docker-maven-plugin.version>0.34.1</docker-maven-plugin.version>
         <findbugs-jsr305.version>3.0.2</findbugs-jsr305.version>
         <!-- Checkstyle -->
@@ -748,6 +751,24 @@
                                 <entrypoint>
                                     <shell>solr start -c -f  -p ${solr8.http.port}</shell>
                                 </entrypoint>
+                            </run>
+                        </image>
+                        <image>
+                            <alias>ala-nameservice</alias>
+                            <name>djtfmartin/ala-namematching-service:v20200214-17</name>
+                            <run>
+                                <ports>
+                                    <port>${alanm.admin.port}:9180</port>
+                                    <port>${alanm.port}:9179</port>
+                                </ports>
+                                <wait>
+                                    <http>
+                                        <url>http://${alanm.host}:${alanm.port}/api/search?q=Acacia</url>
+                                        <method>GET</method>
+                                        <status>200</status>
+                                    </http>
+                                    <time>20000</time>
+                                </wait>
                             </run>
                         </image>
                     </images>

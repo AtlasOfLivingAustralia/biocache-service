@@ -69,26 +69,6 @@ public class AssertionController extends AbstractSecureController {
         return applyi18n(AssertionCodes.getAll());
     }
 
-    @RequestMapping(value = {"/assertions/geospatial/codes", "/assertions/geospatial/codes/"}, method = RequestMethod.GET)
-    public @ResponseBody ErrorCode[] showGeospatialCodes() throws Exception {
-        return applyi18n(AssertionCodes.getGeospatialCodes());
-    }
-
-    @RequestMapping(value = {"/assertions/taxonomic/codes", "/assertions/taxonomic/codes/"}, method = RequestMethod.GET)
-    public @ResponseBody ErrorCode[] showTaxonomicCodes() throws Exception {
-        return applyi18n(AssertionCodes.getTaxonomicCodes());
-    }
-
-    @RequestMapping(value = {"/assertions/temporal/codes", "/assertions/temporal/codes/"}, method = RequestMethod.GET)
-    public @ResponseBody ErrorCode[] showTemporalCodes() throws Exception {
-        return applyi18n(AssertionCodes.getTemporalCodes());
-    }
-
-    @RequestMapping(value = {"/assertions/miscellaneous/codes", "/assertions/miscellaneous/codes/"}, method = RequestMethod.GET)
-    public @ResponseBody ErrorCode[] showMiscellaneousCodes() throws Exception {
-        return applyi18n(AssertionCodes.getMiscellaneousCodes());
-    }
-
     @RequestMapping(value = {"/assertions/user/codes", "/assertions/user/codes/"}, method = RequestMethod.GET)
     public @ResponseBody ErrorCode[] showUserCodes() throws Exception {
         return applyi18n(AssertionCodes.userAssertionCodes);
