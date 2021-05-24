@@ -184,12 +184,10 @@ public class QueryFormatUtils {
             if (StringUtils.isNotEmpty(spatialQuery)) {
                 addFormattedFq(new String[] { spatialQuery }, searchParams);
             }
+            updateQualityProfileContext(searchParams);
         }
 
         updateQueryContext(searchParams);
-
-        updateQualityProfileContext(searchParams);
-
         return fqMaps;
     }
 

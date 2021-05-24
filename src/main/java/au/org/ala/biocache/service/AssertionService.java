@@ -5,6 +5,8 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dao.StoreDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.OccurrenceUtils;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.jetbrains.annotations.NotNull;
@@ -67,16 +69,26 @@ public class AssertionService {
             String userId,
             String userDisplayName,
             String userAssertionStatus,
-            String assertionUuid
+            String assertionUuid,
+            String relatedRecordId,
+            String relatedRecordReason
     ) throws IOException {
         logger.debug("Adding assertion to: " + recordUuid + ", code: " + code + ", comment: " + comment
-                + ", userId: " + userId + ", userDisplayName: " + userDisplayName +", relatedRecordId: "
-                + ", userAssertionStatus: " + userAssertionStatus + ", assertionUuid: " + assertionUuid);
+                + ", userId: " + userId + ", userDisplayName: " + userDisplayName + ", userAssertionStatus: "
+                + userAssertionStatus + ", assertionUuid: " + assertionUuid + ", relatedRecordId: " + relatedRecordId
+                + ", relatedRecordReason: " + relatedRecordReason);
 
         SolrDocument sd = occurrenceUtils.getOcc(recordUuid);
         // only when record uuid is valid
         if (sd != null) {
             QualityAssertion qa = new QualityAssertion();
+            if (code.equals(Integer.toString(AssertionCodes.USER_DUPLICATE_RECORD.getCode()))) {
+                Preconditions.checkArgument(!Strings.isNullOrEmpty(relatedRecordId), "Related Record ID must be set for User Duplicate Record Assertion");
+                Preconditions.checkArgument(!Objects.equals(recordUuid, relatedRecordId), "User Duplicate Record Assertion can not be related to itself");
+                Preconditions.checkArgument(!Strings.isNullOrEmpty(relatedRecordReason), "Duplicate record must have a reason recorded");
+                qa.setRelatedRecordId(relatedRecordId);
+                qa.setRelatedRecordReason(relatedRecordReason);
+            }
             qa.setCode(Integer.parseInt(code));
             qa.setComment(comment);
             qa.setUserId(userId);

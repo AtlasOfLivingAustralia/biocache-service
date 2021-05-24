@@ -105,6 +105,7 @@ public class AssertionCodes {
     static final public ErrorCode UNRECOGNISED_OCCURRENCE_STATUS = new ErrorCode("unrecognisedOccurrenceStatus", 20017, false, "Occurrence status not recognised", Error);
     static final public ErrorCode ASSUMED_PRESENT_OCCURRENCE_STATUS = new ErrorCode("assumedPresentOccurrenceStatus", 20018, false, "Occurrence status assumed to be present", Warning);
     static final public ErrorCode USER_ASSERTION_OTHER = new ErrorCode("userAssertionOther", 20019, false, "Other error", Error);
+    static final public ErrorCode USER_DUPLICATE_RECORD = new ErrorCode("userDuplicateRecord", 20020, false,"The occurrence appears to be a duplicate", Warning);
 
     //temporal issues
     static final public ErrorCode TEMPORAL_ISSUE = new ErrorCode("temporalIssue", 30000, false, "Temporal issue", Error);  // general purpose option
@@ -158,7 +159,7 @@ public class AssertionCodes {
 //        static final public ErrorCode miscellaneousCodes = all.filter(errorCode => {errorCode.code>=20000 && errorCode.code<30000})
 //        static final public ErrorCode temporalCodes = all.filter(errorCode => {errorCode.code>=30000 && errorCode.code<40000})
 //
-    static final public ErrorCode[] userAssertionCodes = new ErrorCode[]{GEOSPATIAL_ISSUE, COORDINATE_HABITAT_MISMATCH, DETECTED_OUTLIER, TAXONOMIC_ISSUE, IDENTIFICATION_INCORRECT, TEMPORAL_ISSUE, USER_ASSERTION_OTHER};
+    static final public ErrorCode[] userAssertionCodes = new ErrorCode[]{ GEOSPATIAL_ISSUE, COORDINATE_HABITAT_MISMATCH, DETECTED_OUTLIER, TAXONOMIC_ISSUE, IDENTIFICATION_INCORRECT, TEMPORAL_ISSUE, USER_DUPLICATE_RECORD, USER_ASSERTION_OTHER };
 
     public static ErrorCode[] getAll() {
         return getAllCodesInRange(null);

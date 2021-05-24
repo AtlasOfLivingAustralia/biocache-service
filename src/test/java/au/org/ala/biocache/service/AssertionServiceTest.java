@@ -74,7 +74,7 @@ public class AssertionServiceTest {
     public void testAddAssertion_record_not_found() throws Exception {
         // test when record is not found
         when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(null);
-        Optional<QualityAssertion> qualityAssertion = assertionService.addAssertion("", "", "", "", "", "", "");
+        Optional<QualityAssertion> qualityAssertion = assertionService.addAssertion("", "", "", "", "", "", "", "", "");
         assert(!qualityAssertion.isPresent());
     }
 
@@ -91,7 +91,7 @@ public class AssertionServiceTest {
 
         // test when add succeed -- code = 50000
         Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "0",
-                "comment", "userId", "userDisplayName", "", "");
+                "comment", "userId", "userDisplayName", "", "", "", "");
         assert(qualityAssertion1.isPresent());
 
         // verify combined assertions
@@ -122,7 +122,7 @@ public class AssertionServiceTest {
 
         // test when add succeed -- code = 50000
         Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "1",
-                "comment", "userId1", "userDisplayName", "", "");
+                "comment", "userId1", "userDisplayName", "", "", "", "");
         assert(qualityAssertion1.isPresent());
 
         // verify combined assertions
@@ -157,7 +157,7 @@ public class AssertionServiceTest {
 
         // test when add succeed -- code = 50000
         Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "0",
-                "comment_new", "userId", "userDisplayName", "", "");
+                "comment_new", "userId", "userDisplayName", "", "", "", "");
         assert(qualityAssertion1.isPresent());
 
         // verify combined assertions
@@ -197,7 +197,7 @@ public class AssertionServiceTest {
 
         // test when add succeed -- code = 50000
         Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "50000",
-                "comment_verification", "userId2", "userDisplayName", "50001", existingAssertions.get(0).getUuid());
+                "comment_verification", "userId2", "userDisplayName", "50001", existingAssertions.get(0).getUuid(), "", "");
         assert(qualityAssertion1.isPresent());
 
         // verify combined assertions
@@ -240,7 +240,7 @@ public class AssertionServiceTest {
 
         // test when add succeed -- code = 50000
         Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "50000",
-                "comment_verification", "userId2", "userDisplayName", "50002", existingAssertions.get(0).getUuid());
+                "comment_verification", "userId2", "userDisplayName", "50002", existingAssertions.get(0).getUuid(), "", "");
         assert(qualityAssertion1.isPresent());
 
         // verify combined assertions
@@ -277,7 +277,7 @@ public class AssertionServiceTest {
 
         // test when add succeed -- code = 50000
         Optional<QualityAssertion> qualityAssertion1 = assertionService.addAssertion("recordUuid", "50000",
-                "comment_verification", "userId", "userDisplayName", "50002", existingAssertions.get(0).getUuid());
+                "comment_verification", "userId", "userDisplayName", "50002", existingAssertions.get(0).getUuid(), "", "");
         assert(qualityAssertion1.isPresent());
 
         // verify combined assertions

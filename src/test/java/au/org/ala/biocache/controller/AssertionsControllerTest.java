@@ -44,12 +44,12 @@ public class AssertionsControllerTest extends TestCase {
         System.setProperty("biocache.config", System.getProperty("user.dir") + "/src/test/resources/biocache-test-config.properties");
     }
 
-    public final int USER_ASSERTION_CODES_LENGTH = 7;
-    public final int MISCELLANEOUS_CODES_LENGTH = 15;
+    public final int USER_ASSERTION_CODES_LENGTH = 8;
+    public final int MISCELLANEOUS_CODES_LENGTH = 16;
     public final int TEMPORAL_CODES_LENGTH = 11;
     public final int TAXONOMIC_CODES_LENGTH = 14;
     public final int GEOSPATIAL_CODES_LENGTH = 50;
-    public final int ALL_CODES_LENGTH = 94;
+    public final int ALL_CODES_LENGTH = 95;
 
     @Autowired
     AssertionController assertionController;
@@ -164,7 +164,7 @@ public class AssertionsControllerTest extends TestCase {
         ReflectionTestUtils.setField(assertionController, "apiKeyCheckedEnabled", false);
 
         // add succeed
-        when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
+        when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
                 .thenReturn(Optional.empty());
         this.mockMvc.perform(post("/occurrences/assertions/add")
                 .param("recordUuid", "recordUuid")
@@ -175,7 +175,7 @@ public class AssertionsControllerTest extends TestCase {
                 .andExpect(status().isBadRequest());
 
         // add fail (record uuid wrong)
-        when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
+        when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
                 .thenReturn(Optional.of(new QualityAssertion()));
         this.mockMvc.perform(post("/occurrences/assertions/add")
                 .param("recordUuid", "recordUuid")
@@ -186,7 +186,7 @@ public class AssertionsControllerTest extends TestCase {
                 .andExpect(status().isCreated());
 
         // exception
-        when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
+        when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
                 .thenThrow(IOException.class);
         this.mockMvc.perform(post("/occurrences/assertions/add")
                 .param("recordUuid", "recordUuid")

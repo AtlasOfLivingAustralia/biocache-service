@@ -14,7 +14,6 @@
  ***************************************************************************/
 package au.org.ala.biocache.web;
 
-
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.service.AssertionService;
 import au.org.ala.biocache.service.AuthService;
@@ -114,8 +113,11 @@ public class AssertionController extends AbstractSecureController {
             @RequestParam(value = "userDisplayName", required = true) String userDisplayName,
             @RequestParam(value = "userAssertionStatus", required = false) String userAssertionStatus,
             @RequestParam(value = "assertionUuid", required = false) String assertionUuid,
+            @RequestParam(value = "relatedRecordId", required = false) String relatedRecordId,
+            @RequestParam(value = "relatedRecordReason", required = false) String relatedRecordReason,
             HttpServletResponse response) throws Exception {
-        addAssertion(recordUuid, request, apiKey, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, response);
+
+        addAssertion(recordUuid, request,apiKey, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason, response);
     }
     /**
      * Adds a bulk list of assertions.
@@ -190,11 +192,13 @@ public class AssertionController extends AbstractSecureController {
        @RequestParam(value = "userDisplayName", required = true) String userDisplayName,
        @RequestParam(value = "userAssertionStatus", required = false) String userAssertionStatus,
        @RequestParam(value = "assertionUuid", required = false) String assertionUuid,
+       @RequestParam(value = "relatedRecordId", required = false) String relatedRecordId,
+       @RequestParam(value = "relatedRecordReason", required = false) String relatedRecordReason,
         HttpServletResponse response) throws Exception {
 
         if (shouldPerformOperation(request, response)) {
             try {
-                Optional<QualityAssertion> qa = assertionService.addAssertion(recordUuid, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid);
+                Optional<QualityAssertion> qa = assertionService.addAssertion(recordUuid, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason);
                 if (qa.isPresent()) {
                     String server = request.getSession().getServletContext().getInitParameter("serverName");
                     response.setHeader("Location", server + "/occurrences/" + recordUuid + "/assertions/" + qa.get().getUuid());
@@ -203,7 +207,6 @@ public class AssertionController extends AbstractSecureController {
                     response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 }
             } catch (IOException e) {
-                logger.error("Failed to add assertion for record " + recordUuid);
                 logger.error(e.getMessage(), e);
                 response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
             }
