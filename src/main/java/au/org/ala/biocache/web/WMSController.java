@@ -1996,6 +1996,13 @@ public class WMSController extends AbstractSecureController{
                                     double minLng = heatmapDTO.minx + cellWidth * (column);
                                     double maxLng = heatmapDTO.minx + cellWidth * (column + columnStep);
 
+                                    // Correct for date line (180 degree) issue that occurrs when tile extents
+                                    // differ from the heatmap extents by 360 degrees (minx > tileMaxx)
+                                    if (heatmapDTO.minx > heatmapDTO.tileMaxx) {
+                                        maxLng -= 360;
+                                        minLng -= 360;
+                                    }
+
                                     // make coordinates to match target SRS
                                     GeneralDirectPosition sourceCoordsBottomLeft = new GeneralDirectPosition(minLng, minLat);
                                     GeneralDirectPosition sourceCoordsTopRight = new GeneralDirectPosition(maxLng, maxLat);
@@ -2028,8 +2035,11 @@ public class WMSController extends AbstractSecureController{
                                     // heatmap grid cell centre longitude
                                     double lng = heatmapDTO.minx + cellWidth * (column + 0.5);
 
-                                    if (lng < -180) lng += 360;
-                                    if (lng > 180) lng -= 360;
+                                    // Correct for date line (180 degree) that occurrs when tile extents differ from
+                                    // the heatmap extents by 360 degrees (minx > tileMaxx)
+                                    if (heatmapDTO.minx > heatmapDTO.tileMaxx) {
+                                        lng -= 360;
+                                    }
 
                                     // make coordinates to match target SRS
                                     GeneralDirectPosition sourceCoords = new GeneralDirectPosition(lng, lat);
