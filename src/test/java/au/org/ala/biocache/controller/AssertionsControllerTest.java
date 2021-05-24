@@ -44,12 +44,12 @@ public class AssertionsControllerTest extends TestCase {
         System.setProperty("biocache.config", System.getProperty("user.dir") + "/src/test/resources/biocache-test-config.properties");
     }
 
-    public final int USER_ASSERTION_CODES_LENGTH = 7;
-    public final int MISCELLANEOUS_CODES_LENGTH = 15;
+    public final int USER_ASSERTION_CODES_LENGTH = 8;
+    public final int MISCELLANEOUS_CODES_LENGTH = 16;
     public final int TEMPORAL_CODES_LENGTH = 11;
     public final int TAXONOMIC_CODES_LENGTH = 14;
     public final int GEOSPATIAL_CODES_LENGTH = 50;
-    public final int ALL_CODES_LENGTH = 94;
+    public final int ALL_CODES_LENGTH = 95;
 
     @Autowired
     AssertionController assertionController;
