@@ -1470,7 +1470,7 @@ public class OccurrenceController extends AbstractSecureController {
         idRequest.setFl("*");
 
         SolrDocumentList sdl = searchDAO.findByFulltext(idRequest);
-        if (sdl.isEmpty()) {
+        if (sdl == null || sdl.isEmpty()) {
             return null;
         }
 
@@ -2126,12 +2126,12 @@ public class OccurrenceController extends AbstractSecureController {
         systemAssertions.put("passed", passed); // no longer available
 
         List<ErrorCode> allErrorCodes = new ArrayList(Arrays.asList(AssertionCodes.getAll()));
+
         if (assertions != null) {
             for (Object assertion : assertions) {
                 ErrorCode ec = AssertionCodes.getByName((String) assertion);
                 if (ec != null) {
                     allErrorCodes.remove(ec);
-
                     if (ErrorCode.Category.Missing.toString().equalsIgnoreCase(ec.getCategory())) {
                         missing.add(formatAssertion((String) assertion, 0, false, "" + sd.getFieldValue("modified")));
                     } else {
@@ -2139,6 +2139,11 @@ public class OccurrenceController extends AbstractSecureController {
                     }
                 }
             }
+        }
+
+        // add the remaining to passes
+        for (ErrorCode errorCode: allErrorCodes){
+            passed.add(errorCode);
         }
 
         return systemAssertions;
