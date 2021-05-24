@@ -278,6 +278,8 @@ public class AssertionService {
         indexMap.put("userAssertions", String.valueOf(assertionStatus));
         // set hasUserAssertions
         indexMap.put("hasUserAssertions", !assertions.isEmpty());
+        // set userVerified
+        indexMap.put("userVerified", !verifications.isEmpty());
 
         if (!userAssertions.isEmpty()) {
             userAssertions.sort((qa1, qa2) -> {

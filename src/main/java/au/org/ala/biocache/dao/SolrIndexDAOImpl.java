@@ -90,6 +90,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
     private final List<String> header = Arrays.asList(
             "userAssertions",
             "hasUserAssertions",
+            "userVerified",
             "lastAssertionDate"
     );
 
@@ -983,9 +984,10 @@ public class SolrIndexDAOImpl implements IndexDAO {
         }
 
         boolean hasUserAssertions = (boolean) map.getOrDefault("hasUserAssertions", false);
+        boolean userVerified = (boolean) map.getOrDefault("userVerified", false);
         Date lastAssertionDate = (Date) map.getOrDefault("lastAssertionDate", null);
 
-        return Arrays.asList(userAssertionStatus, hasUserAssertions, lastAssertionDate);
+        return Arrays.asList(userAssertionStatus, hasUserAssertions, userVerified, lastAssertionDate);
     }
 
     @Override
