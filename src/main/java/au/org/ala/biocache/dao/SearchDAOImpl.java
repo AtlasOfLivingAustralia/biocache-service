@@ -3625,7 +3625,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     @Override
-//    @Cacheable(cacheName = "heatmapCache")
+    @Cacheable(cacheName = "heatmapCache")
     public HeatmapDTO getHeatMap(
             String query,
             String[] filterQueries,
@@ -3773,13 +3773,16 @@ public class SearchDAOImpl implements SearchDAO {
         String geom = "[\"" + minx + " " + miny + "\" TO \"" + maxx + " " + maxy + "\"]";
         solrQuery.set("facet.heatmap.geom", geom);
 
+        // Calculate the tile width in degrees. minx and maxx may independently wrap the date line (180 degrees).
+        double tileWidth = maxx > minx ? maxx - minx : maxx - (minx - 360);
+
         // This is the map for the tile width (or tile height) and the facet.heatmap.gridLevel.
         // gridLevel must be between 1 and 26 inclusive for the SOLR quad index.
         // At the gridLevel 1 it is a 1x1 cell for the whole world (360 degrees x 180 degrees)
         // Add 7 grid levels to get a heatmap of size 2^7 x 2^7 grid cells (128x128) - approximately
         double [] solrGridLevelMap = new double [] {360,180,90,45,22.5,11.25,5.625,2.8125,1.40625,0.703125,0.3515625,0.17578125,0.087890625,0.0439453125,0.02197265625,0.010986328125,0.0054931640625,0.00274658203125,0.001373291015625,0.0006866455078125};
         int zoomLevelByWidth = 0;
-        while (zoomLevelByWidth < solrGridLevelMap.length && maxx - minx < solrGridLevelMap[zoomLevelByWidth]) {
+        while (zoomLevelByWidth < solrGridLevelMap.length && tileWidth < solrGridLevelMap[zoomLevelByWidth]) {
             zoomLevelByWidth++;
         }
 
