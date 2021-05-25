@@ -6,6 +6,7 @@ import org.gbif.api.vocabulary.OccurrenceIssue;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static au.org.ala.biocache.dto.ErrorCode.Category.Error;
 import static au.org.ala.biocache.dto.ErrorCode.Category.*;
@@ -60,7 +61,9 @@ public class AssertionCodes {
                     issue.ordinal() + 1000,
                     issue.getSeverity().equals(InterpretationRemarkSeverity.ERROR),
                     issue.name().toLowerCase().replaceAll("_", " "),
-                    c));
+                    c,
+                    issue.getRelatedTerms().stream().map(term -> term.simpleName()).collect(Collectors.toList())
+            ));
         }
         for (OccurrenceIssue issue : issues){
             ErrorCode.Category c = null;
@@ -77,7 +80,9 @@ public class AssertionCodes {
                     issue.ordinal() + 2000,
                     issue.getSeverity().equals(InterpretationRemarkSeverity.ERROR),
                     issue.name().toLowerCase().replaceAll("_", " "),
-                    c));
+                    c,
+                    issue.getRelatedTerms().stream().map(term -> term.simpleName()).collect(Collectors.toList())
+                    ));
         }
 
         return codes;
