@@ -85,6 +85,9 @@ public class OccurrenceController extends AbstractSecureController {
      * Logger initialisation
      */
     private static final Logger logger = Logger.getLogger(OccurrenceController.class);
+    public static final String LEGACY_REPRESENTATIVE_RECORD_VALUE = "R";
+    public static final String LEGACY_DUPLICATE_RECORD_VALUE = "D";
+    public static final String RAW_FIELD_PREFIX = "raw_";
 
     /**
      * Fulltext search DAO
@@ -1530,6 +1533,11 @@ public class OccurrenceController extends AbstractSecureController {
         return mapAsFullRecord(sd, includeImageMetadata, includeSensitive);
     }
 
+    private boolean isSensitive(SolrDocument doc){
+        String sensitiveValue = (String) doc.getFieldValue("sensitive");
+        return sensitiveValue != null && (sensitiveValue.equals("generalised") ||  sensitiveValue.equals("alreadyGeneralised"));
+    }
+
     /**
      * @param sd
      * @return
@@ -1539,8 +1547,8 @@ public class OccurrenceController extends AbstractSecureController {
         Set<String> schemaFields = indexDao.getSchemaFields();
 
         Map map = new LinkedHashMap();
-        Map raw = fullRecord(sd, (String fieldName) -> schemaFields.contains("raw_" + fieldName) ? ("raw_" + fieldName) : fieldName);
-        Map processed = fullRecord(sd, (String fieldName) -> schemaFields.contains("raw_" + fieldName) ? fieldName : null);
+        Map raw = fullRecord(sd, (String fieldName) -> schemaFields.contains(RAW_FIELD_PREFIX + fieldName) ? (RAW_FIELD_PREFIX + fieldName) : fieldName);
+        Map processed = fullRecord(sd, (String fieldName) -> schemaFields.contains(RAW_FIELD_PREFIX + fieldName) ? fieldName : null);
 
         // add lastModifiedTime
         addInstant(sd, raw, "lastModifiedTime","lastLoadDate");
@@ -1560,9 +1568,9 @@ public class OccurrenceController extends AbstractSecureController {
         String duplicateStatus = (String) sd.getFieldValue("duplicateStatus");
         occurrence.put("duplicateStatus", duplicateStatus);
         if (REPRESENTATIVE.equals(duplicateStatus)){
-            occurrence.put("duplicationStatus", "R");  //backwards compatibility
+            occurrence.put("duplicationStatus", LEGACY_REPRESENTATIVE_RECORD_VALUE);  //backwards compatibility
         } else if (ASSOCIATED.equals(duplicateStatus)){
-            occurrence.put("duplicationStatus", "D");  //backwards compatibility
+            occurrence.put("duplicationStatus", LEGACY_DUPLICATE_RECORD_VALUE);  //backwards compatibility
         }
 
         Collection<String> outlierLayer = (Collection) sd.getFieldValues("outlierLayer");
@@ -1587,7 +1595,7 @@ public class OccurrenceController extends AbstractSecureController {
 
         map.put("alaUserId", sd.getFieldValue(OccurrenceIndex.ALA_USER_ID));
 
-        if (includeSensitive){
+        if (includeSensitive && isSensitive(sd)){
 
             Map rawLocation = (Map) raw.get("location");
             Map rawEvent = (Map) raw.get("event");
@@ -2109,33 +2117,25 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     private Map systemAssertions(SolrDocument sd) {
-        Map systemAssertions = new HashMap();
 
         List assertions = (List) sd.getFieldValue("assertions");
 
-        List unchecked = new ArrayList();
-        systemAssertions.put("unchecked", unchecked); // no longer available
-
-        List warning = new ArrayList();
-        systemAssertions.put("warning", warning);
-
-        List missing = new ArrayList();
-        systemAssertions.put("missing", missing);
-
-        List passed = new ArrayList();
-        systemAssertions.put("passed", passed); // no longer available
-
+        List<ErrorCode> unchecked = new ArrayList();
+        List<ErrorCode> warning = new ArrayList();
+        List<ErrorCode> missing = new ArrayList();
+        List<ErrorCode> passed = new ArrayList();
         List<ErrorCode> allErrorCodes = new ArrayList(Arrays.asList(AssertionCodes.getAll()));
 
+        List<ErrorCode> flaggedErrors = new ArrayList<>();
         if (assertions != null) {
             for (Object assertion : assertions) {
                 ErrorCode ec = AssertionCodes.getByName((String) assertion);
                 if (ec != null) {
-                    allErrorCodes.remove(ec);
-                    if (ErrorCode.Category.Missing.toString().equalsIgnoreCase(ec.getCategory())) {
-                        missing.add(formatAssertion((String) assertion, 0, false, "" + sd.getFieldValue("modified")));
+                    flaggedErrors.add(ec);
+                    if (ErrorCode.Category.Missing.toString().equalsIgnoreCase(ec.getCategory()) || ec.getName().toLowerCase(Locale.ROOT).startsWith("missing")) {
+                        missing.add(ec);
                     } else {
-                        warning.add(formatAssertion((String) assertion, 0, false, "" + sd.getFieldValue("modified")));
+                        warning.add(ec);
                     }
                 }
             }
@@ -2143,10 +2143,84 @@ public class OccurrenceController extends AbstractSecureController {
 
         // add the remaining to passes
         for (ErrorCode errorCode: allErrorCodes){
-            passed.add(errorCode);
+            if (!flaggedErrors.contains(errorCode)) {
+                // do we have the populated terms for this errorCode
+                if (hasRequiredTerms(errorCode, sd)){
+                    passed.add(errorCode);
+                } else {
+                    unchecked.add(errorCode);
+                }
+            }
         }
 
+        // sort alphabetically
+        passed = passed.stream().sorted(new Comparator<ErrorCode>() {
+            @Override
+            public int compare(ErrorCode o1, ErrorCode o2) {
+                return o1.getName().compareTo(o2.getName());
+            }
+        }).collect(Collectors.toList());
+
+        warning = warning.stream().sorted(new Comparator<ErrorCode>() {
+            @Override
+            public int compare(ErrorCode o1, ErrorCode o2) {
+                return o1.getName().compareTo(o2.getName());
+            }
+        }).collect(Collectors.toList());
+
+        missing =  missing.stream().sorted(new Comparator<ErrorCode>() {
+            @Override
+            public int compare(ErrorCode o1, ErrorCode o2) {
+                return o1.getName().compareTo(o2.getName());
+            }
+        }).collect(Collectors.toList());
+
+        Map systemAssertions = new HashMap();
+        systemAssertions.put("missing", missing);
+        systemAssertions.put("passed", passed); // no longer available
+        systemAssertions.put("warning", warning);
+        systemAssertions.put("unchecked", unchecked); // no longer available
+
         return systemAssertions;
+    }
+
+    /**
+     * Will return true if one or more of the required terms is populated
+     * @param errorCode
+     * @param sd
+     * @return
+     */
+    boolean hasRequiredTerms(ErrorCode errorCode, SolrDocument sd){
+
+        if (errorCode.getTermsRequiredToTest().isEmpty()) {
+            // missing the definition - assume we have the required terms
+            return true;
+        }
+
+        for (String term: errorCode.getTermsRequiredToTest()){
+            Object termValue = sd.getFieldValue(term);
+            Object rawTermValue = sd.getFieldValue(RAW_FIELD_PREFIX + term);
+            if (Objects.nonNull(termValue)){
+                if (termValue instanceof String){
+                    if (StringUtils.isNotBlank((String) termValue)){
+                        return true;
+                    } else {
+                        return true;
+                    }
+                }
+            }
+            if (Objects.nonNull(rawTermValue)){
+                if (rawTermValue instanceof String){
+                    if (StringUtils.isNotBlank((String) rawTermValue)){
+                        return true;
+                    } else {
+                        return true;
+                    }
+                }
+            }
+
+        }
+        return false;
     }
 
     private Map formatAssertion(String name, Integer qaStatus, Boolean problemAsserted, String created) {
@@ -2168,6 +2242,7 @@ public class OccurrenceController extends AbstractSecureController {
 
         return assertion;
     }
+
 
     private void logViewEvent(String ip, SolrDocument occ, String userAgent, String email, String reason) {
         //String ip = request.getLocalAddr();

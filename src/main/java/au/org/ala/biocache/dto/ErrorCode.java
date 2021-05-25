@@ -1,5 +1,8 @@
 package au.org.ala.biocache.dto;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Case class that represents an error code for a occurrence record.
  * <p>
@@ -11,6 +14,16 @@ public class ErrorCode {
     Boolean isFatal;
     String description;
     String category = Category.Error.toString();
+    List<String> termsRequiredToTest;
+
+    public ErrorCode(String name, Integer code, Boolean isFatal, String description, Category category, List<String> termsRequiredToTest) {
+        this.name = name;
+        this.code = code;
+        this.isFatal = isFatal;
+        this.description = description;
+        this.category = category.toString();
+        this.termsRequiredToTest = termsRequiredToTest;
+    }
 
     public ErrorCode(String name, Integer code, Boolean isFatal, String description, Category category) {
         this.name = name;
@@ -18,6 +31,7 @@ public class ErrorCode {
         this.isFatal = isFatal;
         this.description = description;
         this.category = category.toString();
+        this.termsRequiredToTest = Collections.emptyList();
     }
 
     // Compatible with biocache-store
@@ -25,8 +39,7 @@ public class ErrorCode {
         Error, Missing, Warning, Verified, Comment, Geospatial, Taxonomic
     }
 
-    public ErrorCode() {
-    }
+    public ErrorCode() {}
 
     public String getName() {
         return name;
@@ -66,5 +79,13 @@ public class ErrorCode {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public List<String> getTermsRequiredToTest() {
+        return termsRequiredToTest;
+    }
+
+    public void setTermsRequiredToTest(List<String> termsRequiredToTest) {
+        this.termsRequiredToTest = termsRequiredToTest;
     }
 }
