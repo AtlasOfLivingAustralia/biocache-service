@@ -105,6 +105,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
             put("userAssertions", new Object[]{"string", false, true, true, true});
             put("hasUserAssertions", new Object[]{"boolean", false, true, true, true});
             put("lastAssertionDate", new Object[]{"date", false, true, true, true});
+            put("userVerified", new Object[]{"boolean", false, true, true, true});
             put("_version_", new Object[]{"long", false, true, false, false});
         }
     };
