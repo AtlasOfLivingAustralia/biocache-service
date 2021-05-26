@@ -3,12 +3,14 @@ package au.org.ala.biocache.dao;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.service.LayersService;
 import au.org.ala.biocache.service.RestartDataService;
+import au.org.ala.biocache.stream.ProcessInterface;
 import au.org.ala.biocache.util.DwCTerms;
 import au.org.ala.biocache.util.DwcTermDetails;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.solr.FieldMappedSolrClient;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.client.config.RequestConfig;
@@ -22,10 +24,10 @@ import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.impl.CloudHttp2SolrClient;
-import org.apache.solr.client.solrj.impl.CloudSolrClient;
-import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
-import org.apache.solr.client.solrj.impl.Http2SolrClient;
+import org.apache.solr.client.solrj.impl.*;
+import org.apache.solr.client.solrj.io.SolrClientCache;
+import org.apache.solr.client.solrj.io.Tuple;
+import org.apache.solr.client.solrj.io.stream.*;
 import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.request.schema.SchemaRequest;
 import org.apache.solr.client.solrj.response.FacetField;
@@ -190,12 +192,38 @@ public class SolrIndexDAOImpl implements IndexDAO {
     CloseableHttpClient httpClient;
     HttpClientConnectionManager connectionPoolManager;
 
+    // for SOLR streaming
+    SolrClientCache solrClientCache;
+
     @PostConstruct
     public void init() {
 
         if (solrClient == null) {
 
             SolrClient solrClient = null;
+
+            CacheConfig cacheConfig =
+                    CacheConfig.custom()
+                            .setMaxCacheEntries(solrConnectionCacheEntries)
+                            .setMaxObjectSize(solrConnectionCacheObjectSize)
+                            .setSharedCache(false)
+                            .build();
+            RequestConfig requestConfig =
+                    RequestConfig.custom()
+                            .setConnectTimeout(solrConnectionConnectTimeout)
+                            .setConnectionRequestTimeout(solrConnectionRequestTimeout)
+                            .setSocketTimeout(solrConnectionSocketTimeout)
+                            .build();
+            httpClient =
+                    CachingHttpClientBuilder.create()
+                            .setCacheConfig(cacheConfig)
+                            .setDefaultRequestConfig(requestConfig)
+                            .setConnectionManager(connectionPoolManager)
+                            .setUserAgent(userAgent)
+                            .useSystemProperties()
+                            .build();
+
+            solrClientCache = new SolrClientCache(httpClient);
 
             if (usehttp2) {
                 // TODO - this is experimental. Requires more configuration params for tuning timeouts etc
@@ -223,27 +251,6 @@ public class SolrIndexDAOImpl implements IndexDAO {
                         new PoolingHttpClientConnectionManager();
                 poolingConnectionPoolManager.setMaxTotal(solrConnectionPoolSize);
                 poolingConnectionPoolManager.setDefaultMaxPerRoute(solrConnectionMaxPerRoute);
-
-                CacheConfig cacheConfig =
-                        CacheConfig.custom()
-                                .setMaxCacheEntries(solrConnectionCacheEntries)
-                                .setMaxObjectSize(solrConnectionCacheObjectSize)
-                                .setSharedCache(false)
-                                .build();
-                RequestConfig requestConfig =
-                        RequestConfig.custom()
-                                .setConnectTimeout(solrConnectionConnectTimeout)
-                                .setConnectionRequestTimeout(solrConnectionRequestTimeout)
-                                .setSocketTimeout(solrConnectionSocketTimeout)
-                                .build();
-                httpClient =
-                        CachingHttpClientBuilder.create()
-                                .setCacheConfig(cacheConfig)
-                                .setDefaultRequestConfig(requestConfig)
-                                .setConnectionManager(connectionPoolManager)
-                                .setUserAgent(userAgent)
-                                .useSystemProperties()
-                                .build();
 
                 if (!solrHome.startsWith("http://")) {
                     if (solrHome.contains(":")) {
@@ -1088,61 +1095,162 @@ public class SolrIndexDAOImpl implements IndexDAO {
             }
         }
     }
-}
 
-class FacetFieldRenamed extends FacetField {
+    private TupleStream openStream(SolrParams params) throws IOException {
+        TupleStream solrStream = null;
 
-    FacetField facetField;
+        if (!solrHome.startsWith("http://")) {
+            if (solrHome.contains(":")) {
+                // assume that it represents a SolrCloud using ZooKeeper
+                solrStream = new CloudSolrStream(solrHome, solrCollection, params);
+            } else {
+                logger.error("Failed to initialise connection to SOLR server with solrHome: " + solrHome);
+                return null;
+            }
+        } else {
+            // assume no ZooKeeper
+            solrStream = new SolrStream(solrHome, params);
+        }
 
-    public FacetFieldRenamed(String n) {
-        super(n);
+        // Use solrClientCache to recycle SolrClients.
+        StreamContext streamContext = new StreamContext();
+        streamContext.setSolrClientCache(solrClientCache);
+        solrStream.setStreamContext(streamContext);
+        solrStream.open();
+
+        return solrStream;
     }
 
-    public FacetFieldRenamed(String name, FacetField facetField) {
-        super(name);
-        this.facetField = facetField;
+    /**
+     * Stream a solrQuery and apply proc.process to each tuple returned.
+     *
+     * @param query
+     * @param procSearch
+     * @param procFacet
+     * @throws SolrServerException
+     */
+    @Override
+    public int streamingQuery(SolrQuery query, ProcessInterface procSearch, ProcessInterface procFacet) throws SolrServerException {
+        int tupleCount = 0;
+        try {
+            if (logger.isDebugEnabled()) {
+                logger.debug("SOLR query:" + query.toString());
+            }
+
+            if (StringUtils.isEmpty(query.getTermsSortString())) {
+                query.setSort("row_key", SolrQuery.ORDER.asc);
+            }
+
+            // do search
+            if (procSearch != null && query.getRows() != 0) {
+                TupleStream solrStream = openStream(buildSearchExpr(query));
+
+                Tuple tuple;
+                while (!(tuple = solrStream.read()).EOF && (tupleCount < query.getRows() || query.getRows() < 0)) {
+                    tupleCount++;
+                    procSearch.process(tuple);
+                }
+
+                solrStream.close(); // could be try-with-resources
+
+                procSearch.flush();
+            }
+
+            // do facets
+            if (procFacet != null && query.getFacetFields() != null) {
+                // process one at a time
+                for (int i = 0; i < query.getFacetFields().length; i++) {
+                    TupleStream solrStream2 = openStream(buildFacetExpr(query, query.getFacetFields()[i]));
+
+                    Tuple tuple2;
+                    while (!(tuple2 = solrStream2.read()).EOF) {
+                        procFacet.process(tuple2);
+                    }
+
+                    solrStream2.close(); // could be try-with-resources
+                }
+                procFacet.flush();
+            }
+        } catch (HttpSolrClient.RemoteSolrException e) {
+            //report failed query
+            logger.error("query failed: " + query.toString() + " : " + e.getMessage());
+            throw e;
+        } catch (IOException ioe) {
+            //report failed query
+            logger.error("query failed: " + query.toString() + " : " + ioe.getMessage());
+            throw new SolrServerException(ioe);
+        } catch (Exception ioe) {
+            //report failed query
+            logger.error("query failed: " + query.toString() + " : " + ioe.getMessage());
+            throw new SolrServerException(ioe);
+        }
+
+        return tupleCount;
     }
 
-    public void add(String name, long cnt) {
-        facetField.add(name, cnt);
+    private ModifiableSolrParams buildSearchExpr(SolrQuery query) {
+        ModifiableSolrParams solrParams = new ModifiableSolrParams();
+
+        solrParams.set("q", fieldMappingUtil.translateQueryFields(query.getQuery()));
+
+        if (query.getFacetQuery() != null) {
+            for (String fq : query.getFacetQuery()) {
+                if (StringUtils.isNotEmpty(fq)) {
+                    solrParams.add("fq", fieldMappingUtil.translateQueryFields(fq));
+                }
+            }
+        }
+        String[] fl = new String[]{"id"};
+        if (StringUtils.isNotEmpty(query.getFields())) {
+            solrParams.set("fl", StringUtils.join(fieldMappingUtil.translateFieldArray(query.getFields().split(",")), ","));
+        } else {
+            solrParams.set("fl", "id");
+        }
+
+        if (StringUtils.isEmpty(query.getSortField()) || !ArrayUtils.contains(fl, query.getSortField().split(" ")[0])) {
+            solrParams.set("sort", solrParams.get("fl").split(",")[0] + " asc");
+        } else {
+            solrParams.set("sort", "index asc");
+        }
+
+        String qt = "/export";
+
+        // Use /select handler when fewer than all rows are requested
+        if (query.getStart() > 0 || query.getRows() > 0) {
+            solrParams.set("rows", query.getRows());
+            solrParams.set("start", query.getStart());
+            qt = "/select";
+        }
+        solrParams.set("qt", qt);
+
+        return solrParams;
     }
 
-    public void insert(String name, long cnt) {
-        facetField.insert(name, cnt);
-    }
+    private ModifiableSolrParams buildFacetExpr(SolrQuery query, String facetName) {
+        StringBuilder cexpr = new StringBuilder();
+        cexpr.append("facet(").append(solrCollection).append(", q=\"").append(fieldMappingUtil.translateQueryFields(query.getQuery())).append("\"");
+        if (query.getFacetQuery() != null) {
+            for (String fq : query.getFacetQuery()) {
+                cexpr.append(", fq=\"").append(fieldMappingUtil.translateQueryFields(fq)).append("\"");
+            }
+        }
 
-    public List<FacetField.Count> getValues() {
-        return facetField.getValues();
-    }
+        cexpr.append(", buckets=\"").append(fieldMappingUtil.translateFieldName(facetName)).append("\"");
+        cexpr.append(", bucketSorts=\"count(*) desc\"");
+        int limit = query.getFacetLimit() >= 0 ? query.getFacetLimit() : Integer.MAX_VALUE;
+        cexpr.append(", bucketSizeLimit=").append(limit);
+        cexpr.append(", count(*))");
 
-    public int getValueCount() {
-        return facetField.getValueCount();
-    }
+        String qt = "/stream";
 
-    public FacetField getLimitingFields(long max) {
-        return facetField.getLimitingFields(max);
-    }
+        ModifiableSolrParams solrParams = new ModifiableSolrParams();
+        solrParams.set("expr", cexpr.toString());
+        solrParams.set("qt", qt);
 
-    public String toString() {
-        return getName() + ":" + facetField.getValues();
-    }
-}
+//        solrParams.set("q", query.getQuery());
+//        solrParams.set("fl", query.getFields());
+//        solrParams.set("sort", query.getSortField());
 
-class RangeFacetRenamed<B, G> extends RangeFacet<B, G> {
-
-    protected RangeFacetRenamed(
-            String name, B start, B end, G gap, Number before, Number after, Number between) {
-        super(name, start, end, gap, before, after, between);
-    }
-
-    public RangeFacetRenamed(String name, RangeFacet<B, G> rangedFacet) {
-        super(
-                name,
-                rangedFacet.getStart(),
-                rangedFacet.getEnd(),
-                rangedFacet.getGap(),
-                rangedFacet.getBefore(),
-                rangedFacet.getAfter(),
-                rangedFacet.getBetween());
+        return solrParams;
     }
 }

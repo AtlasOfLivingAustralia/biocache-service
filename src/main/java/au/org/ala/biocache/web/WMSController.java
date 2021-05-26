@@ -16,9 +16,12 @@ package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dao.QidCacheDAO;
 import au.org.ala.biocache.dao.SearchDAO;
+import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dao.TaxonDAO;
 import au.org.ala.biocache.dto.*;
+import au.org.ala.biocache.stream.StreamAsCSV;
 import au.org.ala.biocache.util.*;
+import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
@@ -37,6 +40,7 @@ import org.opengis.referencing.crs.CRSAuthorityFactory;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.CoordinateOperation;
 import org.opengis.referencing.operation.TransformException;
+import org.springframework.aop.framework.Advised;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.ehcache.EhCacheManagerFactoryBean;
 import org.springframework.stereotype.Controller;
@@ -75,7 +79,7 @@ import static au.org.ala.biocache.dto.OccurrenceIndex.*;
  * </ul>
  */
 @Controller
-public class WMSController extends AbstractSecureController{
+public class WMSController extends AbstractSecureController {
 
     /**
      * webportal results limit
@@ -103,7 +107,7 @@ public class WMSController extends AbstractSecureController{
      * add pixel radius for wms highlight circles
      */
     @Value("${wms.highlight.radius:3}")
-    private static int HIGHLIGHT_RADIUS;
+    public static int HIGHLIGHT_RADIUS;
 
     /**
      * max WMS point width in pixels. This makes better use of the searchDAO.getHeatMap cache.
@@ -147,7 +151,7 @@ public class WMSController extends AbstractSecureController{
     @Inject
     protected QidCacheDAO qidCacheDAO;
     @Inject
-    protected WMSCache wmsCache;
+    public FieldMappingUtil fieldMappingUtil;
 
     /**
      * Load a smaller 256x256 png than java.image produces
@@ -238,7 +242,7 @@ public class WMSController extends AbstractSecureController{
 
         //set default values for parameters not stored in the qid.
         requestParams.setFl("");
-        requestParams.setFacets(new String[] {});
+        requestParams.setFacets(new String[]{});
         requestParams.setStart(0);
         requestParams.setFacet(false);
         requestParams.setFlimit(0);
@@ -267,7 +271,7 @@ public class WMSController extends AbstractSecureController{
 
         String qid = qidCacheDAO.generateQid(requestParams, bbox, title, maxage, source);
         if (qid == null) {
-            if(StringUtils.isEmpty(requestParams.getWkt())){
+            if (StringUtils.isEmpty(requestParams.getWkt())) {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unable to generate QID for query");
             } else {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "WKT provided failed to be simplified.");
@@ -388,7 +392,7 @@ public class WMSController extends AbstractSecureController{
 
     /**
      * Get legend for a query and facet field (colourMode).
-     *
+     * <p>
      * if "Accept" header is application/json return json otherwise
      *
      * @param requestParams
@@ -426,7 +430,7 @@ public class WMSController extends AbstractSecureController{
         requestParams.setFormattedQuery(null);
         List<LegendItem> legend = searchDAO.getLegend(requestParams, colourModes[0], cutpoints);
         if (cutpoints == null) {
-            if (colourModes[0].equals(MONTH)){
+            if (colourModes[0].equals(MONTH)) {
                 //ascending month
                 java.util.Collections.sort(legend, new Comparator<LegendItem>() {
                     @Override
@@ -439,7 +443,7 @@ public class WMSController extends AbstractSecureController{
                         return Integer.parseInt(o1.getFacetValue()) > Integer.parseInt(o2.getFacetValue()) ? 1 : -1;
                     }
                 });
-            } else if (colourModes[0].equals(YEAR) || colourModes[0].equals(DECADE_FACET_NAME)){
+            } else if (colourModes[0].equals(YEAR) || colourModes[0].equals(DECADE_FACET_NAME)) {
                 //descending years
                 java.util.Collections.sort(legend, new Comparator<LegendItem>() {
                     @Override
@@ -636,53 +640,7 @@ public class WMSController extends AbstractSecureController{
     }
 
     private void writeOccurrencesCsvToStream(SpatialSearchRequestParams requestParams, OutputStream stream) throws Exception {
-        SolrDocumentList sdl = searchDAO.findByFulltext(requestParams);
-
-        byte[] bComma = ",".getBytes(StandardCharsets.UTF_8);
-        byte[] bNewLine = "\n".getBytes(StandardCharsets.UTF_8);
-        byte[] bDblQuote = "\"".getBytes(StandardCharsets.UTF_8);
-
-        if (sdl != null && sdl.size() > 0) {
-            //header field identification
-            ArrayList<String> header = new ArrayList<String>();
-            if (requestParams.getFl() == null || requestParams.getFl().isEmpty()) {
-                TreeSet<String> unique = new TreeSet<String>();
-                for (int i = 0; i < sdl.size(); i++) {
-                    unique.addAll(sdl.get(i).getFieldNames());
-                }
-                header = new ArrayList<String>(unique);
-            } else {
-                String[] fields = requestParams.getFl().split(",");
-                for (int i = 0; i < fields.length; i++) {
-                    if (fields[i].length() > 0) {
-                        header.add(fields[i]);
-                    }
-                }
-            }
-
-            //write header
-            for (int i = 0; i < header.size(); i++) {
-                if (i > 0) {
-                    stream.write(bComma);
-                }
-                stream.write(header.get(i).getBytes(StandardCharsets.UTF_8));
-            }
-
-            //write records
-            for (int i = 0; i < sdl.size(); i++) {
-                stream.write(bNewLine);
-                for (int j = 0; j < header.size(); j++) {
-                    if (j > 0) {
-                        stream.write(bComma);
-                    }
-                    if (sdl.get(i).containsKey(header.get(j))) {
-                        stream.write(bDblQuote);
-                        stream.write(String.valueOf(sdl.get(i).getFieldValue(header.get(j))).replace("\"", "\"\"").getBytes("UTF-8"));
-                        stream.write(bDblQuote);
-                    }
-                }
-            }
-        }
+        searchDAO.streamingQuery(requestParams, new StreamAsCSV(fieldMappingUtil, stream, requestParams), null);
     }
 
     private void writeBytes(HttpServletResponse response, byte[] bytes) throws IOException {
@@ -705,6 +663,7 @@ public class WMSController extends AbstractSecureController{
     int scaleLongitudeForImage(double lng, double left, double right, int pixelWidth) {
         return (int) (((lng - left) / (right - left)) * pixelWidth);
     }
+
     double convertMetersToLng(double meters) {
         return meters / 20037508.342789244 * 180;
     }
@@ -747,18 +706,17 @@ public class WMSController extends AbstractSecureController{
     }
 
     /**
-     *
      * @param transformTo4326 TransformOp to convert from the target SRS to the coordinates in SOLR (EPSG:4326)
-     * @param bboxString getMap bbox parameter with the tile extents in the target SRS as min x, min y, max x, max y
-     * @param width getMap width value in pixels
-     * @param height getMap height value in pixels
-     * @param size dot radius in pixels used to calculate a larger bounding box for the request to SOLR for coordinates
-     * @param uncertainty boolean to trigger a larger bounding box for the request to SOLR for coordinates (??)
-     * @param mbbox bounding box in metres (spherical mercator). Includes pixel correction buffer.
-     * @param bbox bounding box for the SOLR request. This is the bboxString transformed to EPSG:4326 with buffer of
-     *            dot size + max uncertainty radius + pixel correction
-     * @param pbbox bounding box in the target SRS corresponding to the output pixel positions. Includes pixel correction buffer.
-     * @param tilebbox raw coordinates from the getMap bbox parameter
+     * @param bboxString      getMap bbox parameter with the tile extents in the target SRS as min x, min y, max x, max y
+     * @param width           getMap width value in pixels
+     * @param height          getMap height value in pixels
+     * @param size            dot radius in pixels used to calculate a larger bounding box for the request to SOLR for coordinates
+     * @param uncertainty     boolean to trigger a larger bounding box for the request to SOLR for coordinates (??)
+     * @param mbbox           bounding box in metres (spherical mercator). Includes pixel correction buffer.
+     * @param bbox            bounding box for the SOLR request. This is the bboxString transformed to EPSG:4326 with buffer of
+     *                        dot size + max uncertainty radius + pixel correction
+     * @param pbbox           bounding box in the target SRS corresponding to the output pixel positions. Includes pixel correction buffer.
+     * @param tilebbox        raw coordinates from the getMap bbox parameter
      * @return degrees per pixel to determine which SOLR coordinate field to facet upon
      */
     private double getBBoxesSRS(CoordinateOperation transformTo4326, String bboxString, int width, int height, int size, boolean uncertainty, double[] mbbox, double[] bbox, double[] pbbox, double[] tilebbox) throws TransformException {
@@ -849,7 +807,7 @@ public class WMSController extends AbstractSecureController{
 
             model.addAttribute("guid", guid);
             model.addAttribute("speciesPageUrl", bieUiUrl + "/species/" + guid);
-            JsonNode node = om.readTree(new URL(bieWebService + "/species/" + guid ));
+            JsonNode node = om.readTree(new URL(bieWebService + "/species/" + guid));
             JsonNode tc = node.get("taxonConcept");
             JsonNode imageNode = tc.get("smallImageUrl");
             String imageUrl = imageNode != null ? imageNode.asText() : null;
@@ -1332,18 +1290,6 @@ public class WMSController extends AbstractSecureController{
         return sb.toString();
     }
 
-    @RequestMapping(value = {"/webportal/wms/clearCache", "/ogc/wms/clearCache", "/mapping/wms/clearCache"}, method = RequestMethod.GET)
-    public void clearWMSCache(HttpServletResponse response,
-                              @RequestParam(value = "apiKey") String apiKey) throws Exception {
-        if (isValidKey(apiKey)) {
-            wmsCache.empty();
-            response.setStatus(200);
-            regenerateWMSETag();
-        } else {
-            response.setStatus(401);
-        }
-    }
-
     /**
      * Regenerate the ETag after clearing the WMS cache so that cached responses are identified as out of date
      */
@@ -1473,8 +1419,8 @@ public class WMSController extends AbstractSecureController{
             for (Double d : getUncertaintyGrouping()) {
                 LegendItem li;
                 // skip if uncertainty radius is < pointWidth * 1.5 or radius is > tile width
-                if (widthInDecimalDegrees / (double) width * pointWidth * 1.5 < (d/100000.0) &&
-                        widthInDecimalDegrees > (d/100000.0)) {
+                if (widthInDecimalDegrees / (double) width * pointWidth * 1.5 < (d / 100000.0) &&
+                        widthInDecimalDegrees > (d / 100000.0)) {
                     if (lastDistance == null) {
                         li = new LegendItem(
                                 null, null, null, 0, "coordinateUncertaintyInMeters:[* TO " + d + "]");
@@ -1537,7 +1483,7 @@ public class WMSController extends AbstractSecureController{
         return null;
     }
 
-    private double[] reprojectBBox( double[] tilebbox, String srs) throws Exception {
+    private double[] reprojectBBox(double[] tilebbox, String srs) throws Exception {
 
         CRSAuthorityFactory factory = CRS.getAuthorityFactory(true);
         CoordinateReferenceSystem sourceCRS = factory.createCoordinateReferenceSystem(srs);
@@ -1561,7 +1507,7 @@ public class WMSController extends AbstractSecureController{
 
     private ModelAndView sendWmsError(HttpServletResponse response, int status, String errorType, String errorDescription) {
         response.setStatus(status);
-        Map<String,String> model = new HashMap<String,String>();
+        Map<String, String> model = new HashMap<String, String>();
         model.put("errorType", errorType);
         model.put("errorDescription", errorDescription);
         return new ModelAndView("wms/error", model);
@@ -1596,8 +1542,8 @@ public class WMSController extends AbstractSecureController{
      *
      * @param requestParams
      * @param format
-     * @param extents bounding box in decimal degrees
-     * @param bboxString bounding box in target SRS
+     * @param extents       bounding box in decimal degrees
+     * @param bboxString    bounding box in target SRS
      * @param widthMm
      * @param pointRadiusMm
      * @param pradiusPx
@@ -1636,7 +1582,7 @@ public class WMSController extends AbstractSecureController{
             @RequestParam(value = "baseMap", required = false, defaultValue = "ALA") String baseMap,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
 
-        if (Strings.isNullOrEmpty(request.getQueryString())){
+        if (Strings.isNullOrEmpty(request.getQueryString())) {
             response.sendError(400, "No parameters supplied for this request");
             return;
         }
@@ -1674,7 +1620,7 @@ public class WMSController extends AbstractSecureController{
 
         String rendering = "ENV=color%3A" + pointColour + "%3Bname%3Acircle%3Bsize%3A" + pointSize
                 + "%3Bopacity%3A" + pointOpacity;
-        if(StringUtils.isNotEmpty(env)){
+        if (StringUtils.isNotEmpty(env)) {
             rendering = "ENV=" + env;
         }
 
@@ -1719,7 +1665,7 @@ public class WMSController extends AbstractSecureController{
         BufferedImage basemapImage;
 
         if ("roadmap".equalsIgnoreCase(baseMap) || "satellite".equalsIgnoreCase(baseMap) ||
-                "hybrid".equalsIgnoreCase(baseMap) || "terrain".equalsIgnoreCase(baseMap)){
+                "hybrid".equalsIgnoreCase(baseMap) || "terrain".equalsIgnoreCase(baseMap)) {
             basemapImage = basemapGoogle(width, height, bboxSRS, baseMap);
         } else {
             basemapImage = ImageIO.read(new URL(basemapAddress));
@@ -1768,7 +1714,7 @@ public class WMSController extends AbstractSecureController{
         }
     }
 
-    private BufferedImage basemapGoogle(int width, int height, double [] extents, String maptype) throws Exception {
+    private BufferedImage basemapGoogle(int width, int height, double[] extents, String maptype) throws Exception {
 
         double[] resolutions = {
                 156543.03390625,

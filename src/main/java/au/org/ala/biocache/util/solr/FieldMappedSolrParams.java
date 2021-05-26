@@ -24,7 +24,7 @@ public class FieldMappedSolrParams extends SolrParams {
 
     Map<String, Map<String, String[]>> paramsInverseTranslations = new HashMap();
 
-    FieldMappedSolrParams(FieldMappingUtil fieldMappingUtil, SolrParams solrParams) {
+    public FieldMappedSolrParams(FieldMappingUtil fieldMappingUtil, SolrParams solrParams) {
 
         originalParams = solrParams;
 
