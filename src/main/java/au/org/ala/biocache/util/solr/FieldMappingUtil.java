@@ -44,6 +44,14 @@ public class FieldMappingUtil {
         return this.fieldMappings.entrySet().stream().map((Map.Entry<String, String> entry) -> Pair.of(entry.getKey(), entry.getValue()));
     }
 
+    public Stream<Pair<String, String>> getFieldValueMappingStream(String fieldName) {
+
+        return this.enumValueMappings.getOrDefault(fieldName, new HashMap<>())
+                .entrySet()
+                .stream()
+                .map((Map.Entry<String, String> entry) -> Pair.of(entry.getKey(), entry.getValue()));
+    }
+
     public String translateQueryFields(String query) {
 
         return translateQueryFields(NOOP_TRANSLATION, query);

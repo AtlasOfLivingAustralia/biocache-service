@@ -18,12 +18,15 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.service.AssertionService;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.util.AssertionUtils;
+import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.Logger;
 import org.gbif.api.vocabulary.InterpretationRemarkSeverity;
 import org.gbif.api.vocabulary.NameUsageIssue;
 import org.gbif.api.vocabulary.OccurrenceIssue;
+import org.hsqldb.error.Error;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Controller;
@@ -56,6 +59,8 @@ public class AssertionController extends AbstractSecureController {
     private AbstractMessageSource messageSource;
     @Inject
     private AssertionService assertionService;
+    @Inject
+    private FieldMappingUtil fieldMappingUtil;
 
     /**
      * Retrieve an array of the assertion codes in use by the processing system
@@ -65,13 +70,17 @@ public class AssertionController extends AbstractSecureController {
      */
     @RequestMapping(value = {"/assertions/codes", "/assertions/codes/"}, method = RequestMethod.GET)
     public @ResponseBody
-    ErrorCode[] showCodes() throws Exception {
-        return applyi18n(AssertionCodes.getAll());
+    Collection<AssertionCode> showCodes(
+            @RequestParam(value="deprecated", required=false, defaultValue="false") Boolean isDeprecated
+    ) throws Exception {
+        return applyi18n(AssertionCodes.getAll(), isDeprecated);
     }
 
     @RequestMapping(value = {"/assertions/user/codes", "/assertions/user/codes/"}, method = RequestMethod.GET)
-    public @ResponseBody ErrorCode[] showUserCodes() throws Exception {
-        return applyi18n(AssertionCodes.userAssertionCodes);
+    public @ResponseBody Collection<AssertionCode> showUserCodes(
+            @RequestParam(value="deprecated", required=false, defaultValue="false") Boolean isDeprecated
+    ) throws Exception {
+        return applyi18n(AssertionCodes.userAssertionCodes, isDeprecated);
     }
 
     /**
@@ -326,23 +335,47 @@ public class AssertionController extends AbstractSecureController {
         this.assertionUtils = assertionUtils;
     }
 
-    private ErrorCode[] applyi18n(ErrorCode[] errorCodes) {
+    private Collection<AssertionCode> applyi18n(ErrorCode[] errorCodes, boolean includeDeprecated) {
+
         //use i18n descriptions
-        ErrorCode[] formattedErrorCodes = new ErrorCode[errorCodes.length];
-        for (int i = 0; i < errorCodes.length; i++) {
-            formattedErrorCodes[i] = new ErrorCode(errorCodes[i].getName(), errorCodes[i].getCode(),
-                    errorCodes[i].getFatal(),
-                    messageSource.getMessage(errorCodes[i].getName(), null, errorCodes[i].getDescription(), null),
-                    ErrorCode.Category.valueOf(errorCodes[i].getCategory()));
+        List<AssertionCode> formatedAssertionCodes = new ArrayList<>();
+
+        for (ErrorCode errorCode: errorCodes) {
+
+            formatedAssertionCodes.add(new AssertionCode(errorCode.getName(), errorCode.getCode(),
+                    errorCode.getFatal(),
+                    messageSource.getMessage(errorCode.getName(), null, errorCode.getDescription(), null),
+                    ErrorCode.Category.valueOf(errorCode.getCategory()))
+            );
         }
-        return formattedErrorCodes;
+
+        if (includeDeprecated) {
+
+            fieldMappingUtil.getFieldValueMappingStream("assertions")
+                    .filter((Pair<String, String> assertionMapping) ->
+                        Arrays.stream(errorCodes).anyMatch((ErrorCode errorCode) -> errorCode.getName().equals(assertionMapping.getRight()))
+                    )
+                    .map((Pair<String, String> assertionMapping) -> {
+                        AssertionCode assertionCode = new AssertionCode();
+                        assertionCode.setName(assertionMapping.getLeft());
+                        assertionCode.setDeprecated(true);
+                        assertionCode.setNewName(assertionMapping.getRight());
+
+                        return assertionCode;
+                    })
+                    .forEach(formatedAssertionCodes::add);
+        }
+
+        Collections.sort(formatedAssertionCodes, Comparator.comparing(AssertionCode::getName, String.CASE_INSENSITIVE_ORDER));
+
+        return formatedAssertionCodes;
     }
 
-    private ErrorCode[] applyi18n(NameUsageIssue[] nameUsageIssues) {
+    private AssertionCode[] applyi18n(NameUsageIssue[] nameUsageIssues) {
         //use i18n descriptions
-        ErrorCode[] formattedErrorCodes = new ErrorCode[nameUsageIssues.length];
+        AssertionCode[] formattedErrorCodes = new AssertionCode[nameUsageIssues.length];
         for (int i = 0; i < nameUsageIssues.length; i++) {
-            formattedErrorCodes[i] = new ErrorCode(
+            formattedErrorCodes[i] = new AssertionCode(
                     nameUsageIssues[i].name(),
                     nameUsageIssues[i].ordinal(),
                     nameUsageIssues[i].getSeverity().equals(InterpretationRemarkSeverity.ERROR),
@@ -352,11 +385,11 @@ public class AssertionController extends AbstractSecureController {
         return formattedErrorCodes;
     }
 
-    private ErrorCode[] applyi18n(OccurrenceIssue[] occurrenceIssues) {
+    private AssertionCode[] applyi18n(OccurrenceIssue[] occurrenceIssues) {
         //use i18n descriptions
-        ErrorCode[] formattedErrorCodes = new ErrorCode[occurrenceIssues.length];
+        AssertionCode[] formattedErrorCodes = new AssertionCode[occurrenceIssues.length];
         for (int i = 0; i < occurrenceIssues.length; i++) {
-            formattedErrorCodes[i] = new ErrorCode(
+            formattedErrorCodes[i] = new AssertionCode(
                     occurrenceIssues[i].name(),
                     occurrenceIssues[i].ordinal(),
                     occurrenceIssues[i].getSeverity().equals(InterpretationRemarkSeverity.ERROR),
