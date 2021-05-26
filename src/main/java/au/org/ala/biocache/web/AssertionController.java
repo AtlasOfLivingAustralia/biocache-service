@@ -26,7 +26,6 @@ import org.apache.log4j.Logger;
 import org.gbif.api.vocabulary.InterpretationRemarkSeverity;
 import org.gbif.api.vocabulary.NameUsageIssue;
 import org.gbif.api.vocabulary.OccurrenceIssue;
-import org.hsqldb.error.Error;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Controller;
