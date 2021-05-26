@@ -45,7 +45,8 @@ public class AssertionsControllerTest extends TestCase {
     }
 
     public final int USER_ASSERTION_CODES_LENGTH = 8;
-    public final int ALL_CODES_LENGTH = 90;
+    public final int ALL_CODES_LENGTH = 89;
+    private final int DEPRECATED_CODES_LENGTH = 32;
 
     @Autowired
     AssertionController assertionController;
@@ -78,6 +79,17 @@ public class AssertionsControllerTest extends TestCase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(ALL_CODES_LENGTH));
+    }
+
+    @Test
+    public void getAssertionCodesWithDeprecated() throws Exception {
+        this.mockMvc.perform(get("/assertions/codes")
+                .param("deprecated", "true")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+//                .andExpect(jsonPath("$").value(""))
+                .andExpect(jsonPath("$.length()").value(ALL_CODES_LENGTH + DEPRECATED_CODES_LENGTH));
     }
 
     @Test
