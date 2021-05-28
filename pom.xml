@@ -11,7 +11,7 @@
     <groupId>au.org.ala</groupId>
     <artifactId>biocache-service</artifactId>
     <packaging>war</packaging>
-    <version>3.0.7</version>
+    <version>3.0.8-SNAPSHOT</version>
     <name>biocache-service</name>
     <url>https://biocache-ws.ala.org.au/ws</url>
     <description>
@@ -701,7 +701,7 @@
                 <executions>
                     <execution>
                         <id>start</id>
-                        <phase>process-test-classes</phase>
+                        <phase>pre-integration-test</phase>
                         <goals>
                             <goal>start</goal>
                         </goals>
@@ -718,7 +718,7 @@
                     <images>
                         <image>
                             <alias>cassandra3</alias>
-                            <name>cassandra:3.11.9</name>
+                            <name>cassandra:3.11.10</name>
                             <run>
                                 <ports>
                                     <port>9042:9042</port>

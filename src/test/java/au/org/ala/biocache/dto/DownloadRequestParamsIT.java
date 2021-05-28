@@ -25,7 +25,7 @@ import static org.junit.Assert.assertTrue;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(locations = {"classpath:springTest.xml"})
 @WebAppConfiguration
-public class DownloadRequestParamsTest {
+public class DownloadRequestParamsIT {
 
     @Autowired
     protected DownloadService downloadService;

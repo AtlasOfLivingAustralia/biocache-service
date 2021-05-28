@@ -11,7 +11,7 @@ import spock.lang.Unroll
 
 @WebAppConfiguration
 @ContextConfiguration(locations = 'classpath:springTest.xml')
-class FieldMappedSolrClientSpec extends Specification {
+class FieldMappedSolrClientIT extends Specification {
 
     @Autowired
     SolrClient solrClient

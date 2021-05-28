@@ -49,9 +49,6 @@ public class FilterQueryParserTest {
     @Mock
     protected ALANameUsageMatchServiceClient nameUsageMatchService;
 
-//    @Mock
-//    private FieldMappingUtil fieldMappingUtil;
-
     @Mock
     DataQualityService dataQualityService;
 

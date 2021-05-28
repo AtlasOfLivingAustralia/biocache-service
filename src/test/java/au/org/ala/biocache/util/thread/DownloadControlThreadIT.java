@@ -19,7 +19,7 @@ import java.util.concurrent.*;
 
 import static org.junit.Assert.*;
 
-public class DownloadControlThreadTest {
+public class DownloadControlThreadIT {
 
     @Rule
     public Timeout timeout = new Timeout(30, TimeUnit.SECONDS);

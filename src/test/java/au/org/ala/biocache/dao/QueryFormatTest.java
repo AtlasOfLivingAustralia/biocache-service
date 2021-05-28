@@ -61,14 +61,8 @@ public class QueryFormatTest {
     @Mock
     protected DownloadFields downloadFields;
 
-//    @Mock
-//    protected SearchUtils searchUtils;
-
     @Mock
     protected CollectionsCache collectionCache;
-
-//    @Mock
-//    protected AbstractMessageSource messageSource;
 
     @Mock
     protected AuthService authService;
