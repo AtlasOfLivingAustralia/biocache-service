@@ -39,9 +39,10 @@ public class AssertionCodes {
 
     static final public ErrorCode[] userAssertionCodes = new ErrorCode[]{ GEOSPATIAL_ISSUE, COORDINATE_HABITAT_MISMATCH, DETECTED_OUTLIER, TAXONOMIC_ISSUE, IDENTIFICATION_INCORRECT, TEMPORAL_ISSUE, USER_DUPLICATE_RECORD, USER_ASSERTION_OTHER };
 
-    public static List<ErrorCode> getCodes(){
+    static final public List<ErrorCode> allAssertionCodes = new ArrayList<>();
 
-        List<ErrorCode> codes = new ArrayList<>();
+    static {
+
         ALAOccurrenceIssue[] alaIssues = ALAOccurrenceIssue.values();
         OccurrenceIssue[] issues = OccurrenceIssue.values();
 
@@ -57,7 +58,7 @@ public class AssertionCodes {
             }
 
             // String name, Integer code, Boolean isFatal, String description, ErrorCode.Category category
-            codes.add(new ErrorCode(issue.name(),
+            allAssertionCodes.add(new ErrorCode(issue.name(),
                     issue.ordinal() + 1000,
                     issue.getSeverity().equals(InterpretationRemarkSeverity.ERROR),
                     issue.name().toLowerCase().replaceAll("_", " "),
@@ -76,16 +77,20 @@ public class AssertionCodes {
             }
 
             // String name, Integer code, Boolean isFatal, String description, ErrorCode.Category category
-            codes.add(new ErrorCode(issue.name(),
+            allAssertionCodes.add(new ErrorCode(issue.name(),
                     issue.ordinal() + 2000,
                     issue.getSeverity().equals(InterpretationRemarkSeverity.ERROR),
                     issue.name().toLowerCase().replaceAll("_", " "),
                     c,
                     issue.getRelatedTerms().stream().map(term -> term.simpleName()).collect(Collectors.toList())
-                    ));
+            ));
         }
 
-        return codes;
+    }
+
+    public static List<ErrorCode> getCodes(){
+
+        return allAssertionCodes;
     }
 
     public static ErrorCode[] getAll() {
@@ -95,13 +100,14 @@ public class AssertionCodes {
 
     // Retrieve an error code by the numeric code
     public static ErrorCode getByCode(int code) {
-        return Arrays.stream(getAll())
+        return allAssertionCodes
+                .stream()
                 .filter(errorCode -> errorCode.code == code)
                 .findFirst()
                 .orElse(null);
     }
 
     public static ErrorCode getByName(String name) {
-        return getCodes().stream().filter(errorCode -> errorCode.getName().equals(name)).findFirst().get();
+        return allAssertionCodes.stream().filter(errorCode -> errorCode.getName().equals(name)).findFirst().get();
     }
 }

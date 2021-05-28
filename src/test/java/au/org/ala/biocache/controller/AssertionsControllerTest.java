@@ -46,7 +46,7 @@ public class AssertionsControllerTest extends TestCase {
 
     public final int USER_ASSERTION_CODES_LENGTH = 8;
     public final int ALL_CODES_LENGTH = 89;
-    private final int DEPRECATED_CODES_LENGTH = 32;
+    private final int DEPRECATED_CODES_LENGTH = 46;
 
     @Autowired
     AssertionController assertionController;
