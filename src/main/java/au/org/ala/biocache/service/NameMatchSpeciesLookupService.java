@@ -13,6 +13,7 @@ import org.springframework.context.support.AbstractMessageSource;
 
 import javax.inject.Inject;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Index based lookup index serice
@@ -63,42 +64,32 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
 
     @Override
     public String getAcceptedNameForGuid(String guid) {
-        NameUsageMatch nsr = nameUsageMatchService.match(guid);
-        if (nsr != null && nsr.isSuccess()) {
-            return nsr.getScientificName();
-        } else {
-            return null;
-        }
+        return nameUsageMatchService.getName(guid, true);
     }
 
     @Override
     public List<String> getNamesForGuids(List<String> guids) {
-        List<String> results = new ArrayList<String>(guids.size());
-        int idx = 0;
-        for (String guid: guids){
-            results.add(idx, getAcceptedNameForGuid(guid));
-            idx++;
-        }
-        return results;
+        return nameUsageMatchService.getAllNames(guids, true);
     }
 
     @Override
     public List<String[]> getSpeciesDetails(List<String> guids, List<Long> counts, boolean includeCounts, boolean includeSynonyms, boolean includeLists) {
         List<String[]> results = new ArrayList<String[]>(guids.size());
-        int idx = 0;
-        for (String guid : guids){
-            NameUsageMatch nsr = nameUsageMatchService.match(guid);
-            if (nsr == null || !nsr.isSuccess()){
-                String lsid = nameUsageMatchService.searchForLSID(guid);
-                if (lsid != null){
-                    nsr = nameUsageMatchService.match(lsid);
-                } else if (guid != null && StringUtils.countMatches(guid, "|") == 4){
-                    //is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
-                    if (guid.startsWith("\"") && guid.endsWith("\"") && guid.length() > 2) guid = guid.substring(1, guid.length() - 1);
-                    lsid = guid.split("\\|", 6)[1];
-                    nsr = nameUsageMatchService.match(lsid);
-                }
+
+        // handle guids that are from the names_and_lsid field
+        List<String> guidsFiltered = guids.stream().map(g -> {
+            //is like names_and_lsid: sciName + "|" + taxonConceptId + "|" + vernacularName + "|" + kingdom + "|" + family
+            if(g != null && StringUtils.countMatches(g, '|') == 4) {
+                g = g.split("\\|", 6)[1];
             }
+            return g;
+        }).collect(Collectors.toList());
+
+        List<NameUsageMatch> matches = nameUsageMatchService.getAll(guidsFiltered, true);
+
+        for (int i = 0; i < matches.size(); i++) {
+            NameUsageMatch nsr = matches.get(i);
+            String guid = guids.get(i);
 
             String[] result = null;
             List<String> lsids = new ArrayList<String>();
@@ -153,21 +144,21 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
                 };
             }
             if (includeCounts) {
-                result = (String[]) ArrayUtils.add(result, counts.get(idx).toString());
+                result = (String[]) ArrayUtils.add(result, counts.get(i).toString());
             }
             if (includeLists) {
                 List types = listsService.getTypes();
                 String[] row = new String[result.length + types.size()];
                 System.arraycopy(result, 0, row, 0, result.length);
-                Set<String> matches = new HashSet<String>();
+                Set<String> listMatches = new HashSet<String>();
                 for (int j = 0; j < types.size(); j++) {
-                    matches.clear();
+                    listMatches.clear();
                     for (String lsid : lsids) {
                         Set<String> found = listsService.get(types.get(j).toString(), lsid);
-                        if (found != null) matches.addAll(found);
+                        if (found != null) listMatches.addAll(found);
                     }
                     result[result.length - types.size() + j] = "";
-                    for (String match : matches) {
+                    for (String match : listMatches) {
                         if (result[result.length - types.size() + j].length() > 0) {
                             result[result.length - types.size() + j] += "|";
                         }
@@ -177,7 +168,6 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
                 result = row;
             }
             results.add(result);
-            idx++;
         }
         return results;
     }
