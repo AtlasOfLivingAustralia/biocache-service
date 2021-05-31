@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import java.util.Date;
 import java.util.Properties;
 
 import javax.annotation.PostConstruct;
@@ -70,6 +71,7 @@ public class EmailService {
 
             MimeMessage message = new MimeMessage(session);
             message.setFrom(new InternetAddress(sender));
+            message.setSentDate(new Date());
             message.addRecipient(Message.RecipientType.TO, new InternetAddress(recipient));
             if(copy != null){
                 message.addRecipient(Message.RecipientType.CC, new InternetAddress(copy));

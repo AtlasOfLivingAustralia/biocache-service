@@ -2031,7 +2031,8 @@ public class OccurrenceController extends AbstractSecureController {
         Map attribution = new HashMap();
         fullRecord.put("attribution", attribution);
         addField(sd, attribution, "dataResourceName", getFieldName);
-        addField(sd, attribution, "dataResourceUid", getFieldName);
+        // special case for dataResourceUid which needs to appear on raw and processed views
+        addField(sd, attribution, "dataResourceUid", "dataResourceUid");
         addField(sd, attribution, "dataProviderUid", getFieldName);
         addField(sd, attribution, "dataProviderName", getFieldName);
         addField(sd, attribution, "collectionUid", getFieldName);
