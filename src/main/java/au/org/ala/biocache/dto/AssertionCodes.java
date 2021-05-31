@@ -4,8 +4,8 @@ import org.gbif.api.vocabulary.InterpretationRemarkSeverity;
 import org.gbif.api.vocabulary.OccurrenceIssue;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static au.org.ala.biocache.dto.ErrorCode.Category.Error;
@@ -108,6 +108,11 @@ public class AssertionCodes {
     }
 
     public static ErrorCode getByName(String name) {
-        return allAssertionCodes.stream().filter(errorCode -> errorCode.getName().equals(name)).findFirst().get();
+        Optional<ErrorCode> foundErrorCode = allAssertionCodes.stream().filter(errorCode -> errorCode.getName().equals(name)).findFirst();
+        if (foundErrorCode.isPresent()){
+            return foundErrorCode.get();
+        } else {
+            return null;
+        }
     }
 }
