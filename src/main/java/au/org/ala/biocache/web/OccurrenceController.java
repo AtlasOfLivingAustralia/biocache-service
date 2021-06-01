@@ -1646,8 +1646,8 @@ public class OccurrenceController extends AbstractSecureController {
         map.put(fieldNameToUser, sd.getFieldValue(fieldName));
     }
 
-    private void addFirst(SolrDocument sd, Map map, String fieldName, Function<String, String> getFieldName) {
-        map.put(fieldName, sd.getFirstValue(getFieldName.apply(fieldName)));
+    private void addAll(SolrDocument sd, Map map, String fieldName, Function<String, String> getFieldName) {
+        map.put(fieldName, StringUtils.join(sd.getFieldValues(getFieldName.apply(fieldName)), "|"));
     }
 
     private void addLocalDate(SolrDocument sd, Map map, String fieldName, Function<String, String> getFieldName) {
@@ -1868,8 +1868,8 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, occurrence, "stateInvasive", getFieldName);
         addField(sd, occurrence, "countryInvasive", getFieldName);
 
-        // support for schema change
-        addFirst(sd, occurrence, "recordedBy", getFieldName);
+        // concatentate all recordedBy values for hubs
+        addAll(sd, occurrence, "recordedBy", getFieldName);
 
         // au.org.ala.biocache.model.Classification
         Map classification = new HashMap();
