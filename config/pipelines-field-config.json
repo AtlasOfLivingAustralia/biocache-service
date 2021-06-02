@@ -271,7 +271,7 @@
         "sounds": "soundIDs",
         "species_group": "speciesGroup",
         "species_guid": "speciesID",
-        "species_habitats": "speciesHabitats",
+        "species_habitats": null,
         "species_list_uid": "speciesListUid",
         "species_subgroup": "speciesSubgroup",
         "specific_epithet": "specificEpithet",
