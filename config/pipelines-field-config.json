@@ -32,7 +32,7 @@
         "collection_name": "collectionName",
         "collection_uid": "collectionUid",
         "collector": "recordedBy",
-        "collector_text": "raw_recordedBy",
+        "collector_text": "textgen_recordedBy",
         "collectors": "recordedBy",
         "common_name": "vernacularName",
         "coordinate_precision": "coordinatePrecision",
