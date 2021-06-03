@@ -100,7 +100,7 @@
         "identification_remarks": "identificationRemarks",
         "identification_verification_status": "identificationVerificationStatus",
         "identified_by": "identifiedBy",
-        "identified_by_text": "identifiedBy",
+        "identified_by_text": "textgen_identifiedBy",
         "identified_date": "dateIdentified",
         "identifier_by": "identifiedBy",
         "identifier_role": "identifierRole",
