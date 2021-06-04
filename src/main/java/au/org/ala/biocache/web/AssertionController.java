@@ -344,7 +344,8 @@ public class AssertionController extends AbstractSecureController {
             formatedAssertionCodes.add(new AssertionCode(errorCode.getName(), errorCode.getCode(),
                     errorCode.getFatal(),
                     messageSource.getMessage(errorCode.getName(), null, errorCode.getDescription(), null),
-                    ErrorCode.Category.valueOf(errorCode.getCategory()))
+                    ErrorCode.Category.valueOf(errorCode.getCategory()),
+                    errorCode.getTermsRequiredToTest())
             );
         }
 
@@ -379,7 +380,8 @@ public class AssertionController extends AbstractSecureController {
                     nameUsageIssues[i].ordinal(),
                     nameUsageIssues[i].getSeverity().equals(InterpretationRemarkSeverity.ERROR),
                     messageSource.getMessage(nameUsageIssues[i].name(), null, nameUsageIssues[i].name(), null),
-                    ErrorCode.Category.Taxonomic);
+                    ErrorCode.Category.Taxonomic,
+                    null);
         }
         return formattedErrorCodes;
     }
@@ -393,7 +395,8 @@ public class AssertionController extends AbstractSecureController {
                     occurrenceIssues[i].ordinal(),
                     occurrenceIssues[i].getSeverity().equals(InterpretationRemarkSeverity.ERROR),
                     messageSource.getMessage(occurrenceIssues[i].name(), null, occurrenceIssues[i].name(), null),
-                    ErrorCode.Category.Geospatial);
+                    ErrorCode.Category.Geospatial,
+                    null);
         }
         return formattedErrorCodes;
     }
