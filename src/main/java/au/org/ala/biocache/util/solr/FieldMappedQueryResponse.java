@@ -87,12 +87,12 @@ public class FieldMappedQueryResponse extends QueryResponse {
                         if (legacyFieldNames != null) {
 
                             for (String legacyFieldName : legacyFieldNames) {
-                                translatedSd.addField(legacyFieldName, solrDocument.getFieldValue(fieldName));
+                                translatedSd.setField(legacyFieldName, solrDocument.getFieldValue(fieldName));
                             }
 
                         } else {
 
-                            translatedSd.addField(fieldName, solrDocument.getFieldValue(fieldName));
+                            translatedSd.setField(fieldName, solrDocument.getFieldValue(fieldName));
                         }
                     }
 
