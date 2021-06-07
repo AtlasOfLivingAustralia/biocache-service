@@ -28,6 +28,13 @@ public class AssertionCodeSerializer extends JsonSerializer<AssertionCode> {
             jsonGenerator.writeStringField("description", assertionCode.getDescription());
             jsonGenerator.writeStringField("category", assertionCode.getCategory());
             jsonGenerator.writeBooleanField("fatal", assertionCode.getFatal());
+            if (assertionCode.getTermsRequiredToTest() != null) {
+                jsonGenerator.writeArrayFieldStart("termsRequiredToTest");
+                for (String term: assertionCode.getTermsRequiredToTest()) {
+                    jsonGenerator.writeString(term);
+                }
+                jsonGenerator.writeEndArray();
+            }
          }
 
         jsonGenerator.writeEndObject();

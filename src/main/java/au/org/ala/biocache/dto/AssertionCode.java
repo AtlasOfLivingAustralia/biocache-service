@@ -4,6 +4,8 @@ import au.org.ala.biocache.util.AssertionCodeSerializer;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.gbif.api.vocabulary.OccurrenceIssue;
 
+import java.util.List;
+
 @JsonSerialize(using = AssertionCodeSerializer.class)
 public class AssertionCode extends ErrorCode {
 
@@ -14,12 +16,12 @@ public class AssertionCode extends ErrorCode {
         super();
     }
 
-    public AssertionCode(OccurrenceIssue occurrenceIssue, Integer code, Boolean isFatal, String description, Category category) {
-        super(occurrenceIssue.getId(), code, isFatal, description, category);
+    public AssertionCode(OccurrenceIssue occurrenceIssue, Integer code, Boolean isFatal, String description, Category category, List<String> termsRequiredToTest) {
+        super(occurrenceIssue.getId(), code, isFatal, description, category, termsRequiredToTest);
     }
 
-    public AssertionCode(String name, Integer code, Boolean isFatal, String description, Category category) {
-        super(name, code, isFatal, description, category);
+    public AssertionCode(String name, Integer code, Boolean isFatal, String description, Category category, List<String> termsRequiredToTest) {
+        super(name, code, isFatal, description, category, termsRequiredToTest);
     }
 
     public boolean isDeprecated() {
