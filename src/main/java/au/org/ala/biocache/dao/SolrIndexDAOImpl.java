@@ -981,7 +981,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
     private List<Object> getValues(Map<String, Object> map) {
         String userAssertionStatus = (String) map.getOrDefault("userAssertions", String.valueOf(AssertionStatus.QA_NONE));
         if (userAssertionStatus.equals(String.valueOf(AssertionStatus.QA_NONE))) {
-            userAssertionStatus = "";
+            userAssertionStatus = null;
         }
 
         boolean hasUserAssertions = (boolean) map.getOrDefault("hasUserAssertions", false);
