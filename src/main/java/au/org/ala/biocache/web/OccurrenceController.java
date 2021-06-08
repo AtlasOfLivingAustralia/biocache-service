@@ -88,6 +88,7 @@ public class OccurrenceController extends AbstractSecureController {
     public static final String LEGACY_REPRESENTATIVE_RECORD_VALUE = "R";
     public static final String LEGACY_DUPLICATE_RECORD_VALUE = "D";
     public static final String RAW_FIELD_PREFIX = "raw_";
+    public static final String DYNAMIC_PROPERTIES_PREFIX = "dynamicProperties_";
 
     /**
      * Fulltext search DAO
@@ -1578,14 +1579,7 @@ public class OccurrenceController extends AbstractSecureController {
             occurrence.put("outlierForLayers", outlierLayer);
         }
 
-        // add misc properties
-        try {
-            ObjectMapper om = new ObjectMapper();
-            Map<String, Object> miscProperties = om.readValue((String) sd.getFieldValue(DwcTerm.dynamicProperties.simpleName()), Map.class);
-            raw.put("miscProperties", miscProperties);
-        } catch (Exception e){
-            // best effort service - dynamic properties may not be in JSON format
-        }
+        raw.put("miscProperties",  extractMiscProperties(sd));
 
         map.put("raw", raw);
         map.put("processed", processed);
@@ -1625,6 +1619,39 @@ public class OccurrenceController extends AbstractSecureController {
         addSounds(sd, map,  "soundIDs", "sounds");
 
         return map;
+    }
+
+    /**
+     * Pull miscProperties out of the JSON blob dynamicProperties, and merges
+     * with any properties indexed with `dynamicProperties_` prefix.
+     *
+     * @param sd
+     * @return map of miscProperties
+     */
+    private Map<String, Object> extractMiscProperties(SolrDocument sd) {
+
+        // add misc properties
+        Map<String, Object> miscProperties = new HashMap<>();
+        try {
+            ObjectMapper om = new ObjectMapper();
+            Map<String, Object> jsonProperties = om.readValue((String) sd.getFieldValue(DwcTerm.dynamicProperties.simpleName()), Map.class);
+            miscProperties.putAll(jsonProperties);
+        } catch (Exception e){
+            // best effort service - dynamic properties may not be in JSON format, dependent on data publisher
+        }
+
+        // retrieve a list of dynamicProperties_ fields
+        List<String> dynamicProperties = sd.getFieldNames()
+                .stream()
+                .filter(fieldName -> fieldName.startsWith(DYNAMIC_PROPERTIES_PREFIX))
+                .collect(Collectors.toList());
+
+        for (String property : dynamicProperties){
+            //Strip off prefix
+            String fieldName = property.replaceAll(DYNAMIC_PROPERTIES_PREFIX, "");
+            miscProperties.put(fieldName, sd.get(property));
+        }
+        return miscProperties;
     }
 
     private Map extractLayerValues(SolrDocument sd, String key) {
