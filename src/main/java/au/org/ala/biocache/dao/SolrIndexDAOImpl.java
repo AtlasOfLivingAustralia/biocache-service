@@ -690,6 +690,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
                 // 7. i18nValues: true | false, indicates that the values returned by this field can be
                 //   translated using facetName.value= in /facets/i18n
                 // 8. class value for this field
+                // 9. infoUrl: wiki link from wiki.fieldName= in i18n
                 if (layersPattern.matcher(fieldName).matches()) {
                     f.setDownloadName(fieldName);
                     String description = layersService.getLayerNameMap().get(fieldName);
@@ -839,6 +840,12 @@ public class SolrIndexDAOImpl implements IndexDAO {
                             messageSource.getMessage("class." + fieldName, null, "", Locale.getDefault());
                     if (classs.length() > 0) {
                         f.setClasss(classs);
+                    }
+
+                    //(9) has wiki link in i18n
+                    String wikiLink = messageSource.getMessage("wiki." + fieldName, null, "", Locale.getDefault());
+                    if (wikiLink.length() > 0) {
+                        f.setInfoUrl(wikiLink);
                     }
                 }
 
