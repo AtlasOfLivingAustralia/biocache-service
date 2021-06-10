@@ -25,7 +25,6 @@ public enum ALAOccurrenceIssue implements InterpretationRemark {
             InterpretationRemarkSeverity.WARNING, TermsGroup.COORDINATES_TERMS_NO_DATUM),
     COORDINATES_CENTRE_OF_STATEPROVINCE(
             InterpretationRemarkSeverity.WARNING, TermsGroup.COORDINATES_TERMS_NO_DATUM),
-    MISSING_COORDINATEPRECISION(InterpretationRemarkSeverity.WARNING, TermsGroup.COORDINATES_TERMS),
     UNCERTAINTY_IN_PRECISION(InterpretationRemarkSeverity.WARNING, TermsGroup.COORDINATES_TERMS),
     UNCERTAINTY_NOT_SPECIFIED(InterpretationRemarkSeverity.WARNING, TermsGroup.COORDINATES_TERMS),
 
