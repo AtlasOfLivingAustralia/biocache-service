@@ -2921,7 +2921,7 @@ public class SearchDAOImpl implements SearchDAO {
                                 }
 
                                 legend.add(new LegendItem(
-                                        getFacetValueDisplayName(fieldMappingUtil.translateFieldName(facetField), fcount.getName()),
+                                        getFacetValueDisplayName(facetField, fcount.getName()),
                                         i18nCode,
                                         fcount.getName(),
                                         fcount.getCount(),

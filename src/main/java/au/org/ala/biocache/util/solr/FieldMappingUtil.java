@@ -116,7 +116,7 @@ public class FieldMappingUtil {
 
     public String translateFieldValue(String term, String value) {
 
-        if (enumValueMappings == null || term == null) {
+        if (enumValueMappings == null || term == null || value == null) {
             return value;
         }
 
