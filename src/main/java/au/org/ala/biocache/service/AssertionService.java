@@ -335,7 +335,7 @@ public class AssertionService {
         logger.debug("Try to retrieve occurrence record with guid: '" + recordUuid + "'");
 
         SpatialSearchRequestParams idRequest = new SpatialSearchRequestParams();
-        idRequest.setQ(OccurrenceIndex.ID + ":\"" + recordUuid + "\"");
+        idRequest.setQ(OccurrenceIndex.ID + ":" + recordUuid);
         idRequest.setFacet(false);
         idRequest.setFl(OccurrenceIndex.ID);
 
