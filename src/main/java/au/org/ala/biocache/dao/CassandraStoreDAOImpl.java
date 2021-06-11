@@ -14,6 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.dao;
 
+import au.org.ala.biocache.dto.QualityAssertion;
+import au.org.ala.biocache.dto.UserAssertions;
 import com.datastax.driver.core.*;
 import com.datastax.driver.core.policies.ExponentialReconnectionPolicy;
 import com.datastax.driver.extras.codecs.MappingCodec;
@@ -25,6 +27,7 @@ import com.google.common.reflect.TypeToken;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import net.sf.json.JsonConfig;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
@@ -158,13 +161,25 @@ public class CassandraStoreDAOImpl implements StoreDAO {
         ResultSet rs = session.execute("SELECT * FROM " + dataClass.getSimpleName());
 
         for (Row row : rs) {
+            String rowKey = row.get(0, String.class);
             String jsonString = row.get(1, String.class);
 
             ObjectMapper mapper = new ObjectMapper();
             mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
             mapper.configure(JsonParser.Feature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, true);
+            T parsed = mapper.readValue(jsonString, dataClass);
 
-            result.add(mapper.readValue(jsonString, dataClass));
+            if (dataClass.getSimpleName().equals("UserAssertions")) {
+                UserAssertions ua = (UserAssertions)parsed;
+                for (QualityAssertion qa : ua) {
+                    // some assertions in prod could have an empty referenceRowKey, set it to a valid value here
+                    if (StringUtils.isBlank(qa.getReferenceRowKey())) {
+                        qa.setReferenceRowKey(rowKey);
+                    }
+                }
+            }
+
+            result.add(parsed);
         }
 
         return result;
