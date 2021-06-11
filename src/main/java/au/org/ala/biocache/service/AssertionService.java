@@ -7,6 +7,7 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.OccurrenceUtils;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import org.apache.commons.lang.StringUtils;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.jetbrains.annotations.NotNull;
@@ -55,7 +56,7 @@ public class AssertionService {
             // get all user assertions from database
             List<UserAssertions> allAssertions = store.getAll(UserAssertions.class);
 
-            indexDao.indexFromMap(allAssertions.stream().filter(assertions -> !assertions.isEmpty() && ifRecordExist(assertions.get(0).getReferenceRowKey())).
+            indexDao.indexFromMap(allAssertions.stream().filter(assertions -> !assertions.isEmpty() && StringUtils.isNotBlank(assertions.get(0).getReferenceRowKey()) && ifRecordExist(assertions.get(0).getReferenceRowKey())).
                     map(assertions -> getIndexMap(assertions.get(0).getReferenceRowKey(), assertions)).collect(Collectors.toList()));
         } catch (Exception e) {
             logger.error("Failed to read all assertions, e = " + e.getMessage());
