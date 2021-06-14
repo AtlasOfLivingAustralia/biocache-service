@@ -55,9 +55,11 @@ public class AssertionService {
         try {
             // get all user assertions from database
             List<UserAssertions> allAssertions = store.getAll(UserAssertions.class);
+            logger.debug("total " + allAssertions.size() + " records found have assertions");
 
             indexDao.indexFromMap(allAssertions.stream().filter(assertions -> !assertions.isEmpty() && StringUtils.isNotBlank(assertions.get(0).getReferenceRowKey()) && ifRecordExist(assertions.get(0).getReferenceRowKey())).
                     map(assertions -> getIndexMap(assertions.get(0).getReferenceRowKey(), assertions)).collect(Collectors.toList()));
+            logger.debug("index job finished");
         } catch (Exception e) {
             logger.error("Failed to read all assertions, e = " + e.getMessage());
         }
@@ -346,8 +348,7 @@ public class AssertionService {
             logger.debug(resultNotEmpty ? "Found " : "Can't find " + "record with uid: " + recordUuid);
             return resultNotEmpty;
         } catch (Exception e) {
-            logger.error("Error happened when searching for record with uid: " + recordUuid + ", e = " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Error happened when searching for record with uid: " + recordUuid);
         }
 
         return false;
