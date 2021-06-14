@@ -43,7 +43,7 @@ public class AssertionService {
     SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
     
     // max 1 indexAll thread can run at same time
-    ExecutorService executorService = new ThreadPoolExecutor(1, 1, 0, MILLISECONDS,
+    ThreadPoolExecutor executorService = new ThreadPoolExecutor(1, 1, 0, MILLISECONDS,
             new SynchronousQueue<>(),
             new ThreadPoolExecutor.AbortPolicy());
     @PostConstruct
@@ -331,6 +331,10 @@ public class AssertionService {
             return false;
         }
         return true;
+    }
+
+    public boolean isRunning() {
+        return executorService.getActiveCount() == 1;
     }
 
     // if solr doc with specified id exists
