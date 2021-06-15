@@ -334,7 +334,7 @@ public class AssertionController extends AbstractSecureController {
     public @ResponseBody String indexAllStatus(@RequestParam(value="apiKey", required=true) String apiKey,
                                                          HttpServletResponse response) throws Exception {
         if (isValidKey(apiKey)) {
-            return assertionService.isRunning() ? "indexAll task is running" : "No task is running";
+            return assertionService.isIndexAllRunning() ? "indexAll task is running" : "No task is running";
         } else {
             response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
         }

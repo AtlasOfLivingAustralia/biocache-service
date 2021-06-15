@@ -323,7 +323,7 @@ public class AssertionService {
         return indexMap;
     }
 
-    public Boolean indexAll() {
+    public boolean indexAll() {
         try {
             executorService.execute(indexAll);
         } catch (RejectedExecutionException e){
@@ -333,7 +333,7 @@ public class AssertionService {
         return true;
     }
 
-    public boolean isRunning() {
+    public boolean isIndexAllRunning() {
         return executorService.getActiveCount() == 1;
     }
 
