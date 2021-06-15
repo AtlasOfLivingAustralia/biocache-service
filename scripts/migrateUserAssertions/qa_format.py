@@ -1,7 +1,19 @@
 import json
 
-def convert(csvFilePath, jsonFilePath):
+def loadmapping(filename, mappings):
+    with open(filename) as f:
+        for row in f:
+            x = row.strip().replace('\t', ' ').split(' ')
+            if (len(x) == 1):
+                None
+            else:
+                mappings[x[0]] = x[-1]
+    print('mapping size = ' + str(len(mappings)))
+
+def convert(csvFilePath, jsonFilePath, mappingFile):
     data = {}
+    uuidmapping = {}
+    loadmapping(mappingFile, uuidmapping)
 
     with open(csvFilePath, encoding='utf-8') as csvf:
         delimiter = '\t'
@@ -32,8 +44,12 @@ def convert(csvFilePath, jsonFilePath):
         with open(jsonFilePath, 'w', encoding='utf-8') as csvf:
             for k in data:
                 temp = json.dumps(data[k], indent=False).replace('\n', '')
+                if (k in uuidmapping) and (not uuidmapping[k] in data):
+                    print("find mapping for " + k + ' -> ' + uuidmapping[k])
+                    k = uuidmapping[k]
                 csvf.write('\t'.join([k, temp]) + '\n')
 
 csvFilePath = r'/data/tmp/qa_dump.cql'
 jsonFilePath = r'/data/tmp/qa.csv'
-convert(csvFilePath, jsonFilePath)
+mappingFile = r'./avh-orphaned-annotations.txt'
+convert(csvFilePath, jsonFilePath, mappingFile)
