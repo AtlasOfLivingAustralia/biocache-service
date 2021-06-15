@@ -38,6 +38,7 @@ import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -63,6 +64,7 @@ public class CassandraStoreDAOImpl implements StoreDAO {
     @Value("${cassandra.keyspace:biocache}")
     String keyspace;
 
+    private Pattern uuidPattern = Pattern.compile("^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$");
     /**
      * Cassandra schema sql.
      */
@@ -161,7 +163,7 @@ public class CassandraStoreDAOImpl implements StoreDAO {
         ResultSet rs = session.execute("SELECT * FROM " + dataClass.getSimpleName());
 
         for (Row row : rs) {
-            String rowKey = row.get(0, String.class);
+            String uuid = row.get(0, String.class);
             String jsonString = row.get(1, String.class);
 
             ObjectMapper mapper = new ObjectMapper();
@@ -173,8 +175,8 @@ public class CassandraStoreDAOImpl implements StoreDAO {
                 UserAssertions ua = (UserAssertions)parsed;
                 for (QualityAssertion qa : ua) {
                     // some assertions in prod could have an empty referenceRowKey, set it to a valid value here
-                    if (StringUtils.isBlank(qa.getReferenceRowKey())) {
-                        qa.setReferenceRowKey(rowKey);
+                    if (StringUtils.isBlank(qa.getReferenceRowKey()) || !isValidUUID(qa.getReferenceRowKey())) {
+                        qa.setReferenceRowKey(uuid);
                     }
                 }
             }
@@ -304,5 +306,9 @@ public class CassandraStoreDAOImpl implements StoreDAO {
         statement.setIdempotent(true); // this will allow retries
 
         return boundStatement;
+    }
+
+    private boolean isValidUUID(String uuid) {
+        return uuidPattern.matcher(uuid).find();
     }
 }

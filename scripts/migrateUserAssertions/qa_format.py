@@ -1,14 +1,19 @@
 import json
+import re
+
+def normaluid(uuid):
+    return re.search("^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$", uuid) != None
+    #return ("|" not in uuid) and (not uuid.startswith("dr"))
 
 def loadmapping(filename, mappings):
     with open(filename) as f:
         for row in f:
             x = row.strip().replace('\t', ' ').split(' ')
-            if (len(x) == 1):
+            if len(x) <= 1:
                 None
             else:
                 mappings[x[0]] = x[-1]
-    print('mapping size = ' + str(len(mappings)))
+    print('mapping size = %d ' % len(mappings))
 
 def convert(csvFilePath, jsonFilePath, mappingFile):
     data = {}
@@ -47,7 +52,9 @@ def convert(csvFilePath, jsonFilePath, mappingFile):
                 if (k in uuidmapping) and (not uuidmapping[k] in data):
                     print("find mapping for " + k + ' -> ' + uuidmapping[k])
                     k = uuidmapping[k]
-                csvf.write('\t'.join([k, temp]) + '\n')
+                if normaluid(k):
+                    # print("write key = " + k)
+                    csvf.write('\t'.join([k, temp]) + '\n')
 
 csvFilePath = r'/data/tmp/qa_dump.cql'
 jsonFilePath = r'/data/tmp/qa.csv'
