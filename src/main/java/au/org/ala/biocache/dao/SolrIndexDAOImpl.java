@@ -1193,8 +1193,8 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
         solrParams.set("q", fieldMappingUtil.translateQueryFields(query.getQuery()));
 
-        if (query.getFacetQuery() != null) {
-            for (String fq : query.getFacetQuery()) {
+        if (query.getFilterQueries() != null) {
+            for (String fq : query.getFilterQueries()) {
                 if (StringUtils.isNotEmpty(fq)) {
                     solrParams.add("fq", fieldMappingUtil.translateQueryFields(fq));
                 }
