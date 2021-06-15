@@ -273,19 +273,26 @@ public class AssertionService {
             if (verifications.stream().anyMatch(qa -> qa.getQaStatus().equals(AssertionStatus.QA_OPEN_ISSUE))) {
                 assertionStatus = AssertionStatus.QA_OPEN_ISSUE;
             } else {
-                // sort by datetime DESC
-                verifications.sort((qa1, qa2) -> {
-                    try {
-                        Date qa2Date = simpleDateFormat.parse(qa2.getCreated());
-                        Date qa1Date = simpleDateFormat.parse(qa1.getCreated());
-                        return qa2Date.compareTo(qa1Date);
-                    } catch (ParseException e) {
-                        e.printStackTrace();
-                        throw new IllegalArgumentException(e);
-                    }
-                });
+                List<QualityAssertion> verificationsWithValidDate =
+                        verifications.stream().filter(qa -> validDate(qa.getCreated())).collect(Collectors.toList());
+                if (!verificationsWithValidDate.isEmpty()) {
+                    // sort by datetime DESC
+                    verificationsWithValidDate.sort((qa1, qa2) -> {
+                        try {
+                            Date qa2Date = simpleDateFormat.parse(qa2.getCreated());
+                            Date qa1Date = simpleDateFormat.parse(qa1.getCreated());
+                            return qa2Date.compareTo(qa1Date);
+                        } catch (ParseException e) {
+                            e.printStackTrace();
+                            throw new IllegalArgumentException(e);
+                        }
+                    });
 
-                assertionStatus = verifications.get(0).getQaStatus();
+                    assertionStatus = verificationsWithValidDate.get(0).getQaStatus();
+                } else {
+                    // assertions have no date, just pick one
+                    assertionStatus = verifications.get(0).getQaStatus();
+                }
             }
         }
 
@@ -296,8 +303,11 @@ public class AssertionService {
         // set userVerified
         indexMap.put("userVerified", !verifications.isEmpty());
 
-        if (!userAssertions.isEmpty()) {
-            userAssertions.sort((qa1, qa2) -> {
+        List<QualityAssertion> assertionsWithValidDate =
+                userAssertions.stream().filter(qa -> validDate(qa.getCreated())).collect(Collectors.toList());
+				
+        if (!assertionsWithValidDate.isEmpty()) {
+            assertionsWithValidDate.sort((qa1, qa2) -> {
                 try {
                     Date date1 = simpleDateFormat.parse(qa1.getCreated());
                     Date date2 = simpleDateFormat.parse(qa2.getCreated());
@@ -309,7 +319,7 @@ public class AssertionService {
             });
             Date lastDate = null;
             try {
-                lastDate = simpleDateFormat.parse(userAssertions.get(0).getCreated());
+                lastDate = simpleDateFormat.parse(assertionsWithValidDate.get(0).getCreated());
             } catch (ParseException e) {
                 e.printStackTrace();
             }
@@ -356,5 +366,14 @@ public class AssertionService {
         }
 
         return false;
+    }
+
+    private boolean validDate(String date) {
+        try {
+            simpleDateFormat.parse(date);
+            return true;
+        } catch (ParseException e) {
+           return false;
+        }
     }
 }
