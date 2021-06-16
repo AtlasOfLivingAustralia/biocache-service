@@ -1844,7 +1844,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, occurrence, "organismQuantityType", getFieldName);
         addField(sd, occurrence, "otherCatalogNumbers", getFieldName);
         addField(sd, occurrence, "ownerInstitutionCode", getFieldName);
-        addField(sd, occurrence, "preparations", getFieldName);
+        addAll(sd, occurrence, "preparations", getFieldName);
         addField(sd, occurrence, "previousIdentifications", getFieldName);
         addField(sd, occurrence, "recordNumber", getFieldName);
         addField(sd, occurrence, "relatedResourceID", getFieldName);
@@ -1895,8 +1895,10 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, occurrence, "stateInvasive", getFieldName);
         addField(sd, occurrence, "countryInvasive", getFieldName);
 
-        // concatentate all recordedBy values for hubs
+        // concatenate all recordedBy values for hubs
         addAll(sd, occurrence, "recordedBy", getFieldName);
+        addAll(sd, occurrence, "recordedByID", getFieldName);
+        addAll(sd, occurrence, "identifiedByID", getFieldName);
 
         // au.org.ala.biocache.model.Classification
         Map classification = new HashMap();
