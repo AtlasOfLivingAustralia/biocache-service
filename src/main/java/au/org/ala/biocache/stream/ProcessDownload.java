@@ -50,6 +50,10 @@ public class ProcessDownload implements ProcessInterface {
     List<String[]> batch = new ArrayList();
     double[][] points = new double[MAX_BATCH_SIZE][2];
 
+    String[] values = new String[0];
+
+    long startTime = 0;
+
     public ProcessDownload(ConcurrentMap<String, AtomicInteger> uidStats, DownloadHeaders headers,
                            RecordWriter recordWriter, DownloadDetailsDTO downloadDetails, boolean checkLimit,
                            long maxDownloadSize,
@@ -101,23 +105,30 @@ public class ProcessDownload implements ProcessInterface {
 
         boolean finished = false;
 
-        String[] values = null;
-
         if (tuple.get(DATA_RESOURCE_UID) != null && (!checkLimit || (checkLimit && resultsCount.intValue() < maxDownloadSize))) {
 
-            resultsCount.incrementAndGet();
+            long count = resultsCount.getAndIncrement();
 
-            // TODO: resuse
             // create a column with the correct length
             // each row consists of:
             // - requested field labels, headers.labels
             // - spatial analysisIds for intersection
             // - species list information
-            values = new String[headers.labels.length +
+            int numColumns = headers.labels.length +
                     headers.analysisIds.length +
                     headers.speciesListIds.length +
                     headers.qaLabels.length +
-                    headers.miscLabels.size()];
+                    headers.miscLabels.size();
+            if (values.length < numColumns) {
+                values = new String[numColumns];
+            }
+
+            if (count % 10000 == 0) {
+                if (count > 0) {
+                    logger.info("Download: " + (10000 * 1000 / (System.currentTimeMillis() - startTime)) + " records/s, " + numColumns + " columns");
+                }
+                startTime = System.currentTimeMillis();
+            }
 
             appendColumns(tuple, values);
 

@@ -2958,36 +2958,26 @@ public class SearchDAOImpl implements SearchDAO {
      * @throws Exception
      */
     public double[] getBBox(SpatialSearchRequestParams requestParams) throws Exception {
-        String latitude = OccurrenceIndex.LATITUDE;
-        String longitude = OccurrenceIndex.LONGITUDE;
+        SolrQuery query = buildSolrQuery(requestParams);
+        query.setRows(0);
+        query.setFacet(false);
 
-        double[] bbox = new double[4];
-        String[] sort = {longitude, latitude, longitude, latitude};
-        String[] dir = {"asc", "asc", "desc", "desc"};
+        query.add("json.facet", "{x2:\"max(decimalLongitude)\",x1:\"min(decimalLongitude)\",y2:\"max(decimalLatitude)\",y1:\"min(decimalLatitude)\"}");
+        QueryResponse qr = indexDao.query(query);
 
-        //Filter for -180 +180 longitude and -90 +90 latitude to match WMS request bounds.
-        String[] bounds = new String[]{longitude + ":[-180 TO 180]", latitude + ":[-90 TO 90]"};
+        SimpleOrderedMap facets = SearchUtils.getMap(qr.getResponse(), "facets");
 
-        queryFormatUtils.addFqs(bounds, requestParams);
+        return new double[]{toDouble(facets.get("x1")), toDouble(facets.get("y1")), toDouble(facets.get("x2")), toDouble(facets.get("y2"))};
+    }
 
-        requestParams.setFq(requestParams.getFq());
-        requestParams.setPageSize(10);
-
-        for (int i = 0; i < sort.length; i++) {
-            requestParams.setSort(sort[i]);
-            requestParams.setDir(dir[i]);
-            requestParams.setFl(sort[i]);
-
-            SolrDocumentList sdl = findByFulltext(requestParams);
-            if (sdl != null && sdl.size() > 0) {
-                if (sdl.get(0) != null) {
-                    bbox[i] = (Double) sdl.get(0).getFieldValue(sort[i]);
-                } else {
-                    logger.error("searchDAO.findByFulltext returning SolrDocumentList with null records");
-                }
-            }
+    private double toDouble(Object o) {
+        if (o instanceof Double) {
+            return (Double) o;
+        } else if (o instanceof Float) {
+            return (Float) o;
+        } else {
+            return Double.parseDouble(o.toString());
         }
-        return bbox;
     }
 
     @Override

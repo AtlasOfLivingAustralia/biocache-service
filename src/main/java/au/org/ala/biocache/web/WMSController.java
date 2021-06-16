@@ -630,7 +630,13 @@ public class WMSController extends AbstractSecureController {
             ServletOutputStream outStream = response.getOutputStream();
             java.util.zip.GZIPOutputStream gzip = new java.util.zip.GZIPOutputStream(outStream);
 
-            writeOccurrencesCsvToStream(requestParams, gzip);
+            // Override page size to return all records with a single request
+            requestParams.setPageSize(-1);
+
+            // All records are returned when start == 0 therefore treat the download as finished when start > 0
+            if (requestParams.getStart() == 0) {
+                writeOccurrencesCsvToStream(requestParams, gzip);
+            }
 
             gzip.flush();
             gzip.close();
