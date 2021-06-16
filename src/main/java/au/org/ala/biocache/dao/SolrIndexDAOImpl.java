@@ -1054,6 +1054,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
             UpdateRequest updateRequest = new UpdateRequest();
             updateRequest.setAction(UpdateRequest.ACTION.COMMIT, false, false);
             updateRequest.add(batch);
+            logger.debug(batch.size() + " solr docs being updated");
             try {
                 updateRequest.process(solrClient);
             } catch (Exception e) {
