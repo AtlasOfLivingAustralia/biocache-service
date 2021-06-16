@@ -7,7 +7,6 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.OccurrenceUtils;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import org.apache.commons.lang.StringUtils;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.jetbrains.annotations.NotNull;
@@ -22,6 +21,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -41,6 +41,7 @@ public class AssertionService {
     private IndexDAO indexDao;
 
     SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+    private final Pattern uuidPattern = Pattern.compile("^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$");
     
     // max 1 indexAll thread can run at same time
     ThreadPoolExecutor executorService = new ThreadPoolExecutor(1, 1, 0, MILLISECONDS,
@@ -54,11 +55,10 @@ public class AssertionService {
     Runnable indexAll = () -> {
         try {
             // get all user assertions from database
-            List<UserAssertions> allAssertions = store.getAll(UserAssertions.class);
+            Map<String, UserAssertions> allAssertions = store.getAll(UserAssertions.class);
             logger.debug("total " + allAssertions.size() + " records found have assertions");
 
-            indexDao.indexFromMap(allAssertions.stream().filter(assertions -> !assertions.isEmpty() && StringUtils.isNotBlank(assertions.get(0).getReferenceRowKey()) && ifRecordExist(assertions.get(0).getReferenceRowKey())).
-                    map(assertions -> getIndexMap(assertions.get(0).getReferenceRowKey(), assertions)).collect(Collectors.toList()));
+            indexDao.indexFromMap(allAssertions.entrySet().stream().filter(e -> ifRecordExist(e.getKey()) && !e.getValue().isEmpty()).map(e -> getIndexMap(e.getKey(), e.getValue())).collect(Collectors.toList()));
             logger.debug("index job finished");
         } catch (Exception e) {
             logger.error("Failed to read all assertions, e = " + e.getMessage());
@@ -351,6 +351,11 @@ public class AssertionService {
     private boolean ifRecordExist(String recordUuid) {
         logger.debug("Try to retrieve occurrence record with guid: '" + recordUuid + "'");
 
+        if (!isValidUUID(recordUuid)) {
+            logger.debug(recordUuid + " is not a valid uuid");
+            return false;
+        }
+
         SpatialSearchRequestParams idRequest = new SpatialSearchRequestParams();
         idRequest.setQ(OccurrenceIndex.ID + ":" + recordUuid);
         idRequest.setFacet(false);
@@ -375,5 +380,9 @@ public class AssertionService {
         } catch (ParseException e) {
            return false;
         }
+    }
+
+    private boolean isValidUUID(String uuid) {
+        return uuidPattern.matcher(uuid).find();
     }
 }
