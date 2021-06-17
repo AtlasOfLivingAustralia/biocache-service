@@ -18,13 +18,15 @@ import au.com.bytecode.opencsv.CSVReader;
 import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.service.*;
-import au.org.ala.biocache.stream.OptionalZipOutputStream;
+import au.org.ala.biocache.stream.EndemicFacet;
 import au.org.ala.biocache.stream.ProcessDownload;
 import au.org.ala.biocache.stream.ProcessInterface;
 import au.org.ala.biocache.util.*;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
-import au.org.ala.biocache.util.thread.EndemicCallable;
-import au.org.ala.biocache.writer.*;
+import au.org.ala.biocache.writer.CSVRecordWriter;
+import au.org.ala.biocache.writer.RecordWriterError;
+import au.org.ala.biocache.writer.ShapeFileRecordWriter;
+import au.org.ala.biocache.writer.TSVRecordWriter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.googlecode.ehcache.annotations.Cacheable;
 import org.apache.commons.io.output.ByteArrayOutputStream;
@@ -38,7 +40,6 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.client.solrj.response.FacetField.Count;
 import org.apache.solr.client.solrj.response.RangeFacet.Numeric;
-import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.params.CursorMarkParams;
@@ -55,7 +56,9 @@ import org.springframework.util.CollectionUtils;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
-import java.io.*;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -64,7 +67,6 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -209,12 +211,6 @@ public class SearchDAOImpl implements SearchDAO {
     protected Boolean usingLocalMediaRepo = true;
 
     /**
-     * Max number of threads to use in parallel for endemic queries
-     */
-    @Value("${endemic.query.maxthreads:30}")
-    protected Integer maxEndemicQueryThreads = 30;
-
-    /**
      * Max number of threads to use in parallel for large online solr download queries
      */
     @Value("${solr.downloadquery.maxthreads:30}")
@@ -238,11 +234,6 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Value("${wms.legendMaxItems:30}")
     private int wmslegendMaxItems;
-
-    /**
-     * thread pool for multipart endemic queries
-     */
-    private volatile ExecutorService endemicExecutor = null;
 
     /**
      * thread pool for faceted solr queries
@@ -342,84 +333,18 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Cacheable(cacheName = "endemicCache")
     public List<FieldResultDTO> getEndemicSpecies(SpatialSearchRequestParams requestParams) throws Exception {
-        ExecutorService nextExecutor = getEndemicThreadPoolExecutor();
-        // 1)get a list of species that are in the WKT
-        if (logger.isDebugEnabled()) {
-            logger.debug("Starting to get Endemic Species...");
-        }
-        List<FieldResultDTO> list1 = getValuesForFacet(requestParams);//new ArrayList(Arrays.asList(getValuesForFacets(requestParams)));
-        if (logger.isDebugEnabled()) {
-            logger.debug("Retrieved species within area...(" + list1.size() + ")");
-        }
-        // 2)get a list of species that occur in the inverse WKT
+        SolrQuery subset = buildSolrQuery(requestParams);
+        SolrQuery superset = new SolrQuery();
 
-        String reverseQuery = SpatialUtils.getWKTQuery(spatialField, requestParams.getWkt(), true);//"-geohash:\"Intersects(" +wkt + ")\"";
+        // The subset will always include a spatial area, WKT.
+        // The superset must only include occurrences with a valid coordinate.
+        superset.setQuery("decimalLongitude:[-180 TO 180]");
+        superset.setFilterQueries("decimalLatitude:[-90 TO 90]");
 
-        if (logger.isDebugEnabled()) {
-            logger.debug("The reverse query:" + reverseQuery);
-        }
+        List<FieldResultDTO> output = new ArrayList();
+        indexDao.streamingQuery(subset, null, new EndemicFacet(output, requestParams.getFacets()[0]), superset);
 
-        requestParams.setWkt(null);
-
-        int i = 0, localterms = 0;
-
-        String facet = requestParams.getFacets()[0];
-        String[] originalFqs = requestParams.getFq();
-        //add the negated WKT query to the fq
-        originalFqs = (String[]) ArrayUtils.add(originalFqs, reverseQuery);
-        List<Future<List<FieldResultDTO>>> threads = new ArrayList<Future<List<FieldResultDTO>>>();
-        //batch up the rest of the world query so that we have fqs based on species we want to test for. This should improve the performance of the endemic services.
-        while (i < list1.size()) {
-            StringBuffer sb = new StringBuffer();
-            while ((localterms == 0 || localterms % termQueryLimit != 0) && i < list1.size()) {
-                if (localterms > 0) {
-                    sb.append(" OR ");
-                }
-                sb.append(facet).append(":").append(ClientUtils.escapeQueryChars(list1.get(i).getFieldValue()));
-                i++;
-                localterms++;
-            }
-            String newfq = sb.toString();
-            if (localterms == 1)
-                newfq = newfq + " OR " + newfq; //cater for the situation where there is only one term.  We don't want the term to be escaped again
-            localterms = 0;
-            //System.out.println("FQ = " + newfq);
-            SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
-            BeanUtils.copyProperties(requestParams, srp);
-            srp.setFq((String[]) ArrayUtils.add(originalFqs, newfq));
-            int batch = i / termQueryLimit;
-            EndemicCallable callable = new EndemicCallable(srp, batch, this);
-            threads.add(nextExecutor.submit(callable));
-        }
-        for (Future<List<FieldResultDTO>> future : threads) {
-            List<FieldResultDTO> list = future.get();
-            if (list != null) {
-                list1.removeAll(list);
-            }
-        }
-        if (logger.isDebugEnabled()) {
-            logger.debug("Determined final endemic list (" + list1.size() + ")...");
-        }
-        return list1;
-    }
-
-    /**
-     * @return An instance of ExecutorService used to concurrently execute multiple endemic queries.
-     */
-    private ExecutorService getEndemicThreadPoolExecutor() {
-        ExecutorService nextExecutor = endemicExecutor;
-        if (nextExecutor == null) {
-            synchronized (this) {
-                nextExecutor = endemicExecutor;
-                if (nextExecutor == null) {
-                    nextExecutor = endemicExecutor = Executors.newFixedThreadPool(
-                            getMaxEndemicQueryThreads(),
-                            new ThreadFactoryBuilder().setNameFormat("biocache-endemic-%d")
-                                    .setPriority(Thread.MIN_PRIORITY).build());
-                }
-            }
-        }
-        return nextExecutor;
+        return output;
     }
 
     /**
@@ -446,76 +371,17 @@ public class SearchDAOImpl implements SearchDAO {
      * <p>
      * Returns a list of species that are only within a subQuery.
      * <p>
-     * The subQuery is a subset of parentQuery.
+     * The subQuery is a subset of parentQuery
+     * e.g. subQuery is the area of interest. parentQuery is all species.
      */
     public List<FieldResultDTO> getSubquerySpeciesOnly(SpatialSearchRequestParams subQuery, SpatialSearchRequestParams parentQuery) throws Exception {
-        ExecutorService nextExecutor = getEndemicThreadPoolExecutor();
-        // 1)get a list of species that are in the WKT
-        if (logger.isDebugEnabled()) {
-            logger.debug("Starting to get Endemic Species...");
-        }
-        subQuery.setFacet(true);
-        subQuery.setFacets(parentQuery.getFacets());
-        List<FieldResultDTO> list1 = getValuesForFacet(subQuery);
-        if (logger.isDebugEnabled()) {
-            logger.debug("Retrieved species within area...(" + list1.size() + ")");
-        }
+        SolrQuery subset = buildSolrQuery(subQuery);
+        SolrQuery superset = buildSolrQuery(parentQuery);
 
-        int i = 0, localterms = 0;
+        List<FieldResultDTO> output = new ArrayList();
+        indexDao.streamingQuery(subset, null, new EndemicFacet(output, subQuery.getFacets()[0]), superset);
 
-        String facet = parentQuery.getFacets()[0];
-        String[] originalFqs = parentQuery.getFq();
-        List<Future<List<FieldResultDTO>>> futures = new ArrayList<Future<List<FieldResultDTO>>>();
-        //batch up the rest of the world query so that we have fqs based on species we want to test for.
-        // This should improve the performance of the endemic services.
-        while (i < list1.size()) {
-            StringBuffer sb = new StringBuffer();
-            while ((localterms == 0 || localterms % termQueryLimit != 0) && i < list1.size()) {
-                if (localterms > 0) {
-                    sb.append(" OR ");
-                }
-                String value = list1.get(i).getFieldValue();
-                if (facet.equals(OccurrenceIndex.NAMES_AND_LSID)) {
-                    if (value.startsWith("\"") && value.endsWith("\"")) {
-                        value = value.substring(1, value.length() - 1);
-                    }
-                    value = "\"" + ClientUtils.escapeQueryChars(value) + "\"";
-                } else {
-                    value = ClientUtils.escapeQueryChars(value);
-                }
-                sb.append(facet).append(":").append(value);
-                i++;
-                localterms++;
-            }
-            String newfq = sb.toString();
-            if (localterms == 1)
-                newfq = newfq + " OR " + newfq; //cater for the situation where there is only one term.  We don't want the term to be escaped again
-            localterms = 0;
-            SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
-            BeanUtils.copyProperties(parentQuery, srp);
-            srp.setFq((String[]) ArrayUtils.add(originalFqs, newfq));
-            int batch = i / termQueryLimit;
-            EndemicCallable callable = new EndemicCallable(srp, batch, this);
-            futures.add(nextExecutor.submit(callable));
-        }
-
-        Collections.sort(list1);
-        for (Future<List<FieldResultDTO>> future : futures) {
-            List<FieldResultDTO> list = future.get();
-            if (list != null) {
-                for (FieldResultDTO find : list) {
-                    int idx = Collections.binarySearch(list1, find);
-                    //remove if sub query count < parent query count
-                    if (idx >= 0 && list1.get(idx).getCount() < find.getCount()) {
-                        list1.remove(idx);
-                    }
-                }
-            }
-        }
-        if (logger.isDebugEnabled()) {
-            logger.debug("Determined final endemic list (" + list1.size() + ")...");
-        }
-        return list1;
+        return output;
     }
 
     public void writeEndemicFacetToStream(SpatialSearchRequestParams subQuery, SpatialSearchRequestParams parentQuery, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out) throws Exception {
@@ -2519,45 +2385,10 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @return the maxEndemicQueryThreads for endemic queries
-     */
-    public Integer getMaxEndemicQueryThreads() {
-        return maxEndemicQueryThreads;
-    }
-
-    /**
-     * @param maxEndemicQueryThreads the maxEndemicQueryThreads to set for endemic queries
-     */
-    public void setMaxEndemicQueryThreads(Integer maxEndemicQueryThreads) {
-        this.maxEndemicQueryThreads = Objects.requireNonNull(maxEndemicQueryThreads, "Max endemic multipart threads cannot be null");
-    }
-
-    /**
      * @return the maxSolrDownloadThreads for solr download queries
      */
     public Integer getMaxSolrOnlineDownloadThreads() {
         return maxSolrDownloadThreads;
-    }
-
-    /**
-     * @param maxSolrDownloadThreads the maxSolrDownloadThreads to set for solr download queries
-     */
-    public void setMaxSolrDownloadThreads(Integer maxSolrDownloadThreads) {
-        this.maxSolrDownloadThreads = Objects.requireNonNull(maxSolrDownloadThreads, "Max solr download threads cannot be null");
-    }
-
-    /**
-     * @return the throttle
-     */
-    public Integer getThrottle() {
-        return throttle;
-    }
-
-    /**
-     * @param throttle the throttle to set
-     */
-    public void setThrottle(Integer throttle) {
-        this.throttle = Objects.requireNonNull(throttle, "Throttle cannot be null");
     }
 
     private QueryResponse query(SolrParams query) throws Exception {
@@ -3249,7 +3080,7 @@ public class SearchDAOImpl implements SearchDAO {
 
     @Override
     public int streamingQuery(SpatialSearchRequestParams request, ProcessInterface procSearch, ProcessInterface procFacet) throws Exception {
-        return indexDao.streamingQuery(buildSolrQuery(request), procSearch, procFacet);
+        return indexDao.streamingQuery(buildSolrQuery(request), procSearch, procFacet, null);
     }
 
     public SolrQuery buildSolrQuery(SpatialSearchRequestParams request) throws Exception {

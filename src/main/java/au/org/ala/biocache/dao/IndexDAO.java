@@ -55,5 +55,5 @@ public interface IndexDAO {
 
     void indexFromMap(List<Map<String, Object>> maps) throws IOException, SolrServerException;
 
-    int streamingQuery(SolrQuery query, ProcessInterface procSearch, ProcessInterface procFacet) throws SolrServerException;
+    int streamingQuery(SolrQuery query, ProcessInterface procSearch, ProcessInterface procFacet, SolrQuery endemicFacetSuperset) throws SolrServerException;
 }
