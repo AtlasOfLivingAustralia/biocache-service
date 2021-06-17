@@ -1,12 +1,12 @@
 /**************************************************************************
  *  Copyright (C) 2010 Atlas of Living Australia
  *  All Rights Reserved.
- * 
+ *
  *  The contents of this file are subject to the Mozilla Public
  *  License Version 1.1 (the "License"); you may not use this file
  *  except in compliance with the License. You may obtain a copy of
  *  the License at http://www.mozilla.org/MPL/
- * 
+ *
  *  Software distributed under the License is distributed on an "AS
  *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  *  implied. See the License for the specific language governing
@@ -31,6 +31,7 @@ import java.util.Map;
  */
 public class OccurrenceIndex {
 
+    public static final String MISC = "misc";
     protected static final Logger logger = Logger.getLogger(OccurrenceIndex.class);
 
     final static public String IMAGES = "imageIDs";
@@ -416,11 +417,11 @@ public class OccurrenceIndex {
         this.dataHubUid = dataHubUid;
     }
 
-    public String [] getDataHub() {
+    public String[] getDataHub() {
         return dataHub;
     }
 
-    public void setDataHub(String []dataHub) {
+    public void setDataHub(String[] dataHub) {
         this.dataHub = dataHub;
     }
 
@@ -560,12 +561,12 @@ public class OccurrenceIndex {
     public void setRaw_countryCode(String raw_countryCode) {
         this.raw_countryCode = raw_countryCode;
     }
-    
-    public String getCountry(){
+
+    public String getCountry() {
         return country;
     }
-    
-    public void setCountry(String country){
+
+    public void setCountry(String country) {
         this.country = country;
     }
 
@@ -624,7 +625,7 @@ public class OccurrenceIndex {
     public void setGenusGuid(String genusGuid) {
         this.genusGuid = genusGuid;
     }
-    
+
     public String getSpecies() {
         return species;
     }
@@ -640,7 +641,7 @@ public class OccurrenceIndex {
     public void setSpeciesGuid(String speciesGuid) {
         this.speciesGuid = speciesGuid;
     }
-    
+
     public String getSubspecies() {
         return subspecies;
     }
@@ -648,7 +649,7 @@ public class OccurrenceIndex {
     public void setSubspecies(String subspecies) {
         this.subspecies = subspecies;
     }
-    
+
     public String getSubspeciesGuid() {
         return subspeciesGuid;
     }
@@ -656,7 +657,7 @@ public class OccurrenceIndex {
     public void setSubspeciesGuid(String subspeciesGuid) {
         this.subspeciesGuid = subspeciesGuid;
     }
-    
+
     public String getStateProvince() {
         return stateProvince;
     }
@@ -841,11 +842,11 @@ public class OccurrenceIndex {
         this.image = image;
     }
 
-    public String[] getImages(){
+    public String[] getImages() {
         return images;
     }
 
-    public void setImages(String[] images){
+    public void setImages(String[] images) {
         this.images = images;
     }
 
@@ -1026,7 +1027,7 @@ public class OccurrenceIndex {
     public void setRecordNumber(String recordNumber) {
         this.recordNumber = recordNumber;
     }
-    
+
     /**
      * @return the occurrence details
      */

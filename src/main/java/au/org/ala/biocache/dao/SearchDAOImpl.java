@@ -19,6 +19,8 @@ import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.stream.OptionalZipOutputStream;
+import au.org.ala.biocache.stream.ProcessDownload;
+import au.org.ala.biocache.stream.ProcessInterface;
 import au.org.ala.biocache.util.*;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import au.org.ala.biocache.util.thread.EndemicCallable;
@@ -168,16 +170,16 @@ public class SearchDAOImpl implements SearchDAO {
     protected QueryFormatUtils queryFormatUtils;
 
     @Inject
-    protected FieldMappingUtil fieldMappingUtil;
+    public FieldMappingUtil fieldMappingUtil;
 
     @Inject
-    protected CollectionsCache collectionCache;
+    public CollectionsCache collectionCache;
 
     @Inject
-    protected AbstractMessageSource messageSource;
+    public AbstractMessageSource messageSource;
 
     @Inject
-    protected SpeciesLookupService speciesLookupService;
+    public SpeciesLookupService speciesLookupService;
 
     @Inject
     protected AuthService authService;
@@ -198,7 +200,7 @@ public class SearchDAOImpl implements SearchDAO {
     protected SpeciesImageService speciesImageService;
 
     @Inject
-    protected ListsService listsService;
+    public ListsService listsService;
 
     @Inject
     protected DownloadService downloadService;
@@ -308,6 +310,8 @@ public class SearchDAOImpl implements SearchDAO {
         }
 
         getMaxBooleanClauses();
+
+        initSensitiveFieldMapping();
     }
 
     public void refreshCaches() {
@@ -533,24 +537,24 @@ public class SearchDAOImpl implements SearchDAO {
         CSVRecordWriter writer = new CSVRecordWriter(out, header);
         try {
             writer.initialise();
-    
+
             boolean addedNullFacet = false;
-    
+
             List<String> guids = new ArrayList<String>();
             List<Long> counts = new ArrayList<Long>();
-    
+
             for (FieldResultDTO ff : list) {
                 //only add null facet once
                 if (ff.getLabel() == null) addedNullFacet = true;
                 if (ff.getCount() == 0 || (ff.getLabel() == null && addedNullFacet)) continue;
-    
+
                 //process the "species_guid_ facet by looking up the list of guids
                 if (shouldLookup) {
                     guids.add(ff.getLabel());
                     if (includeCount) {
                         counts.add(ff.getCount());
                     }
-    
+
                     //Only want to send a sub set of the list so that the URI is not too long for BIE
                     if (guids.size() == 30) {
                         //now get the list of species from the web service TODO may need to move this code
@@ -566,7 +570,7 @@ public class SearchDAOImpl implements SearchDAO {
                     writer.write(row);
                 }
             }
-    
+
             if (shouldLookup) {
                 //now write any guids that remain at the end of the looping
                 writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, includeLists, writer);
@@ -587,18 +591,18 @@ public class SearchDAOImpl implements SearchDAO {
         CSVReader csvReader = new CSVReader(new StringReader(outputStream.toString(StandardCharsets.UTF_8)));
         List<FieldResultDTO> list = new ArrayList<FieldResultDTO>();
         boolean first = true;
-        String [] line;
+        String[] line;
         while ((line = csvReader.readNext()) != null) {
             if (first) {
                 first = false;
             } else if (line.length == 2) {
                 String name = line[0];
                 list.add(
-                    new FieldResultDTO(
-                        name,
-                        name,
-                        Long.parseLong(line[1])
-                    )
+                        new FieldResultDTO(
+                                name,
+                                name,
+                                Long.parseLong(line[1])
+                        )
                 );
             }
         }
@@ -832,7 +836,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @param writer          The CSV writer to write to.
      * @throws Exception
      */
-    private void writeTaxonDetailsToStream(List<String> guids, List<Long> counts, boolean includeCounts, boolean includeSynonyms, boolean includeLists, CSVRecordWriter writer) throws Exception {
+    public void writeTaxonDetailsToStream(List<String> guids, List<Long> counts, boolean includeCounts, boolean includeSynonyms, boolean includeLists, CSVRecordWriter writer) throws Exception {
         List<String[]> values = speciesLookupService.getSpeciesDetails(guids, counts, includeCounts, includeSynonyms, includeLists);
         for (String[] value : values) {
             writer.write(value);
@@ -924,791 +928,222 @@ public class SearchDAOImpl implements SearchDAO {
                                                                               final DownloadDetailsDTO dd,
                                                                               boolean checkLimit,
                                                                               final ExecutorService nextExecutor) throws Exception {
-        expandRequestedFields(downloadParams, true);
-
-        if (dd != null) {
-            dd.resetCounts();
+        if (downloadFields == null) {
+            // PostConstruct not finished
+            throw new Exception("PostConstruct not finished, downloadFields==null");
         }
 
-        long start = System.currentTimeMillis();
+        // reset counts when retrying a download
+        dd.resetCounts();
+
+        // prepare requested download fields (defaults, substitutions)
+        prepareRequestedFields(downloadParams, includeSensitive);
+
+        // prepare headers
+        DownloadHeaders downloadHeaders = prepareHeaders(downloadParams);
+
+        // uidStats is sent to logger.ala
         final ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
 
-        try {
-            SolrQuery solrQuery = new SolrQuery();
-            queryFormatUtils.formatSearchQuery(downloadParams);
+        // uidStats also tracks fields requested and headers for use in headings.csv
+        uidStats.put("infoFields," + StringUtils.join(downloadHeaders.joinOriginalIncluded(), ","), new AtomicInteger(-1));
+        uidStats.put("infoHeaders," + StringUtils.join(downloadHeaders.joinedHeader(), ","), new AtomicInteger(-2));
 
-            String requestedFieldsParam = getDownloadFields(downloadParams);
+        // create writer
+        RecordWriter recordWriter = createRecordWriter(downloadParams, downloadHeaders, out);
 
-            if (includeSensitive) {
+        // submit download
+        Future future = nextExecutor.submit(prepareDownloadRunner(downloadParams, downloadHeaders, dd, uidStats, includeSensitive, recordWriter));
 
-                //include raw latitude and longitudes
-                if (requestedFieldsParam.contains(",decimalLatitude")) {
-                    requestedFieldsParam = requestedFieldsParam.replaceFirst(",decimalLatitude", ",sensitive_decimalLatitude,sensitive_decimalLongitude,decimalLatitude");
-                } else if (requestedFieldsParam.contains("raw_decimalLatitude")) {
-                    requestedFieldsParam = requestedFieldsParam.replaceFirst("raw_decimalLatitude", "sensitive_decimalLatitude,sensitive_decimalLongitude,raw_decimalLatitude");
-                }
-                if (requestedFieldsParam.contains(",raw_locality,")) {
-                    requestedFieldsParam = requestedFieldsParam.replaceFirst(",raw_locality,", ",raw_locality,sensitive_locality,");
-                }
-                if (requestedFieldsParam.contains(",locality,")) {
-                    requestedFieldsParam = requestedFieldsParam.replaceFirst(",locality,", ",locality,sensitive_locality,");
-                }
+        // wait for download to finish
+        // Busy wait because we need to be able to respond to an interrupt on any callable
+        // and propagate it to all of the others for this particular query
+        // Because the executor service is shared to prevent too many concurrent threads being run,
+        // this requires a busy wait loop on the main thread to monitor state
+        boolean waitAgain = false;
+        do {
+            waitAgain = false;
+            if (!future.isDone()) {
+                // Wait again even if an interrupt flag is set, as it may have been set partway through the iteration
+                // The calls to future.cancel will occur next time if the interrupt is setup partway through an iteration
+                waitAgain = true;
             }
 
-            StringBuilder dbFieldsBuilder = new StringBuilder(requestedFieldsParam);
-            if (!downloadParams.getExtra().isEmpty()) {
-                dbFieldsBuilder.append(",").append(downloadParams.getExtra());
+            if (waitAgain) {
+                Thread.sleep(downloadCheckBusyWaitSleep);
             }
+        } while (waitAgain);
 
-            List<String> requestedFields = Arrays.stream(dbFieldsBuilder.toString()
-                    .split(","))
-                    .map(field -> fieldMappingUtil.translateFieldName(field))
-                    .collect(Collectors.toList());
 
-            List<String>[] indexedFields;
-            if (downloadFields == null) {
-                //default to include everything
-                java.util.List<String> mappedNames = new java.util.LinkedList<>();
-                for (int i = 0; i < requestedFields.size(); i++) {
-                    mappedNames.add(requestedFields.get(i));
-                }
-                indexedFields = new List[]{
-                        mappedNames,
-                        new java.util.LinkedList<String>(),
-                        mappedNames,
-                        mappedNames,
-                        new ArrayList(),
-                        new ArrayList()};
-            } else {
-                indexedFields = downloadFields.getIndexFields(
-                        requestedFields.toArray(new String[0]),
-                        downloadParams.getDwcHeaders(),
-                        downloadParams.getLayersServiceUrl()
-                );
-            }
+        // close writer
+        recordWriter.finalise();
 
-            //apply custom header
-            String[] customHeader = dd.getRequestParams().getCustomHeader().split(",");
-            for (int i = 0; i + 1 < customHeader.length; i += 2) {
-                for (int j = 0; j < indexedFields[0].size(); j++) {
-                    if (customHeader[i].equals(indexedFields[0].get(j))) {
-                        indexedFields[2].set(j, customHeader[i + 1]);
-                    }
-                }
-                for (int j = 0; j < indexedFields[4].size(); j++) {
-                    if (customHeader[i].equals(indexedFields[5].get(j))) {
-                        indexedFields[4].set(j, customHeader[i + 1]);
-                    }
-                }
-            }
-            if (logger.isDebugEnabled()) {
-                logger.debug("Fields included in download: " + indexedFields[0]);
-                logger.debug("Fields excluded from download: " + indexedFields[1]);
-                logger.debug("The headers in downloads: " + indexedFields[2]);
-                logger.debug("Analysis headers: " + indexedFields[4]);
-                logger.debug("Analysis fields: " + indexedFields[5]);
-                logger.debug("Species List headers: " + indexedFields[6]);
-                logger.debug("Species List fields: " + indexedFields[7]);
-            }
-
-            //set the fields to the ones that are available in the index
-            String[] fields = indexedFields[0].toArray(new String[]{});
-            solrQuery.setFields(fields);
-            StringBuilder qasb = new StringBuilder();
-            if (!"none".equals(downloadParams.getQa())) {
-                solrQuery.addField("assertions"); // PIPELINES: SolrQuery::addField entry point
-                if (!"all".equals(downloadParams.getQa()) && !"includeall".equals(downloadParams.getQa())) {
-                    //add all the qa fields
-                    qasb.append(downloadParams.getQa());
-                }
-            }
-
-            solrQuery.addField(OccurrenceIndex.INSTITUTION_UID)
-                    .addField(OccurrenceIndex.COLLECTION_UID)
-                    .addField(OccurrenceIndex.DATA_RESOURCE_UID)
-                    .addField(OccurrenceIndex.DATA_PROVIDER_UID);
-
-            // 'lft' and 'rgt' is mandatory when there are species list fields (indexedFields[7])
-            if (indexedFields[7].size() > 0) {
-                String lft = OccurrenceIndex.LFT;
-                String rgt = OccurrenceIndex.RGT;
-                if (!solrQuery.getFields().matches("($" + lft + ",|," + lft + ",|," + lft + "^)")) {
-                    solrQuery.addField(lft);
-                }
-                if (!solrQuery.getFields().matches("($" + rgt + ",|," + rgt + ",|," + rgt + "^)")) {
-                    solrQuery.addField(rgt);
-                }
-            }
-
-            solrQuery.setQuery(downloadParams.getFormattedQuery()); // PIPELINES: SolrQuery::setQuery entry point
-            solrQuery.setFacetMinCount(1);
-            solrQuery.setFacetLimit(-1);
-
-            //get the assertion facets to add them to the download fields
-            boolean getAssertionsFromFacets = "all".equals(downloadParams.getQa()) || "includeall".equals(downloadParams.getQa());
-            SolrQuery monthAssertionsQuery = getAssertionsFromFacets ? solrQuery.getCopy().addFacetField(OccurrenceIndex.MONTH, OccurrenceIndex.ASSERTIONS) : solrQuery.getCopy().addFacetField(OccurrenceIndex.MONTH);
-            if (getAssertionsFromFacets) {
-                //set the order for the facet to be based on the index - this will force the assertions to be returned in the same order each time
-                //based on alphabetical sort.  The number of QA's may change between searches so we can't guarantee that the order won't change
-                monthAssertionsQuery.add("f." + OccurrenceIndex.ASSERTIONS + ".facet.sort", "index");
-            }
-            QueryResponse facetQuery = runSolrQuery(monthAssertionsQuery, downloadParams.getFormattedFq(), 0, 0, "score", "asc");
-
-            //set the totalrecords for the download details
-            dd.setTotalRecords(facetQuery.getResults().getNumFound());
-
-            //use a separately configured and smaller limit when output will be unzipped
-            final long maxDownloadSize;
-            if (MAX_DOWNLOAD_SIZE > unzippedLimit && out instanceof OptionalZipOutputStream &&
-                    ((OptionalZipOutputStream) out).getType() == OptionalZipOutputStream.Type.unzipped) {
-                maxDownloadSize = unzippedLimit;
-            } else {
-                maxDownloadSize = MAX_DOWNLOAD_SIZE;
-            }
-
-            if (checkLimit && dd.getTotalRecords() < maxDownloadSize) {
-                checkLimit = false;
-            }
-
-            // include all misc fields if required
-            if (dd.getRequestParams() != null ? dd.getRequestParams().getIncludeMisc() : false) {
-                for (IndexFieldDTO f : indexDao.getIndexFieldDetails()) {
-                    // identify misc fields that are in the index
-                    if (f.isStored() && f.getName() != null && f.getName().startsWith("_"))
-                        solrQuery.addField(f.getName());    // PIPELINES: SolrQuery::addField entry point
-                }
-                // include record sensitive flag
-                if (!solrQuery.getFields().contains("," + OccurrenceIndex.SENSITIVE + ",")) {
-                    solrQuery.addField(OccurrenceIndex.SENSITIVE);
-                }
-            }
-
-            //get the month facets to add them to the download fields get the assertion facets.
-            List<Count> splitByFacet = null;
-
-            for (FacetField facet : facetQuery.getFacetFields()) {
-                if (facet.getName().equals(OccurrenceIndex.ASSERTIONS) && facet.getValueCount() > 0) {
-                    qasb.append(getQAFromFacet(facet));
-                }
-                if (facet.getName().equals(OccurrenceIndex.MONTH) && facet.getValueCount() > 0) {
-                    splitByFacet = facet.getValues();
-                }
-            }
-
-            if ("includeall".equals(downloadParams.getQa())) {
-                qasb = getAllQAFields();
-            }
-
-            String qas = qasb.toString();
-
-            //include sensitive fields in the header when the output will be partially sensitive
-            final String[] sensitiveFields;
-            final String[] notSensitiveFields;
-            if (dd.getSensitiveFq() != null) {
-                List<String>[] sensitiveHdr;
-                sensitiveHdr = downloadFields.getIndexFields(sensitiveSOLRHdr, downloadParams.getDwcHeaders(), downloadParams.getLayersServiceUrl());
-
-                //header for the output file
-                indexedFields[2].addAll(sensitiveHdr[2]);
-
-                //lookup for fields from sensitive queries
-                sensitiveFields = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[0].toArray(new String[]{}),
-                        sensitiveHdr[0].toArray(new String[]{}));
-
-                //use general fields when sensitive data is not permitted
-                notSensitiveFields = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[0].toArray(new String[]{}), notSensitiveSOLRHdr);
-            } else {
-                sensitiveFields = new String[0];
-                notSensitiveFields = fields;
-            }
-
-            //add analysis headers
-            indexedFields[2].addAll(indexedFields[4]);
-            final String[] analysisFields = indexedFields[5].toArray(new String[0]);
-
-            //add species list headers
-            indexedFields[2].addAll(indexedFields[6]);
-            final String[] speciesListFields = indexedFields[7].toArray(new String[0]);
-
-            final String[] qaFields = qas.equals("") ? new String[]{} : qas.split(",");
-            String[] qaTitles = downloadFields.getHeader(qaFields, false, false);
-
-            String[] header = org.apache.commons.lang3.ArrayUtils.addAll(indexedFields[2].toArray(new String[]{}), qaTitles);
-
-            //retain output header fields and field names for inclusion of header info in the download
-            StringBuilder infoFields = new StringBuilder("infoFields");
-            for (String h : indexedFields[3]) infoFields.append(",").append(h);
-            for (String h : analysisFields) infoFields.append(",").append(h);
-            for (String h : speciesListFields) infoFields.append(",").append(h);
-            for (String h : qaFields) infoFields.append(",").append(h);
-
-            StringBuilder infoHeader = new StringBuilder("infoHeaders");
-            for (String h : header) infoHeader.append(",").append(h);
-
-            String info = infoFields.toString();
-            while (info.contains(",,")) info = info.replace(",,", ",");
-            uidStats.put(info,  new AtomicInteger(-1));
-            String hdr = infoHeader.toString();
-            while (hdr.contains(",,")) hdr = hdr.replace(",,", ",");
-            uidStats.put(hdr, new AtomicInteger(-2));
-
-            //construct correct RecordWriter based on the supplied fileType
-            final RecordWriterError rw = downloadParams.getFileType().equals("csv") ?
-                    new CSVRecordWriter(out, header, downloadParams.getSep(), downloadParams.getEsc()) :
-                    (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, header) :
-                            new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, (String[]) ArrayUtils.addAll(fields, qaFields)));
-            
-            // Requirement to be able to propagate interruptions to all other threads for this execution
-            // Doing this via this variable
-            final AtomicBoolean interruptFound = dd != null ? dd.getInterrupt() : new AtomicBoolean(false);
-
-            // Create a fixed length blocking queue for buffering results before they are written
-            // This also creates a push-back effect to throttle the results generating threads
-            // when it fills and offers to it are delayed until the writer consumes elements from the queue
-            final BlockingQueue<String[]> queue = new ArrayBlockingQueue<>(resultsQueueLength);
-            // Create a sentinel that we can check for reference equality to signal the end of the queue
-            final String[] sentinel = new String[0];
-            // An implementation of RecordWriter that adds to an in-memory queue
-            final RecordWriter concurrentWrapper = new RecordWriter() {
-                private final AtomicBoolean finalised = new AtomicBoolean(false);
-                private final AtomicBoolean finalisedComplete = new AtomicBoolean(false);
-
-                @Override
-                public void write(String[] nextLine) {
-                    try {
-                        if (Thread.currentThread().isInterrupted() || interruptFound.get() || finalised.get()) {
-                            finalise();
-                            return;
-                        }
-                        while (!queue.offer(nextLine, writerTimeoutWaitMillis, TimeUnit.MILLISECONDS)) {
-                            if (Thread.currentThread().isInterrupted() || interruptFound.get() || finalised.get()) {
-                                finalise();
-                                break;
-                            }
-                        }
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        interruptFound.set(true);
-                        if (logger.isDebugEnabled()) {
-                            logger.debug("Queue failed to accept the next record due to a thread interrupt, calling finalise the cleanup: ", e);
-                        }
-                        // If we were interrupted then we should call finalise to cleanup
-                        finalise();
-                    }
-                }
-
-                @Override
-                public void finalise() {
-                    if (finalised.compareAndSet(false, true)) {
-                        try {
-                            // Offer the sentinel at least once, even when the thread is interrupted
-                            while (!queue.offer(sentinel, writerTimeoutWaitMillis, TimeUnit.MILLISECONDS)) {
-                                // If the thread is interrupted then the queue may not have any active consumers,
-                                // so don't loop forever waiting for capacity in this case
-                                // The hard shutdown phase will use queue.clear to ensure that the
-                                // sentinel gets onto the queue at least once
-                                if (Thread.currentThread().isInterrupted() || interruptFound.get()) {
-                                    break;
-                                }
-                            }
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            interruptFound.set(true);
-                            if (logger.isDebugEnabled()) {
-                                logger.debug("Queue failed to accept the sentinel in finalise due to a thread interrupt: ", e);
-                            }
-                        } finally {
-                            finalisedComplete.set(true);
-                        }
-                    }
-                }
-
-                @Override
-                public void initialise() {
-                    // No resources to create
-                }
-
-                @Override
-                public boolean finalised() {
-                    return finalisedComplete.get();
-                }
-            };
-
-            // A single thread that consumes elements put onto the queue until it sees the sentinel, finalising after the sentinel or an interrupt
-            Runnable writerRunnable = new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        long counter = 0;
-                        while (true) {
-                            counter = counter + 1;
-
-                            if (Thread.currentThread().isInterrupted() || interruptFound.get()) {
-                                break;
-                            }
-
-                            String[] take = queue.take();
-                            // Sentinel object equality check to see if we are done
-                            if (take == sentinel || Thread.currentThread().isInterrupted() || interruptFound.get()) {
-                                break;
-                            }
-                            // Otherwise write to the wrapped record writer
-                            rw.write(take);
-
-                            //test for errors. This can contain a flush so only test occasionally
-                            if (counter % resultsQueueLength == 0 && rw.hasError()) {
-                                throw RecordWriterException.newRecordWriterException(dd, downloadParams, true, rw);
-                            }
-
-                        }
-                    } catch (RecordWriterException e) {
-                        //no trace information is available to print for these errors
-                        logger.error(e.getMessage());
-                        interruptFound.set(true);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        interruptFound.set(true);
-                    } catch (Exception e) {
-                        // Reuse interruptFound variable to signal that the writer had issues
-                        interruptFound.set(true);
-                        logger.error("Download writer failed.", e);
-                    } finally {
-                        rw.finalise();
-                    }
-                }
-            };
-            Thread writerThread = new Thread(writerRunnable);
-
-            try {
-                rw.initialise();
-                writerThread.start();
-                if (rw instanceof ShapeFileRecordWriter) {
-                    dd.setHeaderMap(((ShapeFileRecordWriter) rw).getHeaderMappings());
-                }
-
-                //for each month create a separate query that pages through 500 records per page
-                List<SolrQuery> queries = new ArrayList<SolrQuery>();
-                if (splitByFacet != null) {
-                    for (Count facet : splitByFacet) {
-                        if (facet.getCount() > 0) {
-                            SolrQuery splitByFacetQuery;
-                            //do not add remainderQuery here
-                            if (facet.getName() != null) {
-                                splitByFacetQuery = solrQuery.getCopy().addFilterQuery(facet.getFacetField().getName() + ":" + facet.getName());
-                                splitByFacetQuery.setFacet(false);
-                                queries.add(splitByFacetQuery);
-                            }
-
-                        }
-                    }
-                    if (splitByFacet.size() > 0) {
-                        SolrQuery remainderQuery = solrQuery.getCopy().addFilterQuery("-" + splitByFacet.get(0).getFacetField().getName() + ":[* TO *]");
-                        queries.add(0, remainderQuery);
-                    }
-                } else {
-                    queries.add(0, solrQuery);
-                }
-
-                String[] notSensitiveSOLRHdr = OccurrenceIndex.notSensitiveSOLRHdr;
-
-                //split into sensitive and non-sensitive queries when
-                // - not including all sensitive values
-                // - there is a sensitive fq
-                final List<SolrQuery> sensitiveQ = new ArrayList<SolrQuery>();
-                if (!includeSensitive && dd.getSensitiveFq() != null) {
-                    sensitiveQ.addAll(splitQueries(queries, dd.getSensitiveFq(), sensitiveSOLRHdr, notSensitiveSOLRHdr));
-                }
-
-                final AtomicInteger resultsCount = new AtomicInteger(0);
-                final boolean threadCheckLimit = checkLimit;
-                final ArrayList<String> miscFields = new ArrayList<String>(0);
-
-                List<Callable<Integer>> solrCallables = new ArrayList<>(queries.size());
-                // execute each query, writing the results to stream
-                for (final SolrQuery splitByFacetQuery : queries) {
-                    // define a thread
-                    Callable<Integer> solrCallable = new Callable<Integer>() {
-                        @Override
-                        public Integer call() throws Exception {
-                            int startIndex = 0;
-                            // Randomise the wakeup time so they don't all wakeup on a periodic cycle
-                            long localThrottle = throttle + Math.round(Math.random() * throttle);
-
-                            String[] fq = downloadParams.getFormattedFq();
-                            if (splitByFacetQuery.getFilterQueries() != null && splitByFacetQuery.getFilterQueries().length > 0) {
-                                if (fq == null) {
-                                    fq = new String[0];
-                                }
-                                fq = org.apache.commons.lang3.ArrayUtils.addAll(fq, splitByFacetQuery.getFilterQueries());
-                            }
-
-                            splitByFacetQuery.setFilterQueries(fq);     // PIPELINES: SolarQuery::setFilterQueries entry point
-
-                            QueryResponse qr = runSolrQueryWithCursorMark(splitByFacetQuery, downloadBatchSize, null);
-                            AtomicInteger recordsForThread = new AtomicInteger(0);
-                            if (logger.isDebugEnabled()) {
-                                logger.debug(splitByFacetQuery.getQuery() + " - results: " + qr.getResults().size());
-                            }
-
-                            while (qr != null && !qr.getResults().isEmpty() && !interruptFound.get()) {
-                                if (logger.isDebugEnabled()) {
-                                    logger.debug("Start index: " + startIndex + ", " + splitByFacetQuery.getQuery());
-                                }
-                                int count = 0;
-                                if (sensitiveQ.contains(splitByFacetQuery)) {
-                                    count = processQueryResults(uidStats, sensitiveFields, qaFields, concurrentWrapper, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize, analysisFields, speciesListFields, miscFields, true);
-                                } else {
-                                    // write non-sensitive values into sensitive fields when not authorised for their sensitive values
-                                    count = processQueryResults(uidStats, notSensitiveFields, qaFields, concurrentWrapper, qr, dd, threadCheckLimit, resultsCount, maxDownloadSize, analysisFields, speciesListFields, miscFields, false);
-                                }
-                                recordsForThread.addAndGet(count);
-                                // we have already set the Filter query the first time the query was constructed
-                                // rerun with the same params but different startIndex
-                                if (!threadCheckLimit || resultsCount.get() < maxDownloadSize) {
-                                    if (!threadCheckLimit) {
-                                        // throttle the download by sleeping
-                                        Thread.sleep(localThrottle);
-                                    }
-                                    qr = runSolrQueryWithCursorMark(splitByFacetQuery, downloadBatchSize, qr.getNextCursorMark());
-                                } else {
-                                    qr = null;
-                                }
-                            }
-                            return recordsForThread.get();
-                        }
-                    };
-                    solrCallables.add(solrCallable);
-                }
-
-                List<Future<Integer>> futures = new ArrayList<>(solrCallables.size());
-                for (Callable<Integer> nextCallable : solrCallables) {
-                    futures.add(nextExecutor.submit(nextCallable));
-                }
-
-                // Busy wait because we need to be able to respond to an interrupt on any callable
-                // and propagate it to all of the others for this particular query
-                // Because the executor service is shared to prevent too many concurrent threads being run,
-                // this requires a busy wait loop on the main thread to monitor state
-                boolean waitAgain = false;
-                do {
-                    waitAgain = false;
-                    for (Future<Integer> future : futures) {
-                        if (!future.isDone()) {
-                            // Wait again even if an interrupt flag is set, as it may have been set partway through the iteration
-                            // The calls to future.cancel will occur next time if the interrupt is setup partway through an iteration
-                            waitAgain = true;
-                            // If one thread finds an interrupt it is propagated to others using the interruptFound AtomicBoolean
-                            if (interruptFound.get()) {
-                                future.cancel(true);
-                            }
-                        }
-                    }
-                    // Don't trigger the timeout interrupt if we don't have to wait again as we are already done at this point
-                    if (waitAgain && (System.currentTimeMillis() - start) > downloadMaxTime) {
-                        logger.error("Download max time was exceeded: downloadMaxTime=" + downloadMaxTime + " duration=" + (System.currentTimeMillis() - start));
-                        interruptFound.set(true);
-                        break;
-                    }
-
-                    if (waitAgain) {
-                        Thread.sleep(downloadCheckBusyWaitSleep);
-                    }
-                } while (waitAgain);
-
-                AtomicInteger totalDownload = new AtomicInteger(0);
-                for (Future<Integer> future : futures) {
-                    if (future.isDone()) {
-                        totalDownload.addAndGet(future.get());
-                    } else {
-                        // All incomplete futures that survived the loop above are cancelled here
-                        future.cancel(true);
-                    }
-                }
-
-                long finish = System.currentTimeMillis();
-                long timeTakenInSecs = (finish - start) / 1000;
-                if (timeTakenInSecs <= 0) timeTakenInSecs = 1;
-                if (logger.isInfoEnabled()) {
-                    logger.info("Download of " + resultsCount + " records in " + timeTakenInSecs + " seconds. Record/sec: " + resultsCount.intValue() / timeTakenInSecs);
-                }
-
-                // this will trigger DownloadService to add the discovered, non-empty miscFields to the output header and fields description file.
-                if (dd != null && miscFields.size() > 0) {
-                    String[] newMiscFields = new String[miscFields.size()];
-                    miscFields.toArray(newMiscFields);
-                    dd.setMiscFields(newMiscFields);
-                }
-
-            } finally {
-                try {
-                    // Once we get here, we need to finalise starting at the concurrent wrapper,
-                    // as there are no more non-sentinel records to be added to the queue
-                    // This eventually triggers finalisation of the underlying writer when the queue empties
-                    // This is a soft shutdown, and hence we wait below for this stage to complete in normal circumstances
-                    // Note, this blocks for writerTimeoutWaitMillis trying to legitimately add the sentinel to the end of the queue
-                    // We force the sentinel to be added in the hard shutdown phase below
-                    concurrentWrapper.finalise();
-                } finally {
-                    try {
-                        // Track the current time right now so we can abort after downloadMaxCompletionTime milliseconds in this phase
-                        final long completionStartTime = System.currentTimeMillis();
-                        // Busy wait check for finalised to be called in the RecordWriter or something is interrupted
-                        // By this stage, there are at maximum download.internal.queue.size items remaining (default 1000)
-                        while (writerThread.isAlive()
-                                && !writerThread.isInterrupted()
-                                && !interruptFound.get()
-                                && !Thread.currentThread().isInterrupted()
-                                && !rw.finalised()
-                                && !((System.currentTimeMillis() - completionStartTime) > downloadMaxCompletionTime)) {
-                            Thread.sleep(downloadCheckBusyWaitSleep);
-                        }
-                    } finally {
-                        try {
-                            // Attempt all actions that could trigger the writer thread to finalise, as by this stage we are in hard shutdown mode
-                            // First signal that we are in hard shutdown mode
-                            interruptFound.set(true);
-                        } finally {
-                            try {
-                                // Add the sentinel or clear the queue and try again until it gets onto the queue
-                                // We are in hard shutdown mode, so only priority is that the queue either
-                                // gets the sentinel or the thread is interrupted to clean up resources
-                                while (!queue.offer(sentinel)) {
-                                    queue.clear();
-                                }
-                            } finally {
-                                try {
-                                    // Interrupt the single writer thread
-                                    writerThread.interrupt();
-                                } finally {
-                                    try {
-                                        // Explicitly call finalise on the RecordWriter as a backup
-                                        // In normal circumstances it is called via the sentinel or the interrupt
-                                        // This will not block if finalise has been called previously in the current three implementations
-                                        rw.finalise();
-                                    } finally {    
-                                        if (rw != null && rw.hasError()) {
-                                            throw RecordWriterException.newRecordWriterException(dd, downloadParams, true, rw);
-                                        } else {
-                                            // Flush whatever output was still pending for more deterministic debugging
-                                            out.flush();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (SolrServerException ex) {
-            logError("Problem communicating with SOLR server while processing download. ", ex.getMessage());
-            if (logger.isDebugEnabled()){
-                logger.debug(ex.getMessage(), ex);
-            }
-        }
         return uidStats;
     }
 
-    private List<String[]> intersectResults(String layersServiceUrl, String[] analysisLayers, SolrDocumentList results) {
-        List<String[]> intersection = new ArrayList<String[]>();
+    private RecordWriter createRecordWriter(DownloadRequestParams downloadParams, DownloadHeaders downloadHeaders, OutputStream out) {
+        RecordWriterError recordWriter = downloadParams.getFileType().equals("csv") ?
+                new CSVRecordWriter(out, downloadHeaders.joinedHeader(), downloadParams.getSep(), downloadParams.getEsc()) :
+                (downloadParams.getFileType().equals("tsv") ? new TSVRecordWriter(out, downloadHeaders.joinedHeader()) :
+                        new ShapeFileRecordWriter(tmpShapefileDir, downloadParams.getFile(), out, downloadHeaders.included));
 
-        if (analysisLayers.length > 0 && StringUtils.isNotEmpty(layersServiceUrl)) {
-            try {
-                double[][] points = new double[results.size()][2];
-                int invalid = 0;
-                int i = 0;
-                for (SolrDocument sd : results) {
-                    if (sd.containsKey(SensitiveOccurrenceIndex.SENSITIVE_LONGITUDE) && sd.containsKey(SensitiveOccurrenceIndex.SENSITIVE_LATITUDE)) {
-                        points[i][0] = (double) sd.getFirstValue(SensitiveOccurrenceIndex.SENSITIVE_LONGITUDE);
-                        points[i][1] = (double) sd.getFirstValue(SensitiveOccurrenceIndex.SENSITIVE_LATITUDE);
-                    } else if (sd.containsKey(OccurrenceIndex.LATITUDE) && sd.containsKey(OccurrenceIndex.LONGITUDE)) {
-                        points[i][0] = (double) sd.getFirstValue(OccurrenceIndex.LONGITUDE);
-                        points[i][1] = (double) sd.getFirstValue(OccurrenceIndex.LATITUDE);
-                    } else {
-                        points[i][0] = 0;
-                        points[i][1] = 0;
-                        invalid++;
-                    }
-                    i++;
-                }
+        recordWriter.initialise();
 
-                if (invalid < results.size()) {
-                    Reader reader = layersService.sample(analysisLayers, points, null);
-
-                    CSVReader csv = new CSVReader(reader);
-                    intersection = csv.readAll();
-                    csv.close();
-                }
-            } catch (IOException e) {
-                logger.error("Failed to intersect analysis layers", e);
-            }
-        }
-
-        return intersection;
+        return recordWriter;
     }
 
-    private int processQueryResults(ConcurrentMap<String, AtomicInteger> uidStats, String[] fields, String[] qaFields,
-                                    RecordWriter rw, QueryResponse qr, DownloadDetailsDTO dd, boolean checkLimit,
-                                    AtomicInteger resultsCount, long maxDownloadSize, String[] analysisLayers,
-                                    String[] speciesListFields,
-                                    List<String> miscFields, Boolean sensitiveDataAllowed) {
-        //handle analysis layer intersections
-        List<String[]> intersection = intersectResults(dd.getRequestParams().getLayersServiceUrl(), analysisLayers, qr.getResults());
+    private Callable prepareDownloadRunner(DownloadRequestParams downloadParams, DownloadHeaders downloadHeaders,
+                                           DownloadDetailsDTO dd, ConcurrentMap<String, AtomicInteger> uidStats,
+                                           boolean includeSensitive, RecordWriter recordWriter) throws QidMissingException {
+        queryFormatUtils.formatSearchQuery(downloadParams);
 
-        String institutionUid = OccurrenceIndex.INSTITUTION_UID;
-        String collectionUid = OccurrenceIndex.COLLECTION_UID;
-        String dataProviderUid = OccurrenceIndex.DATA_PROVIDER_UID;
-        String dataResourceUid = OccurrenceIndex.DATA_RESOURCE_UID;
+        SolrQuery solrQuery = new SolrQuery();
+        solrQuery.setQuery(downloadParams.getFormattedQuery());
+        solrQuery.setFilterQueries(downloadParams.getFormattedFq());
+        solrQuery.setRows(-1);
+        solrQuery.setStart(0);
 
-        int count = 0;
-        int record = 0;
-        for (SolrDocument sd : qr.getResults()) {
-            if (sd.getFieldValue(dataResourceUid) != null && (!checkLimit || (checkLimit && resultsCount.intValue() < maxDownloadSize))) {
-
-                //resultsCount++;
-                count++;
-                resultsCount.incrementAndGet();
-
-                //add the record
-                String[] values = new String[fields.length + analysisLayers.length + speciesListFields.length + qaFields.length];
-
-                //get all the "single" values from the index
-                for (int j = 0; j < fields.length; j++) {
-                    Collection<Object> allValues = sd.getFieldValues(fields[j]);
-                    if (allValues == null) {
-                        values[j] = "";
-                    } else {
-                        Iterator it = allValues.iterator();
-                        while (it.hasNext()) {
-                            Object value = it.next();
-                            if (values[j] != null && values[j].length() > 0) values[j] += "|"; //multivalue separator
-                            values[j] = formatValue(value);
-
-                            //allow requests to include multiple values when requested
-                            if (dd == null || dd.getRequestParams() == null ||
-                                    dd.getRequestParams().getIncludeMultivalues() == null
-                                    || !dd.getRequestParams().getIncludeMultivalues()) {
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                //add analysis layer intersections
-                if (analysisLayers.length > 0 && intersection.size() > record) {
-                    //+1 offset for header in intersection list
-                    String[] sampling = intersection.get(record + 1);
-                    //+2 offset for latitude,longitude columns in sampling array
-                    if (sampling != null && sampling.length == analysisLayers.length + 2) {
-                        System.arraycopy(sampling, 2, values, fields.length, sampling.length - 2);
-                    }
-                }
-
-                // add species list fields
-                if (speciesListFields.length > 0) {
-                    String lftString = String.valueOf(sd.getFieldValue(OccurrenceIndex.LFT));
-                    String rgtString = String.valueOf(sd.getFieldValue(RGT));
-                    if (StringUtils.isNumeric(lftString)) {
-                        long lft = Long.parseLong(lftString);
-                        long rgt = Long.parseLong(rgtString);
-                        Kvp lftrgt = new Kvp(lft, rgt);
-
-                        String drDot = ".";
-                        String dr = "";
-                        int fieldIdx = 0;
-                        for (int i = 0; i < speciesListFields.length; i++) {
-                            if (speciesListFields[i].startsWith(drDot)) {
-                                fieldIdx++;
-                            } else {
-                                dr = speciesListFields[i].split("\\.", 2)[0];
-                                drDot = dr + ".";
-                                fieldIdx = 0;
-                            }
-
-                            values[analysisLayers.length + fields.length + i] =
-                                    listsService.getKvpValue(
-                                            fieldIdx,
-                                            listsService.getKvp(dr),
-                                            lftrgt);
-                        }
-                    }
-                }
-
-                //now handle the assertions
-                java.util.Collection<Object> assertions = sd.getFieldValues(ASSERTIONS);
-
-                //Handle the case where there a no assertions against a record
-                if (assertions == null) {
-                    assertions = Collections.EMPTY_LIST;
-                }
-
-                for (int k = 0; k < qaFields.length; k++) {
-                    values[fields.length + analysisLayers.length + speciesListFields.length + k] = Boolean.toString(assertions.contains(qaFields[k]));
-                }
-
-                // append previous and new non-empty misc fields
-                // do not include misc fields if this is a sensitive record and sensitive data is not permitted
-                if (dd != null && dd.getRequestParams() != null && dd.getRequestParams().getIncludeMisc() &&
-                        (sensitiveDataAllowed || "Not sensitive".equals(formatValue(sd.getFieldValue(SENSITIVE))) ||
-                                "".equals(formatValue(sd.getFieldValue(SENSITIVE))))) {
-
-                    // append miscValues for columns found
-                    List<String> miscValues = new ArrayList<>(miscFields.size());  // TODO: reuse
-
-                    // maintain miscFields order using synchronized
-                    synchronized (miscFields) {
-                        for (String f : miscFields) {
-                            miscValues.add(formatValue(sd.getFieldValue(f)));
-                            //clear field to avoid repeating the value when looking for new miscValues
-                            sd.setField(f, null);
-                        }
-                        // find and append new miscValues
-                        for (String key : sd.getFieldNames()) {
-                            if (key != null && key.startsWith("_")) {
-                                String value = formatValue(sd.getFieldValue(key));
-                                if (StringUtils.isNotEmpty(value)) {
-                                    miscValues.add(value);
-                                    miscFields.add(key);
-                                }
-                            }
-                        }
-                    }
-
-                    // append miscValues to values
-                    if (miscValues.size() > 0) {
-                        String[] newValues = new String[miscValues.size() + values.length];
-                        System.arraycopy(values, 0, newValues, 0, values.length);
-                        for (int i = 0; i < miscValues.size(); i++) {
-                            newValues[values.length + i] = miscValues.get(i);
-                        }
-                        values = newValues;
-                    }
-                }
-
-                rw.write(values);
-
-                //increment the counters....
-                incrementCount(uidStats, sd.getFieldValue(institutionUid));
-                incrementCount(uidStats, sd.getFieldValue(collectionUid));
-                incrementCount(uidStats, sd.getFieldValue(dataProviderUid));
-                incrementCount(uidStats, sd.getFieldValue(dataResourceUid));
-            }
-
-            record++;
-        }
-        dd.updateCounts(count);
-        return count;
-    }
-
-    private String formatValue(Object value) {
-
-        if (value == null) {
-            return "";
-        }
-
-        if (value instanceof Date) {
-            return org.apache.commons.lang.time.DateFormatUtils.format((Date) value, "yyyy-MM-dd");
+        //split into sensitive and non-sensitive queries when
+        // - not including all sensitive values
+        // - there is a sensitive fq
+        List<SolrQuery> queries = new ArrayList<SolrQuery>();
+        if (!includeSensitive && dd.getSensitiveFq() != null) {
+            queries.addAll(splitQueries(solrQuery, dd.getSensitiveFq(), downloadHeaders.included,
+                    Arrays.stream(downloadHeaders.included).filter(field -> {
+                        return !ArrayUtils.contains(sensitiveSOLRHdr, field);
+                    }).collect(Collectors.toList()).toArray(new String[0])));
         } else {
-            return value.toString();
+            solrQuery.setFields(downloadHeaders.included);
+            queries.add(solrQuery);
+        }
+
+        ProcessDownload procDownload = new ProcessDownload(uidStats, downloadHeaders, recordWriter, dd,
+                checkDownloadLimits, downloadService.dowloadOfflineMaxSize,
+                listsService, layersService);
+
+        return new DownloadCallable(queries, indexDao, procDownload);
+    }
+
+
+    Map<String, String[]> sensitiveFieldMapping = new HashMap();
+
+    private void initSensitiveFieldMapping() {
+        // TODO: verify these mappings only apply to the new fields
+        sensitiveFieldMapping.put("decimalLongitude", new String[]{"sensitive_decimalLongitude"});
+        sensitiveFieldMapping.put("decimalLatitude", new String[]{"sensitive_decimalLatitude"});
+        sensitiveFieldMapping.put("raw_decimalLongitude", new String[]{"sensitive_raw_decimalLongitude"});
+        sensitiveFieldMapping.put("raw_decimalLatitude", new String[]{"sensitive_raw_decimalLatitude"});
+        sensitiveFieldMapping.put("locality", new String[]{"sensitive_locality"});
+        sensitiveFieldMapping.put("raw_locality", new String[]{"sensitive_raw_locality"});
+    }
+
+    /**
+     * insert sensitive versions of requested fields
+     *
+     * @param downloadParams
+     */
+    private void insertSensitiveFields(DownloadRequestParams downloadParams) {
+        String fields = downloadParams.getFields();
+        // replace appearence of keys with values that are not already in fields.
+        for (Entry<String, String[]> entry : sensitiveFieldMapping.entrySet()) {
+            String regex = "\\b" + entry.getKey() + "\\b";
+            if (fields.matches(regex)) {
+                StringBuilder sb = new StringBuilder();
+                for (String item : entry.getValue()) {
+                    if (!fields.matches("\\b" + item + "\\b")) {
+                        sb.append(",").append(item);
+                    }
+                }
+                if (sb.length() > 0) {
+                    fields.replaceFirst(regex, entry.getKey() + sb);
+                }
+            }
+        }
+        ;
+    }
+
+    /**
+     * Process downloadRequestParams.fields and update for sensitive requests.
+     *
+     * @param downloadRequestParams
+     * @param includeSensitive
+     */
+    private void prepareRequestedFields(DownloadRequestParams downloadParams, boolean includeSensitive) {
+        // process field abreviations, defaults
+        expandRequestedFields(downloadParams, true);
+
+        // include sensitive versions of requested fields
+        if (includeSensitive) {
+            insertSensitiveFields(downloadParams);
+        }
+    }
+
+    private void requestFields(DownloadHeaders downloadHeaders, String[] fields) {
+        for (String field : fields) {
+            if (!ArrayUtils.contains(downloadHeaders.included, field)) {
+                downloadHeaders.included = (String[]) ArrayUtils.add(downloadHeaders.included, field);
+            }
+        }
+    }
+
+    private DownloadHeaders prepareHeaders(DownloadRequestParams downloadParams) {
+        DownloadHeaders downloadHeaders = downloadFields.newDownloadHeader(downloadParams);
+
+        // add fields that are required for post-processing
+        addPostProcessingFields(downloadParams, downloadHeaders);
+
+        return downloadHeaders;
+    }
+
+    /**
+     * Add fields to downloadHeaders that are required by the download request. This appends to
+     * downloadHeaders.included for additional fields required from SOLR.
+     * <p>
+     * Additions are for:
+     * - assertions value for qa columns requested
+     * - attribution values for logger.ala
+     * - species lft and rgt values for species list lookups
+     * - misc field for inclusion of miscellanious columns.
+     *
+     * @param downloadParams
+     * @param downloadHeaders
+     */
+    private void addPostProcessingFields(DownloadRequestParams downloadParams, DownloadHeaders downloadHeaders) {
+        // include assertion fields
+        if (!"none".equals(downloadParams.getQa())) {
+            requestFields(downloadHeaders, new String[]{"assertions"});
+
+            // Map assertions to the output columns with the assertion name in the header.
+            // These assertion columns will contain the passed/failed values.
+            if ("includeAll".equals(downloadParams.getQa())) {
+                downloadHeaders.qaIds = getAllQAFields().toString().split(",");
+            } else if ("all".equals(downloadParams.getQa())) {
+                try {
+                    downloadHeaders.qaIds = getFacet(downloadParams, "assertions").getValues().stream().filter(count -> {
+                        return count.getCount() > 0;
+                    }).map(count -> {
+                        return count.getName();
+                    }).collect(Collectors.toList()).toArray(new String[0]);
+                } catch (Exception e) {
+                    logger.error("error getting assertions facet for download: " + downloadParams, e);
+                }
+            }
+            downloadHeaders.qaLabels = Arrays.stream(downloadHeaders.qaIds).map(id -> {
+                return messageSource.getMessage("assertions." + id, null, id, null);
+            }).collect(Collectors.toList()).toArray(new String[0]);
+        }
+
+        // fields required for logger.ala
+        requestFields(downloadHeaders, new String[]{DATA_PROVIDER_UID, INSTITUTION_UID, COLLECTION_UID, DATA_RESOURCE_UID});
+
+        // 'lft' and 'rgt' is mandatory when there are species list fields
+        if (downloadHeaders.speciesListIds.length > 0) {
+            requestFields(downloadHeaders, new String[]{LFT, RGT});
+        }
+
+        // include misc fields
+        if (downloadParams.getIncludeMisc()) {
+            requestFields(downloadHeaders, new String[]{SENSITIVE, OccurrenceIndex.MISC});
         }
     }
 
@@ -1775,25 +1210,15 @@ public class SearchDAOImpl implements SearchDAO {
         downloadParams.setFields(fields);
     }
 
-    private String getQAFromFacet(FacetField facet) {
-        StringBuilder qasb = new StringBuilder();
-        for (FacetField.Count facetEntry : facet.getValues()) {
-            if (facetEntry.getCount() > 0) {
-                if (qasb.length() > 0) {
-                    qasb.append(",");
-                }
-                if (facetEntry.getName() != null) {
-                    qasb.append(facetEntry.getName());
-                }
-            }
-        }
-        return qasb.toString();
-    }
-
     private String getDownloadFields(DownloadRequestParams downloadParams) {
         String dFields = downloadParams.getFields();
         if (StringUtils.isEmpty(dFields)) {
             dFields = defaultDownloadFields;
+        }
+        // append any extra fields
+        String extra = downloadParams.getExtra();
+        if (!StringUtils.isEmpty(extra)) {
+            dFields += "," + extra;
         }
         return dFields;
     }
@@ -1801,32 +1226,26 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * Split a list of queries by a fq.
      */
-    private List<SolrQuery> splitQueries(List<SolrQuery> queries, String fq, String[] fqFields, String[] notFqFields) {
-        List<SolrQuery> notFQ = new ArrayList<SolrQuery>();
-        List<SolrQuery> fQ = new ArrayList<SolrQuery>();
+    private List<SolrQuery> splitQueries(SolrQuery query, String fq, String[] fqFields, String[] notFqFields) {
+        List<SolrQuery> queries = new ArrayList<SolrQuery>();
 
-        for (SolrQuery query : queries) {
-            SolrQuery nsq = query.getCopy().addFilterQuery("-(" + fq + ")");
-            if (notFqFields != null) {
-                Arrays.stream(notFqFields).forEach(nsq::addField);  // PIPELINES: SolrQuery::addField entry point
-            }
-            notFQ.add(nsq);
 
-            SolrQuery sq = query.getCopy().addFilterQuery(fq);
-            if (fqFields != null) {
-                Arrays.stream(fqFields).forEach(sq::addField);      // PIPELINES: SolrQuery::addField entry point
-            }
-            fQ.add(sq);
+        SolrQuery nsq = query.getCopy().addFilterQuery("-(" + fq + ")");
+        if (notFqFields != null) {
+            Arrays.stream(notFqFields).forEach(nsq::addField);
         }
+        queries.add(nsq);
 
-        queries.clear();
-        queries.addAll(notFQ);
-        queries.addAll(fQ);
+        SolrQuery sq = query.getCopy().addFilterQuery(fq);
+        if (fqFields != null) {
+            Arrays.stream(fqFields).forEach(sq::addField);
+        }
+        queries.add(sq);
 
-        return fQ;
+        return queries;
     }
 
-    private static void incrementCount(ConcurrentMap<String, AtomicInteger> values, Object uid) {
+    public static void incrementCount(ConcurrentMap<String, AtomicInteger> values, Object uid) {
         if (uid != null) {
             String nextKey = uid.toString();
             // TODO: When bumping to Java-8 this can use computeIfAbsent to avoid all unnecessary object creation and putIfAbsent
@@ -2399,11 +1818,11 @@ public class SearchDAOImpl implements SearchDAO {
 
     /**
      * Add {@link FacetResultDTO} instances to facetResults from facetEntries either coming from Solr facet  or facet ranges entries
+     *
      * @param facetResults A non null list where FacetResultDTO instances will be added.
      * @param facetEntries The solr facet entries
-     * @param facetName The name of the facet
+     * @param facetName    The name of the facet
      * @throws IllegalArgumentException if facetEntries is not a List containing either {@link FacetField.Count} or @{@link RangeFacet.Count} instances
-     *
      */
     private void addFacetResultsFromSolrFacets(List<FacetResultDTO> facetResults, List<?> facetEntries, String facetName) {
         if ((facetEntries != null) && (facetEntries.size() > 0)) {
@@ -2412,18 +1831,18 @@ public class SearchDAOImpl implements SearchDAO {
             long entryCount;
             String countEntryName;
 
-            for (Object  facetCountEntryObject : facetEntries) {
-                if(facetCountEntryObject instanceof Count) {
+            for (Object facetCountEntryObject : facetEntries) {
+                if (facetCountEntryObject instanceof Count) {
                     Count facetCountEntry = (Count) facetCountEntryObject;
                     entryCount = facetCountEntry.getCount();
                     countEntryName = facetCountEntry.getName();
-                } else if(facetCountEntryObject instanceof RangeFacet.Count)  {
+                } else if (facetCountEntryObject instanceof RangeFacet.Count) {
                     RangeFacet.Count raengeFacetCountEntry = (RangeFacet.Count) facetCountEntryObject;
                     entryCount = raengeFacetCountEntry.getCount();
                     countEntryName = raengeFacetCountEntry.getValue();
 
                 } else {
-                    throw new IllegalArgumentException("facetCountEntry is not an instance of FacetField.Count nor RangeFacet.Count: "+ facetCountEntryObject.getClass());
+                    throw new IllegalArgumentException("facetCountEntry is not an instance of FacetField.Count nor RangeFacet.Count: " + facetCountEntryObject.getClass());
                 }
 
                 //check to see if the facet field is an uid value that needs substitution
@@ -2432,7 +1851,7 @@ public class SearchDAOImpl implements SearchDAO {
                 if (countEntryName == null) {
 
                     String label = "";
-                    if(messageSource != null){
+                    if (messageSource != null) {
                         label = messageSource.getMessage(fieldMappingUtil.translateFieldName(facetName) + ".novalue", null, "Not supplied", null);
                     }
                     r.add(new FieldResultDTO(label, facetName + ".novalue", entryCount, "-" + facetName + ":*"));
@@ -2548,17 +1967,6 @@ public class SearchDAOImpl implements SearchDAO {
                     for (String range : rangeMap.keySet()) {
                         solrQuery.add("facet.query", range);
                     }
-//                } else if (facet.endsWith(RANGE_SUFFIX)) {
-//                    //this facte need to have it ranges included.
-//                    if (!rangeAdded) {
-//                        solrQuery.add("facet.range.other", "before");
-//                        solrQuery.add("facet.range.other", "after");
-//                    }
-//                    String field = facet.replaceAll(RANGE_SUFFIX, "");
-//                    StatsIndexFieldDTO details = indexDao.getRangeFieldDetails(field);
-//                    if (details != null) {
-//                        solrQuery.addNumericRangeFacet(field, details.getStart(), details.getEnd(), details.getGap());
-//                    }
                 } else {
 
                     solrQuery.addFacetField(facet); // PIPELINES: SolrQuery::addFacetField entry point
@@ -2584,8 +1992,8 @@ public class SearchDAOImpl implements SearchDAO {
                 solrQuery.add("facet.prefix", searchParams.getFprefix());
         }
 
-        solrQuery.setRows(10);
-        solrQuery.setStart(0);
+        solrQuery.setRows(searchParams.getPageSize());
+        solrQuery.setStart(searchParams.getStart());
 
         if (searchParams.getFl().length() > 0) {
 
@@ -2764,7 +2172,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * Returns the count of distinct values for the facets.
      * This is an altered implementation that is SOLRCloud friendly (ngroups are not SOLR Cloud compatible)
-     *
+     * <p>
      * The group count is only accurate when foffset == 0
      */
     public List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception {
@@ -2836,7 +2244,7 @@ public class SearchDAOImpl implements SearchDAO {
     private void logError(String description, String message) {
         String requestID = MDC.get("X-Request-ID");
         if (requestID != null) {
-            logger.error(description + ", RequestID:" +requestID+ " Error : " + message);
+            logger.error(description + ", RequestID:" + requestID + " Error : " + message);
         } else {
             logger.error(description + " : " + message);
         }
@@ -2931,11 +2339,11 @@ public class SearchDAOImpl implements SearchDAO {
                         }
                     }
 
-                    if (facetEntries.size() > wmslegendMaxItems){
-                        String theFq = "-(" + StringUtils.join(addedFqs, " AND ") +")";
-                            // create a single catch remainder facet
+                    if (facetEntries.size() > wmslegendMaxItems) {
+                        String theFq = "-(" + StringUtils.join(addedFqs, " AND ") + ")";
+                        // create a single catch remainder facet
                         legend.add(legend.size(), new LegendItem(
-                            "Other " + facetField,
+                                "Other " + facetField,
                                 facetField + ".other",
                                 "",
                                 remainderCount,
@@ -2955,7 +2363,7 @@ public class SearchDAOImpl implements SearchDAO {
         Map<String, Integer> facetq = qr.getFacetQuery();
         if (facetq != null && facetq.size() > 0) {
             for (Entry<String, Integer> es : facetq.entrySet()) {
-                legend.add(new LegendItem( getFacetValueDisplayName(tFacetField, es.getKey()), tFacetField + "." + es.getKey(), es.getKey(), es.getValue(), es.getKey()));
+                legend.add(new LegendItem(getFacetValueDisplayName(tFacetField, es.getKey()), tFacetField + "." + es.getKey(), es.getKey(), es.getValue(), es.getKey()));
             }
         }
 
@@ -3197,7 +2605,6 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
 
-
     /**
      * Perform grouped facet query.
      * <p>
@@ -3304,8 +2711,7 @@ public class SearchDAOImpl implements SearchDAO {
         } else {
             if (messageSource != null) {
 
-                if(StringUtils.isNotBlank(value)) {
-
+                if (StringUtils.isNotBlank(value)) {
 
 
                     return messageSource.getMessage(
@@ -3482,7 +2888,7 @@ public class SearchDAOImpl implements SearchDAO {
                 if (i == 0) {
                     li = new LegendItem(">0", "", "", 0, null);
                 } else {
-                    li = new LegendItem(String.valueOf(i),  "", "", 0, null);
+                    li = new LegendItem(String.valueOf(i), "", "", 0, null);
                 }
                 li.setColour((((500 - i) / 2) << 8) | 0x00FF0000);
                 colours.add(li);
@@ -3525,12 +2931,12 @@ public class SearchDAOImpl implements SearchDAO {
                     if (cutpoints == null) {
                         colour = ColorUtil.colourList[i];
                     } else if (cutpoints != null && i - offset < cutpoints.length) {
-                        if (li.isRemainder()){
+                        if (li.isRemainder()) {
                             colour = ColorUtil.getRangedColour(i - offset, cutpoints.length / 2);
-                        } else if ( StringUtils.isEmpty(legend.get(i).getName())
+                        } else if (StringUtils.isEmpty(legend.get(i).getName())
                                 || legend.get(i).getName().equals("Unknown")
                                 || legend.get(i).getName().startsWith("-")
-                            ) {
+                        ) {
                             offset++;
                         } else {
                             colour = ColorUtil.getRangedColour(i - offset, cutpoints.length / 2);
@@ -3552,36 +2958,26 @@ public class SearchDAOImpl implements SearchDAO {
      * @throws Exception
      */
     public double[] getBBox(SpatialSearchRequestParams requestParams) throws Exception {
-        String latitude = OccurrenceIndex.LATITUDE;
-        String longitude = OccurrenceIndex.LONGITUDE;
+        SolrQuery query = buildSolrQuery(requestParams);
+        query.setRows(0);
+        query.setFacet(false);
 
-        double[] bbox = new double[4];
-        String[] sort = {longitude, latitude, longitude, latitude};
-        String[] dir = {"asc", "asc", "desc", "desc"};
+        query.add("json.facet", "{x2:\"max(decimalLongitude)\",x1:\"min(decimalLongitude)\",y2:\"max(decimalLatitude)\",y1:\"min(decimalLatitude)\"}");
+        QueryResponse qr = indexDao.query(query);
 
-        //Filter for -180 +180 longitude and -90 +90 latitude to match WMS request bounds.
-        String[] bounds = new String[]{longitude + ":[-180 TO 180]", latitude + ":[-90 TO 90]"};
+        SimpleOrderedMap facets = SearchUtils.getMap(qr.getResponse(), "facets");
 
-        queryFormatUtils.addFqs(bounds, requestParams);
+        return new double[]{toDouble(facets.get("x1")), toDouble(facets.get("y1")), toDouble(facets.get("x2")), toDouble(facets.get("y2"))};
+    }
 
-        requestParams.setFq(requestParams.getFq());
-        requestParams.setPageSize(10);
-
-        for (int i = 0; i < sort.length; i++) {
-            requestParams.setSort(sort[i]);
-            requestParams.setDir(dir[i]);
-            requestParams.setFl(sort[i]);
-
-            SolrDocumentList sdl = findByFulltext(requestParams);
-            if (sdl != null && sdl.size() > 0) {
-                if (sdl.get(0) != null) {
-                    bbox[i] = (Double) sdl.get(0).getFieldValue(sort[i]);
-                } else {
-                    logger.error("searchDAO.findByFulltext returning SolrDocumentList with null records");
-                }
-            }
+    private double toDouble(Object o) {
+        if (o instanceof Double) {
+            return (Double) o;
+        } else if (o instanceof Float) {
+            return (Float) o;
+        } else {
+            return Double.parseDouble(o.toString());
         }
-        return bbox;
     }
 
     @Override
@@ -3780,7 +3176,7 @@ public class SearchDAOImpl implements SearchDAO {
         // gridLevel must be between 1 and 26 inclusive for the SOLR quad index.
         // At the gridLevel 1 it is a 1x1 cell for the whole world (360 degrees x 180 degrees)
         // Add 7 grid levels to get a heatmap of size 2^7 x 2^7 grid cells (128x128) - approximately
-        double [] solrGridLevelMap = new double [] {360,180,90,45,22.5,11.25,5.625,2.8125,1.40625,0.703125,0.3515625,0.17578125,0.087890625,0.0439453125,0.02197265625,0.010986328125,0.0054931640625,0.00274658203125,0.001373291015625,0.0006866455078125};
+        double[] solrGridLevelMap = new double[]{360, 180, 90, 45, 22.5, 11.25, 5.625, 2.8125, 1.40625, 0.703125, 0.3515625, 0.17578125, 0.087890625, 0.0439453125, 0.02197265625, 0.010986328125, 0.0054931640625, 0.00274658203125, 0.001373291015625, 0.0006866455078125};
         int zoomLevelByWidth = 0;
         while (zoomLevelByWidth < solrGridLevelMap.length && tileWidth < solrGridLevelMap[zoomLevelByWidth]) {
             zoomLevelByWidth++;
@@ -3810,12 +3206,12 @@ public class SearchDAOImpl implements SearchDAO {
 
         // query by taxonConceptID, get outlerForLayers
         SolrQuery query = new SolrQuery();
-        query.setQuery("id: \"" + uuid +"\"");
+        query.setQuery("id: \"" + uuid + "\"");
         query.setFields("taxonConceptID", "outlierLayer", "el*");
         query.setRows(1);
 
         QueryResponse qr = query(query);
-        if (qr.getResults() == null || qr.getResults().isEmpty()){
+        if (qr.getResults() == null || qr.getResults().isEmpty()) {
             return new ArrayList<>();
         }
 
@@ -3824,13 +3220,13 @@ public class SearchDAOImpl implements SearchDAO {
         Collection outlierLayers = doc.getFieldValues("outlierLayer");
         String taxonConceptID = (String) doc.getFieldValue("taxonConceptID");
 
-        if (outlierLayers == null  || outlierLayers.isEmpty() || taxonConceptID == null){
+        if (outlierLayers == null || outlierLayers.isEmpty() || taxonConceptID == null) {
             return new ArrayList<>();
         }
 
         List<RecordJackKnifeStats> statsList = new ArrayList<>();
 
-        for (Object layerId: outlierLayers){
+        for (Object layerId : outlierLayers) {
 
             RecordJackKnifeStats stats = new RecordJackKnifeStats();
             SolrQuery layerQuery = new SolrQuery();
@@ -3849,5 +3245,20 @@ public class SearchDAOImpl implements SearchDAO {
             statsList.add(stats);
         }
         return statsList;
+    }
+
+    @Override
+    public int streamingQuery(SpatialSearchRequestParams request, ProcessInterface procSearch, ProcessInterface procFacet) throws Exception {
+        return indexDao.streamingQuery(buildSolrQuery(request), procSearch, procFacet);
+    }
+
+    public SolrQuery buildSolrQuery(SpatialSearchRequestParams request) throws Exception {
+        queryFormatUtils.formatSearchQuery(request);
+
+        String queryString = request.getFormattedQuery();
+        SolrQuery solrQuery = initSolrQuery(request, true, null);
+        solrQuery.setQuery(queryString);
+
+        return solrQuery;
     }
 }

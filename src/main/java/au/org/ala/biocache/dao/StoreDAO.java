@@ -1,7 +1,7 @@
 package au.org.ala.biocache.dao;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -10,7 +10,7 @@ import java.util.Optional;
 public interface StoreDAO {
     <T> Optional<T> get(Class<T> dataClass, String key) throws IOException;
 
-    <T> List<T> getAll(Class<T> dataClass) throws IOException;
+    <T> Map<String, T> getAll(Class<T> dataClass) throws IOException;
 
     <T> void put(String key, T data) throws IOException;
 

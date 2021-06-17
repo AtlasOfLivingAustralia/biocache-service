@@ -316,7 +316,7 @@ public class AssertionController extends AbstractSecureController {
     }
 
     @RequestMapping(value = {"/sync"}, method = RequestMethod.GET)
-    public @ResponseBody Boolean showSensitiveOccurrence(@RequestParam(value="apiKey", required=true) String apiKey,
+    public @ResponseBody Boolean indexAll(@RequestParam(value="apiKey", required=true) String apiKey,
                                                         HttpServletResponse response) throws Exception {
         if (isValidKey(apiKey)) {
             if (assertionService.indexAll()) {
@@ -324,6 +324,17 @@ public class AssertionController extends AbstractSecureController {
             } else {
                 response.setStatus(HttpServletResponse.SC_OK, "An index all user assertions job already running. Your request won't be processed.");
             }
+        } else {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
+        }
+        return null;
+    }
+
+    @RequestMapping(value = {"/sync/status"}, method = RequestMethod.GET)
+    public @ResponseBody String indexAllStatus(@RequestParam(value="apiKey", required=true) String apiKey,
+                                                         HttpServletResponse response) throws Exception {
+        if (isValidKey(apiKey)) {
+            return assertionService.isIndexAllRunning() ? "indexAll task is running" : "No task is running";
         } else {
             response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
         }

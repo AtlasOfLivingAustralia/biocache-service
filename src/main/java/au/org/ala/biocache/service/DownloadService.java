@@ -1,12 +1,12 @@
 /**************************************************************************
  *  Copyright (C) 2013 Atlas of Living Australia
  *  All Rights Reserved.
- * 
+ *
  *  The contents of this file are subject to the Mozilla Public
  *  License Version 1.1 (the "License"); you may not use this file
  *  except in compliance with the License. You may obtain a copy of
  *  the License at http://www.mozilla.org/MPL/
- * 
+ *
  *  Software distributed under the License is distributed on an "AS
  *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  *  implied. See the License for the specific language governing
@@ -70,7 +70,7 @@ import static java.util.stream.Collectors.toList;
 
 /**
  * Services to perform the downloads.
- * 
+ * <p>
  * Can configure the number of off-line download processors
  *
  * @author Natasha Carter (natasha.carter@csiro.au)
@@ -83,7 +83,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     public static final String DOI_SELECTOR = "doi";
     public static final String DEFAULT_SELECTOR = "default";
     private static final String DOWNLOAD_FILE_LOCATION = "[url]";
-    private static final String OFFICIAL_FILE_LOCATION =  "[officialDoiUrl]";
+    private static final String OFFICIAL_FILE_LOCATION = "[officialDoiUrl]";
     private static final String START_DATE_TIME = "[date]";
     private static final String QUERY_TITLE = "[queryTitle]";
     private static final String SEARCH_URL = "[searchUrl]";
@@ -105,7 +105,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * <li>2 threads for db (CASSANDA) downloads for &lt;50,000 occurrences with 10ms poll delay, 10ms execution delay, and normal thread priority (5)</li>
      * <li>1 thread for either index or db downloads, an unrestricted count, with 300ms poll delay, 100ms execution delay, and minimum thread priority (1)</li>
      * </ul>
-     *
+     * <p>
      * If there are no thread patterns specified here, a single thread with 10ms poll delay and 0ms execution delay, and normal thread priority (5) will be created and used instead.
      */
     @Value("${concurrent.downloads.json:[{\"label\": \"smallSolr\", \"threads\": 4, \"maxRecords\": 50000, \"type\": \"index\", \"pollDelay\": 10, \"executionDelay\": 10, \"threadPriority\": 5}, {\"label\": \"largeSolr\", \"threads\": 1, \"maxRecords\": 100000000, \"type\": \"index\", \"pollDelay\": 100, \"executionDelay\": 100, \"threadPriority\": 1}, {\"label\": \"smallCassandra\", \"threads\": 1, \"maxRecords\": 50000, \"type\": \"db\", \"pollDelay\": 10, \"executionDelay\": 10, \"threadPriority\": 5}, {\"label\": \"defaultUnrestricted\", \"threads\": 1, \"pollDelay\": 1000, \"executionDelay\": 100, \"threadPriority\": 1}]}")
@@ -214,15 +214,15 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     protected String biocacheDownloadAdditionalLocalFiles;
 
     /**
-     * A delay (in milliseconds) between minting the DOI, and sending emails containing 
+     * A delay (in milliseconds) between minting the DOI, and sending emails containing
      * the DOI to allow for the DOI registration to propagate to upstream DOI providers.
-     * 
-     * Users have commented that the DOI is not resolvable when they receive the email 
+     * <p>
+     * Users have commented that the DOI is not resolvable when they receive the email
      * and this is the configuration setting to tweak to improve that behaviour.
-     * 
-     * Note that this delay starts after the chosen DOI provider has confirmed that 
-     * they have successfully minted the DOI. Hence, there are no issues with setting 
-     * it to zero if the DOI provider is known not to be propagating the registration 
+     * <p>
+     * Note that this delay starts after the chosen DOI provider has confirmed that
+     * they have successfully minted the DOI. Hence, there are no issues with setting
+     * it to zero if the DOI provider is known not to be propagating the registration
      * to another upstream DOI provider before it is resolvable.
      */
     @Value("${download.doi.propagation.delay:60000}")
@@ -324,7 +324,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     protected final void afterInitialisation() {
         try {
             initialisationLatch.await();
-        } catch(InterruptedException e) {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
     }
@@ -383,7 +383,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             logger.error("Failed to create all extra offline download threads for concurrent.downloads.extra=" + concurrentDownloadsJSON, e);
                         }
                         // If no threads were created, then add a single default thread
-                        if(runningDownloadControllers.isEmpty()) {
+                        if (runningDownloadControllers.isEmpty()) {
                             logger.warn("No offline download threads were created from configuration, creating a single default download thread instead.");
                             DownloadControlThread nextRunnable = new DownloadControlThread(
                                     null,
@@ -435,14 +435,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      */
     private ExecutorService getOfflineThreadPoolExecutor() {
         ExecutorService nextExecutor = offlineParallelQueryExecutor;
-        if(nextExecutor == null){
-            synchronized(this) {
+        if (nextExecutor == null) {
+            synchronized (this) {
                 nextExecutor = offlineParallelQueryExecutor;
-                if(nextExecutor == null) {
+                if (nextExecutor == null) {
                     nextExecutor = offlineParallelQueryExecutor = Executors.newFixedThreadPool(
-                                                                getMaxOfflineParallelDownloadThreads(),
-                                                                new ThreadFactoryBuilder().setNameFormat("biocache-query-offline-%d")
-                                                                .setPriority(Thread.MIN_PRIORITY).build());
+                            getMaxOfflineParallelDownloadThreads(),
+                            new ThreadFactoryBuilder().setNameFormat("biocache-query-offline-%d")
+                                    .setPriority(Thread.MIN_PRIORITY).build());
                 }
             }
         }
@@ -459,45 +459,42 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Override
     public void onApplicationEvent(ContextClosedEvent event) {
         afterInitialisation();
-        if(closed.compareAndSet(false, true)) {
+        if (closed.compareAndSet(false, true)) {
             try {
                 // Stop more downloads from being added by shutting down additions to the persistent queue
                 persistentQueueDAO.shutdown();
-            }
-            finally {
+            } finally {
                 DownloadControlThread nextToCloseRunnable = null;
                 // Call a non-blocking shutdown command on all of the download control threads
-                while((nextToCloseRunnable = runningDownloadControlRunnables.poll()) != null) {
+                while ((nextToCloseRunnable = runningDownloadControlRunnables.poll()) != null) {
                     nextToCloseRunnable.shutdown();
                 }
 
                 // Give threads a chance to react to the shutdown flag before checking if they are alive
                 try {
                     Thread.sleep(2000);
-                }
-                catch(InterruptedException e) {
+                } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
 
                 Thread nextToCloseThread = null;
                 List<Thread> toJoinThreads = new ArrayList<>();
-                while((nextToCloseThread = runningDownloadControllers.poll()) != null) {
-                    if(nextToCloseThread.isAlive()) {
+                while ((nextToCloseThread = runningDownloadControllers.poll()) != null) {
+                    if (nextToCloseThread.isAlive()) {
                         toJoinThreads.add(nextToCloseThread);
                     }
                 }
 
-                if(!toJoinThreads.isEmpty()) {
+                if (!toJoinThreads.isEmpty()) {
                     // Give remaining download control threads a few seconds to cleanup before interrupting
                     try {
                         Thread.sleep(5000);
-                    }
-                    catch(InterruptedException e) {
+                    } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
 
-                    for(final Thread nextToJoinThread : toJoinThreads) {
-                        if(nextToJoinThread.isAlive()) {
+                    for (final Thread nextToJoinThread : toJoinThreads) {
+                        if (nextToJoinThread.isAlive()) {
                             // Interrupt any threads that are still alive after the non-blocking shutdown command
                             nextToJoinThread.interrupt();
                         }
@@ -516,7 +513,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @return
      */
     public DownloadDetailsDTO registerDownload(DownloadRequestParams requestParams, String ip, String userAgent,
-            DownloadDetailsDTO.DownloadType type) {
+                                               DownloadDetailsDTO.DownloadType type) {
         afterInitialisation();
         DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, userAgent, type);
         dd.setRequestParams(requestParams);
@@ -585,7 +582,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             } else {
                 requestParams.setFacets(new String[]{data_resource_uid});
             }
-            
+
             final ConcurrentMap<String, AtomicInteger> uidStats;
             uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, sp, includeSensitive, dd, limit, parallelExecutor);
 
@@ -620,7 +617,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                 if (citationsEnabled) {
                     List<Map<String, String>> datasetMetadata = null;
-                    if(mintDoi) {
+                    if (mintDoi) {
                         datasetMetadata = new ArrayList<>();
                     }
 
@@ -634,7 +631,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     sp.closeEntry();
 
 
-                    if(mintDoi) {
+                    if (mintDoi) {
 
                         Map<String, ?> userDetails = authService.getUserDetails(dd.getEmail());
 
@@ -644,10 +641,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                         // Prepare licence
                         Set<String> datasetLicences = new TreeSet<>();
-                        for(Map<String, String> dataset: datasetMetadata) {
+                        for (Map<String, String> dataset : datasetMetadata) {
                             String licence = dataset.get("licence");
 
-                            if(StringUtils.isNotBlank(licence) ) {
+                            if (StringUtils.isNotBlank(licence)) {
                                 datasetLicences.add(licence);
                             }
                         }
@@ -685,9 +682,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         } catch (Exception e) {
                             logger.error("DOI minting failed", e);
                         }
-                        if(doiResponse != null) {
+                        if (doiResponse != null) {
                             logger.debug("DOI minted: " + doiResponse.getDoi());
-                            doiResponseList.add (doiResponse);
+                            doiResponseList.add(doiResponse);
                         } else {
                             logger.error("DOI minting failed for path " + dd.getFileLocation());
                         }
@@ -853,7 +850,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     }
 
     /**
-     *
      * @param requestParams
      * @param response
      * @param ip
@@ -862,18 +858,18 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param fromIndex
      * @param zip
      * @throws Exception
-     * @deprecated Use {@link #writeQueryToStream(DownloadDetailsDTO, DownloadRequestParams, String, OutputStream, boolean, boolean, boolean, ExecutorService, List)} 
+     * @deprecated Use {@link #writeQueryToStream(DownloadDetailsDTO, DownloadRequestParams, String, OutputStream, boolean, boolean, boolean, ExecutorService, List)}
      */
     @Deprecated
     public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, String userAgent,
-            OutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip) throws Exception {
+                                   OutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip) throws Exception {
         afterInitialisation();
         writeQueryToStream(requestParams, response, ip, userAgent, out, includeSensitive, zip, getOfflineThreadPoolExecutor());
     }
 
 
     public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, String userAgent,
-            OutputStream out, boolean includeSensitive, boolean zip, ExecutorService parallelQueryExecutor) throws Exception {
+                                   OutputStream out, boolean includeSensitive, boolean zip, ExecutorService parallelQueryExecutor) throws Exception {
         afterInitialisation();
         String filename = requestParams.getFile();
 
@@ -896,7 +892,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     /**
      * get citation info from citation web service and write it into
      * citation.txt file.
-     * 
+     *
      * @param uidStats
      * @param out
      * @param datasetMetadata
@@ -919,7 +915,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(out), StandardCharsets.UTF_8), sep, '"', esc);) {
                 // Always write something to the citations.csv file so that users can distinguish between cases themselves when reporting issues
                 // i18n of the citation header
-                writer.writeNext(new String[] { messageSource.getMessage("citation.uid", null, "UID", null),
+                writer.writeNext(new String[]{messageSource.getMessage("citation.uid", null, "UID", null),
                         messageSource.getMessage("citation.name", null, "Name", null),
                         messageSource.getMessage("citation.doi", null, "DOI", null),
                         messageSource.getMessage("citation.citation", null, "Citation", null),
@@ -934,21 +930,21 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 if (!uidStats.isEmpty()) {
                     List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl,
                             uidStats.keySet(), List.class);
-                    final int UID=0;
-                    final int NAME=1;
-                    final int CITATION=3;
-                    final int RIGHTS=4;
-                    final int LINK=5;
-                    final int COUNT=9;
+                    final int UID = 0;
+                    final int NAME = 1;
+                    final int CITATION = 3;
+                    final int RIGHTS = 4;
+                    final int LINK = 5;
+                    final int COUNT = 9;
                     for (Map<String, Object> record : entities) {
                         // ensure that the record is not null to prevent NPE on
                         // the "get"s
                         if (record != null) {
                             Object value = record.get("uid");
-                            if(value != null) {
+                            if (value != null) {
                                 AtomicInteger uidRecordCount = uidStats.get(value);
                                 String count = Optional.ofNullable(uidRecordCount).orElseGet(() -> new AtomicInteger(0)).toString();
-                                String[] row = new String[] {
+                                String[] row = new String[]{
                                         getOrElse(record, "uid", ""),
                                         getOrElse(record, "name", ""),
                                         getOrElse(record, "DOI", ""),
@@ -958,7 +954,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                         getOrElse(record, "dataGeneralizations", ""),
                                         getOrElse(record, "informationWithheld", ""),
                                         getOrElse(record, "downloadLimit", ""),
-                                        count };
+                                        count};
                                 writer.writeNext(row);
 
                                 if (readmeCitations != null) {
@@ -966,8 +962,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     readmeCitations.add(row[CITATION] + " (" + row[RIGHTS] + "). " + row[LINK]);
                                 }
 
-                                if (datasetMetadata != null ) {
-                                    Map<String,String> dataSet = new HashMap<>();
+                                if (datasetMetadata != null) {
+                                    Map<String, String> dataSet = new HashMap<>();
 
                                     dataSet.put("uid", row[UID]);
                                     dataSet.put("name", row[NAME]);
@@ -998,7 +994,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     /**
      * get headings info from index/fields web service and write it into
      * headings.csv file.
-     * 
+     * <p>
      * output columns: column name field requested dwc description info field
      *
      * @param out
@@ -1006,7 +1002,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @throws IOException
      */
     public void getHeadings(ConcurrentMap<String, AtomicInteger> uidStats, OutputStream out,
-            DownloadRequestParams params, String[] miscHeaders) throws Exception {
+                            DownloadRequestParams params, String[] miscHeaders) throws Exception {
         if (headingsEnabled) {
             afterInitialisation();
 
@@ -1023,8 +1019,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 Set<IndexFieldDTO> indexedFields = indexDao.getIndexedFields();
 
                 // header
-                writer.writeNext(new String[] { "Column name", "Requested field", "DwC Name", "Field name",
-                        "Field description", "Download field name", "Download field description", "More information" });
+                writer.writeNext(new String[]{"Column name", "Requested field", "DwC Name", "Field name",
+                        "Field description", "Download field name", "Download field description", "More information"});
 
                 String[] fieldsRequested = null;
                 String[] headerOutput = null;
@@ -1039,7 +1035,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                 if (fieldsRequested != null && headerOutput != null) {
                     // ignore first fieldsRequested and headerOutput record
-                    for (int i = 1; i < fieldsRequested.length; i++) {
+                    for (int i = 1; i < fieldsRequested.length && i < headerOutput.length; i++) {
 
                         // find indexedField by download name
                         IndexFieldDTO ifdto = null;
@@ -1062,18 +1058,19 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         }
 
                         if (ifdto != null && StringUtils.isNotEmpty(headerOutput[i])) {
-                            writer.writeNext(new String[] { headerOutput[i], fieldsRequested[i],
+                            writer.writeNext(new String[]{headerOutput[i], fieldsRequested[i],
                                     ifdto.getDwcTerm() != null ? ifdto.getDwcTerm() : "",
                                     ifdto.getName() != null ? ifdto.getName() : "",
                                     ifdto.getDescription() != null ? ifdto.getDescription() : "",
                                     ifdto.getDownloadName() != null ? ifdto.getDownloadName() : "",
                                     ifdto.getDownloadDescription() != null ? ifdto.getDownloadDescription() : "",
-                                    ifdto.getInfo() != null ? ifdto.getInfo() : "" });
-                        } else if (StringUtils.isNotEmpty(headerOutput[i])){
-                            // others, e.g. assertions
+                                    ifdto.getInfo() != null ? ifdto.getInfo() : ""});
+                        } else if (StringUtils.isNotEmpty(headerOutput[i])) {
+                            // others, e.g. species lists and analysis layers that do not appear in the fieldsRequested
+                            // but do appear in the header. Do not include the species list ids or analysis ids
                             String info = messageSource.getMessage("description." + fieldsRequested[i], null, "", null);
-                            writer.writeNext(new String[] { headerOutput[i], fieldsRequested[i], "", "", "", "", "",
-                                    info != null ? info : "" });
+                            writer.writeNext(new String[]{headerOutput[i], fieldsRequested[i], "", "", "", "", "",
+                                    info != null ? info : ""});
                         }
                     }
                 }
@@ -1083,7 +1080,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     String defaultDescription = messageSource.getMessage("description.", null, "Raw field from data provider.", null);
                     for (int i = 0; i < miscHeaders.length; i++) {
                         writer.writeNext(
-                                new String[] { miscHeaders[i], "", "", "", "", "", messageSource.getMessage("description." + miscHeaders[i], null, defaultDescription, null)});
+                                new String[]{miscHeaders[i], "", "", "", "", "", messageSource.getMessage("description." + miscHeaders[i], null, defaultDescription, null)});
                     }
                 }
 
@@ -1111,7 +1108,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * Generate a search URL the user can use to regenerate the same download
      * (assumes they came via biocache UI) using pre-supplied quality filters
      *
-     * @param params The download / search parameters to use
+     * @param params                       The download / search parameters to use
      * @param enabledQualityFiltersByLabel A pre-provided map of enabled quality filter label to fqs or null if the should be looked up on demand.
      * @return url The generated search url
      */
@@ -1206,7 +1203,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             && !"headings.csv".equals(f.getName())) {
                         // make new file
                         try (FileReader fileReader = new FileReader(f);
-                                BufferedReader bufferedReader = new BufferedReader(fileReader);) {
+                             BufferedReader bufferedReader = new BufferedReader(fileReader);) {
                             File fnew = new File(f.getPath() + ".new");
                             try (FileWriter fw = new FileWriter(fnew);) {
                                 String line;
@@ -1294,7 +1291,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             return null;
         }
 
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug("sensitiveOnly download requested for user: " + userId +
                     ", using fq: " + sensitiveFq);
         }
@@ -1327,7 +1324,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 @Override
                 public DownloadDetailsDTO call() throws Exception {
                     try {
-                        if(logger.isInfoEnabled()) {
+                        if (logger.isInfoEnabled()) {
                             logger.info("Starting to download the offline request: " + currentDownload);
                         }
                         Thread.sleep(executionDelay);
@@ -1349,14 +1346,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             Boolean mintDoi = currentDownload.getRequestParams().getMintDoi();
 
                             String doiFailureMessage = "";
-                            if(mintDoi) {
+                            if (mintDoi) {
                                 doiResponseList = new ArrayList<>();
                             }
                             writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
                                     currentDownload.getIpAddress(), new CloseShieldOutputStream(fos), currentDownload.getIncludeSensitive(),
                                     currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, true, parallelExecutor, doiResponseList);
 
-                            if(mintDoi && doiResponseList.size() <= 0) {
+                            if (mintDoi && doiResponseList.size() <= 0) {
                                 //DOI Minting failed
                                 doiFailureMessage = biocacheDownloadDoiFailureMessage;
                                 mintDoi = false; //Prevent any updates
@@ -1367,7 +1364,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             final String hubName = currentDownload.getRequestParams().getHubName() != null ? currentDownload.getRequestParams().getHubName() : "ALA";
                             String subject = messageSource.getMessage("offlineEmailSubject", null, biocacheDownloadEmailSubject, null)
                                     .replace("[filename]", currentDownload.getRequestParams().getFile())
-                                    .replace("[hubName]",hubName);
+                                    .replace("[hubName]", hubName);
 
                             if (currentDownload != null && currentDownload.getFileLocation() != null) {
                                 insertMiscHeader(currentDownload);
@@ -1379,7 +1376,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 new File(currentDownload.getFileLocation()).getParentFile().setExecutable(true, false);
                                 new File(currentDownload.getFileLocation()).getParentFile().getParentFile().setExecutable(true, false);
 
-                                String archiveFileLocation = biocacheDownloadUrl + File.separator + URLEncoder.encode(currentDownload.getFileLocation().replace(biocacheDownloadDir + "/",""), "UTF-8").replace("%2F", "/").replace("+", "%20");
+                                String archiveFileLocation = biocacheDownloadUrl + File.separator + URLEncoder.encode(currentDownload.getFileLocation().replace(biocacheDownloadDir + "/", ""), "UTF-8").replace("%2F", "/").replace("+", "%20");
                                 final String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
                                 String doiStr = "";
                                 String emailTemplate;
@@ -1388,9 +1385,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 substitutions.put(START_DATE_TIME, currentDownload.getStartDateString(downloadDateFormat));
                                 substitutions.put(QUERY_TITLE, currentDownload.getRequestParams().getDisplayString());
                                 substitutions.put(SEARCH_URL, searchUrl);
-                                substitutions.put(DOI_FAILURE_MESSAGE,  doiFailureMessage);
+                                substitutions.put(DOI_FAILURE_MESSAGE, doiFailureMessage);
 
-                                if(mintDoi && doiResponseList != null && !doiResponseList.isEmpty() && doiResponseList.get(0) != null) {
+                                if (mintDoi && doiResponseList != null && !doiResponseList.isEmpty() && doiResponseList.get(0) != null) {
 
                                     CreateDoiResponse doiResponse;
                                     doiResponse = doiResponseList.get(0);
@@ -1406,19 +1403,18 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                         // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
                                         //final String doiLandingPage = currentDownload.getRequestParams().getDoiDisplayUrl() != null ? currentDownload.getRequestParams().getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
                                         //downloadFileLocation = doiLandingPage + doiStr;
-                                        substitutions.put(DOWNLOAD_FILE_LOCATION,  alaDoiResolver + doiStr);
-                                        substitutions.put(OFFICIAL_FILE_LOCATION,  OFFICIAL_DOI_RESOLVER + doiStr);
-                                        substitutions.put(BCCVL_IMPORT_ID,  URLEncoder.encode(doiStr, "UTF-8"));
-                                    }
-                                    catch (Exception ex) {
+                                        substitutions.put(DOWNLOAD_FILE_LOCATION, alaDoiResolver + doiStr);
+                                        substitutions.put(OFFICIAL_FILE_LOCATION, OFFICIAL_DOI_RESOLVER + doiStr);
+                                        substitutions.put(BCCVL_IMPORT_ID, URLEncoder.encode(doiStr, "UTF-8"));
+                                    } catch (Exception ex) {
                                         logger.error("DOI update failed for DOI uuid " + doiResponse.getUuid() +
                                                 " and path " + currentDownload.getFileLocation(), ex);
                                         currentDownload.getRequestParams().setEmailTemplate(DEFAULT_SELECTOR);
-                                        substitutions.put(DOWNLOAD_FILE_LOCATION,  archiveFileLocation);
+                                        substitutions.put(DOWNLOAD_FILE_LOCATION, archiveFileLocation);
                                     }
                                 } else {
                                     currentDownload.getRequestParams().setEmailTemplate(DEFAULT_SELECTOR);
-                                    substitutions.put(DOWNLOAD_FILE_LOCATION,  archiveFileLocation);
+                                    substitutions.put(DOWNLOAD_FILE_LOCATION, archiveFileLocation);
                                 }
 
                                 if (currentDownload.isEmailNotify()) {
@@ -1465,7 +1461,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 final String hubName = currentDownload.getRequestParams().getHubName() != null ? currentDownload.getRequestParams().getHubName() : "ALA";
                                 String subject = messageSource.getMessage("offlineEmailSubjectError", null, biocacheDownloadEmailSubjectError, null)
                                         .replace("[filename]", currentDownload.getRequestParams().getFile())
-                                        .replace("[hubName]",hubName);
+                                        .replace("[hubName]", hubName);
 
                                 String copyTo = supportEmailEnabled ? supportEmail : null;
 
@@ -1515,7 +1511,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             break;
                     }
 
-                    return  file;
+                    return file;
                 }
 
                 public String getFailEmailBodyTemplate() {
@@ -1531,17 +1527,17 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             break;
                     }
 
-                    return  emailTemplate;
+                    return emailTemplate;
                 }
 
                 public String generateEmailContent(String template, Map<String, String> substitutions) {
-                    if (template != null && substitutions.size() > 0 ){
-                        for(Map.Entry<String, String> entry : substitutions.entrySet()) {
+                    if (template != null && substitutions.size() > 0) {
+                        for (Map.Entry<String, String> entry : substitutions.entrySet()) {
                             template = template.replace(entry.getKey(), entry.getValue());
                         }
                     }
 
-                    return  template;
+                    return template;
                 }
             };
         }
@@ -1553,7 +1549,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             public void run() {
                 boolean showErrorMessage = true;
                 try {
-                    Thread.sleep(5*60*1000);
+                    Thread.sleep(5 * 60 * 1000);
                     try {
                         FileUtils.deleteDirectory(new File(currentDownload.getFileLocation()).getParentFile());
                     } catch (IOException e) {
@@ -1567,7 +1563,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 } catch (InterruptedException e1) {
                     Thread.currentThread().interrupt();
                     logger.error("Interrupted while waiting to delete failed download: directory before retrying: " + new File(currentDownload.getFileLocation()).getParent() +
-                                ", " + e1.getMessage(), e1);
+                            ", " + e1.getMessage(), e1);
                 } finally {
                     if (showErrorMessage) {
                         logger.error("Did not successfully wait for retry download timeout: " + new File(currentDownload.getFileLocation()).getParent());

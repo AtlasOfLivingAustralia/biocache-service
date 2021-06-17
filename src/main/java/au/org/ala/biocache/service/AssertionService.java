@@ -7,7 +7,6 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.OccurrenceUtils;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import org.apache.commons.lang.StringUtils;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.jetbrains.annotations.NotNull;
@@ -22,6 +21,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -41,9 +41,10 @@ public class AssertionService {
     private IndexDAO indexDao;
 
     SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+    private final Pattern uuidPattern = Pattern.compile("^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$");
     
     // max 1 indexAll thread can run at same time
-    ExecutorService executorService = new ThreadPoolExecutor(1, 1, 0, MILLISECONDS,
+    ThreadPoolExecutor executorService = new ThreadPoolExecutor(1, 1, 0, MILLISECONDS,
             new SynchronousQueue<>(),
             new ThreadPoolExecutor.AbortPolicy());
     @PostConstruct
@@ -54,10 +55,11 @@ public class AssertionService {
     Runnable indexAll = () -> {
         try {
             // get all user assertions from database
-            List<UserAssertions> allAssertions = store.getAll(UserAssertions.class);
+            Map<String, UserAssertions> allAssertions = store.getAll(UserAssertions.class);
+            logger.debug("total " + allAssertions.size() + " records found have assertions");
 
-            indexDao.indexFromMap(allAssertions.stream().filter(assertions -> !assertions.isEmpty() && StringUtils.isNotBlank(assertions.get(0).getReferenceRowKey()) && ifRecordExist(assertions.get(0).getReferenceRowKey())).
-                    map(assertions -> getIndexMap(assertions.get(0).getReferenceRowKey(), assertions)).collect(Collectors.toList()));
+            indexDao.indexFromMap(allAssertions.entrySet().stream().filter(e -> ifRecordExist(e.getKey()) && !e.getValue().isEmpty()).map(e -> getIndexMap(e.getKey(), e.getValue())).collect(Collectors.toList()));
+            logger.debug("index job finished");
         } catch (Exception e) {
             logger.error("Failed to read all assertions, e = " + e.getMessage());
         }
@@ -271,19 +273,26 @@ public class AssertionService {
             if (verifications.stream().anyMatch(qa -> qa.getQaStatus().equals(AssertionStatus.QA_OPEN_ISSUE))) {
                 assertionStatus = AssertionStatus.QA_OPEN_ISSUE;
             } else {
-                // sort by datetime DESC
-                verifications.sort((qa1, qa2) -> {
-                    try {
-                        Date qa2Date = simpleDateFormat.parse(qa2.getCreated());
-                        Date qa1Date = simpleDateFormat.parse(qa1.getCreated());
-                        return qa2Date.compareTo(qa1Date);
-                    } catch (ParseException e) {
-                        e.printStackTrace();
-                        throw new IllegalArgumentException(e);
-                    }
-                });
+                List<QualityAssertion> verificationsWithValidDate =
+                        verifications.stream().filter(qa -> validDate(qa.getCreated())).collect(Collectors.toList());
+                if (!verificationsWithValidDate.isEmpty()) {
+                    // sort by datetime DESC
+                    verificationsWithValidDate.sort((qa1, qa2) -> {
+                        try {
+                            Date qa2Date = simpleDateFormat.parse(qa2.getCreated());
+                            Date qa1Date = simpleDateFormat.parse(qa1.getCreated());
+                            return qa2Date.compareTo(qa1Date);
+                        } catch (ParseException e) {
+                            e.printStackTrace();
+                            throw new IllegalArgumentException(e);
+                        }
+                    });
 
-                assertionStatus = verifications.get(0).getQaStatus();
+                    assertionStatus = verificationsWithValidDate.get(0).getQaStatus();
+                } else {
+                    // assertions have no date, just pick one
+                    assertionStatus = verifications.get(0).getQaStatus();
+                }
             }
         }
 
@@ -294,8 +303,11 @@ public class AssertionService {
         // set userVerified
         indexMap.put("userVerified", !verifications.isEmpty());
 
-        if (!userAssertions.isEmpty()) {
-            userAssertions.sort((qa1, qa2) -> {
+        List<QualityAssertion> assertionsWithValidDate =
+                userAssertions.stream().filter(qa -> validDate(qa.getCreated())).collect(Collectors.toList());
+				
+        if (!assertionsWithValidDate.isEmpty()) {
+            assertionsWithValidDate.sort((qa1, qa2) -> {
                 try {
                     Date date1 = simpleDateFormat.parse(qa1.getCreated());
                     Date date2 = simpleDateFormat.parse(qa2.getCreated());
@@ -307,7 +319,7 @@ public class AssertionService {
             });
             Date lastDate = null;
             try {
-                lastDate = simpleDateFormat.parse(userAssertions.get(0).getCreated());
+                lastDate = simpleDateFormat.parse(assertionsWithValidDate.get(0).getCreated());
             } catch (ParseException e) {
                 e.printStackTrace();
             }
@@ -321,7 +333,7 @@ public class AssertionService {
         return indexMap;
     }
 
-    public Boolean indexAll() {
+    public boolean indexAll() {
         try {
             executorService.execute(indexAll);
         } catch (RejectedExecutionException e){
@@ -331,9 +343,18 @@ public class AssertionService {
         return true;
     }
 
+    public boolean isIndexAllRunning() {
+        return executorService.getActiveCount() == 1;
+    }
+
     // if solr doc with specified id exists
     private boolean ifRecordExist(String recordUuid) {
         logger.debug("Try to retrieve occurrence record with guid: '" + recordUuid + "'");
+
+        if (!isValidUUID(recordUuid)) {
+            logger.debug(recordUuid + " is not a valid uuid");
+            return false;
+        }
 
         SpatialSearchRequestParams idRequest = new SpatialSearchRequestParams();
         idRequest.setQ(OccurrenceIndex.ID + ":" + recordUuid);
@@ -346,10 +367,22 @@ public class AssertionService {
             logger.debug(resultNotEmpty ? "Found " : "Can't find " + "record with uid: " + recordUuid);
             return resultNotEmpty;
         } catch (Exception e) {
-            logger.error("Error happened when searching for record with uid: " + recordUuid + ", e = " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Error happened when searching for record with uid: " + recordUuid);
         }
 
         return false;
+    }
+
+    private boolean validDate(String date) {
+        try {
+            simpleDateFormat.parse(date);
+            return true;
+        } catch (ParseException e) {
+           return false;
+        }
+    }
+
+    private boolean isValidUUID(String uuid) {
+        return uuidPattern.matcher(uuid).find();
     }
 }
