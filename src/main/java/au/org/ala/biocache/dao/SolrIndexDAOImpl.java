@@ -114,7 +114,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
      * A list of fields that are left in the index for legacy reasons, but are removed from the public
      * API to avoid confusion.
      */
-    @Value("${index.fields.tohide:_root_,_version_,collector_text,location_determined,row_key,matched_name,decimal_latitudelatitude,collectors,default_values_used,generalisation_to_apply_in_metres,geohash,ibra_subregion,identifier_by,occurrence_details,text,photo_page_url,photographer,places,portal_id,quad,rem_text,occurrence_status_s,identification_qualifier_s}")
+    @Value("${index.fields.tohide:_version_,text_recordedBy,id,defaultValuesUsed,generalisationToApplyInMetres,occurrenceDetails,text,quad}")
     protected String indexFieldsToHide;
 
     protected Pattern layersPattern = Pattern.compile("(el|cl)[0-9abc]+");

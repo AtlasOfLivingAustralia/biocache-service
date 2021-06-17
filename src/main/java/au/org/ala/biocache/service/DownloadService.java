@@ -267,7 +267,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             "\n" +
             "}}")
     protected String sensitiveAccessRoles20 = "{}";
-    ;
 
     private JSONObject sensitiveAccessRolesToSolrFilters20;
 

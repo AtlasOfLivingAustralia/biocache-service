@@ -3298,7 +3298,7 @@ public class SearchDAOImpl implements SearchDAO {
                 return facet;
             }
             //1850-01-01T00:00:00Z
-        } else if (searchUtils.getAuthIndexFields().contains(facet)) {
+        } else if (searchUtils.getAuthIndexFields().contains(tFacet)) {
             //if the facet field is collector or assertion_user_id we need to perform the substitution
             return authService.getDisplayNameFor(value);
         } else {

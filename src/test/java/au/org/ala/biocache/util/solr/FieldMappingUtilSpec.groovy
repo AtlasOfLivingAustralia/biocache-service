@@ -26,8 +26,8 @@ class FieldMappingUtilSpec extends Specification {
         where:
         query || expetedQuery
         'taxon_name:*' || 'scientificName:*'
-        '(-month:"08")' || '(-month:"08")'
-        '-(month:"08")' || '-(month:"08")'
+        '(-month:"08")' || '(-month:"8")'
+        '-(month:"08")' || '-(month:"8")'
         '-taxon_name:*' || '-scientificName:*'
         'taxon_name:*  common_name:"test"' || 'scientificName:*  vernacularName:"test"'
         'taxon_name:* AND -(common_name:"test")' || 'scientificName:* AND -(vernacularName:"test")'
