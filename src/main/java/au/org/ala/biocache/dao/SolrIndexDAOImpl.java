@@ -27,13 +27,14 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.*;
 import org.apache.solr.client.solrj.io.SolrClientCache;
 import org.apache.solr.client.solrj.io.Tuple;
-import org.apache.solr.client.solrj.io.stream.*;
+import org.apache.solr.client.solrj.io.stream.CloudSolrStream;
+import org.apache.solr.client.solrj.io.stream.SolrStream;
+import org.apache.solr.client.solrj.io.stream.StreamContext;
+import org.apache.solr.client.solrj.io.stream.TupleStream;
 import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.request.schema.SchemaRequest;
-import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.client.solrj.response.QueryResponse;
-import org.apache.solr.client.solrj.response.RangeFacet;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.params.ModifiableSolrParams;
@@ -1131,15 +1132,11 @@ public class SolrIndexDAOImpl implements IndexDAO {
      * @throws SolrServerException
      */
     @Override
-    public int streamingQuery(SolrQuery query, ProcessInterface procSearch, ProcessInterface procFacet) throws SolrServerException {
+    public int streamingQuery(SolrQuery query, ProcessInterface procSearch, ProcessInterface procFacet, SolrQuery endemicFacetSuperset) throws SolrServerException {
         int tupleCount = 0;
         try {
             if (logger.isDebugEnabled()) {
                 logger.debug("SOLR query:" + query.toString());
-            }
-
-            if (StringUtils.isEmpty(query.getTermsSortString())) {
-                query.setSort("row_key", SolrQuery.ORDER.asc);
             }
 
             // do search
@@ -1161,7 +1158,12 @@ public class SolrIndexDAOImpl implements IndexDAO {
             if (procFacet != null && query.getFacetFields() != null) {
                 // process one at a time
                 for (int i = 0; i < query.getFacetFields().length; i++) {
-                    TupleStream solrStream2 = openStream(buildFacetExpr(query, query.getFacetFields()[i]));
+                    TupleStream solrStream2;
+                    if (endemicFacetSuperset == null) {
+                        solrStream2 = openStream(buildFacetExpr(query, query.getFacetFields()[i]));
+                    } else {
+                        solrStream2 = openStream(buildEndemicExpr(query, endemicFacetSuperset));
+                    }
 
                     Tuple tuple2;
                     while (!(tuple2 = solrStream2.read()).EOF) {
@@ -1229,10 +1231,10 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
     private ModifiableSolrParams buildFacetExpr(SolrQuery query, String facetName) {
         StringBuilder cexpr = new StringBuilder();
-        cexpr.append("facet(").append(solrCollection).append(", q=\"").append(fieldMappingUtil.translateQueryFields(query.getQuery())).append("\"");
-        if (query.getFacetQuery() != null) {
-            for (String fq : query.getFacetQuery()) {
-                cexpr.append(", fq=\"").append(fieldMappingUtil.translateQueryFields(fq)).append("\"");
+        cexpr.append("facet(").append(solrCollection).append(", q=\"").append(escapeDoubleQuote(fieldMappingUtil.translateQueryFields(query.getQuery()))).append("\"");
+        if (query.getFilterQueries() != null) {
+            for (String fq : query.getFilterQueries()) {
+                cexpr.append(", fq=\"").append(escapeDoubleQuote(fieldMappingUtil.translateQueryFields(fq))).append("\"");
             }
         }
 
@@ -1253,5 +1255,60 @@ public class SolrIndexDAOImpl implements IndexDAO {
 //        solrParams.set("sort", query.getSortField());
 
         return solrParams;
+    }
+
+    private ModifiableSolrParams buildEndemicExpr(SolrQuery subset, SolrQuery superset) {
+        StringBuilder cexpr = new StringBuilder();
+
+        String facetName = subset.getFacetFields()[0];
+
+        String translatedFacetName = fieldMappingUtil.translateFieldName(facetName);
+
+        // only include facetNames that ONLY appear in the target area
+        cexpr.append("having(eq(count1, count(*))").
+                // join target area facet counts with all areas facet counts
+                        append(", innerJoin(on=\"").append(translatedFacetName).append("\"").
+
+                // select target facet counts to rename count(*) as count1
+                        append(", select(").
+                // facet counts for target query
+                        append("facet(").append(solrCollection).append(", q=\"").
+                append(escapeDoubleQuote(fieldMappingUtil.translateQueryFields(subset.getQuery()))).append("\"");
+        if (subset.getFilterQueries() != null) {
+            for (String fq : subset.getFilterQueries()) {
+                cexpr.append(", fq=\"").append(escapeDoubleQuote(fieldMappingUtil.translateQueryFields(fq))).append("\"");
+            }
+        }
+        cexpr.append(", buckets=\"").append(translatedFacetName).append("\"").
+                append(", bucketSorts=\"").append(translatedFacetName).append(" asc\"").
+                append(", bucketSizeLimit=\"-1\")").    //close facet
+                append(",").append(translatedFacetName).append(", count(*) as count1)").    //close select
+
+                // facet counts for all records
+                        append(", facet(").append(solrCollection).append(", q=\"").
+                append(escapeDoubleQuote(fieldMappingUtil.translateQueryFields(superset.getQuery()))).append("\"");
+        if (superset.getFilterQueries() != null) {
+            for (String fq : superset.getFilterQueries()) {
+                cexpr.append(", fq=\"").append(escapeDoubleQuote(fieldMappingUtil.translateQueryFields(fq))).append("\"");
+            }
+        }
+        cexpr.append(", buckets=\"").append(translatedFacetName).append("\"").
+                append(", bucketSorts=\"").append(translatedFacetName).append(" asc\"").
+                append(", bucketSizeLimit=\"-1\")").    //close facet
+
+                append(")"). // close innerJoin
+                append(")"); // close having
+
+        String qt = "/stream";
+
+        ModifiableSolrParams solrParams = new ModifiableSolrParams();
+        solrParams.set("expr", cexpr.toString());
+        solrParams.set("qt", qt);
+
+        return solrParams;
+    }
+
+    private String escapeDoubleQuote(String input) {
+        return input.replaceAll("\"", "\\\"");
     }
 }

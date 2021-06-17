@@ -1,7 +1,6 @@
 package au.org.ala.biocache.util;
 
 import au.org.ala.biocache.dao.IndexDAO;
-import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.stream.ProcessDownload;
 import org.apache.solr.client.solrj.SolrQuery;
 
@@ -24,7 +23,7 @@ public class DownloadCallable implements Callable {
     public Object call() throws Exception {
         // iterate over queries
         for (SolrQuery query : queries) {
-            indexDAO.streamingQuery(query, procDownload, null);
+            indexDAO.streamingQuery(query, procDownload, null, null);
         }
 
         return null;

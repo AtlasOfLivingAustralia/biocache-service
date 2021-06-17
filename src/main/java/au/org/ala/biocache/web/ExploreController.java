@@ -39,7 +39,6 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.OutputStream;
 import java.net.URL;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -135,7 +134,7 @@ public class ExploreController {
 
     /**
      * Returns a hierarchical listing of species groups.
-     *
+     * <p>
      * TODO push down to service implementation.
      *
      * @param requestParams
@@ -143,7 +142,8 @@ public class ExploreController {
      * @throws Exception
      */
     @RequestMapping(value = "/explore/hierarchy/groups*", method = RequestMethod.GET)
-    public @ResponseBody Collection<SpeciesGroupDTO> yourHierarchicalAreaView(
+    public @ResponseBody
+    Collection<SpeciesGroupDTO> yourHierarchicalAreaView(
             SpatialSearchRequestParams requestParams, String speciesGroup) throws Exception {
 
         JSONArray ssgs = JSONArray.fromObject(getSubgroupsConfig());
@@ -214,12 +214,12 @@ public class ExploreController {
 
         //prune empty parents
         List<String> toRemove = new ArrayList<String>();
-        for(String parentName: parentGroupMap.keySet()){
-            if(parentGroupMap.get(parentName).getChildGroups()==null || parentGroupMap.get(parentName).getChildGroups().size()==0){
+        for (String parentName : parentGroupMap.keySet()) {
+            if (parentGroupMap.get(parentName).getChildGroups() == null || parentGroupMap.get(parentName).getChildGroups().size() == 0) {
                 toRemove.add(parentName);
             }
         }
-        for(String key: toRemove){
+        for (String key : toRemove) {
             parentGroupMap.remove(key);
         }
 
@@ -227,15 +227,14 @@ public class ExploreController {
     }
 
     /**
-     *
      * Returns a list of species groups and counts that will need to be displayed.
-     *
+     * <p>
      * TODO: MOVE all the IP lat long lookup to the the client webapp.  The purposes
      * of biocache-service is to provide a service layer over the biocache.
-     *
      */
     @RequestMapping(value = "/explore/groups*", method = RequestMethod.GET)
-	public @ResponseBody List<SpeciesGroupDTO> yourAreaView(SpatialSearchRequestParams requestParams) throws Exception {
+    public @ResponseBody
+    List<SpeciesGroupDTO> yourAreaView(SpatialSearchRequestParams requestParams) throws Exception {
 
         //now we want to grab all the facets to get the counts associated with the species groups
         JSONArray sgs = JSONArray.fromObject(getGroupsConfig());
@@ -257,7 +256,7 @@ public class ExploreController {
                     && ((JSONObject) sg).containsKey("name")) {
 
                 String parent = null;
-                if (((JSONObject) sg).containsKey("parent")){
+                if (((JSONObject) sg).containsKey("parent")) {
                     parent = ((JSONObject) sg).getString("parent");
                 }
 
@@ -362,22 +361,22 @@ public class ExploreController {
 
     /**
      * GeoJSON view of records as clusters of points within a specified radius of a given location
-     *
+     * <p>
      * This service will be used by explore your area.
      */
     @RequestMapping(value = "/geojson/radius-points", method = RequestMethod.GET)
-        public String radiusPointsGeoJson(SpatialSearchRequestParams requestParams,
-            @RequestParam(value="zoom", required=false, defaultValue="0") Integer zoomLevel,
-            @RequestParam(value="bbox", required=false) String bbox,
-            @RequestParam(value="group", required=false, defaultValue="ALL_SPECIES") String speciesGroup,
-            Model model)
+    public String radiusPointsGeoJson(SpatialSearchRequestParams requestParams,
+                                      @RequestParam(value = "zoom", required = false, defaultValue = "0") Integer zoomLevel,
+                                      @RequestParam(value = "bbox", required = false) String bbox,
+                                      @RequestParam(value = "group", required = false, defaultValue = "ALL_SPECIES") String speciesGroup,
+                                      Model model)
             throws Exception {
         addGroupFilterToQuery(requestParams, speciesGroup);
         PointType pointType = PointType.POINT_00001; // default value for when zoom is null
         pointType = getPointTypeForZoomLevel(zoomLevel);
-        logger.info("PointType for zoomLevel ("+zoomLevel+") = "+pointType.getLabel());
+        logger.info("PointType for zoomLevel (" + zoomLevel + ") = " + pointType.getLabel());
         List<OccurrencePoint> points = searchDao.findRecordsForLocation(requestParams, pointType);
-        logger.info("Points search for "+pointType.getLabel()+" - found: " + points.size());
+        logger.info("Points search for " + pointType.getLabel() + " - found: " + points.size());
         model.addAttribute("points", points);
         return POINTS_GEOJSON;
     }
@@ -431,15 +430,15 @@ public class ExploreController {
     @RequestMapping(value = "/explore/group/{group}/download*", method = RequestMethod.GET)
     public void yourAreaDownload(
             DownloadRequestParams requestParams,
-            @PathVariable(value="group") String group,
-            @RequestParam(value="common", required=false, defaultValue="false") boolean common,
+            @PathVariable(value = "group") String group,
+            @RequestParam(value = "common", required = false, defaultValue = "false") boolean common,
             HttpServletResponse response)
             throws Exception {
-	    String filename = requestParams.getFile() != null ? requestParams.getFile():"data";
+        String filename = requestParams.getFile() != null ? requestParams.getFile() : "data";
         logger.debug("Downloading the species in your area... ");
         response.setHeader("Cache-Control", "must-revalidate");
         response.setHeader("Pragma", "must-revalidate");
-        response.setHeader("Content-Disposition", "attachment;filename="+filename);
+        response.setHeader("Content-Disposition", "attachment;filename=" + filename);
         response.setContentType("application/vnd.ms-excel");
 
         addGroupFilterToQuery(requestParams, group);
@@ -453,7 +452,7 @@ public class ExploreController {
             logger.error(e.getMessage(), e);
         }
 
-	}
+    }
 
     /**
      * JSON web service that returns a list of species and record counts for a given location search
@@ -463,10 +462,11 @@ public class ExploreController {
      * @throws Exception
      */
     @RequestMapping(value = "/explore/group/{group}*", method = RequestMethod.GET)
-	public @ResponseBody List<TaxaCountDTO> listSpeciesForHigherTaxa(
+    public @ResponseBody
+    List<TaxaCountDTO> listSpeciesForHigherTaxa(
             SpatialSearchRequestParams requestParams,
-            @PathVariable(value="group") String group,
-            @RequestParam(value="common", required=false, defaultValue="false") boolean common,
+            @PathVariable(value = "group") String group,
+            @RequestParam(value = "common", required = false, defaultValue = "false") boolean common,
             Model model) throws Exception {
 
 
@@ -475,64 +475,70 @@ public class ExploreController {
 
         return searchDao.findAllSpeciesByCircleAreaAndHigherTaxa(requestParams, group);
     }
-	// The Endemism Web Services - Move these if they get too large...
-	/**
-	 * Returns the number of distinct species that are in the supplied region.
-	 * @param requestParams
-	 * @param response
-	 * @return
-	 * @throws Exception
-	 */
-	@RequestMapping(value = "/explore/counts/endemic*", method = RequestMethod.GET)
-	public @ResponseBody int getSpeciesCountOnlyInWKT(SpatialSearchRequestParams requestParams,
-	          HttpServletResponse response)
-	          throws Exception{
-	    List list = getSpeciesOnlyInWKT(requestParams,response);
-	    if(list != null)
-	        return list.size();
-	    return 0;
-	}
+    // The Endemism Web Services - Move these if they get too large...
 
-	/**
-	 * Returns the species that only have occurrences in the supplied WKT.
-	 * @return
-	 */
-	@RequestMapping(value = "/explore/endemic/species*", method = RequestMethod.GET)
-	public @ResponseBody List<FieldResultDTO> getSpeciesOnlyInWKT(SpatialSearchRequestParams requestParams,
-	          HttpServletResponse response)
-	              throws Exception{
-	    Qid qid = qidCacheDao.getQidFromQuery(requestParams.getQ());
-	    String wkt =StringUtils.isNotBlank(requestParams.getWkt())?requestParams.getWkt():qid.getWkt();
-	    if(qid != null){
-	        requestParams.setQ(qid.getQ());
-	        requestParams.setWkt(qid.getWkt());
+    /**
+     * Returns the number of distinct species that are in the supplied region.
+     *
+     * @param requestParams
+     * @param response
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/explore/counts/endemic*", method = RequestMethod.GET)
+    public @ResponseBody
+    int getSpeciesCountOnlyInWKT(SpatialSearchRequestParams requestParams,
+                                 HttpServletResponse response)
+            throws Exception {
+        List list = getSpeciesOnlyInWKT(requestParams, response);
+        if (list != null)
+            return list.size();
+        return 0;
+    }
+
+    /**
+     * Returns the species that only have occurrences in the supplied WKT.
+     *
+     * @return
+     */
+    @RequestMapping(value = "/explore/endemic/species*", method = RequestMethod.GET)
+    public @ResponseBody
+    List<FieldResultDTO> getSpeciesOnlyInWKT(SpatialSearchRequestParams requestParams,
+                                             HttpServletResponse response)
+            throws Exception {
+        Qid qid = qidCacheDao.getQidFromQuery(requestParams.getQ());
+        String wkt = StringUtils.isNotBlank(requestParams.getWkt()) ? requestParams.getWkt() : qid.getWkt();
+        if (qid != null) {
+            requestParams.setQ(qid.getQ());
+            requestParams.setWkt(qid.getWkt());
             requestParams.setFq(qid.getFqs());
-	    }
+        }
 
-	    if(StringUtils.isNotBlank(wkt) ){
-	        if(requestParams.getFacets() != null && requestParams.getFacets().length ==1){
+        if (StringUtils.isNotBlank(wkt)) {
+            if (requestParams.getFacets() != null && requestParams.getFacets().length == 1) {
                 return searchDao.getEndemicSpecies(requestParams);
-	        } else {
-	            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply only one facet.");
-	        }
-	    } else {
-	        response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply a WKT area.");
-	    }
-	    return null;
-	}
+            } else {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply only one facet.");
+            }
+        } else {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply a WKT area.");
+        }
+        return null;
+    }
 
     /**
      * Returns facet values that only occur in the supplied subQueryQid
      * and not in the parentQuery.
-     *
+     * <p>
      * The facet is defined in the parentQuery. Default facet is SearchDAOImpl.NAMES_AND_LSID
-     *
+     * <p>
      * If no requestParams defined the default q=*:* is used.
      *
      * @return
      */
     @RequestMapping(value = "/explore/endemic/species/{subQueryQid}*", method = RequestMethod.GET)
-    public @ResponseBody List<FieldResultDTO> getSpeciesOnlyInOneQuery(SpatialSearchRequestParams parentQuery,
+    public @ResponseBody
+    List<FieldResultDTO> getSpeciesOnlyInOneQuery(SpatialSearchRequestParams parentQuery,
                                                   @PathVariable(value = "subQueryQid") Long subQueryQid,
                                                   HttpServletResponse response)
             throws Exception {
@@ -548,6 +554,7 @@ public class ExploreController {
 
         if (subQuery != null) {
             if (parentQuery.getFacets() != null && parentQuery.getFacets().length == 1) {
+                subQuery.setFacets(parentQuery.getFacets());
                 return searchDao.getSubquerySpeciesOnly(subQuery, parentQuery);
             } else {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply only one facet.");
@@ -562,18 +569,19 @@ public class ExploreController {
     /**
      * Returns count of facet values that only occur in the supplied subQueryQid
      * and not in the parentQuery.
-     *
+     * <p>
      * The facet is defined in the parentQuery. Default facet is SearchDAOImpl.NAMES_AND_LSID
-     *
+     * <p>
      * If no requestParams defined the default q=*:* is used.
      *
      * @return
      */
     @RequestMapping(value = "/explore/endemic/speciescount/{subQueryQid}*", method = RequestMethod.GET)
-    public @ResponseBody Map getSpeciesOnlyInOneCountQuery(SpatialSearchRequestParams parentQuery,
-                                                                       @PathVariable(value="subQueryQid") Long subQueryQid,
-                                                                       HttpServletResponse response)
-            throws Exception{
+    public @ResponseBody
+    Map getSpeciesOnlyInOneCountQuery(SpatialSearchRequestParams parentQuery,
+                                      @PathVariable(value = "subQueryQid") Long subQueryQid,
+                                      HttpServletResponse response)
+            throws Exception {
         List items = getSpeciesOnlyInOneQuery(parentQuery, subQueryQid, response);
 
         Map m = null;
@@ -616,9 +624,9 @@ public class ExploreController {
     /**
      * Returns facet values that only occur in the supplied subQueryQid
      * and not in the parentQuery.
-     *
+     * <p>
      * The facet is defined in the parentQuery. Default facet is SearchDAOImpl.NAMES_AND_LSID
-     *
+     * <p>
      * If no requestParams defined the default q=*:* is used.
      *
      * @return
@@ -645,6 +653,7 @@ public class ExploreController {
 
         if (subQuery != null) {
             if (parentQuery.getFacets() != null && parentQuery.getFacets().length == 1) {
+                subQuery.setFacets(parentQuery.getFacets());
                 String filename = StringUtils.isNotEmpty(file) ? file : parentQuery.getFacets()[0];
                 response.setHeader("Cache-Control", "must-revalidate");
                 response.setHeader("Pragma", "must-revalidate");
