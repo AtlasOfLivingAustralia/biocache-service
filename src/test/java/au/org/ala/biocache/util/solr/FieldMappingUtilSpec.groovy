@@ -29,6 +29,10 @@ class FieldMappingUtilSpec extends Specification {
         '(-month:"08")' || '(-month:"8")'
         '-(month:"08")' || '-(month:"8")'
         '-taxon_name:*' || '-scientificName:*'
+        '(!month:"08")' || '(!month:"8")'
+        '!(month:"08")' || '!(month:"8")'
+        '!taxon_name:*' || '!scientificName:*'
+        '+taxon_name:*' || '+scientificName:*'
         'taxon_name:*  common_name:"test"' || 'scientificName:*  vernacularName:"test"'
         'taxon_name:* AND -(common_name:"test")' || 'scientificName:* AND -(vernacularName:"test")'
         'deleted:*' || 'deprecated_deleted:*'
@@ -38,6 +42,8 @@ class FieldMappingUtilSpec extends Specification {
         'taxon_name:* assertions:badlyFormedBasisOfRecord AND -(common_name:"test")' || 'scientificName:* assertions:BASIS_OF_RECORD_INVALID AND -(vernacularName:"test")'
         '-(taxon_name:* AND -taxon_name:*)' || '-(scientificName:* AND -scientificName:*)'
         'taxon_name:* assertions:"badlyFormedBasisOfRecord" AND -(common_name:"test")' || 'scientificName:* assertions:"BASIS_OF_RECORD_INVALID" AND -(vernacularName:"test")'
+        'taxon_name:* -assertions:"badlyFormedBasisOfRecord" AND -(common_name:"test")' || 'scientificName:* -assertions:"BASIS_OF_RECORD_INVALID" AND -(vernacularName:"test")'
+        'taxon_name:* !assertions:"badlyFormedBasisOfRecord" AND -(common_name:"test")' || 'scientificName:* !assertions:"BASIS_OF_RECORD_INVALID" AND -(vernacularName:"test")'
     }
 
     def 'translateFieldList'() {

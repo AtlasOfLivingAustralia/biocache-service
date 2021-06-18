@@ -36,7 +36,7 @@ public class FieldMappingUtil {
 
     static final String DEPRECATED_PREFIX = "deprecated_";
     static final Pattern ENUM_VALUE_PATTERN = Pattern.compile("(\\w+)");
-    static final Pattern QUERY_TERM_PATTERN = Pattern.compile("(^|\\s|-|\\(|-\\(|\\(-)(\\w+):");
+    static final Pattern QUERY_TERM_PATTERN = Pattern.compile("(^|\\s|[-\\+!]|\\(|[-\\+!]\\(|\\([-\\+!])(\\w+):");
 
 
     public Stream<Pair<String, String>> getFieldMappingStream() {
