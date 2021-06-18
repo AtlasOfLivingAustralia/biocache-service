@@ -1228,9 +1228,10 @@ public class SolrIndexDAOImpl implements IndexDAO {
         solrParams.set("expr", cexpr.toString());
         solrParams.set("qt", qt);
 
-//        solrParams.set("q", query.getQuery());
-//        solrParams.set("fl", query.getFields());
-//        solrParams.set("sort", query.getSortField());
+        // for CloudSolrStream.init
+        solrParams.set("q", "*:*");
+        solrParams.set("fl", "id");
+        solrParams.set("sort", "id asc");
 
         return solrParams;
     }
@@ -1282,6 +1283,11 @@ public class SolrIndexDAOImpl implements IndexDAO {
         ModifiableSolrParams solrParams = new ModifiableSolrParams();
         solrParams.set("expr", cexpr.toString());
         solrParams.set("qt", qt);
+
+        // for CloudSolrStream.init
+        solrParams.set("q", "*:*");
+        solrParams.set("fl", "id");
+        solrParams.set("sort", "id asc");
 
         return solrParams;
     }
