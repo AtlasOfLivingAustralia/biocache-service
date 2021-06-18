@@ -1,6 +1,7 @@
 package au.org.ala.biocache.dto;
 
 import com.google.common.collect.ImmutableSet;
+import java.util.Set;
 import org.gbif.api.vocabulary.InterpretationRemark;
 import org.gbif.api.vocabulary.InterpretationRemarkSeverity;
 import org.gbif.dwc.terms.DwcTerm;
@@ -8,7 +9,7 @@ import org.gbif.dwc.terms.GbifTerm;
 import org.gbif.dwc.terms.Term;
 import org.gbif.utils.AnnotationUtils;
 
-import java.util.Set;
+
 
 /**
  * Copied from pipelines/livingatlas.
@@ -106,7 +107,13 @@ public enum ALAOccurrenceIssue implements InterpretationRemark {
     SENSITIVITY_REPORT_INVALID(InterpretationRemarkSeverity.ERROR, TermsGroup.SENSITIVE_DATA_TERMS),
     /** The sensitivity report cannot be applied to the record */
     SENSITIVITY_REPORT_NOT_LOADABLE(
-            InterpretationRemarkSeverity.ERROR, TermsGroup.SENSITIVE_DATA_TERMS);
+            InterpretationRemarkSeverity.ERROR, TermsGroup.SENSITIVE_DATA_TERMS),
+
+    // Attribution related
+    /** The collection code lookup failed */
+    UNRECOGNISED_COLLECTION_CODE(InterpretationRemarkSeverity.ERROR, TermsGroup.ATTRIBUTION_TERMS),
+    /** The institution code lookup failed */
+    UNRECOGNISED_INSTITUTION_CODE(InterpretationRemarkSeverity.ERROR, TermsGroup.ATTRIBUTION_TERMS);
 
     private final Set<Term> relatedTerms;
     private final InterpretationRemarkSeverity severity;
@@ -150,6 +157,7 @@ public enum ALAOccurrenceIssue implements InterpretationRemark {
         static final Term[] TAXONOMY_TERMS;
         static final Term[] GEOREFERENCE_TERMS;
         static final Term[] SENSITIVE_DATA_TERMS;
+        static final Term[] ATTRIBUTION_TERMS;
 
         private TermsGroup() {}
 
@@ -219,6 +227,13 @@ public enum ALAOccurrenceIssue implements InterpretationRemark {
                             DwcTerm.decimalLatitude,
                             DwcTerm.decimalLongitude,
                             DwcTerm.eventDate
+                    };
+            ATTRIBUTION_TERMS =
+                    new Term[] {
+                            DwcTerm.collectionCode,
+                            DwcTerm.collectionID,
+                            DwcTerm.institutionCode,
+                            DwcTerm.institutionID
                     };
         }
     }
