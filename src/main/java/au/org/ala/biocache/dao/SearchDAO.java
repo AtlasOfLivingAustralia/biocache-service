@@ -2,12 +2,12 @@ package au.org.ala.biocache.dao;
 /**************************************************************************
  *  Copyright (C) 2010 Atlas of Living Australia
  *  All Rights Reserved.
- * 
+ *
  *  The contents of this file are subject to the Mozilla Public
  *  License Version 1.1 (the "License"); you may not use this file
  *  except in compliance with the License. You may obtain a copy of
  *  the License at http://www.mozilla.org/MPL/
- * 
+ *
  *  Software distributed under the License is distributed on an "AS
  *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  *  implied. See the License for the specific language governing
@@ -17,8 +17,6 @@ package au.org.ala.biocache.dao;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.stream.ProcessInterface;
 import au.org.ala.biocache.util.LegendItem;
-import org.apache.solr.client.solrj.SolrQuery;
-import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocumentList;
 
@@ -27,7 +25,6 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,7 +38,7 @@ public interface SearchDAO {
 
     /**
      * Finds the endemic species of the supplied area.
-     * 
+     *
      * @param requestParams
      * @return
      * @throws Exception
@@ -76,7 +73,8 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams requestParams, Map<String,String[]> extraParams);
+    SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams requestParams, Map<String, String[]> extraParams);
+
     /**
      * Find all occurrences for a given (full text) query, latitude, longitude & radius (km). I.e.
      * a full-text spatial query.  The result will include the sensitive coordinates if available.
@@ -89,6 +87,7 @@ public interface SearchDAO {
 
     /**
      * Writes the species count in the specified circle to the output stream.
+     *
      * @param requestParams
      * @param speciesGroup
      * @param out
@@ -97,18 +96,20 @@ public interface SearchDAO {
      */
     int writeSpeciesCountByCircleToStream(SpatialSearchRequestParams requestParams, String speciesGroup, ServletOutputStream out) throws Exception;
 
-	/**
-	 * Writes the results of this query to the output stream using the index as a source of the data.
-	 * @param downloadParams
-	 * @param out
-	 * @param includeSensitive
-	 * @return
-	 * @throws Exception
-	 */
-	ConcurrentMap<String, AtomicInteger> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, boolean includeSensitive, DownloadDetailsDTO dd, boolean checkLimit) throws Exception;
+    /**
+     * Writes the results of this query to the output stream using the index as a source of the data.
+     *
+     * @param downloadParams
+     * @param out
+     * @param includeSensitive
+     * @return
+     * @throws Exception
+     */
+    ConcurrentMap<String, AtomicInteger> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, boolean includeSensitive, DownloadDetailsDTO dd, boolean checkLimit) throws Exception;
 
     /**
      * Writes the results of this query to the output stream using the index as a source of the data.
+     *
      * @param downloadParams
      * @param out
      * @param includeSensitive
@@ -125,7 +126,7 @@ public interface SearchDAO {
      * @param out
      * @throws Exception
      */
-    void writeCoordinatesToStream(SearchRequestParams searchParams,OutputStream out) throws Exception;
+    void writeCoordinatesToStream(SpatialSearchRequestParams searchParams, OutputStream out) throws Exception;
 
     /**
      * Write facet content to supplied output stream
@@ -165,17 +166,6 @@ public interface SearchDAO {
     List<OccurrencePoint> getFacetPoints(SpatialSearchRequestParams searchParams, PointType pointType) throws Exception;
 
     /**
-     * Retrieve an OccurrencePoint (distinct list of points - lat-long to 4 decimal places) for a given search 
-     * without convertion to List of OccurrencePoint
-     *
-     * @param searchParams
-     * @param pointType
-     * @return
-     * @throws Exception
-     */
-    FacetField getFacetPointsShort(SpatialSearchRequestParams searchParams, String pointType) throws Exception;
-
-    /**
      * Retrieve a list of occurrence uid's for a given search
      *
      * @param requestParams
@@ -213,7 +203,7 @@ public interface SearchDAO {
 
     /**
      * Find all the data providers with records.
-     * 
+     *
      * @return
      */
     List<DataProviderCountDTO> getDataProviderCounts() throws Exception;
@@ -227,7 +217,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    Map<String,Integer> getSourcesForQuery(SpatialSearchRequestParams searchParams) throws Exception;
+    Map<String, Integer> getSourcesForQuery(SpatialSearchRequestParams searchParams) throws Exception;
 
     /**
      * Calculate taxon breakdown.
@@ -248,22 +238,14 @@ public interface SearchDAO {
     Map<String, Integer> getOccurrenceCountsForTaxa(List<String> taxa, String[] filterQueries) throws Exception;
 
     /**
-     * Returns the scientific name and counts for the taxon rank that proceed or include the supplied rank.
-     * @param breakdownParams
-     * @param query
-     * @return
-     * @throws Exception
-     */
-    TaxaRankCountDTO findTaxonCountForUid(BreakdownRequestParams breakdownParams,String query) throws Exception;
-
-    /**
      * Find all species (and counts) for a given query.
+     *
      * @param requestParams
      * @return
      * @throws Exception
      */
     List<TaxaCountDTO> findAllSpecies(SpatialSearchRequestParams requestParams) throws Exception;
-    
+
     /**
      * Find all occurrences for a given query as SolrDocumentList
      *
@@ -275,10 +257,10 @@ public interface SearchDAO {
 
     /**
      * Get legend items for a query and specified facet.
-     *
+     * <p>
      * Continuous variable cut-points can be specified.  Includes the minimum
      * and maximum values.
-     *
+     * <p>
      * Returns an empty list if no valid values are found.
      *
      * @param searchParams
@@ -286,7 +268,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facet, String [] cutpoints) throws Exception;
+    List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facet, String[] cutpoints) throws Exception;
 
     /**
      * Get legend items for a query and specified facet.
@@ -327,7 +309,7 @@ public interface SearchDAO {
 
     /**
      * Perform grouped facet query.
-     * 
+     * <p>
      * facets is the list of grouped facets required
      * flimit restricts the number of groups returned
      * pageSize restricts the number of docs in each group returned
@@ -412,7 +394,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    HeatmapDTO getHeatMap(String query, String [] filterQueries, Double minx, Double miny, Double maxx, Double maxy,
+    HeatmapDTO getHeatMap(String query, String[] filterQueries, Double minx, Double miny, Double maxx, Double maxy,
                           List<LegendItem> legend,
                           int gridSize) throws Exception;
 
