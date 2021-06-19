@@ -31,7 +31,7 @@ import java.util.Map;
  */
 public class OccurrenceIndex {
 
-    public static final String MISC = "misc";
+    public static final String MISC = "dynamicProperties";
     protected static final Logger logger = Logger.getLogger(OccurrenceIndex.class);
 
     final static public String IMAGES = "imageIDs";
