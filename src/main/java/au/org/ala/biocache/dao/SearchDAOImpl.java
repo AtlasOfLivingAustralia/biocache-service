@@ -333,7 +333,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Cacheable(cacheName = "endemicCache")
     public List<FieldResultDTO> getEndemicSpecies(SpatialSearchRequestParams requestParams) throws Exception {
-        SolrQuery subset = buildSolrQuery(requestParams);
+        SolrQuery subset = initSolrQuery(requestParams, false, null);
         SolrQuery superset = new SolrQuery();
 
         // The subset will always include a spatial area, WKT.
@@ -375,8 +375,8 @@ public class SearchDAOImpl implements SearchDAO {
      * e.g. subQuery is the area of interest. parentQuery is all species.
      */
     public List<FieldResultDTO> getSubquerySpeciesOnly(SpatialSearchRequestParams subQuery, SpatialSearchRequestParams parentQuery) throws Exception {
-        SolrQuery subset = buildSolrQuery(subQuery);
-        SolrQuery superset = buildSolrQuery(parentQuery);
+        SolrQuery subset = initSolrQuery(subQuery, false, null);
+        SolrQuery superset = initSolrQuery(parentQuery, false, null);
 
         List<FieldResultDTO> output = new ArrayList();
         indexDao.streamingQuery(subset, null, new EndemicFacet(output, subQuery.getFacets()[0]), superset);
@@ -498,12 +498,10 @@ public class SearchDAOImpl implements SearchDAO {
         BeanUtils.copyProperties(searchParams, original);
         try {
             Map[] fqMaps = queryFormatUtils.formatSearchQuery(searchParams, true);
-
-            String queryString = searchParams.getFormattedQuery();
             SolrQuery solrQuery = initSolrQuery(searchParams, true, extraParams); // general search settings
-            solrQuery.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
 
-            QueryResponse qr = indexDao.runSolrQuery(solrQuery, searchParams);
+            QueryResponse qr = indexDao.runSolrQuery(solrQuery);
+
             //need to set the original q to the processed value so that we remove the wkt etc that is added from paramcache object
             Class resultClass;
             resultClass = includeSensitive ? au.org.ala.biocache.dto.SensitiveOccurrenceIndex.class : OccurrenceIndex.class;
@@ -517,7 +515,7 @@ public class SearchDAOImpl implements SearchDAO {
             searchResults.setActiveFacetObj(fqMaps[1]);
 
             if (logger.isDebugEnabled()) {
-                logger.debug("spatial search query: " + queryString);
+                logger.debug("spatial search query: " + solrQuery.toQueryString());
             }
         } catch (Exception ex) {
             logError("Error executing query with requestParams: " + searchParams.toString(), ex.getMessage());
@@ -575,19 +573,19 @@ public class SearchDAOImpl implements SearchDAO {
      *
      * @param includeCount true when the count should be included in the download
      * @param lookupName   true when a name lsid should be looked up in the bie
+     *                     <p>
+     *                     TODO: use streaming service instead of paging the SOLR facet request
      */
     public void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out, DownloadDetailsDTO dd) throws Exception {
         //set to unlimited facets
         searchParams.setFlimit(-1);
-        queryFormatUtils.formatSearchQuery(searchParams);
-        String queryString = searchParams.getFormattedQuery();
+
         SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
-        solrQuery.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
 
         //don't want any results returned
         solrQuery.setRows(0);
-        searchParams.setPageSize(0);
         solrQuery.setFacetLimit(FACET_PAGE_SIZE);
+
         int offset = 0;
         boolean isGuid = searchParams.getFacets()[0].contains("_guid") ||
                 searchParams.getFacets()[0].endsWith("ID");
@@ -600,7 +598,7 @@ public class SearchDAOImpl implements SearchDAO {
             dd.resetCounts();
         }
 
-        QueryResponse qr = indexDao.runSolrQuery(solrQuery, searchParams);
+        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
         if (logger.isDebugEnabled()) {
             logger.debug("Retrieved facet results from server...");
         }
@@ -678,9 +676,8 @@ public class SearchDAOImpl implements SearchDAO {
                         }
 
                         //get the next values
-                        solrQuery.remove("facet.offset");
-                        solrQuery.add("facet.offset", Integer.toString(offset));
-                        qr = indexDao.runSolrQuery(solrQuery, searchParams);
+                        solrQuery.set("facet.offset", Integer.toString(offset));
+                        qr = indexDao.runSolrQuery(solrQuery);
                         ff = qr.getFacetField(searchParams.getFacets()[0]);
                     }
                 } finally {
@@ -716,27 +713,22 @@ public class SearchDAOImpl implements SearchDAO {
      * @param out
      * @throws Exception
      */
-    public void writeCoordinatesToStream(SearchRequestParams searchParams, OutputStream out) throws Exception {
-        //generate the query to obtain the lat,long as a facet
-        SearchRequestParams srp = new SearchRequestParams();
-        SearchUtils.setDefaultParams(srp);
-        srp.setFacets(searchParams.getFacets());
+    public void writeCoordinatesToStream(SpatialSearchRequestParams searchParams, OutputStream out) throws Exception {
+        SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
 
-        SolrQuery solrQuery = initSolrQuery(srp, false, null);
         //We want all the facets so we can dump all the coordinates
         solrQuery.setFacetLimit(-1);
         solrQuery.setFacetSort("count");
         solrQuery.setRows(0);
-        solrQuery.setQuery(searchParams.getQ());    // PIPELINES: SolrQuery::setQuery entry point
+        solrQuery.setQuery(searchParams.getQ());
 
-        QueryResponse qr = indexDao.runSolrQuery(solrQuery, srp);
+        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
         if (qr.getResults().size() > 0) {
             FacetField ff = qr.getFacetField(searchParams.getFacets()[0]);
             if (ff != null && ff.getValueCount() > 0) {
                 out.write("latitude,longitude\n".getBytes(StandardCharsets.UTF_8));
                 //write the facets to file
                 for (FacetField.Count value : ff.getValues()) {
-                    //String[] slatlon = value.getName().split(",");
                     if (value.getName() != null && value.getCount() > 0) {
                         out.write(value.getName().getBytes(StandardCharsets.UTF_8));
                         out.write("\n".getBytes(StandardCharsets.UTF_8));
@@ -1137,21 +1129,13 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     private List<OccurrencePoint> getPoints(SpatialSearchRequestParams searchParams, PointType pointType, int max) throws Exception {
-        List<OccurrencePoint> points = new ArrayList<>(); // new OccurrencePoint(PointType.POINT);
-        queryFormatUtils.formatSearchQuery(searchParams);
-        if (logger.isDebugEnabled()) {
-            logger.debug("search query: " + searchParams.getFormattedQuery());
-        }
-        SolrQuery solrQuery = new SolrQuery();
-        solrQuery.setRequestHandler("standard");
-        solrQuery.setQuery(searchParams.getFormattedQuery());   // PIPELINES: SolrQuery::setQuery entry point
-        solrQuery.setRows(0);
-        solrQuery.setFacet(true);
-        solrQuery.addFacetField(pointType.getLabel());  // PIPELINES: SolrQuery::addFacetField entry point
-        solrQuery.setFacetMinCount(1);
-        solrQuery.setFacetLimit(max);  // unlimited = -1
+        List<OccurrencePoint> points = new ArrayList<>();
 
-        QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFormattedFq(), 1, 0, "score", "asc");
+        SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
+        emptyFacetRequest(solrQuery, max, 0, false);
+        solrQuery.addFacetField(pointType.getLabel());
+
+        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
         List<FacetField> facets = qr.getFacetFields();
 
         if (facets != null) {
@@ -1189,35 +1173,9 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see au.org.ala.biocache.dao.SearchDAO#getFacetPointsShort(au.org.ala.biocache.dto.SpatialSearchRequestParams, String)
-     */
-    @Override
-    public FacetField getFacetPointsShort(SpatialSearchRequestParams searchParams, String pointType) throws Exception {
-        queryFormatUtils.formatSearchQuery(searchParams);
-        if (logger.isDebugEnabled()) {
-            logger.debug("FacetPointsShort : " + searchParams.getFormattedQuery());
-        }
-        SolrQuery solrQuery = new SolrQuery();
-        solrQuery.setRequestHandler("standard");
-        solrQuery.setQuery(searchParams.getFormattedQuery());   // PIPELINES: SolrQuery::setQuery entry point
-        solrQuery.setRows(0);
-        solrQuery.setFacet(true);
-        solrQuery.addFacetField(pointType); // PIPELINES: SolrQuery::addFacetField entry point
-        solrQuery.setFacetMinCount(1);
-        solrQuery.setFacetLimit(searchParams.getFlimit());//MAX_DOWNLOAD_SIZE);  // unlimited = -1
-
-        QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFormattedFq(), 0, 0, "", "");
-        List<FacetField> facets = qr.getFacetFields();
-
-        //return first facet, there should only be 1
-        if (facets != null && facets.size() > 0) {
-            return facets.get(0);
-        }
-        return null;
-    }
-
-    /**
      * @see au.org.ala.biocache.dao.SearchDAO#getOccurrences(au.org.ala.biocache.dto.SpatialSearchRequestParams, au.org.ala.biocache.dto.PointType, String)
+     * <p>
+     * TODO: deprecate for hashmap request
      */
     @Override
     public List<OccurrencePoint> getOccurrences(SpatialSearchRequestParams searchParams, PointType pointType, String colourBy) throws Exception {
@@ -1225,18 +1183,9 @@ public class SearchDAOImpl implements SearchDAO {
         List<OccurrencePoint> points = new ArrayList<OccurrencePoint>();
         searchParams.setPageSize(100);
 
-        String queryString = "";
-        queryFormatUtils.formatSearchQuery(searchParams);
-        queryString = searchParams.getFormattedQuery();
+        SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
 
-        if (logger.isDebugEnabled()) {
-            logger.debug("getOccurrences - search query: " + queryString);
-        }
-        SolrQuery solrQuery = new SolrQuery();
-        solrQuery.setRequestHandler("standard");
-        solrQuery.setQuery(queryString);
-
-        QueryResponse qr = indexDao.runSolrQuery(solrQuery, searchParams);
+        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
         SearchResultDTO searchResults = processSolrResponse(searchParams, qr, solrQuery, OccurrenceIndex.class);
         List<OccurrenceIndex> ocs = searchResults.getOccurrences();
 
@@ -1272,13 +1221,12 @@ public class SearchDAOImpl implements SearchDAO {
         List<DataProviderCountDTO> dpDTOs = new ArrayList<>(); // new OccurrencePoint(PointType.POINT);
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
-        solrQuery.setQuery("*:*");  // PIPELINES: SolrQuery::setQuery entry point
-        solrQuery.setRows(0);
-        solrQuery.setFacet(true);
+        solrQuery.setQuery("*:*");
+        emptyFacetRequest(solrQuery, -1, 0, false);
         solrQuery.addFacetField(OccurrenceIndex.DATA_PROVIDER_UID);
         solrQuery.addFacetField(OccurrenceIndex.DATA_PROVIDER_NAME);
-        solrQuery.setFacetMinCount(1);
-        QueryResponse qr = runSolrQuery(solrQuery, null, 1, 0, OccurrenceIndex.DATA_PROVIDER_NAME, "asc");
+
+        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
         List<FacetField> facets = qr.getFacetFields();
 
         if (facets != null && facets.size() == 2) {
@@ -1350,16 +1298,14 @@ public class SearchDAOImpl implements SearchDAO {
     @Deprecated
     public List<FieldResultDTO> findRecordByStateFor(String query)
             throws Exception {
-        String dataProviderName = OccurrenceIndex.DATA_PROVIDER_NAME;
-        List<FieldResultDTO> fDTOs = new ArrayList<FieldResultDTO>(); // new OccurrencePoint(PointType.POINT);
+        List<FieldResultDTO> fDTOs = new ArrayList<FieldResultDTO>();
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRequestHandler("standard");
-        solrQuery.setQuery(query);  // PIPELINES: SolrQuery::setQuery entry point
-        solrQuery.setRows(0);
-        solrQuery.setFacet(true);
+        solrQuery.setQuery(query);
+        emptyFacetRequest(solrQuery, -1, 0, false);
         solrQuery.addFacetField(STATE);
-        solrQuery.setFacetMinCount(1);
-        QueryResponse qr = runSolrQuery(solrQuery, null, 1, 0, dataProviderName, "asc");
+
+        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
         FacetField ff = qr.getFacetField(STATE);
         if (ff != null) {
             for (Count count : ff.getValues()) {
@@ -1381,31 +1327,28 @@ public class SearchDAOImpl implements SearchDAO {
             logger.debug("Attempting to find the counts for " + queryParams);
         }
         TaxaRankCountDTO trDTO = null;
-        SolrQuery solrQuery = new SolrQuery();
-        solrQuery.setRequestHandler("standard");
-        queryFormatUtils.formatSearchQuery(queryParams);
-        solrQuery.setQuery(queryParams.getFormattedQuery());    // PIPELINES: SolrQuery::setQuery entry point
+
         queryParams.setPageSize(0);
-        solrQuery.setFacet(true);
-        solrQuery.setFacetMinCount(1);
-        solrQuery.setFacetSort("count");
-        solrQuery.setFacetLimit(-1);
+        queryParams.setFacet(true);
+        queryParams.setFsort("count");
+        queryParams.setFlimit(-1);
+        SolrQuery solrQuery = initSolrQuery(queryParams, false, null);
 
         //add the rank:name as a fq if necessary
         if (StringUtils.isNotEmpty(queryParams.getName()) && StringUtils.isNotEmpty(queryParams.getRank())) {
-            queryParams.setFormattedFq((String[]) ArrayUtils.addAll(queryParams.getFormattedFq(), new String[]{queryParams.getRank() + ":" + queryParams.getName()}));
+            solrQuery.addFilterQuery(queryParams.getRank() + ":" + queryParams.getName());
         }
         //add the ranks as facets
         if (queryParams.getLevel() == null) {
             List<String> ranks = queryParams.getRank() != null ? searchUtils.getNextRanks(queryParams.getRank(), queryParams.getName() == null) : searchUtils.getRanks();
             for (String r : ranks) {
-                solrQuery.addFacetField(r); // PIPELINES: SolrQuery::addFacetField entry point
+                solrQuery.addFacetField(r);
             }
         } else {
             //the user has supplied the "exact" level at which to perform the breakdown
-            solrQuery.addFacetField(queryParams.getLevel());    // PIPELINES: SolrQuery::addFacetField entry point
+            solrQuery.addFacetField(queryParams.getLevel());
         }
-        QueryResponse qr = indexDao.runSolrQuery(solrQuery, queryParams);
+        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
         if (queryParams.getMax() != null && queryParams.getMax() > 0) {
             //need to get the return level that the number of facets are <=max ranks need to be processed in reverse order until max is satisfied
             if (qr.getResults().getNumFound() > 0) {
@@ -1454,75 +1397,6 @@ public class SearchDAOImpl implements SearchDAO {
 
         }
         return trDTO;
-    }
-
-    /**
-     * @see au.org.ala.biocache.dao.SearchDAO#findTaxonCountForUid(au.org.ala.biocache.dto.BreakdownRequestParams, String)
-     * @deprecated use {@link #calculateBreakdown(BreakdownRequestParams)} instead
-     */
-    @Deprecated
-    public TaxaRankCountDTO findTaxonCountForUid(BreakdownRequestParams breakdownParams, String query) throws Exception {
-        TaxaRankCountDTO trDTO = null;
-        List<String> ranks = breakdownParams.getLevel() == null ? searchUtils.getNextRanks(breakdownParams.getRank(), breakdownParams.getName() == null) : new ArrayList<String>();
-        if (breakdownParams.getLevel() != null)
-            ranks.add(breakdownParams.getLevel());
-        if (ranks != null && ranks.size() > 0) {
-            SolrQuery solrQuery = new SolrQuery();
-            solrQuery.setRequestHandler("standard");
-            solrQuery.setQuery(query);  // PIPELINES: SolrQuery::setQuery entry point
-            solrQuery.setRows(0);
-            solrQuery.setFacet(true);
-            solrQuery.setFacetMinCount(1);
-            solrQuery.setFacetSort("count");
-            solrQuery.setFacetLimit(-1); //we want all facets
-            for (String r : ranks) {
-                solrQuery.addFacetField(r); // PIPELINES: SolrQuery::addFacetField entry point
-            }
-            QueryResponse qr = runSolrQuery(solrQuery, queryFormatUtils.getQueryContextAsArray(breakdownParams.getQc()), 1, 0, breakdownParams.getRank(), "asc");
-            if (qr.getResults().size() > 0) {
-                for (String r : ranks) {
-                    trDTO = new TaxaRankCountDTO(r);
-                    FacetField ff = qr.getFacetField(r);
-                    if (ff != null && ff.getValues() != null) {
-                        List<Count> counts = ff.getValues();
-                        if (counts.size() > 0) {
-                            List<FieldResultDTO> fDTOs = new ArrayList<FieldResultDTO>();
-                            for (Count count : counts) {
-                                FieldResultDTO f = new FieldResultDTO(count.getName(), count.getFacetField().getName() + "." + count.getName(), count.getCount());
-                                fDTOs.add(f);
-                            }
-                            trDTO.setTaxa(fDTOs);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        return trDTO;
-    }
-
-    /**
-     * Convenience method for running solr query
-     *
-     * @param solrQuery
-     * @param filterQuery
-     * @param pageSize
-     * @param startIndex
-     * @param sortField
-     * @param sortDirection
-     * @return
-     * @throws SolrServerException
-     */
-    private QueryResponse runSolrQuery(SolrQuery solrQuery, String filterQuery[], Integer pageSize,
-                                       Integer startIndex, String sortField, String sortDirection) throws Exception {
-        SearchRequestParams requestParams = new SearchRequestParams();
-        requestParams.setFq(filterQuery);
-        requestParams.setFormattedFq(filterQuery);
-        requestParams.setPageSize(pageSize);
-        requestParams.setStart(startIndex);
-        requestParams.setSort(sortField);
-        requestParams.setDir(sortDirection);
-        return indexDao.runSolrQuery(solrQuery, requestParams);
     }
 
     /**
@@ -1814,10 +1688,22 @@ public class SearchDAOImpl implements SearchDAO {
      *
      * @return solrQuery the SolrQuery
      */
-    protected SolrQuery initSolrQuery(SearchRequestParams searchParams, boolean substituteDefaultFacetOrder, Map<String, String[]> extraSolrParams) {
+    protected SolrQuery initSolrQuery(SpatialSearchRequestParams searchParams, boolean substituteDefaultFacetOrder, Map<String, String[]> extraSolrParams) throws QidMissingException {
+        queryFormatUtils.formatSearchQuery(searchParams);
 
         String occurrenceDate = OccurrenceIndex.OCCURRENCE_DATE;
+
         SolrQuery solrQuery = new SolrQuery();
+        solrQuery.setQuery(searchParams.getFormattedQuery());
+
+        if (searchParams.getFormattedFq() != null) {
+            for (String fq : searchParams.getFormattedFq()) {
+                if (StringUtils.isNotEmpty(fq)) {
+                    solrQuery.addFilterQuery(fq);
+                }
+            }
+        }
+
         solrQuery.setRequestHandler("standard");
         boolean rangeAdded = false;
         // Facets
@@ -1860,10 +1746,12 @@ public class SearchDAOImpl implements SearchDAO {
 
         solrQuery.setRows(searchParams.getPageSize());
         solrQuery.setStart(searchParams.getStart());
+        if (StringUtils.isNotEmpty(searchParams.getDir())) {
+            solrQuery.setSort(searchParams.getSort(), SolrQuery.ORDER.valueOf(searchParams.getDir()));
+        }
 
         if (searchParams.getFl().length() > 0) {
-
-            solrQuery.setFields(searchParams.getFl()); // PIPELINES: SolrQuery::setFields entry point
+            solrQuery.setFields(searchParams.getFl());
         }
 
         //add the extra SOLR params
@@ -1905,23 +1793,15 @@ public class SearchDAOImpl implements SearchDAO {
                 solrQuery.addFilterQuery(fq);   // PIPELINES: SolarQuery::addFilterQuery entry point
             }
         }
-        solrQuery.setRows(0);
-        solrQuery.setFacet(true);
+
+        emptyFacetRequest(solrQuery, pageSize, 0, false);
         solrQuery.setFacetSort(sortField);
         for (String facet : facetFields) {
-            solrQuery.addFacetField(facet); // PIPELINES: SolrQuery::addFacetField entry point
-            if (logger.isDebugEnabled()) {
-                logger.debug("adding facetField: " + facet);
-            }
+            solrQuery.addFacetField(facet);
         }
-        //set the facet starting point based on the paging information
-        solrQuery.setFacetMinCount(1);
-        solrQuery.setFacetLimit(pageSize); // unlimited = -1 | pageSize
         solrQuery.add("facet.offset", Integer.toString(startIndex));
-        if (logger.isDebugEnabled()) {
-            logger.debug("getSpeciesCount query :" + solrQuery.getQuery());
-        }
-        QueryResponse qr = runSolrQuery(solrQuery, null, 1, 0, "score", sortDirection);
+
+        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
         if (logger.isDebugEnabled()) {
             logger.debug("SOLR query: " + solrQuery.getQuery() + "; total hits: " + qr.getResults().getNumFound());
         }
@@ -2004,23 +1884,16 @@ public class SearchDAOImpl implements SearchDAO {
     public Map<String, Integer> getSourcesForQuery(SpatialSearchRequestParams searchParams) throws Exception {
 
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
-        SolrQuery solrQuery = new SolrQuery();
-        queryFormatUtils.formatSearchQuery(searchParams);
-        if (logger.isDebugEnabled()) {
-            logger.debug("The query : " + searchParams.getFormattedQuery());
-        }
-        solrQuery.setQuery(searchParams.getFormattedQuery());   // PIPELINES: SolrQuery::setQuery entry point
-        solrQuery.setRequestHandler("standard");
-        solrQuery.setRows(0);
-        solrQuery.setFacet(true);
-        solrQuery.setFacetMinCount(1);
+        SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
 
-        solrQuery.addField(OccurrenceIndex.INSTITUTION_UID)
-                .addField(OccurrenceIndex.COLLECTION_UID)
-                .addField(OccurrenceIndex.DATA_RESOURCE_UID)
-                .addField(OccurrenceIndex.DATA_PROVIDER_UID);
+        // convert to facet query
+        emptyFacetRequest(solrQuery, -1, 0, false);
+        solrQuery.addFacetField(OccurrenceIndex.INSTITUTION_UID,
+                OccurrenceIndex.COLLECTION_UID,
+                OccurrenceIndex.DATA_RESOURCE_UID,
+                OccurrenceIndex.DATA_PROVIDER_UID);
 
-        QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFormattedFq(), 1, 0, "score", "asc");
+        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
         //now cycle through and get all the facets
         List<FacetField> facets = qr.getFacetFields();
         for (FacetField facet : facets) {
@@ -2042,16 +1915,11 @@ public class SearchDAOImpl implements SearchDAO {
      * The group count is only accurate when foffset == 0
      */
     public List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception {
-
-        queryFormatUtils.formatSearchQuery(searchParams, true);
-        String queryString = searchParams.getFormattedQuery();
         searchParams.setFacet(true);
         searchParams.setPageSize(0);
+        searchParams.setFlimit(-1);
         SolrQuery facetQuery = initSolrQuery(searchParams, false, null);
-        facetQuery.setQuery(queryString);   // PIPELINES: SolrQuery::setQuery entry point
         facetQuery.setFields(null);
-        facetQuery.setRows(0);
-        facetQuery.setFacetLimit(-1);
 
         List<String> fqList = new ArrayList<String>();
         //only add the FQ's if they are not the default values
@@ -2091,15 +1959,11 @@ public class SearchDAOImpl implements SearchDAO {
         SolrDocumentList sdl = null;
 
         try {
-            queryFormatUtils.formatSearchQuery(searchParams);
-            String queryString = searchParams.getFormattedQuery();
-            SolrQuery solrQuery = new SolrQuery();
-            solrQuery.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
-            solrQuery.setFields(searchParams.getFl().split(",")); // PIPELINES: field names entry point
-            solrQuery.setFacet(false);
-            solrQuery.setRows(searchParams.getPageSize());
+            searchParams.setFacet(false);
 
-            sdl = indexDao.runSolrQuery(solrQuery, searchParams).getResults();
+            SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
+
+            sdl = indexDao.runSolrQuery(solrQuery).getResults();
         } catch (SolrServerException ex) {
             logError("Problem communicating with SOLR server. ", ex.getMessage());
         }
@@ -2129,16 +1993,14 @@ public class SearchDAOImpl implements SearchDAO {
         if (logger.isDebugEnabled()) {
             logger.info("getLegend -search query: " + searchParams.getFormattedQuery());
         }
-        SolrQuery solrQuery = new SolrQuery();
-        solrQuery.setRequestHandler("standard");
-        solrQuery.setQuery(searchParams.getFormattedQuery());
-        solrQuery.addFilterQuery(searchParams.getFormattedFq());
-        solrQuery.setRows(0);
-        solrQuery.setFacet(true);
+        SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
+
+        // convert to facet query
+        emptyFacetRequest(solrQuery, wmslegendMaxItems + 1, 0, true);
 
         //is facet query?
         if (cutpoints == null) {
-            solrQuery.addFacetField(facetField);    // PIPELINES: SolrQuery::addFacetField entry point
+            solrQuery.addFacetField(facetField);
         } else {
             solrQuery.addFacetQuery("-" + facetField + ":*");
 
@@ -2146,9 +2008,6 @@ public class SearchDAOImpl implements SearchDAO {
                 solrQuery.addFacetQuery(facetField + ":[" + cutpoints[i] + " TO " + cutpoints[i + 1] + "]");
             }
         }
-
-        solrQuery.setFacetMinCount(1);
-        solrQuery.setFacetLimit(-1);//MAX_DOWNLOAD_SIZE);  // unlimited = -1
 
         FacetDTO facetDTO = FacetThemes.getFacetsMap().get(fieldMappingUtil.translateFieldName(facetField));
         if (facetDTO != null) {
@@ -2159,10 +2018,8 @@ public class SearchDAOImpl implements SearchDAO {
         } else {
             solrQuery.setFacetSort("count");
         }
-        solrQuery.setFacetLimit(wmslegendMaxItems + 1);
-        solrQuery.setFacetMissing(true);
 
-        QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFormattedFq(), 1, 0, "score", "asc");
+        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
         long remainderCount = qr.getResults().getNumFound();
         List<FacetField> facets = qr.getFacetFields();
         if (facets != null) {
@@ -2264,21 +2121,39 @@ public class SearchDAOImpl implements SearchDAO {
         return legend;
     }
 
-    public FacetField getFacet(SpatialSearchRequestParams searchParams, String facet) throws Exception {
-        queryFormatUtils.formatSearchQuery(searchParams);
-        if (logger.isDebugEnabled()) {
-            logger.debug("getFacet - search query: " + searchParams.getFormattedQuery());
-        }
-        SolrQuery solrQuery = new SolrQuery();
-        solrQuery.setRequestHandler("standard");
-        solrQuery.setQuery(searchParams.getFormattedQuery());   // PIPELINES: SolrQuery::setQuery entry point
+    /**
+     * Convert a solrQuery to a facet only request.
+     * - rows=0
+     * - facet=true
+     * - facet.mincount=1
+     * <p>
+     * Also removes any facetQueries and facetFields
+     *
+     * @param solrQuery
+     */
+    private void emptyFacetRequest(SolrQuery solrQuery, int facetLimit, int facetOffset, boolean includeMissing) {
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
-        solrQuery.addFacetField(facet); // PIPELINES: SolrQuery::addFacetField entry point
         solrQuery.setFacetMinCount(1);
-        solrQuery.setFacetLimit(-1); //MAX_DOWNLOAD_SIZE);  // unlimited = -1
+        solrQuery.setFacetLimit(facetLimit);
+        solrQuery.set("facet.offset", facetOffset);
+        solrQuery.setFacetMissing(includeMissing);
 
-        QueryResponse qr = runSolrQuery(solrQuery, searchParams.getFormattedFq(), 1, 0, null, null);
+        // remove facetFields and facetQueries
+        if (solrQuery.getFacetFields() != null)
+            Arrays.stream(solrQuery.getFacetFields()).forEach(solrQuery::removeFacetField);
+        if (solrQuery.getFacetQuery() != null)
+            Arrays.stream(solrQuery.getFacetQuery()).forEach(solrQuery::removeFacetQuery);
+    }
+
+    public FacetField getFacet(SpatialSearchRequestParams searchParams, String facet) throws Exception {
+        SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
+
+        // convert to a facet only request
+        emptyFacetRequest(solrQuery, -1, 0, false);
+        solrQuery.addFacetField(facet);
+
+        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
         return qr.getFacetFields().get(0);
     }
 
@@ -2342,16 +2217,14 @@ public class SearchDAOImpl implements SearchDAO {
      * @param taxa
      * @param filterQueries
      * @return
-     * @throws Exception
+     * @throws Exception TODO: deprecate for a standard facet query.
      */
     public Map<String, Integer> getOccurrenceCountsForTaxa(List<String> taxa, String[] filterQueries) throws Exception {
         SolrQuery solrQuery = new SolrQuery();
-        solrQuery.setRequestHandler("standard");
-        solrQuery.setRows(0);
-        solrQuery.setFacet(true);
-        solrQuery.setFacetLimit(taxa.size());
+        emptyFacetRequest(solrQuery, taxa.size(), 0, false);
+
         if (filterQueries != null && filterQueries.length > 0) {
-            solrQuery.setFilterQueries(filterQueries);  // PIPELINES: SolarQuery::setFilterQueries entry point
+            solrQuery.setFilterQueries(filterQueries);
         }
         StringBuilder sb = new StringBuilder();
         Map<String, Integer> counts = new HashMap<String, Integer>();
@@ -2368,10 +2241,9 @@ public class SearchDAOImpl implements SearchDAO {
             //add the query part as a facet
             solrQuery.add("facet.query", values[0]);
         }
-        solrQuery.setQuery(sb.toString());  // PIPELINES: SolrQuery::setQuery entry point
+        solrQuery.setQuery(sb.toString());
 
-        //solrQuery.add("facet.query", "confidence:" + os.getRange());
-        QueryResponse qr = runSolrQuery(solrQuery, null, 1, 0, "score", "asc");
+        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
         Map<String, Integer> facetQueries = qr.getFacetQuery();
         for (String facet : facetQueries.keySet()) {
             //add all the counts based on the query value that was substituted
@@ -2445,14 +2317,11 @@ public class SearchDAOImpl implements SearchDAO {
      * fl is the list of fields in the returned docs
      */
     public QueryResponse searchGroupedFacets(SpatialSearchRequestParams searchParams) throws Exception {
-        queryFormatUtils.formatSearchQuery(searchParams);
-        String queryString = searchParams.getFormattedQuery();
+        searchParams.setPageSize(0);
+        searchParams.setFacet(false);
 
         //get facet group counts
         SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
-        solrQuery.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
-        solrQuery.setRows(0);
-        solrQuery.setFacet(false);
 
         StringBuilder sb = new StringBuilder("{");
         int facets = 0;
@@ -2569,22 +2438,18 @@ public class SearchDAOImpl implements SearchDAO {
     public List<FacetPivotResultDTO> searchPivot(SpatialSearchRequestParams searchParams) throws Exception {
         String pivot = StringUtils.join(searchParams.getFacets(), ",");
         searchParams.setFacets(new String[]{});
-
-        queryFormatUtils.formatSearchQuery(searchParams);
-        String queryString = searchParams.getFormattedQuery();
         searchParams.setFacet(true);
+        searchParams.setPageSize(0);
 
         //get facet group counts
         SolrQuery query = initSolrQuery(searchParams, false, null);
-        query.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
         query.setFields(null);
         //now use the supplied facets to add groups to the query
         query.add("facet.pivot", pivot);
         query.add("facet.pivot.mincount", "1");
         query.add("facet.missing", "true");
-        query.setRows(0);
-        searchParams.setPageSize(0);
-        QueryResponse response = indexDao.runSolrQuery(query, searchParams);
+
+        QueryResponse response = indexDao.runSolrQuery(query);
         NamedList<List<PivotField>> result = response.getFacetPivot();
 
         List<FacetPivotResultDTO> output = new ArrayList();
@@ -2666,25 +2531,20 @@ public class SearchDAOImpl implements SearchDAO {
                                            Collection<String> statType) throws Exception {
         searchParams.setFacets(new String[]{});
 
-        queryFormatUtils.formatSearchQuery(searchParams);
-        String queryString = searchParams.getFormattedQuery();
-
         if (facet != null) searchParams.setFacet(true);
+        searchParams.setFacets(new String[]{});
 
         //get facet group counts
         SolrQuery query = initSolrQuery(searchParams, false, null);
-        query.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
+        query.setRows(0);
         query.setFields(null);
-        //query.setFacetLimit(-1);
 
         //stats parameters
         query.add("stats", "true");
         if (facet != null) query.add("stats.facet", facet);
         query.add("stats.field", "{!" + StringUtils.join(statType, "=true ") + "=true}" + field);
 
-        query.setRows(0);
-        searchParams.setPageSize(0);
-        QueryResponse response = indexDao.runSolrQuery(query, searchParams);
+        QueryResponse response = indexDao.runSolrQuery(query);
 
         List<FieldStatsItem> output = new ArrayList();
         if (facet != null && response.getFieldStatsInfo().size() > 0) {
@@ -2789,7 +2649,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @throws Exception
      */
     public double[] getBBox(SpatialSearchRequestParams requestParams) throws Exception {
-        SolrQuery query = buildSolrQuery(requestParams);
+        SolrQuery query = initSolrQuery(requestParams, false, null);
         query.setRows(0);
         query.setFacet(false);
 
@@ -2811,25 +2671,16 @@ public class SearchDAOImpl implements SearchDAO {
         }
     }
 
+    // TODO: single request to improve performance
     @Override
     public List<String> listFacets(SpatialSearchRequestParams searchParams) throws Exception {
-        queryFormatUtils.formatSearchQuery(searchParams);
         searchParams.setFacet(true);
         searchParams.setFacets(new String[]{});
 
-        String queryString = searchParams.getFormattedQuery();
         SolrQuery solrQuery = initSolrQuery(searchParams, false, null); // general search settings
-        solrQuery.setQuery(queryString);    // PIPELINES: SolrQuery::setQuery entry point
+
         solrQuery.setFacetLimit(-1);
         solrQuery.setRows(0);
-
-        if (searchParams.getFormattedFq() != null) {
-            for (String fq : searchParams.getFormattedFq()) {
-                if (StringUtils.isNotEmpty(fq)) {
-                    solrQuery.addFilterQuery(fq);
-                }
-            }
-        }
 
         ArrayList<String> found = new ArrayList<>();
 
@@ -3080,16 +2931,6 @@ public class SearchDAOImpl implements SearchDAO {
 
     @Override
     public int streamingQuery(SpatialSearchRequestParams request, ProcessInterface procSearch, ProcessInterface procFacet) throws Exception {
-        return indexDao.streamingQuery(buildSolrQuery(request), procSearch, procFacet, null);
-    }
-
-    public SolrQuery buildSolrQuery(SpatialSearchRequestParams request) throws Exception {
-        queryFormatUtils.formatSearchQuery(request);
-
-        String queryString = request.getFormattedQuery();
-        SolrQuery solrQuery = initSolrQuery(request, true, null);
-        solrQuery.setQuery(queryString);
-
-        return solrQuery;
+        return indexDao.streamingQuery(initSolrQuery(request, true, null), procSearch, procFacet, null);
     }
 }

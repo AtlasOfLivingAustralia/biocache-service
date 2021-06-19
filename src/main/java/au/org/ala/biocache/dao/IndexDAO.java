@@ -1,8 +1,6 @@
 package au.org.ala.biocache.dao;
 
 import au.org.ala.biocache.dto.IndexFieldDTO;
-import au.org.ala.biocache.dto.SearchRequestParams;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.dto.StatsIndexFieldDTO;
 import au.org.ala.biocache.stream.ProcessInterface;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -49,9 +47,9 @@ public interface IndexDAO {
 
     Map<String, IndexFieldDTO> getIndexedFieldsMap() throws Exception;
 
-    Map<String, FieldStatsInfo> getStatistics(SpatialSearchRequestParams searchParams) throws Exception;
+    Map<String, FieldStatsInfo> getStatistics(String field) throws Exception;
 
-    QueryResponse runSolrQuery(SolrQuery solrQuery, SearchRequestParams requestParams) throws Exception;
+    QueryResponse runSolrQuery(SolrQuery solrQuery) throws Exception;
 
     void indexFromMap(List<Map<String, Object>> maps) throws IOException, SolrServerException;
 

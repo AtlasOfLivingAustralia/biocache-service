@@ -16,11 +16,16 @@ package au.org.ala.biocache.web;
 
 import au.com.bytecode.opencsv.CSVReader;
 import au.com.bytecode.opencsv.CSVWriter;
-import au.org.ala.biocache.dao.*;
+import au.org.ala.biocache.dao.IndexDAO;
+import au.org.ala.biocache.dao.QidCacheDAO;
+import au.org.ala.biocache.dao.SearchDAO;
+import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.service.*;
-import au.org.ala.biocache.util.*;
+import au.org.ala.biocache.util.OccurrenceUtils;
+import au.org.ala.biocache.util.QidSizeException;
+import au.org.ala.biocache.util.SearchUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.sf.ehcache.CacheManager;
@@ -173,7 +178,9 @@ public class OccurrenceController extends AbstractSecureController {
     @Value("${facet.default:true}")
     public Boolean facetDefault;
 
-    /** Max number of threads available to all online solr download queries */
+    /**
+     * Max number of threads available to all online solr download queries
+     */
     @Value("${online.downloadquery.maxthreads:30}")
     protected Integer maxOnlineDownloadThreads = 30;
 
@@ -215,15 +222,16 @@ public class OccurrenceController extends AbstractSecureController {
         }
     }
 
-    public Pattern getTaxonIDPattern(){
-        if(taxonIDPattern == null){
+    public Pattern getTaxonIDPattern() {
+        if (taxonIDPattern == null) {
             taxonIDPattern = Pattern.compile(taxonIDPatternString);
         }
         return taxonIDPattern;
     }
-    
+
     /**
      * Need to initialise the validator to be used otherwise the @Valid annotation will not work
+     *
      * @param binder
      */
     @InitBinder
@@ -244,15 +252,15 @@ public class OccurrenceController extends AbstractSecureController {
         model.addAttribute("webservicesRoot", webservicesRoot);
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         InputStream input = classLoader.getResourceAsStream("/git.properties");
-        if (input != null){
+        if (input != null) {
             try {
                 Properties versionProperties = new Properties();
                 versionProperties.load(input);
                 model.addAttribute("versionInfo", versionProperties);
 
-                StringBuffer sb  = new StringBuffer();
-                for (String name : versionProperties.stringPropertyNames()){
-                    sb.append(name + " : "  + versionProperties.getProperty(name) + "\n");
+                StringBuffer sb = new StringBuffer();
+                for (String name : versionProperties.stringPropertyNames()) {
+                    sb.append(name + " : " + versionProperties.getProperty(name) + "\n");
                 }
 
                 model.addAttribute("versionInfoString", sb.toString());
@@ -293,22 +301,26 @@ public class OccurrenceController extends AbstractSecureController {
 
     /**
      * Returns the default facets that are applied to a search
+     *
      * @return
      */
     @RequestMapping(value = "/search/facets", method = RequestMethod.GET)
-    public @ResponseBody String[] listAllFacets() {
+    public @ResponseBody
+    String[] listAllFacets() {
         return new SearchRequestParams().getFacets();
     }
-    
+
     /**
      * Returns the default facets grouped by themes that are applied to a search
+     *
      * @return
      */
     @RequestMapping(value = "/search/grouped/facets", method = RequestMethod.GET)
-    public @ResponseBody List groupFacets() throws IOException {
+    public @ResponseBody
+    List groupFacets() throws IOException {
         return FacetThemes.getAllThemes();
     }
-    
+
     /**
      * Returns the content of the messages.properties file.
      * Can also return language specific versions, such as
@@ -341,11 +353,11 @@ public class OccurrenceController extends AbstractSecureController {
             if (is != null) {
                 byte[] buffer = new byte[1024];
                 int bytesRead;
-                while ((bytesRead = is.read(buffer)) != -1){
+                while ((bytesRead = is.read(buffer)) != -1) {
                     os.write(buffer, 0, bytesRead);
                 }
             }
-            
+
             //append cl* and el* names as field.{fieldId}={display name}
             if (StringUtils.isNotEmpty(layersService.getLayersServiceUrl())) {
                 try {
@@ -366,23 +378,25 @@ public class OccurrenceController extends AbstractSecureController {
             }
         }
     }
-    
+
     /**
      * Returns a list with the details of the index field
+     *
      * @return
      * @throws Exception
      */
     @RequestMapping(value = "index/fields", method = RequestMethod.GET)
-    public @ResponseBody Collection<IndexFieldDTO> getIndexedFields(
-            @RequestParam(value="fl", required=false) String fields,
-            @RequestParam(value="indexed", required=false) Boolean indexed,
-            @RequestParam(value="stored", required=false) Boolean stored,
-            @RequestParam(value="multivalue", required=false) Boolean multivalue,
-            @RequestParam(value="dataType", required=false) String dataType,
-            @RequestParam(value="classs", required=false) String classs,
-            @RequestParam(value="isMisc", required=false, defaultValue = "false") Boolean isMisc,
-            @RequestParam(value="deprecated", required=false, defaultValue="false") Boolean isDeprecated,
-            @RequestParam(value="isDwc", required=false) Boolean isDwc) throws Exception {
+    public @ResponseBody
+    Collection<IndexFieldDTO> getIndexedFields(
+            @RequestParam(value = "fl", required = false) String fields,
+            @RequestParam(value = "indexed", required = false) Boolean indexed,
+            @RequestParam(value = "stored", required = false) Boolean stored,
+            @RequestParam(value = "multivalue", required = false) Boolean multivalue,
+            @RequestParam(value = "dataType", required = false) String dataType,
+            @RequestParam(value = "classs", required = false) String classs,
+            @RequestParam(value = "isMisc", required = false, defaultValue = "false") Boolean isMisc,
+            @RequestParam(value = "deprecated", required = false, defaultValue = "false") Boolean isDeprecated,
+            @RequestParam(value = "isDwc", required = false) Boolean isDwc) throws Exception {
 
         Set<IndexFieldDTO> result;
         if (fields == null) {
@@ -424,24 +438,25 @@ public class OccurrenceController extends AbstractSecureController {
 
     /**
      * Returns a list with the details of the index field
+     *
      * @return
      * @throws Exception
      */
     @RequestMapping(value = "index/fields.csv", method = RequestMethod.GET)
     public void getIndexedFields(
-            @RequestParam(value="fl", required=false) String fields,
-            @RequestParam(value="indexed", required=false) Boolean indexed,
-            @RequestParam(value="stored", required=false) Boolean stored,
-            @RequestParam(value="multivalue", required=false) Boolean multivalue,
-            @RequestParam(value="dataType", required=false) String dataType,
-            @RequestParam(value="classs", required=false) String classs,
-            @RequestParam(value="isMisc", required=false, defaultValue = "false") Boolean isMisc,
-            @RequestParam(value="deprecated", required=false, defaultValue="false") Boolean isDeprecated,
-            @RequestParam(value="isDwc", required=false) Boolean isDwc,
+            @RequestParam(value = "fl", required = false) String fields,
+            @RequestParam(value = "indexed", required = false) Boolean indexed,
+            @RequestParam(value = "stored", required = false) Boolean stored,
+            @RequestParam(value = "multivalue", required = false) Boolean multivalue,
+            @RequestParam(value = "dataType", required = false) String dataType,
+            @RequestParam(value = "classs", required = false) String classs,
+            @RequestParam(value = "isMisc", required = false, defaultValue = "false") Boolean isMisc,
+            @RequestParam(value = "deprecated", required = false, defaultValue = "false") Boolean isDeprecated,
+            @RequestParam(value = "isDwc", required = false) Boolean isDwc,
             HttpServletResponse response
-            ) throws Exception {
+    ) throws Exception {
 
-        Collection<IndexFieldDTO> indexedFields =  getIndexedFields(fields,
+        Collection<IndexFieldDTO> indexedFields = getIndexedFields(fields,
                 indexed,
                 stored,
                 multivalue,
@@ -476,7 +491,7 @@ public class OccurrenceController extends AbstractSecureController {
         });
 
         Iterator<IndexFieldDTO> iter = indexedFields.iterator();
-        while(iter.hasNext()){
+        while (iter.hasNext()) {
             IndexFieldDTO indexField = iter.next();
             csvWriter.writeNext(new String[]{
                     indexField.getName(),
@@ -502,16 +517,17 @@ public class OccurrenceController extends AbstractSecureController {
 
     /**
      * Returns current index version number.
-     * 
+     * <p>
      * Can force the refresh if an apiKey is also provided. e.g. after a known edit.
      *
      * @return
      * @throws Exception
      */
     @RequestMapping(value = "index/version", method = RequestMethod.GET)
-    public @ResponseBody Map getIndexedFields(@RequestParam(value="apiKey", required=false) String apiKey,
-                                              @RequestParam(value="force", required=false, defaultValue="false") Boolean force,
-                                              HttpServletResponse response) throws Exception{
+    public @ResponseBody
+    Map getIndexedFields(@RequestParam(value = "apiKey", required = false) String apiKey,
+                         @RequestParam(value = "force", required = false, defaultValue = "false") Boolean force,
+                         HttpServletResponse response) throws Exception {
         Long version;
         if (force && shouldPerformOperation(apiKey, response)) {
             version = indexDao.getIndexVersion(force);
@@ -529,7 +545,8 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping(value = "index/maxBooleanClauses", method = RequestMethod.GET)
-    public @ResponseBody Map getIndexedFields() throws Exception{
+    public @ResponseBody
+    Map getIndexedFields() throws Exception {
 
         int m = searchDAO.getMaxBooleanClauses();
 
@@ -572,27 +589,29 @@ public class OccurrenceController extends AbstractSecureController {
 
     /**
      * Returns a facet list including the number of distinct values for a field
+     *
      * @param requestParams
      * @return
      * @throws Exception
      */
     @RequestMapping(value = "occurrence/facets", method = RequestMethod.GET)
-    public @ResponseBody List<FacetResultDTO> getOccurrenceFacetDetails(
+    public @ResponseBody
+    List<FacetResultDTO> getOccurrenceFacetDetails(
             SpatialSearchRequestParams requestParams,
             HttpServletResponse response
-            ) throws Exception {
+    ) throws Exception {
         try {
             return searchDAO.getFacetCounts(requestParams);
-        } catch (SolrException se){
+        } catch (SolrException se) {
             response.sendError(400, "Problem with query syntax");
             logger.error(se.getMessage());
-            if (logger.isDebugEnabled()){
+            if (logger.isDebugEnabled()) {
                 logger.debug(se.getMessage(), se);
             }
             return null;
         }
     }
-    
+
     /**
      * Returns a list of image urls for the supplied taxon guid.
      * An empty list is returned when no images are available.
@@ -601,30 +620,33 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping(value = "/images/taxon/**", method = RequestMethod.GET)
-    public @ResponseBody List<String> getImages(HttpServletRequest request) throws Exception {
+    public @ResponseBody
+    List<String> getImages(HttpServletRequest request) throws Exception {
         String guid = searchUtils.getGuidFromPath(request);
         SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
         srp.setQ("lsid:" + guid);
         srp.setPageSize(0);
         srp.setFacets(new String[]{OccurrenceIndex.IMAGE_URL});
         SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(srp, null);
-        if(results.getFacetResults().size()>0){
-            List<FieldResultDTO> fieldResults =results.getFacetResults().iterator().next().getFieldResult();
+        if (results.getFacetResults().size() > 0) {
+            List<FieldResultDTO> fieldResults = results.getFacetResults().iterator().next().getFieldResult();
             ArrayList<String> images = new ArrayList<String>(fieldResults.size());
-            for(FieldResultDTO fr : fieldResults)
+            for (FieldResultDTO fr : fieldResults)
                 images.add(fr.getLabel());
             return images;
         }
         return Collections.EMPTY_LIST;
     }
-    
+
     /**
      * Checks to see if the supplied GUID represents an Australian species.
+     *
      * @return
      * @throws Exception
      */
-    @RequestMapping(value={"/australian/taxon/**", "/native/taxon/**"}, method = RequestMethod.GET)
-    public @ResponseBody NativeDTO isAustralian(HttpServletRequest request) throws Exception {
+    @RequestMapping(value = {"/australian/taxon/**", "/native/taxon/**"}, method = RequestMethod.GET)
+    public @ResponseBody
+    NativeDTO isAustralian(HttpServletRequest request) throws Exception {
         //check to see if we have any occurrences on Australia  country:Australia or state != empty
         String guid = searchUtils.getGuidFromPath(request);
         NativeDTO adto = new NativeDTO();
@@ -638,16 +660,18 @@ public class OccurrenceController extends AbstractSecureController {
 
     /**
      * Checks to see if the supplied GUID list has items that represents an Australian species.
+     *
      * @param guids - comma separated list of guids
      * @return
      * @throws Exception
      */
-    @RequestMapping(value={"/australian/taxa.json*","/australian/taxa*", "/native/taxa.json*","/native/taxa*" }, method = RequestMethod.GET)
-    public @ResponseBody List<NativeDTO> isAustralianForList(@RequestParam(value = "guids", required = true) String guids) throws Exception {
+    @RequestMapping(value = {"/australian/taxa.json*", "/australian/taxa*", "/native/taxa.json*", "/native/taxa*"}, method = RequestMethod.GET)
+    public @ResponseBody
+    List<NativeDTO> isAustralianForList(@RequestParam(value = "guids", required = true) String guids) throws Exception {
         List<NativeDTO> nativeDTOs = new ArrayList<NativeDTO>();
         String[] guidArray = StringUtils.split(guids, ',');
 
-        if (guidArray !=null) {
+        if (guidArray != null) {
             for (String guid : guidArray) {
                 nativeDTOs.add(getIsAustraliaForGuid(guid));
                 logger.debug("guid = " + guid);
@@ -696,119 +720,127 @@ public class OccurrenceController extends AbstractSecureController {
      * Returns the complete list of Occurrences
      */
     @RequestMapping(value = {"/occurrences", "/occurrences/collections", "/occurrences/institutions", "/occurrences/dataResources", "/occurrences/dataProviders", "/occurrences/taxa", "/occurrences/dataHubs"}, method = RequestMethod.GET)
-    public @ResponseBody SearchResultDTO listOccurrences(Model model) throws Exception {
+    public @ResponseBody
+    SearchResultDTO listOccurrences(Model model) throws Exception {
         SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
         srp.setQ("*:*");
         return occurrenceSearch(srp);
     }
-    
+
     /**
      * Occurrence search page uses SOLR JSON to display results
      *
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/occurrences/taxon/**","/occurrences/taxon/**","/occurrences/taxa/**"}, method = RequestMethod.GET)
-    public @ResponseBody SearchResultDTO occurrenceSearchByTaxon(
-                                                                 SpatialSearchRequestParams requestParams,
-                                                                 HttpServletRequest request) throws Exception {
+    @RequestMapping(value = {"/occurrences/taxon/**", "/occurrences/taxon/**", "/occurrences/taxa/**"}, method = RequestMethod.GET)
+    public @ResponseBody
+    SearchResultDTO occurrenceSearchByTaxon(
+            SpatialSearchRequestParams requestParams,
+            HttpServletRequest request) throws Exception {
         String guid = searchUtils.getGuidFromPath(request);
         requestParams.setQ("lsid:" + guid);
         SearchUtils.setDefaultParams(requestParams);
         return occurrenceSearch(requestParams);
     }
-    
+
     /**
      * Obtains a list of the sources for the supplied guid.
-     *
+     * <p>
      * I don't think that this should be necessary. We should be able to
      * configure the requestParams facets to contain the collectino_uid, institution_uid
      * data_resource_uid and data_provider_uid
-     *
+     * <p>
      * It also handle's the logging for the BIE.
      * //TODO Work out what to do with this
+     *
      * @throws Exception
      */
     @RequestMapping(value = "/occurrences/taxon/source/**", method = RequestMethod.GET)
-    public @ResponseBody List<OccurrenceSourceDTO> sourceByTaxon(SpatialSearchRequestParams requestParams,
-                                                                 HttpServletRequest request) throws Exception {
+    public @ResponseBody
+    List<OccurrenceSourceDTO> sourceByTaxon(SpatialSearchRequestParams requestParams,
+                                            HttpServletRequest request) throws Exception {
         String guid = searchUtils.getGuidFromPath(request);
         requestParams.setQ("lsid:" + guid);
         Map<String, Integer> sources = searchDAO.getSourcesForQuery(requestParams);
         //now turn them to a list of OccurrenceSourceDTO
         return searchUtils.getSourceInformation(sources);
     }
-    
+
     /**
      * Occurrence search for a given collection, institution, data_resource or data_provider.
      *
      * @param requestParams The search parameters
-     * @param uid The uid for collection, institution, data_resource or data_provider
+     * @param uid           The uid for collection, institution, data_resource or data_provider
      * @return
      * @throws Exception
      */
     @RequestMapping(value = {"/occurrences/collections/{uid}", "/occurrences/institutions/{uid}",
-        "/occurrences/dataResources/{uid}", "/occurrences/dataProviders/{uid}",
-        "/occurrences/dataHubs/{uid}"}, method = RequestMethod.GET)
-    public @ResponseBody SearchResultDTO occurrenceSearchForUID(SpatialSearchRequestParams requestParams,
-                                                                @PathVariable("uid") String uid) throws Exception {
+            "/occurrences/dataResources/{uid}", "/occurrences/dataProviders/{uid}",
+            "/occurrences/dataHubs/{uid}"}, method = RequestMethod.GET)
+    public @ResponseBody
+    SearchResultDTO occurrenceSearchForUID(SpatialSearchRequestParams requestParams,
+                                           @PathVariable("uid") String uid) throws Exception {
         SearchResultDTO searchResult = new SearchResultDTO();
         // no query so exit method
         if (StringUtils.isEmpty(uid)) {
             return searchResult;
         }
-        
+
         SearchUtils.setDefaultParams(requestParams);
         //update the request params so the search caters for the supplied uid
         searchUtils.updateCollectionSearchString(requestParams, uid);
         logger.debug("solr query: " + requestParams);
         return occurrenceSearch(requestParams);
     }
-    
+
     /**
      * Spatial search for either a taxon name or full text text search
+     *
      * @param model
-     * @deprecated use {@link #occurrenceSearch(SpatialSearchRequestParams)}
      * @return
      * @throws Exception
+     * @deprecated use {@link #occurrenceSearch(SpatialSearchRequestParams)}
      */
-    @RequestMapping(value =  "/occurrences/searchByArea*", method = RequestMethod.GET)
+    @RequestMapping(value = "/occurrences/searchByArea*", method = RequestMethod.GET)
     @Deprecated
-    public @ResponseBody SearchResultDTO occurrenceSearchByArea(SpatialSearchRequestParams requestParams,
-                                                                Model model) {
+    public @ResponseBody
+    SearchResultDTO occurrenceSearchByArea(SpatialSearchRequestParams requestParams,
+                                           Model model) {
         SearchResultDTO searchResult = new SearchResultDTO();
-        
+
         if (StringUtils.isEmpty(requestParams.getQ())) {
             return searchResult;
         }
-        
+
         //searchUtils.updateSpatial(requestParams);
-        searchResult = searchDAO.findByFulltextSpatialQuery(requestParams,null);
+        searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, null);
         model.addAttribute("searchResult", searchResult);
-        
-        if(logger.isDebugEnabled()){
+
+        if (logger.isDebugEnabled()) {
             logger.debug("Returning results set with: " + searchResult.getTotalRecords());
         }
-        
+
         return searchResult;
     }
-    
-    private SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams)throws Exception{
-        return occurrenceSearch(requestParams,null,false,null,null);
+
+    private SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams) throws Exception {
+        return occurrenceSearch(requestParams, null, false, null, null);
     }
-    
+
     /**
      * Occurrence search page uses SOLR JSON to display results
      *
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/occurrences/search.json*","/occurrences/search*", "/occurrence/search*"}, method = RequestMethod.GET)
-    public @ResponseBody SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams,
-                                                          @RequestParam(value="apiKey", required=false) String apiKey,
-                                                          @RequestParam(value="im", required=false, defaultValue = "false") Boolean lookupImageMetadata,
-                                                          HttpServletRequest request,
-                                                          HttpServletResponse response) throws Exception {
+    @RequestMapping(value = {"/occurrences/search.json*", "/occurrences/search*", "/occurrence/search*"}, method = RequestMethod.GET)
+    public @ResponseBody
+    SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams,
+                                     @RequestParam(value = "apiKey", required = false) String apiKey,
+                                     @RequestParam(value = "im", required = false, defaultValue = "false") Boolean lookupImageMetadata,
+                                     HttpServletRequest request,
+                                     HttpServletResponse response) throws Exception {
         try {
 
             // handle empty param values, e.g. &sort=&dir=
@@ -845,25 +877,26 @@ public class OccurrenceController extends AbstractSecureController {
                 }
             }
             return srtdto;
-        } catch (SolrException e){
+        } catch (SolrException e) {
             logger.error(e.getMessage());
             response.sendError(400, "Invalid query");
-            if (logger.isDebugEnabled()){
+            if (logger.isDebugEnabled()) {
                 logger.debug(e.getMessage(), e);
             }
             return null;
         }
     }
-    
-    public @ResponseBody SearchResultDTO occurrenceSearchSensitive(SpatialSearchRequestParams requestParams,
-                                                                   @RequestParam(value="apiKey", required=true) String apiKey,
-                                                                   HttpServletRequest request,
-                                                                   HttpServletResponse response) throws Exception {
+
+    public @ResponseBody
+    SearchResultDTO occurrenceSearchSensitive(SpatialSearchRequestParams requestParams,
+                                              @RequestParam(value = "apiKey", required = true) String apiKey,
+                                              HttpServletRequest request,
+                                              HttpServletResponse response) throws Exception {
         // handle empty param values, e.g. &sort=&dir=
-        if(shouldPerformOperation(apiKey, response, false)){
+        if (shouldPerformOperation(apiKey, response, false)) {
             SearchUtils.setDefaultParams(requestParams);
-            Map<String,String[]> map = SearchUtils.getExtraParams(request.getParameterMap());
-            if(map != null){
+            Map<String, String[]> map = SearchUtils.getExtraParams(request.getParameterMap());
+            if (map != null) {
                 map.remove("apiKey");
             }
             logger.debug("occurrence search params = " + requestParams);
@@ -880,7 +913,8 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping(value = {"/cache/refresh"}, method = RequestMethod.GET)
-    public @ResponseBody String refreshCache() throws Exception {
+    public @ResponseBody
+    String refreshCache() throws Exception {
         searchDAO.refreshCaches();
 
         //update FacetThemes static values
@@ -892,7 +926,7 @@ public class OccurrenceController extends AbstractSecureController {
         regenerateETag();
         return null;
     }
-    
+
     /**
      * Regenerate the ETag after clearing the cache so that cached responses are identified as out of date
      */
@@ -902,7 +936,7 @@ public class OccurrenceController extends AbstractSecureController {
 
     /**
      * Downloads the complete list of values in the supplied facet
-     *
+     * <p>
      * ONLY 1 facet should be included in the params.
      *
      * @param requestParams
@@ -912,13 +946,13 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = "/occurrences/facets/download*", method = RequestMethod.GET)
     public void downloadFacet(
             DownloadRequestParams requestParams,
-            @RequestParam(value="count", required=false, defaultValue="false") boolean includeCount,
-            @RequestParam(value="lookup" ,required=false, defaultValue="false") boolean lookupName,
-            @RequestParam(value="synonym", required=false, defaultValue="false") boolean includeSynonyms,
+            @RequestParam(value = "count", required = false, defaultValue = "false") boolean includeCount,
+            @RequestParam(value = "lookup", required = false, defaultValue = "false") boolean lookupName,
+            @RequestParam(value = "synonym", required = false, defaultValue = "false") boolean includeSynonyms,
             @RequestParam(value = "lists", required = false, defaultValue = "false") boolean includeLists,
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
-        if(requestParams.getFacets().length > 0){
+        if (requestParams.getFacets().length > 0) {
             DownloadDetailsDTO dd = downloadService.registerDownload(requestParams, getIPAddress(request), getUserAgent(request), DownloadDetailsDTO.DownloadType.FACET);
             try {
                 String filename = requestParams.getFile() != null ? requestParams.getFile() : requestParams.getFacets()[0];
@@ -934,7 +968,7 @@ public class OccurrenceController extends AbstractSecureController {
             }
         }
     }
-    
+
     /**
      * Webservice to support bulk downloads for a long list of queries for a single field.
      * NOTE: triggered on "Download Records" button
@@ -945,15 +979,15 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/occurrences/batchSearch", method = RequestMethod.POST, params="action=Download")
+    @RequestMapping(value = "/occurrences/batchSearch", method = RequestMethod.POST, params = "action=Download")
     public void batchDownload(
             HttpServletResponse response,
             HttpServletRequest request,
             DownloadRequestParams downloadRequestParams,
-            @RequestParam(value="queries", required = true, defaultValue = "") String queries,
-            @RequestParam(value="field", required = true, defaultValue = "") String field,
-            @RequestParam(value="separator", defaultValue = "\n") String separator,
-            @RequestParam(value="title", required=false) String title) throws Exception {
+            @RequestParam(value = "queries", required = true, defaultValue = "") String queries,
+            @RequestParam(value = "field", required = true, defaultValue = "") String field,
+            @RequestParam(value = "separator", defaultValue = "\n") String separator,
+            @RequestParam(value = "title", required = false) String title) throws Exception {
         logger.info("/occurrences/batchSearch with action=Download Records");
         Long qid = getQidForBatchSearch(queries, field, separator, title);
 
@@ -969,46 +1003,46 @@ public class OccurrenceController extends AbstractSecureController {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST);
         }
     }
-    
+
     @RequestMapping(value = "/occurrences/download/batchFile", method = RequestMethod.GET)
     public String batchDownload(
-                                HttpServletRequest request,
-                                @Valid final DownloadRequestParams params,
-                                BindingResult result,
-                                @RequestParam(value="file", required = true) String filepath,
-                                @RequestParam(value="directory", required = true, defaultValue = "/data/biocache-exports") final String directory,
-                                Model model){
-        if (result.hasErrors()){
-            if(logger.isInfoEnabled()) {
+            HttpServletRequest request,
+            @Valid final DownloadRequestParams params,
+            BindingResult result,
+            @RequestParam(value = "file", required = true) String filepath,
+            @RequestParam(value = "directory", required = true, defaultValue = "/data/biocache-exports") final String directory,
+            Model model) {
+        if (result.hasErrors()) {
+            if (logger.isInfoEnabled()) {
                 logger.info("validation failed  " + result.getErrorCount() + " checks");
-                if(logger.isDebugEnabled()) {
+                if (logger.isDebugEnabled()) {
                     logger.debug(result.toString());
                 }
             }
             model.addAttribute("errorMessage", getValidationErrorMessage(result));
             return VALIDATION_ERROR;
         }
-        
+
         final File file = new File(filepath);
-        
+
         final SpeciesLookupService mySpeciesLookupService = this.speciesLookupService;
         final DownloadDetailsDTO dd = downloadService.registerDownload(params, getIPAddress(request), getUserAgent(request), DownloadType.RECORDS_INDEX);
-        
-        if (file.exists()){
-            Runnable t = new Runnable(){
+
+        if (file.exists()) {
+            Runnable t = new Runnable() {
                 @Override
                 public void run() {
                     long executionDelay = 10 + Math.round(Math.random() * 50);
-                    try (CSVReader reader  = new CSVReader(new FileReader(file));){
+                    try (CSVReader reader = new CSVReader(new FileReader(file));) {
                         String[] row = reader.readNext();
-                        while (row != null){
+                        while (row != null) {
                             // Reduce congestion on db/index by artificially sleeping
                             // for a random amount of time between rows in the batch file
                             Thread.sleep(executionDelay);
-                            
+
                             //get an lsid for the name
                             String lsid = mySpeciesLookupService.getGuidForName(row[0]);
-                            if (lsid != null){
+                            if (lsid != null) {
                                 try {
                                     //download records for this row
                                     String outputFilePath = directory + File.separatorChar + row[0].replace(" ", "_") + ".txt";
@@ -1017,16 +1051,16 @@ public class OccurrenceController extends AbstractSecureController {
                                         logger.debug("Outputting results to:" + outputFilePath + ", with LSID: " + lsid);
                                     }
                                     try (FileOutputStream output = new FileOutputStream(outputFilePath);) {
-                                        params.setQ("lsid:\""+lsid+"\"");
-                                        ConcurrentMap<String, AtomicInteger> uidStats = searchDAO.writeResultsFromIndexToStream(params, new CloseShieldOutputStream(output), false, dd,false);
+                                        params.setQ("lsid:\"" + lsid + "\"");
+                                        ConcurrentMap<String, AtomicInteger> uidStats = searchDAO.writeResultsFromIndexToStream(params, new CloseShieldOutputStream(output), false, dd, false);
                                         output.flush();
-                                        try(FileOutputStream citationOutput = new FileOutputStream(citationFilePath);) {
+                                        try (FileOutputStream citationOutput = new FileOutputStream(citationFilePath);) {
                                             downloadService.getCitations(uidStats, citationOutput, params.getSep(), params.getEsc(), null, null);
                                             citationOutput.flush();
                                         }
                                     }
-                                } catch (Exception e){
-                                    logger.error(e.getMessage(),e);
+                                } catch (Exception e) {
+                                    logger.error(e.getMessage(), e);
                                 }
                             } else {
                                 logger.error("Unable to match name: " + row[0]);
@@ -1034,7 +1068,7 @@ public class OccurrenceController extends AbstractSecureController {
                             row = reader.readNext();
                         }
                     } catch (Exception e) {
-                        logger.error(e.getMessage(),e);
+                        logger.error(e.getMessage(), e);
                     } finally {
                         downloadService.unregisterDownload(dd);
                     }
@@ -1044,7 +1078,7 @@ public class OccurrenceController extends AbstractSecureController {
         }
         return null;
     }
-    
+
     /**
      * Given a list of queries for a single field, return an AJAX response with the qid (cached query id)
      * NOTE: triggered on "Search" button
@@ -1055,24 +1089,24 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/occurrences/batchSearch", method = RequestMethod.POST, params="action=Search")
+    @RequestMapping(value = "/occurrences/batchSearch", method = RequestMethod.POST, params = "action=Search")
     public void batchSearch(
-                            HttpServletResponse response,
-                            @RequestParam(value="redirectBase", required = true, defaultValue = "") String redirectBase,
-                            @RequestParam(value="queries", required = true, defaultValue = "") String queries,
-                            @RequestParam(value="field", required = true, defaultValue = "") String field,
-                            @RequestParam(value="separator", defaultValue = "\n") String separator,
-                            @RequestParam(value="title", required=false) String title) throws Exception {
+            HttpServletResponse response,
+            @RequestParam(value = "redirectBase", required = true, defaultValue = "") String redirectBase,
+            @RequestParam(value = "queries", required = true, defaultValue = "") String queries,
+            @RequestParam(value = "field", required = true, defaultValue = "") String field,
+            @RequestParam(value = "separator", defaultValue = "\n") String separator,
+            @RequestParam(value = "title", required = false) String title) throws Exception {
         logger.info("/occurrences/batchSearch with action=Search");
         Long qid = getQidForBatchSearch(queries, field, separator, title);
-        
+
         if (qid != null && StringUtils.isNotBlank(redirectBase)) {
-            response.sendRedirect(redirectBase + "?q=qid:"+qid);
+            response.sendRedirect(redirectBase + "?q=qid:" + qid);
         } else {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "");
         }
     }
-    
+
     /**
      * Common method for getting a QID for a batch field query
      *
@@ -1087,9 +1121,9 @@ public class OccurrenceController extends AbstractSecureController {
         StringBuilder sb = new StringBuilder();
         int terms = 0;
 
-        for (String part: rawParts) {
+        for (String part : rawParts) {
             String normalised = StringUtils.trimToNull(part);
-            if (normalised != null){
+            if (normalised != null) {
                 if (terms == 0) {
                     if (sb.length() > 0) {
                         sb.append(" OR ");
@@ -1112,35 +1146,35 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         String q = sb.toString();
-        title = title == null?q : title;
+        title = title == null ? q : title;
         String qid = qidCacheDao.put(q, title, null, null, null, -1, null);
         logger.info("batchSearch: qid = " + qid);
-        
+
         return Long.parseLong(qid);
     }
-    
+
     /**
      * Webservice to report the occurrence counts for the supplied list of taxa
-     *
      */
-    @RequestMapping(value="/occurrences/taxaCount", method = {RequestMethod.POST, RequestMethod.GET})
-    public @ResponseBody Map<String, Integer> occurrenceSpeciesCounts(
-                                                                      HttpServletResponse response,
-                                                                      HttpServletRequest request,
-                                                                      @RequestParam (defaultValue = "\n") String separator
-                                                                      ) throws Exception {
+    @RequestMapping(value = "/occurrences/taxaCount", method = {RequestMethod.POST, RequestMethod.GET})
+    public @ResponseBody
+    Map<String, Integer> occurrenceSpeciesCounts(
+            HttpServletResponse response,
+            HttpServletRequest request,
+            @RequestParam(defaultValue = "\n") String separator
+    ) throws Exception {
         String listOfGuids = request.getParameter("guids");
         String[] filterQueries = request.getParameterValues("fq");
 
-        if (StringUtils.isBlank(listOfGuids)){
+        if (StringUtils.isBlank(listOfGuids)) {
             response.sendError(400, "Provide a non-empty guids parameter");
             return null;
         }
 
         String[] rawGuids = listOfGuids.split(separator);
-        
-        List<String> guids= new ArrayList<String>();
-        for (String guid: rawGuids){
+
+        List<String> guids = new ArrayList<String>();
+        for (String guid : rawGuids) {
             String normalised = StringUtils.trimToNull(guid);
             if (normalised != null) {
                 guids.add(normalised);
@@ -1151,26 +1185,26 @@ public class OccurrenceController extends AbstractSecureController {
 
         return searchDAO.getOccurrenceCountsForTaxa(guids, filterQueries);
     }
-    
+
     /**
      * Occurrence search page uses SOLR JSON to display results
-     *
+     * <p>
      * Please NOTE that the q and fq provided to this URL should be obtained
      * from SearchResultDTO.urlParameters
      *
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = { "/occurrences/index/download*", "/occurrences/download*" }, method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrences/index/download*", "/occurrences/download*"}, method = RequestMethod.GET)
     public String occurrenceIndexDownload(@Valid DownloadRequestParams requestParams,
                                           BindingResult result,
-                                          @RequestParam(value="email", required=false) String email,
-                                          @RequestParam(value="apiKey", required=false) String apiKey,
-                                          @RequestParam(value="zip", required=false, defaultValue="true") Boolean zip,
+                                          @RequestParam(value = "email", required = false) String email,
+                                          @RequestParam(value = "apiKey", required = false) String apiKey,
+                                          @RequestParam(value = "zip", required = false, defaultValue = "true") Boolean zip,
                                           Model model,
                                           HttpServletResponse response,
-                                          HttpServletRequest request) throws Exception{
-        if (result.hasErrors()){
+                                          HttpServletRequest request) throws Exception {
+        if (result.hasErrors()) {
             logger.info("validation failed  " + result.getErrorCount() + " checks");
             logger.debug(result.toString());
             model.addAttribute("errorMessage", getValidationErrorMessage(result));
@@ -1183,7 +1217,8 @@ public class OccurrenceController extends AbstractSecureController {
             try {
                 new InternetAddress(email).validate();
                 validEmail = true;
-            } catch (AddressException e) {}
+            } catch (AddressException e) {
+            }
         }
 
         if (apiKey == null && !validEmail && rateLimitRequest(request, response)) {
@@ -1196,26 +1231,26 @@ public class OccurrenceController extends AbstractSecureController {
         if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
             return null;
         }
-        if (apiKey != null){
+        if (apiKey != null) {
             occurrenceSensitiveDownload(requestParams, apiKey, zip, response, request);
             return null;
         }
         try {
             ServletOutputStream out = response.getOutputStream();
             downloadService.writeQueryToStream(requestParams, response, getIPAddress(request), getUserAgent(request), new CloseShieldOutputStream(out), true, zip, executor);
-        } catch(Exception e){
+        } catch (Exception e) {
             logger.error(e.getMessage(), e);
         }
         return null;
     }
 
     public String occurrenceSensitiveDownload(
-                                              DownloadRequestParams requestParams,
-                                              String apiKey,
-                                              boolean zip,
-                                              HttpServletResponse response,
-                                              HttpServletRequest request) throws Exception {
-        if (shouldPerformOperation(apiKey, response, false)){
+            DownloadRequestParams requestParams,
+            String apiKey,
+            boolean zip,
+            HttpServletResponse response,
+            HttpServletRequest request) throws Exception {
+        if (shouldPerformOperation(apiKey, response, false)) {
 
             //search params must have a query or formatted query for the downlaod to work
             if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
@@ -1232,7 +1267,7 @@ public class OccurrenceController extends AbstractSecureController {
         }
         return null;
     }
-    
+
     /**
      * Utility method for retrieving a list of occurrences. Mainly added to help debug
      * web services for that a developer can retrieve example UUIDs.
@@ -1240,45 +1275,46 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping(value = {"/occurrences/nearest"}, method = RequestMethod.GET)
-    public @ResponseBody Map<String,Object> nearestOccurrence(SpatialSearchRequestParams requestParams) throws Exception {
+    public @ResponseBody
+    Map<String, Object> nearestOccurrence(SpatialSearchRequestParams requestParams) throws Exception {
 
         logger.debug(String.format("Received lat: %f, lon:%f, radius:%f", requestParams.getLat(),
                 requestParams.getLon(), requestParams.getRadius()));
-        
-        if (requestParams.getLat() == null || requestParams.getLon() == null){
-            return new HashMap<String,Object>();
+
+        if (requestParams.getLat() == null || requestParams.getLon() == null) {
+            return new HashMap<String, Object>();
         }
         //requestParams.setRadius(1f);
         requestParams.setDir("asc");
         requestParams.setFacet(false);
-        
-        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams,null);
+
+        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, null);
         List<OccurrenceIndex> ocs = searchResult.getOccurrences();
-        
-        if (!ocs.isEmpty()){
-            Map<String,Object> results = new HashMap<String,Object>();
+
+        if (!ocs.isEmpty()) {
+            Map<String, Object> results = new HashMap<String, Object>();
             OccurrenceIndex oc = ocs.get(0);
             Double decimalLatitude = oc.getDecimalLatitude();
             Double decimalLongitude = oc.getDecimalLongitude();
             Double distance = distInMetres(requestParams.getLat().doubleValue(), requestParams.getLon().doubleValue(),
-                                           decimalLatitude, decimalLongitude);
+                    decimalLatitude, decimalLongitude);
             results.put("distanceInMeters", distance);
             results.put("occurrence", oc);
             return results;
         } else {
-            return new HashMap<String,Object>();
+            return new HashMap<String, Object>();
         }
     }
-    
-    private Double distInMetres(Double lat1, Double lon1, Double lat2, Double lon2){
+
+    private Double distInMetres(Double lat1, Double lon1, Double lat2, Double lon2) {
         Double R = 6371000d; // km
-        Double dLat = Math.toRadians(lat2-lat1);
-        Double dLon = Math.toRadians(lon2-lon1);
+        Double dLat = Math.toRadians(lat2 - lat1);
+        Double dLon = Math.toRadians(lon2 - lon1);
         Double lat1Rad = Math.toRadians(lat1);
         Double lat2Rad = Math.toRadians(lat2);
-        Double a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1Rad) * Math.cos(lat2Rad);
-        Double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        Double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1Rad) * Math.cos(lat2Rad);
+        Double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
     }
 
@@ -1287,8 +1323,9 @@ public class OccurrenceController extends AbstractSecureController {
      * connected index (to 4 decimal places)
      */
     @RequestMapping(value = "/occurrences/coordinates*")
-    public void dumpDistinctLatLongs(SearchRequestParams requestParams, HttpServletResponse response) throws Exception {
+    public void dumpDistinctLatLongs(SpatialSearchRequestParams requestParams, HttpServletResponse response) throws Exception {
         requestParams.setFacets(new String[]{OccurrenceIndex.LAT_LNG});
+        requestParams.setFacet(true);
         if (requestParams.getQ().length() < 1)
             requestParams.setQ("*:*");
         try {
@@ -1298,13 +1335,13 @@ public class OccurrenceController extends AbstractSecureController {
             logger.error(e.getMessage(), e);
         }
     }
-    
+
     /**
      * Occurrence record page
-     *
+     * <p>
      * When user supplies a uuid that is not found search for a unique record
      * with the supplied occurrenc_id
-     *
+     * <p>
      * Returns a SearchResultDTO when there is more than 1 record with the supplied UUID
      *
      * @param uuid
@@ -1324,7 +1361,7 @@ public class OccurrenceController extends AbstractSecureController {
 
         SolrDocumentList sdl = searchDAO.findByFulltext(idRequest);
 
-        if (sdl == null || sdl.isEmpty() || sdl.get(0).get("id") == null){
+        if (sdl == null || sdl.isEmpty() || sdl.get(0).get("id") == null) {
             response.sendError(404, "Unrecognised ID");
             return null;
         }
@@ -1409,7 +1446,7 @@ public class OccurrenceController extends AbstractSecureController {
                                      HttpServletResponse response) throws Exception {
         return showOccurrence(uuid, response);
     }
-    
+
     /**
      * Returns the records uuids that have been deleted since the fromDate inclusive.
      *
@@ -1419,49 +1456,52 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @RequestMapping(value = {"/occurrence/deleted"}, method = RequestMethod.GET)
-    public @ResponseBody String[] getDeleteOccurrences(@RequestParam(value ="date", required = true) String fromDate,
-                                                       HttpServletResponse response) throws Exception {
+    public @ResponseBody
+    String[] getDeleteOccurrences(@RequestParam(value = "date", required = true) String fromDate,
+                                  HttpServletResponse response) throws Exception {
         return new String[0];
     }
-    
+
     /**
      * Occurrence record page
-     *
+     * <p>
      * When user supplies a uuid that is not found search for a unique record
      * with the supplied occurrence_id
-     *
+     * <p>
      * Returns a SearchResultDTO when there is more than 1 record with the supplied UUID
      *
      * @param uuid
      * @param apiKey
      * @throws Exception
      */
-    @RequestMapping(value = {"/occurrence/{uuid:.+}","/occurrences/{uuid:.+}", "/occurrence/{uuid:.+}.json", "/occurrences/{uuid:.+}.json"}, method = RequestMethod.GET)
-    public @ResponseBody Object showOccurrence(@PathVariable("uuid") String uuid,
-                                               @RequestParam(value="apiKey", required=false) String apiKey,
-                                               @RequestParam(value="im", required=false) String im,
-                                               HttpServletRequest request, HttpServletResponse response) throws Exception {
-        if (apiKey != null){
+    @RequestMapping(value = {"/occurrence/{uuid:.+}", "/occurrences/{uuid:.+}", "/occurrence/{uuid:.+}.json", "/occurrences/{uuid:.+}.json"}, method = RequestMethod.GET)
+    public @ResponseBody
+    Object showOccurrence(@PathVariable("uuid") String uuid,
+                          @RequestParam(value = "apiKey", required = false) String apiKey,
+                          @RequestParam(value = "im", required = false) String im,
+                          HttpServletRequest request, HttpServletResponse response) throws Exception {
+        if (apiKey != null) {
             return showSensitiveOccurrence(uuid, apiKey, im, request, response);
         }
-        Object responseObject =  getOccurrenceInformation(uuid, im, request, false);
-        if (responseObject == null){
+        Object responseObject = getOccurrenceInformation(uuid, im, request, false);
+        if (responseObject == null) {
             response.sendError(404, "Unrecognised ID");
         }
         return responseObject;
     }
-    
-    @RequestMapping(value = {"/sensitive/occurrence/{uuid:.+}","/sensitive/occurrences/{uuid:.+}", "/sensitive/occurrence/{uuid:.+}.json", "/senstive/occurrences/{uuid:.+}.json"}, method = RequestMethod.GET)
-    public @ResponseBody Object showSensitiveOccurrence(@PathVariable("uuid") String uuid,
-                                                        @RequestParam(value="apiKey", required=true) String apiKey,
-                                                        @RequestParam(value="im", required=false) String im,
-                                                        HttpServletRequest request, HttpServletResponse response) throws Exception {
-        if (shouldPerformOperation(apiKey, response)){
+
+    @RequestMapping(value = {"/sensitive/occurrence/{uuid:.+}", "/sensitive/occurrences/{uuid:.+}", "/sensitive/occurrence/{uuid:.+}.json", "/senstive/occurrences/{uuid:.+}.json"}, method = RequestMethod.GET)
+    public @ResponseBody
+    Object showSensitiveOccurrence(@PathVariable("uuid") String uuid,
+                                   @RequestParam(value = "apiKey", required = true) String apiKey,
+                                   @RequestParam(value = "im", required = false) String im,
+                                   HttpServletRequest request, HttpServletResponse response) throws Exception {
+        if (shouldPerformOperation(apiKey, response)) {
             return getOccurrenceInformation(uuid, im, request, true);
         }
         return null;
     }
-    
+
     private Object getOccurrenceInformation(String uuid, String im, HttpServletRequest request,
                                             boolean includeSensitive) throws Exception {
         logger.debug("Retrieving occurrence record with guid: '" + uuid + "'");
@@ -1534,9 +1574,9 @@ public class OccurrenceController extends AbstractSecureController {
         return mapAsFullRecord(sd, includeImageMetadata, includeSensitive);
     }
 
-    private boolean isSensitive(SolrDocument doc){
+    private boolean isSensitive(SolrDocument doc) {
         String sensitiveValue = (String) doc.getFieldValue("sensitive");
-        return sensitiveValue != null && (sensitiveValue.equals("generalised") ||  sensitiveValue.equals("alreadyGeneralised"));
+        return sensitiveValue != null && (sensitiveValue.equals("generalised") || sensitiveValue.equals("alreadyGeneralised"));
     }
 
     /**
@@ -1552,8 +1592,8 @@ public class OccurrenceController extends AbstractSecureController {
         Map processed = fullRecord(sd, (String fieldName) -> schemaFields.contains(RAW_FIELD_PREFIX + fieldName) ? fieldName : null);
 
         // add lastModifiedTime
-        addInstant(sd, raw, "lastModifiedTime","lastLoadDate");
-        addInstant(sd, processed, "lastModifiedTime","lastProcessedDate");
+        addInstant(sd, raw, "lastModifiedTime", "lastLoadDate");
+        addInstant(sd, processed, "lastModifiedTime", "lastProcessedDate");
 
         // add extra processed fields
         processed.put("el", extractLayerValues(sd, "el"));
@@ -1568,9 +1608,9 @@ public class OccurrenceController extends AbstractSecureController {
         // duplicate status
         String duplicateStatus = (String) sd.getFieldValue("duplicateStatus");
         occurrence.put("duplicateStatus", duplicateStatus);
-        if (REPRESENTATIVE.equals(duplicateStatus)){
+        if (REPRESENTATIVE.equals(duplicateStatus)) {
             occurrence.put("duplicationStatus", LEGACY_REPRESENTATIVE_RECORD_VALUE);  //backwards compatibility
-        } else if (ASSOCIATED.equals(duplicateStatus)){
+        } else if (ASSOCIATED.equals(duplicateStatus)) {
             occurrence.put("duplicationStatus", LEGACY_DUPLICATE_RECORD_VALUE);  //backwards compatibility
         }
 
@@ -1579,7 +1619,7 @@ public class OccurrenceController extends AbstractSecureController {
             occurrence.put("outlierForLayers", outlierLayer);
         }
 
-        raw.put("miscProperties",  extractMiscProperties(sd));
+        raw.put("miscProperties", extractMiscProperties(sd));
 
         map.put("raw", raw);
         map.put("processed", processed);
@@ -1589,7 +1629,7 @@ public class OccurrenceController extends AbstractSecureController {
 
         map.put("alaUserId", sd.getFieldValue(OccurrenceIndex.ALA_USER_ID));
 
-        if (includeSensitive && isSensitive(sd)){
+        if (includeSensitive && isSensitive(sd)) {
 
             Map rawLocation = (Map) raw.get("location");
             Map rawEvent = (Map) raw.get("event");
@@ -1615,8 +1655,8 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         // add multimedia links
-        addImages(sd, map,  "imageIDs", "images", includeImageMetadata);
-        addSounds(sd, map,  "soundIDs", "sounds");
+        addImages(sd, map, "imageIDs", "images", includeImageMetadata);
+        addSounds(sd, map, "soundIDs", "sounds");
 
         return map;
     }
@@ -1636,7 +1676,7 @@ public class OccurrenceController extends AbstractSecureController {
             ObjectMapper om = new ObjectMapper();
             Map<String, Object> jsonProperties = om.readValue((String) sd.getFieldValue(DwcTerm.dynamicProperties.simpleName()), Map.class);
             miscProperties.putAll(jsonProperties);
-        } catch (Exception e){
+        } catch (Exception e) {
             // best effort service - dynamic properties may not be in JSON format, dependent on data publisher
         }
 
@@ -1646,7 +1686,7 @@ public class OccurrenceController extends AbstractSecureController {
                 .filter(fieldName -> fieldName.startsWith(DYNAMIC_PROPERTIES_PREFIX))
                 .collect(Collectors.toList());
 
-        for (String property : dynamicProperties){
+        for (String property : dynamicProperties) {
             //Strip off prefix
             String fieldName = property.replaceAll(DYNAMIC_PROPERTIES_PREFIX, "");
             miscProperties.put(fieldName, sd.get(property));
@@ -1713,7 +1753,7 @@ public class OccurrenceController extends AbstractSecureController {
                     .collect(Collectors.toList());
             if (value != null) {
                 List<MediaDTO> mediaDTOs = new ArrayList<>();
-                for (String soundID: strings){
+                for (String soundID : strings) {
                     MediaDTO m = new MediaDTO();
                     m.getAlternativeFormats()
                             .put("audio/mpeg", remoteMediaStoreUrl + "/image/proxyImage?imageId=" + soundID);
@@ -1730,14 +1770,14 @@ public class OccurrenceController extends AbstractSecureController {
         if (value != null && !value.isEmpty()) {
             List<String> imageIds = value.stream()
                     .map(object -> Objects.toString(object, null))
-                    .filter(str -> str !=null)
+                    .filter(str -> str != null)
                     .map(imageId -> remoteMediaStoreUrl + "/image/proxyImage?imageId=" + imageId)
                     .collect(Collectors.toList());
             map.put(dstKey, imageIds);
         }
     }
 
-    private void addImages(SolrDocument sd, Map map, String srcKey, String dstKey,boolean lookupImageMetadata) {
+    private void addImages(SolrDocument sd, Map map, String srcKey, String dstKey, boolean lookupImageMetadata) {
         Collection<Object> value = sd.getFieldValues(srcKey);
 
         if (value != null && !value.isEmpty()) {
@@ -1764,7 +1804,7 @@ public class OccurrenceController extends AbstractSecureController {
         return userAssertions.stream()
                 .map((QualityAssertion qa) -> {
 
-                    Map<String, Object> userAssertion = new HashMap(){{
+                    Map<String, Object> userAssertion = new HashMap() {{
                         put("uuid", qa.getUuid());
                         put("referenceRowKey", qa.getReferenceRowKey());
                         put("name", qa.getName());
@@ -1797,14 +1837,14 @@ public class OccurrenceController extends AbstractSecureController {
      * <p>
      * Only for use with Version 1.0 requests.
      *
-     * @param sd            SolrDocument
-     * @param getFieldName  function to resolve the solr field name from the
+     * @param sd           SolrDocument
+     * @param getFieldName function to resolve the solr field name from the
      * @return
      */
     Map fullRecord(SolrDocument sd, Function<String, String> getFieldName) {
         Map fullRecord = new LinkedHashMap();
-        fullRecord.put("rowKey",  sd.getFieldValue(ID)); // Use the processed ID for compatability
-        fullRecord.put("uuid",  sd.getFieldValue(ID));
+        fullRecord.put("rowKey", sd.getFieldValue(ID)); // Use the processed ID for compatability
+        fullRecord.put("uuid", sd.getFieldValue(ID));
         // au.org.ala.biocache.model.Occurrence
         Map occurrence = new HashMap();
         fullRecord.put("occurrence", occurrence);
@@ -1884,7 +1924,7 @@ public class OccurrenceController extends AbstractSecureController {
         //custom fields
         addField(sd, occurrence, "sounds", "soundIDs");
         addField(sd, occurrence, "videos", "videoIDs");
-        addImageUrls(sd, occurrence, "imageIDs","images");
+        addImageUrls(sd, occurrence, "imageIDs", "images");
         //custom fields
         addField(sd, occurrence, "interactions", getFieldName);
         //Store the conservation status
@@ -1966,8 +2006,6 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, classification, "matchType", getFieldName); //stores the type of name match that was performed
         addField(sd, classification, "taxonomicIssues", getFieldName); //stores if no issue, questionableSpecies, conferSpecies or affinitySpecies
         addField(sd, classification, "nameType", getFieldName);
-
-
 
 
         // au.org.ala.biocache.model.Location
@@ -2127,7 +2165,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, fullRecord, "assertionUserId", getFieldName);
         addField(sd, fullRecord, "locationDetermined", getFieldName);
         addField(sd, fullRecord, "defaultValuesUsed", getFieldName);
-        addField(sd, fullRecord,"spatiallyValid", getFieldName);
+        addField(sd, fullRecord, "spatiallyValid", getFieldName);
 
         //keep for backwards compatibility
         fullRecord.put("geospatiallyKosher", (Boolean) sd.getFieldValue("spatiallyValid"));
@@ -2172,10 +2210,10 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         // add the remaining to passes
-        for (ErrorCode errorCode: allErrorCodes){
+        for (ErrorCode errorCode : allErrorCodes) {
             if (!flaggedErrors.contains(errorCode)) {
                 // do we have the populated terms for this errorCode
-                if (hasRequiredTerms(errorCode, sd)){
+                if (hasRequiredTerms(errorCode, sd)) {
                     passed.add(errorCode);
                 } else {
                     unchecked.add(errorCode);
@@ -2198,7 +2236,7 @@ public class OccurrenceController extends AbstractSecureController {
             }
         }).collect(Collectors.toList());
 
-        missing =  missing.stream().sorted(new Comparator<ErrorCode>() {
+        missing = missing.stream().sorted(new Comparator<ErrorCode>() {
             @Override
             public int compare(ErrorCode o1, ErrorCode o2) {
                 return o1.getName().compareTo(o2.getName());
@@ -2216,32 +2254,33 @@ public class OccurrenceController extends AbstractSecureController {
 
     /**
      * Will return true if one or more of the required terms is populated
+     *
      * @param errorCode
      * @param sd
      * @return
      */
-    boolean hasRequiredTerms(ErrorCode errorCode, SolrDocument sd){
+    boolean hasRequiredTerms(ErrorCode errorCode, SolrDocument sd) {
 
         if (errorCode.getTermsRequiredToTest().isEmpty()) {
             // missing the definition - assume we have the required terms
             return true;
         }
 
-        for (String term: errorCode.getTermsRequiredToTest()){
+        for (String term : errorCode.getTermsRequiredToTest()) {
             Object termValue = sd.getFieldValue(term);
             Object rawTermValue = sd.getFieldValue(RAW_FIELD_PREFIX + term);
-            if (Objects.nonNull(termValue)){
-                if (termValue instanceof String){
-                    if (StringUtils.isNotBlank((String) termValue)){
+            if (Objects.nonNull(termValue)) {
+                if (termValue instanceof String) {
+                    if (StringUtils.isNotBlank((String) termValue)) {
                         return true;
                     } else {
                         return true;
                     }
                 }
             }
-            if (Objects.nonNull(rawTermValue)){
-                if (rawTermValue instanceof String){
-                    if (StringUtils.isNotBlank((String) rawTermValue)){
+            if (Objects.nonNull(rawTermValue)) {
+                if (rawTermValue instanceof String) {
+                    if (StringUtils.isNotBlank((String) rawTermValue)) {
                         return true;
                     } else {
                         return true;
@@ -2322,7 +2361,7 @@ public class OccurrenceController extends AbstractSecureController {
     /**
      * Constructs an error message to be displayed. The error message is based on validation checks that
      * were performed and stored in the supplied result.
-     *
+     * <p>
      * TODO: If we decide to perform more detailed validations elsewhere it maybe worth providing this in a
      * util or service class.
      *

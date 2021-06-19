@@ -601,12 +601,8 @@ public class SolrIndexDAOImpl implements IndexDAO {
         StatsIndexFieldDTO details = rangeFieldCache.get(field);
         Map<String, IndexFieldDTO> nextIndexFieldMap = indexFieldMap;
         if (details == null && nextIndexFieldMap != null) {
-            // get the details
-            SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
-            searchParams.setQ("*:*");
-            searchParams.setFacets(new String[]{field});
             try {
-                Map<String, FieldStatsInfo> stats = getStatistics(searchParams);
+                Map<String, FieldStatsInfo> stats = getStatistics(field);
                 if (stats != null) {
                     IndexFieldDTO ifdto = nextIndexFieldMap.get(field);
                     if (ifdto != null) {
@@ -914,17 +910,16 @@ public class SolrIndexDAOImpl implements IndexDAO {
      * @see au.org.ala.biocache.dao.IndexDAO#getStatistics(SpatialSearchRequestParams)
      */
     @Override
-    public Map<String, FieldStatsInfo> getStatistics(SpatialSearchRequestParams searchParams)
+    public Map<String, FieldStatsInfo> getStatistics(String field)
             throws Exception {
         try {
-            queryFormatUtils.formatSearchQuery(searchParams);
-            String queryString = searchParams.getFormattedQuery();
+
             SolrQuery solrQuery = new SolrQuery();
-            solrQuery.setQuery(queryString);
-            for (String field : searchParams.getFacets()) {
-                solrQuery.setGetFieldStatistics(field);
-            }
-            QueryResponse qr = runSolrQuery(solrQuery, searchParams);
+            solrQuery.addGetFieldStatistics(field);
+            solrQuery.setQuery("*:*");
+            solrQuery.setRows(0);
+
+            QueryResponse qr = runSolrQuery(solrQuery);
             if (logger.isDebugEnabled()) {
                 logger.debug(qr.getFieldStatsInfo());
             }
@@ -951,31 +946,14 @@ public class SolrIndexDAOImpl implements IndexDAO {
      * @throws SolrServerException
      */
     @Override
-    public QueryResponse runSolrQuery(SolrQuery solrQuery, SearchRequestParams requestParams)
+    public QueryResponse runSolrQuery(SolrQuery solrQuery)
             throws Exception {
-
-        if (MDC.get("X-Request-ID") != null) {
-            solrQuery.add("XRequestID", MDC.get("X-Request-ID"));
-        }
-
-        if (requestParams.getFormattedFq() != null) {
-            for (String fq : requestParams.getFormattedFq()) {
-                if (StringUtils.isNotEmpty(fq)) {
-                    solrQuery.addFilterQuery(fq);
-                }
-            }
-        }
 
         // include null facets
         if (MDC.get("X-Request-ID") != null) {
             solrQuery.setParam("XRequestID", MDC.get("X-Request-ID"));
         }
         solrQuery.setFacetMissing(true);
-        solrQuery.setRows(requestParams.getPageSize());
-        solrQuery.setStart(requestParams.getStart());
-        if (StringUtils.isNotEmpty(requestParams.getDir())) {
-            solrQuery.setSort(requestParams.getSort(), SolrQuery.ORDER.valueOf(requestParams.getDir()));
-        }
 
         if (logger.isDebugEnabled()) {
             logger.debug("Solr query: " + solrQuery.toString());
@@ -1250,9 +1228,10 @@ public class SolrIndexDAOImpl implements IndexDAO {
         solrParams.set("expr", cexpr.toString());
         solrParams.set("qt", qt);
 
-//        solrParams.set("q", query.getQuery());
-//        solrParams.set("fl", query.getFields());
-//        solrParams.set("sort", query.getSortField());
+        // for CloudSolrStream.init
+        solrParams.set("q", "*:*");
+        solrParams.set("fl", "id");
+        solrParams.set("sort", "id asc");
 
         return solrParams;
     }
@@ -1304,6 +1283,11 @@ public class SolrIndexDAOImpl implements IndexDAO {
         ModifiableSolrParams solrParams = new ModifiableSolrParams();
         solrParams.set("expr", cexpr.toString());
         solrParams.set("qt", qt);
+
+        // for CloudSolrStream.init
+        solrParams.set("q", "*:*");
+        solrParams.set("fl", "id");
+        solrParams.set("sort", "id asc");
 
         return solrParams;
     }

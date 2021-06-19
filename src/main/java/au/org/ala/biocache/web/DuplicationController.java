@@ -1,7 +1,7 @@
-    /**************************************************************************
+/**************************************************************************
  *  Copyright (C) 2013 Atlas of Living Australia
  *  All Rights Reserved.
- * 
+ *
  *  The contents of this file are subject to the Mozilla Public
  *  License Version 1.1 (the "License"); you may not use this file
  *  except in compliance with the License. You may obtain a copy of
@@ -74,7 +74,7 @@ public class DuplicationController {
         try {
 
             SolrDocumentList sdl = searchDuplicates(ID, guid);
-            if (sdl.isEmpty()){
+            if (sdl.isEmpty()) {
                 return null;
             }
 
@@ -86,7 +86,7 @@ public class DuplicationController {
                 // is representative id
                 List<DuplicateRecordDetails> dups = new ArrayList<>();
                 SolrDocumentList list = searchDuplicates(DUPLICATE_OF, guid);
-                for (SolrDocument d: list) {
+                for (SolrDocument d : list) {
                     dups.add(new DuplicateRecordDetails(d));
                 }
                 drd.setDuplicates(dups);
@@ -108,7 +108,7 @@ public class DuplicationController {
     private SolrDocumentList searchDuplicates(String field, String value) throws Exception {
         SpatialSearchRequestParams query = new SpatialSearchRequestParams();
         query.setFacet(false);
-        query.setQ(field + ":" + value );
+        query.setQ(field + ":" + value);
         query.setFl(String.join(",",
                 ID,
                 DUPLICATE_OF,
@@ -134,9 +134,6 @@ public class DuplicationController {
     public @ResponseBody
     Map<String, FieldStatsInfo> printStats(HttpServletRequest request) throws Exception {
         String guid = searchUtils.getGuidFromPath(request);
-        SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
-        searchParams.setQ("*:*");
-        searchParams.setFacets(new String[]{guid});
-        return indexDao.getStatistics(searchParams);
+        return indexDao.getStatistics(guid);
     }
 }
