@@ -191,7 +191,6 @@ public class SolrIndexDAOImpl implements IndexDAO {
     // CoreContainer cc;
     SolrClient solrClient;
     CloseableHttpClient httpClient;
-    HttpClientConnectionManager connectionPoolManager;
 
     // for SOLR streaming
     SolrClientCache solrClientCache;
@@ -202,6 +201,11 @@ public class SolrIndexDAOImpl implements IndexDAO {
         if (solrClient == null) {
 
             SolrClient solrClient = null;
+
+            PoolingHttpClientConnectionManager poolingConnectionPoolManager =
+                    new PoolingHttpClientConnectionManager();
+            poolingConnectionPoolManager.setMaxTotal(solrConnectionPoolSize);
+            poolingConnectionPoolManager.setDefaultMaxPerRoute(solrConnectionMaxPerRoute);
 
             CacheConfig cacheConfig =
                     CacheConfig.custom()
@@ -219,7 +223,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
                     CachingHttpClientBuilder.create()
                             .setCacheConfig(cacheConfig)
                             .setDefaultRequestConfig(requestConfig)
-                            .setConnectionManager(connectionPoolManager)
+                            .setConnectionManager(poolingConnectionPoolManager)
                             .setUserAgent(userAgent)
                             .useSystemProperties()
                             .build();
@@ -248,10 +252,6 @@ public class SolrIndexDAOImpl implements IndexDAO {
                 }
             } else {
                 logger.info("Initialising the solr server " + solrHome);
-                PoolingHttpClientConnectionManager poolingConnectionPoolManager =
-                        new PoolingHttpClientConnectionManager();
-                poolingConnectionPoolManager.setMaxTotal(solrConnectionPoolSize);
-                poolingConnectionPoolManager.setDefaultMaxPerRoute(solrConnectionMaxPerRoute);
 
                 if (!solrHome.startsWith("http://")) {
                     if (solrHome.contains(":")) {
@@ -362,17 +362,17 @@ public class SolrIndexDAOImpl implements IndexDAO {
                         throw e;
                     }
                 } else {
-                    logError(query, "query failed-1: ", e.getMessage());
+                    logError(query, "query failed-1", e.getMessage());
                     throw e;
                 }
 
             } catch (IOException ioe) {
                 // report failed query
-                logError(query, "query failed-IOException: ", ioe.getMessage());
+                logError(query, "query failed-IOException ", ioe.getMessage());
                 throw new SolrServerException(ioe);
             } catch (Exception ioe) {
                 // report failed query
-                logError(query, "query failed-SolrServerException: ", ioe.getMessage());
+                logError(query, "query failed-SolrServerException ", ioe.getMessage());
                 throw new SolrServerException(ioe);
             }
         }
@@ -380,12 +380,12 @@ public class SolrIndexDAOImpl implements IndexDAO {
         return qr;
     }
 
-    private void logError(SolrParams query, String s, String message) {
+    private void logError(SolrParams query, String message, String exceptionMessage) {
         String requestID = MDC.get("X-Request-ID");
         if (requestID != null) {
-            logger.error("RequestID:" + requestID + ", " + s + query.toString() + ", Error : " + message);
+            logger.error("RequestID:" + requestID + ", " + message + " - SOLRQuery: " + query.toString() + ", Error : " + exceptionMessage);
         } else {
-            logger.error(s + query.toString() + " : " + message);
+            logger.error(message + " - SOLRQuery: "  + query.toString() + " : " + exceptionMessage);
         }
     }
 
@@ -907,7 +907,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
     }
 
     /**
-     * @see au.org.ala.biocache.dao.IndexDAO#getStatistics(SpatialSearchRequestParams)
+     * @see au.org.ala.biocache.dao.IndexDAO#getStatistics(String)
      */
     @Override
     public Map<String, FieldStatsInfo> getStatistics(String field)
@@ -941,7 +941,6 @@ public class SolrIndexDAOImpl implements IndexDAO {
      * Perform SOLR query - takes a SolrQuery and search params
      *
      * @param solrQuery
-     * @param requestParams
      * @return
      * @throws SolrServerException
      */
@@ -1084,7 +1083,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
                 // assume that it represents a SolrCloud using ZooKeeper
                 solrStream = new CloudSolrStream(solrHome, solrCollection, params);
             } else {
-                logger.error("Failed to initialise connection to SOLR server with solrHome: " + solrHome);
+                logger.error("Badly formatted solrHome configuration: " + solrHome);
                 return null;
             }
         } else {
@@ -1119,54 +1118,49 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
             // do search
             if (procSearch != null && query.getRows() != 0) {
-                TupleStream solrStream = openStream(buildSearchExpr(query));
-
-                Tuple tuple;
-                while (!(tuple = solrStream.read()).EOF && (tupleCount < query.getRows() || query.getRows() < 0)) {
-                    tupleCount++;
-                    procSearch.process(tuple);
+                try (TupleStream solrStream = openStream(buildSearchExpr(query));){
+                    Tuple tuple;
+                    while (!(tuple = solrStream.read()).EOF && (tupleCount < query.getRows() || query.getRows() < 0)) {
+                        tupleCount++;
+                        procSearch.process(tuple);
+                    }
+                    procSearch.flush();
                 }
-
-                solrStream.close(); // could be try-with-resources
-
-                procSearch.flush();
             }
 
             // do facets
             if (procFacet != null && query.getFacetFields() != null) {
                 // process one at a time
-                for (int i = 0; i < query.getFacetFields().length; i++) {
-                    TupleStream solrStream2;
-                    if (endemicFacetSuperset == null) {
-                        solrStream2 = openStream(buildFacetExpr(query, query.getFacetFields()[i]));
-                    } else {
-                        solrStream2 = openStream(buildEndemicExpr(query, endemicFacetSuperset));
+                for (String facetField : query.getFacetFields()) {
+                    try (TupleStream solrStream2 = createTupleStream(query, endemicFacetSuperset, facetField);){
+                        Tuple tuple2;
+                        while (!(tuple2 = solrStream2.read()).EOF) {
+                            procFacet.process(tuple2);
+                        }
                     }
-
-                    Tuple tuple2;
-                    while (!(tuple2 = solrStream2.read()).EOF) {
-                        procFacet.process(tuple2);
-                    }
-
-                    solrStream2.close(); // could be try-with-resources
                 }
                 procFacet.flush();
             }
         } catch (HttpSolrClient.RemoteSolrException e) {
-            //report failed query
-            logger.error("query failed: " + query.toString() + " : " + e.getMessage());
+            logError(query, "SolrException query failed",  e.getMessage());
             throw e;
         } catch (IOException ioe) {
-            //report failed query
-            logger.error("query failed: " + query.toString() + " : " + ioe.getMessage());
+            logError(query, "IOException query failed",  ioe.getMessage());
             throw new SolrServerException(ioe);
         } catch (Exception ioe) {
-            //report failed query
-            logger.error("query failed: " + query.toString() + " : " + ioe.getMessage());
+            logError(query, "Exception - query failed", ioe.getMessage());
             throw new SolrServerException(ioe);
         }
 
         return tupleCount;
+    }
+
+    private TupleStream createTupleStream(SolrQuery query, SolrQuery endemicFacetSuperset, String facetField) throws IOException {
+        if (endemicFacetSuperset == null) {
+            return openStream(buildFacetExpr(query, facetField));
+        } else {
+            return openStream(buildEndemicExpr(query, endemicFacetSuperset));
+        }
     }
 
     private ModifiableSolrParams buildSearchExpr(SolrQuery query) {
