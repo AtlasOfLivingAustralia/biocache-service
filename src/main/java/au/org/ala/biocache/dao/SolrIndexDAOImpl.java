@@ -14,7 +14,6 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.cache.CacheConfig;
 import org.apache.http.impl.client.cache.CachingHttpClientBuilder;
@@ -224,11 +223,12 @@ public class SolrIndexDAOImpl implements IndexDAO {
                             .setCacheConfig(cacheConfig)
                             .setDefaultRequestConfig(requestConfig)
                             .setConnectionManager(poolingConnectionPoolManager)
+                            .setMaxConnPerRoute(solrConnectionMaxPerRoute)
                             .setUserAgent(userAgent)
                             .useSystemProperties()
                             .build();
 
-            solrClientCache = new SolrClientCache(httpClient);
+            solrClientCache = new SolrClientCache();
 
             if (usehttp2) {
                 // TODO - this is experimental. Requires more configuration params for tuning timeouts etc
@@ -1132,10 +1132,10 @@ public class SolrIndexDAOImpl implements IndexDAO {
             if (procFacet != null && query.getFacetFields() != null) {
                 // process one at a time
                 for (String facetField : query.getFacetFields()) {
-                    try (TupleStream solrStream2 = createTupleStream(query, endemicFacetSuperset, facetField);){
-                        Tuple tuple2;
-                        while (!(tuple2 = solrStream2.read()).EOF) {
-                            procFacet.process(tuple2);
+                    try (TupleStream solrStream = createTupleStream(query, endemicFacetSuperset, facetField);){
+                        Tuple tuple;
+                        while (!(tuple = solrStream.read()).EOF) {
+                            procFacet.process(tuple);
                         }
                     }
                 }
