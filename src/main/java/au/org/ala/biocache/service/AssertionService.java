@@ -7,6 +7,7 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.OccurrenceUtils;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import org.apache.commons.lang.StringUtils;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.jetbrains.annotations.NotNull;
@@ -326,7 +327,7 @@ public class AssertionService {
             indexMap.put("lastAssertionDate", lastDate);
         }
 
-        List<String> assertionUserIds = assertions.stream().map(QualityAssertion::getUserId).distinct().collect(Collectors.toList());
+        List<String> assertionUserIds = userAssertions.stream().map(QualityAssertion::getUserId).filter(StringUtils::isNotBlank).distinct().collect(Collectors.toList());
         if (!assertionUserIds.isEmpty()) {
             indexMap.put("assertionUserId", assertionUserIds);
         }
