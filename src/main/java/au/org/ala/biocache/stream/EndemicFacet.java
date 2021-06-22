@@ -5,6 +5,7 @@ import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.io.Tuple;
 
 import java.util.List;
+import java.util.Optional;
 
 public class EndemicFacet implements ProcessInterface {
 
@@ -25,8 +26,14 @@ public class EndemicFacet implements ProcessInterface {
 
                 if (entryCount > 0) {
                     String value = tuple.getString(facetName);
-
-                    output.add(new FieldResultDTO(value, value, entryCount));
+                    Optional<FieldResultDTO> fieldResultDTOOptional = output.stream()
+                            .filter( fr -> fr.getFieldValue().equals(value)).findFirst();
+                    if (fieldResultDTOOptional.isPresent()){
+                        FieldResultDTO existing = fieldResultDTOOptional.get();
+                        existing.setCount(existing.getCount() + entryCount);
+                    } else {
+                        output.add(new FieldResultDTO(value, value, entryCount));
+                    }
                 }
             }
 
