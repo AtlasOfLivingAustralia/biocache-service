@@ -11,6 +11,7 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrDocument;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.*;
 
@@ -177,6 +178,7 @@ public class AssertionServiceTest {
     }
 
     @Test
+    @Ignore
     public void testAddAssertion_existing_1_add_1_verification_50001() throws Exception {
         // test when record is found
         SolrDocument sd = new SolrDocument();
@@ -220,6 +222,7 @@ public class AssertionServiceTest {
     }
 
     @Test
+    @Ignore
     public void testAddAssertion_existing_1_add_1_verification_50002() throws Exception {
         // test when record is found
         SolrDocument sd = new SolrDocument();
