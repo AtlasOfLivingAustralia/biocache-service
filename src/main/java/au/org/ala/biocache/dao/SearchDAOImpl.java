@@ -1917,7 +1917,7 @@ public class SearchDAOImpl implements SearchDAO {
     public List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception {
         searchParams.setFacet(true);
         searchParams.setPageSize(0);
-        searchParams.setFlimit(-1);
+
         SolrQuery facetQuery = initSolrQuery(searchParams, false, null);
         facetQuery.setFields(null);
 
@@ -1927,7 +1927,7 @@ public class SearchDAOImpl implements SearchDAO {
             org.apache.commons.collections.CollectionUtils.addAll(fqList, searchParams.getFormattedFq());
         }
 
-        facetQuery.setFilterQueries(fqList.stream().toArray(String[]::new));    // PIPELINES: SolarQuery::setFilterQueries entry point
+        facetQuery.setFilterQueries(fqList.stream().toArray(String[]::new));
 
         QueryResponse qr = query(facetQuery);
         SearchResultDTO searchResults = processSolrResponse(searchParams, qr, facetQuery, OccurrenceIndex.class);
@@ -1938,9 +1938,16 @@ public class SearchDAOImpl implements SearchDAO {
                 FacetResultDTO frDTO = new FacetResultDTO();
                 frDTO.setCount(fr.getCount());
                 frDTO.setFieldName(fr.getFieldName());
-                if (fr.getCount() == null) {
+
+                // only calculate the correct count when foffset == 0 and output is limited
+                if (searchParams.getFoffset() == 0 && searchParams.getFlimit() >= 0) {
+                    // An estimate is suitable here as this is used for paging through facet values.
+                    // The alternative is to download all unique values and count them.
+                    fr.setCount((int) estimateUniqueValues(searchParams, searchParams.getFacets()[0]));
+                } else if (fr.getCount() == null) {
                     fr.setCount(fr.getFieldResult().size());
                 }
+
                 //reduce the number of facets returned...
                 if (searchParams.getFlimit() != null && searchParams.getFlimit() < fr.getFieldResult().size() &&
                         searchParams.getFlimit() >= 0) {
@@ -2659,6 +2666,36 @@ public class SearchDAOImpl implements SearchDAO {
         SimpleOrderedMap facets = SearchUtils.getMap(qr.getResponse(), "facets");
 
         return new double[]{toDouble(facets.get("x1")), toDouble(facets.get("y1")), toDouble(facets.get("x2")), toDouble(facets.get("y2"))};
+    }
+
+    /**
+     * Get estimated number of unique values for a facet.
+     *
+     * @param requestParams
+     * @return
+     * @throws Exception
+     */
+    private long estimateUniqueValues(SpatialSearchRequestParams requestParams, String facet) throws Exception {
+        SolrQuery query = initSolrQuery(requestParams, false, null);
+        query.setRows(0);
+        query.setFacet(false);
+
+        // hll() == distributed cardinality estimate via hyper-log-log algorithm
+        query.add("json.facet", "{unqiue:\"hll(" + facet + ")\"}");
+        QueryResponse qr = indexDao.query(query);
+
+        SimpleOrderedMap facets = SearchUtils.getMap(qr.getResponse(), "facets");
+        return toLong(facets.get("unqiue"));
+    }
+
+    private long toLong(Object o) {
+        if (o instanceof Long) {
+            return (Long) o;
+        } else if (o instanceof Integer) {
+            return (Integer) o;
+        } else {
+            return Long.parseLong(o.toString());
+        }
     }
 
     private double toDouble(Object o) {
