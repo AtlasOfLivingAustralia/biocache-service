@@ -1,6 +1,6 @@
     @Grab('com.opencsv:opencsv:5.4')
     @Grab(group='commons-collections', module='commons-collections', version='3.2.1')
-
+    @Grab(group='org.codehaus.groovy', module='groovy-json', version='3.0.0')
     import com.opencsv.CSVReader
     import com.opencsv.CSVWriter
     import groovy.json.JsonSlurper;
@@ -65,6 +65,12 @@
         qid.q = line[6] ? line[6].replaceAll('"', '\\"') : null
         qid.source = line[7] ? line[7] : null
         qid.wkt = line[8] ? line[8] : null
+
+        // fqs can contain empty fq which causes generator.toJson() crash
+        // for example in prod, qid 1495081066189 has fqs = ["","longitude:[-180 TO 180]","latitude:[-90 TO 90]"]
+        if (qid.fqs) {
+            qid.fqs = qid.fqs.findAll{it.length() > 0} ?: null
+        }
 
         if (qid.fqs){
             if (qid.fqs){
