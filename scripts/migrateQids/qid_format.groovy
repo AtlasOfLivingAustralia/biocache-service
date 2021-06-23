@@ -1,6 +1,6 @@
     @Grab('com.opencsv:opencsv:5.4')
     @Grab(group='commons-collections', module='commons-collections', version='3.2.1')
-
+    @Grab(group='org.codehaus.groovy', module='groovy-json', version='3.0.0')
     import com.opencsv.CSVReader
     import com.opencsv.CSVWriter
     import groovy.json.JsonSlurper;
