@@ -160,7 +160,7 @@ public class OccurrenceIndex {
     Integer month;
     @Field("basisOfRecord")
     String basisOfRecord;
-    @Field("typeStaus")
+    @Field("typeStatus")
     String typeStatus;
     @Field("locationRemarks")
     String raw_locationRemarks;
