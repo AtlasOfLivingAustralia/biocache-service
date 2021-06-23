@@ -1929,33 +1929,46 @@ public class SearchDAOImpl implements SearchDAO {
 
         facetQuery.setFilterQueries(fqList.stream().toArray(String[]::new));
 
-        QueryResponse qr = query(facetQuery);
-        SearchResultDTO searchResults = processSolrResponse(searchParams, qr, facetQuery, OccurrenceIndex.class);
-
-        List<FacetResultDTO> facetResults = searchResults.getFacetResults();
-        if (facetResults != null) {
-            for (FacetResultDTO fr : facetResults) {
+        if (searchParams.getFlimit() == 0){
+            //add the estimates
+            List<FacetResultDTO> facetResults = new ArrayList<>();
+            for (String facetName: searchParams.getFacets()) {
                 FacetResultDTO frDTO = new FacetResultDTO();
-                frDTO.setCount(fr.getCount());
-                frDTO.setFieldName(fr.getFieldName());
+                frDTO.setFieldName(facetName);
+                frDTO.setCount((int) estimateUniqueValues(searchParams, facetName));
+                frDTO.setFieldResult(new ArrayList<>());
+                facetResults.add(frDTO);
+            }
+            return facetResults;
+        } else {
+            QueryResponse qr = query(facetQuery);
+            SearchResultDTO searchResults = processSolrResponse(searchParams, qr, facetQuery, OccurrenceIndex.class);
 
-                // only calculate the correct count when foffset == 0 and output is limited
-                if (searchParams.getFoffset() == 0 && searchParams.getFlimit() >= 0) {
-                    // An estimate is suitable here as this is used for paging through facet values.
-                    // The alternative is to download all unique values and count them.
-                    fr.setCount((int) estimateUniqueValues(searchParams, searchParams.getFacets()[0]));
-                } else if (fr.getCount() == null) {
-                    fr.setCount(fr.getFieldResult().size());
-                }
+            List<FacetResultDTO> facetResults = searchResults.getFacetResults();
+            if (facetResults != null) {
+                for (FacetResultDTO fr : facetResults) {
+                    FacetResultDTO frDTO = new FacetResultDTO();
+                    frDTO.setCount(fr.getCount());
+                    frDTO.setFieldName(fr.getFieldName());
 
-                //reduce the number of facets returned...
-                if (searchParams.getFlimit() != null && searchParams.getFlimit() < fr.getFieldResult().size() &&
-                        searchParams.getFlimit() >= 0) {
-                    fr.setFieldResult(fr.getFieldResult().subList(0, searchParams.getFlimit()));
+                    // only calculate the correct count when foffset == 0 and output is limited
+                    if (searchParams.getFoffset() == 0 && searchParams.getFlimit() >= 0) {
+                        // An estimate is suitable here as this is used for paging through facet values.
+                        // The alternative is to download all unique values and count them.
+                        fr.setCount((int) estimateUniqueValues(searchParams, searchParams.getFacets()[0]));
+                    } else if (fr.getCount() == null) {
+                        fr.setCount(fr.getFieldResult().size());
+                    }
+
+                    //reduce the number of facets returned...
+                    if (searchParams.getFlimit() != null && searchParams.getFlimit() < fr.getFieldResult().size() &&
+                            searchParams.getFlimit() >= 0) {
+                        fr.setFieldResult(fr.getFieldResult().subList(0, searchParams.getFlimit()));
+                    }
                 }
             }
+            return facetResults;
         }
-        return facetResults;
     }
 
     /**
