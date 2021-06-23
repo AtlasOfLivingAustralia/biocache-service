@@ -44,7 +44,7 @@ public class FieldMappedSolrParams extends SolrParams {
 
             Consumer<Pair<String, String>> addParamTranslation = (Pair<String, String> mapping) -> {
 
-                String[] old = inverseTranslations.put(mapping.getRight(), new String[]{ mapping.getLeft() });
+                String[] old = inverseTranslations.put(mapping.getRight(), new String[]{mapping.getLeft()});
 
                 if (old != null) {
 
@@ -90,7 +90,7 @@ public class FieldMappedSolrParams extends SolrParams {
                                                 String translatedField = fieldMappingUtil.translateFieldName(sortParams[0]);
                                                 return translatedField + " " + sortParams[1];
                                             })
-                                            .collect(Collectors.joining( "," ))
+                                            .collect(Collectors.joining(","))
                             )
                             .toArray(String[]::new);
 
@@ -99,6 +99,8 @@ public class FieldMappedSolrParams extends SolrParams {
 
                 case "facet.field":
                 case "facet.range":
+                case "facet.pivot":
+                case "stats.facet":
 
                     translatedSolrParams.set(paramName, fieldMappingUtil.translateFieldArray(addParamTranslation, solrParams.getParams(paramName)));
                     break;

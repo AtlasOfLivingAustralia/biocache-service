@@ -1,6 +1,9 @@
 package au.org.ala.biocache.dao;
 
-import au.org.ala.biocache.dto.*;
+import au.org.ala.biocache.dto.AssertionStatus;
+import au.org.ala.biocache.dto.IndexFieldDTO;
+import au.org.ala.biocache.dto.OccurrenceIndex;
+import au.org.ala.biocache.dto.StatsIndexFieldDTO;
 import au.org.ala.biocache.service.LayersService;
 import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.stream.ProcessInterface;
@@ -26,7 +29,7 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.*;
 import org.apache.solr.client.solrj.io.SolrClientCache;
 import org.apache.solr.client.solrj.io.Tuple;
-import org.apache.solr.client.solrj.io.stream.CloudSolrStream;
+import org.apache.solr.client.solrj.io.stream.AlaCloudSolrStream;
 import org.apache.solr.client.solrj.io.stream.SolrStream;
 import org.apache.solr.client.solrj.io.stream.StreamContext;
 import org.apache.solr.client.solrj.io.stream.TupleStream;
@@ -385,7 +388,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
         if (requestID != null) {
             logger.error("RequestID:" + requestID + ", " + message + " - SOLRQuery: " + query.toString() + ", Error : " + exceptionMessage);
         } else {
-            logger.error(message + " - SOLRQuery: "  + query.toString() + " : " + exceptionMessage);
+            logger.error(message + " - SOLRQuery: " + query.toString() + " : " + exceptionMessage);
         }
     }
 
@@ -1081,7 +1084,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
         if (!solrHome.startsWith("http://")) {
             if (solrHome.contains(":")) {
                 // assume that it represents a SolrCloud using ZooKeeper
-                solrStream = new CloudSolrStream(solrHome, solrCollection, params);
+                solrStream = new AlaCloudSolrStream(solrHome, solrCollection, params);
             } else {
                 logger.error("Badly formatted solrHome configuration: " + solrHome);
                 return null;
@@ -1118,7 +1121,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
             // do search
             if (procSearch != null && query.getRows() != 0) {
-                try (TupleStream solrStream = openStream(buildSearchExpr(query));){
+                try (TupleStream solrStream = openStream(buildSearchExpr(query));) {
                     Tuple tuple;
                     while (!(tuple = solrStream.read()).EOF && (tupleCount < query.getRows() || query.getRows() < 0)) {
                         tupleCount++;
@@ -1132,7 +1135,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
             if (procFacet != null && query.getFacetFields() != null) {
                 // process one at a time
                 for (String facetField : query.getFacetFields()) {
-                    try (TupleStream solrStream = createTupleStream(query, endemicFacetSuperset, facetField);){
+                    try (TupleStream solrStream = createTupleStream(query, endemicFacetSuperset, facetField);) {
                         Tuple tuple;
                         while (!(tuple = solrStream.read()).EOF) {
                             procFacet.process(tuple);
@@ -1142,10 +1145,10 @@ public class SolrIndexDAOImpl implements IndexDAO {
                 procFacet.flush();
             }
         } catch (HttpSolrClient.RemoteSolrException e) {
-            logError(query, "SolrException query failed",  e.getMessage());
+            logError(query, "SolrException query failed", e.getMessage());
             throw e;
         } catch (IOException ioe) {
-            logError(query, "IOException query failed",  ioe.getMessage());
+            logError(query, "IOException query failed", ioe.getMessage());
             throw new SolrServerException(ioe);
         } catch (Exception ioe) {
             logError(query, "Exception - query failed", ioe.getMessage());
@@ -1222,10 +1225,8 @@ public class SolrIndexDAOImpl implements IndexDAO {
         solrParams.set("expr", cexpr.toString());
         solrParams.set("qt", qt);
 
-        // for CloudSolrStream.init
-        solrParams.set("q", "*:*");
-        solrParams.set("fl", "id");
-        solrParams.set("sort", "id asc");
+        // declare that the request should be sent once, not to each shard
+        solrParams.set("distrib", "true");
 
         return solrParams;
     }
@@ -1278,10 +1279,8 @@ public class SolrIndexDAOImpl implements IndexDAO {
         solrParams.set("expr", cexpr.toString());
         solrParams.set("qt", qt);
 
-        // for CloudSolrStream.init
-        solrParams.set("q", "*:*");
-        solrParams.set("fl", "id");
-        solrParams.set("sort", "id asc");
+        // declare that the request should be sent once, not to each shard
+        solrParams.set("distrib", "true");
 
         return solrParams;
     }

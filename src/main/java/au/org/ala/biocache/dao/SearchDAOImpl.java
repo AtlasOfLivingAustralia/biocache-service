@@ -1721,13 +1721,13 @@ public class SearchDAOImpl implements SearchDAO {
                     }
                 } else {
 
-                    solrQuery.addFacetField(facet); // PIPELINES: SolrQuery::addFacetField entry point
+                    solrQuery.addFacetField(facet);
 
                     if ("".equals(searchParams.getFsort()) && substituteDefaultFacetOrder && FacetThemes.getFacetsMap().containsKey(facet)) {
                         //now check if the sort order is different to supplied
-                        String thisSort = FacetThemes.getFacetsMap().get(facet).getSort();
+                        String thisSort = FacetThemes.getFacetsMap().get(facet).getSort();  // thisSort = index or count
                         if (!searchParams.getFsort().equalsIgnoreCase(thisSort))
-                            solrQuery.add("f." + facet + ".facet.sort", thisSort);
+                            solrQuery.add("f." + fieldMappingUtil.translateFieldName(facet) + ".facet.sort", thisSort);
                     }
 
                 }
@@ -2330,14 +2330,16 @@ public class SearchDAOImpl implements SearchDAO {
                 if (facets > 0) sb.append(",");
                 facets++;
 
-                sb.append(facet).append(":{type:terms,limit:-1,sort:index,field:").append(facet).append(",facet:{");
+                sb.append(facet).append(":{type:terms,limit:-1,sort:index,field:").
+                        append(fieldMappingUtil.translateFieldName(facet)).append(",facet:{");
 
                 int fls = 0;
                 for (String fl : searchParams.getFl().split(",")) {
                     if (fls > 0) sb.append(",");
                     fls++;
 
-                    sb.append(fl).append(":{type:terms,limit:1,sort:index,field:").append(fl).append("}");
+                    sb.append(fieldMappingUtil.translateFieldName(fl)).append(":{type:terms,limit:1,sort:index,field:").
+                            append(fieldMappingUtil.translateFieldName(fl)).append("}");
                 }
                 sb.append("}}}");
             }
@@ -2542,7 +2544,7 @@ public class SearchDAOImpl implements SearchDAO {
         //stats parameters
         query.add("stats", "true");
         if (facet != null) query.add("stats.facet", facet);
-        query.add("stats.field", "{!" + StringUtils.join(statType, "=true ") + "=true}" + field);
+        query.add("stats.field", "{!" + StringUtils.join(statType, "=true ") + "=true}" + fieldMappingUtil.translateFieldName(field));
 
         QueryResponse response = indexDao.runSolrQuery(query);
 
