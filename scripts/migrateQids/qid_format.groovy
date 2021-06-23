@@ -66,6 +66,12 @@
         qid.source = line[7] ? line[7] : null
         qid.wkt = line[8] ? line[8] : null
 
+        // fqs can contain empty fq which causes generator.toJson() crash
+        // for example in prod, qid 1495081066189 has fqs = ["","longitude:[-180 TO 180]","latitude:[-90 TO 90]"]
+        if (qid.fqs) {
+            qid.fqs = qid.fqs.findAll{it.length() > 0} ?: null
+        }
+
         if (qid.fqs){
             if (qid.fqs){
                 qid.fqs = qid.fqs.collect { it.replace('"', '\\"') }
