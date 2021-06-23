@@ -2696,11 +2696,15 @@ public class SearchDAOImpl implements SearchDAO {
         query.setFacet(false);
 
         // hll() == distributed cardinality estimate via hyper-log-log algorithm
-        query.add("json.facet", "{unqiue:\"hll(" + facet + ")\"}");
+        query.add("json.facet", "{unique:\"hll(" + facet + ")\"}");
         QueryResponse qr = indexDao.query(query);
 
         SimpleOrderedMap facets = SearchUtils.getMap(qr.getResponse(), "facets");
-        return toLong(facets.get("unqiue"));
+        Object value = facets.get("unique");
+        if (value == null){
+            return 0;
+        }
+        return toLong(value);
     }
 
     private long toLong(Object o) {
