@@ -1515,7 +1515,7 @@ public class OccurrenceController extends AbstractSecureController {
 
         SolrDocumentList sdl = searchDAO.findByFulltext(idRequest);
         if (sdl == null || sdl.isEmpty()) {
-            return null;
+            return new HashMap<>();
         }
 
         SolrDocument sd = sdl.get(0);
