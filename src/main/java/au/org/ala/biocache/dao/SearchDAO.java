@@ -37,15 +37,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public interface SearchDAO {
 
     /**
-     * Finds the endemic species of the supplied area.
-     *
-     * @param requestParams
-     * @return
-     * @throws Exception
-     */
-    List<FieldResultDTO> getEndemicSpecies(SpatialSearchRequestParams requestParams) throws Exception;
-
-    /**
      * Returns species that only occur in the supplied subQueryQid
      * and not in the requestParams query.
      *
@@ -55,25 +46,6 @@ public interface SearchDAO {
      * @throws Exception
      */
     List<FieldResultDTO> getSubquerySpeciesOnly(SpatialSearchRequestParams subQuery, SpatialSearchRequestParams parentQuery) throws Exception;
-
-    /**
-     * Retrieve a list of facet values for the supplied query.
-     *
-     * @param requestParams
-     * @return
-     * @throws Exception
-     */
-    List<FieldResultDTO> getValuesForFacet(SpatialSearchRequestParams requestParams) throws Exception;
-
-    /**
-     * Find all occurrences for a given (full text) query, latitude, longitude & radius (km). I.e.
-     * a full-text spatial query.
-     *
-     * @param requestParams
-     * @return
-     * @throws Exception
-     */
-    SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams requestParams, Map<String, String[]> extraParams);
 
     /**
      * Find all occurrences for a given (full text) query, latitude, longitude & radius (km). I.e.
@@ -95,17 +67,6 @@ public interface SearchDAO {
      * @throws Exception
      */
     int writeSpeciesCountByCircleToStream(SpatialSearchRequestParams requestParams, String speciesGroup, ServletOutputStream out) throws Exception;
-
-    /**
-     * Writes the results of this query to the output stream using the index as a source of the data.
-     *
-     * @param downloadParams
-     * @param out
-     * @param includeSensitive
-     * @return
-     * @throws Exception
-     */
-    ConcurrentMap<String, AtomicInteger> writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, boolean includeSensitive, DownloadDetailsDTO dd, boolean checkLimit) throws Exception;
 
     /**
      * Writes the results of this query to the output stream using the index as a source of the data.
@@ -190,25 +151,6 @@ public interface SearchDAO {
      * Refresh any caches in use to populate queries.
      */
     void refreshCaches();
-
-    /**
-     * Find all species (and counts) for a given location search (lat/long and radius) and a higher taxon (with rank)
-     *
-     * @param requestParams
-     * @param speciesGroup
-     * @return
-     * @throws Exception
-     */
-    List<TaxaCountDTO> findAllSpeciesByCircleAreaAndHigherTaxa(SpatialSearchRequestParams requestParams, String speciesGroup) throws Exception;
-
-    /**
-     * Find all the data providers with records.
-     *
-     * @return
-     */
-    List<DataProviderCountDTO> getDataProviderCounts() throws Exception;
-
-    List<FieldResultDTO> findRecordByStateFor(String query) throws Exception;
 
     /**
      * Find all the sources for the supplied query
@@ -372,6 +314,16 @@ public interface SearchDAO {
      * @return
      */
     double[] getBBox(SpatialSearchRequestParams requestParams) throws Exception;
+
+    /**
+     * Get estimated number of unique values for a facet.
+     *
+     * @param requestParams
+     * @param facet
+     * @return
+     * @throws Exception
+     */
+    long estimateUniqueValues(SpatialSearchRequestParams requestParams, String facet) throws Exception;
 
     /**
      * list facets available to the search query

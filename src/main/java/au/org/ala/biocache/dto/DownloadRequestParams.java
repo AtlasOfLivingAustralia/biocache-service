@@ -20,7 +20,6 @@ import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.validate.LogType;
 import org.apache.log4j.Logger;
-import org.springframework.beans.InvalidPropertyException;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
@@ -63,8 +62,8 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     protected Integer reasonTypeId = null;    
     @LogType(type="source")
     protected Integer sourceTypeId = null;
-    //The file type for the download file."shp" or "csv"
-    @Pattern(regexp="(csv|shp|tsv)")
+    //The file type for the download file.
+    @Pattern(regexp="(csv|tsv)")
     protected String fileType="csv";
 
     /** URL to layersService to include intersections with layers that are not indexed */
@@ -280,9 +279,6 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
      * @param fileType the fileType to set
      */
     public void setFileType(String fileType) {
-        if (!DownloadService.downloadShpEnabled && "shp".equalsIgnoreCase(fileType)) {
-            throw new InvalidPropertyException(DownloadRequestParams.class, "fileType", "Shapefile downloads are disabled.");
-        }
         this.fileType = fileType;
     }
 

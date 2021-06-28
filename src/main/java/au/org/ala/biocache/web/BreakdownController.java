@@ -163,12 +163,4 @@ public class BreakdownController {
     public @ResponseBody TaxaRankCountDTO limitBreakdown(BreakdownRequestParams requestParams, HttpServletResponse response) throws Exception {
         return performBreakdown("*", "*", requestParams, response);                
     }
-
-	/**
-	 * @param searchDAO
-	 *            the searchDAO to set
-	 */
-	public void setSearchDAO(SearchDAO searchDAO) {
-		this.searchDAO = searchDAO;
-	}
 }

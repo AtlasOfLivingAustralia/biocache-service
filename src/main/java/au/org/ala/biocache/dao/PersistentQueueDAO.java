@@ -1,8 +1,8 @@
 package au.org.ala.biocache.dao;
 
-import java.util.List;
-
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
+
+import java.util.List;
 
 /**
  * A DAO for a persistent FIFO QUEUE.  To be used to persist downloads
@@ -17,14 +17,6 @@ public interface PersistentQueueDAO {
      * @param download The download to add
      */
     void addDownloadToQueue(DownloadDetailsDTO download);
-    
-    /**
-     * Get the next offline download from the queue. Leaving it on the
-     * queue until a remove is called.<br>
-     * A non-null returned download will contain a non-null {@link DownloadDetailsDTO#getFileLocation()}.
-     * @return A {@link DownloadDetailsDTO} or null if the queue was empty
-     */
-    DownloadDetailsDTO getNextDownload();
 
     /**
      * Limited by the optional maxRecords and type, return the next offline download from the queue. Leaving it on the

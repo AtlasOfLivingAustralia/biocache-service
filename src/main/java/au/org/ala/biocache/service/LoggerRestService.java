@@ -15,11 +15,9 @@
 package au.org.ala.biocache.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-
-import io.reactivex.rxjava3.core.*;
+import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.reactivex.rxjava3.subscribers.DisposableSubscriber;
-
 import org.ala.client.model.LogEventVO;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,7 +32,6 @@ import org.springframework.web.client.RestOperations;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -186,7 +183,7 @@ public class LoggerRestService implements LoggerService {
                 reasonIds = new ArrayList<Integer>();
                 sourceIds = new ArrayList<Integer>();
                 //provide sensible defaults for the ID lists
-                for (Integer i = 0; i < 11; i++) {
+                for (int i = 0; i < 11; i++) {
                     reasonIds.add(i);
                     if (i < 8) {
                         sourceIds.add(i);

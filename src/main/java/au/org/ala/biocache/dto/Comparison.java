@@ -8,8 +8,6 @@ public class Comparison {
     public Comparison() {
     }
 
-    ;
-
     public String getName() {
         return name;
     }

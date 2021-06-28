@@ -164,25 +164,6 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
             logger.error("Download could not be added to the queue because the queue has been closed: " + download.toString());
         }
     }
-    /**
-     * @see au.org.ala.biocache.dao.PersistentQueueDAO#getNextDownload()
-     */
-    @Override
-    public DownloadDetailsDTO getNextDownload() {
-        afterInitialisation();
-        synchronized (listLock) {
-            for (DownloadDetailsDTO dd : offlineDownloadList) {
-                if (dd.getFileLocation() == null) {
-                    //give a place for the downlaod
-                    dd.setFileLocation(biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes(StandardCharsets.UTF_8)) + File.separator + dd.getStartTime() + File.separator + dd.getRequestParams().getFile() + ".zip");
-                    return dd;
-                }
-            }
-        }
-        
-        //if we reached here all of the downloads have started or there are no downloads on the list
-        return null;
-    }
 
     /**
      * @see au.org.ala.biocache.dao.PersistentQueueDAO#getNextDownload(Integer maxRecords, au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType type)

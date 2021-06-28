@@ -291,15 +291,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.date.format:dd MMMMM yyyy}")
     public String downloadDateFormat = "dd MMMMM yyyy";
 
-    @Value("${download.shp.enabled:true}")
-    public void setDownloadShpEnabled(Boolean downloadShpEnabled) {
-        DownloadService.downloadShpEnabled = downloadShpEnabled;
-    }
-
     @Value("${download.csdm.email.template:}")
     protected String biocacheDownloadCSDMEmailTemplate;
-
-    public static Boolean downloadShpEnabled;
 
     /**
      * Ensures closure is only attempted once.
@@ -571,10 +564,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
         // Use a zip output stream to include the data and citation together in
         // the download.
-        // Note: When producing a shp the output will stream a csv followed by a zip.
         try (OptionalZipOutputStream sp = new OptionalZipOutputStream(
                 zip ? OptionalZipOutputStream.Type.zipped : OptionalZipOutputStream.Type.unzipped, new CloseShieldOutputStream(out), maxMB);) {
-            String suffix = requestParams.getFileType().equals("shp") ? "csv" : requestParams.getFileType();
+            String suffix = requestParams.getFileType();
             sp.putNextEntry(filename + "." + suffix);
             // put the facets
             if ("all".equals(requestParams.getQa())) {
@@ -587,19 +579,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             uidStats = searchDAO.writeResultsFromIndexToStream(requestParams, sp, includeSensitive, dd, limit, parallelExecutor);
 
             sp.closeEntry();
-
-            // add the readme for the Shape file header mappings if necessary
-            if (dd.getHeaderMap() != null) {
-                sp.putNextEntry("Shape-README.html");
-                sp.write(
-                        ("The name of features is limited to 10 characters. Listed below are the mappings of feature name to download field:")
-                                .getBytes(StandardCharsets.UTF_8));
-                sp.write(("<table><td><b>Feature</b></td><td><b>Download Field<b></td>").getBytes(StandardCharsets.UTF_8));
-                for (String key : dd.getHeaderMap().keySet()) {
-                    sp.write(("<tr><td>" + key + "</td><td>" + dd.getHeaderMap().get(key) + "</td></tr>").getBytes(StandardCharsets.UTF_8));
-                }
-                sp.write(("</table>").getBytes(StandardCharsets.UTF_8));
-            }
 
             if (uidStats != null) {
                 // Add the data citation to the download
@@ -718,8 +697,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         // TODO: The downloads-plugin has issues with unencoded user queries
                         // Working around that by hardcoding the official DOI resolution service as the landing page
                         // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
-                        // final String doiLandingPage = requestParams.getDoiDisplayUrl() != null ? requestParams.getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
-                        // fileLocation = doiLandingPage + doi;
                         fileLocation = OFFICIAL_DOI_RESOLVER + doi;
 
                     } else {
@@ -848,25 +825,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         dataQualityFilters = sw.toString();
         return dataQualityFilters;
     }
-
-    /**
-     * @param requestParams
-     * @param response
-     * @param ip
-     * @param out
-     * @param includeSensitive
-     * @param fromIndex
-     * @param zip
-     * @throws Exception
-     * @deprecated Use {@link #writeQueryToStream(DownloadDetailsDTO, DownloadRequestParams, String, OutputStream, boolean, boolean, boolean, ExecutorService, List)}
-     */
-    @Deprecated
-    public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, String userAgent,
-                                   OutputStream out, boolean includeSensitive, boolean fromIndex, boolean zip) throws Exception {
-        afterInitialisation();
-        writeQueryToStream(requestParams, response, ip, userAgent, out, includeSensitive, zip, getOfflineThreadPoolExecutor());
-    }
-
 
     public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, String userAgent,
                                    OutputStream out, boolean includeSensitive, boolean zip, ExecutorService parallelQueryExecutor) throws Exception {
@@ -1013,9 +971,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
             try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(out), StandardCharsets.UTF_8), params.getSep(), '"',
                     params.getEsc());) {
-                // Object[] citations =
-                // restfulClient.restPost(citationServiceUrl, "text/json",
-                // uidStats.keySet());
                 Set<IndexFieldDTO> indexedFields = indexDao.getIndexedFields();
 
                 // header
@@ -1336,11 +1291,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                         try (FileOutputStream fos = FileUtils
                                 .openOutputStream(new File(currentDownload.getFileLocation()));) {
-                            // cannot include misc columns if shp
-                            if (!currentDownload.getRequestParams().getFileType().equals("csv")
-                                    && currentDownload.getRequestParams().getIncludeMisc()) {
-                                currentDownload.getRequestParams().setIncludeMisc(false);
-                            }
 
                             List<CreateDoiResponse> doiResponseList = null;
                             Boolean mintDoi = currentDownload.getRequestParams().getMintDoi();
@@ -1401,8 +1351,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                         // TODO: The downloads-plugin has issues with unencoded user queries 
                                         // Working around that by hardcoding the official DOI resolution service as the landing page
                                         // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
-                                        //final String doiLandingPage = currentDownload.getRequestParams().getDoiDisplayUrl() != null ? currentDownload.getRequestParams().getDoiDisplayUrl() : biocacheDownloadDoiLandingPage;
-                                        //downloadFileLocation = doiLandingPage + doiStr;
                                         substitutions.put(DOWNLOAD_FILE_LOCATION, alaDoiResolver + doiStr);
                                         substitutions.put(OFFICIAL_FILE_LOCATION, OFFICIAL_DOI_RESOLVER + doiStr);
                                         substitutions.put(BCCVL_IMPORT_ID, URLEncoder.encode(doiStr, "UTF-8"));
@@ -1541,35 +1489,5 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 }
             };
         }
-    }
-
-    private Thread newRetryThread(final DownloadDetailsDTO currentDownload) {
-        return new Thread() {
-            @Override
-            public void run() {
-                boolean showErrorMessage = true;
-                try {
-                    Thread.sleep(5 * 60 * 1000);
-                    try {
-                        FileUtils.deleteDirectory(new File(currentDownload.getFileLocation()).getParentFile());
-                    } catch (IOException e) {
-                        logger.error("Exception when attempting to delete failed download " +
-                                "directory before retrying: " + new File(currentDownload.getFileLocation()).getParent() +
-                                ", " + e.getMessage(), e);
-                    }
-                    currentDownload.setFileLocation(null);
-                    // If we get successfully to this line, do not log an error message
-                    showErrorMessage = false;
-                } catch (InterruptedException e1) {
-                    Thread.currentThread().interrupt();
-                    logger.error("Interrupted while waiting to delete failed download: directory before retrying: " + new File(currentDownload.getFileLocation()).getParent() +
-                            ", " + e1.getMessage(), e1);
-                } finally {
-                    if (showErrorMessage) {
-                        logger.error("Did not successfully wait for retry download timeout: " + new File(currentDownload.getFileLocation()).getParent());
-                    }
-                }
-            }
-        };
     }
 }

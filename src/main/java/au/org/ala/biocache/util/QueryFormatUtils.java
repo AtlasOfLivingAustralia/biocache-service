@@ -450,7 +450,7 @@ public class QueryFormatUtils {
             List<String> taxaQueries = new ArrayList<>();
             taxaQueries.add(current[1]);
             List<String> guidsForTaxa = speciesLookupService.getGuidsForTaxa(taxaQueries);
-            if(!guidsForTaxa.isEmpty() && guidsForTaxa.size() == 1){
+            if(guidsForTaxa.size() == 1){
                 String q = createQueryWithTaxaParam(taxaQueries, guidsForTaxa);
                 current[1] = q;
             }
@@ -621,10 +621,6 @@ public class QueryFormatUtils {
                 }
                 matcher.appendReplacement(queryString, prepareSolrStringForReplacement(value, true));
                 //this lsid->name replacement is too slow
-//                String name = searchUtils.substituteLsidsForNames(value);
-//                if (name != null) {
-//                    current[0] = current[0].replace(value, name);
-//                }
             }
             matcher.appendTail(queryString);
             current[1] = queryString.toString();
@@ -655,10 +651,6 @@ public class QueryFormatUtils {
                 matcher.appendReplacement(queryString, prepareSolrStringForReplacement(value, true));
 
                 //this lsid->name replacement is too slow
-//                String name = searchUtils.substituteLsidsForNames(value);
-//                if (name != null) {
-//                    current[0].replace(value, name);
-//                }
             }
             matcher.appendTail(queryString);
             current[1] = queryString.toString();

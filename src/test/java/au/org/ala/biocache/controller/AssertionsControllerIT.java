@@ -1,9 +1,11 @@
 package au.org.ala.biocache.controller;
 
+import au.org.ala.biocache.dto.AssertionCodes;
 import au.org.ala.biocache.dto.QualityAssertion;
 import au.org.ala.biocache.dto.UserAssertions;
 import au.org.ala.biocache.service.AssertionService;
 import au.org.ala.biocache.util.SolrUtils;
+import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import au.org.ala.biocache.web.AssertionController;
 import junit.framework.TestCase;
 import org.junit.Before;
@@ -25,6 +27,7 @@ import org.springframework.web.context.WebApplicationContext;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -44,12 +47,15 @@ public class AssertionsControllerIT extends TestCase {
         System.setProperty("biocache.config", System.getProperty("user.dir") + "/src/test/resources/biocache-test-config.properties");
     }
 
-    public final int USER_ASSERTION_CODES_LENGTH = 8;
-    public final int ALL_CODES_LENGTH = 89;
-    private final int DEPRECATED_CODES_LENGTH = 46;
+    public int USER_ASSERTION_CODES_LENGTH;
+    public int ALL_CODES_LENGTH;
+    private int DEPRECATED_CODES_LENGTH;
 
     @Autowired
     AssertionController assertionController;
+
+    @Autowired
+    FieldMappingUtil fieldMappingUtil;
 
     AssertionService assertionService;
 
@@ -65,6 +71,9 @@ public class AssertionsControllerIT extends TestCase {
 
     @Before
     public void setup() {
+        USER_ASSERTION_CODES_LENGTH = AssertionCodes.userAssertionCodes.length;
+        ALL_CODES_LENGTH = AssertionCodes.allAssertionCodes.size();
+        DEPRECATED_CODES_LENGTH = fieldMappingUtil.getFieldValueMappingStream("assertions").collect(Collectors.toList()).size();
 
         assertionService = mock(AssertionService.class);
         ReflectionTestUtils.setField(assertionController, "assertionService", assertionService);
@@ -88,7 +97,6 @@ public class AssertionsControllerIT extends TestCase {
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
-//                .andExpect(jsonPath("$").value(""))
                 .andExpect(jsonPath("$.length()").value(ALL_CODES_LENGTH + DEPRECATED_CODES_LENGTH));
     }
 

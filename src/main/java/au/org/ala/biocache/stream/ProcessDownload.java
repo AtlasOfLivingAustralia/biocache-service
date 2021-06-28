@@ -6,7 +6,6 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadHeaders;
 import au.org.ala.biocache.dto.Kvp;
 import au.org.ala.biocache.dto.OccurrenceIndex;
-import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.service.LayersService;
 import au.org.ala.biocache.service.ListsService;
 import au.org.ala.biocache.util.RecordWriter;
@@ -314,7 +313,6 @@ public class ProcessDownload implements ProcessInterface {
             String json = SearchUtils.formatValue(tuple.getString(OccurrenceIndex.MISC));
             if (StringUtils.isNotEmpty(json)) {
                 JSONObject jo = JSONObject.fromObject(json);
-                int pos = offset;
                 for (String f : miscFields) {
                     values[offset] = SearchUtils.formatValue(jo.get(f));
                     offset++;

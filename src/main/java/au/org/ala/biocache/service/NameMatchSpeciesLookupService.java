@@ -68,11 +68,6 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
     }
 
     @Override
-    public List<String> getNamesForGuids(List<String> guids) {
-        return nameUsageMatchService.getAllNames(guids, true);
-    }
-
-    @Override
     public List<String[]> getSpeciesDetails(List<String> guids, List<Long> counts, boolean includeCounts, boolean includeSynonyms, boolean includeLists) {
         List<String[]> results = new ArrayList<String[]>(guids.size());
 

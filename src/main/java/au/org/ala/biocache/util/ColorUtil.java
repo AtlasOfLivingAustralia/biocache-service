@@ -88,7 +88,7 @@ public class ColorUtil {
         int blue = Integer.parseInt(htmlRGB.substring(4), 16);
         int alpha = (int) (255 * opacity);
 
-        Integer colour = (red << 16) | (green << 8) | blue;
+        int colour = (red << 16) | (green << 8) | blue;
         colour = colour | (alpha << 24);		
 		return new Color(colour, true);
 	}

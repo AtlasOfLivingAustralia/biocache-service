@@ -3,24 +3,18 @@ package au.org.ala.biocache.dao;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestParams;
-import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.dto.FacetThemes;
-import au.org.ala.biocache.service.DownloadService;
-import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
 
-import static org.junit.Assert.assertEquals;
-
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.assertEquals;
 
 public class PersistentQueueDAOTest {
 
@@ -42,7 +36,6 @@ public class PersistentQueueDAOTest {
         //init FacetThemes
         new FacetThemes();
 
-        DownloadService.downloadShpEnabled = true;
         testCacheDir = tempDir.newFolder("persistentqueuedaotest-cache").toPath();
         testDownloadDir = tempDir.newFolder("persistentqueuedaotest-destination").toPath();        
         queueDAO = new JsonPersistentQueueDAOImpl() {
@@ -54,7 +47,6 @@ public class PersistentQueueDAOTest {
             }
         };
         queueDAO.init();
-        DownloadService.downloadShpEnabled = true;
     }
 
     @After
@@ -70,7 +62,6 @@ public class PersistentQueueDAOTest {
         return d;
     }
     
-    @Ignore("Ignored until a biocache-service developer is available to fix https://github.com/AtlasOfLivingAustralia/biocache-service/issues/422")
     @Test
     public void testQueue(){
         System.out.println("test add");
@@ -87,7 +78,7 @@ public class PersistentQueueDAOTest {
         assertEquals(2,queueDAO.getTotalDownloads());
 
         //now remove
-        queueDAO.removeDownloadFromQueue(queueDAO.getNextDownload());
+        queueDAO.removeDownloadFromQueue(queueDAO.getNextDownload(Integer.MAX_VALUE, DownloadType.FACET));
         assertEquals(1,queueDAO.getTotalDownloads());
         //now test that the removal has been persisted
         queueDAO.refreshFromPersistent();

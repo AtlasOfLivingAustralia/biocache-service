@@ -10,6 +10,7 @@ import org.apache.solr.client.solrj.io.Tuple;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -40,9 +41,9 @@ public class StreamAsCSV implements ProcessInterface {
         this.requestParams = requestParams;
 
         try {
-            bComma = ",".getBytes("UTF-8");
-            bNewLine = "\n".getBytes("UTF-8");
-            bDblQuote = "\"".getBytes("UTF-8");
+            bComma = ",".getBytes(StandardCharsets.UTF_8);
+            bNewLine = "\n".getBytes(StandardCharsets.UTF_8);
+            bDblQuote = "\"".getBytes(StandardCharsets.UTF_8);
         } catch (Exception e) {
             logger.error(e);
         }

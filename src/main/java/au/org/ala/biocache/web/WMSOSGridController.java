@@ -1,6 +1,5 @@
 package au.org.ala.biocache.web;
 
-import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.*;
@@ -39,8 +38,6 @@ public class WMSOSGridController {
 
     @Inject
     protected SearchDAO searchDAO;
-    @Inject
-    protected IndexDAO indexDao;
 
     @Inject
     protected WMSUtils wmsUtils;
@@ -243,7 +240,7 @@ public class WMSOSGridController {
 
             logger.debug("FQs for record count: " + Arrays.toString(requestParams.getFq()));
 
-            SearchResultDTO resultDTO = searchDAO.findByFulltextSpatialQuery(requestParams, new HashMap<String, String[]>());
+            SearchResultDTO resultDTO = searchDAO.findByFulltextSpatialQuery(requestParams, false, new HashMap<String, String[]>());
             return resultDTO.getTotalRecords();
         } catch (Exception e){
             logger.error("Problem with getRecordCountForGridRef request: " + e.getMessage());
@@ -420,7 +417,7 @@ public class WMSOSGridController {
 
         Map<String, Integer> gridsRefs = new HashMap<String, Integer>();
 
-        SearchResultDTO resultsDTO2 = searchDAO.findByFulltextSpatialQuery(requestParams, new HashMap<String,String[]>());
+        SearchResultDTO resultsDTO2 = searchDAO.findByFulltextSpatialQuery(requestParams, false, new HashMap<String,String[]>());
         Collection<FacetResultDTO> results2 = resultsDTO2.getFacetResults();
         for (FacetResultDTO result : results2){
             for (FieldResultDTO fieldResult : result.getFieldResult()) {
@@ -718,9 +715,6 @@ public class WMSOSGridController {
             Double latitude = latLongInTargetCRS.getOrdinate(1);
 
             double[] coords = new double[2];
-
-//            coords[0] = Precision.round(longitude, 10);
-//            coords[1] = Precision.round(latitude, 10);
 
             coords[0] = longitude;
             coords[1] = latitude;

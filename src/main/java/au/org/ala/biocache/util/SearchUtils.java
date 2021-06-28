@@ -4,7 +4,6 @@ import au.org.ala.biocache.dto.OccurrenceIndex;
 import au.org.ala.biocache.dto.OccurrenceSourceDTO;
 import au.org.ala.biocache.dto.SearchRequestParams;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
-import au.org.ala.biocache.service.SpeciesLookupService;
 import au.org.ala.names.ws.api.NameSearch;
 import au.org.ala.names.ws.api.NameUsageMatch;
 import au.org.ala.names.ws.client.ALANameUsageMatchServiceClient;
@@ -53,9 +52,6 @@ public class SearchUtils {
     //for i18n of display values for facets
     @Inject
     private MessageSource messageSource;
-
-//    @Inject
-//    private SpeciesLookupService speciesLookupIndexService;
 
     @Inject
     private ALANameUsageMatchServiceClient nameUsageMatchService;
@@ -290,8 +286,6 @@ public class SearchUtils {
      * @return
      */
      public String[] getTaxonSearch(String taxonId) {
-
-        String[] result = new String[0];
         //use the name matching index
         try {
 

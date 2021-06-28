@@ -31,7 +31,7 @@ public class Qid {
 
     @JsonIgnore
     public Long getSize() {
-        Long size = 0L;
+        long size = 0L;
         if (q != null) {
             size += q.getBytes().length;
         }

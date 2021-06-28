@@ -201,7 +201,7 @@ class UpdateThread extends Thread {
             //not found, update now
             try {
                 logger.debug("updating species counts for query: " + params.toString());
-                SearchResultDTO qr = speciesCountsService.searchDAO.findByFulltextSpatialQuery(params, null);
+                SearchResultDTO qr = speciesCountsService.searchDAO.findByFulltextSpatialQuery(params, false, null);
 
                 //get lft and count
                 Map<Long, Long> map = new HashMap<Long, Long>();
