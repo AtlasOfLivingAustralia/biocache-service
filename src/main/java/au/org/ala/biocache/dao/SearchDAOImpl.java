@@ -2696,7 +2696,7 @@ public class SearchDAOImpl implements SearchDAO {
         query.setFacet(false);
 
         // hll() == distributed cardinality estimate via hyper-log-log algorithm
-        query.add("json.facet", "{unique:\"hll(" + facet + ")\"}");
+        query.add("json.facet", "{unique:\"hll(" + fieldMappingUtil.translateFieldName(facet) + ")\"}");
         QueryResponse qr = indexDao.query(query);
 
         SimpleOrderedMap facets = SearchUtils.getMap(qr.getResponse(), "facets");
