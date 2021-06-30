@@ -923,7 +923,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * Process downloadRequestParams.fields and update for sensitive requests.
      *
-     * @param downloadRequestParams
+     * @param downloadParams
      * @param includeSensitive
      */
     private void prepareRequestedFields(DownloadRequestParams downloadParams, boolean includeSensitive) {
@@ -985,7 +985,13 @@ public class SearchDAOImpl implements SearchDAO {
                 } catch (Exception e) {
                     logger.error("error getting assertions facet for download: " + downloadParams, e);
                 }
+            } else {
+                // translate qa names into new assertion names
+                downloadHeaders.qaIds = Arrays.stream(downloadParams.getQa().split(","))
+                        .map((qa) -> fieldMappingUtil.translateFieldValue("assertions", qa))
+                        .toArray(String[]::new);
             }
+
             downloadHeaders.qaLabels = Arrays.stream(downloadHeaders.qaIds).map(id -> {
                 return messageSource.getMessage("assertions." + id, null, id, null);
             }).collect(Collectors.toList()).toArray(new String[0]);
