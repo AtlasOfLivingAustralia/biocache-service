@@ -973,7 +973,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             // Map assertions to the output columns with the assertion name in the header.
             // These assertion columns will contain the passed/failed values.
-            if ("includeAll".equals(downloadParams.getQa())) {
+            if ("includeall".equals(downloadParams.getQa())) {
                 downloadHeaders.qaIds = getAllQAFields().toString().split(",");
             } else if ("all".equals(downloadParams.getQa())) {
                 try {
