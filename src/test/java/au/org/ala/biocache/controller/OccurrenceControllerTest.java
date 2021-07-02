@@ -1,15 +1,19 @@
 package au.org.ala.biocache.controller;
 
+import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.service.LoggerService;
 import au.org.ala.biocache.web.OccurrenceController;
 import junit.framework.TestCase;
 import org.ala.client.model.LogEventVO;
+import org.apache.solr.common.SolrException;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -18,16 +22,17 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.TransactionTimedOutException;
 import org.springframework.web.context.WebApplicationContext;
 
 import javax.servlet.http.HttpServletResponse;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.apache.solr.common.SolrException.ErrorCode.BAD_REQUEST;
+import static org.apache.solr.common.SolrException.ErrorCode.FORBIDDEN;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
  * Integration tests for occurrence services.
@@ -52,6 +57,7 @@ public class OccurrenceControllerTest extends TestCase {
     DownloadService downloadService;
 
     LoggerService loggerService;
+    SearchDAO searchDAO;
 
     @Autowired
     WebApplicationContext wac;
@@ -62,8 +68,10 @@ public class OccurrenceControllerTest extends TestCase {
     public void setup() {
 
         loggerService = mock(LoggerService.class);
+        searchDAO = mock(SearchDAO.class);
         ReflectionTestUtils.setField(occurrenceController, "loggerService", loggerService);
         ReflectionTestUtils.setField(downloadService, "loggerService", loggerService);
+        ReflectionTestUtils.setField(occurrenceController, "searchDAO", searchDAO);
 
         ReflectionTestUtils.setField(occurrenceController, "rateLimitCount", 5);
 
@@ -192,5 +200,145 @@ public class OccurrenceControllerTest extends TestCase {
                 .param("reasonTypeId", "10")
                 .param("email", "test"))
                 .andExpect(status().is(HttpServletResponse.SC_FORBIDDEN));
+    }
+
+    // Accept */* -> REST controller -> returns json when succeed
+    // Accept application/json -> REST controller -> returns json when succeed
+    @Test
+    public void testRESTControllerCompatibleFormat() throws Exception {
+        when(searchDAO.getIndexVersion(Mockito.any())).thenReturn((long) 1234);
+        String[] acceptTypes = new String[]{
+                "application/json",
+                "*/*"};
+        for (String type : acceptTypes) {
+            MvcResult mvcResult = this.mockMvc.perform(get("/index/version").header("Accept", type))
+                    .andExpect(status().is(HttpServletResponse.SC_OK))
+                    .andExpect(jsonPath("version").value(1234))
+                    .andReturn();
+
+            assert (mvcResult.getResponse().getContentType().contains(MediaType.APPLICATION_JSON_VALUE));
+        }
+    }
+
+    // Accept text/html -> REST controller -> returns 406 Not Acceptable (not compatible header), contentType = text/html
+    @Test
+    public void testRESTControllerNONCompatibleFormat() throws Exception {
+        when(searchDAO.getIndexVersion(Mockito.any())).thenReturn((long) 1234);
+        String[] acceptTypes = new String[]{
+                "text/plain",
+                "text/html, text/plain"};
+        for (String type : acceptTypes) {
+            this.mockMvc.perform(get("/index/version").header("Accept", type))
+                    .andExpect(status().is(HttpServletResponse.SC_NOT_ACCEPTABLE));
+
+            // no content type set so we can't test it
+            //assert(mvnResult.getResponse().getContentType().contains(MediaType.TEXT_HTML_VALUE));
+        }
+    }
+
+    private void validateErrorPageReturned() throws Exception {
+        String[] acceptTypes = new String[]{
+                "*/*",
+                "text/html"
+        };
+
+        for (String type : acceptTypes) {
+            MvcResult mvcResult = this.mockMvc.perform(get("/index/version").header("Accept", type))
+                    .andExpect(status().is(HttpServletResponse.SC_INTERNAL_SERVER_ERROR)).andReturn();
+            assert (mvcResult.getResponse().getForwardedUrl().equals("/WEB-INF/jsp/error/dataAccessFailure.jsp"));
+        }
+    }
+
+    // Accept */*       -> REST controller -> returns error page in case of an DataAccessException thrown
+    // Accept text/html -> REST controller -> returns error page in case of an DataAccessException thrown
+    @Test
+    public void testRESTControllerHTMLFormatDataAccessException() throws Exception {
+        when(searchDAO.getIndexVersion(Mockito.any())).thenThrow(new QueryTimeoutException("test-QueryTimeoutException"));
+        validateErrorPageReturned();
+    }
+
+    // Accept */*       -> REST controller -> returns error page in case of an TransactionException thrown
+    // Accept text/html -> REST controller -> returns error page in case of an TransactionException thrown
+    @Test
+    public void testRESTControllerHTMLFormatTransactionException() throws Exception {
+        when(searchDAO.getIndexVersion(Mockito.any())).thenThrow(new TransactionTimedOutException("test-TransactionTimedOutException"));
+        validateErrorPageReturned();
+    }
+
+    private void validateJSONErrorReturned(int expectedError) throws Exception {
+        String[] acceptTypes = new String[]{
+                "application/json"
+        };
+
+        for (String type : acceptTypes) {
+            MvcResult mvcResult = this.mockMvc.perform(get("/index/version").header("Accept", type))
+                    .andExpect(status().is(expectedError))
+                    .andExpect(jsonPath("message").exists())
+                    .andExpect(jsonPath("errorType").exists()).andReturn();
+
+            assert (mvcResult.getResponse().getContentType().contains(MediaType.APPLICATION_JSON_VALUE));
+        }
+    }
+
+    // Accept application/json -> REST controller -> returns JSON with status 500 in case of an DataAccessException thrown
+    @Test
+    public void testRESTControllerJSONFormatDataAccessException() throws Exception {
+        when(searchDAO.getIndexVersion(Mockito.any())).thenThrow(new QueryTimeoutException("test-QueryTimeoutException"));
+        validateJSONErrorReturned(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    }
+
+    // Accept application/json -> REST controller -> returns JSON with status 500 in case of an TransactionException thrown
+    @Test
+    public void testRESTControllerJSONFormatTransactionException() throws Exception {
+        when(searchDAO.getIndexVersion(Mockito.any())).thenThrow(new TransactionTimedOutException("test-TransactionTimedOutException"));
+        validateJSONErrorReturned(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    }
+
+    // Accept application/json -> REST controller -> returns JSON with status 400 in case of an SolrException (bad request) thrown
+    @Test
+    public void testRESTControllerJSONFormatSolrException400() throws Exception {
+        when(searchDAO.getIndexVersion(Mockito.any())).thenThrow(new SolrException(BAD_REQUEST, "test-SolrException"));
+        validateJSONErrorReturned(HttpServletResponse.SC_BAD_REQUEST);
+    }
+
+    // Accept application/json -> REST controller -> returns JSON with status 400 in case of an SolrException (bad request) thrown
+    @Test
+    public void testRESTControllerJSONFormatSolrException403() throws Exception {
+        when(searchDAO.getIndexVersion(Mockito.any())).thenThrow(new SolrException(FORBIDDEN, "test-SolrException"));
+        validateJSONErrorReturned(HttpServletResponse.SC_FORBIDDEN);
+    }
+
+    // below we test '/' and '/oldapi' controller which returns a view name
+
+    // Accept */*       -> normal controller -> returns text/html when succeed
+    // Accept text/html -> normal controller -> returns text/html when succeed
+    @Test
+    public void testNormalControllerCompatibleFormat() throws Exception {
+        String[] acceptTypes = new String[] { "text/html", "*/*" };
+        String[][] urls = new String[][] { {"/", "/WEB-INF/jsp/homePage.jsp"}, {"/oldapi", "/WEB-INF/jsp/oldapi.jsp"} };
+
+        for (String[] url : urls) {
+            for (String type : acceptTypes) {
+                MvcResult mvcResult = this.mockMvc.perform(get(url[0]).header("Accept", type))
+                        .andExpect(status().is(HttpServletResponse.SC_OK))
+                        .andReturn();
+
+                assert (mvcResult.getResponse().getForwardedUrl().equals(url[1]));
+            }
+        }
+    }
+
+    // Accept application/json -> normal controller -> returns JSON (because contentNegotiatingViewResolvers maps model to json in this case)
+    @Test
+    public void testNormalControllerNONCompatibleFormat() throws Exception {
+        String[] acceptTypes = new String[] { "application/json" };
+        String[] urls = new String[] { "/", "/oldapi" };
+        for (String url : urls) {
+            for (String type : acceptTypes) {
+                MvcResult mvcResult =
+                        this.mockMvc.perform(get(url).header("Accept", type)).andExpect(status().is(HttpServletResponse.SC_OK)).andReturn();
+                assert (mvcResult.getResponse().getContentType().contains(MediaType.APPLICATION_JSON_VALUE));
+            }
+        }
     }
 }
