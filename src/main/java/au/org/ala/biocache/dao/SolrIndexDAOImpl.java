@@ -1200,6 +1200,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
             qt = "/select";
         }
         solrParams.set("qt", qt);
+        solrParams.set("df", "text");
 
         return solrParams;
     }
