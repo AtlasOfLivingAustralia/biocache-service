@@ -22,7 +22,6 @@ import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.heatmap.HeatMap;
 import au.org.ala.biocache.util.ColorUtil;
 import au.org.ala.biocache.util.QueryFormatUtils;
-import au.org.ala.biocache.util.SearchUtils;
 import com.google.common.base.Strings;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
@@ -48,6 +47,7 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -80,8 +80,6 @@ public class MapController implements ServletConfigAware {
     @Inject
     protected SearchDAO searchDAO;
     /** Search Utils helper class */
-    @Inject
-    protected SearchUtils searchUtils;
     @Inject
     protected QueryFormatUtils queryFormatUtils;
     private ServletConfig cfg;
@@ -536,7 +534,7 @@ public class MapController implements ServletConfigAware {
         MessageDigest md = MessageDigest.getInstance("MD5");
         //replace forceRefresh if it is first or not
         String qs = request.getQueryString().replaceAll("&(?i)forceRefresh=true", "").replaceAll("(?i)forceRefresh=true&", "");
-        md.update(qs.getBytes("UTF-8"));
+        md.update(qs.getBytes(StandardCharsets.UTF_8));
         byte[] digest = md.digest();
         StringBuffer sb = new StringBuffer();
         for (byte b : digest) {
@@ -701,14 +699,6 @@ public class MapController implements ServletConfigAware {
             logger.error("An error occurred getting heatmap points", e);
         }
         return points;
-    }
-
-    public void setSearchDAO(SearchDAO searchDAO) {
-        this.searchDAO = searchDAO;
-    }
-
-    public void setSearchUtils(SearchUtils searchUtils) {
-        this.searchUtils = searchUtils;
     }
 
     @Override

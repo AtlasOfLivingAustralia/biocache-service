@@ -3,7 +3,6 @@ package au.org.ala.biocache.dao;
 import au.org.ala.biocache.dto.AssertionStatus;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.dto.OccurrenceIndex;
-import au.org.ala.biocache.dto.StatsIndexFieldDTO;
 import au.org.ala.biocache.service.LayersService;
 import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.stream.ProcessInterface;
@@ -591,47 +590,9 @@ public class SolrIndexDAOImpl implements IndexDAO {
         return solrIndexVersion;
     }
 
-    private final Map<String, StatsIndexFieldDTO> rangeFieldCache =
-            new HashMap<String, StatsIndexFieldDTO>();
+    private volatile Set<IndexFieldDTO> indexFields = new ConcurrentHashSet<
+                    IndexFieldDTO>();
 
-    /**
-     * Obtains the Statistics for the supplied field so it can be used to determine the ranges.
-     *
-     * @param field
-     * @return
-     */
-    public StatsIndexFieldDTO getRangeFieldDetails(String field) {
-        StatsIndexFieldDTO details = rangeFieldCache.get(field);
-        Map<String, IndexFieldDTO> nextIndexFieldMap = indexFieldMap;
-        if (details == null && nextIndexFieldMap != null) {
-            try {
-                Map<String, FieldStatsInfo> stats = getStatistics(field);
-                if (stats != null) {
-                    IndexFieldDTO ifdto = nextIndexFieldMap.get(field);
-                    if (ifdto != null) {
-                        String type = ifdto.getDataType();
-                        details = new StatsIndexFieldDTO(stats.get(field), type);
-                        rangeFieldCache.put(field, details);
-                    } else {
-                        if (logger.isDebugEnabled()) {
-                            logger.debug("Unable to locate field:  " + field);
-                        }
-                        return null;
-                    }
-                }
-            } catch (Exception e) {
-                logger.warn("Unable to obtain range from cache.", e);
-                details = null;
-            }
-        }
-
-        return details;
-    }
-
-    private volatile Set<IndexFieldDTO> indexFields =
-            new ConcurrentHashSet<
-                    IndexFieldDTO>(); // RestartDataService.get(this, "indexFields", new
-    // TypeReference<TreeSet<IndexFieldDTO>>(){}, TreeSet.class);
     private volatile Map<String, IndexFieldDTO> indexFieldMap =
             RestartDataService.get(
                     this,

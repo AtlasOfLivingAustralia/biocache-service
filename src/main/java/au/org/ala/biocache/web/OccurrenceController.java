@@ -60,6 +60,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -363,8 +364,8 @@ public class OccurrenceController extends AbstractSecureController {
                 try {
                     Map<String, String> fields = layersService.getLayerNameMap();
                     for (Map.Entry<String, String> field : fields.entrySet()) {
-                        os.write(("\nfield." + field.getKey() + "=" + field.getValue()).getBytes("UTF-8"));
-                        os.write(("\nfacet." + field.getKey() + "=" + field.getValue()).getBytes("UTF-8"));
+                        os.write(("\nfield." + field.getKey() + "=" + field.getValue()).getBytes(StandardCharsets.UTF_8));
+                        os.write(("\nfacet." + field.getKey() + "=" + field.getValue()).getBytes(StandardCharsets.UTF_8));
                     }
                 } catch (Exception e) {
                     logger.error(
@@ -627,7 +628,7 @@ public class OccurrenceController extends AbstractSecureController {
         srp.setQ("lsid:" + guid);
         srp.setPageSize(0);
         srp.setFacets(new String[]{OccurrenceIndex.IMAGE_URL});
-        SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(srp, null);
+        SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(srp, false, null);
         if (results.getFacetResults().size() > 0) {
             List<FieldResultDTO> fieldResults = results.getFacetResults().iterator().next().getFieldResult();
             ArrayList<String> images = new ArrayList<String>(fieldResults.size());
@@ -702,14 +703,14 @@ public class OccurrenceController extends AbstractSecureController {
         requestParams.setQ(query);
         NativeDTO adto = new NativeDTO();
         adto.setTaxonGuid(guid);
-        SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(requestParams, null);
+        SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(requestParams, false, null);
         adto.setHasOccurrenceRecords(results.getTotalRecords() > 0);
         adto.setIsNSL(getTaxonIDPattern().matcher(guid).matches());
         if (adto.isHasOccurrences()) {
             //check to see if the records have only been provided by citizen science
             //TODO change this to a confidence setting after it has been included in the index
             requestParams.setQ("lsid:" + guid + " AND (" + PROVENANCE + ":\"Published dataset\")");
-            results = searchDAO.findByFulltextSpatialQuery(requestParams, null);
+            results = searchDAO.findByFulltextSpatialQuery(requestParams, false, null);
             adto.setHasCSOnly(results.getTotalRecords() == 0);
         }
 
@@ -814,7 +815,7 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         //searchUtils.updateSpatial(requestParams);
-        searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, null);
+        searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, false, null);
         model.addAttribute("searchResult", searchResult);
 
         if (logger.isDebugEnabled()) {
@@ -856,7 +857,7 @@ public class OccurrenceController extends AbstractSecureController {
 
             SearchResultDTO srtdto = null;
             if (apiKey == null) {
-                srtdto = searchDAO.findByFulltextSpatialQuery(requestParams, map);
+                srtdto = searchDAO.findByFulltextSpatialQuery(requestParams, false, map);
             } else {
                 srtdto = occurrenceSearchSensitive(requestParams, apiKey, request, response);
             }
@@ -1052,7 +1053,7 @@ public class OccurrenceController extends AbstractSecureController {
                                     }
                                     try (FileOutputStream output = new FileOutputStream(outputFilePath);) {
                                         params.setQ("lsid:\"" + lsid + "\"");
-                                        ConcurrentMap<String, AtomicInteger> uidStats = searchDAO.writeResultsFromIndexToStream(params, new CloseShieldOutputStream(output), false, dd, false);
+                                        ConcurrentMap<String, AtomicInteger> uidStats = searchDAO.writeResultsFromIndexToStream(params, new CloseShieldOutputStream(output), false, dd, false, null);
                                         output.flush();
                                         try (FileOutputStream citationOutput = new FileOutputStream(citationFilePath);) {
                                             downloadService.getCitations(uidStats, citationOutput, params.getSep(), params.getEsc(), null, null);
@@ -1288,7 +1289,7 @@ public class OccurrenceController extends AbstractSecureController {
         requestParams.setDir("asc");
         requestParams.setFacet(false);
 
-        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, null);
+        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, false, null);
         List<OccurrenceIndex> ocs = searchResult.getOccurrences();
 
         if (!ocs.isEmpty()) {
@@ -1308,11 +1309,11 @@ public class OccurrenceController extends AbstractSecureController {
 
     private Double distInMetres(Double lat1, Double lon1, Double lat2, Double lon2) {
         Double R = 6371000d; // km
-        Double dLat = Math.toRadians(lat2 - lat1);
-        Double dLon = Math.toRadians(lon2 - lon1);
-        Double lat1Rad = Math.toRadians(lat1);
-        Double lat2Rad = Math.toRadians(lat2);
-        Double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double lat1Rad = Math.toRadians(lat1);
+        double lat2Rad = Math.toRadians(lat2);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
                 Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1Rad) * Math.cos(lat2Rad);
         Double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
@@ -2291,27 +2292,6 @@ public class OccurrenceController extends AbstractSecureController {
         }
         return false;
     }
-
-    private Map formatAssertion(String name, Integer qaStatus, Boolean problemAsserted, String created) {
-        Map assertion = new HashMap();
-
-        ErrorCode ec = AssertionCodes.getByName(name);
-
-        if (ec != null) {
-            assertion.put("uuid", ""); // Assertions do not have a uuid in SOLR schema 2.0
-            assertion.put("name", ec.getName());
-            assertion.put("code", ec.getCode());
-            assertion.put("comment", ec.getDescription());
-            assertion.put("problemAsserted", problemAsserted);
-            assertion.put("qaStatus", qaStatus);
-            assertion.put("created", created);
-        } else {
-            logger.error("invalid assertion name: " + name);
-        }
-
-        return assertion;
-    }
-
 
     private void logViewEvent(String ip, SolrDocument occ, String userAgent, String email, String reason) {
         //String ip = request.getLocalAddr();

@@ -15,7 +15,6 @@
 package au.org.ala.biocache.web;
 
 
-import au.org.ala.biocache.dao.QidCacheDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.QueryFormatUtils;
@@ -61,13 +60,9 @@ public class ExploreController {
      */
     @Inject
     protected SearchDAO searchDao;
-    /**
-     * Name of view for site home page
-     */
-    private final String POINTS_GEOJSON = "json/pointsGeoJson";
 
     @Inject
-    protected QidCacheDAO qidCacheDao;
+    protected QueryFormatUtils queryFormatUtils;
 
     @Value("${species.subgroups.url:/data/biocache/config/subgroups.json}")
     protected String speciesSubgroupsUrl;
@@ -151,23 +146,14 @@ public class ExploreController {
 
         //create a parent lookup table
         Map<String, String> parentLookup = new HashMap<String, String>();
-        for (Object sg : ssgs) {
-            if (sg instanceof JSONObject
-                    && ((JSONObject) sg).containsKey("parent")
-                    && ((JSONObject) sg).containsKey("name")) {
-                String parent = ((JSONObject) sg).getString("parent");
-                if (StringUtils.isNotEmpty(parent)) {
-                    parentLookup.put(((JSONObject) sg).getString("name").toLowerCase(), parent);
-                    if (parentGroupMap.get(parent) == null) {
-                        parentGroupMap.put(parent, new SpeciesGroupDTO(parent, 0, 0, 1));
-                    }
-                }
-            }
-        }
+        ssgs.stream().forEach((Object sg) ->
+            ((JSONArray) ((JSONObject) sg).get("taxa")).stream().forEach((Object ssg) ->
+                    parentLookup.put(((JSONObject) ssg).getString("common").toLowerCase(), ((JSONObject) sg).getString("speciesGroup"))));
 
         //get the species group occurrence counts
         requestParams.setFormattedQuery(null);
-        requestParams.setFacets(new String[]{});
+        requestParams.setFacets(new String[]{OccurrenceIndex.SPECIES_SUBGROUP});
+        requestParams.setFacet(true);
         requestParams.setPageSize(0);
         requestParams.setFlimit(-1);
         if (StringUtils.isNotBlank(speciesGroup)) {
@@ -175,11 +161,10 @@ public class ExploreController {
         }
 
         //retrieve a list of subgroups with occurrences matching the query
-        SearchResultDTO speciesSubgroupCounts = searchDao.findByFulltextSpatialQuery(requestParams, null);
+        List<FacetResultDTO> speciesSubgroupCounts = searchDao.getFacetCounts(requestParams);
         Map<String, Long> occurrenceCounts = new HashMap<String, Long>();
-        if (speciesSubgroupCounts.getFacetResults().size() > 0) {
-            FacetResultDTO result = speciesSubgroupCounts.getFacetResults().iterator().next();
-            for (FieldResultDTO fr : result.getFieldResult()) {
+        if (speciesSubgroupCounts.size() > 0) {
+            for (FieldResultDTO fr : speciesSubgroupCounts.get(0).getFieldResult()) {
                 occurrenceCounts.put(fr.getLabel(), fr.getCount());
             }
         }
@@ -193,18 +178,20 @@ public class ExploreController {
             requestParams.setFormattedQuery(null);
             requestParams.setFacets(new String[]{taxonName});
 
-            List<FacetResultDTO> facetResultDTO = searchDao.getFacetCounts(requestParams);
-            if (facetResultDTO.size() > 0) {
-                FacetResultDTO result = facetResultDTO.get(0);
-
+            long count = searchDao.estimateUniqueValues(requestParams, taxonName);
+            if (count > 0) {
                 String parentName = parentLookup.get(ssg.toLowerCase());
                 SpeciesGroupDTO parentGroup = parentGroupMap.get(parentName);
+                if (parentGroup == null) {
+                    parentGroup = new SpeciesGroupDTO(parentName, 0, 0, 1);
+                    parentGroupMap.put(parentName, parentGroup);
+                }
                 if (parentGroup != null) {
                     if (parentGroup.getChildGroups() == null) {
                         parentGroup.setChildGroups(new ArrayList<SpeciesGroupDTO>());
                     }
-                    parentGroup.getChildGroups().add(new SpeciesGroupDTO(ssg, result.getCount(), occurrenceCounts.get(ssg), 2));
-                    parentGroup.setSpeciesCount(parentGroup.getSpeciesCount() + result.getCount());
+                    parentGroup.getChildGroups().add(new SpeciesGroupDTO(ssg, count, occurrenceCounts.get(ssg), 2));
+                    parentGroup.setSpeciesCount(parentGroup.getSpeciesCount() + count);
                     parentGroup.setCount(parentGroup.getCount() + occurrenceCounts.get(ssg));
                 } else {
                     logger.warn("Parent group lookup failed for: " + parentName + ", ssg: " + ssg);
@@ -228,9 +215,6 @@ public class ExploreController {
 
     /**
      * Returns a list of species groups and counts that will need to be displayed.
-     * <p>
-     * TODO: MOVE all the IP lat long lookup to the the client webapp.  The purposes
-     * of biocache-service is to provide a service layer over the biocache.
      */
     @RequestMapping(value = "/explore/groups*", method = RequestMethod.GET)
     public @ResponseBody
@@ -304,24 +288,15 @@ public class ExploreController {
     public @ResponseBody
     Integer[] getYourAreaCount(SpatialSearchRequestParams requestParams,
                                @PathVariable(value = "group") String group) throws Exception {
-        String taxonName = OccurrenceIndex.TAXON_NAME;
-
         addGroupFilterToQuery(requestParams, group);
+
+        // find number of occurrences
         requestParams.setPageSize(0);
-        requestParams.setFacets(new String[]{taxonName});
-        requestParams.setFlimit(-1);
-        SearchResultDTO results = searchDao.findByFulltextSpatialQuery(requestParams, null);
-        Integer speciesCount = 0;
-        if (results.getFacetResults().size() > 0) {
-            List<FieldResultDTO> fieldResults = results.getFacetResults().iterator().next().getFieldResult();
-            int count = 0;
-            for (FieldResultDTO fr : fieldResults) {
-                if (fr.getCount() != 0 && !fr.getLabel().equalsIgnoreCase("Unknown")) {
-                    count++;
-                }
-            }
-            speciesCount = count;
-        }
+        requestParams.setFacet(false);
+        SearchResultDTO results = searchDao.findByFulltextSpatialQuery(requestParams, false, null);
+
+        // estimate number of species
+        int speciesCount = (int) searchDao.estimateUniqueValues(requestParams, OccurrenceIndex.TAXON_NAME);
 
         return new Integer[]{(int) results.getTotalRecords(), speciesCount};
     }
@@ -343,75 +318,14 @@ public class ExploreController {
      * @param facetValue
      */
     private void addFacetFilterToQuery(SpatialSearchRequestParams requestParams, String facetName, String facetValue) {
-        String rankId = OccurrenceIndex.TAXON_RANK_ID;
-
-        List<String> fqs = new ArrayList<>();
-
         if (!facetValue.equals("ALL_SPECIES")) {
-            fqs.add(facetName + ":" + facetValue);
+            queryFormatUtils.addFqs(new String [] {facetName + ":" + facetValue}, requestParams);
         }
-        // TODO:PIPELINE
-        fqs.add(rankId + ":[" + 7000 + " TO *]");
 
-        new QueryFormatUtils().addFqs(fqs.toArray(new String[0]), requestParams);
+        queryFormatUtils.addFqs(new String [] {OccurrenceIndex.TAXON_RANK_ID + ":[" + 7000 + " TO *]"}, requestParams);
 
-        //don't care about the formatted query
+        // reset formatted query
         requestParams.setFormattedQuery(null);
-    }
-
-    /**
-     * GeoJSON view of records as clusters of points within a specified radius of a given location
-     * <p>
-     * This service will be used by explore your area.
-     */
-    @RequestMapping(value = "/geojson/radius-points", method = RequestMethod.GET)
-    public String radiusPointsGeoJson(SpatialSearchRequestParams requestParams,
-                                      @RequestParam(value = "zoom", required = false, defaultValue = "0") Integer zoomLevel,
-                                      @RequestParam(value = "bbox", required = false) String bbox,
-                                      @RequestParam(value = "group", required = false, defaultValue = "ALL_SPECIES") String speciesGroup,
-                                      Model model)
-            throws Exception {
-        addGroupFilterToQuery(requestParams, speciesGroup);
-        PointType pointType = PointType.POINT_00001; // default value for when zoom is null
-        pointType = getPointTypeForZoomLevel(zoomLevel);
-        logger.info("PointType for zoomLevel (" + zoomLevel + ") = " + pointType.getLabel());
-        List<OccurrencePoint> points = searchDao.findRecordsForLocation(requestParams, pointType);
-        logger.info("Points search for " + pointType.getLabel() + " - found: " + points.size());
-        model.addAttribute("points", points);
-        return POINTS_GEOJSON;
-    }
-
-    /**
-     * Map a zoom level to a coordinate accuracy level
-     *
-     * @param zoomLevel
-     * @return
-     */
-    protected PointType getPointTypeForZoomLevel(Integer zoomLevel) {
-        PointType pointType = null;
-        // Map zoom levels to lat/long accuracy levels
-        if (zoomLevel != null) {
-            if (zoomLevel >= 0 && zoomLevel <= 6) {
-                // 0-6 levels
-                pointType = PointType.POINT_1;
-            } else if (zoomLevel > 6 && zoomLevel <= 8) {
-                // 6-7 levels
-                pointType = PointType.POINT_01;
-            } else if (zoomLevel > 8 && zoomLevel <= 10) {
-                // 8-9 levels
-                pointType = PointType.POINT_001;
-            } else if (zoomLevel > 10 && zoomLevel <= 13) {
-                // 10-12 levels
-                pointType = PointType.POINT_0001;
-            } else if (zoomLevel > 13 && zoomLevel <= 15) {
-                // 12-n levels
-                pointType = PointType.POINT_00001;
-            } else {
-                // raw levels
-                pointType = PointType.POINT_RAW;
-            }
-        }
-        return pointType;
     }
 
     private void applyFacetForCounts(SpatialSearchRequestParams requestParams, boolean useCommonName) {
@@ -469,13 +383,15 @@ public class ExploreController {
             @RequestParam(value = "common", required = false, defaultValue = "false") boolean common,
             Model model) throws Exception {
 
-
         addGroupFilterToQuery(requestParams, group);
         applyFacetForCounts(requestParams, common);
 
-        return searchDao.findAllSpeciesByCircleAreaAndHigherTaxa(requestParams, group);
+        // Legacy usage
+        requestParams.setFlimit(requestParams.getPageSize());
+        requestParams.setFoffset(requestParams.getStart());
+
+        return searchDao.findAllSpecies(requestParams);
     }
-    // The Endemism Web Services - Move these if they get too large...
 
     /**
      * Returns the number of distinct species that are in the supplied region.
@@ -506,24 +422,21 @@ public class ExploreController {
     List<FieldResultDTO> getSpeciesOnlyInWKT(SpatialSearchRequestParams requestParams,
                                              HttpServletResponse response)
             throws Exception {
-        Qid qid = qidCacheDao.getQidFromQuery(requestParams.getQ());
-        String wkt = StringUtils.isNotBlank(requestParams.getWkt()) ? requestParams.getWkt() : qid.getWkt();
-        if (qid != null) {
-            requestParams.setQ(qid.getQ());
-            requestParams.setWkt(qid.getWkt());
-            requestParams.setFq(qid.getFqs());
-        }
+        SpatialSearchRequestParams superset = new SpatialSearchRequestParams();
+        superset.setQ("decimalLongitude:[-180 TO 180]");
+        superset.setFq(new String[] {"decimalLatitude:[-90 TO 90]"});
 
-        if (StringUtils.isNotBlank(wkt)) {
-            if (requestParams.getFacets() != null && requestParams.getFacets().length == 1) {
-                return searchDao.getEndemicSpecies(requestParams);
-            } else {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply only one facet.");
-            }
-        } else {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply a WKT area.");
+        // ensure that one facet is set
+        prepareEndemicFacet(requestParams);
+        prepareEndemicFacet(superset);
+
+        return searchDao.getSubquerySpeciesOnly(requestParams, superset);
+    }
+
+    private void prepareEndemicFacet(SpatialSearchRequestParams parentQuery) {
+        if (parentQuery.getFacets() == null || parentQuery.getFacets().length != 1) {
+            parentQuery.setFacets(new String[]{OccurrenceIndex.NAMES_AND_LSID});
         }
-        return null;
     }
 
     /**
@@ -545,25 +458,10 @@ public class ExploreController {
         SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
         subQuery.setQ("qid:" + subQueryQid);
 
-        if (parentQuery.getQ() == null) {
-            parentQuery.setQ("*:*");
-        }
-        if (parentQuery.getFacets() == null || parentQuery.getFacets().length == 0) {
-            parentQuery.setFacets(new String[]{OccurrenceIndex.NAMES_AND_LSID});
-        }
+        prepareEndemicFacet(parentQuery);
 
-        if (subQuery != null) {
-            if (parentQuery.getFacets() != null && parentQuery.getFacets().length == 1) {
-                subQuery.setFacets(parentQuery.getFacets());
-                return searchDao.getSubquerySpeciesOnly(subQuery, parentQuery);
-            } else {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply only one facet.");
-            }
-        } else {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply a valid sub query qid.");
-        }
-
-        return null;
+        subQuery.setFacets(parentQuery.getFacets());
+        return searchDao.getSubquerySpeciesOnly(subQuery, parentQuery);
     }
 
     /**
@@ -582,14 +480,9 @@ public class ExploreController {
                                       @PathVariable(value = "subQueryQid") Long subQueryQid,
                                       HttpServletResponse response)
             throws Exception {
-        List items = getSpeciesOnlyInOneQuery(parentQuery, subQueryQid, response);
 
-        Map m = null;
-
-        if (items != null) {
-            m = new HashMap();
-            m.put("count", items.size());
-        }
+        HashMap m = new HashMap();
+        m.put("count", getSpeciesOnlyInOneQuery(parentQuery, subQueryQid, response).size());
 
         return m;
     }
@@ -601,13 +494,17 @@ public class ExploreController {
      */
     @RequestMapping(value = "/explore/endemic/species.csv", method = RequestMethod.GET)
     public void getEndemicSpeciesCSV(SpatialSearchRequestParams requestParams, HttpServletResponse response) throws Exception {
-        String speciesGuid = OccurrenceIndex.SPECIESID;
         requestParams.setFacets(new String[]{OccurrenceIndex.NAMES_AND_LSID});
-        requestParams.setFq((String[]) ArrayUtils.add(requestParams.getFq(), speciesGuid + ":[* TO *]"));
+        requestParams.setFq((String[]) ArrayUtils.add(requestParams.getFq(), OccurrenceIndex.SPECIESID + ":*"));
+
+        // Cannot use getSpeciesOnlyInOneQueryCSV as the output columns differ
         List<FieldResultDTO> list = getSpeciesOnlyInWKT(requestParams, response);
+
         response.setCharacterEncoding("UTF-8");
         response.setContentType("text/plain");
+
         java.io.PrintWriter writer = response.getWriter();
+
         writer.write("Family,Scientific name,Common name,Taxon rank,LSID,# Occurrences");
         for (FieldResultDTO item : list) {
             String s = item.getLabel();
@@ -644,40 +541,19 @@ public class ExploreController {
         SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
         subQuery.setQ("qid:" + subQueryQid);
 
-        if (parentQuery.getQ() == null) {
-            parentQuery.setQ("*:*");
+        prepareEndemicFacet(parentQuery);
+        prepareEndemicFacet(subQuery);
+
+        String filename = StringUtils.isNotEmpty(file) ? file : parentQuery.getFacets()[0];
+        response.setHeader("Cache-Control", "must-revalidate");
+        response.setHeader("Pragma", "must-revalidate");
+        response.setHeader("Content-Disposition", "attachment;filename=" + filename + ".csv");
+        response.setContentType("text/csv");
+
+        try {
+            searchDao.writeEndemicFacetToStream(subQuery, parentQuery, includeCount, lookupName, includeSynonyms, includeLists, response.getOutputStream());
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
         }
-        if (parentQuery.getFacets() == null || parentQuery.getFacets().length == 0) {
-            parentQuery.setFacets(new String[]{OccurrenceIndex.NAMES_AND_LSID});
-        }
-
-        if (subQuery != null) {
-            if (parentQuery.getFacets() != null && parentQuery.getFacets().length == 1) {
-                subQuery.setFacets(parentQuery.getFacets());
-                String filename = StringUtils.isNotEmpty(file) ? file : parentQuery.getFacets()[0];
-                response.setHeader("Cache-Control", "must-revalidate");
-                response.setHeader("Pragma", "must-revalidate");
-                response.setHeader("Content-Disposition", "attachment;filename=" + filename + ".csv");
-                response.setContentType("text/csv");
-
-                try {
-                    searchDao.writeEndemicFacetToStream(subQuery, parentQuery, includeCount, lookupName, includeSynonyms, includeLists, response.getOutputStream());
-                } catch (Exception e) {
-                    logger.error(e.getMessage(), e);
-                }
-
-            } else {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply only one facet.");
-            }
-        } else {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Please supply a valid sub query qid.");
-        }
-    }
-
-    /**
-     * @param searchDao the searchDao to set
-     */
-    public void setSearchDao(SearchDAO searchDao) {
-        this.searchDao = searchDao;
     }
 }

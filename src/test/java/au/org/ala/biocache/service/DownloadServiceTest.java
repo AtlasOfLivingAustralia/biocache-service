@@ -3,7 +3,10 @@
  */
 package au.org.ala.biocache.service;
 
-import au.org.ala.biocache.dao.*;
+import au.org.ala.biocache.dao.IndexDAO;
+import au.org.ala.biocache.dao.JsonPersistentQueueDAOImpl;
+import au.org.ala.biocache.dao.PersistentQueueDAO;
+import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.util.QueryFormatUtils;
@@ -12,11 +15,15 @@ import au.org.ala.doi.CreateDoiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.io.FileUtils;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,6 +60,7 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
  * @author Peter Ansell
  */
 @RunWith(PowerMockRunner.class)
+@PowerMockIgnore({ "javax.net.ssl.*" })
 @PrepareForTest(FileUtils.class)
 @ContextConfiguration(locations = {"classpath:springTest.xml"})
 public class DownloadServiceTest {
@@ -137,6 +145,9 @@ public class DownloadServiceTest {
                 };
             }
         };
+
+        indexDAO = mock(IndexDAO.class);
+
         testService.dataQualityService = mock(DataQualityService.class);
         testService.downloadQualityFiltersTemplate = new ClassPathResource("download-email-quality-filter-snippet.html");
         testService.biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
@@ -800,6 +811,7 @@ public class DownloadServiceTest {
 
         testService.doiService = mock(DoiService.class);
         testService.searchDAO = mock(SearchDAO.class);
+        testService.indexDao = mock(IndexDAO.class);
         testService.objectMapper = new ObjectMapper();
         testService.loggerService = mock(LoggerService.class);
         AbstractMessageSource messageSource = new ReloadableResourceBundleMessageSource();

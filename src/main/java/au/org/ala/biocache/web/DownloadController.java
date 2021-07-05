@@ -26,7 +26,6 @@ import net.sf.json.JsonConfig;
 import net.sf.json.util.PropertyFilter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocumentList;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
@@ -125,9 +124,7 @@ public class DownloadController extends AbstractSecureController {
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
 
-        DownloadDetailsDTO.DownloadType downloadType = DownloadDetailsDTO.DownloadType.RECORDS_INDEX;
-
-        return download(requestParams, ip, getUserAgent(request), apiKey, email, response, request, downloadType);
+        return download(requestParams, ip, getUserAgent(request), apiKey, email, response, request, DownloadDetailsDTO.DownloadType.RECORDS_INDEX);
     }
 
     /**
@@ -149,14 +146,7 @@ public class DownloadController extends AbstractSecureController {
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
 
-        if (StringUtils.isEmpty(email)) {
-            response.sendError(400, "Required parameter 'email' is not present");
-            return null;
-        }
-
-        DownloadDetailsDTO.DownloadType downloadType = DownloadDetailsDTO.DownloadType.RECORDS_INDEX;
-
-        return download(requestParams, ip, getUserAgent(request), apiKey, email, response, request, downloadType);
+        return download(requestParams, ip, getUserAgent(request), apiKey, email, response, request, DownloadDetailsDTO.DownloadType.RECORDS_INDEX);
 
     }
 
@@ -166,7 +156,6 @@ public class DownloadController extends AbstractSecureController {
 
         // check the email is supplied and a matching user account exists with the required privileges
         if (StringUtils.isEmpty(email)) {
-
             response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
             return null;
 
@@ -176,11 +165,9 @@ public class DownloadController extends AbstractSecureController {
 
             // lookup the user details and check privileges based on the supplied email
             try {
-
                 Map<String, Object> userDetails = (Map<String, Object>) authService.getUserDetails(email);
 
                 if (userDetails == null) {
-
                     response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, user not recognised");
                     return null;
                 }
@@ -199,13 +186,10 @@ public class DownloadController extends AbstractSecureController {
                 }
 
                 if (!activated || locked || !hasRole) {
-
                     response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, insufficient privileges");
                     return null;
                 }
-
             } catch (Exception e) {
-
                 response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, unable to verify user details");
                 return null;
             }

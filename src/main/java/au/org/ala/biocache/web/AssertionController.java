@@ -16,16 +16,11 @@ package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.service.AssertionService;
-import au.org.ala.biocache.service.AuthService;
-import au.org.ala.biocache.util.AssertionUtils;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.Logger;
-import org.gbif.api.vocabulary.InterpretationRemarkSeverity;
-import org.gbif.api.vocabulary.NameUsageIssue;
-import org.gbif.api.vocabulary.OccurrenceIssue;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Controller;
@@ -48,12 +43,9 @@ import java.util.stream.Collectors;
 public class AssertionController extends AbstractSecureController {
 
     private final static Logger logger = Logger.getLogger(AssertionController.class);
-    @Inject
-    protected AssertionUtils assertionUtils;
+
     @Value("${registry.url:https://collections.ala.org.au}")
     protected String registryUrl = "https://collections.ala.org.au";
-    @Inject
-    protected AuthService authService;
     @Inject
     private AbstractMessageSource messageSource;
     @Inject
@@ -341,10 +333,6 @@ public class AssertionController extends AbstractSecureController {
         return null;
     }
 
-    public void setAssertionUtils(AssertionUtils assertionUtils) {
-        this.assertionUtils = assertionUtils;
-    }
-
     private Collection<AssertionCode> applyi18n(ErrorCode[] errorCodes, boolean includeDeprecated) {
 
         //use i18n descriptions
@@ -380,35 +368,5 @@ public class AssertionController extends AbstractSecureController {
         Collections.sort(formatedAssertionCodes, Comparator.comparing(AssertionCode::getName, String.CASE_INSENSITIVE_ORDER));
 
         return formatedAssertionCodes;
-    }
-
-    private AssertionCode[] applyi18n(NameUsageIssue[] nameUsageIssues) {
-        //use i18n descriptions
-        AssertionCode[] formattedErrorCodes = new AssertionCode[nameUsageIssues.length];
-        for (int i = 0; i < nameUsageIssues.length; i++) {
-            formattedErrorCodes[i] = new AssertionCode(
-                    nameUsageIssues[i].name(),
-                    nameUsageIssues[i].ordinal(),
-                    nameUsageIssues[i].getSeverity().equals(InterpretationRemarkSeverity.ERROR),
-                    messageSource.getMessage(nameUsageIssues[i].name(), null, nameUsageIssues[i].name(), null),
-                    ErrorCode.Category.Taxonomic,
-                    null);
-        }
-        return formattedErrorCodes;
-    }
-
-    private AssertionCode[] applyi18n(OccurrenceIssue[] occurrenceIssues) {
-        //use i18n descriptions
-        AssertionCode[] formattedErrorCodes = new AssertionCode[occurrenceIssues.length];
-        for (int i = 0; i < occurrenceIssues.length; i++) {
-            formattedErrorCodes[i] = new AssertionCode(
-                    occurrenceIssues[i].name(),
-                    occurrenceIssues[i].ordinal(),
-                    occurrenceIssues[i].getSeverity().equals(InterpretationRemarkSeverity.ERROR),
-                    messageSource.getMessage(occurrenceIssues[i].name(), null, occurrenceIssues[i].name(), null),
-                    ErrorCode.Category.Geospatial,
-                    null);
-        }
-        return formattedErrorCodes;
     }
 }

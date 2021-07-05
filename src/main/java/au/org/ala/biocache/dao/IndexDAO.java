@@ -1,7 +1,6 @@
 package au.org.ala.biocache.dao;
 
 import au.org.ala.biocache.dto.IndexFieldDTO;
-import au.org.ala.biocache.dto.StatsIndexFieldDTO;
 import au.org.ala.biocache.stream.ProcessInterface;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -34,8 +33,6 @@ public interface IndexDAO {
      * @throws Exception
      */
     Set<IndexFieldDTO> getIndexFieldDetails(String... field) throws Exception;
-
-    StatsIndexFieldDTO getRangeFieldDetails(String field);
 
     Set<IndexFieldDTO> getIndexedFields() throws Exception;
 

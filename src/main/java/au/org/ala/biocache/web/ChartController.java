@@ -17,13 +17,11 @@ package au.org.ala.biocache.web;
 import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
-import au.org.ala.biocache.util.QidMissingException;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.common.util.NamedList;
 import org.jetbrains.annotations.NotNull;
@@ -35,7 +33,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.inject.Inject;
-import javax.servlet.http.HttpServletResponse;
 import java.io.Serializable;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -159,7 +156,7 @@ public class ChartController extends AbstractSecureController implements Seriali
 
                 if (xRanges.length() > 0) appendFq(searchParams, xRanges.toString());
 
-                Collection<FacetResultDTO> l = searchDAO.findByFulltextSpatialQuery(searchParams, null).getFacetResults();
+                Collection<FacetResultDTO> l = searchDAO.findByFulltextSpatialQuery(searchParams, false, null).getFacetResults();
                 if (l.size() > 0) {
                     data = l.iterator().next().getFieldResult();
                     if (!xmissing) {
@@ -175,7 +172,7 @@ public class ChartController extends AbstractSecureController implements Seriali
 
                     searchParams.setFacet(false);
                     appendFq(searchParams, inverseXranges.toString());
-                    SearchResultDTO sr = searchDAO.findByFulltextSpatialQuery(searchParams, null);
+                    SearchResultDTO sr = searchDAO.findByFulltextSpatialQuery(searchParams, false, null);
                     if (sr != null) {
                         data.add(new FieldResultDTO("Other", "Other", sr.getTotalRecords()));
                     }
@@ -219,7 +216,7 @@ public class ChartController extends AbstractSecureController implements Seriali
                     xrangesFqs[fqBackup2.length] = m.get("fq").toString();
                     searchParams.setFq(xrangesFqs);
 
-                    SearchResultDTO l = searchDAO.findByFulltextSpatialQuery(searchParams, null);
+                    SearchResultDTO l = searchDAO.findByFulltextSpatialQuery(searchParams, false, null);
                     if (l != null) {
                         String label = m.get("label").toString();
                         FieldResultDTO fr = new FieldResultDTO(label, label, l.getTotalRecords(), m.get("fq").toString());
@@ -458,7 +455,7 @@ public class ChartController extends AbstractSecureController implements Seriali
 
         if (!isDate(series) && !isNumber(series)) searchParams.setFsort("count");
 
-        Collection<FacetResultDTO> l = searchDAO.findByFulltextSpatialQuery(searchParams, null).getFacetResults();
+        Collection<FacetResultDTO> l = searchDAO.findByFulltextSpatialQuery(searchParams, false, null).getFacetResults();
         if (l.size() > 0) {
             for (FieldResultDTO f : l.iterator().next().getFieldResult()) {
                 if (!includeMissing && StringUtils.isEmpty(f.getLabel())) continue;
@@ -485,9 +482,9 @@ public class ChartController extends AbstractSecureController implements Seriali
                 //get min/max
                 List minMax = (List) generateChart(searchParams, null, null, series, "max,min", null, null, false, false, false, false, "count").get("data");
                 if (date) {
-                    Long min = ((Date) ((FieldStatsItem) ((List) ((Map) minMax.get(0)).get("data")).get(0)).getMin()).getTime();
-                    Long max = ((Date) ((FieldStatsItem) ((List) ((Map) minMax.get(0)).get("data")).get(0)).getMax()).getTime();
-                    Long step = (long) (Math.ceil(((max - min) / maxSeries) / (1000 * 60 * 60 * 24)) * (1000 * 60 * 60 * 24));
+                    long min = ((Date) ((FieldStatsItem) ((List) ((Map) minMax.get(0)).get("data")).get(0)).getMin()).getTime();
+                    long max = ((Date) ((FieldStatsItem) ((List) ((Map) minMax.get(0)).get("data")).get(0)).getMax()).getTime();
+                    long step = (long) (Math.ceil(((max - min) / (double) maxSeries) / (1000 * 60 * 60 * 24.0)) * (1000 * 60 * 60 * 24.0));
                     DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
                     //made 'Z' valid
                     df.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -500,9 +497,9 @@ public class ChartController extends AbstractSecureController implements Seriali
                     seriesFqs.add(makeRangeMap(false, series, df.format(new Date(min + step * i)), df.format(new Date(max)), date));
                 } else {
                     if (isDecimal(series)) {
-                        Double min = ((Number) ((FieldStatsItem) ((List) ((Map) minMax.get(0)).get("data")).get(0)).getMin()).doubleValue();
+                        double min = ((Number) ((FieldStatsItem) ((List) ((Map) minMax.get(0)).get("data")).get(0)).getMin()).doubleValue();
                         Double max = ((Number) ((FieldStatsItem) ((List) ((Map) minMax.get(0)).get("data")).get(0)).getMax()).doubleValue();
-                        Double step = (max - min) / (double) maxSeries;
+                        double step = (max - min) / (double) maxSeries;
                         //add fqs
                         int i;
                         for (i = 0; i < maxSeries - 1 && min + step * (i + 1.5) < max; i++) {
@@ -511,9 +508,9 @@ public class ChartController extends AbstractSecureController implements Seriali
                         //add last fq
                         seriesFqs.add(makeRangeMap(false, series, String.valueOf(min + step * i), String.valueOf(max), date));
                     } else {
-                        Long min = ((Number) ((FieldStatsItem) ((List) ((Map) minMax.get(0)).get("data")).get(0)).getMin()).longValue();
+                        long min = ((Number) ((FieldStatsItem) ((List) ((Map) minMax.get(0)).get("data")).get(0)).getMin()).longValue();
                         Long max = ((Number) ((FieldStatsItem) ((List) ((Map) minMax.get(0)).get("data")).get(0)).getMax()).longValue();
-                        Long step = (long) Math.ceil((max - min) / (double) maxSeries);
+                        long step = (long) Math.ceil((max - min) / (double) maxSeries);
                         //add fqs
                         int i;
                         for (i = 0; i < maxSeries - 1 && min + step * (i + 1.5) < max; i++) {

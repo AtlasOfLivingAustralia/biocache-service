@@ -1,7 +1,10 @@
 package au.org.ala.biocache.util.solr;
 
+import au.org.ala.biocache.dto.AssertionCodes;
+import au.org.ala.biocache.dto.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -11,10 +14,12 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Component("fieldMappingUtil")
 public class FieldMappingUtil {
+    private static final Logger logger = Logger.getLogger(FieldMappingUtil.class);
 
     private Map<String, String> fieldMappings = new Hashtable<>();
     private Map<String, Map<String, String>> enumValueMappings = new Hashtable<>();
@@ -29,7 +34,21 @@ public class FieldMappingUtil {
 
             fieldMappings = (Map<String, String>) fieldConfig.get("fieldNameMapping");
             enumValueMappings = (Map<String, Map<String, String>>) fieldConfig.get("fieldValueMapping");
+
+            validateAssertions();
         }
+    }
+
+    private void validateAssertions() {
+        // "assertions" mappings must exist as user assertions or non-user assertions
+        List<ErrorCode> allAssertions = Stream.concat(Arrays.stream(AssertionCodes.getAll()), Arrays.stream(AssertionCodes.userAssertionCodes)).collect(Collectors.toList());
+
+        List<Pair<String, String>> invalidAssertionMappings = getFieldValueMappingStream("assertions")
+                .filter((Pair<String, String> assertionMapping) ->
+                        !allAssertions.stream().anyMatch((ErrorCode errorCode) -> errorCode.getName().equals(assertionMapping.getRight()))).collect(Collectors.toList());
+
+        invalidAssertionMappings.stream().forEach((Pair<String, String> assertionMapping) ->
+                logger.error("solr.pipelines.field.config file contains invalid 'assertions' mapping: " + assertionMapping.getKey() + " -> " + assertionMapping.getValue()));
     }
 
     static Consumer<Pair<String, String>> NOOP_TRANSLATION = (Pair<String, String> m) -> {};

@@ -27,7 +27,6 @@ import org.springframework.stereotype.Component;
 import javax.inject.Inject;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 @Component("OccurrenceUtils")
 public class OccurrenceUtils {
@@ -42,6 +41,7 @@ public class OccurrenceUtils {
         idRequest.setQ("id:\"" + uuid + "\"");
         idRequest.setFacet(false);
         idRequest.setFl("*");
+        idRequest.setPageSize(1);
         SolrDocumentList list = null;
         try {
             list = searchDAO.findByFulltext(idRequest);
@@ -58,8 +58,6 @@ public class OccurrenceUtils {
     @Value("${media.store.url:}")
     private String remoteMediaStoreUrl;
 
-
-    // TODO: a different `getImageFormats` is required may be required if a different MediaStore class is in use.
     public Map<String, String> getImageFormats(String imageId) {
         Map<String, String> map = new HashMap();
         map.put("thumb", remoteMediaStoreUrl + "/image/proxyImageThumbnail?imageId=" + imageId);

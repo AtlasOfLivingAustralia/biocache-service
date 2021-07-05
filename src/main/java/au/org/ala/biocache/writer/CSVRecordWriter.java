@@ -86,7 +86,7 @@ public class CSVRecordWriter implements RecordWriterError {
         if (outputStream instanceof OptionalZipOutputStream) {
             try {
                 // add record byte length, standard separator byte length and buffer (*2) for occasional record character encoding
-                long length = record.length * "\",\"".getBytes(StandardCharsets.UTF_8).length * 2;
+                int length = record.length * "\",\"".getBytes(StandardCharsets.UTF_8).length * 2;
                 for (String s : record) if (s != null) length += s.getBytes(StandardCharsets.UTF_8).length;
                 if (((OptionalZipOutputStream) outputStream).isNewFile(this, length)) {
                     write(header);

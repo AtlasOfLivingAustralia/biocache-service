@@ -1,8 +1,7 @@
 package au.org.ala.biocache.config;
 
-import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.service.NameMatchSpeciesLookupService;
-import au.org.ala.biocache.service.BieSpeciesLookupService;
+import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.service.SpeciesLookupService;
 import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import au.org.ala.dataquality.client.ApiClient;
@@ -14,7 +13,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.AbstractMessageSource;
-import org.springframework.web.client.RestOperations;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -32,33 +30,9 @@ public class AppConfig {
     @Inject
     private AbstractMessageSource messageSource; // use for i18n of the headers
 
-    @Value("${name.index.dir:/data/lucene/namematching}")
-    protected String nameIndexLocation;
-
-    @Inject
-    @Qualifier("restTemplate")
-    private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
-
-    /** URI prefix for bie-service - may be overridden in properties file */
-    @Value("${service.bie.ws.url:https://bie-ws.ala.org.au/ws}")
-    protected String bieUriPrefix;
-
-    //NC 20131018: Allow service to be disabled via config (enabled by default)
-    @Value("${service.bie.enabled:false}")
-    protected Boolean enabledBie;
-
-    // Configuration for facets
-    @Value("${facet.config:/data/biocache/config/facets.json}")
-    protected String facetConfig;
-    @Value("${facets.max:4}")
-    protected Integer facetsMax;
-    @Value("${facet.default:true}")
-    protected Boolean facetDefault;
-
     // Configuration for DataQualityApi
     @Value("${dataquality.baseUrl:https://dataquality.ala.org.au/}")
     protected String dataQualityBaseUrl;
-
 
     //Set RestartDataService.dir before classes using RestartDataService are instantiated.
     @Value("${restart.data.dir:/tmp}")
@@ -90,16 +64,6 @@ public class AppConfig {
         return new ALANameUsageMatchServiceClient(clientConfiguration);
     }
 
-    protected SpeciesLookupService getBieSpeciesLookupService() {
-        logger.info("Initialising BIE rest-based species lookup services.");
-        BieSpeciesLookupService service = new BieSpeciesLookupService();
-        service.setBieUriPrefix(bieUriPrefix);
-        service.setEnabled(enabledBie);
-        service.setRestTemplate(restTemplate);
-        service.setMessageSource(messageSource);
-        return service;
-    }
-
     protected SpeciesLookupService getNameMatchSpeciesLookupService() {
         logger.info("Initialising name match species lookup services.");
         NameMatchSpeciesLookupService service = new NameMatchSpeciesLookupService();
@@ -110,11 +74,7 @@ public class AppConfig {
     public @Bean(name = "speciesLookupService")
     SpeciesLookupService speciesLookupServiceBean() {
         logger.info("Initialising species lookup services.");
-        if (enabledBie){
-            return getBieSpeciesLookupService();
-        } else {
-            return getNameMatchSpeciesLookupService();
-        }
+        return getNameMatchSpeciesLookupService();
     }
 
     @Bean("dataQualityApiClient")

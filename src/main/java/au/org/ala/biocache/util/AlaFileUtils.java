@@ -14,14 +14,12 @@
  ***************************************************************************/
 package au.org.ala.biocache.util;
 
-import java.io.*;
-import java.util.*;
-import java.util.regex.Pattern;
-
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
 import org.apache.commons.io.IOUtils;
+
+import java.io.*;
 
 
 /**
@@ -34,8 +32,6 @@ import org.apache.commons.io.IOUtils;
  */
 public class AlaFileUtils {
 
-    private static final Pattern LATIN_ALPHA_NUMERIC = Pattern.compile("[^a-zA-Z0-9]+");
-
 	/**
      * Creates a zip file at the specified path with the contents of the specified directory.
      * NB:
@@ -45,9 +41,9 @@ public class AlaFileUtils {
      * @throws IOException If anything goes wrong
      */
     public static void createZip(String directoryPath, String zipPath) throws IOException {
-        try(FileOutputStream fOut = new FileOutputStream(new File(zipPath));
-        	BufferedOutputStream bOut = new BufferedOutputStream(fOut);
-        	ZipArchiveOutputStream tOut = new ZipArchiveOutputStream(bOut);) {
+        try(FileOutputStream fOut = new FileOutputStream(zipPath);
+            BufferedOutputStream bOut = new BufferedOutputStream(fOut);
+            ZipArchiveOutputStream tOut = new ZipArchiveOutputStream(bOut);) {
 
             File[] children = new File(directoryPath).listFiles();
 
@@ -118,71 +114,4 @@ public class AlaFileUtils {
             }
         }
     }
-//    
-//    public static void main(String[] args){
-//        System.out.println(reduceNameByVowels("zeroCoordinates", 10));
-//        System.out.println(reduceNameByVowels("unknownCountry", 10));
-//        System.out.println(reduceNameByVowels("resourceTaxonomicScopeMismatch", 10));
-//        String[] header = new String[]{"zeroCoordinates","resourceTaxonomicScopeMismatch","unknownCountry", "unknownCountryOrState","zeroCoordinates"};
-//        System.out.println(generateShapeHeader(header));        
-//    }
-    
-    /**
-     * Reduces the supplied name to the required length, by first removing non-leading vowels and then substringing.
-     * 
-     * @param name
-     * @param requiredLength
-     * @return
-     */
-    public static String reduceNameByVowels(final String name, final int requiredLength){
-        String result = name;
-        if(result.length()<= requiredLength){
-            return result;
-        } else{
-            //remove the non-leading vowels
-            result = result.replaceAll("(?!^)[aeiou.]", "");
-            if(result.length()>requiredLength){
-                result = result.substring(0, requiredLength);
-            }
-            // If the name was composed entirely of vowels, do a simple substring
-            if(result.length() <= 1) {
-                result = name.substring(0, requiredLength);
-            }
-            return result;
-        }
-    }
-    
-    /**
-     * Generates a map of feature names to original headers.
-     * @param headers
-     * @return
-     */
-    public static Map<String,String> generateShapeHeader(String[] headers){
-        Map<String,String> headerMap= new LinkedHashMap<String,String>();
-        int i = 0;
-        for(String header : headers){
-            i++;
-            String newHeader = removeNonAlphanumeric(header);
-            newHeader = reduceNameByVowels(newHeader, 10);
-            while (headerMap.containsKey(newHeader)) {
-                i++;
-                // Need to ensure that nextIndex won't unintentionally increase the size past the string 10 limit
-                String nextIndex = Integer.toString(i);
-                newHeader = reduceNameByVowels(header, (10-nextIndex.length())) + nextIndex;
-            }
-            headerMap.put(newHeader, header);
-        }
-        return headerMap;
-    }
-
-    /**
-     * Removes non-alphanumeric characters, if any exist.
-     * 
-     * @param name The input string
-     * @return The input string if it only contained alphanumeric characters, or a replaced string otherwise.
-     */
-    public static String removeNonAlphanumeric(String name){
-        return LATIN_ALPHA_NUMERIC.matcher(name).replaceAll("");
-    }
-
 }

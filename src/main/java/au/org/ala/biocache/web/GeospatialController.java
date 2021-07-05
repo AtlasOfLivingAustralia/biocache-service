@@ -1,25 +1,22 @@
 package au.org.ala.biocache.web;
 
-import java.io.InputStream;
-import java.net.URL;
-
-import javax.inject.Inject;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-
-import net.sf.json.JSONObject;
-
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.SearchResultDTO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import net.sf.json.JSONObject;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.w3c.dom.Document;
+
+import javax.inject.Inject;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.InputStream;
+import java.net.URL;
 
 /**
  * Geospatial controller for the biocache services.
@@ -64,7 +61,7 @@ public class GeospatialController {
                 logger.warn("Unable to parse the supplied URL for a WKT", e);
             }
         }
-        return searchDAO.findByFulltextSpatialQuery(requestParams,null);
+        return searchDAO.findByFulltextSpatialQuery(requestParams, false, null);
     }
 
     private static String wktFromJSON(String json) {

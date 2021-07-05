@@ -14,8 +14,6 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
-import au.org.ala.names.ws.api.NameUsageMatch;
-
 import java.util.List;
 import java.util.Map;
 
@@ -40,13 +38,6 @@ public interface SpeciesLookupService {
      * @return
      */
     String getAcceptedNameForGuid(String guid);
-    
-    /**
-     * Lookup service for list of guids to names
-     * @param guids
-     * @return
-     */
-    List<String> getNamesForGuids(List<String> guids);
 
     /**
      * Retrieves an list of arrays that contains the information that need to be included in the CSV details.

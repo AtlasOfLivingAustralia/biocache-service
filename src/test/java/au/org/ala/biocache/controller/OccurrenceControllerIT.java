@@ -26,10 +26,9 @@ import org.springframework.web.context.WebApplicationContext;
 import javax.servlet.http.HttpServletResponse;
 
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
  * Integration tests for occurrence services.
@@ -45,7 +44,7 @@ public class OccurrenceControllerIT extends TestCase {
 
     public final int TEST_INDEX_SIZE = 1000;
     public final int DEFAULT_SEARCH_PAGE_SIZE = 10;
-    public final int INDEXED_FIELD_SIZE = 18;
+    public final int INDEXED_FIELD_SIZE = 24;
 
     @Autowired
     OccurrenceController occurrenceController;

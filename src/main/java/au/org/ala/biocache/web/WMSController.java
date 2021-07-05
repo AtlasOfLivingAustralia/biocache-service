@@ -16,7 +16,6 @@ package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dao.QidCacheDAO;
 import au.org.ala.biocache.dao.SearchDAO;
-import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dao.TaxonDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.stream.StreamAsCSV;
@@ -25,10 +24,8 @@ import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
-import org.apache.commons.collections.map.LRUMap;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
-import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.geotools.geometry.GeneralDirectPosition;
@@ -40,9 +37,7 @@ import org.opengis.referencing.crs.CRSAuthorityFactory;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.CoordinateOperation;
 import org.opengis.referencing.operation.TransformException;
-import org.springframework.aop.framework.Advised;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.ehcache.EhCacheManagerFactoryBean;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -209,10 +204,6 @@ public class WMSController extends AbstractSecureController {
     private String wmsCacheControlHeaderMaxAge;
 
     private final AtomicReference<String> wmsETag = new AtomicReference<String>(UUID.randomUUID().toString());
-
-    //Stores query hashes + occurrence counts, and, query hashes + pointType + point counts
-    private LRUMap countsCache = new LRUMap(10000);
-    private final Object countLock = new Object();
 
     @Inject
     protected WMSOSGridController wmsosGridController;
@@ -602,7 +593,7 @@ public class WMSController extends AbstractSecureController {
         }
 
         //searchUtils.updateSpatial(requestParams);
-        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, null);
+        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, false, null);
         model.addAttribute("searchResult", searchResult);
 
         if (logger.isDebugEnabled()) {
@@ -1294,13 +1285,6 @@ public class WMSController extends AbstractSecureController {
             colorIdx++;
         }
         return sb.toString();
-    }
-
-    /**
-     * Regenerate the ETag after clearing the WMS cache so that cached responses are identified as out of date
-     */
-    private void regenerateWMSETag() {
-        wmsETag.set(UUID.randomUUID().toString());
     }
 
     /**
@@ -2031,54 +2015,6 @@ public class WMSController extends AbstractSecureController {
                 }
             }
         }
-    }
-
-    public void setTaxonDAO(TaxonDAO taxonDAO) {
-        this.taxonDAO = taxonDAO;
-    }
-
-    public void setSearchDAO(SearchDAO searchDAO) {
-        this.searchDAO = searchDAO;
-    }
-
-    public void setSearchUtils(SearchUtils searchUtils) {
-        this.searchUtils = searchUtils;
-    }
-
-    public void setBaseWsUrl(String baseWsUrl) {
-        this.baseWsUrl = baseWsUrl;
-    }
-
-    public void setOrganizationName(String organizationName) {
-        this.organizationName = organizationName;
-    }
-
-    public void setOrgCity(String orgCity) {
-        this.orgCity = orgCity;
-    }
-
-    public void setOrgStateProvince(String orgStateProvince) {
-        this.orgStateProvince = orgStateProvince;
-    }
-
-    public void setOrgPostcode(String orgPostcode) {
-        this.orgPostcode = orgPostcode;
-    }
-
-    public void setOrgCountry(String orgCountry) {
-        this.orgCountry = orgCountry;
-    }
-
-    public void setOrgPhone(String orgPhone) {
-        this.orgPhone = orgPhone;
-    }
-
-    public void setOrgFax(String orgFax) {
-        this.orgFax = orgFax;
-    }
-
-    public void setOrgEmail(String orgEmail) {
-        this.orgEmail = orgEmail;
     }
 }
 

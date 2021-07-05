@@ -9,7 +9,6 @@ import au.org.ala.biocache.util.SolrUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.springframework.beans.InvalidPropertyException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -64,24 +63,6 @@ public class DownloadRequestParamsIT {
         downloadRequestParams = new DownloadRequestParams();
         downloadRequestParams.setFileType("tsv");
         assertTrue("tsv".equals(downloadRequestParams.getFileType()));
-
-        // permit fileType=shp
-        downloadService.setDownloadShpEnabled(true);
-        downloadRequestParams = new DownloadRequestParams();
-        downloadRequestParams.setFileType("shp");
-        assertTrue("shp".equals(downloadRequestParams.getFileType()));
-
-        // forbid fileType=shp and expect an exception when setting
-        downloadService.setDownloadShpEnabled(false);
-        downloadRequestParams = new DownloadRequestParams();
-        boolean exception = false;
-        try {
-            downloadRequestParams.setFileType("shp");
-        } catch (InvalidPropertyException e) {
-            exception = true;
-        }
-        assertTrue(exception);
-        assertFalse("shp".equals(downloadRequestParams.getFileType()));
     }
 
     /**
