@@ -388,7 +388,10 @@ public class ExploreController {
 
         // Legacy usage
         requestParams.setFlimit(requestParams.getPageSize());
+        requestParams.setPageSize(0);
         requestParams.setFoffset(requestParams.getStart());
+        requestParams.setFsort(requestParams.getSort());
+        requestParams.setSort("");
 
         return searchDao.findAllSpecies(requestParams);
     }

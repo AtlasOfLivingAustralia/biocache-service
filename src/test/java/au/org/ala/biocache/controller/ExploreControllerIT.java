@@ -157,8 +157,34 @@ public class ExploreControllerIT extends TestCase {
 
     @Test
     public void getExploreGroup2() throws Exception {
-        this.mockMvc.perform(get("/explore/group/Birds?q=-*:*"))
+        this.mockMvc.perform(get("/explore/group/Birds?q=-*:*&sort=count"))
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    public void getExploreGroup3() throws Exception {
+        this.mockMvc.perform(get("/explore/group/Birds?pageSize=0&start=0&sort=count"))
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    public void getExploreGroup4() throws Exception {
+        this.mockMvc.perform(get("/explore/group/Birds?pageSize=10&start=1&sort=count"))
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    public void getExploreGroup5() throws Exception {
+        this.mockMvc.perform(get("/explore/group/Birds?pageSize=10&start=0&sort=taxa"))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$.[0].count").value(1000));
+    }
+
+    @Test
+    public void getExploreGroup6() throws Exception {
+        this.mockMvc.perform(get("/explore/group/Birds?pageSize=10&start=0&sort=index"))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$.[0].count").value(1000));
     }
 
     String wkt = "MULTIPOLYGON+(((150.1171875+-26.543080020962417,+154.86328125+-26.543080020962417,+154.86328125+-24.16053726999624,+150.1171875+-24.16053726999624,+150.1171875+-26.543080020962417)))";
