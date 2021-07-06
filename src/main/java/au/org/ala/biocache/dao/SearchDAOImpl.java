@@ -845,22 +845,22 @@ public class SearchDAOImpl implements SearchDAO {
      * @param downloadParams
      */
     private void insertSensitiveFields(DownloadRequestParams downloadParams) {
-        String fields = downloadParams.getFields();
-        // replace appearence of keys with values that are not already in fields.
-        for (Entry<String, String[]> entry : sensitiveFieldMapping.entrySet()) {
-            String regex = "\\b" + entry.getKey() + "\\b";
-            if (fields.matches(regex)) {
-                StringBuilder sb = new StringBuilder();
-                for (String item : entry.getValue()) {
-                    if (!fields.matches("\\b" + item + "\\b")) {
-                        sb.append(",").append(item);
-                    }
-                }
-                if (sb.length() > 0) {
-                    fields.replaceFirst(regex, entry.getKey() + sb);
-                }
+        String[] originalFields = downloadParams.getFields().split(",");
+        Set<String> originalFieldSet = new HashSet<>(Arrays.asList(originalFields));
+
+        List<String> fieldsWithSensitive = new ArrayList<>();
+        for (String field : originalFields) {
+            field = StringUtils.trim(field);
+            // put back the original field
+            fieldsWithSensitive.add(field);
+            // if this filed has a sensitive mapping
+            String mappedField = fieldMappingUtil.translateFieldName(field);
+            if (mappedField != null && sensitiveFieldMapping.containsKey(mappedField)) {
+                fieldsWithSensitive.addAll(Arrays.stream(sensitiveFieldMapping.get(mappedField)).filter(it -> !originalFieldSet.contains(it)).collect(Collectors.toList()));
             }
         }
+
+        downloadParams.setFields(String.join(",", fieldsWithSensitive));
     }
 
     /**
