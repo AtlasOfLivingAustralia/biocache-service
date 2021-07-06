@@ -861,7 +861,6 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             }
         }
-        ;
     }
 
     /**
@@ -1530,7 +1529,7 @@ public class SearchDAOImpl implements SearchDAO {
             solrQuery.setFacetMinCount(1);
             solrQuery.setFacetLimit(searchParams.getFlimit());
             //include this so that the default fsort is still obeyed.
-            String fsort = "".equals(searchParams.getFsort()) ? "count" : searchParams.getFsort();
+            String fsort = StringUtils.isEmpty(searchParams.getFsort()) ? "count" : searchParams.getFsort();
             solrQuery.setFacetSort(fsort);
             if (searchParams.getFoffset() > 0)
                 solrQuery.add("facet.offset", Integer.toString(searchParams.getFoffset()));
@@ -1540,7 +1539,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         solrQuery.setRows(searchParams.getPageSize());
         solrQuery.setStart(searchParams.getStart());
-        if (StringUtils.isNotEmpty(searchParams.getDir())) {
+        if (StringUtils.isNotEmpty(searchParams.getDir()) && StringUtils.isNotEmpty(searchParams.getSort())) {
             solrQuery.setSort(searchParams.getSort(), SolrQuery.ORDER.valueOf(searchParams.getDir()));
         }
 
@@ -1581,6 +1580,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         List<TaxaCountDTO> speciesCounts = new ArrayList<TaxaCountDTO>();
         SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
+        solrQuery.setFacetMissing(false);
 
         QueryResponse qr = indexDao.runSolrQuery(solrQuery);
         if (logger.isDebugEnabled()) {
