@@ -7,13 +7,16 @@ import spock.lang.Unroll
 
 class FieldMappingUtilSpec extends Specification {
 
+    static {
+        System.setProperty("biocache.config", System.getProperty("user.dir") + "/src/test/resources/biocache-test-config.properties");
+    }
+
     @Shared
     FieldMappingUtil fieldMappingUtil
 
     void setup() {
-
         fieldMappingUtil = new FieldMappingUtil()
-        fieldMappingUtil.pipelinesFieldConfig = '/data/biocache/config/pipelines-field-config.json'
+        fieldMappingUtil.pipelinesFieldConfig = System.getProperty("user.dir") + "/config/pipelines-field-config.json"
     }
 
     @Unroll

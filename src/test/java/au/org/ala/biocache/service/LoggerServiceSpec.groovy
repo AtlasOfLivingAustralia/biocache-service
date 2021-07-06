@@ -88,6 +88,7 @@ class LoggerServiceSpec extends Specification {
         while (logEventPostCount < queueSize) { sleep(10) }
 
         then: 'blocked log event call cleared'
+        sleep(100)
         !logEventBlocked
 
         cleanup:
