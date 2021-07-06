@@ -675,6 +675,12 @@
             <artifactId>data-quality-filter-service-client</artifactId>
             <version>1.0.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.codehaus.groovy</groupId>
+            <artifactId>groovy</artifactId>
+            <version>2.5.14</version>
+            <scope>test</scope>
+        </dependency>
 
         <!-- GBIF assertion vocabulary -->
         <dependency>
@@ -790,15 +796,25 @@
                 visit https://github.com/groovy/GMavenPlus/wiki -->
                 <groupId>org.codehaus.gmavenplus</groupId>
                 <artifactId>gmavenplus-plugin</artifactId>
-                <version>1.5</version>
+                <version>1.12.1</version>
                 <executions>
                     <execution>
                         <goals>
                             <goal>compile</goal>
-                            <goal>testCompile</goal>
+                            <goal>compileTests</goal>
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <testSources>
+                        <testSource>
+                            <directory>${project.basedir}/src/test/java</directory>
+                            <includes>
+                                <include>**/*.groovy</include>
+                            </includes>
+                        </testSource>
+                    </testSources>
+                </configuration>
             </plugin>
             <!-- Optional plugins for using Spock -->
             <!-- Only required if names of spec classes don't match default Surefire patterns (`*Test` etc.) -->
@@ -817,6 +833,9 @@
                         <include>**/*Test.java</include>
                         <include>**/*Tests.java</include>
                         <include>**/*TestCase.java</include>
+
+                        <!-- *.groovy unit tests -->
+                        <include>**/*Spec.class</include>
                     </includes>
                     <argLine>${surefireArgLine}</argLine>
                 </configuration>
@@ -833,6 +852,12 @@
                             <goal>verify</goal>
                         </goals>
                         <configuration>
+                            <includes>
+                                <include>**/*IT.java</include>
+
+                                <!-- *.groovy integration tests -->
+                                <include>**/*SpecIT.class</include>
+                            </includes>
                             <argLine>${failsafeArgLine}</argLine>
                         </configuration>
                     </execution>

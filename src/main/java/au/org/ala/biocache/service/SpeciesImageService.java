@@ -54,6 +54,9 @@ public class SpeciesImageService {
     @Inject
     protected SearchDAO searchDAO;
 
+    @Inject
+    private FieldMappingUtil fieldMappingUtil;
+
     private Object cacheLock = new Object();
     private SpeciesImagesDTO cache = RestartDataService.get(this, "cache", new TypeReference<SpeciesImagesDTO>(){}, SpeciesImagesDTO.class);
     private boolean updatingCache = false;

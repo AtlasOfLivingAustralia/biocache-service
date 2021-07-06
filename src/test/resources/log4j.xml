@@ -11,7 +11,7 @@
 		</filter>
 	</appender>
 	<category name="au.org.ala.biocache">
-		<priority value="ERROR" />
+		<priority value="DEBUG" />
 	</category>
 	<category name="springfox.documentation">
 		<priority value="WARN" />

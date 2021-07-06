@@ -18,8 +18,6 @@ class QueryFormatUtilsSpec extends Specification {
 
         queryFormatUtils.listsService = listsService
         queryFormatUtils.searchUtils = searchUtils
-//        queryFormatUtils.searchUtils = new SearchUtils()
-//        queryFormatUtils.searchUtils.nameIndexLocation = '/data/lucene/namematching'
     }
 
 

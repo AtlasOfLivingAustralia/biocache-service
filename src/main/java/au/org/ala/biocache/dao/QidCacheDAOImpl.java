@@ -35,7 +35,6 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.regex.Matcher;
 
 /**
  * Manage cache of POST'ed search parameter q in memory and in db.
@@ -174,7 +173,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
      * @param source       name of app that created this qid
      * @return id to retrieve stored value as long.
      */
-    public String put(String q, String displayQ, String wkt, double[] bbox, String[] fqs, long maxAge, String source) throws QidSizeException {
+    synchronized public String put(String q, String displayQ, String wkt, double[] bbox, String[] fqs, long maxAge, String source) throws QidSizeException {
         Qid qid = new Qid(null, q, displayQ, wkt, bbox, 0L, fqs, maxAge, source);
 
         if (qid.getSize() > largestCacheableSize) {
@@ -278,26 +277,6 @@ public class QidCacheDAOImpl implements QidCacheDAO {
         sb.append(c);
 
         return sb.toString();
-    }
-
-    /**
-     * Retrieves the ParamsCacheObject based on the supplied query string.
-     *
-     * @param query
-     * @return
-     * @throws Exception
-     */
-    public Qid getQidFromQuery(String query) throws QidMissingException {
-        Qid qid = null;
-        if (query.contains("qid:")) {
-            Matcher matcher = QidCacheDAOImpl.qidPattern.matcher(query);
-
-            if (matcher.find()) {
-                String value = matcher.group();
-                qid = get(value.substring(4));
-            }
-        }
-        return qid;
     }
 
     /**
