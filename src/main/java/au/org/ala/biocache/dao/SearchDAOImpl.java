@@ -740,7 +740,7 @@ public class SearchDAOImpl implements SearchDAO {
         dd.resetCounts();
 
         // prepare requested download fields (defaults, substitutions)
-        prepareRequestedFields(downloadParams, includeSensitive);
+        prepareRequestedFields(downloadParams, includeSensitive || dd.getSensitiveFq() != null);
 
         // prepare headers
         DownloadHeaders downloadHeaders = prepareHeaders(downloadParams);
@@ -831,6 +831,10 @@ public class SearchDAOImpl implements SearchDAO {
 
     private void initSensitiveFieldMapping() {
         // TODO: verify these mappings only apply to the new fields
+        sensitiveFieldMapping.put("longitude", new String[]{"sensitive_decimalLongitude"});
+        sensitiveFieldMapping.put("latitude", new String[]{"sensitive_decimalLatitude"});
+        sensitiveFieldMapping.put("raw_longitude", new String[]{"sensitive_raw_decimalLongitude"});
+        sensitiveFieldMapping.put("raw_latitude", new String[]{"sensitive_raw_decimalLatitude"});
         sensitiveFieldMapping.put("decimalLongitude", new String[]{"sensitive_decimalLongitude"});
         sensitiveFieldMapping.put("decimalLatitude", new String[]{"sensitive_decimalLatitude"});
         sensitiveFieldMapping.put("raw_decimalLongitude", new String[]{"sensitive_raw_decimalLongitude"});
@@ -848,19 +852,20 @@ public class SearchDAOImpl implements SearchDAO {
         String fields = downloadParams.getFields();
         // replace appearence of keys with values that are not already in fields.
         for (Entry<String, String[]> entry : sensitiveFieldMapping.entrySet()) {
-            String regex = "\\b" + entry.getKey() + "\\b";
+            String regex = ".*\\b" + entry.getKey() + "\\b.*";
             if (fields.matches(regex)) {
                 StringBuilder sb = new StringBuilder();
                 for (String item : entry.getValue()) {
-                    if (!fields.matches("\\b" + item + "\\b")) {
+                    if (!fields.matches(".*\\b" + item + "\\b.*")) {
                         sb.append(",").append(item);
                     }
                 }
                 if (sb.length() > 0) {
-                    fields.replaceFirst(regex, entry.getKey() + sb);
+                    fields += sb;
                 }
             }
         }
+        downloadParams.setFields(fields);
     }
 
     /**
