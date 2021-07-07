@@ -276,8 +276,11 @@ public class OccurrenceIndex {
     public static final String FOOTPRINT_WKT = "footprintWKT";
 
     public static final String[] sensitiveSOLRHdr = {
+            "sensitive_raw_decimalLongitude",
+            "sensitive_raw_decimalLatitude",
             "sensitive_decimalLongitude",
             "sensitive_decimalLatitude",
+            "sensitive_raw_locality",
             "sensitive_locality",
             "sensitive_eventDate",
             "sensitive_eventDateEnd",
