@@ -150,14 +150,17 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
                     listMatches.clear();
                     for (String lsid : lsids) {
                         Set<String> found = listsService.get(types.get(j).toString(), lsid);
-                        if (found != null) listMatches.addAll(found);
-                    }
-                    result[result.length - types.size() + j] = "";
-                    for (String match : listMatches) {
-                        if (result[result.length - types.size() + j].length() > 0) {
-                            result[result.length - types.size() + j] += "|";
+                        if (found != null) {
+                            listMatches.addAll(found);
                         }
-                        result[result.length - types.size() + j] += match;
+                    }
+                    row[result.length + j] = "";
+                    for (String match : listMatches) {
+                        // pipe separate multiple values
+                        if (row[result.length  + j].length() > 0) {
+                            row[result.length  + j] += " | ";
+                        }
+                        row[result.length + j] += match;
                     }
                 }
                 result = row;
