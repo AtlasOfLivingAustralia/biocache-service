@@ -155,7 +155,7 @@ public class ProcessDownload implements ProcessInterface {
             if (headers.analysisIds.length > 0) {
                 // record longitude and latitude for remote analysis layer intersections
                 recordCoordinates(tuple);
-                batch.add(values);
+                batch.add(Arrays.copyOf(values, values.length));
 
                 if (batch.size() > MAX_BATCH_SIZE) {
                     flush();
