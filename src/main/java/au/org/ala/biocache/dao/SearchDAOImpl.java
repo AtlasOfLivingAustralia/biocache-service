@@ -832,15 +832,45 @@ public class SearchDAOImpl implements SearchDAO {
     private void initSensitiveFieldMapping() {
         // TODO: verify these mappings only apply to the new fields
         sensitiveFieldMapping.put("longitude", new String[]{"sensitive_decimalLongitude"});
-        sensitiveFieldMapping.put("latitude", new String[]{"sensitive_decimalLatitude"});
-        sensitiveFieldMapping.put("raw_longitude", new String[]{"sensitive_raw_decimalLongitude"});
-        sensitiveFieldMapping.put("raw_latitude", new String[]{"sensitive_raw_decimalLatitude"});
         sensitiveFieldMapping.put("decimalLongitude", new String[]{"sensitive_decimalLongitude"});
+        sensitiveFieldMapping.put("latitude", new String[]{"sensitive_decimalLatitude"});
         sensitiveFieldMapping.put("decimalLatitude", new String[]{"sensitive_decimalLatitude"});
-        sensitiveFieldMapping.put("raw_decimalLongitude", new String[]{"sensitive_raw_decimalLongitude"});
-        sensitiveFieldMapping.put("raw_decimalLatitude", new String[]{"sensitive_raw_decimalLatitude"});
+
         sensitiveFieldMapping.put("locality", new String[]{"sensitive_locality"});
-        sensitiveFieldMapping.put("raw_locality", new String[]{"sensitive_raw_locality"});
+
+        sensitiveFieldMapping.put("footprint_wkt", new String[]{"sensitive_footprintWKT"});
+        sensitiveFieldMapping.put("footprintWKT", new String[]{"sensitive_footprintWKT"});
+
+        sensitiveFieldMapping.put("location_remarks", new String[]{"sensitive_locationRemarks"});
+        sensitiveFieldMapping.put("locationRemarks", new String[]{"sensitive_locationRemarks"});
+
+        sensitiveFieldMapping.put("verbatim_coordinates", new String[]{"sensitive_verbatimCoordinates"});
+        sensitiveFieldMapping.put("verbatimCoordinates", new String[]{"sensitive_verbatimCoordinates"});
+
+        sensitiveFieldMapping.put("verbatim_latitude", new String[]{"sensitive_verbatimLatitude"});
+        sensitiveFieldMapping.put("verbatimLatitude", new String[]{"sensitive_verbatimLatitude"});
+
+        sensitiveFieldMapping.put("verbatim_locality", new String[]{"sensitive_verbatimLocality"});
+        sensitiveFieldMapping.put("verbatimLocality", new String[]{"sensitive_verbatimLocality"});
+
+        sensitiveFieldMapping.put("verbatim_longitude", new String[]{"sensitive_verbatimLongitude"});
+        sensitiveFieldMapping.put("verbatimLongitude", new String[]{"sensitive_verbatimLongitude"});
+
+        sensitiveFieldMapping.put("day", new String[]{"sensitive_day"});
+
+        sensitiveFieldMapping.put("occurrence_date", new String[]{"sensitive_eventDate"});
+        sensitiveFieldMapping.put("eventDate", new String[]{"sensitive_eventDate"});
+
+        sensitiveFieldMapping.put("event_id", new String[]{"sensitive_eventID"});
+        sensitiveFieldMapping.put("eventID", new String[]{"sensitive_eventID"});
+
+        sensitiveFieldMapping.put("event_time", new String[]{"sensitive_eventTime"});
+        sensitiveFieldMapping.put("eventTime", new String[]{"sensitive_eventTime"});
+
+        sensitiveFieldMapping.put("month", new String[]{"sensitive_month"});
+
+        sensitiveFieldMapping.put("verbatim_event_date", new String[]{"sensitive_verbatimEventDate"});
+        sensitiveFieldMapping.put("verbatimEventDate", new String[]{"sensitive_verbatimEventDate"});
     }
 
     /**
@@ -849,23 +879,22 @@ public class SearchDAOImpl implements SearchDAO {
      * @param downloadParams
      */
     private void insertSensitiveFields(DownloadRequestParams downloadParams) {
-        String fields = downloadParams.getFields();
-        // replace appearence of keys with values that are not already in fields.
-        for (Entry<String, String[]> entry : sensitiveFieldMapping.entrySet()) {
-            String regex = ".*\\b" + entry.getKey() + "\\b.*";
-            if (fields.matches(regex)) {
-                StringBuilder sb = new StringBuilder();
-                for (String item : entry.getValue()) {
-                    if (!fields.matches(".*\\b" + item + "\\b.*")) {
-                        sb.append(",").append(item);
-                    }
-                }
-                if (sb.length() > 0) {
-                    fields += sb;
-                }
+        String[] originalFields = downloadParams.getFields().split(",");
+        List<String> fieldsWithSensitive = new ArrayList<>();
+        Set<String> fieldsWithSensitiveSet = new HashSet<>();
+        for (String field : originalFields) {
+            field = StringUtils.trim(field);
+            // put back the original field
+            fieldsWithSensitive.add(field);
+            // if this filed has a sensitive mapping
+            if (sensitiveFieldMapping.containsKey(field)) {
+                // make sure sensitive fields only added once
+                fieldsWithSensitive.addAll(Arrays.stream(sensitiveFieldMapping.get(field)).filter(it -> !fieldsWithSensitiveSet.contains(it)).collect(Collectors.toList()));
+                fieldsWithSensitiveSet.addAll(Arrays.stream(sensitiveFieldMapping.get(field)).filter(it -> !fieldsWithSensitiveSet.contains(it)).collect(Collectors.toList()));
             }
         }
-        downloadParams.setFields(fields);
+
+        downloadParams.setFields(String.join(",", fieldsWithSensitive));
     }
 
     /**
