@@ -489,4 +489,12 @@ public class QidCacheDAOImpl implements QidCacheDAO {
             return id;
         }
     }
+
+    synchronized public void clear() {
+        synchronized (counterLock) {
+            cache.clear();
+            cacheSize = 0;
+        }
+
+    }
 }

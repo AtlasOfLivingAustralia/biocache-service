@@ -42,7 +42,8 @@ public class QidCacheIT {
 
     @Before
     public void setup() {
-        //setup
+        // setup
+        qidCacheDao.clear();
         qidCacheDao.setMaxCacheSize(10000);
         qidCacheDao.setMinCacheSize(100);
         qidCacheDao.setLargestCacheableSize(524280);
