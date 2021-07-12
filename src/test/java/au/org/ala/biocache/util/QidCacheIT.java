@@ -129,6 +129,8 @@ public class QidCacheIT {
             long afterSize = qidCacheDao.getSize();
 
             if (beforeSize > afterSize) {
+                Thread.sleep(100);
+
                 //test cache size is significantly reduced after a cacheclean
                 //cachecleaner is on a thread
                 assertTrue(afterSize <= 500);
