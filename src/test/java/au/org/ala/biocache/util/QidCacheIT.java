@@ -116,7 +116,7 @@ public class QidCacheIT {
      * 2. after drop all puts are still retrievable, from disk
      */
     @Test
-    public void testSizeManagement() throws QidMissingException, QidSizeException {
+    public void testSizeManagement() throws QidMissingException, QidSizeException, InterruptedException {
 
         ArrayList<Qid> pcos = new ArrayList<Qid>();
         ArrayList<String> keys = new ArrayList<String>();
@@ -139,6 +139,8 @@ public class QidCacheIT {
 
             putSize += pcos.get(pcos.size() - 1).getSize();
         }
+
+        Thread.sleep(5000);
 
         //test size calcuations are operating
         assertTrue(putSize > 10000);
