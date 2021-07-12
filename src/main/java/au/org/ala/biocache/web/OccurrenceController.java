@@ -1463,6 +1463,13 @@ public class OccurrenceController extends AbstractSecureController {
         return new String[0];
     }
 
+    private void sendCustomJSONResponse(HttpServletResponse response, int statusCode, Map<String, String> content) throws IOException {
+        response.resetBuffer();
+        response.setStatus(statusCode);
+        response.setHeader("Content-Type", "application/json");
+        response.getOutputStream().print(new ObjectMapper().writeValueAsString(content));
+        response.flushBuffer();
+    }
     /**
      * Occurrence record page
      * <p>
@@ -1481,12 +1488,14 @@ public class OccurrenceController extends AbstractSecureController {
                           @RequestParam(value = "apiKey", required = false) String apiKey,
                           @RequestParam(value = "im", required = false) String im,
                           HttpServletRequest request, HttpServletResponse response) throws Exception {
+        Object responseObject;
         if (apiKey != null) {
-            return showSensitiveOccurrence(uuid, apiKey, im, request, response);
+            responseObject = showSensitiveOccurrence(uuid, apiKey, im, request, response);
+        } else {
+            responseObject = getOccurrenceInformation(uuid, im, request, false);
         }
-        Object responseObject = getOccurrenceInformation(uuid, im, request, false);
         if (responseObject == null) {
-            response.sendError(404, "Unrecognised ID");
+            sendCustomJSONResponse(response, HttpServletResponse.SC_NOT_FOUND, new HashMap<String, String>() {{put("message", "Unrecognised UID");}});
         }
         return responseObject;
     }
@@ -1516,7 +1525,7 @@ public class OccurrenceController extends AbstractSecureController {
 
         SolrDocumentList sdl = searchDAO.findByFulltext(idRequest);
         if (sdl == null || sdl.isEmpty()) {
-            return new HashMap<>();
+            return null;
         }
 
         SolrDocument sd = sdl.get(0);
