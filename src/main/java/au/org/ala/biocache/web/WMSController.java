@@ -420,64 +420,17 @@ public class WMSController extends AbstractSecureController {
         }
         requestParams.setFormattedQuery(null);
         List<LegendItem> legend = searchDAO.getLegend(requestParams, colourModes[0], cutpoints);
-        if (cutpoints == null) {
-            if (colourModes[0].equals(MONTH)) {
-                //ascending month
-                java.util.Collections.sort(legend, new Comparator<LegendItem>() {
-                    @Override
-                    public int compare(LegendItem o1, LegendItem o2) {
-                        if (StringUtils.isEmpty(o1.getFacetValue()))
-                            return -1;
-                        if (StringUtils.isEmpty(o2.getFacetValue()))
-                            return 1;
 
-                        return Integer.parseInt(o1.getFacetValue()) > Integer.parseInt(o2.getFacetValue()) ? 1 : -1;
-                    }
-                });
-            } else if (colourModes[0].equals(YEAR) || colourModes[0].equals(DECADE_FACET_NAME)) {
-                //descending years
-                java.util.Collections.sort(legend, new Comparator<LegendItem>() {
-                    @Override
-                    public int compare(LegendItem o1, LegendItem o2) {
-                        if (StringUtils.isEmpty(o1.getFacetValue()))
-                            return -1;
-                        if (StringUtils.isEmpty(o2.getFacetValue()))
-                            return 1;
-
-                        return Integer.parseInt(o1.getFacetValue()) > Integer.parseInt(o2.getFacetValue()) ? -1 : 1;
-                    }
-                });
-            } else {
-                java.util.Collections.sort(legend);
-            }
-        }
         StringBuilder sb = new StringBuilder();
         if (isCsv) {
             sb.append("name,red,green,blue,count");
-        }
-
-        //add legend entries.
-        int offset = 0;
-        for (int i = 0; i < legend.size(); i++) {
-            LegendItem li = legend.get(i);
-            String name = li.getName();
-            if (StringUtils.isEmpty(name)) {
-                name = NULL_NAME;
-            }
-            int colour = DEFAULT_COLOUR;
-            if (cutpoints == null) {
-                colour = ColorUtil.colourList[Math.min(i, ColorUtil.colourList.length - 1)];
-            } else if (cutpoints != null && i - offset < cutpoints.length) {
-                if (name.equals(NULL_NAME) || name.startsWith("-")) {
-                    offset++;
-                    colour = DEFAULT_COLOUR;
-                } else {
-                    colour = ColorUtil.getRangedColour(i - offset, cutpoints.length / 2);
+            for (int i = 0; i < legend.size(); i++) {
+                LegendItem li = legend.get(i);
+                String name = li.getName();
+                if (StringUtils.isEmpty(name)) {
+                    name = NULL_NAME;
                 }
-            }
-            li.setRGB(colour);
-            if (isCsv) {
-                sb.append("\n\"").append(name.replace("\"", "\"\"")).append("\",").append(ColorUtil.getRGB(colour)) //repeat last colour if required
+                sb.append("\n\"").append(name.replace("\"", "\"\"")).append("\",").append(ColorUtil.getRGB(li.getColour()))
                         .append(",").append(legend.get(i).getCount());
             }
         }
