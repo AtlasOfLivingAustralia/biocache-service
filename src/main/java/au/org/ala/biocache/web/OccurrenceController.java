@@ -1467,7 +1467,7 @@ public class OccurrenceController extends AbstractSecureController {
         response.resetBuffer();
         response.setStatus(statusCode);
         response.setHeader("Content-Type", "application/json");
-        response.getOutputStream().print(new org.codehaus.jackson.map.ObjectMapper().writeValueAsString(content));
+        response.getOutputStream().print(new ObjectMapper().writeValueAsString(content));
         response.flushBuffer();
     }
     /**
