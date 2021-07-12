@@ -2019,7 +2019,9 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Override
     public List<TaxaCountDTO> findAllSpecies(SpatialSearchRequestParams requestParams) throws Exception {
-        requestParams.setFacets(new String[] {NAMES_AND_LSID});
+        if (requestParams.getFacets() == null || requestParams.getFacets().length != 1) {
+            requestParams.setFacets(new String[] {NAMES_AND_LSID});
+        }
 
         return getSpeciesCounts(requestParams);
     }
