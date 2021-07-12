@@ -78,6 +78,7 @@ public class LegendItem implements Comparable<LegendItem> {
     
     public void setColour(int colour) {
         this.colour = colour;
+        setRGB(colour);
     }
     
     public int getColour() {
