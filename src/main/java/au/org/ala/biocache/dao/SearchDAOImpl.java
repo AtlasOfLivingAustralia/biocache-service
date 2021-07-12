@@ -1791,6 +1791,21 @@ public class SearchDAOImpl implements SearchDAO {
         return getLegend(searchParams, facetField, cutpoints, false);
     }
 
+    /**
+     * legend sorting and limits are fixed.
+     *
+     * year legend: all years shown, sorted descending order by year (indexed as string)
+     * decade legend: all decades shown, sorted descending order by decade (indexed as string)
+     * month legend: all months shown, sorted ascending order by month (indexed as string without 0 padding)
+     * all other legends: limited by wmsLegendMaxItems, sorted by descending count, appends the aggregated cut off items
+     *
+     * @param searchParams
+     * @param facetField
+     * @param cutpoints
+     * @param skipI18n
+     * @return
+     * @throws Exception
+     */
     @Cacheable(cacheName = "legendCache")
     public List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facetField, String[] cutpoints, boolean skipI18n) throws Exception {
         List<LegendItem> legend = new ArrayList<LegendItem>();
@@ -1802,7 +1817,7 @@ public class SearchDAOImpl implements SearchDAO {
         SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
 
         // convert to facet query
-        emptyFacetRequest(solrQuery, wmslegendMaxItems + 1, 0, true);
+        emptyFacetRequest(solrQuery, wmslegendMaxItems - 1, 0, true);
 
         //is facet query?
         if (cutpoints == null) {
@@ -1815,12 +1830,13 @@ public class SearchDAOImpl implements SearchDAO {
             }
         }
 
-        FacetDTO facetDTO = FacetThemes.getFacetsMap().get(fieldMappingUtil.translateFieldName(facetField));
-        if (facetDTO != null) {
-            String thisSort = facetDTO.getSort();
-            if (thisSort != null) {
-                solrQuery.setFacetSort(thisSort);
-            }
+        // Always use fsort=count unless facet is year or decade (integer values stored as strings).
+        // Month sorting (asc) is done later (string value of month number stored without '0' padding).
+        if (YEAR.equals(facetField) || DECADE_FACET_NAME.equals(facetField)) {
+            solrQuery.setFacetSort("index");
+
+            // legends containing year and decade are not limited by `wmslegendMaxItems`
+            solrQuery.setFacetLimit(-1);
         } else {
             solrQuery.setFacetSort("count");
         }
@@ -1835,7 +1851,7 @@ public class SearchDAOImpl implements SearchDAO {
 
                     List<String> addedFqs = new ArrayList<>();
 
-                    for (int i = 0; i < facetEntries.size() && i < wmslegendMaxItems; i++) {
+                    for (int i = 0; i < facetEntries.size(); i++) {
                         FacetField.Count fcount = facetEntries.get(i);
                         if (fcount.getCount() > 0) {
                             remainderCount -= fcount.getCount();
@@ -1848,7 +1864,7 @@ public class SearchDAOImpl implements SearchDAO {
                             }
 
                             if (skipI18n) {
-                                legend.add(new LegendItem(fcount.getName(), null, fcount.getName(), fcount.getCount(), fq));  // TODO: PIPELINES: FacetField.Count::getName & FacetField.Count::getCount entry point
+                                legend.add(new LegendItem(fcount.getName(), null, fcount.getName(), fcount.getCount(), fq));
                             } else {
                                 String i18nCode = null;
                                 if (StringUtils.isNotBlank(fcount.getName())) {
@@ -1868,7 +1884,7 @@ public class SearchDAOImpl implements SearchDAO {
                         }
                     }
 
-                    if (facetEntries.size() > wmslegendMaxItems) {
+                    if (remainderCount > 0) {
                         String theFq = "-(" + StringUtils.join(addedFqs, " AND ") + ")";
                         // create a single catch remainder facet
                         legend.add(legend.size(), new LegendItem(
@@ -1883,6 +1899,32 @@ public class SearchDAOImpl implements SearchDAO {
 
                     break;
                 }
+            }
+        }
+
+        if (cutpoints == null) {
+            // facet sort is descending count or ascending name
+            if (facetField.equals(MONTH)) {
+                // sort ascending month
+                java.util.Collections.sort(legend, new Comparator<LegendItem>() {
+                    @Override
+                    public int compare(LegendItem o1, LegendItem o2) {
+                        if (StringUtils.isEmpty(o1.getFacetValue()))
+                            return -1;
+                        if (StringUtils.isEmpty(o2.getFacetValue()))
+                            return 1;
+
+                        return Integer.parseInt(o1.getFacetValue()) > Integer.parseInt(o2.getFacetValue()) ? 1 : -1;
+                    }
+                });
+            } else if (facetField.equals(YEAR) || facetField.equals(DECADE_FACET_NAME)) {
+                // sort descending year or decade
+                java.util.Collections.sort(legend, new Comparator<LegendItem>() {
+                    @Override
+                    public int compare(LegendItem o1, LegendItem o2) {
+                        return o2.compareTo(o1);
+                    }
+                });
             }
         }
 

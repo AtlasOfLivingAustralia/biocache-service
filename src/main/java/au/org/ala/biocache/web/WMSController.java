@@ -420,37 +420,7 @@ public class WMSController extends AbstractSecureController {
         }
         requestParams.setFormattedQuery(null);
         List<LegendItem> legend = searchDAO.getLegend(requestParams, colourModes[0], cutpoints);
-        if (cutpoints == null) {
-            if (colourModes[0].equals(MONTH)) {
-                //ascending month
-                java.util.Collections.sort(legend, new Comparator<LegendItem>() {
-                    @Override
-                    public int compare(LegendItem o1, LegendItem o2) {
-                        if (StringUtils.isEmpty(o1.getFacetValue()))
-                            return -1;
-                        if (StringUtils.isEmpty(o2.getFacetValue()))
-                            return 1;
 
-                        return Integer.parseInt(o1.getFacetValue()) > Integer.parseInt(o2.getFacetValue()) ? 1 : -1;
-                    }
-                });
-            } else if (colourModes[0].equals(YEAR) || colourModes[0].equals(DECADE_FACET_NAME)) {
-                //descending years
-                java.util.Collections.sort(legend, new Comparator<LegendItem>() {
-                    @Override
-                    public int compare(LegendItem o1, LegendItem o2) {
-                        if (StringUtils.isEmpty(o1.getFacetValue()))
-                            return -1;
-                        if (StringUtils.isEmpty(o2.getFacetValue()))
-                            return 1;
-
-                        return Integer.parseInt(o1.getFacetValue()) > Integer.parseInt(o2.getFacetValue()) ? -1 : 1;
-                    }
-                });
-            } else {
-                java.util.Collections.sort(legend);
-            }
-        }
         StringBuilder sb = new StringBuilder();
         if (isCsv) {
             sb.append("name,red,green,blue,count");
