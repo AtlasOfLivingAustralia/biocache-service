@@ -68,31 +68,6 @@
             <version>1.1.0.Final</version>
         </dependency>
         <dependency>
-            <groupId>org.hibernate</groupId>
-            <artifactId>hibernate-validator</artifactId>
-            <version>4.3.1.Final</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.lucene</groupId>
-            <artifactId>lucene-queries</artifactId>
-            <version>${solr.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.lucene</groupId>
-            <artifactId>lucene-queryparser</artifactId>
-            <version>${solr.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.lucene</groupId>
-            <artifactId>lucene-analyzers-common</artifactId>
-            <version>${solr.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.lucene</groupId>
-            <artifactId>lucene-codecs</artifactId>
-            <version>${solr.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.apache.solr</groupId>
             <artifactId>solr-solrj</artifactId>
             <version>${solr.version}</version>
@@ -107,20 +82,10 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <dependency>
-            <groupId>org.apache.lucene</groupId>
-            <artifactId>lucene-backward-codecs</artifactId>
-            <version>${solr.version}</version>
-        </dependency>
         <!-- Cassandra 3 driver -->
         <dependency>
             <groupId>com.datastax.cassandra</groupId>
             <artifactId>cassandra-driver-core</artifactId>
-            <version>${cassandra.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.datastax.cassandra</groupId>
-            <artifactId>cassandra-driver-mapping</artifactId>
             <version>${cassandra.version}</version>
         </dependency>
         <dependency>
@@ -143,27 +108,7 @@
         <!-- geotools GML support -->
         <dependency>
             <groupId>org.geotools</groupId>
-            <artifactId>gt-main</artifactId>
-            <version>${gt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.geotools</groupId>
             <artifactId>gt-opengis</artifactId>
-            <version>${gt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.geotools</groupId>
-            <artifactId>gt-shapefile</artifactId>
-            <version>${gt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.geotools</groupId>
-            <artifactId>gt-graph</artifactId>
-            <version>${gt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.geotools</groupId>
-            <artifactId>gt-geojson</artifactId>
             <version>${gt.version}</version>
         </dependency>
         <dependency>
@@ -172,44 +117,15 @@
             <version>${gt.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.geotools</groupId>
-            <artifactId>gt-metadata</artifactId>
-            <version>${gt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.geotools.xsd</groupId>
-            <artifactId>gt-xsd-core</artifactId>
-            <version>${gt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.geotools.xsd</groupId>
-            <artifactId>gt-xsd-kml</artifactId>
-            <version>${gt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.geotools.xsd</groupId>
-            <artifactId>gt-xsd-gml2</artifactId>
-            <version>${gt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.geotools.xsd</groupId>
-            <artifactId>gt-xsd-gml3</artifactId>
-            <version>${gt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.geotools</groupId>
-            <artifactId>gt-epsg-hsql</artifactId>
-            <version>${gt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.geotools</groupId>
-            <artifactId>gt-epsg-extension</artifactId>
-            <version>${gt.version}</version>
-        </dependency>
-        <dependency>
             <groupId>au.org.ala.names</groupId>
             <artifactId>ala-namematching-client</artifactId>
             <version>${ala-namematching-service.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.googlecode.json-simple</groupId>
+            <artifactId>json-simple</artifactId>
+            <version>1.1.1</version>
         </dependency>
 
         <!-- ALA logging -->
@@ -219,25 +135,11 @@
             <version>1.4.1</version>
         </dependency>
         <!-- ALA common UI -->
-        <dependency>
-            <groupId>au.org.ala</groupId>
-            <artifactId>ala-common-ui</artifactId>
-            <version>1.0</version>
-        </dependency>
-        <!-- ALA CAS CLIENT -->
-        <dependency>
-            <groupId>au.org.ala</groupId>
-            <artifactId>ala-cas-client</artifactId>
-            <version>2.2</version>
-            <type>jar</type>
-            <scope>compile</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>javax.servlet</groupId>
-                    <artifactId>servlet-api</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>au.org.ala</groupId>-->
+<!--            <artifactId>ala-common-ui</artifactId>-->
+<!--            <version>1.0</version>-->
+<!--        </dependency>-->
         <!-- CSV -->
         <dependency>
             <groupId>net.sf.opencsv</groupId>
@@ -281,21 +183,11 @@
             <artifactId>commons-io</artifactId>
             <version>2.7</version>
         </dependency>
-        <dependency>
-            <groupId>commons-math</groupId>
-            <artifactId>commons-math</artifactId>
-            <version>1.1</version>
-        </dependency>
 
         <!-- swagger -->
         <dependency>
             <groupId>io.springfox</groupId>
             <artifactId>springfox-swagger2</artifactId>
-            <version>2.6.0</version>
-        </dependency>
-        <dependency>
-            <groupId>io.springfox</groupId>
-            <artifactId>springfox-swagger-ui</artifactId>
             <version>2.6.0</version>
         </dependency>
 
@@ -313,22 +205,22 @@
             <scope>provided</scope>
         </dependency>
         <!-- Sun's JSTL API-->
-        <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>jstl</artifactId>
-            <version>1.1.2</version>
-        </dependency>
-        <dependency>
-            <groupId>taglibs</groupId>
-            <artifactId>standard</artifactId>
-            <version>1.1.2</version>
-        </dependency>
-        <!-- Sun's DI API -->
-        <dependency>
-            <groupId>javax.inject</groupId>
-            <artifactId>javax.inject</artifactId>
-            <version>1</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>javax.servlet</groupId>-->
+<!--            <artifactId>jstl</artifactId>-->
+<!--            <version>1.1.2</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>taglibs</groupId>-->
+<!--            <artifactId>standard</artifactId>-->
+<!--            <version>1.1.2</version>-->
+<!--        </dependency>-->
+<!--        &lt;!&ndash; Sun's DI API &ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>javax.inject</groupId>-->
+<!--            <artifactId>javax.inject</artifactId>-->
+<!--            <version>1</version>-->
+<!--        </dependency>-->
         <!-- JUNIT -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -419,6 +311,7 @@
             <groupId>com.jayway.jsonpath</groupId>
             <artifactId>json-path</artifactId>
             <version>2.4.0</version>
+            <scope>test</scope>
         </dependency>
         <!-- SPRING 3.2 -->
         <dependency>
@@ -426,31 +319,31 @@
             <artifactId>spring-core</artifactId>
             <version>${spring.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-orm</artifactId>
-            <version>${spring.version}</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.springframework</groupId>-->
+<!--            <artifactId>spring-orm</artifactId>-->
+<!--            <version>${spring.version}</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
             <version>${spring.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-oxm</artifactId>
-            <version>${spring.version}</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.springframework</groupId>-->
+<!--            <artifactId>spring-oxm</artifactId>-->
+<!--            <version>${spring.version}</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
             <version>${spring.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context-support</artifactId>
-            <version>${spring.version}</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.springframework</groupId>-->
+<!--            <artifactId>spring-context-support</artifactId>-->
+<!--            <version>${spring.version}</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-webmvc</artifactId>
@@ -460,11 +353,13 @@
             <groupId>org.springframework</groupId>
             <artifactId>spring-test</artifactId>
             <version>${spring.version}</version>
+            <scope>test</scope>
         </dependency>
+        <!-- javax.mail to match dependency in gt-refrencing -->
         <dependency>
-            <groupId>javax.mail</groupId>
-            <artifactId>mail</artifactId>
-            <version>1.4.3</version>
+            <groupId>com.sun.mail</groupId>
+            <artifactId>javax.mail</artifactId>
+            <version>1.5.0</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.security</groupId>
@@ -472,46 +367,46 @@
             <version>5.3.1.RELEASE</version>
         </dependency>
         <!-- JMS lib start-->
-        <dependency>
-            <groupId>au.org.ala</groupId>
-            <artifactId>biocache-jms</artifactId>
-            <version>1.0</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.geronimo.specs</groupId>
-                    <artifactId>com.springsource.javax.management.j2ee</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>au.org.ala</groupId>
-                    <artifactId>biocache-store</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-jms</artifactId>
-            <version>${spring.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.xbean</groupId>
-            <artifactId>xbean-spring</artifactId>
-            <version>3.6</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.activemq</groupId>
-            <artifactId>activemq-core</artifactId>
-            <version>5.4.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.activemq</groupId>
-            <artifactId>activemq-pool</artifactId>
-            <version>5.3.2</version>
-        </dependency>
-        <dependency>
-            <groupId>commons-pool</groupId>
-            <artifactId>commons-pool</artifactId>
-            <version>1.5.5</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>au.org.ala</groupId>-->
+<!--            <artifactId>biocache-jms</artifactId>-->
+<!--            <version>1.0</version>-->
+<!--            <exclusions>-->
+<!--                <exclusion>-->
+<!--                    <groupId>org.apache.geronimo.specs</groupId>-->
+<!--                    <artifactId>com.springsource.javax.management.j2ee</artifactId>-->
+<!--                </exclusion>-->
+<!--                <exclusion>-->
+<!--                    <groupId>au.org.ala</groupId>-->
+<!--                    <artifactId>biocache-store</artifactId>-->
+<!--                </exclusion>-->
+<!--            </exclusions>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>org.springframework</groupId>-->
+<!--            <artifactId>spring-jms</artifactId>-->
+<!--            <version>${spring.version}</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>org.apache.xbean</groupId>-->
+<!--            <artifactId>xbean-spring</artifactId>-->
+<!--            <version>3.6</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>org.apache.activemq</groupId>-->
+<!--            <artifactId>activemq-core</artifactId>-->
+<!--            <version>5.4.2</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>org.apache.activemq</groupId>-->
+<!--            <artifactId>activemq-pool</artifactId>-->
+<!--            <version>5.3.2</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>commons-pool</groupId>-->
+<!--            <artifactId>commons-pool</artifactId>-->
+<!--            <version>1.5.5</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>commons-collections</groupId>
             <artifactId>commons-collections</artifactId>
@@ -524,17 +419,17 @@
             <version>3.0.6</version>
         </dependency>
         <!-- SITEMESH -->
-        <dependency>
-            <groupId>opensymphony</groupId>
-            <artifactId>sitemesh</artifactId>
-            <version>2.4.2</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>opensymphony</groupId>-->
+<!--            <artifactId>sitemesh</artifactId>-->
+<!--            <version>2.4.2</version>-->
+<!--        </dependency>-->
         <!-- XSTREAM -->
-        <dependency>
-            <groupId>com.thoughtworks.xstream</groupId>
-            <artifactId>xstream</artifactId>
-            <version>1.4.16</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>com.thoughtworks.xstream</groupId>-->
+<!--            <artifactId>xstream</artifactId>-->
+<!--            <version>1.4.16</version>-->
+<!--        </dependency>-->
         <!-- SLF4J -->
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -559,16 +454,16 @@
             <scope>provided</scope>
         </dependency>
         <!-- DOM4J -->
-        <dependency>
-            <groupId>dom4j</groupId>
-            <artifactId>dom4j</artifactId>
-            <version>1.6.1</version>
-        </dependency>
-        <dependency>
-            <groupId>jaxen</groupId>
-            <artifactId>jaxen</artifactId>
-            <version>1.1.1</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>dom4j</groupId>-->
+<!--            <artifactId>dom4j</artifactId>-->
+<!--            <version>1.6.1</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>jaxen</groupId>-->
+<!--            <artifactId>jaxen</artifactId>-->
+<!--            <version>1.1.1</version>-->
+<!--        </dependency>-->
         <!-- VELOCITY -->
         <dependency>
             <groupId>org.apache.velocity</groupId>
@@ -576,62 +471,68 @@
             <version>1.5</version>
         </dependency>
         <!-- JSON -->
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-            <version>20090211</version>
-        </dependency>
-        <dependency>
-            <groupId>atg.taglib.json</groupId>
-            <artifactId>json-taglib</artifactId>
-            <version>0.4.1</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.json</groupId>-->
+<!--            <artifactId>json</artifactId>-->
+<!--            <version>20090211</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>atg.taglib.json</groupId>-->
+<!--            <artifactId>json-taglib</artifactId>-->
+<!--            <version>0.4.1</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>net.sf.json-lib</groupId>
             <artifactId>json-lib</artifactId>
             <version>2.2.3</version>
         </dependency>
+
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-jdbc</artifactId>
-            <version>${spring.version}</version>
-            <type>jar</type>
-            <scope>compile</scope>
+            <groupId>xmlpull</groupId>
+            <artifactId>xmlpull</artifactId>
+            <version>1.1.3.1</version>
         </dependency>
-        <dependency>
-            <groupId>com.kenai.nbpwr</groupId>
-            <artifactId>org-apache-commons-dbcp</artifactId>
-            <version>1.2.2-201002241055</version>
-            <type>nbm</type>
-            <scope>compile</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.springframework</groupId>-->
+<!--            <artifactId>spring-jdbc</artifactId>-->
+<!--            <version>${spring.version}</version>-->
+<!--            <type>jar</type>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>com.kenai.nbpwr</groupId>-->
+<!--            <artifactId>org-apache-commons-dbcp</artifactId>-->
+<!--            <version>1.2.2-201002241055</version>-->
+<!--            <type>nbm</type>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
         <!--  Central Authorisation Service (CAS) client -->
-        <dependency>
-            <groupId>org.jasig.cas</groupId>
-            <artifactId>cas-client-core</artifactId>
-            <version>3.1.10</version>
-            <type>jar</type>
-            <scope>compile</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.jasig.cas</groupId>-->
+<!--            <artifactId>cas-client-core</artifactId>-->
+<!--            <version>3.1.10</version>-->
+<!--            <type>jar</type>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
         <!--  XERCES -->
-        <dependency>
-            <groupId>xerces</groupId>
-            <artifactId>xercesImpl</artifactId>
-            <version>2.12.0</version>
-            <type>jar</type>
-        </dependency>
-        <dependency>
-            <groupId>xerces</groupId>
-            <artifactId>xml-apis</artifactId>
-            <version>2.10.0</version>
-            <type>jar</type>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>xerces</groupId>-->
+<!--            <artifactId>xercesImpl</artifactId>-->
+<!--            <version>2.12.0</version>-->
+<!--            <type>jar</type>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>xerces</groupId>-->
+<!--            <artifactId>xml-apis</artifactId>-->
+<!--            <version>2.10.0</version>-->
+<!--            <type>jar</type>-->
+<!--        </dependency>-->
         <!-- GEOIP - geocoding from IP address -->
-        <dependency>
-            <groupId>org.dspace.dependencies</groupId>
-            <artifactId>dspace-geoip</artifactId>
-            <version>1.2.3</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.dspace.dependencies</groupId>-->
+<!--            <artifactId>dspace-geoip</artifactId>-->
+<!--            <version>1.2.3</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>commons-httpclient</groupId>
             <artifactId>commons-httpclient</artifactId>
@@ -660,11 +561,11 @@
             <version>2.6.2</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>logging-interceptor</artifactId>
-            <version>4.3.1</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>com.squareup.okhttp3</groupId>-->
+<!--            <artifactId>logging-interceptor</artifactId>-->
+<!--            <version>4.3.1</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp</artifactId>
