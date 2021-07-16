@@ -12,8 +12,6 @@ import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.solr.FieldMappedSolrClient;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -396,7 +394,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
     /**
      * parses the response string from the service that returns details about the indexed fields
      *
-     * @param str
+     * @param qr
      * @return
      */
     private Set<IndexFieldDTO> parseLukeResponse(QueryResponse qr, boolean includeCounts) {
