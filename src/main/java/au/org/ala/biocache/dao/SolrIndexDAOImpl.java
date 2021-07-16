@@ -12,6 +12,8 @@ import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.solr.FieldMappedSolrClient;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -397,47 +399,62 @@ public class SolrIndexDAOImpl implements IndexDAO {
      * @param str
      * @return
      */
-    private Set<IndexFieldDTO> parseLukeResponse(String str, boolean includeCounts) {
+    private Set<IndexFieldDTO> parseLukeResponse(QueryResponse qr, boolean includeCounts) {
 
-        // update index version
-        Pattern indexVersion = Pattern.compile("(?:version=)([0-9]{1,})");
-        try {
-            Matcher indexVersionMatcher = indexVersion.matcher(str);
-            if (indexVersionMatcher.find(0)) {
-                solrIndexVersion = Long.parseLong(indexVersionMatcher.group(1));
-                solrIndexVersionTime = System.currentTimeMillis();
-            }
-        } catch (Exception e) {
-        }
+        NamedList response = qr.getResponse();
+
+        solrIndexVersion = (long) ((NamedList)response.get("index")).get("version");
+        solrIndexVersionTime = System.currentTimeMillis();
 
         Set<IndexFieldDTO> fieldList =
                 includeCounts
                         ? new java.util.LinkedHashSet<IndexFieldDTO>()
                         : new java.util.TreeSet<IndexFieldDTO>();
 
-        Pattern typePattern = Pattern.compile("(?:type=)([a-z]{1,})");
-
-        Pattern schemaPattern = Pattern.compile("(?:schema=)([a-zA-Z\\-]{1,})");
-
-        Pattern distinctPattern = Pattern.compile("(?:distinct=)([0-9]{1,})");
-
-        String[] fieldsStr = str.split("fields=\\{");
-
         Map<String, String> indexToJsonMap = new OccurrenceIndex().indexToJsonMap();
 
-        for (String fieldStr : fieldsStr) {
-            if (fieldStr != null && !"".equals(fieldStr)) {
-                String[] fields = includeCounts ? fieldStr.split("\\}\\},") : fieldStr.split("\\},");
+        NamedList<NamedList<String>> fields = (NamedList)response.get("fields");
+        fields.forEach((String fieldName, NamedList<String> fieldInfo) -> formatIndexField(fieldList, fieldName, fieldInfo, indexToJsonMap));
 
-                // sort fields for later use of indexOf
-                Arrays.sort(fields);
 
-                for (String field : fields) {
-                    formatIndexField(
-                            field, null, fieldList, typePattern, schemaPattern, indexToJsonMap, distinctPattern);
-                }
-            }
-        }
+//        String str = qr.toString();
+//
+//        // update index version
+//        Pattern indexVersion = Pattern.compile("(?:version=)([0-9]{1,})");
+//        try {
+//            Matcher indexVersionMatcher = indexVersion.matcher(str);
+//            if (indexVersionMatcher.find(0)) {
+//                solrIndexVersion = Long.parseLong(indexVersionMatcher.group(1));
+//                solrIndexVersionTime = System.currentTimeMillis();
+//            }
+//        } catch (Exception e) {
+//        }
+//
+//
+//
+//        Pattern typePattern = Pattern.compile("(?:type=)([a-z]{1,})");
+//
+//        Pattern schemaPattern = Pattern.compile("(?:schema=)([a-zA-Z\\-]{1,})");
+//
+//        Pattern distinctPattern = Pattern.compile("(?:distinct=)([0-9]{1,})");
+//
+//        String[] fieldsStr = str.split("fields=\\{");
+//
+//
+//
+//        for (String fieldStr : fieldsStr) {
+//            if (fieldStr != null && !"".equals(fieldStr)) {
+//                String[] fields = includeCounts ? fieldStr.split("\\}\\},") : fieldStr.split("\\},");
+//
+//                // sort fields for later use of indexOf
+//                Arrays.sort(fields);
+//
+//                for (String field : fields) {
+//                    formatIndexField(
+//                            field, null, fieldList, typePattern, schemaPattern, indexToJsonMap, distinctPattern);
+//                }
+//            }
+//        }
 
         fieldMappingUtil.getFieldMappingStream()
                 .forEach((Pair<String, String> fieldMapping) -> {
@@ -486,7 +503,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
             params.set("numTerms", "0");
         }
         QueryResponse response = query(params);
-        return parseLukeResponse(response.toString(), fields != null);
+        return parseLukeResponse(response, fields != null);
     }
 
     @Override
@@ -602,6 +619,11 @@ public class SolrIndexDAOImpl implements IndexDAO {
                     HashMap.class);
 
     private volatile Set<String> schemaFields = new HashSet();
+
+    private void formatIndexField( Set<IndexFieldDTO> fieldList, String fieldName, NamedList<String> fieldData, Map indexToJsonMap) {
+
+
+    }
 
     private void formatIndexField(
             String indexField,
