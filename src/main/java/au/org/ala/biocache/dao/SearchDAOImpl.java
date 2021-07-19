@@ -1234,7 +1234,7 @@ public class SearchDAOImpl implements SearchDAO {
             // or the first rank with the number of facets > 0 when the rank is specified
             for (String r : ranks) {
                 long count = estimateUniqueValues(queryParams, r);
-                if ((count <= queryParams.getMax() && queryParams.getMax() != null && queryParams.getMax() > 0) ||
+                if ((queryParams.getMax() != null && queryParams.getMax() > 0 && count <= queryParams.getMax()) ||
                     (queryParams.getRank() != null && count > 0)) {
                     solrQuery.addFacetField(r);
                     break;
