@@ -945,7 +945,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     private void addPostProcessingFields(DownloadRequestParams downloadParams, DownloadHeaders downloadHeaders) {
         // include assertion fields
-        if (!"none".equals(downloadParams.getQa())) {
+        if (!StringUtils.isBlank(downloadParams.getQa()) && !"none".equals(downloadParams.getQa())) {
             requestFields(downloadHeaders, new String[]{"assertions"});
 
             // Map assertions to the output columns with the assertion name in the header.
@@ -970,7 +970,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
 
             downloadHeaders.qaLabels = Arrays.stream(downloadHeaders.qaIds).map(id -> {
-                return messageSource.getMessage("assertions." + id, null, id, null);
+                return messageSource.getMessage("headings.assertions." + id, null, id, null);
             }).collect(Collectors.toList()).toArray(new String[0]);
         }
 
