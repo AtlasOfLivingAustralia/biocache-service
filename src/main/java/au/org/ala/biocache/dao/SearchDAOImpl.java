@@ -945,7 +945,7 @@ public class SearchDAOImpl implements SearchDAO {
      */
     private void addPostProcessingFields(DownloadRequestParams downloadParams, DownloadHeaders downloadHeaders) {
         // include assertion fields
-        if (!StringUtils.isBlank(downloadParams.getQa()) && !"none".equals(downloadParams.getQa())) {
+        if (StringUtils.isNotBlank(downloadParams.getQa()) && !"none".equals(downloadParams.getQa())) {
             requestFields(downloadHeaders, new String[]{"assertions"});
 
             // Map assertions to the output columns with the assertion name in the header.
