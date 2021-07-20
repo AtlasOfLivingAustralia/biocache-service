@@ -969,8 +969,10 @@ public class SearchDAOImpl implements SearchDAO {
                         .toArray(String[]::new);
             }
 
+            // if dwcHeadings == true return qa code as headings, else return description.
+            String headingPrefix = downloadParams.getDwcHeaders() ? "headings.assertions." : "assertions.";
             downloadHeaders.qaLabels = Arrays.stream(downloadHeaders.qaIds).map(id -> {
-                return messageSource.getMessage("headings.assertions." + id, null, id, null);
+                return messageSource.getMessage(headingPrefix + id, null, id, null);
             }).collect(Collectors.toList()).toArray(new String[0]);
         }
 
