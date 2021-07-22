@@ -394,50 +394,25 @@ public class SolrIndexDAOImpl implements IndexDAO {
     /**
      * parses the response string from the service that returns details about the indexed fields
      *
-     * @param str
+     * @param qr
      * @return
      */
-    private Set<IndexFieldDTO> parseLukeResponse(String str, boolean includeCounts) {
+    private Set<IndexFieldDTO> parseLukeResponse(QueryResponse qr, boolean includeCounts) {
 
-        // update index version
-        Pattern indexVersion = Pattern.compile("(?:version=)([0-9]{1,})");
-        try {
-            Matcher indexVersionMatcher = indexVersion.matcher(str);
-            if (indexVersionMatcher.find(0)) {
-                solrIndexVersion = Long.parseLong(indexVersionMatcher.group(1));
-                solrIndexVersionTime = System.currentTimeMillis();
-            }
-        } catch (Exception e) {
-        }
+        NamedList response = qr.getResponse();
+
+        solrIndexVersion = (long) ((NamedList)response.get("index")).get("version");
+        solrIndexVersionTime = System.currentTimeMillis();
 
         Set<IndexFieldDTO> fieldList =
                 includeCounts
                         ? new java.util.LinkedHashSet<IndexFieldDTO>()
                         : new java.util.TreeSet<IndexFieldDTO>();
 
-        Pattern typePattern = Pattern.compile("(?:type=)([a-z]{1,})");
-
-        Pattern schemaPattern = Pattern.compile("(?:schema=)([a-zA-Z\\-]{1,})");
-
-        Pattern distinctPattern = Pattern.compile("(?:distinct=)([0-9]{1,})");
-
-        String[] fieldsStr = str.split("fields=\\{");
-
         Map<String, String> indexToJsonMap = new OccurrenceIndex().indexToJsonMap();
 
-        for (String fieldStr : fieldsStr) {
-            if (fieldStr != null && !"".equals(fieldStr)) {
-                String[] fields = includeCounts ? fieldStr.split("\\}\\},") : fieldStr.split("\\},");
-
-                // sort fields for later use of indexOf
-                Arrays.sort(fields);
-
-                for (String field : fields) {
-                    formatIndexField(
-                            field, null, fieldList, typePattern, schemaPattern, indexToJsonMap, distinctPattern);
-                }
-            }
-        }
+        NamedList<NamedList<Object>> fields = (NamedList)response.get("fields");
+        fields.forEach((String fieldName, NamedList<Object> fieldInfo) -> formatIndexField(fieldList, fieldName, fieldInfo, indexToJsonMap));
 
         fieldMappingUtil.getFieldMappingStream()
                 .forEach((Pair<String, String> fieldMapping) -> {
@@ -486,7 +461,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
             params.set("numTerms", "0");
         }
         QueryResponse response = query(params);
-        return parseLukeResponse(response.toString(), fields != null);
+        return parseLukeResponse(response, fields != null);
     }
 
     @Override
@@ -603,40 +578,33 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
     private volatile Set<String> schemaFields = new HashSet();
 
-    private void formatIndexField(
-            String indexField,
-            String cassandraField,
-            Set<IndexFieldDTO> fieldList,
-            Pattern typePattern,
-            Pattern schemaPattern,
-            Map indexToJsonMap,
-            Pattern distinctPattern) {
+    private void formatIndexField( Set<IndexFieldDTO> fieldList, String fieldName, NamedList<Object> fieldInfo, Map indexToJsonMap) {
 
-        if (indexField != null && !"".equals(indexField)) {
+        if (StringUtils.isNotEmpty(fieldName) && fieldInfo != null) {
+
             IndexFieldDTO f = new IndexFieldDTO();
 
-            String fieldName = indexField.split("=")[0];
-            String type = null;
-            String schema = null;
-            Matcher typeMatcher = typePattern.matcher(indexField);
-            if (typeMatcher.find(0)) {
-                type = typeMatcher.group(1);
-            }
-
-            Matcher schemaMatcher = schemaPattern.matcher(indexField);
-            if (schemaMatcher.find(0)) {
-                schema = schemaMatcher.group(1);
-            }
+            String type = fieldInfo.get("type").toString();
+            String schema = fieldInfo.get("schema").toString();
+            Integer distinct = (Integer) fieldInfo.get("distinct");
 
             // don't allow the sensitive coordinates to be exposed via ws and don't allow index fields
             // without schema
             if (StringUtils.isNotEmpty(fieldName)
                     && !fieldName.startsWith("sensitive_")
-                    && (cassandraField != null || schema != null)) {
+                    && (schema != null)) {
 
                 f.setName(fieldName);
-                if (type != null) f.setDataType(type);
-                else f.setDataType("string");
+
+                if (type != null) {
+                    f.setDataType(type);
+                } else {
+                    f.setDataType("string");
+                }
+
+                if (distinct != null) {
+                    f.setNumberDistinctValues(distinct);
+                }
 
                 // interpret the schema information
                 if (schema != null) {
@@ -651,7 +619,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
                 // 2. info: details about this field from description.fieldName= in i18n
                 // 3. dwcTerm: DwC field name for this field from dwc.fieldName= in i18n
                 // 4. jsonName: json key as returned by occurrences/search
-                // 5. downloadField: biocache-store column name that is usable in DownloadRequestParams.fl
+                // 5. downloadField: column name that is usable in DownloadRequestParams.fl (same as name)
                 // if the field has (5) downloadField, use it to find missing (1), (2) or (3)
                 // 6. downloadDescription: the column name when downloadField is used in
                 //   DownloadRequestParams.fl and a translation occurs
@@ -660,6 +628,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
                 // 8. class value for this field
                 // 9. infoUrl: wiki link from wiki.fieldName= in i18n
                 if (layersPattern.matcher(fieldName).matches()) {
+
                     f.setDownloadName(fieldName);
                     String description = layersService.getLayerNameMap().get(fieldName);
                     f.setDescription(description);
@@ -673,9 +642,6 @@ public class SolrIndexDAOImpl implements IndexDAO {
                 } else {
                     // (5) check as a downloadField
                     String downloadField = fieldName;
-                    if (cassandraField != null) {
-                        downloadField = cassandraField;
-                    }
                     if (downloadField != null) {
                         f.setDownloadName(downloadField);
                     }
@@ -818,12 +784,6 @@ public class SolrIndexDAOImpl implements IndexDAO {
                 }
 
                 fieldList.add(f);
-            }
-
-            Matcher distinctMatcher = distinctPattern.matcher(indexField);
-            if (distinctMatcher.find(0)) {
-                Integer distinct = Integer.parseInt(distinctMatcher.group(1));
-                f.setNumberDistinctValues(distinct);
             }
         }
     }
