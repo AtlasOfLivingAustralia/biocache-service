@@ -1,4 +1,4 @@
-package au.org.ala.biocache.web;
+package au.org.ala.biocache.util;
 
 import au.org.ala.biocache.dao.QidCacheDAO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;

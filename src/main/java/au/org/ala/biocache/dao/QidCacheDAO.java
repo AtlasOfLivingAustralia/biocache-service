@@ -53,16 +53,6 @@ public interface QidCacheDAO {
      */
     Qid get(String key) throws QidMissingException;
 
-    /**
-     * Retrieves the Qid based on the supplied query string.
-     *
-     * @param query
-     * @return
-     * @throws Exception
-     */
-    Qid getQidFromQuery(String query) throws QidMissingException;
-
-
     /*
      * cache management. defaults set in qid.properties
      */
@@ -84,4 +74,6 @@ public interface QidCacheDAO {
     String[] getFq(SpatialSearchRequestParams requestParams);
 
     String generateQid(SpatialSearchRequestParams requestParams, String bbox, String title, Long maxage, String source);
+
+    void clear();
 }

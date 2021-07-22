@@ -1,8 +1,10 @@
 package au.org.ala.biocache.util.solr
 
-import org.apache.solr.client.solrj.SolrClient
+import au.org.ala.biocache.dao.IndexDAO
+import au.org.ala.biocache.util.SolrUtils
 import org.apache.solr.client.solrj.SolrQuery
 import org.apache.solr.client.solrj.response.QueryResponse
+import org.junit.BeforeClass
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.web.WebAppConfiguration
@@ -11,16 +13,26 @@ import spock.lang.Unroll
 
 @WebAppConfiguration
 @ContextConfiguration(locations = 'classpath:springTest.xml')
-class FieldMappedSolrClientIT extends Specification {
+class FieldMappedSolrClientSpecIT extends Specification {
+
+    static {
+        System.setProperty("biocache.config", System.getProperty("user.dir") + "/src/test/resources/biocache-test-config.properties");
+    }
 
     @Autowired
-    SolrClient solrClient
+    IndexDAO indexDAO
+
+    @BeforeClass
+    def setupBeforeClass() {
+        SolrUtils.setupIndex();
+    }
+
 
     @Unroll
     def 'query: #desc'() {
 
         when:
-        QueryResponse qr = solrClient.query(query as SolrQuery)
+        QueryResponse qr = indexDAO.query(query as SolrQuery)
         println qr
         println result
 
@@ -84,7 +96,7 @@ class FieldMappedSolrClientIT extends Specification {
         query.addFacetField('scientificName')
 
         when:
-        QueryResponse qr = solrClient.query(query)
+        QueryResponse qr = indexDAO.query(query)
 
         then:
         qr != null
@@ -94,7 +106,7 @@ class FieldMappedSolrClientIT extends Specification {
         when:
         query.facet = false
         query.addFacetField('taxon_name')
-        qr = solrClient.query(query)
+        qr = indexDAO.query(query)
 
         then:
         qr != null
@@ -104,7 +116,7 @@ class FieldMappedSolrClientIT extends Specification {
         when:
         query.facet = false
         query.addFacetField('aust_conservation')
-        qr = solrClient.query(query)
+        qr = indexDAO.query(query)
 
         then:
         qr != null
@@ -121,7 +133,7 @@ class FieldMappedSolrClientIT extends Specification {
         query.addFacetField('scientificName')
 
         when:
-        QueryResponse qr = solrClient.query(query)
+        QueryResponse qr = indexDAO.query(query)
 
         then:
         qr != null
@@ -131,7 +143,7 @@ class FieldMappedSolrClientIT extends Specification {
         when:
         query.facet = false
         query.addFacetField('taxon_name')
-        qr = solrClient.query(query)
+        qr = indexDAO.query(query)
 
         then:
         qr != null
@@ -141,7 +153,7 @@ class FieldMappedSolrClientIT extends Specification {
         when:
         query.facet = false
         query.addFacetField('aust_conservation')
-        qr = solrClient.query(query)
+        qr = indexDAO.query(query)
 
         then:
         qr != null

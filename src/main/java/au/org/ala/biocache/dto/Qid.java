@@ -25,7 +25,9 @@ public class Qid {
         this.displayString = displayString;
         this.wkt = wkt;
         this.bbox = bbox;
+        this.lastUse = lastUse;
         this.fqs = fqs;
+        this.maxAge = maxAge;
         this.source = source;
     }
 

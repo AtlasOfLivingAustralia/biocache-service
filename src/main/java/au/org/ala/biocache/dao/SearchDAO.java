@@ -127,17 +127,6 @@ public interface SearchDAO {
     List<OccurrencePoint> getFacetPoints(SpatialSearchRequestParams searchParams, PointType pointType) throws Exception;
 
     /**
-     * Retrieve a list of occurrence uid's for a given search
-     *
-     * @param requestParams
-     * @param pointType
-     * @param colourBy
-     * @return
-     * @throws Exception
-     */
-    List<OccurrencePoint> getOccurrences(SpatialSearchRequestParams requestParams, PointType pointType, String colourBy) throws Exception;
-
-    /**
      * Get a list of occurrence points for a given lat/long and distance (radius)
      *
      * @param requestParams

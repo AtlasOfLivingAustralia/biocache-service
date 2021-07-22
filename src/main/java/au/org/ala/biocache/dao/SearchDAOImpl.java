@@ -1158,43 +1158,6 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see au.org.ala.biocache.dao.SearchDAO#getOccurrences(au.org.ala.biocache.dto.SpatialSearchRequestParams, au.org.ala.biocache.dto.PointType, String)
-     * <p>
-     * TODO: deprecate for hashmap request
-     */
-    @Override
-    public List<OccurrencePoint> getOccurrences(SpatialSearchRequestParams searchParams, PointType pointType, String colourBy) throws Exception {
-
-        List<OccurrencePoint> points = new ArrayList<OccurrencePoint>();
-        searchParams.setPageSize(100);
-
-        SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
-
-        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
-        SearchResultDTO searchResults = processSolrResponse(searchParams, qr, solrQuery, OccurrenceIndex.class);
-        List<OccurrenceIndex> ocs = searchResults.getOccurrences();
-
-        if (!ocs.isEmpty() && ocs.size() > 0) {
-
-            for (OccurrenceIndex oc : ocs) {
-
-                List<Float> coords = new ArrayList<Float>();
-                coords.add(oc.getDecimalLongitude().floatValue());
-                coords.add(oc.getDecimalLatitude().floatValue());
-
-                OccurrencePoint point = new OccurrencePoint();
-                point.setCoordinates(coords);
-
-                point.setOccurrenceUid(oc.getUuid());
-
-                points.add(point);
-            }
-        }
-
-        return points;
-    }
-
-    /**
      * @see au.org.ala.biocache.dao.SearchDAO#findRecordsForLocation(au.org.ala.biocache.dto.SpatialSearchRequestParams, au.org.ala.biocache.dto.PointType)
      * This is used by explore your area
      */

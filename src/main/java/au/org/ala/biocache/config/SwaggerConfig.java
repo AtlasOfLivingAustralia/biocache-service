@@ -26,11 +26,6 @@ public class SwaggerConfig {
                 .apiInfo(metadata());
     }
 
-//    @Bean
-//    public UiConfiguration uiConfig() {
-//        return UiConfiguration.DEFAULT;
-//    }
-
     private ApiInfo metadata() {
         return new ApiInfoBuilder()
                 .title("biocache-service API")

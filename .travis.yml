@@ -14,7 +14,7 @@ branches:
     - master
     - develop
     - epic/pipelines/develop
-    - remove-redundant-code
+    - 449-part-2
     - /^epic\/pipelines\/release\/.*$/
     - /^hotfix\/.*$/
 before_install:
