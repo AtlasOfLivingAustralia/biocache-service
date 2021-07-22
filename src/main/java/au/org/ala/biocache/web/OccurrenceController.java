@@ -601,16 +601,7 @@ public class OccurrenceController extends AbstractSecureController {
             SpatialSearchRequestParams requestParams,
             HttpServletResponse response
     ) throws Exception {
-        try {
-            return searchDAO.getFacetCounts(requestParams);
-        } catch (SolrException se) {
-            response.sendError(400, "Problem with query syntax");
-            logger.error(se.getMessage());
-            if (logger.isDebugEnabled()) {
-                logger.debug(se.getMessage(), se);
-            }
-            return null;
-        }
+        return searchDAO.getFacetCounts(requestParams);
     }
 
     /**
@@ -842,50 +833,40 @@ public class OccurrenceController extends AbstractSecureController {
                                      @RequestParam(value = "im", required = false, defaultValue = "false") Boolean lookupImageMetadata,
                                      HttpServletRequest request,
                                      HttpServletResponse response) throws Exception {
-        try {
-
             // handle empty param values, e.g. &sort=&dir=
-            SearchUtils.setDefaultParams(requestParams);
-            Map<String, String[]> map = request != null ? SearchUtils.getExtraParams(request.getParameterMap()) : null;
-            if (map != null) {
-                map.remove("apiKey");
-            }
+         SearchUtils.setDefaultParams(requestParams);
+         Map<String, String[]> map = request != null ? SearchUtils.getExtraParams(request.getParameterMap()) : null;
+         if (map != null) {
+             map.remove("apiKey");
+         }
 
-            if (logger.isDebugEnabled()) {
-                logger.debug("occurrence search params = " + requestParams + " extra params = " + map);
-            }
+         if (logger.isDebugEnabled()) {
+             logger.debug("occurrence search params = " + requestParams + " extra params = " + map);
+         }
 
-            SearchResultDTO srtdto = null;
-            if (apiKey == null) {
-                srtdto = searchDAO.findByFulltextSpatialQuery(requestParams, false, map);
-            } else {
-                srtdto = occurrenceSearchSensitive(requestParams, apiKey, request, response);
-            }
+         SearchResultDTO srtdto = null;
+         if (apiKey == null) {
+             srtdto = searchDAO.findByFulltextSpatialQuery(requestParams, false, map);
+         } else {
+             srtdto = occurrenceSearchSensitive(requestParams, apiKey, request, response);
+         }
 
-            if (srtdto.getTotalRecords() > 0 && lookupImageMetadata) {
-                //use the image service API & grab the list of IDs
-                List<String> occurrenceIDs = new ArrayList<String>();
-                for (OccurrenceIndex oi : srtdto.getOccurrences()) {
-                    occurrenceIDs.add(oi.getUuid());
-                }
+         if (srtdto.getTotalRecords() > 0 && lookupImageMetadata) {
+             //use the image service API & grab the list of IDs
+             List<String> occurrenceIDs = new ArrayList<String>();
+             for (OccurrenceIndex oi : srtdto.getOccurrences()) {
+                 occurrenceIDs.add(oi.getUuid());
+             }
 
-                Map<String, List<Map<String, Object>>> imageMap = imageMetadataService.getImageMetadataForOccurrences(occurrenceIDs);
+             Map<String, List<Map<String, Object>>> imageMap = imageMetadataService.getImageMetadataForOccurrences(occurrenceIDs);
 
-                for (OccurrenceIndex oi : srtdto.getOccurrences()) {
-                    //lookup metadata
-                    List<Map<String, Object>> imageMetadata = imageMap.get(oi.getUuid());
-                    oi.setImageMetadata(imageMetadata);
-                }
-            }
-            return srtdto;
-        } catch (SolrException e) {
-            logger.error(e.getMessage());
-            response.sendError(400, "Invalid query");
-            if (logger.isDebugEnabled()) {
-                logger.debug(e.getMessage(), e);
-            }
-            return null;
-        }
+             for (OccurrenceIndex oi : srtdto.getOccurrences()) {
+                 //lookup metadata
+                 List<Map<String, Object>> imageMetadata = imageMap.get(oi.getUuid());
+                 oi.setImageMetadata(imageMetadata);
+             }
+         }
+         return srtdto;
     }
 
     public @ResponseBody
