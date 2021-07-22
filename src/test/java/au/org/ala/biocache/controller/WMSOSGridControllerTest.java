@@ -1,7 +1,9 @@
 package au.org.ala.biocache.controller;
 
+import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.web.WMSOSGridController;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +36,11 @@ public class WMSOSGridControllerTest {
     @Autowired
     WebApplicationContext wac;
     MockMvc mockMvc;
+
+    @BeforeClass
+    public static void setupBeforeClass() throws Exception {
+        SolrUtils.setupIndex();
+    }
 
     @Before
     public void setup() {
