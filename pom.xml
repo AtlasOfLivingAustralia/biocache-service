@@ -140,11 +140,11 @@
             <version>1.4.1</version>
         </dependency>
         <!-- ALA common UI -->
-<!--        <dependency>-->
-<!--            <groupId>au.org.ala</groupId>-->
-<!--            <artifactId>ala-common-ui</artifactId>-->
-<!--            <version>1.0</version>-->
-<!--        </dependency>-->
+        <dependency>
+            <groupId>au.org.ala</groupId>
+            <artifactId>ala-common-ui</artifactId>
+            <version>1.0</version>
+        </dependency>
         <!-- CSV -->
         <dependency>
             <groupId>net.sf.opencsv</groupId>
@@ -210,16 +210,16 @@
             <scope>provided</scope>
         </dependency>
         <!-- Sun's JSTL API-->
-<!--        <dependency>-->
-<!--            <groupId>javax.servlet</groupId>-->
-<!--            <artifactId>jstl</artifactId>-->
-<!--            <version>1.1.2</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>taglibs</groupId>-->
-<!--            <artifactId>standard</artifactId>-->
-<!--            <version>1.1.2</version>-->
-<!--        </dependency>-->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>jstl</artifactId>
+            <version>1.1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>taglibs</groupId>
+            <artifactId>standard</artifactId>
+            <version>1.1.2</version>
+        </dependency>
 <!--        &lt;!&ndash; Sun's DI API &ndash;&gt;-->
 <!--        <dependency>-->
 <!--            <groupId>javax.inject</groupId>-->
@@ -426,11 +426,11 @@
             <version>3.0.6</version>
         </dependency>
         <!-- SITEMESH -->
-<!--        <dependency>-->
-<!--            <groupId>opensymphony</groupId>-->
-<!--            <artifactId>sitemesh</artifactId>-->
-<!--            <version>2.4.2</version>-->
-<!--        </dependency>-->
+        <dependency>
+            <groupId>opensymphony</groupId>
+            <artifactId>sitemesh</artifactId>
+            <version>2.4.2</version>
+        </dependency>
         <!-- XSTREAM for rdf parsing -->
         <dependency>
             <groupId>com.thoughtworks.xstream</groupId>
