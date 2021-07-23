@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(locations = {"classpath:springTest.xml"})
 @WebAppConfiguration
-public class WMSOSGridControllerTest {
+public class WMSOSGridControllerIT {
     static {
         System.setProperty("biocache.config", System.getProperty("user.dir") + "/src/test/resources/biocache-test-config.properties");
     }
