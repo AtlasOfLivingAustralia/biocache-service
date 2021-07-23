@@ -22,7 +22,7 @@
         <!-- This project uses UTF8 for Regular Expressions -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <openrdf.sesame.version>2.2</openrdf.sesame.version>
-        <spring.version>4.3.24.RELEASE</spring.version>
+        <spring.version>5.3.9</spring.version>
         <junit.version>4.13.1</junit.version>
         <netbeans.hint.deploy.server>Tomcat</netbeans.hint.deploy.server>
         <targetJdk>1.8</targetJdk>
