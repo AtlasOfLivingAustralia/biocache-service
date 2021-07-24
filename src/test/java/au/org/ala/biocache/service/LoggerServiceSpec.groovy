@@ -3,8 +3,6 @@ package au.org.ala.biocache.service
 import org.ala.client.model.LogEventVO
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
-import org.springframework.http.HttpStatus
-import org.springframework.http.ResponseEntity
 import org.springframework.web.client.RestOperations
 import spock.lang.Specification
 
@@ -28,96 +26,6 @@ class LoggerServiceSpec extends Specification {
         Thread.sleep(1000)
 
         then:
-        1 * loggerService.restTemplate.postForEntity(_, new HttpEntity<>(logEvent, headers), Void) >> { new ResponseEntity<Void>(HttpStatus.OK) }
-
-        cleanup:
-        loggerService.destroy()
-    }
-
-    void 'block on queue limit'() {
-
-        setup:
-        final int queueSize = 10
-
-        long logEventPostCount = 0
-
-        LoggerRestService loggerService = new LoggerRestService()
-        loggerService.enabled = false
-        loggerService.restTemplate = Stub(RestOperations) {
-            postForEntity(_, _, Void) >> {
-                sleep(10)
-                logEventPostCount++
-                new ResponseEntity<Void>(HttpStatus.OK)
-            }
-        }
-        loggerService.eventQueueSize = queueSize
-//        loggerService.throttleDelay = 100
-
-        loggerService.init()
-
-        boolean logEventBlocked = true
-
-        when: 'log more then buffer in quick succession'
-        10.times {
-            LogEventVO logEvent = new LogEventVO()
-            logEvent.sourceUrl = it as String
-
-            loggerService.logEvent(logEvent)
-        }
-
-        then: 'no log events should be async posted'
-        logEventPostCount == 0
-
-        when:
-        Thread.start {
-
-            sleep(100)
-
-            LogEventVO logEvent = new LogEventVO()
-            logEvent.sourceUrl = 'blocked 11'
-
-            loggerService.logEvent(logEvent)
-            logEventBlocked = false
-        }
-
-        then: 'nexted log event should be blocked'
-        logEventBlocked
-
-        when:
-        // wait until the posted async log events >= query size (queue cleared)
-        while (logEventPostCount < queueSize) { sleep(10) }
-
-        then: 'blocked log event call cleared'
-        !logEventBlocked
-
-        cleanup:
-        loggerService.destroy()
-    }
-
-    void 'thottle log events'() {
-
-        setup:
-        LoggerRestService loggerService = new LoggerRestService()
-        loggerService.enabled = false
-        loggerService.restTemplate = Mock(RestOperations)
-        loggerService.throttleDelay = 100
-
-        loggerService.init()
-
-        when: 'log more then buffer in quick succession'
-        10.times {
-            LogEventVO logEvent = new LogEventVO()
-            logEvent.sourceUrl = it as String
-
-            loggerService.logEvent(logEvent)
-        }
-
-        sleep(10 * loggerService.throttleDelay)
-
-        then: 'expect all events POSTed'
-        10 * loggerService.restTemplate.postForEntity(*_) >> { new ResponseEntity<Void>(HttpStatus.OK) }
-
-        cleanup:
-        loggerService.destroy()
+        1 * loggerService.restTemplate.postForEntity(_, new HttpEntity<>(logEvent, headers), Void)
     }
 }
