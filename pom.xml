@@ -11,7 +11,7 @@
     <groupId>au.org.ala</groupId>
     <artifactId>biocache-service</artifactId>
     <packaging>war</packaging>
-    <version>3.0.20</version>
+    <version>3.0.21-SNAPSHOT</version>
     <name>biocache-service</name>
     <url>https://biocache-ws.ala.org.au/ws</url>
     <description>
@@ -220,12 +220,6 @@
             <artifactId>standard</artifactId>
             <version>1.1.2</version>
         </dependency>
-<!--        &lt;!&ndash; Sun's DI API &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>javax.inject</groupId>-->
-<!--            <artifactId>javax.inject</artifactId>-->
-<!--            <version>1</version>-->
-<!--        </dependency>-->
         <!-- JUNIT -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
