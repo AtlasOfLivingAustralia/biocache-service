@@ -104,7 +104,7 @@ public class UploadController extends AbstractSecureController {
      * @return an identifier for this temporary dataset
      */
     @RequestMapping(value={"/upload/status/{tempDataResourceUid}.json", "/upload/status/{tempDataResourceUid}"}, method = RequestMethod.GET)
-    public @ResponseBody Map<String,String> uploadStatus(@PathVariable String tempDataResourceUid, HttpServletResponse response) throws Exception {
+    public @ResponseBody Map<String, Object> uploadStatus(@PathVariable String tempDataResourceUid, HttpServletResponse response) throws Exception {
        response.setContentType("application/json");
        File file = new File(uploadStatusDir + File.separator + tempDataResourceUid);
        int retries = 5;
