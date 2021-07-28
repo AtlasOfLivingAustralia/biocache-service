@@ -11,7 +11,7 @@
     <groupId>au.org.ala</groupId>
     <artifactId>biocache-service</artifactId>
     <packaging>war</packaging>
-    <version>3.0.20-SNAPSHOT</version>
+    <version>3.0.21-SNAPSHOT</version>
     <name>biocache-service</name>
     <url>https://biocache-ws.ala.org.au/ws</url>
     <description>
@@ -30,7 +30,8 @@
         <animal-sniffer-signature.version>1.0</animal-sniffer-signature.version>
         <solr.version>8.8.2</solr.version>
         <cassandra.version>3.10.2</cassandra.version>
-        <jackson.version>2.9.8</jackson.version>
+        <jackson.version>2.9.10</jackson.version>
+        <jackson.databind.version>2.9.10.8</jackson.databind.version>
         <gt.version>22.2</gt.version>
         <guava.hbase.version>23.0</guava.hbase.version>
         <ala-namematching-service.version>1.4</ala-namematching-service.version>
@@ -107,7 +108,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
+            <version>${jackson.databind.version}</version>
         </dependency>
 
         <!-- geotools GML support -->
@@ -140,11 +141,11 @@
             <version>1.4.1</version>
         </dependency>
         <!-- ALA common UI -->
-<!--        <dependency>-->
-<!--            <groupId>au.org.ala</groupId>-->
-<!--            <artifactId>ala-common-ui</artifactId>-->
-<!--            <version>1.0</version>-->
-<!--        </dependency>-->
+        <dependency>
+            <groupId>au.org.ala</groupId>
+            <artifactId>ala-common-ui</artifactId>
+            <version>1.0</version>
+        </dependency>
         <!-- CSV -->
         <dependency>
             <groupId>net.sf.opencsv</groupId>
@@ -210,22 +211,16 @@
             <scope>provided</scope>
         </dependency>
         <!-- Sun's JSTL API-->
-<!--        <dependency>-->
-<!--            <groupId>javax.servlet</groupId>-->
-<!--            <artifactId>jstl</artifactId>-->
-<!--            <version>1.1.2</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>taglibs</groupId>-->
-<!--            <artifactId>standard</artifactId>-->
-<!--            <version>1.1.2</version>-->
-<!--        </dependency>-->
-<!--        &lt;!&ndash; Sun's DI API &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>javax.inject</groupId>-->
-<!--            <artifactId>javax.inject</artifactId>-->
-<!--            <version>1</version>-->
-<!--        </dependency>-->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>jstl</artifactId>
+            <version>1.1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>taglibs</groupId>
+            <artifactId>standard</artifactId>
+            <version>1.1.2</version>
+        </dependency>
         <!-- JUNIT -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -371,7 +366,7 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-web</artifactId>
-            <version>5.3.1.RELEASE</version>
+            <version>5.3.9.RELEASE</version>
         </dependency>
         <!-- JMS lib start-->
 <!--        <dependency>-->
@@ -426,16 +421,16 @@
             <version>3.0.6</version>
         </dependency>
         <!-- SITEMESH -->
-<!--        <dependency>-->
-<!--            <groupId>opensymphony</groupId>-->
-<!--            <artifactId>sitemesh</artifactId>-->
-<!--            <version>2.4.2</version>-->
-<!--        </dependency>-->
+        <dependency>
+            <groupId>opensymphony</groupId>
+            <artifactId>sitemesh</artifactId>
+            <version>2.4.2</version>
+        </dependency>
         <!-- XSTREAM for rdf parsing -->
         <dependency>
             <groupId>com.thoughtworks.xstream</groupId>
             <artifactId>xstream</artifactId>
-            <version>1.4.16</version>
+            <version>1.4.17</version>
         </dependency>
         <!-- SLF4J -->
         <dependency>
@@ -601,6 +596,12 @@
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>jsr305</artifactId>
             <version>${findbugs-jsr305.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+            <version>4.3.24.RELEASE</version>
+            <scope>test</scope>
         </dependency>
 
     </dependencies>
