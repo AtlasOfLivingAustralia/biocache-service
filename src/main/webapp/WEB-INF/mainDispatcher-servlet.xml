@@ -53,8 +53,8 @@
 
     <!-- This will override the default DefaultAnnotationHandlerMapping that is created,
          and not map file extensions automagically -->
-    <bean class="org.springframework.web.servlet.mvc.annotation.DefaultAnnotationHandlerMapping" p:order="2">
-        <property name="useDefaultSuffixPattern" value="false"/>
+    <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping" p:order="2">
+        <property name="useSuffixPatternMatch" value="false"/>
     </bean>
 
     <context:property-override location="file:///data/biocache/config/biocache-config.properties" ignore-unresolvable="true" ignore-resource-not-found="true" />

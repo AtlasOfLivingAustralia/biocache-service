@@ -66,13 +66,14 @@
         <dependency>
             <groupId>javax.validation</groupId>
             <artifactId>validation-api</artifactId>
-            <version>1.1.0.Final</version>
+            <version>2.0.1.Final</version>
         </dependency>
-        <dependency>
-            <groupId>org.hibernate</groupId>
-            <artifactId>hibernate-validator</artifactId>
-            <version>4.3.1.Final</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.hibernate</groupId>-->
+<!--            <artifactId>hibernate-validator</artifactId>-->
+<!--            <version>7.0.1.Final</version>-->
+<!--        </dependency>-->
+
         <dependency>
             <groupId>org.apache.solr</groupId>
             <artifactId>solr-solrj</artifactId>
@@ -273,13 +274,13 @@
         <dependency>
             <groupId>org.spockframework</groupId>
             <artifactId>spock-core</artifactId>
-            <version>1.1-groovy-2.4</version>
+            <version>2.0-groovy-2.5</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.spockframework</groupId>
             <artifactId>spock-spring</artifactId>
-            <version>1.1-groovy-2.4</version>
+            <version>2.0-groovy-2.5</version>
             <scope>test</scope>
         </dependency>
         <!-- Optional dependencies for using Spock -->
@@ -313,7 +314,7 @@
             <version>2.4.0</version>
             <scope>test</scope>
         </dependency>
-        <!-- SPRING 3.2 -->
+        <!-- SPRING 5.3 -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-core</artifactId>
@@ -329,6 +330,21 @@
             <artifactId>spring-context</artifactId>
             <version>${spring.version}</version>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.springframework</groupId>-->
+<!--            <artifactId>spring-aop</artifactId>-->
+<!--            <version>${spring.version}</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>org.springframework</groupId>-->
+<!--            <artifactId>spring-beans</artifactId>-->
+<!--            <version>${spring.version}</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>org.springframework</groupId>-->
+<!--            <artifactId>spring-expression</artifactId>-->
+<!--            <version>${spring.version}</version>-->
+<!--        </dependency>-->
         <!-- test only? -->
         <dependency>
             <groupId>org.springframework</groupId>
@@ -366,7 +382,7 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-web</artifactId>
-            <version>5.3.9.RELEASE</version>
+            <version>5.5.1</version>
         </dependency>
         <!-- JMS lib start-->
 <!--        <dependency>-->
@@ -600,7 +616,7 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-tx</artifactId>
-            <version>4.3.24.RELEASE</version>
+            <version>${spring.version}</version>
             <scope>test</scope>
         </dependency>
 
