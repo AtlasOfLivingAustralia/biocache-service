@@ -13,6 +13,7 @@ branches:
   only:
     - master
     - develop
+    - 2.7.x
     - /^hotfix\/.*$/
 before_install:
   - docker-compose -f src/test/docker/solr7-cassandra3.yml up -d
