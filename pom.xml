@@ -285,12 +285,12 @@
             <version>1.10.13</version>
             <scope>test</scope>
         </dependency>
-        <dependency> <!-- enables mocking of classes without default constructor (together with CGLIB) -->
-            <groupId>org.objenesis</groupId>
-            <artifactId>objenesis</artifactId>
-            <version>2.5.1</version>
-            <scope>test</scope>
-        </dependency>
+<!--        <dependency> &lt;!&ndash; enables mocking of classes without default constructor (together with CGLIB) &ndash;&gt;-->
+<!--            <groupId>org.objenesis</groupId>-->
+<!--            <artifactId>objenesis</artifactId>-->
+<!--            <version>2.5.1</version>-->
+<!--            <scope>test</scope>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest</artifactId>
