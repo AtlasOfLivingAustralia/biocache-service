@@ -81,7 +81,7 @@ public class ScatterplotControllerIT extends TestCase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.xaxis").value("decimalLongitude"))
                 .andExpect(jsonPath("$.yaxis").value("decimalLatitude"))
-                .andExpect(jsonPath("$.xaxis_range[0]").value(122.05815842710496))
+                .andExpect(jsonPath("$.xaxis_range[0]").value(121.85708442058606))
                 .andExpect(jsonPath("$.xaxis_range[1]").value(124.38653464744489))
                 .andExpect(jsonPath("$.yaxis_range[0]").value(-24.79231324639011))
                 .andExpect(jsonPath("$.yaxis_range[1]").value(-23.073921231278735))
