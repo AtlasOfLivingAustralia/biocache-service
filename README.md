@@ -1,10 +1,7 @@
-biocache-service
+# biocache-service
 
-Master branch [![Build Status](https://travis-ci.com/AtlasOfLivingAustralia/biocache-service.svg?branch=develop)](http://travis-ci.com/AtlasOfLivingAustralia/biocache-service)  [![Coverage Status](https://coveralls.io/repos/github/AtlasOfLivingAustralia/biocache-service/badge.svg?branch=master)](https://coveralls.io/github/AtlasOfLivingAustralia/biocache-service?branch=master)
+Master branch [![Build Status](https://travis-ci.com/AtlasOfLivingAustralia/biocache-service.svg?branch=develop)](http://travis-ci.com/AtlasOfLivingAustralia/biocache-service)  [![Coverage Status](https://coveralls.io/repos/github/AtlasOfLivingAustralia/biocache-service/badge.svg?branch=master)](https://coveralls.io/github/AtlasOfLivingAustralia/biocache-service?branch=master) Develop branch [![Build Status](https://travis-ci.com/AtlasOfLivingAustralia/biocache-service.svg?branch=develop)](http://travis-ci.com/AtlasOfLivingAustralia/biocache-service) [![Coverage Status](https://coveralls.io/repos/github/AtlasOfLivingAustralia/biocache-service/badge.svg?branch=develop)](https://coveralls.io/github/AtlasOfLivingAustralia/biocache-service?branch=develop)
 
-Develop branch [![Build Status](https://travis-ci.com/AtlasOfLivingAustralia/biocache-service.svg?branch=develop)](http://travis-ci.com/AtlasOfLivingAustralia/biocache-service) [![Coverage Status](https://coveralls.io/repos/github/AtlasOfLivingAustralia/biocache-service/badge.svg?branch=develop)](https://coveralls.io/github/AtlasOfLivingAustralia/biocache-service?branch=develop)
-
-================
 
 Occurrence &amp; mapping webservices.
 
