@@ -23,6 +23,8 @@ import org.springframework.web.context.WebApplicationContext;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.lessThan;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -81,10 +83,10 @@ public class ScatterplotControllerIT extends TestCase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.xaxis").value("decimalLongitude"))
                 .andExpect(jsonPath("$.yaxis").value("decimalLatitude"))
-                .andExpect(jsonPath("$.xaxis_range[0]").value(121.85708442058606))
-                .andExpect(jsonPath("$.xaxis_range[1]").value(124.38653464744489))
-                .andExpect(jsonPath("$.yaxis_range[0]").value(-24.79231324639011))
-                .andExpect(jsonPath("$.yaxis_range[1]").value(-23.073921231278735))
+                .andExpect(jsonPath("$.xaxis_range[0]").value(lessThan(123.0)))
+                .andExpect(jsonPath("$.xaxis_range[1]").value(greaterThan(123.0)))
+                .andExpect(jsonPath("$.yaxis_range[0]").value(lessThan(-24.0)))
+                .andExpect(jsonPath("$.yaxis_range[1]").value(greaterThan(-24.0)))
                 .andExpect(jsonPath("$.xaxis_pixel_selection[0]").value(100))
                 .andExpect(jsonPath("$.xaxis_pixel_selection[1]").value(110))
                 .andExpect(jsonPath("$.xaxis_pixel_selection[0]").value(100))
