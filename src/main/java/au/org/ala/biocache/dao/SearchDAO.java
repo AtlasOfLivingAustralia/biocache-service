@@ -17,6 +17,8 @@ package au.org.ala.biocache.dao;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.stream.ProcessInterface;
 import au.org.ala.biocache.util.LegendItem;
+import au.org.ala.biocache.util.QidMissingException;
+import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocumentList;
 
@@ -358,4 +360,6 @@ public interface SearchDAO {
      * @throws Exception
      */
     int streamingQuery(SpatialSearchRequestParams request, ProcessInterface procSearch, ProcessInterface procFacet) throws Exception;
+
+    SolrQuery initSolrQuery(SpatialSearchRequestParams searchParams, boolean substituteDefaultFacetOrder, Map<String, String[]> extraSolrParams) throws QidMissingException;
 }
