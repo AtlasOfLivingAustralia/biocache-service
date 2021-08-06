@@ -22,11 +22,9 @@
     <mvc:resources mapping="/webjars/**" location="classpath:/META-INF/resources/webjars/"/>
       
     <!-- Allows us to use system properties as variables in this configuration file -->
-    <bean id="properties" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
-        <property name="locations">
-            <value>file:///data/biocache/config/biocache-config.properties</value>
-        </property>
-    </bean>  
+    <bean id="properties" class="org.springframework.context.support.PropertySourcesPlaceholderConfigurer">
+        <property name="location" value="file:///data/biocache/config/biocache-config.properties" />
+    </bean>
           
     <!--<context:spring-configured/>-->
     <context:component-scan base-package="au.org.ala.biocache"/>
@@ -53,9 +51,7 @@
 
     <!-- This will override the default DefaultAnnotationHandlerMapping that is created,
          and not map file extensions automagically -->
-    <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping" p:order="2">
-        <property name="useSuffixPatternMatch" value="false"/>
-    </bean>
+    <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping" p:order="2" />
 
     <context:property-override location="file:///data/biocache/config/biocache-config.properties" ignore-unresolvable="true" ignore-resource-not-found="true" />
     <context:property-placeholder location="file:///data/biocache/config/biocache-config.properties" />
@@ -133,10 +129,9 @@
         <property name="serializationInclusion" value="NON_NULL"/>
     </bean>
 
-    <bean id="jacksonDeserializationConfig" class="com.fasterxml.jackson.databind.DeserializationConfig"
-          factory-bean="jacksonObjectMapper" factory-method="getDeserializationConfig"/>
-    <bean
-            class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+    <bean id="jacksonDeserializationConfig" factory-bean="jacksonObjectMapper" factory-method="getDeserializationConfig"/>
+
+    <bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
         <property name="targetObject" ref="jacksonDeserializationConfig"/>
         <property name="targetMethod" value="withAttribute"/>
         <property name="arguments">
