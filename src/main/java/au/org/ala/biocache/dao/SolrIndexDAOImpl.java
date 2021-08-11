@@ -55,7 +55,6 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.util.*;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -401,7 +400,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
         NamedList response = qr.getResponse();
 
-        solrIndexVersion = (long) ((NamedList)response.get("index")).get("version");
+        solrIndexVersion = (long) ((NamedList) response.get("index")).get("version");
         solrIndexVersionTime = System.currentTimeMillis();
 
         Set<IndexFieldDTO> fieldList =
@@ -411,7 +410,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
         Map<String, String> indexToJsonMap = new OccurrenceIndex().indexToJsonMap();
 
-        NamedList<NamedList<Object>> fields = (NamedList)response.get("fields");
+        NamedList<NamedList<Object>> fields = (NamedList) response.get("fields");
         fields.forEach((String fieldName, NamedList<Object> fieldInfo) -> formatIndexField(fieldList, fieldName, fieldInfo, indexToJsonMap));
 
         fieldMappingUtil.getFieldMappingStream()
@@ -566,7 +565,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
     }
 
     private volatile Set<IndexFieldDTO> indexFields = new ConcurrentHashSet<
-                    IndexFieldDTO>();
+            IndexFieldDTO>();
 
     private volatile Map<String, IndexFieldDTO> indexFieldMap =
             RestartDataService.get(
@@ -578,7 +577,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
     private volatile Set<String> schemaFields = new HashSet();
 
-    private void formatIndexField( Set<IndexFieldDTO> fieldList, String fieldName, NamedList<Object> fieldInfo, Map indexToJsonMap) {
+    private void formatIndexField(Set<IndexFieldDTO> fieldList, String fieldName, NamedList<Object> fieldInfo, Map indexToJsonMap) {
 
         if (StringUtils.isNotEmpty(fieldName) && fieldInfo != null) {
 
@@ -1135,10 +1134,26 @@ public class SolrIndexDAOImpl implements IndexDAO {
         }
 
         cexpr.append(", buckets=\"").append(fieldMappingUtil.translateFieldName(facetName)).append("\"");
-        cexpr.append(", bucketSorts=\"count(*) desc\"");
-        int limit = query.getFacetLimit() >= 0 ? query.getFacetLimit() : Integer.MAX_VALUE;
+
+        // translate the 'count' and 'index' facet.sort values for streaming facet()
+        if (query.getFacetSortString() != null && query.getFacetSortString().endsWith(" asc") || query.getFacetSortString().endsWith(" desc")) {
+            // use the streaming facet() compatible sort string
+            cexpr.append(", bucketSorts=\"").append(query.getFacetSortString()).append("\"");
+        } else if ("index".equals(query.getFacetSortString())) {
+            cexpr.append(", bucketSorts=\"").append(facetName).append(" asc\"");
+        } else {
+            // default to count sort
+            cexpr.append(", bucketSorts=\"count(*) desc\"");
+        }
+
+        int limit = query.getFacetLimit() >= 0 ? query.getFacetLimit() : -1;
         cexpr.append(", bucketSizeLimit=").append(limit);
-        cexpr.append(", count(*))");
+
+        if (query.get("facet.offset") != null) {
+            cexpr.append(", offset=").append(query.get("facet.offset"));
+        }
+
+        cexpr.append(")");
 
         String qt = "/stream";
 
