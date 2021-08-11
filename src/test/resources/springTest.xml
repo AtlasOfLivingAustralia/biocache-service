@@ -148,15 +148,19 @@
     </bean>
 
     <!-- Ehcache settings @see http://blog.goyello.com/2010/07/29/quick-start-with-ehcache-annotations-for-spring/ -->
-    <ehcache:annotation-driven />
+<!--    <ehcache:annotation-driven />-->
 
-    <ehcache:config cache-manager="cacheManager">
-        <!-- interval is in minutes -->
-        <ehcache:evict-expired-elements interval="60" />
-    </ehcache:config>
+<!--    <ehcache:config cache-manager="cacheManager">-->
+<!--        &lt;!&ndash; interval is in minutes &ndash;&gt;-->
+<!--        <ehcache:evict-expired-elements interval="60" />-->
+<!--    </ehcache:config>-->
 
-    <bean id="cacheManager" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">
-        <property name="configLocation"  value="/WEB-INF/ehcache.xml"/>
+<!--    <bean id="cacheManager" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">-->
+<!--        <property name="configLocation"  value="/WEB-INF/ehcache.xml"/>-->
+<!--    </bean>-->
+
+    <bean id="cacheManager" class="org.springframework.cache.jcache.JCacheCacheManager">
+        <!--        <property name="configLocation"  value="/WEB-INF/ehcache.xml"/>-->
     </bean>
 
 </beans>

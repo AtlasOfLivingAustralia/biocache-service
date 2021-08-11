@@ -28,7 +28,6 @@ import au.org.ala.biocache.util.QidSizeException;
 import au.org.ala.biocache.util.SearchUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import net.sf.ehcache.CacheManager;
 import net.sf.json.JSONArray;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
@@ -40,6 +39,7 @@ import org.apache.solr.common.SolrDocumentList;
 import org.gbif.dwc.terms.DwcTerm;
 import org.gbif.utils.file.FileUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.CacheManager;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -901,7 +901,8 @@ public class OccurrenceController extends AbstractSecureController {
         new FacetThemes(
                 facetConfig, indexDao.getIndexedFields(), facetsMax, facetsDefaultMax, facetDefault);
 
-        cacheManager.clearAll();
+//        cacheManager.clearAll();
+        cacheManager.getCacheNames().forEach((String cacheName) -> cacheManager.getCache(cacheName).clear());
 
         regenerateETag();
         return null;
