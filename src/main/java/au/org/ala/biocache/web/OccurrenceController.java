@@ -1842,6 +1842,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, occurrence, "accessRights", getFieldName);
         addField(sd, occurrence, "associatedMedia", getFieldName);
         addField(sd, occurrence, "associatedOccurrences", getFieldName);
+        addField(sd, occurrence, "associatedOrganisms", getFieldName);
         addField(sd, occurrence, "associatedReferences", getFieldName);
         addField(sd, occurrence, "associatedSequences", getFieldName);
         addField(sd, occurrence, "associatedTaxa", getFieldName);
@@ -1870,8 +1871,12 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, occurrence, "occurrenceDetails", getFieldName);
         addField(sd, occurrence, "occurrenceRemarks", getFieldName);
         addField(sd, occurrence, "occurrenceStatus", getFieldName);
+        addField(sd, occurrence, "organismName", getFieldName);
         addField(sd, occurrence, "organismQuantity", getFieldName);
         addField(sd, occurrence, "organismQuantityType", getFieldName);
+        addField(sd, occurrence, "organismRemarks", getFieldName);
+        addField(sd, occurrence, "organismScope", getFieldName);
+        addField(sd, occurrence, "organismID", getFieldName);
         addField(sd, occurrence, "otherCatalogNumbers", getFieldName);
         addField(sd, occurrence, "ownerInstitutionCode", getFieldName);
         addAll(sd, occurrence, "preparations", getFieldName);

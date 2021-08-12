@@ -1200,7 +1200,7 @@ public class SearchDAOImpl implements SearchDAO {
             for (String r : ranks) {
                 long count = estimateUniqueValues(queryParams, r);
                 if ((queryParams.getMax() != null && queryParams.getMax() > 0 && count <= queryParams.getMax()) ||
-                    (queryParams.getRank() != null && count > 0)) {
+                        (queryParams.getRank() != null && count > 0)) {
                     solrQuery.addFacetField(r);
                     break;
                 }
@@ -1480,7 +1480,7 @@ public class SearchDAOImpl implements SearchDAO {
      *
      * @return solrQuery the SolrQuery
      */
-    protected SolrQuery initSolrQuery(SpatialSearchRequestParams searchParams, boolean substituteDefaultFacetOrder, Map<String, String[]> extraSolrParams) throws QidMissingException {
+    public SolrQuery initSolrQuery(SpatialSearchRequestParams searchParams, boolean substituteDefaultFacetOrder, Map<String, String[]> extraSolrParams) throws QidMissingException {
         queryFormatUtils.formatSearchQuery(searchParams);
 
         String occurrenceDate = OccurrenceIndex.OCCURRENCE_DATE;
@@ -1563,9 +1563,9 @@ public class SearchDAOImpl implements SearchDAO {
 
     /**
      * Get a distinct list of species and their counts using a facet search.
-     *
+     * <p>
      * This method expects requestParams.getFacets() == [OccurrenceIndex.COMMON_NAME_AND_LSID] or [OccurrenceIndex.NAMES_AND_LSID]
-     *
+     * <p>
      * TODO: searchUtils.getTaxonSearch uses nameUsageMatchService.get(). These requests must be batched.
      *
      * @param requestParams
@@ -1706,10 +1706,10 @@ public class SearchDAOImpl implements SearchDAO {
 
         facetQuery.setFilterQueries(fqList.stream().toArray(String[]::new));
 
-        if (searchParams.getFlimit() == 0){
+        if (searchParams.getFlimit() == 0) {
             //add the estimates
             List<FacetResultDTO> facetResults = new ArrayList<>();
-            for (String facetName: searchParams.getFacets()) {
+            for (String facetName : searchParams.getFacets()) {
                 FacetResultDTO frDTO = new FacetResultDTO();
                 frDTO.setFieldName(facetName);
                 frDTO.setCount((int) estimateUniqueValues(searchParams, facetName));
@@ -1784,7 +1784,7 @@ public class SearchDAOImpl implements SearchDAO {
 
     /**
      * legend sorting and limits are fixed.
-     *
+     * <p>
      * year legend: all years shown, sorted descending order by year (indexed as string)
      * decade legend: all decades shown, sorted descending order by decade (indexed as string)
      * month legend: all months shown, sorted ascending order by month (indexed as string without 0 padding)
@@ -2049,7 +2049,7 @@ public class SearchDAOImpl implements SearchDAO {
     @Override
     public List<TaxaCountDTO> findAllSpecies(SpatialSearchRequestParams requestParams) throws Exception {
         if (requestParams.getFacets() == null || requestParams.getFacets().length != 1) {
-            requestParams.setFacets(new String[] {NAMES_AND_LSID});
+            requestParams.setFacets(new String[]{NAMES_AND_LSID});
         }
 
         return getSpeciesCounts(requestParams);
@@ -2057,7 +2057,7 @@ public class SearchDAOImpl implements SearchDAO {
 
     /**
      * Retrieves a set of counts for the supplied list of taxa.
-     *
+     * <p>
      * TODO: searchUtils.getTaxonSearch uses nameUsageMatchService.get(). These requests must be batched.
      * TODO: deprecate for a standard facet query.
      *
@@ -2491,7 +2491,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         SimpleOrderedMap facets = SearchUtils.getMap(qr.getResponse(), "facets");
         Object value = facets.get("unique");
-        if (value == null){
+        if (value == null) {
             return 0;
         }
         return toLong(value);

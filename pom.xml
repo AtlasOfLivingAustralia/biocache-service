@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -116,6 +117,11 @@
         <dependency>
             <groupId>org.geotools</groupId>
             <artifactId>gt-referencing</artifactId>
+            <version>${gt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.geotools</groupId>
+            <artifactId>gt-epsg-wkt</artifactId>
             <version>${gt.version}</version>
         </dependency>
         <dependency>
@@ -300,12 +306,6 @@
             <version>1.10.13</version>
             <scope>test</scope>
         </dependency>
-<!--        <dependency> &lt;!&ndash; enables mocking of classes without default constructor (together with CGLIB) &ndash;&gt;-->
-<!--            <groupId>org.objenesis</groupId>-->
-<!--            <artifactId>objenesis</artifactId>-->
-<!--            <version>2.5.1</version>-->
-<!--            <scope>test</scope>-->
-<!--        </dependency>-->
         <dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest</artifactId>
@@ -330,31 +330,11 @@
             <artifactId>spring-core</artifactId>
             <version>${spring.version}</version>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-orm</artifactId>-->
-<!--            <version>${spring.version}</version>-->
-<!--        </dependency>-->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
             <version>${spring.version}</version>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-aop</artifactId>-->
-<!--            <version>${spring.version}</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-beans</artifactId>-->
-<!--            <version>${spring.version}</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-expression</artifactId>-->
-<!--            <version>${spring.version}</version>-->
-<!--        </dependency>-->
         <!-- test only? -->
         <dependency>
             <groupId>org.springframework</groupId>
@@ -394,53 +374,11 @@
             <artifactId>spring-security-web</artifactId>
             <version>5.5.1</version>
         </dependency>
-        <!-- JMS lib start-->
-<!--        <dependency>-->
-<!--            <groupId>au.org.ala</groupId>-->
-<!--            <artifactId>biocache-jms</artifactId>-->
-<!--            <version>1.0</version>-->
-<!--            <exclusions>-->
-<!--                <exclusion>-->
-<!--                    <groupId>org.apache.geronimo.specs</groupId>-->
-<!--                    <artifactId>com.springsource.javax.management.j2ee</artifactId>-->
-<!--                </exclusion>-->
-<!--                <exclusion>-->
-<!--                    <groupId>au.org.ala</groupId>-->
-<!--                    <artifactId>biocache-store</artifactId>-->
-<!--                </exclusion>-->
-<!--            </exclusions>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-jms</artifactId>-->
-<!--            <version>${spring.version}</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.apache.xbean</groupId>-->
-<!--            <artifactId>xbean-spring</artifactId>-->
-<!--            <version>3.6</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.apache.activemq</groupId>-->
-<!--            <artifactId>activemq-core</artifactId>-->
-<!--            <version>5.4.2</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.apache.activemq</groupId>-->
-<!--            <artifactId>activemq-pool</artifactId>-->
-<!--            <version>5.3.2</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>commons-pool</groupId>-->
-<!--            <artifactId>commons-pool</artifactId>-->
-<!--            <version>1.5.5</version>-->
-<!--        </dependency>-->
         <dependency>
             <groupId>commons-collections</groupId>
             <artifactId>commons-collections</artifactId>
             <version>3.2.2</version>
         </dependency>
-        <!-- JMS setting end-->
         <dependency>
             <groupId>io.reactivex.rxjava3</groupId>
             <artifactId>rxjava</artifactId>
@@ -482,16 +420,16 @@
             <scope>provided</scope>
         </dependency>
         <!-- DOM4J -->
-<!--        <dependency>-->
-<!--            <groupId>dom4j</groupId>-->
-<!--            <artifactId>dom4j</artifactId>-->
-<!--            <version>1.6.1</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>jaxen</groupId>-->
-<!--            <artifactId>jaxen</artifactId>-->
-<!--            <version>1.1.1</version>-->
-<!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>dom4j</groupId>-->
+        <!--            <artifactId>dom4j</artifactId>-->
+        <!--            <version>1.6.1</version>-->
+        <!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>jaxen</groupId>-->
+        <!--            <artifactId>jaxen</artifactId>-->
+        <!--            <version>1.1.1</version>-->
+        <!--        </dependency>-->
         <!-- VELOCITY -->
         <dependency>
             <groupId>org.apache.velocity</groupId>
@@ -499,16 +437,16 @@
             <version>1.5</version>
         </dependency>
         <!-- JSON -->
-<!--        <dependency>-->
-<!--            <groupId>org.json</groupId>-->
-<!--            <artifactId>json</artifactId>-->
-<!--            <version>20090211</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>atg.taglib.json</groupId>-->
-<!--            <artifactId>json-taglib</artifactId>-->
-<!--            <version>0.4.1</version>-->
-<!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>org.json</groupId>-->
+        <!--            <artifactId>json</artifactId>-->
+        <!--            <version>20090211</version>-->
+        <!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>atg.taglib.json</groupId>-->
+        <!--            <artifactId>json-taglib</artifactId>-->
+        <!--            <version>0.4.1</version>-->
+        <!--        </dependency>-->
         <dependency>
             <groupId>net.sf.json-lib</groupId>
             <artifactId>json-lib</artifactId>
@@ -520,47 +458,13 @@
             <artifactId>xmlpull</artifactId>
             <version>1.1.3.1</version>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-jdbc</artifactId>-->
-<!--            <version>${spring.version}</version>-->
-<!--            <type>jar</type>-->
-<!--            <scope>compile</scope>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>com.kenai.nbpwr</groupId>-->
-<!--            <artifactId>org-apache-commons-dbcp</artifactId>-->
-<!--            <version>1.2.2-201002241055</version>-->
-<!--            <type>nbm</type>-->
-<!--            <scope>compile</scope>-->
-<!--        </dependency>-->
-        <!--  Central Authorisation Service (CAS) client -->
-<!--        <dependency>-->
-<!--            <groupId>org.jasig.cas</groupId>-->
-<!--            <artifactId>cas-client-core</artifactId>-->
-<!--            <version>3.1.10</version>-->
-<!--            <type>jar</type>-->
-<!--            <scope>compile</scope>-->
-<!--        </dependency>-->
-        <!--  XERCES -->
-<!--        <dependency>-->
-<!--            <groupId>xerces</groupId>-->
-<!--            <artifactId>xercesImpl</artifactId>-->
-<!--            <version>2.12.0</version>-->
-<!--            <type>jar</type>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>xerces</groupId>-->
-<!--            <artifactId>xml-apis</artifactId>-->
-<!--            <version>2.10.0</version>-->
-<!--            <type>jar</type>-->
-<!--        </dependency>-->
+
         <!-- GEOIP - geocoding from IP address -->
-<!--        <dependency>-->
-<!--            <groupId>org.dspace.dependencies</groupId>-->
-<!--            <artifactId>dspace-geoip</artifactId>-->
-<!--            <version>1.2.3</version>-->
-<!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>org.dspace.dependencies</groupId>-->
+        <!--            <artifactId>dspace-geoip</artifactId>-->
+        <!--            <version>1.2.3</version>-->
+        <!--        </dependency>-->
         <dependency>
             <groupId>commons-httpclient</groupId>
             <artifactId>commons-httpclient</artifactId>
@@ -701,7 +605,7 @@
                                     <SOLR_HOST>localhost</SOLR_HOST>
                                 </env>
                                 <entrypoint>
-                                    <shell>solr start -c -f  -p ${solr8.http.port}</shell>
+                                    <shell>solr start -c -f -p ${solr8.http.port}</shell>
                                 </entrypoint>
                             </run>
                         </image>

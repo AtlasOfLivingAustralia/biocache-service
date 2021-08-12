@@ -99,14 +99,18 @@ public class AbstractSecureController {
     /**
      * Returns the IP address for the supplied request. It will look for the existence of
      * an X-Forwarded-For Header before extracting it from the request.
+     * X-Forwarded-For Header could contain multiple ip addresses, we only return the original address
+     * https://serverfault.com/questions/846489/can-x-forwarded-for-contain-multiple-ips
      * @param request
      * @return IP Address of the request
      */
     protected String getIPAddress(HttpServletRequest request) {
-
         String ipAddress = request.getHeader("X-Forwarded-For");
-
-        return ipAddress == null ? request.getRemoteAddr(): ipAddress;
+        if (ipAddress == null) {
+            ipAddress = request.getRemoteAddr();
+        }
+        String[] ips = ipAddress.split(",");
+        return (ips.length > 0) ? ips[0].trim() : null;
     }
 
     protected String getUserAgent(HttpServletRequest request) {
