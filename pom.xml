@@ -291,12 +291,6 @@
             <version>1.10.13</version>
             <scope>test</scope>
         </dependency>
-<!--        <dependency> &lt;!&ndash; enables mocking of classes without default constructor (together with CGLIB) &ndash;&gt;-->
-<!--            <groupId>org.objenesis</groupId>-->
-<!--            <artifactId>objenesis</artifactId>-->
-<!--            <version>2.5.1</version>-->
-<!--            <scope>test</scope>-->
-<!--        </dependency>-->
         <dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest</artifactId>
@@ -321,31 +315,11 @@
             <artifactId>spring-core</artifactId>
             <version>${spring.version}</version>
         </dependency>
-        <!--        <dependency>-->
-        <!--            <groupId>org.springframework</groupId>-->
-        <!--            <artifactId>spring-orm</artifactId>-->
-        <!--            <version>${spring.version}</version>-->
-        <!--        </dependency>-->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
             <version>${spring.version}</version>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-aop</artifactId>-->
-<!--            <version>${spring.version}</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-beans</artifactId>-->
-<!--            <version>${spring.version}</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-expression</artifactId>-->
-<!--            <version>${spring.version}</version>-->
-<!--        </dependency>-->
         <!-- test only? -->
         <dependency>
             <groupId>org.springframework</groupId>
@@ -385,53 +359,11 @@
             <artifactId>spring-security-web</artifactId>
             <version>5.5.1</version>
         </dependency>
-        <!-- JMS lib start-->
-        <!--        <dependency>-->
-        <!--            <groupId>au.org.ala</groupId>-->
-        <!--            <artifactId>biocache-jms</artifactId>-->
-        <!--            <version>1.0</version>-->
-        <!--            <exclusions>-->
-        <!--                <exclusion>-->
-        <!--                    <groupId>org.apache.geronimo.specs</groupId>-->
-        <!--                    <artifactId>com.springsource.javax.management.j2ee</artifactId>-->
-        <!--                </exclusion>-->
-        <!--                <exclusion>-->
-        <!--                    <groupId>au.org.ala</groupId>-->
-        <!--                    <artifactId>biocache-store</artifactId>-->
-        <!--                </exclusion>-->
-        <!--            </exclusions>-->
-        <!--        </dependency>-->
-        <!--        <dependency>-->
-        <!--            <groupId>org.springframework</groupId>-->
-        <!--            <artifactId>spring-jms</artifactId>-->
-        <!--            <version>${spring.version}</version>-->
-        <!--        </dependency>-->
-        <!--        <dependency>-->
-        <!--            <groupId>org.apache.xbean</groupId>-->
-        <!--            <artifactId>xbean-spring</artifactId>-->
-        <!--            <version>3.6</version>-->
-        <!--        </dependency>-->
-        <!--        <dependency>-->
-        <!--            <groupId>org.apache.activemq</groupId>-->
-        <!--            <artifactId>activemq-core</artifactId>-->
-        <!--            <version>5.4.2</version>-->
-        <!--        </dependency>-->
-        <!--        <dependency>-->
-        <!--            <groupId>org.apache.activemq</groupId>-->
-        <!--            <artifactId>activemq-pool</artifactId>-->
-        <!--            <version>5.3.2</version>-->
-        <!--        </dependency>-->
-        <!--        <dependency>-->
-        <!--            <groupId>commons-pool</groupId>-->
-        <!--            <artifactId>commons-pool</artifactId>-->
-        <!--            <version>1.5.5</version>-->
-        <!--        </dependency>-->
         <dependency>
             <groupId>commons-collections</groupId>
             <artifactId>commons-collections</artifactId>
             <version>3.2.2</version>
         </dependency>
-        <!-- JMS setting end-->
         <dependency>
             <groupId>io.reactivex.rxjava3</groupId>
             <artifactId>rxjava</artifactId>
@@ -511,41 +443,7 @@
             <artifactId>xmlpull</artifactId>
             <version>1.1.3.1</version>
         </dependency>
-        <!--        <dependency>-->
-        <!--            <groupId>org.springframework</groupId>-->
-        <!--            <artifactId>spring-jdbc</artifactId>-->
-        <!--            <version>${spring.version}</version>-->
-        <!--            <type>jar</type>-->
-        <!--            <scope>compile</scope>-->
-        <!--        </dependency>-->
-        <!--        <dependency>-->
-        <!--            <groupId>com.kenai.nbpwr</groupId>-->
-        <!--            <artifactId>org-apache-commons-dbcp</artifactId>-->
-        <!--            <version>1.2.2-201002241055</version>-->
-        <!--            <type>nbm</type>-->
-        <!--            <scope>compile</scope>-->
-        <!--        </dependency>-->
-        <!--  Central Authorisation Service (CAS) client -->
-        <!--        <dependency>-->
-        <!--            <groupId>org.jasig.cas</groupId>-->
-        <!--            <artifactId>cas-client-core</artifactId>-->
-        <!--            <version>3.1.10</version>-->
-        <!--            <type>jar</type>-->
-        <!--            <scope>compile</scope>-->
-        <!--        </dependency>-->
-        <!--  XERCES -->
-        <!--        <dependency>-->
-        <!--            <groupId>xerces</groupId>-->
-        <!--            <artifactId>xercesImpl</artifactId>-->
-        <!--            <version>2.12.0</version>-->
-        <!--            <type>jar</type>-->
-        <!--        </dependency>-->
-        <!--        <dependency>-->
-        <!--            <groupId>xerces</groupId>-->
-        <!--            <artifactId>xml-apis</artifactId>-->
-        <!--            <version>2.10.0</version>-->
-        <!--            <type>jar</type>-->
-        <!--        </dependency>-->
+
         <!-- GEOIP - geocoding from IP address -->
         <!--        <dependency>-->
         <!--            <groupId>org.dspace.dependencies</groupId>-->
