@@ -117,7 +117,7 @@ public class DownloadControllerIT extends TestCase {
                 .param("reasonTypeId", "10")
                 .param("email", "test@test.com"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType("application/json;charset=UTF-8"));
+                .andExpect(content().contentType("application/json"));
 
         verify(authService).getUserDetails("test@test.com");
     }
@@ -135,7 +135,7 @@ public class DownloadControllerIT extends TestCase {
                 .param("reasonTypeId", "10")
                 .param("email", "test@test.com"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType("application/json;charset=UTF-8"));
+                .andExpect(content().contentType("application/json"));
 
         verify(authService).getUserDetails("test@test.com");
     }

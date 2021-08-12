@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.TransactionTimedOutException;
+import org.springframework.validation.Validator;
 import org.springframework.web.context.WebApplicationContext;
 
 import javax.servlet.http.HttpServletResponse;
@@ -67,6 +68,7 @@ public class OccurrenceControllerIT extends TestCase {
     @Autowired
     WebApplicationContext wac;
 
+
     MockMvc mockMvc;
 
     @BeforeClass
@@ -78,9 +80,14 @@ public class OccurrenceControllerIT extends TestCase {
     public void setup() throws Exception {
         loggerService = mock(LoggerService.class);
         searchDAO = mock(SearchDAO.class);
+        Validator validator = mock(Validator.class);
+
         ReflectionTestUtils.setField(occurrenceController, "loggerService", loggerService);
         ReflectionTestUtils.setField(downloadService, "loggerService", loggerService);
         ReflectionTestUtils.setField(occurrenceController, "rateLimitCount", 5);
+        ReflectionTestUtils.setField(occurrenceController, "validator", validator);
+
+        when(validator.supports(any())).thenReturn(true);
 
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).build();
     }
