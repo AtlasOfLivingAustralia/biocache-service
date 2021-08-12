@@ -22,10 +22,8 @@
     <mvc:resources mapping="/webjars/**" location="classpath:/META-INF/resources/webjars/"/>
 
     <!-- Allows us to use system properties as variables in this configuration file -->
-    <bean id="properties" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
-        <property name="location">
-            <value>classpath:biocache-test-config.properties</value>
-        </property>
+    <bean id="properties" class="org.springframework.context.support.PropertySourcesPlaceholderConfigurer">
+        <property name="location" value="classpath:biocache-test-config.properties" />
     </bean>
 
     <!--<context:spring-configured/>-->
@@ -53,9 +51,7 @@
 
     <!-- This will override the default DefaultAnnotationHandlerMapping that is created,
          and not map file extensions automagically -->
-    <bean class="org.springframework.web.servlet.mvc.annotation.DefaultAnnotationHandlerMapping" p:order="2">
-        <property name="useDefaultSuffixPattern" value="false"/>
-    </bean>
+    <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping" p:order="2" />
 
     <context:property-override location="classpath:biocache-test-config.properties" ignore-unresolvable="true" ignore-resource-not-found="true" />
     <context:property-placeholder location="classpath:biocache-test-config.properties" />
@@ -133,10 +129,9 @@
         <property name="serializationInclusion" value="NON_NULL"/>
     </bean>
 
-    <bean id="jacksonDeserializationConfig" class="com.fasterxml.jackson.databind.DeserializationConfig"
-          factory-bean="jacksonObjectMapper" factory-method="getDeserializationConfig"/>
-    <bean
-            class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+    <bean id="jacksonDeserializationConfig" factory-bean="jacksonObjectMapper" factory-method="getDeserializationConfig"/>
+
+    <bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
         <property name="targetObject" ref="jacksonDeserializationConfig"/>
         <property name="targetMethod" value="withAttribute"/>
         <property name="arguments">
