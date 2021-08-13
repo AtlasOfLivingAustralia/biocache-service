@@ -37,10 +37,8 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
-import org.apache.solr.common.SolrException;
 import org.gbif.dwc.terms.DwcTerm;
 import org.gbif.utils.file.FileUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Controller;
@@ -125,7 +123,7 @@ public class OccurrenceController extends AbstractSecureController {
     private AbstractMessageSource messageSource;
     @Inject
     private ImageMetadataService imageMetadataService;
-    @Autowired
+    @Inject
     protected Validator validator;
     @Inject
     protected QidCacheDAO qidCacheDao;
