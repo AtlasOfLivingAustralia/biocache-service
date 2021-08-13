@@ -56,20 +56,6 @@ public class AppConfig {
     @Value("${namesearch.cache.size:50}")
     Integer nameSearchCacheSize = 50;
 
-
-    @Bean
-    public CacheManager cacheManager() {
-        return new EhCacheCacheManager(ehCacheCacheManager().getObject());
-    }
-
-    @Bean
-    public EhCacheManagerFactoryBean ehCacheCacheManager() {
-        EhCacheManagerFactoryBean cmfb = new EhCacheManagerFactoryBean();
-        cmfb.setConfigLocation(new ClassPathResource("ehcache.xml"));
-        cmfb.setShared(true);
-        return cmfb;
-    }
-
     public @Bean(name = "nameUsageMatchService")
     ALANameUsageMatchServiceClient nameUsageMatchService() throws IOException {
 

@@ -39,7 +39,6 @@ import org.apache.solr.common.SolrDocumentList;
 import org.gbif.dwc.terms.DwcTerm;
 import org.gbif.utils.file.FileUtils;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.CacheManager;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -127,8 +126,6 @@ public class OccurrenceController extends AbstractSecureController {
     protected Validator validator;
     @Inject
     protected QidCacheDAO qidCacheDao;
-    @Inject
-    private CacheManager cacheManager;
     @Inject
     private LayersService layersService;
 
@@ -901,7 +898,6 @@ public class OccurrenceController extends AbstractSecureController {
         new FacetThemes(
                 facetConfig, indexDao.getIndexedFields(), facetsMax, facetsDefaultMax, facetDefault);
 
-//        cacheManager.clearAll();
         cacheManager.getCacheNames().forEach((String cacheName) -> cacheManager.getCache(cacheName).clear());
 
         regenerateETag();
