@@ -15,23 +15,30 @@
 package au.org.ala.biocache.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import org.apache.commons.lang3.StringUtils;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
+import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import java.io.Reader;
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /**
  * The ALA Spatial portal implementation for the layer service.
@@ -66,7 +73,7 @@ public class AlaLayersService implements LayersService {
     protected Map<String, Integer> tracks = RestartDataService.get(this, "tracks", new TypeReference<HashMap<String, Integer>>(){}, HashMap.class);
     
     @Inject
-    private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
+    private RestTemplate restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
 
     private CountDownLatch wait = new CountDownLatch(1);
     
@@ -239,7 +246,77 @@ public class AlaLayersService implements LayersService {
 
     @Override
     public Reader sample(String[] analysisLayers, double[][] points, Object o) {
-        // TODO: for on the fly intersection of layers not indexed
+        int TIMEOUT = 60000; // Assume the layer service complete intersection in 30 60 seconds
+        String fields =StringUtils.join(analysisLayers, ",");
+        String flatPoints = Arrays.toString(Arrays.stream(points)
+                .flatMapToDouble(Arrays:: stream)
+                .toArray());
+        String p = flatPoints.substring(1,flatPoints.length() -1);
+        String requestBody = "fids=" + fields + "&points=" + p;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.TEXT_PLAIN);
+        HttpEntity<String> request = new HttpEntity<String>(
+                requestBody, headers);
+
+        try {
+            ResponseEntity<String> taskResponse = restTemplate.postForEntity(this.layersServiceUrl + "/intersect/batch", request, String.class);
+
+            if (taskResponse.getStatusCode() == HttpStatus.OK) {
+                JSONObject taskResult = new JSONObject(taskResponse.getBody());
+                String statusUrl = taskResult.getString("statusUrl");
+
+                if (!Strings.isNullOrEmpty(statusUrl)) {
+                    logger.debug("Checking intersect status: " + statusUrl);
+                    final long deadline = System.currentTimeMillis() + TIMEOUT;
+                    boolean done = false;
+                    do {
+                        ResponseEntity<String> statusResponse = restTemplate.getForEntity(statusUrl, String.class);
+                        if (statusResponse.getStatusCode() == HttpStatus.OK) {
+                            JSONObject processResult = new JSONObject(statusResponse.getBody());
+                            if (processResult.getString("status").equalsIgnoreCase("finished")) {
+                                String downloadUrl = processResult.getString("downloadUrl");
+                                logger.debug("Reading intersect result: " + downloadUrl);
+                                URL url = new URL(downloadUrl);
+                                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                                connection.setRequestMethod("GET");
+                                InputStream in = connection.getInputStream();
+                                ZipInputStream zipIn = new ZipInputStream(in);
+
+                                ZipEntry entry = zipIn.getNextEntry();
+                                while(entry != null) {
+                                    if ( entry.getName().equalsIgnoreCase("sample.csv")) {
+                                        InputStreamReader reader = new InputStreamReader(zipIn);
+                                        return reader;
+                                    }
+
+                                    zipIn.closeEntry();
+                                    entry = zipIn.getNextEntry();
+                                }
+                                done = true;
+                            }
+                        }
+
+                        if ( !done ) {
+                            final long msRemaining = deadline - System.currentTimeMillis();
+                            if ( msRemaining > 0 ) {
+                                Thread.sleep(Math.min(msRemaining, 2000));
+                            } else {
+                                logger.error("Timout: the layer service did not complete intersection analysis in " + TIMEOUT + "seconds");
+                                done = true;
+                            }
+                        }
+                    } while (!done);
+                } else {
+                    logger.error( "Failed to create intersection task to the layer service: NO status URL returned!" );
+                }
+            } else {
+                logger.error( taskResponse.getStatusCode() + " : Failed to create intersection task to the layer service: " + this.layersServiceUrl);
+            }
+        }catch(Exception e) {
+            logger.error("Layer service failed to process intersect layers");
+            logger.error(e.getMessage());
+        }
+
         return null;
     }
 }

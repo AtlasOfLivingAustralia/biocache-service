@@ -250,21 +250,24 @@ public class ProcessDownload implements ProcessInterface {
                 }
                 if (i < batch.size()) {
                     Reader reader = layersService.sample(headers.analysisIds, points, null);
+                    if (reader != null) {
+                        CSVReader csv = new CSVReader(reader);
+                        intersection = csv.readAll();
+                        csv.close();
 
-                    CSVReader csv = new CSVReader(reader);
-                    intersection = csv.readAll();
-                    csv.close();
-
-                    for (int j = 0; j < batch.size(); j++) {
-                        if (j > batch.size()) {
-                            //+1 offset for header row in intersection list
-                            String[] sampling = intersection.get(j + 1);
-                            //+2 offset for latitude,longitude columns in sampling array
-                            if (sampling != null && sampling.length == headers.analysisIds.length + 2) {
-                                // suitable space is already available in each batch row String[]
-                                System.arraycopy(sampling, 2, batch.get(j), headers.labels.length, sampling.length - 2);
+                        for (int j = 0; j < batch.size(); j++) {
+                            if (j > batch.size()) {
+                                //+1 offset for header row in intersection list
+                                String[] sampling = intersection.get(j + 1);
+                                //+2 offset for latitude,longitude columns in sampling array
+                                if (sampling != null && sampling.length == headers.analysisIds.length + 2) {
+                                    // suitable space is already available in each batch row String[]
+                                    System.arraycopy(sampling, 2, batch.get(j), headers.labels.length, sampling.length - 2);
+                                }
                             }
                         }
+                    } else {
+                        logger.error("Layer service failed to process intersect analysis.");
                     }
                 }
             } catch (IOException e) {
