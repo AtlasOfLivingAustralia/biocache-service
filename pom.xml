@@ -65,9 +65,14 @@
 
         <!-- JSR 303 validation support -->
         <dependency>
-            <groupId>org.hibernate.validator</groupId>
+            <groupId>javax</groupId>
+            <artifactId>javaee-api</artifactId>
+            <version>8.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.hibernate</groupId>
             <artifactId>hibernate-validator</artifactId>
-            <version>6.0.22.Final</version>
+            <version>7.0.1.Final</version>
         </dependency>
 
         <dependency>
@@ -118,6 +123,12 @@
             <groupId>org.geotools</groupId>
             <artifactId>gt-referencing</artifactId>
             <version>${gt.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax</groupId>
+                    <artifactId>javaee-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.geotools</groupId>
