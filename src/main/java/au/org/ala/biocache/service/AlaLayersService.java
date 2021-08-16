@@ -251,7 +251,7 @@ public class AlaLayersService implements LayersService {
         String flatPoints = Arrays.toString(Arrays.stream(points)
                 .flatMapToDouble(Arrays:: stream)
                 .toArray());
-        String p = flatPoints.substring(1,flatPoints.length() -1);
+        String p = flatPoints.substring(1,flatPoints.length() -1); //remove []
         String requestBody = "fids=" + fields + "&points=" + p;
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.TEXT_PLAIN);
@@ -292,6 +292,7 @@ public class AlaLayersService implements LayersService {
                                     zipIn.closeEntry();
                                     entry = zipIn.getNextEntry();
                                 }
+                                logger.error("Sample.csv is not found in the sampling url: " + downloadUrl);
                                 done = true;
                             }
                         }
