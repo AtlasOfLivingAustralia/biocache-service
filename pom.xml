@@ -433,16 +433,16 @@
             <version>1.5</version>
         </dependency>
         <!-- JSON -->
-        <!--        <dependency>-->
-        <!--            <groupId>org.json</groupId>-->
-        <!--            <artifactId>json</artifactId>-->
-        <!--            <version>20090211</version>-->
-        <!--        </dependency>-->
-        <!--        <dependency>-->
-        <!--            <groupId>atg.taglib.json</groupId>-->
-        <!--            <artifactId>json-taglib</artifactId>-->
-        <!--            <version>0.4.1</version>-->
-        <!--        </dependency>-->
+<!--        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20090211</version>
+        </dependency>
+        <dependency>
+            <groupId>atg.taglib.json</groupId>
+            <artifactId>json-taglib</artifactId>
+            <version>0.4.1</version>
+        </dependency>-->
         <dependency>
             <groupId>net.sf.json-lib</groupId>
             <artifactId>json-lib</artifactId>
