@@ -245,7 +245,7 @@ public class AlaLayersService implements LayersService {
 
     @Override
     public Reader sample(String[] analysisLayers, double[][] points, Object o) {
-        int TIMEOUT = 60000; // Assume the layer service complete intersection in 30 60 seconds
+        int TIMEOUT = 300000; // the layer service should complete intersection in 5 minutes
         String fields =StringUtils.join(analysisLayers, ",");
         String flatPoints = Arrays.toString(Arrays.stream(points)
                 .flatMapToDouble(Arrays:: stream)
@@ -273,7 +273,9 @@ public class AlaLayersService implements LayersService {
                         ResponseEntity<String> statusResponse = restTemplate.getForEntity(statusUrl, String.class);
                         if (statusResponse.getStatusCode() == HttpStatus.OK) {
                             JSONObject processResult = JSONObject.fromObject(statusResponse.getBody());
-                            if (processResult.getString("status").equalsIgnoreCase("finished")) {
+
+                            String status = processResult.getString("status");
+                            if (status.equalsIgnoreCase("finished")) {
                                 String downloadUrl = processResult.getString("downloadUrl");
                                 logger.debug("Reading intersect result: " + downloadUrl);
                                 URL url = new URL(downloadUrl);
@@ -293,16 +295,19 @@ public class AlaLayersService implements LayersService {
                                     entry = zipIn.getNextEntry();
                                 }
                                 done = true;
+                            } else if (status.equalsIgnoreCase("cancelled") || status.equalsIgnoreCase("error")) {
+                                logger.error("the layer service did not complete intersection analysis due to " + status);
+                                break;
                             }
                         }
 
                         if ( !done ) {
                             final long msRemaining = deadline - System.currentTimeMillis();
                             if ( msRemaining > 0 ) {
-                                Thread.sleep(Math.min(msRemaining, 2000));
+                                Thread.sleep(Math.min(msRemaining, 3000));
                             } else {
                                 logger.error("Timout: the layer service did not complete intersection analysis in " + TIMEOUT + "seconds");
-                                done = true;
+                                break;
                             }
                         }
                     } while (!done);
