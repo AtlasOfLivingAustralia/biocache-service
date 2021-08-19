@@ -99,8 +99,8 @@ public class WMSController extends AbstractSecureController {
     /**
      * add pixel radius for wms highlight circles
      */
-    @Value("${wms.highlight.radius:3}")
-    public static int HIGHLIGHT_RADIUS;
+    @Value("${wms.highlight.radius:6}")
+    public int HIGHLIGHT_RADIUS;
 
     /**
      * max WMS point width in pixels. This makes better use of the searchDAO.getHeatMap cache.

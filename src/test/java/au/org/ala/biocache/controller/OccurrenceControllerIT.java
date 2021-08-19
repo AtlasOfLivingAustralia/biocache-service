@@ -51,7 +51,7 @@ public class OccurrenceControllerIT extends TestCase {
 
     public final int TEST_INDEX_SIZE = 1000;
     public final int DEFAULT_SEARCH_PAGE_SIZE = 10;
-    public final int INDEXED_FIELD_SIZE = 25;
+    public final int INDEXED_FIELD_SIZE = 29;
 
     @Autowired
     OccurrenceController occurrenceController;
@@ -234,6 +234,7 @@ public class OccurrenceControllerIT extends TestCase {
     private void restoreSearchDAO(Object object) {
         ReflectionTestUtils.setField(occurrenceController, "searchDAO", object);
     }
+
     // Accept */* -> REST controller -> returns json when succeed
     // Accept application/json -> REST controller -> returns json when succeed
     @Test
@@ -367,8 +368,8 @@ public class OccurrenceControllerIT extends TestCase {
     @Test
     public void testNormalControllerCompatibleFormat() throws Exception {
         Object searchDAOOrig = backupSearchDAO();
-        String[] acceptTypes = new String[] { "text/html", "*/*" };
-        String[][] urls = new String[][] { {"/", "/WEB-INF/jsp/homePage.jsp"}, {"/oldapi", "/WEB-INF/jsp/oldapi.jsp"} };
+        String[] acceptTypes = new String[]{"text/html", "*/*"};
+        String[][] urls = new String[][]{{"/", "/WEB-INF/jsp/homePage.jsp"}, {"/oldapi", "/WEB-INF/jsp/oldapi.jsp"}};
 
         for (String[] url : urls) {
             for (String type : acceptTypes) {
@@ -386,8 +387,8 @@ public class OccurrenceControllerIT extends TestCase {
     @Test
     public void testNormalControllerNONCompatibleFormat() throws Exception {
         Object searchDAOOrig = backupSearchDAO();
-        String[] acceptTypes = new String[] { "application/json" };
-        String[] urls = new String[] { "/", "/oldapi" };
+        String[] acceptTypes = new String[]{"application/json"};
+        String[] urls = new String[]{"/", "/oldapi"};
         for (String url : urls) {
             for (String type : acceptTypes) {
                 MvcResult mvcResult =
