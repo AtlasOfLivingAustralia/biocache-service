@@ -34,6 +34,8 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.zip.ZipEntry;
@@ -277,24 +279,39 @@ public class AlaLayersService implements LayersService {
                             String status = processResult.getString("status");
                             if (status.equalsIgnoreCase("finished")) {
                                 String downloadUrl = processResult.getString("downloadUrl");
-                                logger.debug("Reading intersect result: " + downloadUrl);
+                                logger.debug("Downloading intersect sampling file: " + downloadUrl);
+
+                                Path tempSamplingFile = Files.createTempFile(null, null);
+
                                 URL url = new URL(downloadUrl);
                                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                                 connection.setRequestMethod("GET");
                                 InputStream in = connection.getInputStream();
                                 ZipInputStream zipIn = new ZipInputStream(in);
-
                                 ZipEntry entry = zipIn.getNextEntry();
                                 while(entry != null) {
                                     if ( entry.getName().equalsIgnoreCase("sample.csv")) {
                                         InputStreamReader reader = new InputStreamReader(zipIn);
-                                        return reader;
-                                    }
 
+                                        BufferedWriter bw = new BufferedWriter(new FileWriter(tempSamplingFile.toFile()));
+                                        char[] buffer = new char[1024 * 8]; // 8 KiB buffer
+                                        int read;
+                                        while ((read = reader.read(buffer)) != -1) {
+                                            bw.write(buffer, 0, read);
+                                        }
+                                        logger.debug("Sampling data has been written into: " + tempSamplingFile.getFileName());
+                                        done = true;
+                                        break;
+                                    }
                                     zipIn.closeEntry();
                                     entry = zipIn.getNextEntry();
                                 }
-                                done = true;
+                                in.close();
+
+                                if (done) {
+                                    InputStreamReader reader = new InputStreamReader(new FileInputStream(tempSamplingFile.toFile()));
+                                    return  reader;
+                                }
                             } else if (status.equalsIgnoreCase("cancelled") || status.equalsIgnoreCase("error")) {
                                 logger.error("the layer service did not complete intersection analysis due to " + status);
                                 break;
