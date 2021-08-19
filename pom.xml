@@ -12,7 +12,7 @@
     <groupId>au.org.ala</groupId>
     <artifactId>biocache-service</artifactId>
     <packaging>war</packaging>
-    <version>3.0.21-SNAPSHOT</version>
+    <version>3.0.22-SNAPSHOT</version>
     <name>biocache-service</name>
     <url>https://biocache-ws.ala.org.au/ws</url>
     <description>
@@ -63,11 +63,16 @@
             <version>4.5.6</version>
         </dependency>
 
-        <!-- JSR 303 validation support -->
+        <!-- JSR 380 validation support -->
+        <dependency>
+            <groupId>javax</groupId>
+            <artifactId>javaee-api</artifactId>
+            <version>8.0.1</version>
+        </dependency>
         <dependency>
             <groupId>org.hibernate.validator</groupId>
             <artifactId>hibernate-validator</artifactId>
-            <version>6.0.22.Final</version>
+            <version>6.2.0.Final</version>
         </dependency>
 
         <dependency>
@@ -118,6 +123,12 @@
             <groupId>org.geotools</groupId>
             <artifactId>gt-referencing</artifactId>
             <version>${gt.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax</groupId>
+                    <artifactId>javaee-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.geotools</groupId>
