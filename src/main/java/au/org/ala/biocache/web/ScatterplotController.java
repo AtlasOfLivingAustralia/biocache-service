@@ -91,7 +91,7 @@ public class ScatterplotController {
         }
     }
 
-    @RequestMapping(value = {"/scatterplot/point"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/scatterplot/point", "/scatterplot/point.json" }, method = RequestMethod.GET)
     @ResponseBody
     public Map scatterplotPointInfo(SpatialSearchRequestParams requestParams,
                                     @RequestParam(value = "x", required = true) String x,

@@ -140,7 +140,7 @@ public class MapController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/occurrences/info", method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrences/info", "/occurrences/info.json" }, method = RequestMethod.GET)
     public String getOccurrencesInformation(SpatialSearchRequestParams requestParams,
                                             @RequestParam(value = "zoom", required = false, defaultValue = "0") Integer zoomLevel,
                                             @RequestParam(value = "callback", required = false) String callback,
