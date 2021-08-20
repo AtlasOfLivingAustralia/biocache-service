@@ -10,9 +10,14 @@ import au.org.ala.ws.ClientConfiguration;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.ehcache.EhCacheCacheManager;
+import org.springframework.cache.ehcache.EhCacheManagerFactoryBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.AbstractMessageSource;
+import org.springframework.core.io.ClassPathResource;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -23,6 +28,7 @@ import java.net.URL;
  * external configuration.
  */
 @Configuration
+@EnableCaching
 public class AppConfig {
 
     private final static Logger logger = Logger.getLogger(AppConfig.class);
@@ -49,7 +55,6 @@ public class AppConfig {
 
     @Value("${namesearch.cache.size:50}")
     Integer nameSearchCacheSize = 50;
-
 
     public @Bean(name = "nameUsageMatchService")
     ALANameUsageMatchServiceClient nameUsageMatchService() throws IOException {

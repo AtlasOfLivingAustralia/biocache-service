@@ -19,11 +19,10 @@ import au.org.ala.biocache.service.ListsService.SpeciesListItemDTO.KvpDTO;
 import au.org.ala.biocache.service.ListsService.SpeciesListSearchDTO.SpeciesListDTO;
 import au.org.ala.biocache.util.SearchUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.googlecode.ehcache.annotations.Cacheable;
-import com.googlecode.ehcache.annotations.DecoratedCacheType;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
@@ -129,8 +128,7 @@ public class ListsService {
         return map;
     }
 
-    @Cacheable(cacheName = "speciesListItems", decoratedCacheType = DecoratedCacheType.REFRESHING_SELF_POPULATING_CACHE,
-            refreshInterval = 10*60*1000)
+    @Cacheable("speciesListItems")
     public List<String> getListItems(String dataResourceUid) throws Exception {
         List<String> list = new ArrayList();
 
@@ -153,8 +151,7 @@ public class ListsService {
      * @param dataResourceUid
      * @return species list KVP data for use in other ListsService functions.
      */
-    @Cacheable(cacheName = "speciesKvp", decoratedCacheType = DecoratedCacheType.REFRESHING_SELF_POPULATING_CACHE,
-            refreshInterval = 10 * 60 * 1000)
+    @Cacheable("speciesKvp")
     public List<Kvp> getKvp(String dataResourceUid) {
         List<Kvp> list = new ArrayList();
 
@@ -213,8 +210,7 @@ public class ListsService {
         return data.get(type).get(lsid);
     }
 
-    @Cacheable(cacheName = "speciesListItems", decoratedCacheType = DecoratedCacheType.REFRESHING_SELF_POPULATING_CACHE,
-            refreshInterval = 10*60*1000)
+    @Cacheable("speciesListItems")
     public SpeciesListDTO getListInfo(String dr) throws URISyntaxException {
 
         SpeciesListDTO speciesList = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/" + dr), SpeciesListDTO.class);
