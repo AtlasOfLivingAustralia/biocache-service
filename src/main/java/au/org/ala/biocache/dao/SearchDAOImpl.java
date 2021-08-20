@@ -27,7 +27,6 @@ import au.org.ala.biocache.writer.CSVRecordWriter;
 import au.org.ala.biocache.writer.RecordWriterError;
 import au.org.ala.biocache.writer.TSVRecordWriter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.googlecode.ehcache.annotations.Cacheable;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.ArrayUtils;
@@ -47,6 +46,7 @@ import org.apache.solr.common.util.SimpleOrderedMap;
 import org.slf4j.MDC;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 
@@ -1568,10 +1568,7 @@ public class SearchDAOImpl implements SearchDAO {
      * <p>
      * TODO: searchUtils.getTaxonSearch uses nameUsageMatchService.get(). These requests must be batched.
      *
-     * @param queryString
-     * @param pageSize
-     * @param sortField
-     * @param sortDirection
+     * @param requestParams
      * @return
      * @throws SolrServerException
      */
@@ -1800,7 +1797,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws Exception
      */
-    @Cacheable(cacheName = "legendCache")
+    @Cacheable("legendCache")
     public List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facetField, String[] cutpoints, boolean skipI18n) throws Exception {
         List<LegendItem> legend = new ArrayList<LegendItem>();
 
@@ -2422,7 +2419,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * @see au.org.ala.biocache.dao.SearchDAO#getColours
      */
-    @Cacheable(cacheName = "getColours")
+    @Cacheable("getColours")
     public List<LegendItem> getColours(SpatialSearchRequestParams request, String colourMode) throws Exception {
         List<LegendItem> colours = new ArrayList<LegendItem>();
         if (colourMode.equals("grid")) {
@@ -2535,7 +2532,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         for (IndexFieldDTO s : indexDao.getIndexedFields()) {
             // this only works for non-tri fields
-            if (!s.getDataType().startsWith("t")) {
+            if (!s.isDeprecated() && s.getDataType() != null && !s.getDataType().startsWith("t")) {
                 solrQuery.set("facet.field", "{!facet.method=enum facet.exists=true}" + s.getName());
 
                 QueryResponse qr = query(solrQuery); // can throw exception
@@ -2552,7 +2549,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     @Override
-    @Cacheable(cacheName = "heatmapCache")
+    @Cacheable("heatmapCache")
     public HeatmapDTO getHeatMap(
             String query,
             String[] filterQueries,
