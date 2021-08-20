@@ -249,11 +249,15 @@ public class AlaLayersService implements LayersService {
     public Reader sample(String[] analysisLayers, double[][] points, Object o) {
         int TIMEOUT = 300000; // the layer service should complete intersection in 5 minutes
         String fields =StringUtils.join(analysisLayers, ",");
-        String flatPoints = Arrays.toString(Arrays.stream(points)
-                .flatMapToDouble(Arrays:: stream)
-                .toArray());
-        String p = flatPoints.substring(1,flatPoints.length() -1); //remove []
-        String requestBody = "fids=" + fields + "&points=" + p;
+
+        String strPoints = "";
+        for (int i = 0; i < points.length; i++) {
+            if (i > 0) {
+                strPoints += ",";
+            }
+            strPoints += (String.valueOf(points[i][1])) + "," + String.valueOf(points[i][0]);
+        }
+        String requestBody = "fids=" + fields + "&points=" + strPoints;
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.TEXT_PLAIN);
         HttpEntity<String> request = new HttpEntity<String>(
