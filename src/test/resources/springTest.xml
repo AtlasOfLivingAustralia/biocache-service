@@ -153,16 +153,13 @@
 <!--        <property name="configLocation"  value="/WEB-INF/ehcache.xml"/>-->
 <!--    </bean>-->
 
-    <bean id="ehCacheManagerFactory" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">
+    <bean id="ehCacheManager" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">
         <property name="configLocation"  value="/WEB-INF/ehcache.xml"/>
         <property name="shared" value="true" />
     </bean>
 
-    <bean id="ehCacheManager" factory-bean="ehCacheManagerFactory" class="net.sf.ehcache.CacheManager" />
-
     <bean id="cacheManager" class="org.springframework.cache.ehcache.EhCacheCacheManager">
         <property name="cacheManager" ref="ehCacheManager" />
     </bean>
-
 
 </beans>

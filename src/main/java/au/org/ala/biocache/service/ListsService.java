@@ -19,8 +19,6 @@ import au.org.ala.biocache.service.ListsService.SpeciesListItemDTO.KvpDTO;
 import au.org.ala.biocache.service.ListsService.SpeciesListSearchDTO.SpeciesListDTO;
 import au.org.ala.biocache.util.SearchUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
-//import com.googlecode.ehcache.annotations.Cacheable;
-//import com.googlecode.ehcache.annotations.DecoratedCacheType;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;

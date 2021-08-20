@@ -220,17 +220,17 @@ public class AbstractSecureController {
         if(StringUtils.isBlank(keyToTest)){
             return false;
         }
-/*
+
         // caching manually managed via the cacheManager not using the @Cacheable annotation
         // the @Cacheable annotation only works when an external call is made to a method, for
         // an explanation see: https://stackoverflow.com/a/32999744
         Cache cache = cacheManager.getCache("apiKeys");
-        Element element = cache.get(keyToTest);
+        Cache.ValueWrapper valueWrapper = cache.get(keyToTest);
 
-        if (element != null && (Boolean)element.getValue()) {
+        if (valueWrapper != null && (Boolean)valueWrapper.get()) {
             return true;
         }
-*/
+
 		//check via a web service
 		try {
 			logger.debug("Checking api key: {}", keyToTest);
@@ -238,9 +238,9 @@ public class AbstractSecureController {
     		Map<String,Object> response = restTemplate.getForObject(url, Map.class);
     		boolean isValid = (Boolean) response.get("valid");
     		logger.debug("Checking api key: {}, valid: {}", keyToTest, isValid);
-//    		if (isValid) {
-//    		    cache.put(new Element(keyToTest, true));
-//            }
+    		if (isValid) {
+    		    cache.put(keyToTest, true);
+            }
     		return isValid; 
 		} catch (Exception e){
 			logger.error(e.getMessage(), e);
