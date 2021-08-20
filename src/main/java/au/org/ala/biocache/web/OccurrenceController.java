@@ -678,7 +678,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @param guid
      * @return
      */
-    private NativeDTO getIsAustraliaForGuid(String guid) {
+    private NativeDTO getIsAustraliaForGuid(String guid) throws Exception {
         SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
         requestParams.setPageSize(0);
         requestParams.setFacets(new String[]{});
@@ -796,7 +796,7 @@ public class OccurrenceController extends AbstractSecureController {
     @Deprecated
     public @ResponseBody
     SearchResultDTO occurrenceSearchByArea(SpatialSearchRequestParams requestParams,
-                                           Model model) {
+                                           Model model) throws Exception {
         SearchResultDTO searchResult = new SearchResultDTO();
 
         if (StringUtils.isEmpty(requestParams.getQ())) {
