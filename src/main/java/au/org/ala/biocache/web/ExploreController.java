@@ -114,7 +114,7 @@ public class ExploreController {
         radiusToZoomLevelMap.put(50f, 9);
     }
 
-    @RequestMapping(value = "/explore/hierarchy", method = RequestMethod.GET)
+    @RequestMapping(value = { "/explore/hierarchy", "/explore/hierarchy.json" }, method = RequestMethod.GET)
     public void getHierarchy(HttpServletResponse response) throws Exception {
         response.setContentType("application/json");
         try {
@@ -136,7 +136,7 @@ public class ExploreController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/explore/hierarchy/groups*", method = RequestMethod.GET)
+    @RequestMapping(value = { "/explore/hierarchy/groups*", "/explore/hierarchy/groups.json*" }, method = RequestMethod.GET)
     public @ResponseBody
     Collection<SpeciesGroupDTO> yourHierarchicalAreaView(
             SpatialSearchRequestParams requestParams, String speciesGroup) throws Exception {
@@ -216,7 +216,7 @@ public class ExploreController {
     /**
      * Returns a list of species groups and counts that will need to be displayed.
      */
-    @RequestMapping(value = "/explore/groups*", method = RequestMethod.GET)
+    @RequestMapping(value = { "/explore/groups*", "/explore/groups.json*", }, method = RequestMethod.GET)
     public @ResponseBody
     List<SpeciesGroupDTO> yourAreaView(SpatialSearchRequestParams requestParams) throws Exception {
 
@@ -284,7 +284,7 @@ public class ExploreController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/explore/counts/group/{group}*", method = RequestMethod.GET)
+    @RequestMapping(value = { "/explore/counts/group/{group}*", "/explore/counts/group/{group}.json*" }, method = RequestMethod.GET)
     public @ResponseBody
     Integer[] getYourAreaCount(SpatialSearchRequestParams requestParams,
                                @PathVariable(value = "group") String group) throws Exception {
@@ -341,7 +341,7 @@ public class ExploreController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/explore/group/{group}/download*", method = RequestMethod.GET)
+    @RequestMapping(value = { "/explore/group/{group}/download*", "/explore/group/{group}/download.json*" } , method = RequestMethod.GET)
     public void yourAreaDownload(
             DownloadRequestParams requestParams,
             @PathVariable(value = "group") String group,
@@ -375,7 +375,7 @@ public class ExploreController {
      * @param model
      * @throws Exception
      */
-    @RequestMapping(value = "/explore/group/{group}*", method = RequestMethod.GET)
+    @RequestMapping(value = {"/explore/group/{group}*", "/explore/group/{group}.json*" }, method = RequestMethod.GET)
     public @ResponseBody
     List<TaxaCountDTO> listSpeciesForHigherTaxa(
             SpatialSearchRequestParams requestParams,
@@ -404,7 +404,7 @@ public class ExploreController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "/explore/counts/endemic*", method = RequestMethod.GET)
+    @RequestMapping(value = {"/explore/counts/endemic*", "/explore/counts/endemic.json*" }, method = RequestMethod.GET)
     public @ResponseBody
     int getSpeciesCountOnlyInWKT(SpatialSearchRequestParams requestParams,
                                  HttpServletResponse response)
@@ -420,7 +420,7 @@ public class ExploreController {
      *
      * @return
      */
-    @RequestMapping(value = "/explore/endemic/species*", method = RequestMethod.GET)
+    @RequestMapping(value = {"/explore/endemic/species*", "/explore/endemic/species.json*" }, method = RequestMethod.GET)
     public @ResponseBody
     List<FieldResultDTO> getSpeciesOnlyInWKT(SpatialSearchRequestParams requestParams,
                                              HttpServletResponse response)
@@ -452,7 +452,7 @@ public class ExploreController {
      *
      * @return
      */
-    @RequestMapping(value = "/explore/endemic/species/{subQueryQid}*", method = RequestMethod.GET)
+    @RequestMapping(value = {"/explore/endemic/species/{subQueryQid}*", "/explore/endemic/species/{subQueryQid}.json*"}, method = RequestMethod.GET)
     public @ResponseBody
     List<FieldResultDTO> getSpeciesOnlyInOneQuery(SpatialSearchRequestParams parentQuery,
                                                   @PathVariable(value = "subQueryQid") Long subQueryQid,
@@ -477,7 +477,7 @@ public class ExploreController {
      *
      * @return
      */
-    @RequestMapping(value = "/explore/endemic/speciescount/{subQueryQid}*", method = RequestMethod.GET)
+    @RequestMapping(value = {"/explore/endemic/speciescount/{subQueryQid}*", "/explore/endemic/speciescount/{subQueryQid}.json*" }, method = RequestMethod.GET)
     public @ResponseBody
     Map getSpeciesOnlyInOneCountQuery(SpatialSearchRequestParams parentQuery,
                                       @PathVariable(value = "subQueryQid") Long subQueryQid,

@@ -59,7 +59,7 @@ public class AssertionController extends AbstractSecureController {
      * @return an array of codes
      * @throws Exception
      */
-    @RequestMapping(value = {"/assertions/codes", "/assertions/codes/"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/assertions/codes", "/assertions/codes.json", "/assertions/codes/"}, method = RequestMethod.GET)
     public @ResponseBody
     Collection<AssertionCode> showCodes(
             @RequestParam(value="deprecated", required=false, defaultValue="false") Boolean isDeprecated
@@ -67,7 +67,7 @@ public class AssertionController extends AbstractSecureController {
         return applyi18n(AssertionCodes.getAll(), isDeprecated);
     }
 
-    @RequestMapping(value = {"/assertions/user/codes", "/assertions/user/codes/"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/assertions/user/codes", "/assertions/user/codes.json", "/assertions/user/codes/"}, method = RequestMethod.GET)
     public @ResponseBody Collection<AssertionCode> showUserCodes(
             @RequestParam(value="deprecated", required=false, defaultValue="false") Boolean isDeprecated
     ) throws Exception {
@@ -241,7 +241,7 @@ public class AssertionController extends AbstractSecureController {
         }
     }
 
-    @RequestMapping(value = {"/occurrences/assertions", "/occurrences/assertions/"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrences/assertions", "/occurrences/assertions.json", "/occurrences/assertions/"}, method = RequestMethod.GET)
     public @ResponseBody Object getAssertionWithParams(
             @RequestParam(value="recordUuid", required=true) String recordUuid,
             @RequestParam(value="assertionUuid",required=false) String assertionUuid,
@@ -256,7 +256,7 @@ public class AssertionController extends AbstractSecureController {
     /**
      * Get single assertion
      */
-    @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/{assertionUuid}", "/occurrences/{recordUuid}/assertions/{assertionUuid}/"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/{assertionUuid}", "/occurrences/{recordUuid}/assertions/{assertionUuid}.json", "/occurrences/{recordUuid}/assertions/{assertionUuid}/"}, method = RequestMethod.GET)
     public @ResponseBody
     QualityAssertion getAssertion(
             @PathVariable(value = "recordUuid") String recordUuid,
@@ -282,7 +282,7 @@ public class AssertionController extends AbstractSecureController {
     /**
      * Get user assertions
      */
-    @RequestMapping(value = {"/occurrences/{recordUuid}/assertions", "/occurrences/{recordUuid}/assertions/"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrences/{recordUuid}/assertions", "/occurrences/{recordUuid}/assertions.json", "/occurrences/{recordUuid}/assertions/"}, method = RequestMethod.GET)
     public @ResponseBody List<QualityAssertion> getAssertions(
         @PathVariable(value="recordUuid") String recordUuid,
         HttpServletResponse response
@@ -298,7 +298,7 @@ public class AssertionController extends AbstractSecureController {
     }
 
     @Deprecated
-    @RequestMapping(value = {"/occurrences/{recordUuid}/assertionQueries", "/occurrences/{recordUuid}/assertionQueries/"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrences/{recordUuid}/assertionQueries", "/occurrences/{recordUuid}/assertionQueries.json", "/occurrences/{recordUuid}/assertionQueries/"}, method = RequestMethod.GET)
     public @ResponseBody
     List<QualityAssertion> getAssertionQueries(
             @PathVariable(value = "recordUuid") String recordUuid,

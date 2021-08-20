@@ -276,7 +276,11 @@ public class WMSController extends AbstractSecureController {
     /**
      * Test presence of query params {id} in params store.
      */
-    @RequestMapping(value = {"/webportal/params/{id}", "/mapping/params/{id}"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/webportal/params/{id}",
+            "/webportal/params/{id}.json",
+            "/mapping/params/{id}",
+            "/mapping/params/{id}.json"}, method = RequestMethod.GET)
     public
     @ResponseBody
     Boolean storeParams(@PathVariable("id") Long id) throws Exception {
@@ -284,26 +288,20 @@ public class WMSController extends AbstractSecureController {
     }
 
     /**
-     * Test presence of query params {id} in params store.
+     * Allows the details of a cached query to be viewed.
      */
-    @RequestMapping(value = {"/qid/{id}", "/mapping/qid/{id}"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/qid/{id}",
+            "/qid/{id}.json",
+            "/mapping/qid/{id}",
+            "/mapping/qid/{id}.json",
+            "/webportal/params/details/{id}",
+            "/webportal/params/details/{id}.json",
+            "/mapping/params/details/{id}",
+            "/mapping/params/details/{id}json"}, method = RequestMethod.GET)
     public
     @ResponseBody
     Qid showQid(@PathVariable("id") Long id) throws Exception {
-        return qidCacheDAO.get(String.valueOf(id));
-    }
-
-    /**
-     * Allows the details of a cached query to be viewed.
-     *
-     * @param id
-     * @return
-     * @throws Exception
-     */
-    @RequestMapping(value = {"/webportal/params/details/{id}", "/mapping/params/details/{id}"}, method = RequestMethod.GET)
-    public
-    @ResponseBody
-    Qid getQid(@PathVariable("id") Long id) throws Exception {
         return qidCacheDAO.get(String.valueOf(id));
     }
 
@@ -312,7 +310,11 @@ public class WMSController extends AbstractSecureController {
      *
      * @throws Exception
      */
-    @RequestMapping(value = {"/webportal/species", "/mapping/species"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/webportal/species",
+            "/webportal/species.json",
+            "/mapping/species",
+            "/mapping/species.json"}, method = RequestMethod.GET)
     public
     @ResponseBody
     List<TaxaCountDTO> listSpecies(SpatialSearchRequestParams requestParams) throws Exception {
@@ -454,7 +456,11 @@ public class WMSController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/webportal/dataProviders", "/mapping/dataProviders"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/webportal/dataProviders",
+            "/mapping/dataProviders.json",
+            "/webportal/dataProviders",
+            "/mapping/dataProviders.json" }, method = RequestMethod.GET)
     @ResponseBody
     public List<DataProviderCountDTO> queryInfo(
             SpatialSearchRequestParams requestParams)
@@ -497,7 +503,11 @@ public class WMSController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/webportal/bounds", "/mapping/bounds"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/webportal/bounds",
+            "/mapping/bounds.json",
+            "/webportal/bounds",
+            "/mapping/bounds.json" }, method = RequestMethod.GET)
     public
     @ResponseBody
     double[] jsonBoundingBox(
@@ -534,7 +544,11 @@ public class WMSController extends AbstractSecureController {
      * @param requestParams
      * @throws Exception
      */
-    @RequestMapping(value = {"/webportal/occurrences*", "/mapping/occurrences*"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/webportal/occurrences*",
+            "/mapping/occurrences.json*",
+            "/webportal/occurrences*",
+            "/mapping/occurrences.json*" }, method = RequestMethod.GET)
     @ResponseBody
     public SearchResultDTO occurrences(
             SpatialSearchRequestParams requestParams,
@@ -723,7 +737,7 @@ public class WMSController extends AbstractSecureController {
     }
 
     // add this to the GetCapabilities...
-    @RequestMapping(value = {"/ogc/getMetadata"}, method = RequestMethod.GET)
+    @RequestMapping(value = { "/ogc/getMetadata", "/ogc/getMetadata.json" }, method = RequestMethod.GET)
     public String getMetadata(
             @RequestParam(value = "LAYER", required = false, defaultValue = "") String layer,
             @RequestParam(value = "q", required = false, defaultValue = "") String query,
@@ -833,7 +847,7 @@ public class WMSController extends AbstractSecureController {
         return "metadata/mcp";
     }
 
-    @RequestMapping(value = {"/ogc/getFeatureInfo"}, method = RequestMethod.GET)
+    @RequestMapping(value = { "/ogc/getFeatureInfo", "/ogc/getFeatureInfo.json" }, method = RequestMethod.GET)
     public String getFeatureInfo(
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
             @RequestParam(value = "BBOX", required = true, defaultValue = "0,-90,180,0") String bboxString,
@@ -991,7 +1005,11 @@ public class WMSController extends AbstractSecureController {
      * @param model
      * @throws Exception
      */
-    @RequestMapping(value = {"/ogc/ows", "/ogc/capabilities"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/ogc/ows",
+            "/ogc/ows.xml",
+            "/ogc/capabilities",
+            "/ogc/capabilities.xml" }, method = RequestMethod.GET)
     public void getCapabilities(
             SpatialSearchRequestParams requestParams,
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
@@ -1253,7 +1271,13 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @RequestMapping(value = {"/webportal/wms/reflect", "/ogc/wms/reflect", "/mapping/wms/reflect"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/webportal/wms/reflect",
+            "/webportal/wms/reflect.png",
+            "/ogc/wms/reflect",
+            "/ogc/wms/reflect.png",
+            "/mapping/wms/reflect",
+            "/mapping/wms/reflect.png" }, method = RequestMethod.GET)
     public ModelAndView generateWmsTileViaHeatmap(
             SpatialSearchRequestParams requestParams,
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,

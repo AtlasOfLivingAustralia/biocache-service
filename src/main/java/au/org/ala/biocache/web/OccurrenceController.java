@@ -285,14 +285,14 @@ public class OccurrenceController extends AbstractSecureController {
         return "oldapi";
     }
 
-    @RequestMapping(value = "/upload/dynamicFacets", method = RequestMethod.GET)
+    @RequestMapping(value = {"/upload/dynamicFacets", "/upload/dynamicFacets.json" }, method = RequestMethod.GET)
     public @ResponseBody
     Map emptyJson() {
         Map<String, String> map = new HashMap();
         return map;
     }
 
-    @RequestMapping(value = "/active/download/stats", method = RequestMethod.GET)
+    @RequestMapping(value = { "/active/download/stats", "active/download/stats.json" }, method = RequestMethod.GET)
     public @ResponseBody
     List<DownloadDetailsDTO> getCurrentDownloads() {
         return downloadService.getCurrentDownloads();
@@ -303,7 +303,7 @@ public class OccurrenceController extends AbstractSecureController {
      *
      * @return
      */
-    @RequestMapping(value = "/search/facets", method = RequestMethod.GET)
+    @RequestMapping(value = { "/search/facets", "/search/facets.json" }, method = RequestMethod.GET)
     public @ResponseBody
     String[] listAllFacets() {
         return new SearchRequestParams().getFacets();
@@ -314,7 +314,7 @@ public class OccurrenceController extends AbstractSecureController {
      *
      * @return
      */
-    @RequestMapping(value = "/search/grouped/facets", method = RequestMethod.GET)
+    @RequestMapping(value = { "/search/grouped/facets", "/search/grouped/facets.json" }, method = RequestMethod.GET)
     public @ResponseBody
     List groupFacets() throws IOException {
         return FacetThemes.getAllThemes();
@@ -384,7 +384,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "index/fields", method = RequestMethod.GET)
+    @RequestMapping(value = { "index/fields", "index/fields.json" }, method = RequestMethod.GET)
     public @ResponseBody
     Collection<IndexFieldDTO> getIndexedFields(
             @RequestParam(value = "fl", required = false) String fields,
@@ -522,7 +522,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "index/version", method = RequestMethod.GET)
+    @RequestMapping(value = { "index/version", "index/version.json" }, method = RequestMethod.GET)
     public @ResponseBody
     Map getIndexedFields(@RequestParam(value = "apiKey", required = false) String apiKey,
                          @RequestParam(value = "force", required = false, defaultValue = "false") Boolean force,
@@ -543,7 +543,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "index/maxBooleanClauses", method = RequestMethod.GET)
+    @RequestMapping(value = { "index/maxBooleanClauses", "index/maxBooleanClauses.json" }, method = RequestMethod.GET)
     public @ResponseBody
     Map getIndexedFields() throws Exception {
 
@@ -561,7 +561,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "config", method = RequestMethod.GET)
+    @RequestMapping(value = { "config", "config.json" }, method = RequestMethod.GET)
     public @ResponseBody
     Map getConfig() {
         Map map = new HashMap();
@@ -593,7 +593,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "occurrence/facets", method = RequestMethod.GET)
+    @RequestMapping(value = { "occurrence/facets", "occurrence/facets.json" }, method = RequestMethod.GET)
     public @ResponseBody
     List<FacetResultDTO> getOccurrenceFacetDetails(
             SpatialSearchRequestParams requestParams,
@@ -709,7 +709,22 @@ public class OccurrenceController extends AbstractSecureController {
     /**
      * Returns the complete list of Occurrences
      */
-    @RequestMapping(value = {"/occurrences", "/occurrences/collections", "/occurrences/institutions", "/occurrences/dataResources", "/occurrences/dataProviders", "/occurrences/taxa", "/occurrences/dataHubs"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/occurrences",
+            "/occurrences.json",
+            "/occurrences/collections",
+            "/occurrences/collections.json",
+            "/occurrences/institutions",
+            "/occurrences/institutions.json",
+            "/occurrences/dataResources",
+            "/occurrences/dataResources.json",
+            "/occurrences/dataProviders",
+            "/occurrences/dataProviders.json",
+            "/occurrences/taxa",
+            "/occurrences/taxa.json",
+            "/occurrences/dataHubs",
+            "/occurrences/dataHubs.json" },
+            method = RequestMethod.GET)
     public @ResponseBody
     SearchResultDTO listOccurrences(Model model) throws Exception {
         SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
@@ -765,9 +780,17 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/occurrences/collections/{uid}", "/occurrences/institutions/{uid}",
-            "/occurrences/dataResources/{uid}", "/occurrences/dataProviders/{uid}",
-            "/occurrences/dataHubs/{uid}"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/occurrences/collections/{uid}",
+            "/occurrences/collections/{uid}.json",
+            "/occurrences/institutions/{uid}",
+            "/occurrences/institutions/{uid}.json",
+            "/occurrences/dataResources/{uid}",
+            "/occurrences/dataResources/{uid}.json",
+            "/occurrences/dataProviders/{uid}",
+            "/occurrences/dataProviders/{uid}.json",
+            "/occurrences/dataHubs/{uid}",
+            "/occurrences/dataHubs/{uid}.json" }, method = RequestMethod.GET)
     public @ResponseBody
     SearchResultDTO occurrenceSearchForUID(SpatialSearchRequestParams requestParams,
                                            @PathVariable("uid") String uid) throws Exception {
@@ -792,7 +815,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      * @deprecated use {@link #occurrenceSearch(SpatialSearchRequestParams)}
      */
-    @RequestMapping(value = "/occurrences/searchByArea*", method = RequestMethod.GET)
+    @RequestMapping(value = { "/occurrences/searchByArea*", "/occurrences/searchByArea.json*"}, method = RequestMethod.GET)
     @Deprecated
     public @ResponseBody
     SearchResultDTO occurrenceSearchByArea(SpatialSearchRequestParams requestParams,
@@ -1136,7 +1159,7 @@ public class OccurrenceController extends AbstractSecureController {
     /**
      * Webservice to report the occurrence counts for the supplied list of taxa
      */
-    @RequestMapping(value = "/occurrences/taxaCount", method = {RequestMethod.POST, RequestMethod.GET})
+    @RequestMapping(value = { "/occurrences/taxaCount", "/occurrences/taxaCount.json" }, method = {RequestMethod.POST, RequestMethod.GET})
     public @ResponseBody
     Map<String, Integer> occurrenceSpeciesCounts(
             HttpServletResponse response,
@@ -1175,7 +1198,11 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/occurrences/index/download*", "/occurrences/download*"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/occurrences/index/download*",
+            "/occurrences/index/download.json*",
+            "/occurrences/download*",
+            "/occurrences/download.json*" }, method = RequestMethod.GET)
     public String occurrenceIndexDownload(@Valid DownloadRequestParams requestParams,
                                           BindingResult result,
                                           @RequestParam(value = "email", required = false) String email,
@@ -1254,7 +1281,7 @@ public class OccurrenceController extends AbstractSecureController {
      *
      * @throws Exception
      */
-    @RequestMapping(value = {"/occurrences/nearest"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrences/nearest", "/occurrences/nearest.json" }, method = RequestMethod.GET)
     public @ResponseBody
     Map<String, Object> nearestOccurrence(SpatialSearchRequestParams requestParams) throws Exception {
 
@@ -1302,7 +1329,7 @@ public class OccurrenceController extends AbstractSecureController {
      * Dumps the distinct latitudes and longitudes that are used in the
      * connected index (to 4 decimal places)
      */
-    @RequestMapping(value = "/occurrences/coordinates*")
+    @RequestMapping(value = { "/occurrences/coordinates*", "/occurrences/coordinates.json*" })
     public void dumpDistinctLatLongs(SpatialSearchRequestParams requestParams, HttpServletResponse response) throws Exception {
         requestParams.setFacets(new String[]{OccurrenceIndex.LAT_LNG});
         requestParams.setFacet(true);
@@ -1420,26 +1447,11 @@ public class OccurrenceController extends AbstractSecureController {
      * @param uuid
      * @return
      */
-    @RequestMapping(value = {"/occurrence/compare*"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrence/compare*", "/occurrence/compare.json*" }, method = RequestMethod.GET)
     public @ResponseBody
     Object compareOccurrenceVersions(@RequestParam(value = "uuid", required = true) String uuid,
                                      HttpServletResponse response) throws Exception {
         return showOccurrence(uuid, response);
-    }
-
-    /**
-     * Returns the records uuids that have been deleted since the fromDate inclusive.
-     *
-     * @param fromDate
-     * @param response
-     * @return
-     * @throws Exception
-     */
-    @RequestMapping(value = {"/occurrence/deleted"}, method = RequestMethod.GET)
-    public @ResponseBody
-    String[] getDeleteOccurrences(@RequestParam(value = "date", required = true) String fromDate,
-                                  HttpServletResponse response) throws Exception {
-        return new String[0];
     }
 
     private void sendCustomJSONResponse(HttpServletResponse response, int statusCode, Map<String, String> content) throws IOException {
