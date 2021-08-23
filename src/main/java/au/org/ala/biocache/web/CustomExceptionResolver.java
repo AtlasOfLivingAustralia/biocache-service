@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.web;
 
+import au.org.ala.biocache.util.QidMissingException;
 import org.apache.solr.common.SolrException;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.handler.SimpleMappingExceptionResolver;
@@ -54,8 +55,10 @@ public class CustomExceptionResolver extends SimpleMappingExceptionResolver {
 
     /**
      * Determine the HTTP status code to apply for the given error view.
-     * <p> If the exception is a solr exception, it uses the exception code as HTTP status
-     * code. Otherwise it uses default implementation to get the HTTP status code.
+     * <p>
+     * If the exception is a solr exception, it uses the exception code as HTTP status code.<br/>
+     * If the exception is a QidMissingException, HTTP status code is 400.<br/>
+     * Otherwise it uses default implementation to get the HTTP status code. </p>
      * @param request current HTTP request
      * @param viewName the name of the error view
      * @param ex the exception that got thrown during handler execution
@@ -64,6 +67,9 @@ public class CustomExceptionResolver extends SimpleMappingExceptionResolver {
     protected Integer determineStatusCode(HttpServletRequest request, String viewName, Exception ex) {
         if (ex instanceof SolrException) {
             return ((SolrException) ex).code();
+        } else if (ex instanceof QidMissingException) {
+            // same as in error/general.jsp
+            return 400;
         } else {
             return determineStatusCode(request, viewName);
         }
@@ -89,7 +95,13 @@ public class CustomExceptionResolver extends SimpleMappingExceptionResolver {
         // request.getAttribute("javax.servlet.error.exception") is used to get the exception and show details to user
         // this function won't be affected by this custom class so jsp pages will work as before
         mv.addObject("message", ex.getMessage());
-        mv.addObject("errorType", (ex instanceof SolrException) ? "Solr error" : "Server error");
+        String errorType = "Server error";
+        if (ex instanceof SolrException) {
+            errorType = "Solr error";
+        } else if (ex instanceof QidMissingException) {
+            errorType = "Qid not found";
+        }
+        mv.addObject("errorType", errorType);
         return mv;
     }
 }

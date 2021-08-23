@@ -57,7 +57,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams requestParams, boolean includeSensitive, Map<String, String[]> extraParams);
+    SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams requestParams, boolean includeSensitive, Map<String, String[]> extraParams) throws Exception;
 
     /**
      * Writes the species count in the specified circle to the output stream.

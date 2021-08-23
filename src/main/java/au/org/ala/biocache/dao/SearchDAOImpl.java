@@ -458,35 +458,30 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      */
     @Override
-    public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, boolean includeSensitive, Map<String, String[]> extraParams) {
+    public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams,
+                                                      boolean includeSensitive, Map<String, String[]> extraParams) throws Exception {
         SearchResultDTO searchResults = new SearchResultDTO();
         SpatialSearchRequestParams original = new SpatialSearchRequestParams();
         BeanUtils.copyProperties(searchParams, original);
-        try {
-            Map[] fqMaps = queryFormatUtils.formatSearchQuery(searchParams, true);
-            SolrQuery solrQuery = initSolrQuery(searchParams, true, extraParams); // general search settings
+        Map[] fqMaps = queryFormatUtils.formatSearchQuery(searchParams, true);
+        SolrQuery solrQuery = initSolrQuery(searchParams, true, extraParams); // general search settings
 
-            QueryResponse qr = indexDao.runSolrQuery(solrQuery);
+        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
 
-            //need to set the original q to the processed value so that we remove the wkt etc that is added from paramcache object
-            Class resultClass;
-            resultClass = includeSensitive ? au.org.ala.biocache.dto.SensitiveOccurrenceIndex.class : OccurrenceIndex.class;
+        //need to set the original q to the processed value so that we remove the wkt etc that is added from paramcache object
+        Class resultClass;
+        resultClass = includeSensitive ? au.org.ala.biocache.dto.SensitiveOccurrenceIndex.class : OccurrenceIndex.class;
 
-            searchResults = processSolrResponse(original, qr, solrQuery, resultClass);
-            searchResults.setQueryTitle(searchParams.getDisplayString());
-            searchResults.setUrlParameters(original.getUrlParams());
+        searchResults = processSolrResponse(original, qr, solrQuery, resultClass);
+        searchResults.setQueryTitle(searchParams.getDisplayString());
+        searchResults.setUrlParameters(original.getUrlParams());
 
-            //now update the fq display map...
-            searchResults.setActiveFacetMap(fqMaps[0]);
-            searchResults.setActiveFacetObj(fqMaps[1]);
+        //now update the fq display map...
+        searchResults.setActiveFacetMap(fqMaps[0]);
+        searchResults.setActiveFacetObj(fqMaps[1]);
 
-            if (logger.isDebugEnabled()) {
-                logger.debug("spatial search query: " + solrQuery.toQueryString());
-            }
-        } catch (Exception ex) {
-            logError("Error executing query with requestParams: " + searchParams.toString(), ex.getMessage());
-            searchResults.setStatus("ERROR"); // TODO also set a message field on this bean with the error message(?)
-            searchResults.setErrorMessage(ex.getMessage());
+        if (logger.isDebugEnabled()) {
+            logger.debug("spatial search query: " + solrQuery.toQueryString());
         }
 
         return searchResults;
