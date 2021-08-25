@@ -395,12 +395,12 @@
             <version>1.6.1</version>
         </dependency>
         <!-- JSR-250 -->
-        <dependency>
-            <groupId>javax.annotation</groupId>
-            <artifactId>jsr250-api</artifactId>
-            <version>1.0</version>
-            <scope>provided</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>javax.annotation</groupId>-->
+<!--            <artifactId>jsr250-api</artifactId>-->
+<!--            <version>1.0</version>-->
+<!--            <scope>provided</scope>-->
+<!--        </dependency>-->
         <!-- DOM4J -->
         <!--        <dependency>-->
         <!--            <groupId>dom4j</groupId>-->
@@ -419,16 +419,16 @@
             <version>1.5</version>
         </dependency>
         <!-- JSON -->
-        <!--        <dependency>-->
-        <!--            <groupId>org.json</groupId>-->
-        <!--            <artifactId>json</artifactId>-->
-        <!--            <version>20090211</version>-->
-        <!--        </dependency>-->
-        <!--        <dependency>-->
-        <!--            <groupId>atg.taglib.json</groupId>-->
-        <!--            <artifactId>json-taglib</artifactId>-->
-        <!--            <version>0.4.1</version>-->
-        <!--        </dependency>-->
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20210307</version>
+        </dependency>
+        <dependency>
+            <groupId>atg.taglib.json</groupId>
+            <artifactId>json-taglib</artifactId>
+            <version>0.4.1</version>
+        </dependency>
         <dependency>
             <groupId>net.sf.json-lib</groupId>
             <artifactId>json-lib</artifactId>
