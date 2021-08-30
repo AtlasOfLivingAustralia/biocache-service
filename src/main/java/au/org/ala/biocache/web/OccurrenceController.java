@@ -1627,8 +1627,9 @@ public class OccurrenceController extends AbstractSecureController {
 
         map.put("alaUserId", sd.getFieldValue(OccurrenceIndex.ALA_USER_ID));
 
-        if (includeSensitive && isSensitive(sd)) {
-
+        boolean bSensitive = isSensitive(sd);
+        map.put("sensitive", bSensitive);
+        if (includeSensitive && bSensitive) {
             Map rawLocation = (Map) raw.get("location");
             Map rawEvent = (Map) raw.get("event");
 
