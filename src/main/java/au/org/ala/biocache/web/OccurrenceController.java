@@ -1728,6 +1728,12 @@ public class OccurrenceController extends AbstractSecureController {
 
             LocalDate localDate = ((Date) value).toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
             map.put(fieldNameToUse, localDate.toString());
+
+        } else if (value != null) {
+
+            // If the value is not a date add without parsing to date.
+            // Note: raw (unprocessed) fields are stored as string values.
+            addField(sd, map, fieldNameToUse, fieldName);
         }
     }
 
