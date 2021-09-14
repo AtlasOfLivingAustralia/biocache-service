@@ -77,7 +77,7 @@ public class DownloadController extends AbstractSecureController {
      * Retrieves all the downloads that are on the queue
      * @return
      */
-    @RequestMapping(value = "occurrences/offline/download/stats", method = RequestMethod.GET)
+    @RequestMapping(value = { "occurrences/offline/download/stats", "occurrences/offline/download/stats.json" }, method = RequestMethod.GET)
     public @ResponseBody
     List getCurrentDownloads(
             HttpServletResponse response,
@@ -114,7 +114,7 @@ public class DownloadController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "occurrences/offline/{type}/download*", method = {RequestMethod.GET, RequestMethod.POST})
+    @RequestMapping(value = { "occurrences/offline/{type}/download*", "occurrences/offline/{type}/download.json*" } , method = {RequestMethod.GET, RequestMethod.POST})
     public @ResponseBody Object occurrenceDownload(
             DownloadRequestParams requestParams,
             @RequestParam(value = "ip", required = false) String ip,
@@ -137,7 +137,7 @@ public class DownloadController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "occurrences/offline/download*", method = {RequestMethod.GET, RequestMethod.POST})
+    @RequestMapping(value = { "occurrences/offline/download*", "occurrences/offline/download.json*" }, method = {RequestMethod.GET, RequestMethod.POST})
     public @ResponseBody Object occurrenceDownload(
             DownloadRequestParams requestParams,
             @RequestParam(value = "ip", required = false) String ip,
@@ -255,7 +255,7 @@ public class DownloadController extends AbstractSecureController {
         return status;
     }
 
-    @RequestMapping(value = "occurrences/offline/status", method = RequestMethod.GET)
+    @RequestMapping(value = { "occurrences/offline/status", "occurrences/offline/status.json" }, method = RequestMethod.GET)
     public @ResponseBody Object allOccurrenceDownloadStatus() throws Exception {
 
         List<Map<String, Object>> allStatus = new ArrayList<Map<String, Object>>();
@@ -325,7 +325,7 @@ public class DownloadController extends AbstractSecureController {
         FileUtils.writeStringToFile(new File(statusDir.getPath() + "/status.json"), json, "UTF-8");
     }
 
-    @RequestMapping(value = "occurrences/offline/status/{id}", method = RequestMethod.GET)
+    @RequestMapping(value = { "occurrences/offline/status/{id}", "occurrences/offline/status/{id}.json" }, method = RequestMethod.GET)
     public @ResponseBody Object occurrenceDownloadStatus(@PathVariable("id") String id) throws Exception {
 
         Map<String, Object> status = new LinkedHashMap<>();
@@ -403,7 +403,7 @@ public class DownloadController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "occurrences/offline/cancel/{id}", method = RequestMethod.GET)
+    @RequestMapping(value = { "occurrences/offline/cancel/{id}", "occurrences/offline/cancel/{id}.json" }, method = RequestMethod.GET)
     public @ResponseBody Object occurrenceDownloadCancel(
             @PathVariable("id") String id,
             HttpServletResponse response,

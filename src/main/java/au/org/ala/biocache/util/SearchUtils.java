@@ -324,11 +324,13 @@ public class SearchUtils {
                 (String) request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE),
                 request.getServletPath());
 
-        if (guid.endsWith(".json"))
+        if (guid.endsWith(".json")) {
             guid = guid.substring(0, guid.length() - 5);
+        }
         Matcher duds = DUD_URL_PATTERN.matcher(guid);
-        if (duds.matches())
+        if (duds.matches()) {
             guid = duds.group(1) + "/" + duds.group(2);
+        }
         return guid;
     }
 

@@ -10,10 +10,12 @@
         These include WMS support and JSON query services on top of records.
     </description>
 
+    <absolute-ordering />
+
     <listener>
         <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
     </listener>
-    
+
     <servlet>
         <servlet-name>mainDispatcher</servlet-name> 
         <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>

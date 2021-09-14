@@ -21,9 +21,9 @@ import au.org.ala.biocache.util.QidMissingException;
 import au.org.ala.biocache.util.QidSizeException;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.SpatialUtils;
-import com.googlecode.ehcache.annotations.Cacheable;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
@@ -423,7 +423,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
         return allFqs;
     }
 
-    @Cacheable(cacheName = "qidGeneration")
+    @Cacheable("qidGeneration")
     @Override
     public String generateQid(SpatialSearchRequestParams requestParams, String bbox, String title, Long maxage, String source) {
         try {
@@ -470,8 +470,8 @@ public class QidCacheDAOImpl implements QidCacheDAO {
         return null;
     }
 
-    @Cacheable(cacheName = "fixWkt")
-    private String fixWkt(String wkt) {
+    @Cacheable("fixWkt")
+    public String fixWkt(String wkt) {
         return SpatialUtils.simplifyWkt(wkt, maxWktPoints, wktSimplificationFactor, wktSimplificationInitialPrecision, wktSimplificationMaxPrecision);
     }
 

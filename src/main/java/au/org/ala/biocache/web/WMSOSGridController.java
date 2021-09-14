@@ -93,14 +93,15 @@ public class WMSOSGridController {
      * @throws Exception
      */
     @RequestMapping(value = {"/osgrid/feature.json"}, method = RequestMethod.GET)
-    public @ResponseBody Map<String, Object> getFeatureInfo(
+    public @ResponseBody
+    Map<String, Object> getFeatureInfo(
             SpatialSearchRequestParams requestParams,
             HttpServletRequest request) throws Exception {
 
         try {
 
             String qc = requestParams.getQc();
-            if(StringUtils.isNotEmpty(qc)){
+            if (StringUtils.isNotEmpty(qc)) {
                 String[] newFqs = new String[requestParams.getFq().length + 1];
                 System.arraycopy(requestParams.getFq(), 0, newFqs, 0, requestParams.getFq().length);
                 newFqs[newFqs.length - 1] = qc;
@@ -197,10 +198,10 @@ public class WMSOSGridController {
                 }
             }
             return map;
-        } catch (Exception e){
+        } catch (Exception e) {
             logger.error("Problem with getFeatureInfo request: " + e.getMessage());
-            if(logger.isDebugEnabled()){
-                logger.debug( e.getMessage(), e);
+            if (logger.isDebugEnabled()) {
+                logger.debug(e.getMessage(), e);
             }
             return new HashMap<String, Object>();
         }
@@ -215,7 +216,7 @@ public class WMSOSGridController {
      * @param replaceLast
      * @return
      */
-    private long getRecordCountForGridRef(SpatialSearchRequestParams requestParams, String gridRef, int gridSize, boolean replaceLast){
+    private long getRecordCountForGridRef(SpatialSearchRequestParams requestParams, String gridRef, int gridSize, boolean replaceLast) {
 
         try {
             String fq = getFilterQuery(gridRef, gridSize);
@@ -242,10 +243,10 @@ public class WMSOSGridController {
 
             SearchResultDTO resultDTO = searchDAO.findByFulltextSpatialQuery(requestParams, false, new HashMap<String, String[]>());
             return resultDTO.getTotalRecords();
-        } catch (Exception e){
+        } catch (Exception e) {
             logger.error("Problem with getRecordCountForGridRef request: " + e.getMessage());
-            if(logger.isDebugEnabled()){
-                logger.debug( e.getMessage(), e);
+            if (logger.isDebugEnabled()) {
+                logger.debug(e.getMessage(), e);
             }
             return 0;
         }
@@ -262,9 +263,9 @@ public class WMSOSGridController {
      * - allow show all grid cells option (i.e. always include 10km grids)
      * - enable,disable outline
      * - only show 1km grids or smaller
-     *
+     * <p>
      * Default behaviour for zoom levels
-     *
+     * <p>
      * 313km - just show 10km grids
      * 156km  - just show 10km grids
      * 78km  - just show 10km grids
@@ -282,7 +283,7 @@ public class WMSOSGridController {
             SpatialSearchRequestParams requestParams,
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
             @RequestParam(value = "ENV", required = true, defaultValue = "") String env,
-            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:900913") String srs, //default to google mercator
+            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs, //default to google mercator
             @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
             @RequestParam(value = "BBOX", required = true, defaultValue = "") String bboxString,
             @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
@@ -298,7 +299,7 @@ public class WMSOSGridController {
 
         WmsEnv wmsEnv = new WmsEnv(env, styles);
 
-        if(StringUtils.isEmpty(bboxString)){
+        if (StringUtils.isEmpty(bboxString)) {
             return;
         }
 
@@ -316,36 +317,36 @@ public class WMSOSGridController {
         double maxx = Double.parseDouble(bbox[2]);
         double maxy = Double.parseDouble(bbox[3]);
 
-        int boundingBoxSizeInKm = (int) (maxx - minx) /1000;
+        int boundingBoxSizeInKm = (int) (maxx - minx) / 1000;
         double buff = 0.0;
 
         String[] facets = new String[0];
         String[] additionalFqs = new String[0];
         logger.info("Rendering at " + boundingBoxSizeInKm);
 
-        if ("singlegrid".equals(wmsEnv.gridres)){
-            if(boundingBoxSizeInKm >= 1000 ) {
+        if ("singlegrid".equals(wmsEnv.gridres)) {
+            if (boundingBoxSizeInKm >= 1000) {
                 facets = new String[]{"grid_ref_100000"};
                 buff = 1.0;
-            } else if(boundingBoxSizeInKm > 78 && boundingBoxSizeInKm <1000 ){
+            } else if (boundingBoxSizeInKm > 78 && boundingBoxSizeInKm < 1000) {
                 facets = new String[]{"grid_ref_10000"};
                 buff = 0.75;
-            } else if(boundingBoxSizeInKm > 39 && boundingBoxSizeInKm <= 78) {
+            } else if (boundingBoxSizeInKm > 39 && boundingBoxSizeInKm <= 78) {
                 facets = new String[]{"grid_ref_2000"};
                 buff = 0.05;
-            } else if(boundingBoxSizeInKm > 8 && boundingBoxSizeInKm <= 39) {
+            } else if (boundingBoxSizeInKm > 8 && boundingBoxSizeInKm <= 39) {
                 facets = new String[]{"grid_ref_1000"};
                 buff = 0.05;
             } else {
                 facets = new String[]{"grid_ref_100"};
                 buff = 0.05;
             }
-        } else if ("10kgrid".equals(wmsEnv.gridres)){
+        } else if ("10kgrid".equals(wmsEnv.gridres)) {
             facets = new String[]{"grid_ref_10000"};
             buff = 0.75; //no problems with buff 1.0
         } else {
             //variable grid
-            if(boundingBoxSizeInKm >= 1000 ) {
+            if (boundingBoxSizeInKm >= 1000) {
                 facets = new String[]{"grid_ref_100000"};
                 buff = 1.0;
             } else if (boundingBoxSizeInKm > 39 && boundingBoxSizeInKm < 1000) {
@@ -384,7 +385,7 @@ public class WMSOSGridController {
             minX = tmp;
         }
 
-        if(minY > maxY){
+        if (minY > maxY) {
             double tmp = maxY;
             maxY = minY;
             minY = tmp;
@@ -392,7 +393,7 @@ public class WMSOSGridController {
 
         String fq = MessageFormat.format(bboxFilterQuery, minX, minY, maxX, maxY, longitudeField, latitudeField);
         String[] fqs = wmsUtils.getFq(requestParams);
-        if(fqs ==null || fqs.length==1 && StringUtils.isBlank(fqs[0])){
+        if (fqs == null || fqs.length == 1 && StringUtils.isBlank(fqs[0])) {
             fqs = new String[0];
         }
 
@@ -417,21 +418,21 @@ public class WMSOSGridController {
 
         Map<String, Integer> gridsRefs = new HashMap<String, Integer>();
 
-        SearchResultDTO resultsDTO2 = searchDAO.findByFulltextSpatialQuery(requestParams, false, new HashMap<String,String[]>());
+        SearchResultDTO resultsDTO2 = searchDAO.findByFulltextSpatialQuery(requestParams, false, new HashMap<String, String[]>());
         Collection<FacetResultDTO> results2 = resultsDTO2.getFacetResults();
-        for (FacetResultDTO result : results2){
+        for (FacetResultDTO result : results2) {
             for (FieldResultDTO fieldResult : result.getFieldResult()) {
                 gridsRefs.put(fieldResult.getLabel(), (int) fieldResult.getCount());
             }
         }
 
-        List<String> gridRefsToRender =  Arrays.asList(gridsRefs.keySet().toArray(new String[0]));
+        List<String> gridRefsToRender = Arrays.asList(gridsRefs.keySet().toArray(new String[0]));
         java.util.Collections.sort(gridRefsToRender, new Comparator<String>() {
             @Override
             public int compare(String o1, String o2) {
-                if(o1.length() > o2.length())
+                if (o1.length() > o2.length())
                     return 1;
-                if(o1.length() == o2.length())
+                if (o1.length() == o2.length())
                     return 0;
                 return -1;
             }
@@ -440,7 +441,7 @@ public class WMSOSGridController {
         Set<int[]> linesToRender = new HashSet<int[]>();
         List<String> renderedLinesCache = new LinkedList<String>();
 
-        for(String gridRef : gridRefsToRender){
+        for (String gridRef : gridRefsToRender) {
 
             Set<int[]> renderedLines = renderGrid(wmsImg,
                     gridRef,
@@ -458,7 +459,7 @@ public class WMSOSGridController {
             linesToRender.addAll(renderedLines);
         }
 
-        if(outlineGrids) {
+        if (outlineGrids) {
             //grid lines are rendered after cell fills
             renderGridLines(wmsImg, linesToRender, outlineColour);
         }
@@ -476,17 +477,17 @@ public class WMSOSGridController {
         }
     }
 
-    public void renderGridLines(WMSImg wmsImg, Collection<int[]> linesToRender, String outlineColour){
-        for(int[] line: linesToRender){
+    public void renderGridLines(WMSImg wmsImg, Collection<int[]> linesToRender, String outlineColour) {
+        for (int[] line : linesToRender) {
             wmsImg.g.setPaint(new Color(0xff000000, true));
             wmsImg.g.setStroke(new BasicStroke(0.8f));
-            wmsImg.g.drawLine(line[0],line[1],line[2],line[3]);
+            wmsImg.g.drawLine(line[0], line[1], line[2], line[3]);
         }
     }
 
     /**
      * Render a single grid reference on the supplied tile
-     *
+     * <p>
      * //TODO note imageHeight is not used.....
      *
      * @param wmsImg
@@ -497,7 +498,7 @@ public class WMSOSGridController {
      * @param oneUnitYInPixels
      */
     private Set<int[]> renderGrid(WMSImg wmsImg, String gridRef, double minx, double miny, double oneUnitXInPixels,
-                                  double oneUnitYInPixels, String targetSrs, int imageWidth, int imageHeight, WmsEnv wmsEnv, List<String> renderedLines){
+                                  double oneUnitYInPixels, String targetSrs, int imageWidth, int imageHeight, WmsEnv wmsEnv, List<String> renderedLines) {
 
         if (StringUtils.isEmpty(gridRef)) return new HashSet<int[]>();
 
@@ -534,23 +535,19 @@ public class WMSOSGridController {
                 oneUnitXInPixels, oneUnitYInPixels, imageWidth, imageHeight);
 
         int color;
-        if(!StringUtils.isEmpty(wmsEnv.gridres) && !"variablegrid".equals(wmsEnv.gridres)){
+        if (!StringUtils.isEmpty(wmsEnv.gridres) && !"variablegrid".equals(wmsEnv.gridres)) {
             //retrieve the supplied colour
             color = wmsEnv.colour;
         } else {
-            if(gridSize == 100000){
+            if (gridSize == 100000) {
                 color = 0xFFFFFF00; //1km grids yellow
-            }
-            else if(gridSize == 10000){
+            } else if (gridSize == 10000) {
                 color = 0xFFFFFF00; //1km grids yellow
-            }
-            else if(gridSize == 2000){
+            } else if (gridSize == 2000) {
                 color = 0xFF0000FF; //blue
-            }
-            else if(gridSize == 1000){
+            } else if (gridSize == 1000) {
                 color = 0xFF00FF00; //green
-            }
-            else {
+            } else {
                 color = 0xFFFF0000; //red
             }
         }
@@ -559,7 +556,7 @@ public class WMSOSGridController {
         wmsImg.g.setPaint(polygonFill);
 
 
-        if(overlapping(coordinatesForImages)){
+        if (overlapping(coordinatesForImages)) {
             wmsImg.g.fillPolygon(
                     new int[]{
                             coordinatesForImages[0][0],
@@ -581,30 +578,30 @@ public class WMSOSGridController {
         wmsImg.g.setPaint(polygonBorder);
 
         //line 1 -  bottom line
-        String key1 = getLineKey(minEastingOfGridCell,minNorthingOfGridCell,maxEastingOfGridCell,minNorthingOfGridCell);
-        if(!renderedLines.contains(key1)) {
+        String key1 = getLineKey(minEastingOfGridCell, minNorthingOfGridCell, maxEastingOfGridCell, minNorthingOfGridCell);
+        if (!renderedLines.contains(key1)) {
             linesToRender.add(new int[]{coordinatesForImages[0][0], coordinatesForImages[0][1], coordinatesForImages[1][0], coordinatesForImages[1][1]});
         }
 
         //line 2 - right line
-        String key2 = getLineKey(maxEastingOfGridCell,minNorthingOfGridCell,maxEastingOfGridCell,maxNorthingOfGridCell);
-        if(!renderedLines.contains(key2)) {
+        String key2 = getLineKey(maxEastingOfGridCell, minNorthingOfGridCell, maxEastingOfGridCell, maxNorthingOfGridCell);
+        if (!renderedLines.contains(key2)) {
             linesToRender.add(new int[]{coordinatesForImages[1][0], coordinatesForImages[1][1], coordinatesForImages[2][0], coordinatesForImages[2][1]});
         }
 
         //line 3 - top line
-        String key3 = getLineKey(maxEastingOfGridCell,maxNorthingOfGridCell,minEastingOfGridCell,maxNorthingOfGridCell);
-        if(!renderedLines.contains(key3)) {
+        String key3 = getLineKey(maxEastingOfGridCell, maxNorthingOfGridCell, minEastingOfGridCell, maxNorthingOfGridCell);
+        if (!renderedLines.contains(key3)) {
             linesToRender.add(new int[]{coordinatesForImages[2][0], coordinatesForImages[2][1], coordinatesForImages[3][0], coordinatesForImages[3][1]});
         }
 
         //line 4 - left line
-        String key4 = getLineKey(minEastingOfGridCell,maxNorthingOfGridCell,minEastingOfGridCell,minNorthingOfGridCell);
-        if(!renderedLines.contains(key4)) {
+        String key4 = getLineKey(minEastingOfGridCell, maxNorthingOfGridCell, minEastingOfGridCell, minNorthingOfGridCell);
+        if (!renderedLines.contains(key4)) {
             linesToRender.add(new int[]{coordinatesForImages[3][0], coordinatesForImages[3][1], coordinatesForImages[0][0], coordinatesForImages[0][1]});
         }
 
-        if(wmsEnv.gridlabels) {
+        if (wmsEnv.gridlabels) {
             Paint textColor = new Color(0xFF000000, true);
             wmsImg.g.setPaint(textColor);
             wmsImg.g.setFont(new Font("Ofliant", Font.PLAIN, 11));
@@ -634,19 +631,19 @@ public class WMSOSGridController {
         return linesToRender;
     }
 
-    public boolean overlapping(int[][] imageCoords){
-        for(int i=0; i < imageCoords.length; i++){
-            if(imageCoords[i][0] >=0 && imageCoords[i][1] >=0 ){
+    public boolean overlapping(int[][] imageCoords) {
+        for (int i = 0; i < imageCoords.length; i++) {
+            if (imageCoords[i][0] >= 0 && imageCoords[i][1] >= 0) {
                 return true;
             }
         }
         return false;
     }
 
-    public String getLineKey(int x1, int y1 , int x2 , int y2){
+    public String getLineKey(int x1, int y1, int x2, int y2) {
 
         String key = "";
-        if(x1 < x2){
+        if (x1 < x2) {
             key = x1 + " " + x2;
         } else {
             key = x2 + " " + x1;
@@ -654,7 +651,7 @@ public class WMSOSGridController {
 
         key += " ";
 
-        if(y1 < y2){
+        if (y1 < y2) {
             key += y1 + " " + y2;
         } else {
             key += y2 + " " + y1;
@@ -663,28 +660,28 @@ public class WMSOSGridController {
         return key;
     }
 
-    ParsedGridRef convertEastingNorthingToOSGrid(double e, double n){
+    ParsedGridRef convertEastingNorthingToOSGrid(double e, double n) {
 
         Integer digits = 10;
 
         // get the 100km-grid indices
-        Double e100k = Math.floor(e/100000);
-        Double n100k = Math.floor(n/100000);
+        Double e100k = Math.floor(e / 100000);
+        Double n100k = Math.floor(n / 100000);
 
-        if (e100k<0 || e100k>6 || n100k<0 || n100k>12) return null;
+        if (e100k < 0 || e100k > 6 || n100k < 0 || n100k > 12) return null;
 
         // translate those into numeric equivalents of the grid letters
-        Double l1 = (19-n100k) - (19-n100k)%5 + Math.floor((e100k+10)/5);
-        Double l2 = (19-n100k)*5%25 + e100k%5;
+        Double l1 = (19 - n100k) - (19 - n100k) % 5 + Math.floor((e100k + 10) / 5);
+        Double l2 = (19 - n100k) * 5 % 25 + e100k % 5;
 
         // compensate for skipped 'I' and build grid letter-pairs
         if (l1 > 7) l1++;
         if (l2 > 7) l2++;
-        String letPair = "" + (char)(l1 + 'A') + (char)(l2 + 'A');
+        String letPair = "" + (char) (l1 + 'A') + (char) (l2 + 'A');
 
         // strip 100km-grid indices from easting & northing, and reduce precision
-        e = Math.floor((e%100000)/Math.pow(10, 5-digits/2));
-        n = Math.floor((n%100000)/Math.pow(10, 5-digits/2));
+        e = Math.floor((e % 100000) / Math.pow(10, 5 - digits / 2));
+        n = Math.floor((n % 100000) / Math.pow(10, 5 - digits / 2));
 
         return new ParsedGridRef(letPair, (int) e, (int) n);
     }
@@ -698,7 +695,7 @@ public class WMSOSGridController {
      * @param targetCRSString
      * @return
      */
-    double[] reprojectPoint(Double x, Double y, String sourceCRSString, String targetCRSString){
+    double[] reprojectPoint(Double x, Double y, String sourceCRSString, String targetCRSString) {
 
         try {
 
@@ -728,17 +725,16 @@ public class WMSOSGridController {
         return null;
     }
 
-    double[] convertWGS84ToEastingNorthing(Double coordinate1, Double coordinate2){
-        return reprojectPoint(coordinate1, coordinate2,  "EPSG:4326", "EPSG:27700");
+    double[] convertWGS84ToEastingNorthing(Double coordinate1, Double coordinate2) {
+        return reprojectPoint(coordinate1, coordinate2, "EPSG:4326", "EPSG:27700");
     }
 
-    double[] convertProjectionToWGS84(Double coordinate1, Double coordinate2, String sourceProjection){
+    double[] convertProjectionToWGS84(Double coordinate1, Double coordinate2, String sourceProjection) {
         return reprojectPoint(coordinate1, coordinate2, sourceProjection, "EPSG:4326");
     }
 
     /**
-     *
-     * @param polygon coordinates for the polygon
+     * @param polygon            coordinates for the polygon
      * @param minXOfTileInMetres
      * @param minYOfTileInMetres
      * @param onePixelInUnitX
@@ -751,20 +747,20 @@ public class WMSOSGridController {
                                       double onePixelInUnitX,
                                       double onePixelInUnitY,
                                       int tileSizeInPixelsX,
-                                      int tileSizeInPixelsY){
+                                      int tileSizeInPixelsY) {
 
         int[][] offsetXYWidthHeights = new int[polygon.length][2];
-        for(int i = 0; i < polygon.length; i++){
-            int x = (int)((polygon[i][0] - minXOfTileInMetres) * onePixelInUnitX);
-            int y = (int)((polygon[i][1] - minYOfTileInMetres) * onePixelInUnitY);
+        for (int i = 0; i < polygon.length; i++) {
+            int x = (int) ((polygon[i][0] - minXOfTileInMetres) * onePixelInUnitX);
+            int y = (int) ((polygon[i][1] - minYOfTileInMetres) * onePixelInUnitY);
             offsetXYWidthHeights[i] = new int[]{x, tileSizeInPixelsY - y};
         }
         return offsetXYWidthHeights;
     }
 
-    double[][] convertEastingNorthingToTargetSRS(double[][] polygon, String sourceSrs, String targetSrs){
+    double[][] convertEastingNorthingToTargetSRS(double[][] polygon, String sourceSrs, String targetSrs) {
         double[][] converted = new double[polygon.length][2];
-        for(int i = 0; i < polygon.length; i++){
+        for (int i = 0; i < polygon.length; i++) {
             converted[i] = reprojectPoint(polygon[i][0], polygon[i][1], sourceSrs, targetSrs);
         }
         return converted;
@@ -797,48 +793,64 @@ final class ParsedGridRef {
     public final String chars;
     public final int northing;
     public final int easting;
-    public ParsedGridRef(String chars, int easting, int northing){
+
+    public ParsedGridRef(String chars, int easting, int northing) {
         this.chars = chars;
         this.easting = easting;
         this.northing = northing;
     }
-    public String getGridRef(){ return chars + (easting) + (northing);}
-    public String getGridRef100(){ return chars + pad100(easting/100) + pad100(northing/100);}
-    public String getGridRef1000(){ return chars + pad10(easting/1000) + pad10(northing/1000);}
-    public String getGridRef2000(){
 
-        int tetradE = (easting  % 10000)/1000;
-        int tetradN = (northing % 10000)/1000;
+    public String getGridRef() {
+        return chars + (easting) + (northing);
+    }
+
+    public String getGridRef100() {
+        return chars + pad100(easting / 100) + pad100(northing / 100);
+    }
+
+    public String getGridRef1000() {
+        return chars + pad10(easting / 1000) + pad10(northing / 1000);
+    }
+
+    public String getGridRef2000() {
+
+        int tetradE = (easting % 10000) / 1000;
+        int tetradN = (northing % 10000) / 1000;
 
         int code = ((tetradN / 2) + 1) + ((tetradE / 2) * 5);
 
         int tetrad = 64;
 
-        if(code <= 14){
+        if (code <= 14) {
             tetrad = (char) (tetrad + code);
         } else {
             tetrad = (char) (tetrad + (code + 1));
         }
-        return chars + (easting/10000) + (northing/10000) + ((char) tetrad);
-    }
-    public String getGridRef10000(){ return chars + (easting/10000) + (northing/10000);}
-
-    public String getGridRef100000(){ return new String(chars);}
-
-    public String pad10(int eastingOrNorthing){
-        if(eastingOrNorthing <10){
-            return  "0" + eastingOrNorthing;
-        }
-        return "" +  eastingOrNorthing;
+        return chars + (easting / 10000) + (northing / 10000) + ((char) tetrad);
     }
 
-    public String pad100(int eastingOrNorthing){
-        if(eastingOrNorthing > 0 && eastingOrNorthing <100){
-            return  "0" + eastingOrNorthing;
+    public String getGridRef10000() {
+        return chars + (easting / 10000) + (northing / 10000);
+    }
+
+    public String getGridRef100000() {
+        return new String(chars);
+    }
+
+    public String pad10(int eastingOrNorthing) {
+        if (eastingOrNorthing < 10) {
+            return "0" + eastingOrNorthing;
         }
-        if(eastingOrNorthing <10){
-            return  "00" + eastingOrNorthing;
+        return "" + eastingOrNorthing;
+    }
+
+    public String pad100(int eastingOrNorthing) {
+        if (eastingOrNorthing > 0 && eastingOrNorthing < 100) {
+            return "0" + eastingOrNorthing;
         }
-        return "" +  eastingOrNorthing;
+        if (eastingOrNorthing < 10) {
+            return "00" + eastingOrNorthing;
+        }
+        return "" + eastingOrNorthing;
     }
 }

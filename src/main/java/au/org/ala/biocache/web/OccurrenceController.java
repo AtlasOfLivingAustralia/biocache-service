@@ -28,7 +28,6 @@ import au.org.ala.biocache.util.QidSizeException;
 import au.org.ala.biocache.util.SearchUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import net.sf.ehcache.CacheManager;
 import net.sf.json.JSONArray;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
@@ -37,10 +36,8 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
-import org.apache.solr.common.SolrException;
 import org.gbif.dwc.terms.DwcTerm;
 import org.gbif.utils.file.FileUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Controller;
@@ -125,12 +122,10 @@ public class OccurrenceController extends AbstractSecureController {
     private AbstractMessageSource messageSource;
     @Inject
     private ImageMetadataService imageMetadataService;
-    @Autowired
+    @Inject
     protected Validator validator;
     @Inject
     protected QidCacheDAO qidCacheDao;
-    @Inject
-    private CacheManager cacheManager;
     @Inject
     private LayersService layersService;
 
@@ -287,14 +282,14 @@ public class OccurrenceController extends AbstractSecureController {
         return "oldapi";
     }
 
-    @RequestMapping(value = "/upload/dynamicFacets", method = RequestMethod.GET)
+    @RequestMapping(value = {"/upload/dynamicFacets", "/upload/dynamicFacets.json" }, method = RequestMethod.GET)
     public @ResponseBody
     Map emptyJson() {
         Map<String, String> map = new HashMap();
         return map;
     }
 
-    @RequestMapping(value = "/active/download/stats", method = RequestMethod.GET)
+    @RequestMapping(value = { "/active/download/stats", "active/download/stats.json" }, method = RequestMethod.GET)
     public @ResponseBody
     List<DownloadDetailsDTO> getCurrentDownloads() {
         return downloadService.getCurrentDownloads();
@@ -305,7 +300,7 @@ public class OccurrenceController extends AbstractSecureController {
      *
      * @return
      */
-    @RequestMapping(value = "/search/facets", method = RequestMethod.GET)
+    @RequestMapping(value = { "/search/facets", "/search/facets.json" }, method = RequestMethod.GET)
     public @ResponseBody
     String[] listAllFacets() {
         return new SearchRequestParams().getFacets();
@@ -316,7 +311,7 @@ public class OccurrenceController extends AbstractSecureController {
      *
      * @return
      */
-    @RequestMapping(value = "/search/grouped/facets", method = RequestMethod.GET)
+    @RequestMapping(value = { "/search/grouped/facets", "/search/grouped/facets.json" }, method = RequestMethod.GET)
     public @ResponseBody
     List groupFacets() throws IOException {
         return FacetThemes.getAllThemes();
@@ -386,7 +381,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "index/fields", method = RequestMethod.GET)
+    @RequestMapping(value = { "index/fields", "index/fields.json" }, method = RequestMethod.GET)
     public @ResponseBody
     Collection<IndexFieldDTO> getIndexedFields(
             @RequestParam(value = "fl", required = false) String fields,
@@ -524,7 +519,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "index/version", method = RequestMethod.GET)
+    @RequestMapping(value = { "index/version", "index/version.json" }, method = RequestMethod.GET)
     public @ResponseBody
     Map getIndexedFields(@RequestParam(value = "apiKey", required = false) String apiKey,
                          @RequestParam(value = "force", required = false, defaultValue = "false") Boolean force,
@@ -545,7 +540,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "index/maxBooleanClauses", method = RequestMethod.GET)
+    @RequestMapping(value = { "index/maxBooleanClauses", "index/maxBooleanClauses.json" }, method = RequestMethod.GET)
     public @ResponseBody
     Map getIndexedFields() throws Exception {
 
@@ -563,7 +558,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "config", method = RequestMethod.GET)
+    @RequestMapping(value = { "config", "config.json" }, method = RequestMethod.GET)
     public @ResponseBody
     Map getConfig() {
         Map map = new HashMap();
@@ -595,22 +590,13 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = "occurrence/facets", method = RequestMethod.GET)
+    @RequestMapping(value = { "occurrence/facets", "occurrence/facets.json" }, method = RequestMethod.GET)
     public @ResponseBody
     List<FacetResultDTO> getOccurrenceFacetDetails(
             SpatialSearchRequestParams requestParams,
             HttpServletResponse response
     ) throws Exception {
-        try {
-            return searchDAO.getFacetCounts(requestParams);
-        } catch (SolrException se) {
-            response.sendError(400, "Problem with query syntax");
-            logger.error(se.getMessage());
-            if (logger.isDebugEnabled()) {
-                logger.debug(se.getMessage(), se);
-            }
-            return null;
-        }
+        return searchDAO.getFacetCounts(requestParams);
     }
 
     /**
@@ -689,7 +675,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @param guid
      * @return
      */
-    private NativeDTO getIsAustraliaForGuid(String guid) {
+    private NativeDTO getIsAustraliaForGuid(String guid) throws Exception {
         SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
         requestParams.setPageSize(0);
         requestParams.setFacets(new String[]{});
@@ -720,7 +706,22 @@ public class OccurrenceController extends AbstractSecureController {
     /**
      * Returns the complete list of Occurrences
      */
-    @RequestMapping(value = {"/occurrences", "/occurrences/collections", "/occurrences/institutions", "/occurrences/dataResources", "/occurrences/dataProviders", "/occurrences/taxa", "/occurrences/dataHubs"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/occurrences",
+            "/occurrences.json",
+            "/occurrences/collections",
+            "/occurrences/collections.json",
+            "/occurrences/institutions",
+            "/occurrences/institutions.json",
+            "/occurrences/dataResources",
+            "/occurrences/dataResources.json",
+            "/occurrences/dataProviders",
+            "/occurrences/dataProviders.json",
+            "/occurrences/taxa",
+            "/occurrences/taxa.json",
+            "/occurrences/dataHubs",
+            "/occurrences/dataHubs.json" },
+            method = RequestMethod.GET)
     public @ResponseBody
     SearchResultDTO listOccurrences(Model model) throws Exception {
         SpatialSearchRequestParams srp = new SpatialSearchRequestParams();
@@ -776,9 +777,17 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/occurrences/collections/{uid}", "/occurrences/institutions/{uid}",
-            "/occurrences/dataResources/{uid}", "/occurrences/dataProviders/{uid}",
-            "/occurrences/dataHubs/{uid}"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/occurrences/collections/{uid}",
+            "/occurrences/collections/{uid}.json",
+            "/occurrences/institutions/{uid}",
+            "/occurrences/institutions/{uid}.json",
+            "/occurrences/dataResources/{uid}",
+            "/occurrences/dataResources/{uid}.json",
+            "/occurrences/dataProviders/{uid}",
+            "/occurrences/dataProviders/{uid}.json",
+            "/occurrences/dataHubs/{uid}",
+            "/occurrences/dataHubs/{uid}.json" }, method = RequestMethod.GET)
     public @ResponseBody
     SearchResultDTO occurrenceSearchForUID(SpatialSearchRequestParams requestParams,
                                            @PathVariable("uid") String uid) throws Exception {
@@ -803,11 +812,11 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      * @deprecated use {@link #occurrenceSearch(SpatialSearchRequestParams)}
      */
-    @RequestMapping(value = "/occurrences/searchByArea*", method = RequestMethod.GET)
+    @RequestMapping(value = { "/occurrences/searchByArea*", "/occurrences/searchByArea.json*"}, method = RequestMethod.GET)
     @Deprecated
     public @ResponseBody
     SearchResultDTO occurrenceSearchByArea(SpatialSearchRequestParams requestParams,
-                                           Model model) {
+                                           Model model) throws Exception {
         SearchResultDTO searchResult = new SearchResultDTO();
 
         if (StringUtils.isEmpty(requestParams.getQ())) {
@@ -842,50 +851,40 @@ public class OccurrenceController extends AbstractSecureController {
                                      @RequestParam(value = "im", required = false, defaultValue = "false") Boolean lookupImageMetadata,
                                      HttpServletRequest request,
                                      HttpServletResponse response) throws Exception {
-        try {
-
             // handle empty param values, e.g. &sort=&dir=
-            SearchUtils.setDefaultParams(requestParams);
-            Map<String, String[]> map = request != null ? SearchUtils.getExtraParams(request.getParameterMap()) : null;
-            if (map != null) {
-                map.remove("apiKey");
-            }
+         SearchUtils.setDefaultParams(requestParams);
+         Map<String, String[]> map = request != null ? SearchUtils.getExtraParams(request.getParameterMap()) : null;
+         if (map != null) {
+             map.remove("apiKey");
+         }
 
-            if (logger.isDebugEnabled()) {
-                logger.debug("occurrence search params = " + requestParams + " extra params = " + map);
-            }
+         if (logger.isDebugEnabled()) {
+             logger.debug("occurrence search params = " + requestParams + " extra params = " + map);
+         }
 
-            SearchResultDTO srtdto = null;
-            if (apiKey == null) {
-                srtdto = searchDAO.findByFulltextSpatialQuery(requestParams, false, map);
-            } else {
-                srtdto = occurrenceSearchSensitive(requestParams, apiKey, request, response);
-            }
+         SearchResultDTO srtdto = null;
+         if (apiKey == null) {
+             srtdto = searchDAO.findByFulltextSpatialQuery(requestParams, false, map);
+         } else {
+             srtdto = occurrenceSearchSensitive(requestParams, apiKey, request, response);
+         }
 
-            if (srtdto.getTotalRecords() > 0 && lookupImageMetadata) {
-                //use the image service API & grab the list of IDs
-                List<String> occurrenceIDs = new ArrayList<String>();
-                for (OccurrenceIndex oi : srtdto.getOccurrences()) {
-                    occurrenceIDs.add(oi.getUuid());
-                }
+         if (srtdto.getTotalRecords() > 0 && lookupImageMetadata) {
+             //use the image service API & grab the list of IDs
+             List<String> occurrenceIDs = new ArrayList<String>();
+             for (OccurrenceIndex oi : srtdto.getOccurrences()) {
+                 occurrenceIDs.add(oi.getUuid());
+             }
 
-                Map<String, List<Map<String, Object>>> imageMap = imageMetadataService.getImageMetadataForOccurrences(occurrenceIDs);
+             Map<String, List<Map<String, Object>>> imageMap = imageMetadataService.getImageMetadataForOccurrences(occurrenceIDs);
 
-                for (OccurrenceIndex oi : srtdto.getOccurrences()) {
-                    //lookup metadata
-                    List<Map<String, Object>> imageMetadata = imageMap.get(oi.getUuid());
-                    oi.setImageMetadata(imageMetadata);
-                }
-            }
-            return srtdto;
-        } catch (SolrException e) {
-            logger.error(e.getMessage());
-            response.sendError(400, "Invalid query");
-            if (logger.isDebugEnabled()) {
-                logger.debug(e.getMessage(), e);
-            }
-            return null;
-        }
+             for (OccurrenceIndex oi : srtdto.getOccurrences()) {
+                 //lookup metadata
+                 List<Map<String, Object>> imageMetadata = imageMap.get(oi.getUuid());
+                 oi.setImageMetadata(imageMetadata);
+             }
+         }
+         return srtdto;
     }
 
     public @ResponseBody
@@ -922,7 +921,7 @@ public class OccurrenceController extends AbstractSecureController {
         new FacetThemes(
                 facetConfig, indexDao.getIndexedFields(), facetsMax, facetsDefaultMax, facetDefault);
 
-        cacheManager.clearAll();
+        cacheManager.getCacheNames().forEach((String cacheName) -> cacheManager.getCache(cacheName).clear());
 
         regenerateETag();
         return null;
@@ -1157,7 +1156,7 @@ public class OccurrenceController extends AbstractSecureController {
     /**
      * Webservice to report the occurrence counts for the supplied list of taxa
      */
-    @RequestMapping(value = "/occurrences/taxaCount", method = {RequestMethod.POST, RequestMethod.GET})
+    @RequestMapping(value = { "/occurrences/taxaCount", "/occurrences/taxaCount.json" }, method = {RequestMethod.POST, RequestMethod.GET})
     public @ResponseBody
     Map<String, Integer> occurrenceSpeciesCounts(
             HttpServletResponse response,
@@ -1196,7 +1195,11 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/occurrences/index/download*", "/occurrences/download*"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/occurrences/index/download*",
+            "/occurrences/index/download.json*",
+            "/occurrences/download*",
+            "/occurrences/download.json*" }, method = RequestMethod.GET)
     public String occurrenceIndexDownload(@Valid DownloadRequestParams requestParams,
                                           BindingResult result,
                                           @RequestParam(value = "email", required = false) String email,
@@ -1275,7 +1278,7 @@ public class OccurrenceController extends AbstractSecureController {
      *
      * @throws Exception
      */
-    @RequestMapping(value = {"/occurrences/nearest"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrences/nearest", "/occurrences/nearest.json" }, method = RequestMethod.GET)
     public @ResponseBody
     Map<String, Object> nearestOccurrence(SpatialSearchRequestParams requestParams) throws Exception {
 
@@ -1323,7 +1326,7 @@ public class OccurrenceController extends AbstractSecureController {
      * Dumps the distinct latitudes and longitudes that are used in the
      * connected index (to 4 decimal places)
      */
-    @RequestMapping(value = "/occurrences/coordinates*")
+    @RequestMapping(value = { "/occurrences/coordinates*", "/occurrences/coordinates.json*" })
     public void dumpDistinctLatLongs(SpatialSearchRequestParams requestParams, HttpServletResponse response) throws Exception {
         requestParams.setFacets(new String[]{OccurrenceIndex.LAT_LNG});
         requestParams.setFacet(true);
@@ -1441,26 +1444,11 @@ public class OccurrenceController extends AbstractSecureController {
      * @param uuid
      * @return
      */
-    @RequestMapping(value = {"/occurrence/compare*"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrence/compare*", "/occurrence/compare.json*" }, method = RequestMethod.GET)
     public @ResponseBody
     Object compareOccurrenceVersions(@RequestParam(value = "uuid", required = true) String uuid,
                                      HttpServletResponse response) throws Exception {
         return showOccurrence(uuid, response);
-    }
-
-    /**
-     * Returns the records uuids that have been deleted since the fromDate inclusive.
-     *
-     * @param fromDate
-     * @param response
-     * @return
-     * @throws Exception
-     */
-    @RequestMapping(value = {"/occurrence/deleted"}, method = RequestMethod.GET)
-    public @ResponseBody
-    String[] getDeleteOccurrences(@RequestParam(value = "date", required = true) String fromDate,
-                                  HttpServletResponse response) throws Exception {
-        return new String[0];
     }
 
     private void sendCustomJSONResponse(HttpServletResponse response, int statusCode, Map<String, String> content) throws IOException {
@@ -1639,8 +1627,9 @@ public class OccurrenceController extends AbstractSecureController {
 
         map.put("alaUserId", sd.getFieldValue(OccurrenceIndex.ALA_USER_ID));
 
-        if (includeSensitive && isSensitive(sd)) {
-
+        boolean bSensitive = isSensitive(sd);
+        map.put("sensitive", bSensitive);
+        if (includeSensitive && bSensitive) {
             Map rawLocation = (Map) raw.get("location");
             Map rawEvent = (Map) raw.get("event");
 
@@ -1739,6 +1728,12 @@ public class OccurrenceController extends AbstractSecureController {
 
             LocalDate localDate = ((Date) value).toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
             map.put(fieldNameToUse, localDate.toString());
+
+        } else if (value != null) {
+
+            // If the value is not a date add without parsing to date.
+            // Note: raw (unprocessed) fields are stored as string values.
+            addField(sd, map, fieldNameToUse, fieldName);
         }
     }
 
@@ -1862,6 +1857,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, occurrence, "accessRights", getFieldName);
         addField(sd, occurrence, "associatedMedia", getFieldName);
         addField(sd, occurrence, "associatedOccurrences", getFieldName);
+        addField(sd, occurrence, "associatedOrganisms", getFieldName);
         addField(sd, occurrence, "associatedReferences", getFieldName);
         addField(sd, occurrence, "associatedSequences", getFieldName);
         addField(sd, occurrence, "associatedTaxa", getFieldName);
@@ -1890,8 +1886,12 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, occurrence, "occurrenceDetails", getFieldName);
         addField(sd, occurrence, "occurrenceRemarks", getFieldName);
         addField(sd, occurrence, "occurrenceStatus", getFieldName);
+        addField(sd, occurrence, "organismName", getFieldName);
         addField(sd, occurrence, "organismQuantity", getFieldName);
         addField(sd, occurrence, "organismQuantityType", getFieldName);
+        addField(sd, occurrence, "organismRemarks", getFieldName);
+        addField(sd, occurrence, "organismScope", getFieldName);
+        addField(sd, occurrence, "organismID", getFieldName);
         addField(sd, occurrence, "otherCatalogNumbers", getFieldName);
         addField(sd, occurrence, "ownerInstitutionCode", getFieldName);
         addAll(sd, occurrence, "preparations", getFieldName);

@@ -98,7 +98,7 @@ public class ChartController extends AbstractSecureController implements Seriali
     @ApiOperation(value = "Standard charting",
             notes = "Generate data for a standard chart",
             response = FieldStatsItem.class, responseContainer = "List")
-    @RequestMapping(value = "/chart", method = RequestMethod.GET)
+    @RequestMapping(value = { "/chart", "/chart.json" }, method = RequestMethod.GET)
     public
     @ResponseBody
     Map chart(SpatialSearchRequestParams searchParams,

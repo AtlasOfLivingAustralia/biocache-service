@@ -61,8 +61,6 @@ import java.util.List;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static au.org.ala.biocache.dto.OccurrenceIndex.*;
-
 /**
  * This controller provides mapping services which include WMS services. Includes support for:
  *
@@ -101,8 +99,8 @@ public class WMSController extends AbstractSecureController {
     /**
      * add pixel radius for wms highlight circles
      */
-    @Value("${wms.highlight.radius:3}")
-    public static int HIGHLIGHT_RADIUS;
+    @Value("${wms.highlight.radius:6}")
+    public int HIGHLIGHT_RADIUS;
 
     /**
      * max WMS point width in pixels. This makes better use of the searchDAO.getHeatMap cache.
@@ -114,6 +112,11 @@ public class WMSController extends AbstractSecureController {
      */
     @Value("${wms.uncertainty.grouping:0,1000,2000,4000,8000,16000,30000}")
     private String uncertaintyGroupingStr;
+
+    /**
+     * buffer for hiding rounding errors and some projection errors
+     */
+    int additionalBuffer = 2;
 
     private double[] uncertaintyGrouping;
 
@@ -276,7 +279,11 @@ public class WMSController extends AbstractSecureController {
     /**
      * Test presence of query params {id} in params store.
      */
-    @RequestMapping(value = {"/webportal/params/{id}", "/mapping/params/{id}"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/webportal/params/{id}",
+            "/webportal/params/{id}.json",
+            "/mapping/params/{id}",
+            "/mapping/params/{id}.json"}, method = RequestMethod.GET)
     public
     @ResponseBody
     Boolean storeParams(@PathVariable("id") Long id) throws Exception {
@@ -284,26 +291,20 @@ public class WMSController extends AbstractSecureController {
     }
 
     /**
-     * Test presence of query params {id} in params store.
+     * Allows the details of a cached query to be viewed.
      */
-    @RequestMapping(value = {"/qid/{id}", "/mapping/qid/{id}"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/qid/{id}",
+            "/qid/{id}.json",
+            "/mapping/qid/{id}",
+            "/mapping/qid/{id}.json",
+            "/webportal/params/details/{id}",
+            "/webportal/params/details/{id}.json",
+            "/mapping/params/details/{id}",
+            "/mapping/params/details/{id}json"}, method = RequestMethod.GET)
     public
     @ResponseBody
     Qid showQid(@PathVariable("id") Long id) throws Exception {
-        return qidCacheDAO.get(String.valueOf(id));
-    }
-
-    /**
-     * Allows the details of a cached query to be viewed.
-     *
-     * @param id
-     * @return
-     * @throws Exception
-     */
-    @RequestMapping(value = {"/webportal/params/details/{id}", "/mapping/params/details/{id}"}, method = RequestMethod.GET)
-    public
-    @ResponseBody
-    Qid getQid(@PathVariable("id") Long id) throws Exception {
         return qidCacheDAO.get(String.valueOf(id));
     }
 
@@ -312,7 +313,11 @@ public class WMSController extends AbstractSecureController {
      *
      * @throws Exception
      */
-    @RequestMapping(value = {"/webportal/species", "/mapping/species"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/webportal/species",
+            "/webportal/species.json",
+            "/mapping/species",
+            "/mapping/species.json"}, method = RequestMethod.GET)
     public
     @ResponseBody
     List<TaxaCountDTO> listSpecies(SpatialSearchRequestParams requestParams) throws Exception {
@@ -454,7 +459,11 @@ public class WMSController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/webportal/dataProviders", "/mapping/dataProviders"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/webportal/dataProviders",
+            "/mapping/dataProviders.json",
+            "/webportal/dataProviders",
+            "/mapping/dataProviders.json" }, method = RequestMethod.GET)
     @ResponseBody
     public List<DataProviderCountDTO> queryInfo(
             SpatialSearchRequestParams requestParams)
@@ -497,7 +506,11 @@ public class WMSController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/webportal/bounds", "/mapping/bounds"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/webportal/bounds",
+            "/mapping/bounds.json",
+            "/webportal/bounds",
+            "/mapping/bounds.json" }, method = RequestMethod.GET)
     public
     @ResponseBody
     double[] jsonBoundingBox(
@@ -534,7 +547,11 @@ public class WMSController extends AbstractSecureController {
      * @param requestParams
      * @throws Exception
      */
-    @RequestMapping(value = {"/webportal/occurrences*", "/mapping/occurrences*"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/webportal/occurrences*",
+            "/mapping/occurrences.json*",
+            "/webportal/occurrences*",
+            "/mapping/occurrences.json*" }, method = RequestMethod.GET)
     @ResponseBody
     public SearchResultDTO occurrences(
             SpatialSearchRequestParams requestParams,
@@ -723,7 +740,7 @@ public class WMSController extends AbstractSecureController {
     }
 
     // add this to the GetCapabilities...
-    @RequestMapping(value = {"/ogc/getMetadata"}, method = RequestMethod.GET)
+    @RequestMapping(value = { "/ogc/getMetadata", "/ogc/getMetadata.json" }, method = RequestMethod.GET)
     public String getMetadata(
             @RequestParam(value = "LAYER", required = false, defaultValue = "") String layer,
             @RequestParam(value = "q", required = false, defaultValue = "") String query,
@@ -833,7 +850,7 @@ public class WMSController extends AbstractSecureController {
         return "metadata/mcp";
     }
 
-    @RequestMapping(value = {"/ogc/getFeatureInfo"}, method = RequestMethod.GET)
+    @RequestMapping(value = { "/ogc/getFeatureInfo", "/ogc/getFeatureInfo.json" }, method = RequestMethod.GET)
     public String getFeatureInfo(
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
             @RequestParam(value = "BBOX", required = true, defaultValue = "0,-90,180,0") String bboxString,
@@ -991,7 +1008,11 @@ public class WMSController extends AbstractSecureController {
      * @param model
      * @throws Exception
      */
-    @RequestMapping(value = {"/ogc/ows", "/ogc/capabilities"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/ogc/ows",
+            "/ogc/ows.xml",
+            "/ogc/capabilities",
+            "/ogc/capabilities.xml" }, method = RequestMethod.GET)
     public void getCapabilities(
             SpatialSearchRequestParams requestParams,
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
@@ -1253,7 +1274,13 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @RequestMapping(value = {"/webportal/wms/reflect", "/ogc/wms/reflect", "/mapping/wms/reflect"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/webportal/wms/reflect",
+            "/webportal/wms/reflect.png",
+            "/ogc/wms/reflect",
+            "/ogc/wms/reflect.png",
+            "/mapping/wms/reflect",
+            "/mapping/wms/reflect.png" }, method = RequestMethod.GET)
     public ModelAndView generateWmsTileViaHeatmap(
             SpatialSearchRequestParams requestParams,
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
@@ -1335,7 +1362,6 @@ public class WMSController extends AbstractSecureController {
         List<LegendItem> legend = searchDAO.getColours(requestParams, vars.colourMode);
 
         // Increase size of area requested to incude occurrences around the edge that overlap with the target area when drawn.
-        int additionalBuffer = 2;   // hide rounding errors and some projection errors
         double bWidth = ((bbox[2] - bbox[0]) / (double) width) * (Math.max(wmsMaxPointWidth, pointWidth) + additionalBuffer);
         double bHeight = ((bbox[3] - bbox[1]) / (double) height) * (Math.max(wmsMaxPointWidth, pointWidth) + additionalBuffer);
 
@@ -1354,10 +1380,66 @@ public class WMSController extends AbstractSecureController {
             }
         }
 
-        HeatmapDTO uncertaintyHeatmap = null;
+        if (heatmapDTO.layers == null) {
+            displayBlankImage(response);
+            return null;
+        }
+
+        // circles from uncertainty distances or requested highlight
+        HeatmapDTO circlesHeatmap = getCirclesHeatmap(vars, bbox, requestParams, width, height, pointWidth);
+
+        CRSAuthorityFactory factory = CRS.getAuthorityFactory(true);
+        CoordinateReferenceSystem sourceCRS = factory.createCoordinateReferenceSystem(srs);
+        CoordinateReferenceSystem targetCRS = factory.createCoordinateReferenceSystem("EPSG:4326");
+        CoordinateOperation transformFrom4326 = new DefaultCoordinateOperationFactory().createOperation(targetCRS, sourceCRS);
+
+        // render PNG...
+        ImgObj tile = renderHeatmap(heatmapDTO,
+                vars,
+                (int) pointWidth,
+                outlinePoints,
+                outlineColour,
+                width,
+                height, transformFrom4326, tilebbox,
+                circlesHeatmap
+        );
+
+        if (tile != null && tile.g != null) {
+            tile.g.dispose();
+            try (ServletOutputStream outStream = response.getOutputStream();) {
+                response.setContentType("image/png");
+                ImageIO.write(tile.img, "png", outStream);
+                outStream.flush();
+            } catch (Exception e) {
+                logger.debug("Unable to write image", e);
+            }
+        } else {
+            displayBlankImage(response);
+        }
+        return null;
+    }
+
+    /**
+     * Get HeatmapDTO of the circles that occur around the mapped points.
+     * <p>
+     * 1. Uncertainty circles.
+     * 2. Highlight circles.
+     *
+     * @param vars
+     * @param bbox
+     * @param requestParams
+     * @param width
+     * @param height
+     * @param pointWidth
+     * @return
+     * @throws Exception
+     */
+    private HeatmapDTO getCirclesHeatmap(WmsEnv vars, double[] bbox, SpatialSearchRequestParams requestParams, int width, int height, float pointWidth) throws Exception {
+        boolean isGrid = vars.colourMode.equals("grid");
+
+        List<LegendItem> circlesLegend = new ArrayList();
+        Double lastDistance = 0.0;
         if (!isGrid && vars.uncertainty) {
-            List<LegendItem> uncertaintyLegend = new ArrayList();
-            Double lastDistance = null;
             double widthInDecimalDegrees = bbox[2] - bbox[0];
             for (Double d : getUncertaintyGrouping()) {
                 LegendItem li;
@@ -1377,52 +1459,36 @@ public class WMSController extends AbstractSecureController {
                                 new LegendItem(null, null, null, lastDistance.intValue(), "coordinateUncertaintyInMeters:{" + lastDistance + " TO " + d + "]");
                         li.setColour(0xffaa00);
                     }
-                    uncertaintyLegend.add(li);
+                    circlesLegend.add(li);
                 }
                 lastDistance = d;
             }
-
-            if (uncertaintyLegend.size() > 0) {
-                // approximately a 30km buffer
-                double buffer = lastDistance / 100000.0 * 1.01;
-                uncertaintyHeatmap = searchDAO.getHeatMap(requestParams.getFormattedQuery(), requestParams.getFormattedFq(), bbox[0] - buffer, bbox[1] - buffer, bbox[2] + buffer, bbox[3] + buffer, uncertaintyLegend, 1);
-                uncertaintyHeatmap.setTileExtents(bbox);
-            }
         }
 
-        if (heatmapDTO.layers == null) {
-            displayBlankImage(response);
-            return null;
+        //highlight
+        double hWidth = 0;
+        double hHeight = 0;
+        if (!isGrid && vars.highlight != null) {
+            LegendItem li = new LegendItem(null, null, null, 0, vars.highlight);    // count=0 is used to indicate that HIGHLIGHT_RADIUS is the used to draw the circle.
+            li.setColour(0xff0000);
+            circlesLegend.add(li);
+            hWidth = ((bbox[2] - bbox[0]) / (double) width) * (Math.max(wmsMaxPointWidth, pointWidth) + additionalBuffer + HIGHLIGHT_RADIUS);
+            hHeight = ((bbox[3] - bbox[1]) / (double) height) * (Math.max(wmsMaxPointWidth, pointWidth) + additionalBuffer + HIGHLIGHT_RADIUS);
         }
 
-        CRSAuthorityFactory factory = CRS.getAuthorityFactory(true);
-        CoordinateReferenceSystem sourceCRS = factory.createCoordinateReferenceSystem(srs);
-        CoordinateReferenceSystem targetCRS = factory.createCoordinateReferenceSystem("EPSG:4326");
-        CoordinateOperation transformFrom4326 = new DefaultCoordinateOperationFactory().createOperation(targetCRS, sourceCRS);
+        if (circlesLegend.size() > 0) {
+            // approximately a 30km buffer for uncertanty
+            double buffer = lastDistance / 100000.0 * 1.01;
 
-        // render PNG...
-        ImgObj tile = renderHeatmap(heatmapDTO,
-                vars,
-                (int) pointWidth,
-                outlinePoints,
-                outlineColour,
-                width,
-                height, transformFrom4326, tilebbox,
-                uncertaintyHeatmap
-        );
+            // use the largest of the uncertainty buffer or highlight buffer
+            double bufferWidth = Math.max(buffer, hWidth);
+            double bufferHeight = Math.max(buffer, hHeight);
 
-        if (tile != null && tile.g != null) {
-            tile.g.dispose();
-            try (ServletOutputStream outStream = response.getOutputStream();) {
-                response.setContentType("image/png");
-                ImageIO.write(tile.img, "png", outStream);
-                outStream.flush();
-            } catch (Exception e) {
-                logger.debug("Unable to write image", e);
-            }
-        } else {
-            displayBlankImage(response);
+            HeatmapDTO circlesHeatmap = searchDAO.getHeatMap(requestParams.getFormattedQuery(), requestParams.getFormattedFq(), bbox[0] - bufferWidth, bbox[1] - bufferHeight, bbox[2] + bufferWidth, bbox[3] + bufferHeight, circlesLegend, 1);
+            circlesHeatmap.setTileExtents(bbox);
+            return circlesHeatmap;
         }
+
         return null;
     }
 
@@ -1719,7 +1785,7 @@ public class WMSController extends AbstractSecureController {
                                  String outlineColour,
                                  int tileWidthInPx,
                                  int tileHeightInPx, CoordinateOperation transformFrom4326, double[] tilebbox,
-                                 HeatmapDTO uncertaintyHeatmap
+                                 HeatmapDTO cirlesHeatmap
     ) {
 
         List<List<List<Integer>>> layers = heatmapDTO.layers;
@@ -1774,28 +1840,33 @@ public class WMSController extends AbstractSecureController {
             layerIdx++;
         }
 
-        // render uncertainty layer
-        if (uncertaintyHeatmap != null && uncertaintyHeatmap.layers != null) {
+        // render circle layers
+        if (cirlesHeatmap != null && cirlesHeatmap.layers != null) {
             layerIdx = 0;
             try {
-                for (List<List<Integer>> rows : uncertaintyHeatmap.layers) {
+                for (List<List<Integer>> rows : cirlesHeatmap.layers) {
                     if (rows != null) {
                         // approximate conversion of meters to decimal degrees (1:100000) followed by conversion to pixels
-                        GeneralDirectPosition coord1 = new GeneralDirectPosition(uncertaintyHeatmap.legend.get(layerIdx).getCount() / 100000.0, 0);
-                        GeneralDirectPosition coord2 = new GeneralDirectPosition(0, 0);
-                        DirectPosition pos1 = transformFrom4326.getMathTransform().transform(coord1, null);
-                        DirectPosition pos2 = transformFrom4326.getMathTransform().transform(coord2, null);
-                        int px1 = scaleLongitudeForImage(pos1.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
-                        int px2 = scaleLatitudeForImage(pos2.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
-                        int uncertaintyWidthInPixels = Math.abs(px1 - px2);
+                        double dist = cirlesHeatmap.legend.get(layerIdx).getCount();    // count value is the radius in meters for the circle.
+                        int circleWidthInPixels = (int) pointWidth + HIGHLIGHT_RADIUS;  // count==0 indicates that a highlight circle is required.
+                        if (dist > 0) {
+                            // convert radius in meters to radius in pixels
+                            GeneralDirectPosition coord1 = new GeneralDirectPosition(dist / 100000.0, 0);
+                            GeneralDirectPosition coord2 = new GeneralDirectPosition(0, 0);
+                            DirectPosition pos1 = transformFrom4326.getMathTransform().transform(coord1, null);
+                            DirectPosition pos2 = transformFrom4326.getMathTransform().transform(coord2, null);
+                            int px1 = scaleLongitudeForImage(pos1.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
+                            int px2 = scaleLatitudeForImage(pos2.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
+                            circleWidthInPixels = Math.abs(px1 - px2);
+                        }
 
                         // legacy colours for uncertainty circles
-                        String colour = String.format("0x%06X", uncertaintyHeatmap.legend.get(layerIdx).getColour());
+                        String colour = String.format("0x%06X", cirlesHeatmap.legend.get(layerIdx).getColour());
 
                         renderLayer(
-                                uncertaintyHeatmap,
+                                cirlesHeatmap,
                                 vars,
-                                uncertaintyWidthInPixels,
+                                circleWidthInPixels,
                                 true,
                                 colour,
                                 false,

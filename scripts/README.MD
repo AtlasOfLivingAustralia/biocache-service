@@ -1,3 +1,20 @@
+# Managing Data Quality wiki pages
+Each assertions has a corrisponding wiki page to document the assertions details https://github.com/AtlasOfLivingAustralia/ala-dataquality/wiki. These wiki pages contain structured data needs to be kept in sync with the list of assertions from `biocache-service`.
+
+Updating the sections within each assertion's wiki page can be automated:
+
+clone the wiki repo:
+```
+# git clone https://github.com/AtlasOfLivingAustralia/ala-dataquality.wiki.git
+```
+
+run the script:
+```
+# groovy update-assertions-wiki.groovy <path to wiki>
+```
+
+review the changes before committing back to github.
+
 # Pipelines field and assertions mapping scripts
 
 #Config 

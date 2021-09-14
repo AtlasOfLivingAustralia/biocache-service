@@ -22,7 +22,7 @@ public class OutlierController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value={"/outlier/record/{uuid}" }, method = RequestMethod.GET)
+    @RequestMapping(value={"/outlier/record/{uuid}", "/outlier/record/{uuid}.json" }, method = RequestMethod.GET)
     public @ResponseBody List<RecordJackKnifeStats> getOutlierForUUid(@PathVariable("uuid") String recordUuid) throws Exception {
         return searchDAO.getOutlierStatsFor(recordUuid);
     }

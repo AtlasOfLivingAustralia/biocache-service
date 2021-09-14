@@ -4,8 +4,10 @@ import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.stream.ScatterplotSearch;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
-import org.apache.solr.common.SolrDocumentList;
+import org.apache.solr.client.solrj.SolrQuery;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartRenderingInfo;
 import org.jfree.chart.JFreeChart;
@@ -15,11 +17,12 @@ import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.data.xy.DefaultXYDataset;
 import org.jfree.ui.RectangleEdge;
-import org.springframework.beans.factory.annotation.Value;
+import org.locationtech.jts.math.Vector2D;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletResponse;
@@ -28,10 +31,11 @@ import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * This controller is responsible for providing basic scatterplot services.
- *
+ * <p>
  * Basic scatterplot is
  * - occurrences, standard biocache query
  * - x, numerical stored value field
@@ -41,21 +45,18 @@ import java.util.*;
  * - title, string default query-display-name
  * - pointcolour, colour as RGB string like FF0000 for red, default 0000FF
  * - pointradius, double default 3
- *
  */
 @Controller
 public class ScatterplotController {
 
-    private static Logger logger = Logger.getLogger(ScatterplotController.class);
+    final private static Logger logger = Logger.getLogger(ScatterplotController.class);
 
-    @Value("${scatterplot.query.page.size:100000000}")
-    private int pageSize = 100000000;
     private final static String DEFAULT_SCATTERPLOT_TITLE = " ";
     private final static String DEFAULT_SCATTERPLOT_HEIGHT = "256";
     private final static String DEFAULT_SCATTERPLOT_WIDTH = "256";
     private final static String DEFAULT_SCATTERPLOT_POINTCOLOUR = "0000FF";
     private final static String DEFAULT_SCATTERPLOT_POINTRADIUS = "3";
-    private final static String[] VALID_DATATYPES = {"float", "double", "int", "long", "tfloat", "tdouble", "tint", "tlong"};
+    private final static List<String> VALID_DATATYPES = Arrays.asList("float", "double", "int", "long", "tfloat", "tdouble", "tint", "tlong");
 
     @Inject
     protected SearchDAO searchDAO;
@@ -72,6 +73,7 @@ public class ScatterplotController {
                             @RequestParam(value = "pointcolour", required = false, defaultValue = DEFAULT_SCATTERPLOT_POINTCOLOUR) String pointcolour,
                             @RequestParam(value = "pointradius", required = false, defaultValue = DEFAULT_SCATTERPLOT_POINTRADIUS) Double pointradius,
                             HttpServletResponse response) throws Exception {
+
         JFreeChart jChart = makeScatterplot(requestParams, x, y, title, pointcolour, pointradius);
 
         //produce image
@@ -89,17 +91,18 @@ public class ScatterplotController {
         }
     }
 
-    @RequestMapping(value = {"/scatterplot/point"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/scatterplot/point", "/scatterplot/point.json" }, method = RequestMethod.GET)
+    @ResponseBody
     public Map scatterplotPointInfo(SpatialSearchRequestParams requestParams,
-                            @RequestParam(value = "x", required = true) String x,
-                            @RequestParam(value = "y", required = true) String y,
-                            @RequestParam(value = "height", required = false, defaultValue=DEFAULT_SCATTERPLOT_HEIGHT) Integer height,
-                            @RequestParam(value = "width", required = false, defaultValue=DEFAULT_SCATTERPLOT_WIDTH) Integer width,
-                            @RequestParam(value = "title", required = false, defaultValue=DEFAULT_SCATTERPLOT_TITLE) String title,
-                            @RequestParam(value = "pointx1", required = true) Integer pointx1,
-                            @RequestParam(value = "pointy1", required = true) Integer pointy1,
-                            @RequestParam(value = "pointx2", required = true) Integer pointx2,
-                            @RequestParam(value = "pointy2", required = true) Integer pointy2) throws Exception {
+                                    @RequestParam(value = "x", required = true) String x,
+                                    @RequestParam(value = "y", required = true) String y,
+                                    @RequestParam(value = "height", required = false, defaultValue = DEFAULT_SCATTERPLOT_HEIGHT) Integer height,
+                                    @RequestParam(value = "width", required = false, defaultValue = DEFAULT_SCATTERPLOT_WIDTH) Integer width,
+                                    @RequestParam(value = "title", required = false, defaultValue = DEFAULT_SCATTERPLOT_TITLE) String title,
+                                    @RequestParam(value = "pointx1", required = true) Integer pointx1,
+                                    @RequestParam(value = "pointy1", required = true) Integer pointy1,
+                                    @RequestParam(value = "pointx2", required = true) Integer pointx2,
+                                    @RequestParam(value = "pointy2", required = true) Integer pointy2) throws Exception {
 
         JFreeChart jChart = makeScatterplot(requestParams, x, y, title, "000000", 1.0);
 
@@ -120,99 +123,55 @@ public class ScatterplotController {
         double y2 = Math.max(ty1, ty2);
 
         Map map = new HashMap();
-        map.put("xaxis_pixel_selection",new int[] {pointx1, pointx2});
-        map.put("yaxis_pixel_selection",new int[] {pointy1, pointy2});
-        map.put("xaxis",x);
-        map.put("yaxis",y);
-        map.put("xaxis_range",new double[]{x1, x2});
-        map.put("yaxis_range",new double[]{y1, y2});
+        map.put("xaxis_pixel_selection", new int[]{pointx1, pointx2});
+        map.put("yaxis_pixel_selection", new int[]{pointy1, pointy2});
+        map.put("xaxis", x);
+        map.put("yaxis", y);
+        map.put("xaxis_range", new double[]{x1, x2});
+        map.put("yaxis_range", new double[]{y1, y2});
 
         return map;
     }
 
     JFreeChart makeScatterplot(SpatialSearchRequestParams requestParams, String x, String y
-        , String title, String pointcolour, Double pointradius) throws Exception {
+            , String title, String pointcolour, Double pointradius) throws Exception {
         //verify x and y are numerical and stored
         String displayNameX = null;
         String displayNameY = null;
-        List<String> validDatatypes = Arrays.asList(VALID_DATATYPES);
         Set<IndexFieldDTO> indexedFields = indexDao.getIndexedFields();
-        
-        Exception toThrowX = null;
-        
-        for (IndexFieldDTO xField : indexedFields) {
-            if(xField.getName().equals(x)) {
-                if (!validDatatypes.contains(xField.getDataType() )) {
-                    toThrowX = new Exception("Invalid datatype: " + xField.getDataType() + " for x: " + x, toThrowX);
-                }
-                else if (!xField.isStored()) {
-                    toThrowX = new Exception("Cannot use x: " + x + ".  It is not a stored field.", toThrowX);
-                }
-                else {
-                    displayNameX = xField.getDescription();
-                    break;
-                }
-            }
-        }
-        
-        if (displayNameX == null) {
-            throw new Exception("Unknown, unsupported datatype, or not stored, value for x: " + x, toThrowX);
-        }
-        
-        Exception toThrowY = null;
-        
-        for (IndexFieldDTO yField : indexedFields) {
-            if(yField.getName().equals(y)) {
-                if (!validDatatypes.contains(yField.getDataType() )) {
-                    toThrowY = new Exception("Invalid datatype: " + yField.getDataType() + " for y: " + y, toThrowY);
-                }
-                else if(!yField.isStored()) {
-                    toThrowY = new Exception("Cannot use y: " + y + ".  It is not a stored field.", toThrowY);
-                }
-                else {
-                    displayNameY = yField.getDescription();
-                    break;
-                }
-            }
-        }
-        
-        if (displayNameY == null) {
-            throw new Exception("Unknown, unsupported datatype, or not stored, value for y: " + y, toThrowY);
+
+        displayNameX = getFieldDescription(x, indexedFields);
+        displayNameY = getFieldDescription(y, indexedFields);
+
+        // format query
+        requestParams.setFlimit(-1);
+        SolrQuery query = searchDAO.initSolrQuery(requestParams, false, null);
+
+        // set parameters for streaming a facet query
+        query.set("facet.field", x + "," + y);
+        query.setFacetSort(x + " asc," + y + " asc");
+
+        Set<Vector2D> vectors = new HashSet<>();
+        AtomicInteger count = new AtomicInteger();
+        ScatterplotSearch proc = new ScatterplotSearch(vectors, x, y, count);
+
+        try {
+            indexDao.streamingQuery(query, null, proc, null);
+        } catch (Exception e) {
+            logger.error("scatterplot failed", e);
         }
 
-        //get data
-        requestParams.setPageSize(pageSize);
-        requestParams.setFl(x + "," + y);
-        SolrDocumentList sdl = searchDAO.findByFulltext(requestParams);
-        int size = sdl.size();
-        double [][] data = new double[2][size];
-        int count = 0;
-        for (int i = 0; i < size; i++) {
-            try {
-                Object a = sdl.get(i).getFieldValue(y); // PIPELINES: SolrDocument::getFieldValue entry point
-                Object b = sdl.get(i).getFieldValue(x); // PIPELINES: SolrDocument::getFieldValue entry point
-                data[1][i] = Double.parseDouble(String.valueOf(sdl.get(i).getFieldValue(y)));   // PIPELINES: SolrDocument::getFieldValue entry point
-                if (a instanceof Double) {
-                    data[0][i] = (Double) a;
-                } else {
-                    data[0][i] = Double.parseDouble(String.valueOf(a));
-                }
-
-                if (b instanceof Double) {
-                    data[1][i] = (Double) b;
-                } else {
-                    data[1][i] = Double.parseDouble(String.valueOf(b));
-                }
-
-                count++;
-            } catch (Exception e) {
-                data[0][i] = Double.NaN;
-                data[1][i] = Double.NaN;
-            }
+        if (count.get() == 0) {
+            throw new Exception("No valid records found for these input parameters");
         }
 
-        if(count == 0) {
-            throw new Exception("valid records found for these input parameters");
+        // copy vectors to array
+        double[][] data = new double[2][vectors.size()];
+        int i = 0;
+        for (Vector2D v : vectors) {
+            data[0][i] = v.getX();
+            data[1][i] = v.getY();
+            i++;
         }
 
         //create dataset
@@ -221,7 +180,7 @@ public class ScatterplotController {
 
         //create chart
         JFreeChart jChart = ChartFactory.createScatterPlot(
-                title.equals(" ")?requestParams.getDisplayString():title //chart display name
+                title.equals(" ") ? requestParams.getDisplayString() : title //chart display name
                 , displayNameX //x-axis display name
                 , displayNameY //y-axis display name
                 , xyDataset
@@ -242,8 +201,32 @@ public class ScatterplotController {
         //point shape and colour
         Color c = new Color(Integer.parseInt(pointcolour, 16));
         plot.getRenderer().setSeriesPaint(0, c);
-        plot.getRenderer().setSeriesShape(0, new Ellipse2D.Double(-pointradius, -pointradius, pointradius*2, pointradius*2));
+        plot.getRenderer().setSeriesShape(0, new Ellipse2D.Double(-pointradius, -pointradius, pointradius * 2, pointradius * 2));
 
         return jChart;
+    }
+
+    /**
+     * Get the description of the fieldName provided or throw an Exception.
+     *
+     * @param fieldName     Field name to search for.
+     * @param indexedFields Set of all indexed fields.
+     * @return
+     * @throws Exception
+     */
+    public String getFieldDescription(String fieldName, Set<IndexFieldDTO> indexedFields) throws Exception {
+        for (IndexFieldDTO field : indexedFields) {
+            if (field.getName().equals(fieldName)) {
+                if (!VALID_DATATYPES.contains(field.getDataType())) {
+                    throw new Exception("'" + fieldName + "' with data type '" + field.getDataType() + "' is not a valid data type (" + StringUtils.join(VALID_DATATYPES, ", ") + ")");
+                } else if (!field.isStored() && !field.isDocvalue()) {
+                    throw new Exception("Cannot use '" + fieldName + "'.  It is not a stored or docvalue field.");
+                } else {
+                    return field.getDescription();
+                }
+            }
+        }
+
+        throw new Exception("'" + fieldName + "'is not a vaild field.");
     }
 }

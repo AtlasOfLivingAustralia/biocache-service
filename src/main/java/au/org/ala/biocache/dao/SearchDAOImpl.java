@@ -27,7 +27,6 @@ import au.org.ala.biocache.writer.CSVRecordWriter;
 import au.org.ala.biocache.writer.RecordWriterError;
 import au.org.ala.biocache.writer.TSVRecordWriter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.googlecode.ehcache.annotations.Cacheable;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.ArrayUtils;
@@ -47,6 +46,7 @@ import org.apache.solr.common.util.SimpleOrderedMap;
 import org.slf4j.MDC;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
 
@@ -458,35 +458,30 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      */
     @Override
-    public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams, boolean includeSensitive, Map<String, String[]> extraParams) {
+    public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams,
+                                                      boolean includeSensitive, Map<String, String[]> extraParams) throws Exception {
         SearchResultDTO searchResults = new SearchResultDTO();
         SpatialSearchRequestParams original = new SpatialSearchRequestParams();
         BeanUtils.copyProperties(searchParams, original);
-        try {
-            Map[] fqMaps = queryFormatUtils.formatSearchQuery(searchParams, true);
-            SolrQuery solrQuery = initSolrQuery(searchParams, true, extraParams); // general search settings
+        Map[] fqMaps = queryFormatUtils.formatSearchQuery(searchParams, true);
+        SolrQuery solrQuery = initSolrQuery(searchParams, true, extraParams); // general search settings
 
-            QueryResponse qr = indexDao.runSolrQuery(solrQuery);
+        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
 
-            //need to set the original q to the processed value so that we remove the wkt etc that is added from paramcache object
-            Class resultClass;
-            resultClass = includeSensitive ? au.org.ala.biocache.dto.SensitiveOccurrenceIndex.class : OccurrenceIndex.class;
+        //need to set the original q to the processed value so that we remove the wkt etc that is added from paramcache object
+        Class resultClass;
+        resultClass = includeSensitive ? au.org.ala.biocache.dto.SensitiveOccurrenceIndex.class : OccurrenceIndex.class;
 
-            searchResults = processSolrResponse(original, qr, solrQuery, resultClass);
-            searchResults.setQueryTitle(searchParams.getDisplayString());
-            searchResults.setUrlParameters(original.getUrlParams());
+        searchResults = processSolrResponse(original, qr, solrQuery, resultClass);
+        searchResults.setQueryTitle(searchParams.getDisplayString());
+        searchResults.setUrlParameters(original.getUrlParams());
 
-            //now update the fq display map...
-            searchResults.setActiveFacetMap(fqMaps[0]);
-            searchResults.setActiveFacetObj(fqMaps[1]);
+        //now update the fq display map...
+        searchResults.setActiveFacetMap(fqMaps[0]);
+        searchResults.setActiveFacetObj(fqMaps[1]);
 
-            if (logger.isDebugEnabled()) {
-                logger.debug("spatial search query: " + solrQuery.toQueryString());
-            }
-        } catch (Exception ex) {
-            logError("Error executing query with requestParams: " + searchParams.toString(), ex.getMessage());
-            searchResults.setStatus("ERROR"); // TODO also set a message field on this bean with the error message(?)
-            searchResults.setErrorMessage(ex.getMessage());
+        if (logger.isDebugEnabled()) {
+            logger.debug("spatial search query: " + solrQuery.toQueryString());
         }
 
         return searchResults;
@@ -1200,7 +1195,7 @@ public class SearchDAOImpl implements SearchDAO {
             for (String r : ranks) {
                 long count = estimateUniqueValues(queryParams, r);
                 if ((queryParams.getMax() != null && queryParams.getMax() > 0 && count <= queryParams.getMax()) ||
-                    (queryParams.getRank() != null && count > 0)) {
+                        (queryParams.getRank() != null && count > 0)) {
                     solrQuery.addFacetField(r);
                     break;
                 }
@@ -1480,7 +1475,7 @@ public class SearchDAOImpl implements SearchDAO {
      *
      * @return solrQuery the SolrQuery
      */
-    protected SolrQuery initSolrQuery(SpatialSearchRequestParams searchParams, boolean substituteDefaultFacetOrder, Map<String, String[]> extraSolrParams) throws QidMissingException {
+    public SolrQuery initSolrQuery(SpatialSearchRequestParams searchParams, boolean substituteDefaultFacetOrder, Map<String, String[]> extraSolrParams) throws QidMissingException {
         queryFormatUtils.formatSearchQuery(searchParams);
 
         String occurrenceDate = OccurrenceIndex.OCCURRENCE_DATE;
@@ -1563,15 +1558,12 @@ public class SearchDAOImpl implements SearchDAO {
 
     /**
      * Get a distinct list of species and their counts using a facet search.
-     *
+     * <p>
      * This method expects requestParams.getFacets() == [OccurrenceIndex.COMMON_NAME_AND_LSID] or [OccurrenceIndex.NAMES_AND_LSID]
-     *
+     * <p>
      * TODO: searchUtils.getTaxonSearch uses nameUsageMatchService.get(). These requests must be batched.
      *
-     * @param queryString
-     * @param pageSize
-     * @param sortField
-     * @param sortDirection
+     * @param requestParams
      * @return
      * @throws SolrServerException
      */
@@ -1709,10 +1701,10 @@ public class SearchDAOImpl implements SearchDAO {
 
         facetQuery.setFilterQueries(fqList.stream().toArray(String[]::new));
 
-        if (searchParams.getFlimit() == 0){
+        if (searchParams.getFlimit() == 0) {
             //add the estimates
             List<FacetResultDTO> facetResults = new ArrayList<>();
-            for (String facetName: searchParams.getFacets()) {
+            for (String facetName : searchParams.getFacets()) {
                 FacetResultDTO frDTO = new FacetResultDTO();
                 frDTO.setFieldName(facetName);
                 frDTO.setCount((int) estimateUniqueValues(searchParams, facetName));
@@ -1787,7 +1779,7 @@ public class SearchDAOImpl implements SearchDAO {
 
     /**
      * legend sorting and limits are fixed.
-     *
+     * <p>
      * year legend: all years shown, sorted descending order by year (indexed as string)
      * decade legend: all decades shown, sorted descending order by decade (indexed as string)
      * month legend: all months shown, sorted ascending order by month (indexed as string without 0 padding)
@@ -1800,7 +1792,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws Exception
      */
-    @Cacheable(cacheName = "legendCache")
+    @Cacheable("legendCache")
     public List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facetField, String[] cutpoints, boolean skipI18n) throws Exception {
         List<LegendItem> legend = new ArrayList<LegendItem>();
 
@@ -2052,7 +2044,7 @@ public class SearchDAOImpl implements SearchDAO {
     @Override
     public List<TaxaCountDTO> findAllSpecies(SpatialSearchRequestParams requestParams) throws Exception {
         if (requestParams.getFacets() == null || requestParams.getFacets().length != 1) {
-            requestParams.setFacets(new String[] {NAMES_AND_LSID});
+            requestParams.setFacets(new String[]{NAMES_AND_LSID});
         }
 
         return getSpeciesCounts(requestParams);
@@ -2060,7 +2052,7 @@ public class SearchDAOImpl implements SearchDAO {
 
     /**
      * Retrieves a set of counts for the supplied list of taxa.
-     *
+     * <p>
      * TODO: searchUtils.getTaxonSearch uses nameUsageMatchService.get(). These requests must be batched.
      * TODO: deprecate for a standard facet query.
      *
@@ -2422,7 +2414,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * @see au.org.ala.biocache.dao.SearchDAO#getColours
      */
-    @Cacheable(cacheName = "getColours")
+    @Cacheable("getColours")
     public List<LegendItem> getColours(SpatialSearchRequestParams request, String colourMode) throws Exception {
         List<LegendItem> colours = new ArrayList<LegendItem>();
         if (colourMode.equals("grid")) {
@@ -2494,7 +2486,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         SimpleOrderedMap facets = SearchUtils.getMap(qr.getResponse(), "facets");
         Object value = facets.get("unique");
-        if (value == null){
+        if (value == null) {
             return 0;
         }
         return toLong(value);
@@ -2535,7 +2527,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         for (IndexFieldDTO s : indexDao.getIndexedFields()) {
             // this only works for non-tri fields
-            if (!s.getDataType().startsWith("t")) {
+            if (!s.isDeprecated() && s.getDataType() != null && !s.getDataType().startsWith("t")) {
                 solrQuery.set("facet.field", "{!facet.method=enum facet.exists=true}" + s.getName());
 
                 QueryResponse qr = query(solrQuery); // can throw exception
@@ -2552,7 +2544,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     @Override
-    @Cacheable(cacheName = "heatmapCache")
+    @Cacheable("heatmapCache")
     public HeatmapDTO getHeatMap(
             String query,
             String[] filterQueries,

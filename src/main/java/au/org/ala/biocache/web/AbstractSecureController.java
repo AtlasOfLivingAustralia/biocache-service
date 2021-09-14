@@ -14,14 +14,14 @@
  ***************************************************************************/
 package au.org.ala.biocache.web;
 
-import net.sf.ehcache.Cache;
-import net.sf.ehcache.CacheManager;
-import net.sf.ehcache.Element;
 import org.ala.client.util.Constants;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.web.util.matcher.IpAddressMatcher;
 import org.springframework.web.client.RestOperations;
 
@@ -99,14 +99,18 @@ public class AbstractSecureController {
     /**
      * Returns the IP address for the supplied request. It will look for the existence of
      * an X-Forwarded-For Header before extracting it from the request.
+     * X-Forwarded-For Header could contain multiple ip addresses, we only return the original address
+     * https://serverfault.com/questions/846489/can-x-forwarded-for-contain-multiple-ips
      * @param request
      * @return IP Address of the request
      */
     protected String getIPAddress(HttpServletRequest request) {
-
         String ipAddress = request.getHeader("X-Forwarded-For");
-
-        return ipAddress == null ? request.getRemoteAddr(): ipAddress;
+        if (ipAddress == null) {
+            ipAddress = request.getRemoteAddr();
+        }
+        String[] ips = ipAddress.split(",");
+        return (ips.length > 0) ? ips[0].trim() : null;
     }
 
     protected String getUserAgent(HttpServletRequest request) {
@@ -142,16 +146,17 @@ public class AbstractSecureController {
         if (rateLimitWindowSeconds > 0 && rateLimitCount > 0) {
 
             Cache cache = cacheManager.getCache("rateLimit");
-            Element element = cache.get(ipAddress);
+            Cache.ValueWrapper valueWrapper = cache.get(ipAddress);
             ArrayDeque<Instant> accessTimes;
 
-            if (element == null) {
+            if (valueWrapper == null) {
 
-                accessTimes = new ArrayDeque<Instant>();
+                accessTimes = new ArrayDeque<>();
 
             } else {
 
-                accessTimes = (ArrayDeque<Instant>) element.getValue();
+                accessTimes = (ArrayDeque<Instant>) valueWrapper.get();
+
                 // remove any access times that are older then the rate limit window
                 Instant windowStart = Instant.now().minusSeconds(rateLimitWindowSeconds);
                 for (Instant oldestAccessTime = accessTimes.getFirst();
@@ -165,8 +170,7 @@ public class AbstractSecureController {
 
                 // add access times keyed by IP address only for successful requests.
                 accessTimes.addLast(Instant.now());
-                element = new Element(ipAddress, accessTimes, false, rateLimitWindowSeconds, 0);
-                cache.put(element);
+                cache.put(ipAddress, accessTimes);
 
                 return false;
             }
@@ -206,6 +210,7 @@ public class AbstractSecureController {
      * @param keyToTest
      * @return True if API key checking is disabled, or the API key is valid, and false otherwise.
      */
+    @Cacheable("apiKeys")
     public boolean isValidKey(String keyToTest){
 
         if(!apiKeyCheckedEnabled){
@@ -220,9 +225,9 @@ public class AbstractSecureController {
         // the @Cacheable annotation only works when an external call is made to a method, for
         // an explanation see: https://stackoverflow.com/a/32999744
         Cache cache = cacheManager.getCache("apiKeys");
-        Element element = cache.get(keyToTest);
+        Cache.ValueWrapper valueWrapper = cache.get(keyToTest);
 
-        if (element != null && (Boolean)element.getValue()) {
+        if (valueWrapper != null && (Boolean)valueWrapper.get()) {
             return true;
         }
 
@@ -234,7 +239,7 @@ public class AbstractSecureController {
     		boolean isValid = (Boolean) response.get("valid");
     		logger.debug("Checking api key: {}, valid: {}", keyToTest, isValid);
     		if (isValid) {
-    		    cache.put(new Element(keyToTest, true));
+    		    cache.put(keyToTest, true);
             }
     		return isValid; 
 		} catch (Exception e){
@@ -249,7 +254,7 @@ public class AbstractSecureController {
      *
      * @param apiKey The API key to check for validity, after appending it to the api.check.url property.
      * @param response The response to either send an error on, or return false if the {@link HttpServletResponse#isCommitted()} returns true.
-     * @param checkReadOnly True to check {@link Store#isReadOnly()}
+     * @param checkReadOnly deprecated
      * @return True if the operation is able to be performed
      * @throws Exception
      */

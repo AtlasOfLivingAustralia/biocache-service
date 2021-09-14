@@ -4,33 +4,31 @@
        xmlns:p="http://www.springframework.org/schema/p"
        xmlns:mvc="http://www.springframework.org/schema/mvc"
        xmlns:context="http://www.springframework.org/schema/context"
-       xmlns:ehcache="http://ehcache-spring-annotations.googlecode.com/svn/schema/ehcache-spring"
+       xmlns:cache="http://www.springframework.org/schema/cache"
        xmlns:task="http://www.springframework.org/schema/task"
        xsi:schemaLocation="http://www.springframework.org/schema/beans
-           http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+           http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
            http://www.springframework.org/schema/context
-           http://www.springframework.org/schema/context/spring-context-3.0.xsd
-           http://www.springframework.org/schema/mvc 
-           http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd
-           http://ehcache-spring-annotations.googlecode.com/svn/schema/ehcache-spring
-           http://ehcache-spring-annotations.googlecode.com/svn/schema/ehcache-spring/ehcache-spring-1.1.xsd
+           http://www.springframework.org/schema/context/spring-context-4.3.xsd
+           http://www.springframework.org/schema/mvc
+           http://www.springframework.org/schema/mvc/spring-mvc-4.3.xsd
+           http://www.springframework.org/schema/cache
+           http://www.springframework.org/schema/cache/spring-cache-4.3.xsd
            http://www.springframework.org/schema/task
-           http://www.springframework.org/schema/task/spring-task-3.0.xsd">
+           http://www.springframework.org/schema/task/spring-task-4.3.xsd">
 
     <!-- Enables swagger ui-->
     <mvc:resources mapping="swagger-ui.html" location="classpath:/META-INF/resources/"/>
     <mvc:resources mapping="/webjars/**" location="classpath:/META-INF/resources/webjars/"/>
-      
+
     <!-- Allows us to use system properties as variables in this configuration file -->
-    <bean id="properties" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
-        <property name="locations">
-            <value>file:///data/biocache/config/biocache-config.properties</value>
-        </property>
-    </bean>  
-          
+    <bean id="properties" class="org.springframework.context.support.PropertySourcesPlaceholderConfigurer">
+        <property name="location" value="file:///data/biocache/config/biocache-config.properties" />
+    </bean>
+
     <!--<context:spring-configured/>-->
     <context:component-scan base-package="au.org.ala.biocache"/>
-    
+
     <!-- Configures the @Controller programming model -->
     <mvc:annotation-driven />
     <task:annotation-driven />
@@ -53,9 +51,7 @@
 
     <!-- This will override the default DefaultAnnotationHandlerMapping that is created,
          and not map file extensions automagically -->
-    <bean class="org.springframework.web.servlet.mvc.annotation.DefaultAnnotationHandlerMapping" p:order="2">
-        <property name="useDefaultSuffixPattern" value="false"/>
-    </bean>
+    <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping" p:order="2" />
 
     <context:property-override location="file:///data/biocache/config/biocache-config.properties" ignore-unresolvable="true" ignore-resource-not-found="true" />
     <context:property-placeholder location="file:///data/biocache/config/biocache-config.properties" />
@@ -66,8 +62,7 @@
       - is to propagate all exceptions to the servlet container: this will happen
       - here with all other types of exceptions.
      -->
-    <bean class="org.springframework.web.servlet.handler.SimpleMappingExceptionResolver">
-        <property name="exceptionAttribute" value="error"/>
+    <bean class="au.org.ala.biocache.web.CustomExceptionResolver">
         <property name="defaultStatusCode" value="500"/>
         <property name="exceptionMappings">
             <props>
@@ -107,7 +102,7 @@
         <constructor-arg index="0" value="text" />
         <constructor-arg index="1" value="html" />
     </bean>
-    
+
     <bean id="restfulClient" class="org.ala.client.util.RestfulClient"/>
     <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter" p:order="0">
         <property name="messageConverters">
@@ -134,10 +129,9 @@
         <property name="serializationInclusion" value="NON_NULL"/>
     </bean>
 
-    <bean id="jacksonDeserializationConfig" class="com.fasterxml.jackson.databind.DeserializationConfig"
-          factory-bean="jacksonObjectMapper" factory-method="getDeserializationConfig"/>
-    <bean
-            class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+    <bean id="jacksonDeserializationConfig" factory-bean="jacksonObjectMapper" factory-method="getDeserializationConfig"/>
+
+    <bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
         <property name="targetObject" ref="jacksonDeserializationConfig"/>
         <property name="targetMethod" value="withAttribute"/>
         <property name="arguments">
@@ -147,14 +141,13 @@
             </list>
         </property>
     </bean>
+    
+    <cache:annotation-driven />
 
-    <!-- Ehcache settings @see http://blog.goyello.com/2010/07/29/quick-start-with-ehcache-annotations-for-spring/ -->
-    <ehcache:annotation-driven />
-
-    <ehcache:config cache-manager="cacheManager">
-        <!-- interval is in minutes -->
-        <ehcache:evict-expired-elements interval="60" />
-    </ehcache:config>
+<!--    <ehcache:config cache-manager="cacheManager">-->
+<!--        &lt;!&ndash; interval is in minutes &ndash;&gt;-->
+<!--        <ehcache:evict-expired-elements interval="60" />-->
+<!--    </ehcache:config>-->
 
     <!-- MBean configuration for ehcache -->
     <bean id="mbeanServer" class="org.springframework.jmx.support.MBeanServerFactoryBean">
@@ -164,7 +157,7 @@
     <bean id="managementService" class="net.sf.ehcache.management.ManagementService"
           init-method="init"
           destroy-method="dispose">
-        <constructor-arg ref="cacheManager"/>
+        <constructor-arg ref="ehCacheManager"/>
         <constructor-arg ref="mbeanServer"/>
         <constructor-arg index="2" value="true"/>
         <constructor-arg index="3" value="true"/>
@@ -172,8 +165,13 @@
         <constructor-arg index="5" value="true"/>
     </bean>
 
-    <bean id="cacheManager" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">
+    <bean id="ehCacheManager" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">
         <property name="configLocation"  value="/WEB-INF/ehcache.xml"/>
+        <property name="shared" value="true" />
+    </bean>
+
+    <bean id="cacheManager" class="org.springframework.cache.ehcache.EhCacheCacheManager">
+        <property name="cacheManager" ref="ehCacheManager" />
     </bean>
 
 </beans>

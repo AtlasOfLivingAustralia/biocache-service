@@ -33,7 +33,7 @@ public class AutocompleteController extends AbstractSecureController {
     @Inject
     protected SpeciesLookupService speciesLookupService;
 
-    @RequestMapping(value = "autocomplete/search", method = RequestMethod.GET)
+    @RequestMapping(value = { "autocomplete/search", "autocomplete/search.json" }, method = RequestMethod.GET)
     public
     @ResponseBody
     Map search(
