@@ -1,3 +1,28 @@
+# Access to Solr cluster from local dev environment
+
+The script `solr-cluster.sh` will setup the host entries, virtual interfaces and ssh tunnels needed to access the solr cluster via zookeeper. 
+
+```
+# ./solr-cluster.sh
+usage: ./solr-cluster.sh < test | prod > < up | down >
+```
+
+First argument is the environment `test` or `prod`
+Second argument is set `up` or tear `down` the connection
+
+eg:
+```
+# ./solr-cluster.sh test up
+up nci3-zookeeper-1.ala nci3-zookeeper-2.ala nci3-zookeeper-3.ala nci3-solr-1.ala nci3-solr-2.ala nci3-solr-3.ala nci3-solr-4.ala
+ssh -f -N nci3-zookeeper-1.ala -L 172.30.1.1:2181:localhost:2181
+ssh -f -N nci3-zookeeper-2.ala -L 172.30.1.2:2181:localhost:2181
+ssh -f -N nci3-zookeeper-3.ala -L 172.30.1.3:2181:localhost:2181
+ssh -f -N nci3-solr-1.ala -L 172.30.2.1:8983:localhost:8983
+ssh -f -N nci3-solr-2.ala -L 172.30.2.2:8983:localhost:8983
+ssh -f -N nci3-solr-3.ala -L 172.30.2.3:8983:localhost:8983
+ssh -f -N nci3-solr-4.ala -L 172.30.2.4:8983:localhost:8983
+```
+
 # Managing Data Quality wiki pages
 Each assertions has a corrisponding wiki page to document the assertions details https://github.com/AtlasOfLivingAustralia/ala-dataquality/wiki. These wiki pages contain structured data needs to be kept in sync with the list of assertions from `biocache-service`.
 
