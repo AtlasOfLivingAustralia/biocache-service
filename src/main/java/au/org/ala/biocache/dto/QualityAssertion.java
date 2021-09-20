@@ -85,7 +85,7 @@ public class QualityAssertion {
 
     public void setCode(Integer code) {
         this.code = code;
-        if (name == null) {
+        if (name == null && code != null) {
             ErrorCode errorCode = AssertionCodes.getByCode(code);
             if (errorCode != null) {
                 name = errorCode.getName();
