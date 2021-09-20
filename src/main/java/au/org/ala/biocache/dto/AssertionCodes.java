@@ -4,6 +4,7 @@ import org.gbif.api.vocabulary.InterpretationRemarkSeverity;
 import org.gbif.api.vocabulary.OccurrenceIssue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -42,7 +43,7 @@ public class AssertionCodes {
     static final public List<ErrorCode> allAssertionCodes = new ArrayList<>();
 
     static {
-
+        allAssertionCodes.addAll(Arrays.asList(userAssertionCodes));
         ALAOccurrenceIssue[] alaIssues = ALAOccurrenceIssue.values();
         OccurrenceIssue[] issues = OccurrenceIssue.values();
 

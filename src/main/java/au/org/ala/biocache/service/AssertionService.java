@@ -141,6 +141,7 @@ public class AssertionService {
             if (qa.getUuid().equals(assertionUuid)) {
                 // do not return the snapshot
                 qa.setSnapshot(null);
+                qa.setCode(qa.getCode());
                 return qa;
             }
         }
@@ -151,6 +152,7 @@ public class AssertionService {
         UserAssertions userAssertions = store.get(UserAssertions.class, recordUuid).orElse(new UserAssertions());
         for (QualityAssertion qa : userAssertions) {
             qa.setSnapshot(null);
+            qa.setCode(qa.getCode());
         }
         return userAssertions;
     }
