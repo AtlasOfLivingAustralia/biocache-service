@@ -23,6 +23,7 @@ import au.org.ala.biocache.heatmap.HeatMap;
 import au.org.ala.biocache.util.ColorUtil;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import com.google.common.base.Strings;
+import io.swagger.annotations.Api;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ArrayUtils;
@@ -67,6 +68,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * @Deprecated this should be factored out as its been superceded by functionality in WebportalController.
  */
 @Controller("mapController")
+@Api(value = "Maps", hidden = true, tags = { "Mapping" })
 public class MapController {
 
     /** Logger initialisation */

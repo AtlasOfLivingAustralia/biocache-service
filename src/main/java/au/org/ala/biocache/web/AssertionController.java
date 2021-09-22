@@ -19,6 +19,7 @@ import au.org.ala.biocache.service.AssertionService;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.annotations.Api;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,11 +36,9 @@ import java.util.stream.Collectors;
 
 /**
  * This controller provides web services for assertion creation/deletion.
- *
- * TODO Add support for API keys so that only registered applications can
- * use these functions.
  */
 @Controller
+@Api(value = "Assertions", description = "REST API for Assertions", tags = { "Assertions" })
 public class AssertionController extends AbstractSecureController {
 
     private final static Logger logger = Logger.getLogger(AssertionController.class);
@@ -119,7 +118,7 @@ public class AssertionController extends AbstractSecureController {
                                   @RequestParam(value = "userId", required = true) String userId,
                                   @RequestParam(value = "userDisplayName", required = true) String userDisplayName,
                                   HttpServletResponse response) throws Exception {
-        //check to see that the assertions have come from a valid source before adding
+        // check to see that the assertions have come from a valid source before adding
         if (shouldPerformOperation(request, response)) {
             ObjectMapper om = new ObjectMapper();
             List<Map<String, String>> assertions = om.readValue(json, new TypeReference<List<Map<String, String>>>() {});

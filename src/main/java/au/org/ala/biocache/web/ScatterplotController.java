@@ -5,6 +5,7 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.stream.ScatterplotSearch;
+import io.swagger.annotations.Api;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -47,6 +48,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * - pointradius, double default 3
  */
 @Controller
+@Api(value = "Scatterplots", description = "Generate scatterplot", tags = { "Scatterplots" })
 public class ScatterplotController {
 
     final private static Logger logger = Logger.getLogger(ScatterplotController.class);

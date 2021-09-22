@@ -1,5 +1,6 @@
 package au.org.ala.biocache.web;
 
+import io.swagger.annotations.Api;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -13,6 +14,7 @@ import java.util.Map;
 import java.util.Properties;
 
 @Controller
+@Api(value = "BuildInfo",  description = "Build information", hidden = true, tags = { "Build" })
 class BuildInfoController {
 
     private final static Logger logger = Logger.getLogger(BuildInfoController.class);

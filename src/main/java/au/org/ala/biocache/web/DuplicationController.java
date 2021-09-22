@@ -20,6 +20,7 @@ import au.org.ala.biocache.dto.DuplicateRecordDetails;
 import au.org.ala.biocache.dto.PointType;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.util.SearchUtils;
+import io.swagger.annotations.Api;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.common.SolrDocument;
@@ -38,6 +39,7 @@ import java.util.Map;
 import static au.org.ala.biocache.dto.OccurrenceIndex.*;
 
 @Controller
+@Api(value = "Duplicates", tags = { "Duplicates"})
 public class DuplicationController {
 
     /**

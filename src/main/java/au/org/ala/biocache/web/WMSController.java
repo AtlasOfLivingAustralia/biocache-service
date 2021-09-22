@@ -24,6 +24,7 @@ import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
+import io.swagger.annotations.Api;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocument;
@@ -72,6 +73,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * </ul>
  */
 @Controller
+@Api(value = "Web Mapping Services (WMS)", tags = { "Mapping" })
 public class WMSController extends AbstractSecureController {
 
     /**

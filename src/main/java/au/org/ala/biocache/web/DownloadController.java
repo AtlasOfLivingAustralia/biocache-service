@@ -20,6 +20,7 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
+import io.swagger.annotations.Api;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import net.sf.json.JsonConfig;
@@ -52,6 +53,7 @@ import java.util.*;
  * @author Natasha Carter (natasha.carter@csiro.au)
  */
 @Controller
+@Api(value = "Download monitoring", tags = { "Monitoring" })
 public class DownloadController extends AbstractSecureController {
 
     /** Fulltext search DAO */

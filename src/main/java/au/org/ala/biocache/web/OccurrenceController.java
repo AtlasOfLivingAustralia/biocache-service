@@ -28,6 +28,7 @@ import au.org.ala.biocache.util.QidSizeException;
 import au.org.ala.biocache.util.SearchUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.swagger.annotations.Api;
 import net.sf.json.JSONArray;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
@@ -83,6 +84,7 @@ import static au.org.ala.biocache.dto.OccurrenceIndex.*;
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
 @Controller
+@Api(value = "Occurrence search", tags = { "Occurrences", "Search" })
 public class OccurrenceController extends AbstractSecureController {
     /**
      * Logger initialisation

@@ -18,6 +18,7 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.BreakdownRequestParams;
 import au.org.ala.biocache.dto.OccurrenceIndex;
 import au.org.ala.biocache.dto.TaxaRankCountDTO;
+import io.swagger.annotations.Api;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Controller;
@@ -36,6 +37,7 @@ import javax.servlet.http.HttpServletResponse;
  * @author Natasha Carter (Natasha.Carter@csiro.au)
  */
 @Controller
+@Api(value = "Breakdowns", description = "Data breakdowns", hidden = true, tags = { "Breakdowns" })
 public class BreakdownController {
 
     private final static Logger logger = Logger.getLogger(BreakdownController.class);

@@ -8,10 +8,7 @@ import springfox.documentation.builders.RequestHandlerSelectors;
 import springfox.documentation.service.ApiInfo;
 import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
-import springfox.documentation.swagger.web.UiConfiguration;
 import springfox.documentation.swagger2.annotations.EnableSwagger2;
-
-import static springfox.documentation.builders.PathSelectors.regex;
 
 /**
  * Init swagger for /v2/api-docs and /swagger-ui.html
@@ -31,8 +28,8 @@ public class SwaggerConfig {
 
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
-                .title("TITLE")
-                .description("DESCRIPTION")
+                .title("Occurrence services")
+                .description("Services for occurrence data")
                 .version("VERSION")
                 .termsOfServiceUrl("http://terms-of-services.url")
                 .license("LICENSE")

@@ -41,7 +41,7 @@ import java.util.*;
 /**
  */
 @Controller
-@Api(basePath = "/", value = "/", description = "Charts")
+@Api(value = "Charts", tags = { "Charts" })
 public class ChartController extends AbstractSecureController implements Serializable {
     /**
      * Fulltext search DAO

@@ -3,6 +3,7 @@ package au.org.ala.biocache.web;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.*;
+import io.swagger.annotations.Api;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.geotools.geometry.GeneralDirectPosition;
@@ -32,6 +33,7 @@ import java.util.*;
  * WMS controller that supports OS grid rendering.
  */
 @Controller
+@Api(value = "Web Mapping Services - OS GRID", hidden = true)
 public class WMSOSGridController {
 
     private final static Logger logger = Logger.getLogger(WMSOSGridController.class);

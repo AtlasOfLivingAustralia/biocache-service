@@ -19,6 +19,7 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import com.ctc.wstx.util.URLUtil;
+import io.swagger.annotations.Api;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
@@ -48,6 +49,7 @@ import java.util.*;
  * @author "Natasha Carter <natasha.carter@csiro.au>"
  */
 @Controller("exploreController")
+@Api(value = "Explore your area", tags = { "Mapping" })
 public class ExploreController {
 
     /**
