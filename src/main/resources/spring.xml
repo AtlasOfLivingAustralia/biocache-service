@@ -1,25 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-       xmlns:p="http://www.springframework.org/schema/p"
-       xmlns:mvc="http://www.springframework.org/schema/mvc"
        xmlns:context="http://www.springframework.org/schema/context"
-       xmlns:cache="http://www.springframework.org/schema/cache"
-       xmlns:task="http://www.springframework.org/schema/task"
-       xsi:schemaLocation="http://www.springframework.org/schema/beans
-           http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
-           http://www.springframework.org/schema/context
-           http://www.springframework.org/schema/context/spring-context-4.3.xsd
-           http://www.springframework.org/schema/mvc
-           http://www.springframework.org/schema/mvc/spring-mvc-4.3.xsd
-           http://www.springframework.org/schema/cache
-           http://www.springframework.org/schema/cache/spring-cache-4.3.xsd
-           http://www.springframework.org/schema/task
-           http://www.springframework.org/schema/task/spring-task-4.3.xsd">
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+    http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
 
     <!-- Enables swagger ui-->
-    <mvc:resources mapping="swagger-ui.html" location="classpath:/META-INF/resources/"/>
-    <mvc:resources mapping="/webjars/**" location="classpath:/META-INF/resources/webjars/"/>
+<!--    <mvc:resources mapping="swagger-ui.html" location="classpath:/META-INF/resources/"/>-->
+<!--    <mvc:resources mapping="/webjars/**" location="classpath:/META-INF/resources/webjars/"/>-->
 
     <!-- Allows us to use system properties as variables in this configuration file -->
     <bean id="properties" class="org.springframework.context.support.PropertySourcesPlaceholderConfigurer">
@@ -30,13 +18,13 @@
     <context:component-scan base-package="au.org.ala.biocache"/>
 
     <!-- Configures the @Controller programming model -->
-    <mvc:annotation-driven />
-    <task:annotation-driven />
+<!--    <mvc:annotation-driven />-->
+<!--    <task:annotation-driven />-->
 
     <!-- Where to load static resources (css, js, images) -->
-    <mvc:resources mapping="/static/**" location="/" />
+<!--    <mvc:resources mapping="/static/**" location="/" />-->
 
-    <bean id="jspViewResolver" class="org.springframework.web.servlet.view.InternalResourceViewResolver" p:order="10">
+    <bean id="jspViewResolver" class="org.springframework.web.servlet.view.InternalResourceViewResolver" >
         <property name="viewClass" value="org.springframework.web.servlet.view.JstlView"/>
         <property name="prefix" value="/WEB-INF/jsp/"/>
         <property name="suffix" value=".jsp"/>
@@ -51,7 +39,7 @@
 
     <!-- This will override the default DefaultAnnotationHandlerMapping that is created,
          and not map file extensions automagically -->
-    <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping" p:order="2" />
+    <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping" />
 
     <context:property-override location="file:///data/biocache/config/biocache-config.properties" ignore-unresolvable="true" ignore-resource-not-found="true" />
     <context:property-placeholder location="file:///data/biocache/config/biocache-config.properties" />
@@ -81,22 +69,22 @@
 
     <!-- Content negotiation view resolver - uses either accept header mime type of the request
      -   or the file extention for the request URL -->
-    <bean class="org.springframework.web.servlet.view.ContentNegotiatingViewResolver" p:order="1">
-        <property name="defaultViews">
-            <list>
-                <bean class="org.springframework.web.servlet.view.xml.MarshallingView">
-                    <property name="marshaller">
-                        <bean class="org.springframework.oxm.xstream.XStreamMarshaller">
-                            <property name="autodetectAnnotations" value="true" />
-                        </bean>
-                    </property>
-                </bean>
-                <bean class="org.springframework.web.servlet.view.json.MappingJackson2JsonView">
-                    <property name="objectMapper" ref="jacksonObjectMapper" />
-                </bean>
-            </list>
-        </property>
-    </bean>
+<!--    <bean class="org.springframework.web.servlet.view.ContentNegotiatingViewResolver" p:order="1">-->
+<!--        <property name="defaultViews">-->
+<!--            <list>-->
+<!--                <bean class="org.springframework.web.servlet.view.xml.MarshallingView">-->
+<!--                    <property name="marshaller">-->
+<!--                        <bean class="org.springframework.oxm.xstream.XStreamMarshaller">-->
+<!--                            <property name="autodetectAnnotations" value="true" />-->
+<!--                        </bean>-->
+<!--                    </property>-->
+<!--                </bean>-->
+<!--                <bean class="org.springframework.web.servlet.view.json.MappingJackson2JsonView">-->
+<!--                    <property name="objectMapper" ref="jacksonObjectMapper" />-->
+<!--                </bean>-->
+<!--            </list>-->
+<!--        </property>-->
+<!--    </bean>-->
 
     <bean id="htmlMediaType" class="org.springframework.http.MediaType">
         <constructor-arg index="0" value="text" />
@@ -104,15 +92,6 @@
     </bean>
 
     <bean id="restfulClient" class="org.ala.client.util.RestfulClient"/>
-    <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter" p:order="0">
-        <property name="messageConverters">
-            <list>
-                <bean class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
-                    <property name="objectMapper" ref="jacksonObjectMapper" />
-                </bean>
-            </list>
-        </property>
-    </bean>
 
     <!-- beans for RestTemplate  -->
     <bean id="restTemplate" class="org.springframework.web.client.RestTemplate">
@@ -123,10 +102,6 @@
                 </bean>
             </list>
         </property>
-    </bean>
-
-    <bean id="jacksonObjectMapper" class="com.fasterxml.jackson.databind.ObjectMapper">
-        <property name="serializationInclusion" value="NON_NULL"/>
     </bean>
 
     <bean id="jacksonDeserializationConfig" factory-bean="jacksonObjectMapper" factory-method="getDeserializationConfig"/>
@@ -142,7 +117,7 @@
         </property>
     </bean>
     
-    <cache:annotation-driven />
+<!--    <cache:annotation-driven />-->
 
 <!--    <ehcache:config cache-manager="cacheManager">-->
 <!--        &lt;!&ndash; interval is in minutes &ndash;&gt;-->

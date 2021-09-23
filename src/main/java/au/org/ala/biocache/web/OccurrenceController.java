@@ -83,8 +83,8 @@ import static au.org.ala.biocache.dto.OccurrenceIndex.*;
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
-@Controller
-@Api(value = "Occurrence search", tags = { "Occurrences", "Search" })
+@Controller(value = "Occurrence")
+@Api(value = "Occurrence search", description="Occurrences", tags = { "Occurrences" })
 public class OccurrenceController extends AbstractSecureController {
     /**
      * Logger initialisation
@@ -1162,6 +1162,7 @@ public class OccurrenceController extends AbstractSecureController {
     public @ResponseBody
     Map<String, Integer> occurrenceSpeciesCounts(
             HttpServletResponse response,
+            HttpServletResponse searresponse,
             HttpServletRequest request,
             @RequestParam(defaultValue = "\n") String separator
     ) throws Exception {
