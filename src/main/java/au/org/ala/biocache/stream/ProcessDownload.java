@@ -192,8 +192,10 @@ public class ProcessDownload implements ProcessInterface {
         // post-process fields requested are headers.included[pos] where pos >= headers.labels.length
         for (int j = 0; j < headers.labels.length; j++) {
             Object obj = tuple.get(headers.included[j]);
-            values[j] = "";
-            if (obj instanceof Collection) {
+
+            if (obj == null) {
+                values[j] = "";
+            } else if (obj instanceof Collection) {
 
                 Stream objStream = ((Collection) obj).stream();
 
@@ -203,7 +205,7 @@ public class ProcessDownload implements ProcessInterface {
 
                 values[j] = (String) objStream.map(SearchUtils::formatValue).collect(Collectors.joining(" | "));
 
-            } else if (obj != null) {
+            } else {
                 values[j] = SearchUtils.formatValue(obj);
             }
         }
