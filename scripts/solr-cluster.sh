@@ -25,7 +25,7 @@ addHosts() {
     i=1
     for host in ${solrNodes[*]}; do
 
-        sudo sh -c "echo ${zkNetworkAddr}${i}   ${host} >> ${hostFile}"
+        sudo sh -c "echo ${solrNetworkAddr}${i}   ${host} >> ${hostFile}"
         i=$[i+1]
 
     done

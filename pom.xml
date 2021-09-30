@@ -12,7 +12,7 @@
     <groupId>au.org.ala</groupId>
     <artifactId>biocache-service</artifactId>
     <packaging>war</packaging>
-    <version>3.0.22</version>
+    <version>3.0.23</version>
     <name>biocache-service</name>
     <url>https://biocache-ws.ala.org.au/ws</url>
     <description>
@@ -345,12 +345,6 @@
             <version>${spring.version}</version>
             <scope>test</scope>
         </dependency>
-        <!-- javax.mail to match dependency in gt-refrencing -->
-        <dependency>
-            <groupId>com.sun.mail</groupId>
-            <artifactId>javax.mail</artifactId>
-            <version>1.5.0</version>
-        </dependency>
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-web</artifactId>
@@ -376,7 +370,7 @@
         <dependency>
             <groupId>com.thoughtworks.xstream</groupId>
             <artifactId>xstream</artifactId>
-            <version>1.4.17</version>
+            <version>1.4.18</version>
         </dependency>
         <!-- SLF4J -->
         <dependency>
