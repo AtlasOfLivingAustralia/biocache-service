@@ -310,22 +310,26 @@ public class ProcessDownload implements ProcessInterface {
         // maintain miscFields order using synchronized
         synchronized (miscFields) {
             // append known miscField values
-            String json = SearchUtils.formatValue(tuple.getString(OccurrenceIndex.MISC));
+            String json = SearchUtils.formatValue(tuple.get(OccurrenceIndex.MISC));
             if (StringUtils.isNotEmpty(json)) {
-                JSONObject jo = JSONObject.fromObject(json);
-                for (String f : miscFields) {
-                    values[offset] = SearchUtils.formatValue(jo.get(f));
-                    offset++;
+                try {
+                    JSONObject jo = JSONObject.fromObject(json);
+                    for (String f : miscFields) {
+                        values[offset] = SearchUtils.formatValue(jo.get(f));
+                        offset++;
 
-                    jo.remove(f);
-                }
-                // find and append new miscFields and their values
-                for (Object entry : jo.entrySet()) {
-                    String value = SearchUtils.formatValue(((Map.Entry) entry).getValue());
-                    if (StringUtils.isNotEmpty(value)) {
-                        miscValues.add(value);
-                        miscFields.add((String) ((Map.Entry) entry).getKey());
+                        jo.remove(f);
                     }
+                    // find and append new miscFields and their values
+                    for (Object entry : jo.entrySet()) {
+                        String value = SearchUtils.formatValue(((Map.Entry) entry).getValue());
+                        if (StringUtils.isNotEmpty(value)) {
+                            miscValues.add(value);
+                            miscFields.add((String) ((Map.Entry) entry).getKey());
+                        }
+                    }
+                } catch (Exception e) {
+                    // ignore malformed dynamicProperties
                 }
             }
         }
