@@ -17,6 +17,8 @@ package au.org.ala.biocache.dto;
 import au.org.ala.biocache.util.IndexFieldSerializer;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import java.util.Collection;
+
 /**
  * DTO for the fields that belong to the index.
  * 
@@ -66,9 +68,12 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     /** the new field name for deprecated fields **/
     private String newFieldName;
 
+    private Collection<String> sourceFields;
+
     @Override
     public boolean equals(Object obj){
-        if(obj instanceof IndexFieldDTO && name != null){
+
+        if (obj instanceof IndexFieldDTO && name != null){
             if (name.equals(((IndexFieldDTO)obj).getName())) {
                 //test the Cassandra field name
                 return (downloadName != null && downloadName.equals(((IndexFieldDTO)obj).getDownloadName())) ||
@@ -293,5 +298,13 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
 
     public void setNewFieldName(String newFieldName) {
         this.newFieldName = newFieldName;
+    }
+
+    public Collection<String> getSourceFields() {
+        return sourceFields;
+    }
+
+    public void setSourceFields(Collection<String> sourceFields) {
+        this.sourceFields = sourceFields;
     }
 }
