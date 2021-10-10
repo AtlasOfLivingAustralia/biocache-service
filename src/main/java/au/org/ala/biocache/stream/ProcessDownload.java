@@ -21,6 +21,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static au.org.ala.biocache.dto.OccurrenceIndex.*;
 
@@ -190,20 +192,19 @@ public class ProcessDownload implements ProcessInterface {
         // post-process fields requested are headers.included[pos] where pos >= headers.labels.length
         for (int j = 0; j < headers.labels.length; j++) {
             Object obj = tuple.get(headers.included[j]);
+
             if (obj == null) {
                 values[j] = "";
             } else if (obj instanceof Collection) {
-                Iterator it = ((Collection) obj).iterator();
-                while (it.hasNext()) {
-                    Object value = it.next();
-                    if (values[j] != null && values[j].length() > 0) values[j] += "|"; //multivalue separator
-                    values[j] = SearchUtils.formatValue(value);
 
-                    //allow requests to include multiple values when requested
-                    if (!includeMultivalues) {
-                        break;
-                    }
+                Stream objStream = ((Collection) obj).stream();
+
+                if (!includeMultivalues) {
+                    objStream = objStream.limit(1);
                 }
+
+                values[j] = (String) objStream.map(SearchUtils::formatValue).collect(Collectors.joining(" | "));
+
             } else {
                 values[j] = SearchUtils.formatValue(obj);
             }
