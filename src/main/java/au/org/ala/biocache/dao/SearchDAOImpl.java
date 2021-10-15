@@ -716,8 +716,9 @@ public class SearchDAOImpl implements SearchDAO {
      * @throws Exception
      */
     @Override
-    public ConcurrentMap<String, AtomicInteger> writeResultsFromIndexToStream(final DownloadRequestParams downloadParams,
+    public DownloadHeaders writeResultsFromIndexToStream(final DownloadRequestParams downloadParams,
                                                                               final OutputStream out,
+                                                                              final  ConcurrentMap<String, AtomicInteger> uidStats,
                                                                               final boolean includeSensitive,
                                                                               final DownloadDetailsDTO dd,
                                                                               boolean checkLimit,
@@ -739,13 +740,6 @@ public class SearchDAOImpl implements SearchDAO {
 
         // prepare headers
         DownloadHeaders downloadHeaders = prepareHeaders(downloadParams);
-
-        // uidStats is sent to logger.ala
-        final ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
-
-        // uidStats also tracks fields requested and headers for use in headings.csv
-        uidStats.put("infoFields," + StringUtils.join(downloadHeaders.joinOriginalIncluded(), ","), new AtomicInteger(-1));
-        uidStats.put("infoHeaders," + StringUtils.join(downloadHeaders.joinedHeader(), ","), new AtomicInteger(-2));
 
         // create writer
         RecordWriter recordWriter = createRecordWriter(downloadParams, downloadHeaders, out);
@@ -772,11 +766,10 @@ public class SearchDAOImpl implements SearchDAO {
             }
         } while (waitAgain);
 
-
         // close writer
         recordWriter.finalise();
 
-        return uidStats;
+        return downloadHeaders;
     }
 
     private RecordWriter createRecordWriter(DownloadRequestParams downloadParams, DownloadHeaders downloadHeaders, OutputStream out) {

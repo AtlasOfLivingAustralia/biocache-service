@@ -1052,7 +1052,8 @@ public class OccurrenceController extends AbstractSecureController {
                                     }
                                     try (FileOutputStream output = new FileOutputStream(outputFilePath);) {
                                         params.setQ("lsid:\"" + lsid + "\"");
-                                        ConcurrentMap<String, AtomicInteger> uidStats = searchDAO.writeResultsFromIndexToStream(params, new CloseShieldOutputStream(output), false, dd, false, null);
+                                        ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
+                                        searchDAO.writeResultsFromIndexToStream(params, new CloseShieldOutputStream(output), uidStats,false, dd, false, null);
                                         output.flush();
                                         try (FileOutputStream citationOutput = new FileOutputStream(citationFilePath);) {
                                             downloadService.getCitations(uidStats, citationOutput, params.getSep(), params.getEsc(), null, null);
