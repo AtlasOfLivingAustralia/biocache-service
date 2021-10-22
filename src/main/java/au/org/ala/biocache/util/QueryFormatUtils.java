@@ -537,6 +537,9 @@ public class QueryFormatUtils {
             return;
         }
 
+        // TODO: remove the translation.
+        // translation has been performed prior to formatting lsid (in formatQueryTerm)
+        // other formatting functions called prior should not use not inject query fields that need translation.   
         String translatedQuery = fieldMappingUtil.translateQueryFields(current[1]);
 
         //if the query string contains lsid: we will need to replace it with the corresponding lft range
@@ -1070,7 +1073,7 @@ public class QueryFormatUtils {
 
         if (taxaQueries.size() != guidsForTaxa.size()) {
             // Both Lists must the same size
-            throw new IllegalArgumentException("Arguments (List) are not the same size: taxaQueries.size() (${taxaQueries.size()}) != guidsForTaxa.size() (${guidsForTaxa.size()})");
+            throw new IllegalArgumentException("Arguments (List) are not the same size: taxaQueries.size() (" + taxaQueries.size() +") != guidsForTaxa.size() (" + guidsForTaxa.size() +")");
         }
 
         if (taxaQueries.size() > 1) {
@@ -1080,7 +1083,7 @@ public class QueryFormatUtils {
                 String guid = (String) guidsForTaxa.get(i);
                 if (i > 0) query.append(" OR ");
                 if (guid != null && !guid.isEmpty()) {
-                    query.append("lsid:").append(guid);
+                    query.append(OccurrenceIndex.TAXON_CONCEPT_ID + ":").append(guid);
                 } else {
                     query.append("text:").append(taxaQueries.get(i));
                 }
@@ -1091,7 +1094,7 @@ public class QueryFormatUtils {
             String taxa = (String) taxaQueries.get(0);
             String guid = (String) guidsForTaxa.get(0);
             if (guid != null && !guid.isEmpty()) {
-                query.append("lsid:").append(guid);
+                query.append(OccurrenceIndex.TAXON_CONCEPT_ID + ":").append(guid);
             } else if (taxa != null && !taxa.isEmpty()) {
                 query.append("text:").append(taxa);
             }

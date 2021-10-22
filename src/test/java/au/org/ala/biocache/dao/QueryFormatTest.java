@@ -28,14 +28,13 @@ import org.junit.experimental.theories.DataPoints;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.runners.MockitoJUnitRunner;
-import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.context.support.ReloadableResourceBundleMessageSource;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -47,6 +46,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 /**
@@ -123,6 +123,10 @@ public class QueryFormatTest {
                 .scientificName("species scientific name")
                 .build();
         when(nameUsageMatchService.get(anyString())).thenReturn(nameUsageMatch);
+        when(speciesLookupService.getGuidsForTaxa(any())).thenReturn(Arrays.asList((String)null));
+        when(speciesLookupService.getGuidsForTaxa(eq(Arrays.asList("taxa A")))).thenReturn(Arrays.asList("guid:XXXXXXXX-XXXX-XXXX-XXXX-AAAAAAAAAAA"));
+        when(speciesLookupService.getGuidsForTaxa(eq(Arrays.asList("taxa B")))).thenReturn(Arrays.asList("guid:XXXXXXXX-XXXX-XXXX-XXXX-BBBBBBBBBBB"));
+
 
         ReloadableResourceBundleMessageSource messageSource = new ReloadableResourceBundleMessageSource();
         messageSource.setDefaultEncoding("UTF-8");
@@ -149,15 +153,17 @@ public class QueryFormatTest {
     @DataPoints
     public static SearchQueryTester[] data() {
         return new SearchQueryTester[] {
-                new SearchQueryTester("lsid:urn:lsid:biodiversity.org.au:afd.taxon:31a9b8b8-4e8f-4343-a15f-2ed24e0bf1ae", "lft:[", "species", false),
-                new SearchQueryTester("taxonConceptID:urn:lsid:biodiversity.org.au:afd.taxon:31a9b8b8-4e8f-4343-a15f-2ed24e0bf1ae", "lft:[", "species", false),
+                new SearchQueryTester("lsid:urn:lsid:biodiversity.org.au:afd.taxon:31a9b8b8-4e8f-4343-a15f-2ed24e0bf1ae", "lft:[0 TO 1]", "SPECIES:", false),
+                new SearchQueryTester("taxonConceptID:urn:lsid:biodiversity.org.au:afd.taxon:31a9b8b8-4e8f-4343-a15f-2ed24e0bf1ae", "lft:[0 TO 1]", "SPECIES:", false),
                 //new SearchQueryTester("lsid:urn:lsid:biodiversity.org.au:afd.taxon:7790064f-4ef7-4742-8112-6b0528d5f3fb", "lft:[", "species:", false),
                 new SearchQueryTester("lsid:urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb", "lft:[0 TO 1]","<span class='lsid' id='urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb'>SPECIES: species scientific name</span>", true),
                 new SearchQueryTester("lsid:urn:lsid:biodiversity.org.au:afd.taxon:7790064f-4ef7-4742-8112-6b0528d5ftest OR lsid:urn:lsid:biodiversity.org.au:afd.taxon:0064f-4ef7-4742-8112-6b0528d5f3fb", "lft:[0 TO 1] OR lft:[0 TO 1]","<span class='lsid' id='urn:lsid:biodiversity.org.au:afd.taxon:7790064f-4ef7-4742-8112-6b0528d5ftest'>SPECIES: species scientific name</span> OR <span class='lsid' id='urn:lsid:biodiversity.org.au:afd.taxon:0064f-4ef7-4742-8112-6b0528d5f3fb'>SPECIES: species scientific name</span>", true),
+                new SearchQueryTester("taxa:taxa A", "lft:[0 TO 1]","<span class='lsid' id='guid:XXXXXXXX-XXXX-XXXX-XXXX-AAAAAAAAAAA'>SPECIES: species scientific name</span>", true),
+                new SearchQueryTester("taxa:\"taxa A\" OR taxa:\"taxa B\"", "lft:[0 TO 1] OR lft:[0 TO 1]","<span class='lsid' id='guid:XXXXXXXX-XXXX-XXXX-XXXX-AAAAAAAAAAA'>SPECIES: species scientific name</span> OR <span class='lsid' id='guid:XXXXXXXX-XXXX-XXXX-XXXX-BBBBBBBBBBB'>SPECIES: species scientific name</span>", true),
                 new SearchQueryTester("(lsid:urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb)", "(lft:[0 TO 1])","(<span class='lsid' id='urn:lsid:biodiversity.org.au:afd.taxon:test0064f-4ef7-4742-8112-6b0528d5f3fb'>SPECIES: species scientific name</span>)", true),
                 new SearchQueryTester("geohash:\"Intersects(Circle(125.0 -14.0 d=0.9009009))\" AND *:*","Intersects(Circle","within", false),
 //                new SearchQueryTester("qid:" + 1, "", "", false),
-                new SearchQueryTester("water", "water", "water", true),
+                new SearchQueryTester("water", "text:water", "water", true),
                 new SearchQueryTester("basis_of_record:PreservedSpecimen", "basisOfRecord:PreservedSpecimen", "Record type:Preserved specimen", true),
                 new SearchQueryTester("basisOfRecord:PreservedSpecimen", "basisOfRecord:PreservedSpecimen", "Record type:Preserved specimen", true),
                 new SearchQueryTester("state:\"New South Wales\"", "stateProvince:\"New\\ South\\ Wales\"", "State/Territory:\"New South Wales\"", true),
