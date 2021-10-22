@@ -16,11 +16,13 @@ package au.org.ala.biocache.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -63,20 +65,31 @@ public class AlaImageMetadataService implements ImageMetadataService {
         payload.put("key", "occurrenceid");
         payload.put("values", occurrenceIDs);
 
-        try(CloseableHttpClient httpClient = new DefaultHttpClient();) {
+
+        HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+
+        try (CloseableHttpClient httpClient = httpClientBuilder.build()) {
+
             HttpPost post = new HttpPost(imageServiceUrl + "/ws/findImagesByMetadata");
 
             ObjectMapper om = new ObjectMapper();
-            post.setEntity(new StringEntity(om.writeValueAsString(payload), "application/json", "UTF-8"));
-            try(CloseableHttpResponse httpResponse = httpClient.execute(post);) {
+            post.setEntity(new StringEntity(om.writeValueAsString(payload), ContentType.APPLICATION_JSON));
 
-                String jsonResponseString = EntityUtils.toString(httpResponse.getEntity());
+            try (CloseableHttpResponse httpResponse = httpClient.execute(post)) {
 
-                Map<String, Object> jsonResponse = om.readValue(jsonResponseString, Map.class);
-                Map<String, List<Map<String, Object>>> imageMetadata = (Map<String, List<Map<String, Object>>>) jsonResponse.get("images");
-                logger.debug("Obtained image metadata for " + imageMetadata.size() + " records");
-                return imageMetadata;
+                if (httpResponse.getStatusLine().getStatusCode() == HttpStatus.SC_OK &&
+                        ContentType.APPLICATION_JSON.getMimeType().equals(ContentType.getOrDefault(httpResponse.getEntity()).getMimeType())) {
+
+                    String jsonResponseString = EntityUtils.toString(httpResponse.getEntity());
+
+                    Map<String, Object> jsonResponse = om.readValue(jsonResponseString, Map.class);
+                    Map<String, List<Map<String, Object>>> imageMetadata = (Map<String, List<Map<String, Object>>>) jsonResponse.get("images");
+                    logger.debug("Obtained image metadata for " + imageMetadata.size() + " records");
+                    return imageMetadata;
+                }
             }
         }
+
+        return new HashMap<>();
     }
 }
