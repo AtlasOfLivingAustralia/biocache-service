@@ -117,7 +117,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
      * A list of fields that are left in the index for legacy reasons, but are removed from the public
      * API to avoid confusion.
      */
-    @Value("${index.fields.tohide:_version_,text_recordedBy,defaultValuesUsed,generalisationToApplyInMetres,occurrenceDetails,text,quad}")
+    @Value("${index.fields.tohide:_version_}")
     protected String indexFieldsToHide;
 
     protected Pattern layersPattern = Pattern.compile("(el|cl)[0-9abc]+");
@@ -396,54 +396,82 @@ public class SolrIndexDAOImpl implements IndexDAO {
      * @param qr
      * @return
      */
-    private Set<IndexFieldDTO> parseLukeResponse(QueryResponse qr, boolean includeCounts) {
+    private void parseLukeResponse(QueryResponse qr, Map<String, IndexFieldDTO> indexFieldMap) {
 
         NamedList response = qr.getResponse();
 
         solrIndexVersion = (long) ((NamedList) response.get("index")).get("version");
         solrIndexVersionTime = System.currentTimeMillis();
 
-        Set<IndexFieldDTO> fieldList =
-                includeCounts
-                        ? new java.util.LinkedHashSet<IndexFieldDTO>()
-                        : new java.util.TreeSet<IndexFieldDTO>();
-
         Map<String, String> indexToJsonMap = new OccurrenceIndex().indexToJsonMap();
 
         NamedList<NamedList<Object>> fields = (NamedList) response.get("fields");
-        fields.forEach((String fieldName, NamedList<Object> fieldInfo) -> formatIndexField(fieldList, fieldName, fieldInfo, indexToJsonMap));
+        fields.forEach((String fieldName, NamedList<Object> fieldInfo) -> {
 
-        fieldMappingUtil.getFieldMappingStream()
-                .forEach((Pair<String, String> fieldMapping) -> {
+            if (StringUtils.isNotEmpty(fieldName) && fieldInfo != null) {
 
-                    IndexFieldDTO deprecatedFields = new IndexFieldDTO();
-                    deprecatedFields.setName(fieldMapping.getKey());
-                    deprecatedFields.setDeprecated(true);
-                    if (fieldMapping.getValue() != null) {
-                        deprecatedFields.setNewFieldName(fieldMapping.getValue());
+                IndexFieldDTO indexField = indexFieldMap.get(fieldName);
+
+                if (indexField == null) {
+
+                    String fieldType = fieldInfo.get("type").toString();
+                    String schema = fieldInfo.get("schema").toString();
+                    Integer distinctCount = (Integer) fieldInfo.get("distinct");
+
+                    indexField = formatIndexField(fieldName, fieldType, schema, distinctCount, indexToJsonMap);
+
+                    if (indexField != null) {
+                        indexFieldMap.put(fieldName, indexField);
                     }
 
-                    fieldList.add(deprecatedFields);
-                });
+                } else {
 
-        // filter fields, to hide deprecated terms
-        List<String> toIgnore = new ArrayList<String>();
-        Set<IndexFieldDTO> filteredFieldList = new HashSet<IndexFieldDTO>();
-        if (indexFieldsToHide != null) {
-            toIgnore = Arrays.asList(indexFieldsToHide.split(","));
-        }
-        for (IndexFieldDTO indexedField : fieldList) {
-            if (!toIgnore.contains(indexedField.getName())) {
-                filteredFieldList.add(indexedField);
+                    indexField.setNumberDistinctValues((Integer) fieldInfo.get("distinct"));
+                }
             }
-        }
+        });
+    }
 
-        return filteredFieldList;
+    private void parseSchemaResponse(QueryResponse qr, Map<String, IndexFieldDTO> indexFieldMap) {
+
+        Map<String, String> indexToJsonMap = new OccurrenceIndex().indexToJsonMap();
+
+        NamedList response = qr.getResponse();
+
+        NamedList<NamedList<Object>> fields = (NamedList) ((NamedList) response.get("schema")).get("fields");
+
+        fields.forEach((String fieldName, NamedList<Object> fieldInfo) -> {
+
+            if (StringUtils.isNotEmpty(fieldName) && fieldInfo != null) {
+
+                IndexFieldDTO indexField = indexFieldMap.get(fieldName);
+
+                if (indexField == null) {
+
+                    String fieldType = fieldInfo.get("type").toString();
+                    String schema = fieldInfo.get("flags").toString();
+
+                    indexField = formatIndexField(fieldName, fieldType, schema, null, indexToJsonMap);
+
+                    if (indexField != null) {
+                        indexFieldMap.put(fieldName, indexField);
+                    }
+                }
+
+                ArrayList copySources = (ArrayList) fieldInfo.get("copySources");
+
+                if (indexField != null && copySources != null && copySources.size() > 0) {
+
+                    indexField.setSourceFields(copySources);
+                }
+            }
+        });
     }
 
     /**
      * Gets the details about the SOLR fields using the LukeRequestHandler: See
      * http://wiki.apache.org/solr/LukeRequestHandler for more information
+     * @return
      */
     @Override
     public Set<IndexFieldDTO> getIndexFieldDetails(String... fields) throws Exception {
@@ -460,7 +488,48 @@ public class SolrIndexDAOImpl implements IndexDAO {
             params.set("numTerms", "0");
         }
         QueryResponse response = query(params);
-        return parseLukeResponse(response, fields != null);
+
+        Map<String, IndexFieldDTO> indexFieldMap = new java.util.Hashtable<>();
+//        Set<IndexFieldDTO> indexFields =
+//                fields != null
+//                        ? new java.util.LinkedHashSet<IndexFieldDTO>()
+//                        : new java.util.TreeSet<IndexFieldDTO>();
+
+        parseLukeResponse(response, indexFieldMap);
+
+        params = new ModifiableSolrParams();
+        params.set("qt", "/admin/luke");
+        params.set("show", "schema");
+
+        response = query(params);
+
+        parseSchemaResponse(response, indexFieldMap);
+
+        fieldMappingUtil.getFieldMappingStream()
+                .forEach((Pair<String, String> fieldMapping) -> {
+
+                    IndexFieldDTO deprecatedFields = new IndexFieldDTO();
+                    deprecatedFields.setName(fieldMapping.getKey());
+                    deprecatedFields.setDeprecated(true);
+                    if (fieldMapping.getValue() != null) {
+                        deprecatedFields.setNewFieldName(fieldMapping.getValue());
+                    }
+
+                    indexFieldMap.put(deprecatedFields.getName(), deprecatedFields);
+                });
+
+        for (String indexFieldToHide: indexFieldsToHide.split(",")) {
+            indexFieldMap.remove(indexFieldToHide);
+        }
+
+        if (fields != null && fields.length > 0) {
+            return Arrays.stream(fields)
+                    .map(fieldName -> indexFieldMap.get(fieldName))
+                    .filter(indexField -> indexField != null)
+                    .collect(Collectors.toSet());
+        }
+
+        return indexFieldMap.entrySet().stream().map(Map.Entry::getValue).collect(Collectors.toSet());
     }
 
     @Override
@@ -577,214 +646,209 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
     private volatile Set<String> schemaFields = new HashSet();
 
-    private void formatIndexField(Set<IndexFieldDTO> fieldList, String fieldName, NamedList<Object> fieldInfo, Map indexToJsonMap) {
+    private IndexFieldDTO formatIndexField(String fieldName, String fieldType, String schema, Integer distinctCount, Map indexToJsonMap) {
 
-        if (StringUtils.isNotEmpty(fieldName) && fieldInfo != null) {
+        // don't allow the sensitive coordinates to be exposed via ws and don't allow index fields
+        // without schema
+        if (StringUtils.isNotEmpty(fieldName)
+                && !fieldName.startsWith("sensitive_")
+                && (schema != null)) {
 
             IndexFieldDTO f = new IndexFieldDTO();
 
-            String type = fieldInfo.get("type").toString();
-            String schema = fieldInfo.get("schema").toString();
-            Integer distinct = (Integer) fieldInfo.get("distinct");
+            f.setName(fieldName);
 
-            // don't allow the sensitive coordinates to be exposed via ws and don't allow index fields
-            // without schema
-            if (StringUtils.isNotEmpty(fieldName)
-                    && !fieldName.startsWith("sensitive_")
-                    && (schema != null)) {
+            if (fieldType != null) {
+                f.setDataType(fieldType);
+            } else {
+                f.setDataType("string");
+            }
 
-                f.setName(fieldName);
+            if (distinctCount != null) {
+                f.setNumberDistinctValues(distinctCount);
+            }
 
-                if (type != null) {
-                    f.setDataType(type);
+            // interpret the schema information
+            if (schema != null) {
+                f.setIndexed(schema.contains("I"));
+                f.setStored(schema.contains("S"));
+                f.setMultivalue(schema.contains("M"));
+                f.setDocvalue(schema.contains("D"));
+            }
+
+            // now add the i18n and associated strings to the field.
+            // 1. description: display name from fieldName= in i18n
+            // 2. info: details about this field from description.fieldName= in i18n
+            // 3. dwcTerm: DwC field name for this field from dwc.fieldName= in i18n
+            // 4. jsonName: json key as returned by occurrences/search
+            // 5. downloadField: column name that is usable in DownloadRequestParams.fl (same as name)
+            // if the field has (5) downloadField, use it to find missing (1), (2) or (3)
+            // 6. downloadDescription: the column name when downloadField is used in
+            //   DownloadRequestParams.fl and a translation occurs
+            // 7. i18nValues: true | false, indicates that the values returned by this field can be
+            //   translated using facetName.value= in /facets/i18n
+            // 8. class value for this field
+            // 9. infoUrl: wiki link from wiki.fieldName= in i18n
+            if (layersPattern.matcher(fieldName).matches()) {
+
+                f.setDownloadName(fieldName);
+                String description = layersService.getLayerNameMap().get(fieldName);
+                f.setDescription(description);
+                f.setDownloadDescription(description);
+                f.setInfo(layersService.getLayersServiceUrl() + "/layers/view/more/" + fieldName);
+                if (fieldName.startsWith("el")) {
+                    f.setClasss("Environmental");
                 } else {
-                    f.setDataType("string");
+                    f.setClasss("Contextual");
+                }
+            } else {
+                // (5) check as a downloadField
+                String downloadField = fieldName;
+                if (downloadField != null) {
+                    f.setDownloadName(downloadField);
                 }
 
-                if (distinct != null) {
-                    f.setNumberDistinctValues(distinct);
+                fieldName = fieldMappingUtil.translateFieldName(fieldName);
+                downloadField = fieldMappingUtil.translateFieldName(downloadField);
+
+                // (6) downloadField description
+                String downloadFieldDescription =
+                        messageSource.getMessage(downloadField, null, "", Locale.getDefault());
+                if (downloadFieldDescription.length() > 0) {
+                    f.setDownloadDescription(downloadFieldDescription);
+                    f.setDescription(downloadFieldDescription); // (1)
                 }
 
-                // interpret the schema information
-                if (schema != null) {
-                    f.setIndexed(schema.contains("I"));
-                    f.setStored(schema.contains("S"));
-                    f.setMultivalue(schema.contains("M"));
-                    f.setDocvalue(schema.contains("D"));
-                }
-
-                // now add the i18n and associated strings to the field.
-                // 1. description: display name from fieldName= in i18n
-                // 2. info: details about this field from description.fieldName= in i18n
-                // 3. dwcTerm: DwC field name for this field from dwc.fieldName= in i18n
-                // 4. jsonName: json key as returned by occurrences/search
-                // 5. downloadField: column name that is usable in DownloadRequestParams.fl (same as name)
-                // if the field has (5) downloadField, use it to find missing (1), (2) or (3)
-                // 6. downloadDescription: the column name when downloadField is used in
-                //   DownloadRequestParams.fl and a translation occurs
-                // 7. i18nValues: true | false, indicates that the values returned by this field can be
-                //   translated using facetName.value= in /facets/i18n
-                // 8. class value for this field
-                // 9. infoUrl: wiki link from wiki.fieldName= in i18n
-                if (layersPattern.matcher(fieldName).matches()) {
-
-                    f.setDownloadName(fieldName);
-                    String description = layersService.getLayerNameMap().get(fieldName);
+                // (1) check as a field name
+                String description =
+                        messageSource.getMessage("facet." + fieldName, null, "", Locale.getDefault());
+                if (description.length() > 0) {
                     f.setDescription(description);
-                    f.setDownloadDescription(description);
-                    f.setInfo(layersService.getLayersServiceUrl() + "/layers/view/more/" + fieldName);
-                    if (fieldName.startsWith("el")) {
-                        f.setClasss("Environmental");
-                    } else {
-                        f.setClasss("Contextual");
-                    }
-                } else {
-                    // (5) check as a downloadField
-                    String downloadField = fieldName;
-                    if (downloadField != null) {
-                        f.setDownloadName(downloadField);
-                    }
-
-                    fieldName = fieldMappingUtil.translateFieldName(fieldName);
-                    downloadField = fieldMappingUtil.translateFieldName(downloadField);
-
-                    // (6) downloadField description
-                    String downloadFieldDescription =
-                            messageSource.getMessage(downloadField, null, "", Locale.getDefault());
-                    if (downloadFieldDescription.length() > 0) {
-                        f.setDownloadDescription(downloadFieldDescription);
-                        f.setDescription(downloadFieldDescription); // (1)
-                    }
-
-                    // (1) check as a field name
-                    String description =
-                            messageSource.getMessage("facet." + fieldName, null, "", Locale.getDefault());
+                } else if (downloadField != null) {
+                    description = messageSource.getMessage(downloadField, null, "", Locale.getDefault());
                     if (description.length() > 0) {
                         f.setDescription(description);
-                    } else if (downloadField != null) {
-                        description = messageSource.getMessage(downloadField, null, "", Locale.getDefault());
-                        if (description.length() > 0) {
-                            f.setDescription(description);
-                        }
-                    }
-
-                    // (2) check as a description
-                    String info =
-                            messageSource.getMessage("description." + fieldName, null, "", Locale.getDefault());
-                    if (info.length() > 0) {
-                        f.setInfo(info);
-                    } else if (downloadField != null) {
-                        info =
-                                messageSource.getMessage(
-                                        "description." + downloadField, null, "", Locale.getDefault());
-                        if (info.length() > 0) {
-                            f.setInfo(info);
-                        }
-                    }
-
-                    // (3) check as a dwcTerm
-                    Term term = null;
-                    try {
-                        // find matching Darwin core term
-                        term = DwcTerm.valueOf(fieldName);
-                    } catch (IllegalArgumentException e) {
-                        // enum not found
-                    }
-                    boolean dcterm = false;
-                    try {
-                        // find matching Dublin core terms that are not in miscProperties
-                        // include case fix for rightsHolder
-                        term = DcTerm.valueOf(fieldName);
-                        dcterm = true;
-                    } catch (IllegalArgumentException e) {
-                        // enum not found
-                    }
-                    if (term == null) {
-                        // look in message properties. This is for irregular fieldName to DwcTerm matches
-                        String dwcTerm =
-                                messageSource.getMessage("dwc." + fieldName, null, "", Locale.getDefault());
-                        if (downloadField != null) {
-                            dwcTerm =
-                                    messageSource.getMessage("dwc." + downloadField, null, "", Locale.getDefault());
-                        }
-
-                        if (dwcTerm.length() > 0) {
-                            f.setDwcTerm(dwcTerm);
-
-                            try {
-                                // find the term now
-                                term = DwcTerm.valueOf(dwcTerm);
-                                if (term != null) {
-                                    f.setClasss(((DwcTerm) term).getGroup()); // (8)
-                                }
-                                DwcTermDetails dwcTermDetails =
-                                        DwCTerms.getInstance().getDwCTermDetails(term.simpleName());
-                                if (dwcTermDetails != null) {
-                                    if (f.getInfo() == null) f.setInfo(dwcTermDetails.comment);
-                                    if (f.getDescription() == null) f.setDescription(dwcTermDetails.label);
-                                }
-                            } catch (IllegalArgumentException e) {
-                                // enum not found
-                            }
-                        }
-                    } else {
-
-                        f.setDwcTerm(term.simpleName());
-                        if (term instanceof DwcTerm) {
-                            f.setClasss(((DwcTerm) term).getGroup()); // (8)
-                        } else {
-                            f.setClasss(DwcTerm.GROUP_RECORD); // Assign dcterms to the Record group.
-                            // apply dcterm: prefix
-                            f.setDwcTerm("dcterms:" + term.simpleName());
-                        }
-
-                        DwcTermDetails dwcTermDetails =
-                                DwCTerms.getInstance().getDwCTermDetails(term.simpleName());
-                        if (dwcTermDetails != null) {
-                            if (f.getInfo() == null) f.setInfo(dwcTermDetails.comment);
-                            if (f.getDescription() == null) f.setDescription(dwcTermDetails.label);
-                        }
-                    }
-
-                    // append dwc url to info
-                    if (!dcterm
-                            && f.getDwcTerm() != null
-                            && !f.getDwcTerm().isEmpty()
-                            && StringUtils.isNotEmpty(dwcUrl)) {
-                        if (info.length() > 0) info += " ";
-                        f.setInfo(info + dwcUrl + f.getDwcTerm());
-                    }
-
-                    // (4) check as json name
-                    String json = (String) indexToJsonMap.get(fieldName);
-                    if (json != null) {
-                        f.setJsonName(json);
-                    }
-
-                    // (7) has lookupValues in i18n
-                    String i18nValues =
-                            messageSource.getMessage("i18nvalues." + fieldName, null, "", Locale.getDefault());
-                    if (i18nValues.length() > 0) {
-                        f.setI18nValues("true".equalsIgnoreCase(i18nValues));
-                    }
-
-                    // (8) get class. This will override any DwcTerm.group
-                    String classs =
-                            messageSource.getMessage("class." + fieldName, null, "", Locale.getDefault());
-                    if (classs.length() > 0) {
-                        f.setClasss(classs);
-                    }
-
-                    //(9) has wiki link in i18n
-                    String wikiLink = messageSource.getMessage("wiki." + fieldName, null, "", Locale.getDefault());
-                    if (wikiLink.length() > 0) {
-                        f.setInfoUrl(wikiLink);
                     }
                 }
 
-                fieldList.add(f);
+                // (2) check as a description
+                String info =
+                        messageSource.getMessage("description." + fieldName, null, "", Locale.getDefault());
+                if (info.length() > 0) {
+                    f.setInfo(info);
+                } else if (downloadField != null) {
+                    info =
+                            messageSource.getMessage(
+                                    "description." + downloadField, null, "", Locale.getDefault());
+                    if (info.length() > 0) {
+                        f.setInfo(info);
+                    }
+                }
+
+                // (3) check as a dwcTerm
+                Term term = null;
+                try {
+                    // find matching Darwin core term
+                    term = DwcTerm.valueOf(fieldName);
+                } catch (IllegalArgumentException e) {
+                    // enum not found
+                }
+                boolean dcterm = false;
+                try {
+                    // find matching Dublin core terms that are not in miscProperties
+                    // include case fix for rightsHolder
+                    term = DcTerm.valueOf(fieldName);
+                    dcterm = true;
+                } catch (IllegalArgumentException e) {
+                    // enum not found
+                }
+                if (term == null) {
+                    // look in message properties. This is for irregular fieldName to DwcTerm matches
+                    String dwcTerm =
+                            messageSource.getMessage("dwc." + fieldName, null, "", Locale.getDefault());
+                    if (downloadField != null) {
+                        dwcTerm =
+                                messageSource.getMessage("dwc." + downloadField, null, "", Locale.getDefault());
+                    }
+
+                    if (dwcTerm.length() > 0) {
+                        f.setDwcTerm(dwcTerm);
+
+                        try {
+                            // find the term now
+                            term = DwcTerm.valueOf(dwcTerm);
+                            if (term != null) {
+                                f.setClasss(((DwcTerm) term).getGroup()); // (8)
+                            }
+                            DwcTermDetails dwcTermDetails =
+                                    DwCTerms.getInstance().getDwCTermDetails(term.simpleName());
+                            if (dwcTermDetails != null) {
+                                if (f.getInfo() == null) f.setInfo(dwcTermDetails.comment);
+                                if (f.getDescription() == null) f.setDescription(dwcTermDetails.label);
+                            }
+                        } catch (IllegalArgumentException e) {
+                            // enum not found
+                        }
+                    }
+                } else {
+
+                    f.setDwcTerm(term.simpleName());
+                    if (term instanceof DwcTerm) {
+                        f.setClasss(((DwcTerm) term).getGroup()); // (8)
+                    } else {
+                        f.setClasss(DwcTerm.GROUP_RECORD); // Assign dcterms to the Record group.
+                        // apply dcterm: prefix
+                        f.setDwcTerm("dcterms:" + term.simpleName());
+                    }
+
+                    DwcTermDetails dwcTermDetails =
+                            DwCTerms.getInstance().getDwCTermDetails(term.simpleName());
+                    if (dwcTermDetails != null) {
+                        if (f.getInfo() == null) f.setInfo(dwcTermDetails.comment);
+                        if (f.getDescription() == null) f.setDescription(dwcTermDetails.label);
+                    }
+                }
+
+                // append dwc url to info
+                if (!dcterm
+                        && f.getDwcTerm() != null
+                        && !f.getDwcTerm().isEmpty()
+                        && StringUtils.isNotEmpty(dwcUrl)) {
+                    if (info.length() > 0) info += " ";
+                    f.setInfo(info + dwcUrl + f.getDwcTerm());
+                }
+
+                // (4) check as json name
+                String json = (String) indexToJsonMap.get(fieldName);
+                if (json != null) {
+                    f.setJsonName(json);
+                }
+
+                // (7) has lookupValues in i18n
+                String i18nValues =
+                        messageSource.getMessage("i18nvalues." + fieldName, null, "", Locale.getDefault());
+                if (i18nValues.length() > 0) {
+                    f.setI18nValues("true".equalsIgnoreCase(i18nValues));
+                }
+
+                // (8) get class. This will override any DwcTerm.group
+                String classs =
+                        messageSource.getMessage("class." + fieldName, null, "", Locale.getDefault());
+                if (classs.length() > 0) {
+                    f.setClasss(classs);
+                }
+
+                //(9) has wiki link in i18n
+                String wikiLink = messageSource.getMessage("wiki." + fieldName, null, "", Locale.getDefault());
+                if (wikiLink.length() > 0) {
+                    f.setInfoUrl(wikiLink);
+                }
             }
+
+            return f;
         }
+
+        return null;
     }
 
     @Inject
