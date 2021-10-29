@@ -1029,6 +1029,11 @@ public class QueryFormatUtils {
             sb.append(ClientUtils.escapeQueryChars(value));
         }
 
+        // unescape the trailing * character
+        if (sb.length() > 1 && "\\*".equals(sb.substring(sb.length() -2))) {
+            sb.replace(sb.length() -2, sb.length(), "*");
+        }
+
         return sb.toString();
     }
 
