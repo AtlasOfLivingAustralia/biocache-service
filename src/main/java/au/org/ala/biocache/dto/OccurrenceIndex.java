@@ -187,7 +187,9 @@ public class OccurrenceIndex {
     @Field("assertions")
     String[] assertions;
     @Field("userAssertions")
-    String hasUserAssertions;
+    String userAssertions;
+    @Field("hasUserAssertions")
+    Boolean hasUserAssertions;
     @Field("speciesGroup")
     String[] speciesGroups;
     @Field("imageID")
@@ -821,11 +823,19 @@ public class OccurrenceIndex {
         this.assertions = assertions;
     }
 
-    public String getHasUserAssertions() {
+    public String getUserAssertions() {
+        return userAssertions;
+    }
+
+    public void setUserAssertions(String userAssertions) {
+        this.userAssertions = userAssertions;
+    }
+
+    public Boolean getHasUserAssertions() {
         return hasUserAssertions;
     }
 
-    public void setHasUserAssertions(String hasUserAssertions) {
+    public void setHasUserAssertions(Boolean hasUserAssertions) {
         this.hasUserAssertions = hasUserAssertions;
     }
 
