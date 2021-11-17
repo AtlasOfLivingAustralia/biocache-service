@@ -85,7 +85,7 @@ public class OccurrenceControllerIT extends TestCase {
         ReflectionTestUtils.setField(occurrenceController, "loggerService", loggerService);
         ReflectionTestUtils.setField(downloadService, "loggerService", loggerService);
         ReflectionTestUtils.setField(occurrenceController, "rateLimitCount", 5);
-        ReflectionTestUtils.setField(occurrenceController, "validator", validator);
+//        ReflectionTestUtils.setField(occurrenceController, "validator", validator);
 
         when(validator.supports(any())).thenReturn(true);
 

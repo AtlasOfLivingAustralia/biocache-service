@@ -38,7 +38,9 @@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"
             <br/>
             <a href="${webservicesRoot}/buildInfo">Build Info</a>
             <br/>
-            <a href="${webservicesRoot}/swagger-ui.html">Swagger</a>
+            <a href="${webservicesRoot}/swagger-ui/index.html?configUrl=/v3/api-docs/swagger-config">Swagger</a>
+            <br/>
+            <a href="${webservicesRoot}/v3/api-docs.yaml">Open API 3 YAML</a>
         </p>
         <p style="display:none;">
             ${versionInfoString}

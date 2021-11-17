@@ -13,6 +13,7 @@ branches:
   only:
     - master
     - develop
+    -
     - 449-part-2
     - /^release\/.*$/
     - /^hotfix\/.*$/

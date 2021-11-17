@@ -10,7 +10,7 @@
         These include WMS support and JSON query services on top of records.
     </description>
 
-    <absolute-ordering />
+<!--    <absolute-ordering />-->
 
     <listener>
         <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>

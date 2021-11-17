@@ -9,10 +9,6 @@
 <!--    <mvc:resources mapping="swagger-ui.html" location="classpath:/META-INF/resources/"/>-->
 <!--    <mvc:resources mapping="/webjars/**" location="classpath:/META-INF/resources/webjars/"/>-->
 
-    <!-- Allows us to use system properties as variables in this configuration file -->
-    <bean id="properties" class="org.springframework.context.support.PropertySourcesPlaceholderConfigurer">
-        <property name="location" value="file:///data/biocache/config/biocache-config.properties" />
-    </bean>
 
     <!--<context:spring-configured/>-->
     <context:component-scan base-package="au.org.ala.biocache"/>
@@ -24,11 +20,11 @@
     <!-- Where to load static resources (css, js, images) -->
 <!--    <mvc:resources mapping="/static/**" location="/" />-->
 
-    <bean id="jspViewResolver" class="org.springframework.web.servlet.view.InternalResourceViewResolver" >
-        <property name="viewClass" value="org.springframework.web.servlet.view.JstlView"/>
-        <property name="prefix" value="/WEB-INF/jsp/"/>
-        <property name="suffix" value=".jsp"/>
-    </bean>
+<!--    <bean id="jspViewResolver" class="org.springframework.web.servlet.view.InternalResourceViewResolver" >-->
+<!--        <property name="viewClass" value="org.springframework.web.servlet.view.JstlView"/>-->
+<!--        <property name="prefix" value="/WEB-INF/jsp/"/>-->
+<!--        <property name="suffix" value=".jsp"/>-->
+<!--    </bean>-->
 
     <bean id="messageSource" class="org.springframework.context.support.ReloadableResourceBundleMessageSource">
         <!-- override default /WEB-INF/messages with optional /data/biocache/config/messages -->

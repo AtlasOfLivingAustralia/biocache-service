@@ -18,6 +18,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.web.servlet.ViewResolver;
+import org.springframework.web.servlet.config.annotation.DefaultServletHandlerConfigurer;
+import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.view.InternalResourceViewResolver;
+import org.springframework.web.servlet.view.JstlView;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -29,7 +35,7 @@ import java.net.URL;
  */
 @Configuration
 @EnableCaching
-public class AppConfig {
+public class AppConfig implements WebMvcConfigurer {
 
     private final static Logger logger = Logger.getLogger(AppConfig.class);
 
@@ -93,4 +99,18 @@ public class AppConfig {
     public QualityServiceRpcApi dataQualityApi(@Qualifier("dataQualityApiClient") ApiClient dataQualityApiClient) {
         return dataQualityApiClient.createService(QualityServiceRpcApi.class);
     }
+
+    @Bean
+    public ViewResolver internalResourceViewResolver() {
+        InternalResourceViewResolver bean = new InternalResourceViewResolver();
+        bean.setViewClass(JstlView.class);
+        bean.setPrefix("/WEB-INF/jsp/");
+        bean.setSuffix(".jsp");
+        return bean;
+    }
+//
+//    @Override
+//    public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
+//        configurer.enable();
+//    }
 }

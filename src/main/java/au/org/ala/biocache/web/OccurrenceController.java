@@ -124,8 +124,8 @@ public class OccurrenceController extends AbstractSecureController {
     private AbstractMessageSource messageSource;
     @Inject
     private ImageMetadataService imageMetadataService;
-    @Inject
-    protected Validator validator;
+//    @Inject
+//    protected Validator validator;
     @Inject
     protected QidCacheDAO qidCacheDao;
     @Inject
@@ -234,7 +234,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @InitBinder
     protected void initBinder(WebDataBinder binder) {
-        binder.setValidator(validator);
+//        binder.setValidator(validator);
     }
 
     /**
@@ -247,6 +247,9 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @RequestMapping(value = "/", method = RequestMethod.GET)
     public String homePageHandler(Model model) {
+
+        logger.info("Loading home page...");
+
         model.addAttribute("webservicesRoot", webservicesRoot);
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         InputStream input = classLoader.getResourceAsStream("/git.properties");
@@ -846,7 +849,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/occurrences/search.json*", "/occurrences/search*", "/occurrence/search*"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrences/search.json*", "/occurrences/search", "/occurrence/search"}, method = RequestMethod.GET)
     public @ResponseBody
     SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams,
                                      @RequestParam(value = "apiKey", required = false) String apiKey,
