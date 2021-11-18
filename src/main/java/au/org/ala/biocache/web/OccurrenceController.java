@@ -83,8 +83,8 @@ import static au.org.ala.biocache.dto.OccurrenceIndex.*;
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
-@Controller(value = "Occurrence")
-@Api(value = "Occurrence search", description="Occurrences", tags = { "Occurrences" })
+@RestController(value = "Occurrence")
+@Api(value = "Occurrence search", tags = { "Occurrences" })
 public class OccurrenceController extends AbstractSecureController {
     /**
      * Logger initialisation
@@ -237,55 +237,56 @@ public class OccurrenceController extends AbstractSecureController {
 //        binder.setValidator(validator);
     }
 
-    /**
-     * Custom handler for the welcome view.
-     *
-     * <p>Note that this handler relies on the RequestToViewNameTranslator to determine the logical
-     * view name based on the request URL: "/welcome.do" -&gt; "welcome".
-     *
-     * @return viewname to render
-     */
-    @RequestMapping(value = "/", method = RequestMethod.GET)
-    public String homePageHandler(Model model) {
+//    /**
+//     * Custom handler for the welcome view.
+//     *
+//     * <p>Note that this handler relies on the RequestToViewNameTranslator to determine the logical
+//     * view name based on the request URL: "/welcome.do" -&gt; "welcome".
+//     *
+//     * @return viewname to render
+//     */
+//    @RequestMapping(value = "/", method = RequestMethod.GET)
+//    public void homePageHandler(HttpServletResponse response) throws IOException {
+//        response.sendRedirect("/swagger-ui.html");
 
-        logger.info("Loading home page...");
+//        logger.info("Loading home page...");
+//
+//        model.addAttribute("webservicesRoot", webservicesRoot);
+//        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+//        InputStream input = classLoader.getResourceAsStream("/git.properties");
+//        if (input != null) {
+//            try {
+//                Properties versionProperties = new Properties();
+//                versionProperties.load(input);
+//                model.addAttribute("versionInfo", versionProperties);
+//
+//                StringBuffer sb = new StringBuffer();
+//                for (String name : versionProperties.stringPropertyNames()) {
+//                    sb.append(name + " : " + versionProperties.getProperty(name) + "\n");
+//                }
+//
+//                model.addAttribute("versionInfoString", sb.toString());
+//
+//            } catch (Exception e) {
+//                logger.error(e.getMessage(), e);
+//            }
+//        }
+//        return HOME;
+//    }
 
-        model.addAttribute("webservicesRoot", webservicesRoot);
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        InputStream input = classLoader.getResourceAsStream("/git.properties");
-        if (input != null) {
-            try {
-                Properties versionProperties = new Properties();
-                versionProperties.load(input);
-                model.addAttribute("versionInfo", versionProperties);
-
-                StringBuffer sb = new StringBuffer();
-                for (String name : versionProperties.stringPropertyNames()) {
-                    sb.append(name + " : " + versionProperties.getProperty(name) + "\n");
-                }
-
-                model.addAttribute("versionInfoString", sb.toString());
-
-            } catch (Exception e) {
-                logger.error(e.getMessage(), e);
-            }
-        }
-        return HOME;
-    }
-
-    /**
-     * Custom handler for the welcome view.
-     *
-     * <p>Note that this handler relies on the RequestToViewNameTranslator to determine the logical
-     * view name based on the request URL: "/welcome.do" -&gt; "welcome".
-     *
-     * @return viewname to render
-     */
-    @RequestMapping(value = "/oldapi", method = RequestMethod.GET)
-    public String oldApiHandler(Model model) {
-        model.addAttribute("webservicesRoot", webservicesRoot);
-        return "oldapi";
-    }
+//    /**
+//     * Custom handler for the welcome view.
+//     *
+//     * <p>Note that this handler relies on the RequestToViewNameTranslator to determine the logical
+//     * view name based on the request URL: "/welcome.do" -&gt; "welcome".
+//     *
+//     * @return viewname to render
+//     */
+//    @RequestMapping(value = "/oldapi", method = RequestMethod.GET)
+//    public String oldApiHandler(Model model) {
+//        model.addAttribute("webservicesRoot", webservicesRoot);
+//        return "oldapi";
+//    }
 
     @RequestMapping(value = {"/upload/dynamicFacets", "/upload/dynamicFacets.json" }, method = RequestMethod.GET)
     public @ResponseBody

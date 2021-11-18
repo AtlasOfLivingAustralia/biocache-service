@@ -27,10 +27,7 @@ import org.apache.solr.common.util.NamedList;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import javax.inject.Inject;
 import java.io.Serializable;
@@ -40,7 +37,7 @@ import java.util.*;
 
 /**
  */
-@Controller
+@RestController
 @Api(value = "Charts", tags = { "Charts" })
 public class ChartController extends AbstractSecureController implements Serializable {
     /**

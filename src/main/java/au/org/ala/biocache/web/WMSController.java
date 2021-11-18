@@ -72,7 +72,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *    <li>GetMetadata</li>
  * </ul>
  */
-@Controller
+@RestController
 @Api(value = "Web Mapping Services (WMS)", tags = { "Mapping" })
 public class WMSController extends AbstractSecureController {
 

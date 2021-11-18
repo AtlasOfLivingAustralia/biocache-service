@@ -29,6 +29,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -38,7 +39,7 @@ import java.util.Map;
 
 import static au.org.ala.biocache.dto.OccurrenceIndex.*;
 
-@Controller
+@RestController
 @Api(value = "Duplicates", tags = { "Duplicates"})
 public class DuplicationController {
 

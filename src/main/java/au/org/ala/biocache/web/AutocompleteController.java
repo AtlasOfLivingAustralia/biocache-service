@@ -17,10 +17,7 @@ package au.org.ala.biocache.web;
 import au.org.ala.biocache.service.SpeciesLookupService;
 import io.swagger.annotations.Api;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import javax.inject.Inject;
 import java.util.Map;
@@ -28,7 +25,7 @@ import java.util.Map;
 /**
  * a basic autocomplete service using the SpeciesLookupService
  */
-@Controller
+@RestController
 @Api(value = "Autocomplete",  description = "Autocomplete services", tags = { "Autocomplete", "Search" })
 public class AutocompleteController extends AbstractSecureController {
 

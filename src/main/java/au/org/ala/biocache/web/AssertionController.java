@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 /**
  * This controller provides web services for assertion creation/deletion.
  */
-@Controller
+@RestController
 @Api(value = "Assertions", description = "REST API for Assertions", tags = { "Assertions" })
 public class AssertionController extends AbstractSecureController {
 

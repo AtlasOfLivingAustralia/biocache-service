@@ -20,10 +20,7 @@ import org.jfree.data.xy.DefaultXYDataset;
 import org.jfree.ui.RectangleEdge;
 import org.locationtech.jts.math.Vector2D;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletResponse;
@@ -47,7 +44,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * - pointcolour, colour as RGB string like FF0000 for red, default 0000FF
  * - pointradius, double default 3
  */
-@Controller
+@RestController
 @Api(value = "Scatterplots", description = "Generate scatterplot", tags = { "Scatterplots" })
 public class ScatterplotController {
 

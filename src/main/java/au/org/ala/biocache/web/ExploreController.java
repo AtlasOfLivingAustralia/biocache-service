@@ -48,7 +48,7 @@ import java.util.*;
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  * @author "Natasha Carter <natasha.carter@csiro.au>"
  */
-@Controller("exploreController")
+@RestController("exploreController")
 @Api(value = "Explore your area", tags = { "Mapping" })
 public class ExploreController {
 

@@ -52,7 +52,7 @@ import java.util.*;
  * </ul> 
  * @author Natasha Carter (natasha.carter@csiro.au)
  */
-@Controller
+@RestController
 @Api(value = "Download monitoring", tags = { "Monitoring" })
 public class DownloadController extends AbstractSecureController {
 

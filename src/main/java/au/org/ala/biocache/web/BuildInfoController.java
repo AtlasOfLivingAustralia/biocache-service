@@ -6,6 +6,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,7 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-@Controller
+@RestController
 @Api(value = "BuildInfo",  description = "Build information", hidden = true, tags = { "Build" })
 class BuildInfoController {
 
@@ -39,6 +40,11 @@ class BuildInfoController {
                 } catch (IOException e) {
                     logger.error("failed to read 'runtimeEnvironment.properties' resource", e);
                 }
+            } else {
+                Properties runtimeEnvironmentProperties = new Properties();
+                runtimeEnvironmentProperties.setProperty("BuildInformation", "UNAVAILABLE");
+                runtimeEnvironmentProperties.setProperty("java.version", System.getProperty("java.version"));
+                model.addAttribute("runtimeEnvironment", runtimeEnvironmentProperties);
             }
 
             if (buildInfoStream != null) {
