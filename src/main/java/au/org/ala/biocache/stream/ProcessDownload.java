@@ -21,6 +21,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static au.org.ala.biocache.dto.OccurrenceIndex.*;
 
@@ -190,20 +192,19 @@ public class ProcessDownload implements ProcessInterface {
         // post-process fields requested are headers.included[pos] where pos >= headers.labels.length
         for (int j = 0; j < headers.labels.length; j++) {
             Object obj = tuple.get(headers.included[j]);
+
             if (obj == null) {
                 values[j] = "";
             } else if (obj instanceof Collection) {
-                Iterator it = ((Collection) obj).iterator();
-                while (it.hasNext()) {
-                    Object value = it.next();
-                    if (values[j] != null && values[j].length() > 0) values[j] += "|"; //multivalue separator
-                    values[j] = SearchUtils.formatValue(value);
 
-                    //allow requests to include multiple values when requested
-                    if (!includeMultivalues) {
-                        break;
-                    }
+                Stream objStream = ((Collection) obj).stream();
+
+                if (!includeMultivalues) {
+                    objStream = objStream.limit(1);
                 }
+
+                values[j] = (String) objStream.map(SearchUtils::formatValue).collect(Collectors.joining(" | "));
+
             } else {
                 values[j] = SearchUtils.formatValue(obj);
             }
@@ -310,22 +311,26 @@ public class ProcessDownload implements ProcessInterface {
         // maintain miscFields order using synchronized
         synchronized (miscFields) {
             // append known miscField values
-            String json = SearchUtils.formatValue(tuple.getString(OccurrenceIndex.MISC));
+            String json = SearchUtils.formatValue(tuple.get(OccurrenceIndex.MISC));
             if (StringUtils.isNotEmpty(json)) {
-                JSONObject jo = JSONObject.fromObject(json);
-                for (String f : miscFields) {
-                    values[offset] = SearchUtils.formatValue(jo.get(f));
-                    offset++;
+                try {
+                    JSONObject jo = JSONObject.fromObject(json);
+                    for (String f : miscFields) {
+                        values[offset] = SearchUtils.formatValue(jo.get(f));
+                        offset++;
 
-                    jo.remove(f);
-                }
-                // find and append new miscFields and their values
-                for (Object entry : jo.entrySet()) {
-                    String value = SearchUtils.formatValue(((Map.Entry) entry).getValue());
-                    if (StringUtils.isNotEmpty(value)) {
-                        miscValues.add(value);
-                        miscFields.add((String) ((Map.Entry) entry).getKey());
+                        jo.remove(f);
                     }
+                    // find and append new miscFields and their values
+                    for (Object entry : jo.entrySet()) {
+                        String value = SearchUtils.formatValue(((Map.Entry) entry).getValue());
+                        if (StringUtils.isNotEmpty(value)) {
+                            miscValues.add(value);
+                            miscFields.add((String) ((Map.Entry) entry).getKey());
+                        }
+                    }
+                } catch (Exception e) {
+                    // ignore malformed dynamicProperties
                 }
             }
         }

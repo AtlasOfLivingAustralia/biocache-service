@@ -63,14 +63,14 @@ public class AssertionController extends AbstractSecureController {
     Collection<AssertionCode> showCodes(
             @RequestParam(value="deprecated", required=false, defaultValue="false") Boolean isDeprecated
     ) throws Exception {
-        return applyi18n(AssertionCodes.getAll(), isDeprecated);
+        return applyi18n(AssertionCodes.getAll(), isDeprecated, true);
     }
 
     @RequestMapping(value = {"/assertions/user/codes", "/assertions/user/codes.json", "/assertions/user/codes/"}, method = RequestMethod.GET)
     public @ResponseBody Collection<AssertionCode> showUserCodes(
             @RequestParam(value="deprecated", required=false, defaultValue="false") Boolean isDeprecated
     ) throws Exception {
-        return applyi18n(AssertionCodes.userAssertionCodes, isDeprecated);
+        return applyi18n(AssertionCodes.userAssertionCodes, isDeprecated, false);
     }
 
     /**
@@ -332,7 +332,7 @@ public class AssertionController extends AbstractSecureController {
         return null;
     }
 
-    private Collection<AssertionCode> applyi18n(ErrorCode[] errorCodes, boolean includeDeprecated) {
+    private Collection<AssertionCode> applyi18n(ErrorCode[] errorCodes, boolean includeDeprecated, boolean sortByName) {
 
         //use i18n descriptions
         List<AssertionCode> formatedAssertionCodes = new ArrayList<>();
@@ -364,7 +364,9 @@ public class AssertionController extends AbstractSecureController {
                     .forEach(formatedAssertionCodes::add);
         }
 
-        Collections.sort(formatedAssertionCodes, Comparator.comparing(AssertionCode::getName, String.CASE_INSENSITIVE_ORDER));
+        if (sortByName) {
+            formatedAssertionCodes.sort(Comparator.comparing(AssertionCode::getName, String.CASE_INSENSITIVE_ORDER));
+        }
 
         return formatedAssertionCodes;
     }

@@ -31,6 +31,7 @@ public class AssertionCodes {
     static final public ErrorCode IDENTIFICATION_INCORRECT = new ErrorCode("identificationIncorrect", 10007, false, "Taxon misidentified", Error);
     static final public ErrorCode USER_ASSERTION_OTHER = new ErrorCode("userAssertionOther", 20019, false, "Other error", Error);
     static final public ErrorCode USER_DUPLICATE_RECORD = new ErrorCode("userDuplicateRecord", 20020, false,"The occurrence appears to be a duplicate", Warning);
+    static final public ErrorCode BIOSECURITY_ISSUE = new ErrorCode("biosecurityIssue", 20021, false, "Biosecurity issue", Error);
 
     //temporal issues
     static final public ErrorCode TEMPORAL_ISSUE = new ErrorCode("temporalIssue", 30000, false, "Temporal issue", Error);  // general purpose option
@@ -38,7 +39,7 @@ public class AssertionCodes {
     //verified type - this is a special code indicating a verification of an existing assertion
     static final public ErrorCode VERIFIED = new ErrorCode("userVerified", 50000, true, "Record Verified by collection manager", Verified);
 
-    static final public ErrorCode[] userAssertionCodes = new ErrorCode[]{ GEOSPATIAL_ISSUE, COORDINATE_HABITAT_MISMATCH, DETECTED_OUTLIER, TAXONOMIC_ISSUE, IDENTIFICATION_INCORRECT, TEMPORAL_ISSUE, USER_DUPLICATE_RECORD, USER_ASSERTION_OTHER };
+    static final public ErrorCode[] userAssertionCodes = new ErrorCode[]{ GEOSPATIAL_ISSUE, COORDINATE_HABITAT_MISMATCH, DETECTED_OUTLIER, TAXONOMIC_ISSUE, IDENTIFICATION_INCORRECT, TEMPORAL_ISSUE, USER_DUPLICATE_RECORD, BIOSECURITY_ISSUE, USER_ASSERTION_OTHER };
 
     static final public List<ErrorCode> allAssertionCodes = new ArrayList<>();
 
