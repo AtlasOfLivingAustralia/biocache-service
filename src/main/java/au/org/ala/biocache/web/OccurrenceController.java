@@ -125,8 +125,8 @@ public class OccurrenceController extends AbstractSecureController {
     private AbstractMessageSource messageSource;
     @Inject
     private ImageMetadataService imageMetadataService;
-//    @Inject
-//    protected Validator validator;
+    @Inject
+    protected Validator validator;
     @Inject
     protected QidCacheDAO qidCacheDao;
     @Inject
@@ -230,59 +230,8 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @InitBinder
     protected void initBinder(WebDataBinder binder) {
-//        binder.setValidator(validator);
+        binder.setValidator(validator);
     }
-
-//    /**
-//     * Custom handler for the welcome view.
-//     *
-//     * <p>Note that this handler relies on the RequestToViewNameTranslator to determine the logical
-//     * view name based on the request URL: "/welcome.do" -&gt; "welcome".
-//     *
-//     * @return viewname to render
-//     */
-//    @RequestMapping(value = "/", method = RequestMethod.GET)
-//    public void homePageHandler(HttpServletResponse response) throws IOException {
-//        response.sendRedirect("/swagger-ui.html");
-
-//        logger.info("Loading home page...");
-//
-//        model.addAttribute("webservicesRoot", webservicesRoot);
-//        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-//        InputStream input = classLoader.getResourceAsStream("/git.properties");
-//        if (input != null) {
-//            try {
-//                Properties versionProperties = new Properties();
-//                versionProperties.load(input);
-//                model.addAttribute("versionInfo", versionProperties);
-//
-//                StringBuffer sb = new StringBuffer();
-//                for (String name : versionProperties.stringPropertyNames()) {
-//                    sb.append(name + " : " + versionProperties.getProperty(name) + "\n");
-//                }
-//
-//                model.addAttribute("versionInfoString", sb.toString());
-//
-//            } catch (Exception e) {
-//                logger.error(e.getMessage(), e);
-//            }
-//        }
-//        return HOME;
-//    }
-
-//    /**
-//     * Custom handler for the welcome view.
-//     *
-//     * <p>Note that this handler relies on the RequestToViewNameTranslator to determine the logical
-//     * view name based on the request URL: "/welcome.do" -&gt; "welcome".
-//     *
-//     * @return viewname to render
-//     */
-//    @RequestMapping(value = "/oldapi", method = RequestMethod.GET)
-//    public String oldApiHandler(Model model) {
-//        model.addAttribute("webservicesRoot", webservicesRoot);
-//        return "oldapi";
-//    }
 
     @RequestMapping(value = {"/upload/dynamicFacets", "/upload/dynamicFacets.json" }, method = RequestMethod.GET)
     public @ResponseBody
