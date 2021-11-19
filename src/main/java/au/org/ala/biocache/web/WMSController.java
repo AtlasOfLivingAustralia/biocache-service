@@ -61,6 +61,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
  * This controller provides mapping services which include WMS services. Includes support for:
@@ -72,8 +73,9 @@ import java.util.concurrent.atomic.AtomicReference;
  *    <li>GetMetadata</li>
  * </ul>
  */
-@RestController
+@Controller
 @Api(value = "Web Mapping Services (WMS)", tags = { "Mapping" })
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class WMSController extends AbstractSecureController {
 
     /**

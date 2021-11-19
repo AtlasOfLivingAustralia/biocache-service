@@ -42,6 +42,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.util.*;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
  * A Controller for downloading records based on queries.  This controller
@@ -52,8 +53,9 @@ import java.util.*;
  * </ul> 
  * @author Natasha Carter (natasha.carter@csiro.au)
  */
-@RestController
+@Controller
 @Api(value = "Download monitoring", tags = { "Monitoring" })
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class DownloadController extends AbstractSecureController {
 
     /** Fulltext search DAO */

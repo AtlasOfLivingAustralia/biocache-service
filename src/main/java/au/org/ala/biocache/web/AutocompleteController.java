@@ -15,6 +15,7 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.service.SpeciesLookupService;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.annotations.Api;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -25,8 +26,9 @@ import java.util.Map;
 /**
  * a basic autocomplete service using the SpeciesLookupService
  */
-@RestController
+@Controller
 @Api(value = "Autocomplete",  description = "Autocomplete services", tags = { "Autocomplete", "Search" })
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class AutocompleteController extends AbstractSecureController {
 
     @Inject

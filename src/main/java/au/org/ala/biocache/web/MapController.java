@@ -34,7 +34,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-
+import com.fasterxml.jackson.annotation.JsonInclude;
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
@@ -64,8 +64,9 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * @Deprecated this should be factored out as its been superceded by functionality in WebportalController.
  */
-@RestController("mapController")
+@Controller("mapController")
 @Api(value = "Maps", hidden = true, tags = { "Mapping" })
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class MapController {
 
     /** Logger initialisation */

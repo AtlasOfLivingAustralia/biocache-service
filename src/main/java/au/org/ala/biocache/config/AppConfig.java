@@ -25,7 +25,8 @@ import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.view.InternalResourceViewResolver;
 import org.springframework.web.servlet.view.JstlView;
-
+import org.springframework.boot.actuate.trace.http.InMemoryHttpTraceRepository;
+import org.springframework.boot.actuate.trace.http.HttpTraceRepository;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.net.URL;
@@ -62,6 +63,11 @@ public class AppConfig implements WebMvcConfigurer {
 
     @Value("${namesearch.cache.size:50}")
     Integer nameSearchCacheSize = 50;
+
+    @Bean
+    public HttpTraceRepository httpTraceRepository() {
+        return new InMemoryHttpTraceRepository();
+    }
 
     public @Bean(name = "nameUsageMatchService")
     ALANameUsageMatchServiceClient nameUsageMatchService() throws IOException {

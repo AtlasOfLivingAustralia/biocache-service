@@ -24,15 +24,15 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <openrdf.sesame.version>2.2</openrdf.sesame.version>
         <spring.version>5.3.9</spring.version>
+        <spring-boot.version>2.5.7</spring-boot.version>
         <junit.version>4.13.1</junit.version>
         <netbeans.hint.deploy.server>Tomcat</netbeans.hint.deploy.server>
         <targetJdk>1.8</targetJdk>
         <animal-sniffer-signature.artifact>java18</animal-sniffer-signature.artifact>
         <animal-sniffer-signature.version>1.0</animal-sniffer-signature.version>
-        <solr.version>8.8.2</solr.version>
+        <solr.version>8.11.0</solr.version>
         <cassandra.version>3.10.2</cassandra.version>
-        <jackson.version>2.12.5</jackson.version>
-        <jackson.databind.version>2.12.5</jackson.databind.version>
+        <jackson.version>2.13.0</jackson.version>
         <gt.version>22.2</gt.version>
         <guava.hbase.version>23.0</guava.hbase.version>
         <ala-namematching-service.version>1.4</ala-namematching-service.version>
@@ -48,6 +48,7 @@
         <!-- Checkstyle -->
         <plexus-compiler-javac-errorprone.version>2.8.3</plexus-compiler-javac-errorprone.version>
         <error_prone_core.version>2.3.2</error_prone_core.version>
+        <slf4j.version>1.7.24</slf4j.version>
     </properties>
     <!-- AN SCM entry that points to the SVN directory that contains the pom file for the project  -->
     <scm>
@@ -61,7 +62,7 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-parent</artifactId>
-            <version>2.5.6</version>
+            <version>${spring-boot.version}</version>
             <type>pom</type>
             <scope>import</scope>
             <exclusions>
@@ -87,7 +88,7 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
-            <version>2.5.6</version>
+            <version>${spring-boot.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>ch.qos.logback</groupId>
@@ -109,9 +110,20 @@
         </dependency>
 
         <dependency>
+            <groupId>org.apache.tomcat.embed</groupId>
+            <artifactId>tomcat-embed-jasper</artifactId>
+            <version>9.0.55</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-cache</artifactId>
-            <version>2.5.6</version>
+            <version>${spring-boot.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+            <version>${spring-boot.version}</version>
         </dependency>
         <dependency>
             <groupId>javax.cache</groupId>
@@ -123,25 +135,11 @@
             <artifactId>ehcache</artifactId>
             <version>3.8.1</version>
         </dependency>
-
-        <!--        <dependency>-->
-<!--            <groupId>org.apache.tomcat.embed</groupId>-->
-<!--            <artifactId>tomcat-embed-jasper</artifactId>-->
-<!--            <version>9.0.44</version>-->
-<!--        </dependency>-->
-
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.boot</groupId>-->
-<!--            <artifactId>spring-boot-starter-tomcat</artifactId>-->
-<!--            <version>2.5.6</version>-->
-<!--        </dependency>-->
-
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient-cache</artifactId>
-            <version>4.5.6</version>
+            <version>4.5.13</version>
         </dependency>
-
         <!-- JSR 380 validation support -->
         <dependency>
             <groupId>javax</groupId>
@@ -153,7 +151,7 @@
             <artifactId>hibernate-validator</artifactId>
             <version>6.2.0.Final</version>
         </dependency>
-
+        <!-- SOLR -->
         <dependency>
             <groupId>org.apache.solr</groupId>
             <artifactId>solr-solrj</artifactId>
@@ -198,7 +196,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${jackson.databind.version}</version>
+            <version>${jackson.version}</version>
         </dependency>
 
         <!-- geotools GML support -->
@@ -270,12 +268,6 @@
             <artifactId>httpclient</artifactId>
             <version>4.5.13</version>
         </dependency>
-        <!-- LOG4J -->
-<!--        <dependency>-->
-<!--            <groupId>log4j</groupId>-->
-<!--            <artifactId>log4j</artifactId>-->
-<!--            <version>1.2.16</version>-->
-<!--        </dependency>-->
         <!-- COMMONS -->
         <dependency>
             <groupId>commons-lang</groupId>
@@ -294,7 +286,6 @@
             <artifactId>springdoc-openapi-ui</artifactId>
             <version>1.5.12</version>
         </dependency>
-
         <!-- Sun's JSP API-->
         <dependency>
             <groupId>javax.servlet</groupId>
@@ -405,66 +396,21 @@
             <version>2.4.0</version>
             <scope>test</scope>
         </dependency>
-        <!-- SPRING 5.3 -->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-core</artifactId>-->
-<!--            <version>${spring.version}</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-context</artifactId>-->
-<!--            <version>${spring.version}</version>-->
-<!--        </dependency>-->
-<!--        &lt;!&ndash; test only? &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-oxm</artifactId>-->
-<!--            <version>${spring.version}</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-web</artifactId>-->
-<!--            <version>${spring.version}</version>-->
-<!--        </dependency>-->
-        <!-- test only? -->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-context-support</artifactId>-->
-<!--            <version>${spring.version}</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-webmvc</artifactId>-->
-<!--            <version>${spring.version}</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-test</artifactId>-->
-<!--            <version>${spring.version}</version>-->
-<!--            <scope>test</scope>-->
-<!--        </dependency>-->
         <!-- javax.mail to match dependency in gt-refrencing -->
         <dependency>
             <groupId>com.sun.mail</groupId>
             <artifactId>javax.mail</artifactId>
             <version>1.5.0</version>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.security</groupId>-->
-<!--            <artifactId>spring-security-web</artifactId>-->
-<!--            <version>5.5.1</version>-->
-<!--        </dependency>-->
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-client</artifactId>
-            <version>2.5.6</version>
+            <version>${spring-boot.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
-            <version>2.5.6</version>
+            <version>${spring-boot.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.security</groupId>
@@ -472,7 +418,6 @@
             <version>5.6.0</version>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>commons-collections</groupId>
             <artifactId>commons-collections</artifactId>
@@ -499,36 +444,18 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.24</version>
+            <version>${slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jul-to-slf4j</artifactId>
-            <version>1.7.24</version>
+            <version>${slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
-            <version>1.7.24</version>
+            <version>${slf4j.version}</version>
         </dependency>
-        <!-- JSR-250 -->
-<!--        <dependency>-->
-<!--            <groupId>javax.annotation</groupId>-->
-<!--            <artifactId>jsr250-api</artifactId>-->
-<!--            <version>1.0</version>-->
-<!--            <scope>provided</scope>-->
-<!--        </dependency>-->
-        <!-- DOM4J -->
-        <!--        <dependency>-->
-        <!--            <groupId>dom4j</groupId>-->
-        <!--            <artifactId>dom4j</artifactId>-->
-        <!--            <version>1.6.1</version>-->
-        <!--        </dependency>-->
-        <!--        <dependency>-->
-        <!--            <groupId>jaxen</groupId>-->
-        <!--            <artifactId>jaxen</artifactId>-->
-        <!--            <version>1.1.1</version>-->
-        <!--        </dependency>-->
         <!-- VELOCITY -->
         <dependency>
             <groupId>org.apache.velocity</groupId>
@@ -557,13 +484,6 @@
             <artifactId>xmlpull</artifactId>
             <version>1.1.3.1</version>
         </dependency>
-
-        <!-- GEOIP - geocoding from IP address -->
-        <!--        <dependency>-->
-        <!--            <groupId>org.dspace.dependencies</groupId>-->
-        <!--            <artifactId>dspace-geoip</artifactId>-->
-        <!--            <version>1.2.3</version>-->
-        <!--        </dependency>-->
         <dependency>
             <groupId>commons-httpclient</groupId>
             <artifactId>commons-httpclient</artifactId>
@@ -620,7 +540,6 @@
             <artifactId>gbif-api</artifactId>
             <version>0.150</version>
         </dependency>
-
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>jsr305</artifactId>
@@ -635,7 +554,7 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
-            <version>2.5.6</version>
+            <version>${spring-boot.version}</version>
         </dependency>
 
     </dependencies>
@@ -648,18 +567,21 @@
             </resource>
         </resources>
         <plugins>
-<!--            <plugin>-->
-<!--                <groupId>org.springframework.boot</groupId>-->
-<!--                <artifactId>spring-boot-maven-plugin</artifactId>-->
-<!--                <version>2.5.6</version>-->
-<!--                <configuration>-->
-<!--                    <executable>true</executable>-->
-<!--                </configuration>-->
-<!--            </plugin>-->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>2.5.6</version>
+                <version>${spring-boot.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>spring-boot</classifier>
+                            <mainClass>au.org.ala.biocache.config.Application</mainClass>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>io.fabric8</groupId>

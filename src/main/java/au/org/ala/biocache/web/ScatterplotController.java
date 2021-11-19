@@ -21,7 +21,7 @@ import org.jfree.ui.RectangleEdge;
 import org.locationtech.jts.math.Vector2D;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-
+import com.fasterxml.jackson.annotation.JsonInclude;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletResponse;
 import java.awt.*;
@@ -44,8 +44,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * - pointcolour, colour as RGB string like FF0000 for red, default 0000FF
  * - pointradius, double default 3
  */
-@RestController
+@Controller
 @Api(value = "Scatterplots", description = "Generate scatterplot", tags = { "Scatterplots" })
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ScatterplotController {
 
     final private static Logger logger = Logger.getLogger(ScatterplotController.class);

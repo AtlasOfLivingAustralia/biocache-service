@@ -28,7 +28,7 @@ import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-
+import com.fasterxml.jackson.annotation.JsonInclude;
 import javax.inject.Inject;
 import java.io.Serializable;
 import java.text.DateFormat;
@@ -37,8 +37,9 @@ import java.util.*;
 
 /**
  */
-@RestController
+@Controller
 @Api(value = "Charts", tags = { "Charts" })
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ChartController extends AbstractSecureController implements Serializable {
     /**
      * Fulltext search DAO

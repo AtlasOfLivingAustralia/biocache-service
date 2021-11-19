@@ -23,7 +23,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-
+import com.fasterxml.jackson.annotation.JsonInclude;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletResponse;
 
@@ -33,8 +33,9 @@ import javax.servlet.http.HttpServletResponse;
  * @author Dave Martin (David.Martin@csiro.au)
  * @author Natasha Carter (Natasha.Carter@csiro.au)
  */
-@RestController
+@Controller
 @Api(value = "Breakdowns", description = "Data breakdowns", hidden = true, tags = { "Breakdowns" })
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class BreakdownController {
 
     private final static Logger logger = Logger.getLogger(BreakdownController.class);

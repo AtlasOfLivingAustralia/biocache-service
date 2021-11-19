@@ -9,8 +9,6 @@ import org.gbif.dwc.terms.GbifTerm;
 import org.gbif.dwc.terms.Term;
 import org.gbif.utils.AnnotationUtils;
 
-
-
 /**
  * Copied from pipelines/livingatlas.
  *

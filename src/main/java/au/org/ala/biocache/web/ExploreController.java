@@ -32,7 +32,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.bind.annotation.*;
-
+import com.fasterxml.jackson.annotation.JsonInclude;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletResponse;
@@ -48,8 +48,9 @@ import java.util.*;
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  * @author "Natasha Carter <natasha.carter@csiro.au>"
  */
-@RestController("exploreController")
+@Controller("exploreController")
 @Api(value = "Explore your area", tags = { "Mapping" })
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ExploreController {
 
     /**

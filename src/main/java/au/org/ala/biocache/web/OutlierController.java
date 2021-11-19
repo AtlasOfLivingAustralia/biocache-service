@@ -5,12 +5,13 @@ import au.org.ala.biocache.dto.RecordJackKnifeStats;
 import io.swagger.annotations.Api;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-
+import com.fasterxml.jackson.annotation.JsonInclude;
 import javax.inject.Inject;
 import java.util.List;
 
-@RestController
+@Controller
 @Api(value = "Outlier information", tags = { "Outliers" })
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class OutlierController {
 
     @Inject

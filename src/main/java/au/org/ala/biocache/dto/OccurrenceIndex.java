@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateFormatUtils;
@@ -34,9 +35,6 @@ public class OccurrenceIndex {
     public static final String MISC = "dynamicProperties";
     protected static final Logger logger = Logger.getLogger(OccurrenceIndex.class);
 
-    final static public String IMAGES = "imageIDs";
-    final static public String SOUNDS = "soundIDs";
-    //final static public String GEOSPATIAL_KOSHER = "geospatial_kosher"; // Not in pipelines
     final static public String COUNTRY = "country";
     final static public String STATE = "stateProvince";
     final static public String PROVENANCE = "provenance";
@@ -71,10 +69,8 @@ public class OccurrenceIndex {
     public static final String TAXON_CONCEPT_ID = "taxonConceptID";
     public static final String SPECIESID = "speciesID";
     public static final String GENUSID = "genusID";
-    public static final String DATA_PROVIDER_NAME = "dataProviderName";
     public static final String DATA_HUB_UID = "dataHubUid";
     final static public String COLLECTION_UID = "collectionUid";
-    final static public String COLLECTION_NAME = "collectionName";
     final static public String INSTITUTION_UID = "institutionUid";
     final static public String DATA_PROVIDER_UID = "dataProviderUid";
     final static public String DATA_RESOURCE_UID = "dataResourceUid";
@@ -106,9 +102,9 @@ public class OccurrenceIndex {
     String raw_catalogNumber;
     @Field("taxonConceptID")
     String taxonConceptID;
-    @Field("eventDate")
+    @Field("eventDate")  @JsonFormat(shape = JsonFormat.Shape.NUMBER)
     Date eventDate;
-    @Field("eventDateEnd")
+    @Field("eventDateEnd")  @JsonFormat(shape = JsonFormat.Shape.NUMBER)
     Date eventDateEnd;
     // @Field for occurrenceYear is on Setter
     Date occurrenceYear;

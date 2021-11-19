@@ -7,6 +7,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.ModelAndView;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,13 +15,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-@RestController
+@Controller
 @Api(value = "BuildInfo",  description = "Build information", hidden = true, tags = { "Build" })
 class BuildInfoController {
 
     private final static Logger logger = Logger.getLogger(BuildInfoController.class);
 
-    @RequestMapping(value="/buildInfo", method = RequestMethod.GET)
+    @RequestMapping("/buildInfo")
     public void buildInfo(Model model) {
 
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
@@ -61,5 +62,6 @@ class BuildInfoController {
         } catch (IOException e) {
             logger.error(e.getMessage(), e);
         }
+//        return new ModelAndView("buildInfo", model);
     }
 }

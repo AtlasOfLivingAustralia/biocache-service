@@ -36,11 +36,13 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import static au.org.ala.biocache.dto.OccurrenceIndex.*;
 
-@RestController
+@Controller
 @Api(value = "Duplicates", tags = { "Duplicates"})
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class DuplicationController {
 
     /**

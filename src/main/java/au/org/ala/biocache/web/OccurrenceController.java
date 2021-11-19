@@ -7,7 +7,7 @@
  *  except in compliance with the License. You may obtain a copy of
  *  the License at http://www.mozilla.org/MPL/
  *
- *  Software distributed under the License is distributed on an "AS
+ *  Software distributed under t    he License is distributed on an "AS
  *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  *  implied. See the License for the specific language governing
  *  rights and limitations under the License.
@@ -72,7 +72,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
+import com.fasterxml.jackson.annotation.JsonInclude;
 import static au.org.ala.biocache.dto.DuplicateRecordDetails.ASSOCIATED;
 import static au.org.ala.biocache.dto.DuplicateRecordDetails.REPRESENTATIVE;
 import static au.org.ala.biocache.dto.OccurrenceIndex.*;
@@ -83,8 +83,9 @@ import static au.org.ala.biocache.dto.OccurrenceIndex.*;
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
-@RestController(value = "Occurrence")
+@Controller(value = "Occurrence")
 @Api(value = "Occurrence search", tags = { "Occurrences" })
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class OccurrenceController extends AbstractSecureController {
     /**
      * Logger initialisation
@@ -133,11 +134,6 @@ public class OccurrenceController extends AbstractSecureController {
 
     @Inject
     private AssertionService assertionService;
-
-    /**
-     * Name of view for site home page
-     */
-    private final String HOME = "homePage";
 
     private final String VALIDATION_ERROR = "error/validationError";
 
