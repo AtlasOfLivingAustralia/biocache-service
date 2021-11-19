@@ -45,7 +45,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
-import org.springframework.validation.Validator;
+//import org.springframework.validation.Validator;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 
@@ -125,8 +125,8 @@ public class OccurrenceController extends AbstractSecureController {
     private AbstractMessageSource messageSource;
     @Inject
     private ImageMetadataService imageMetadataService;
-    @Inject
-    protected Validator validator;
+//    @Inject
+//    protected Validator validator;
     @Inject
     protected QidCacheDAO qidCacheDao;
     @Inject
@@ -223,15 +223,15 @@ public class OccurrenceController extends AbstractSecureController {
         return taxonIDPattern;
     }
 
-    /**
-     * Need to initialise the validator to be used otherwise the @Valid annotation will not work
-     *
-     * @param binder
-     */
-    @InitBinder
-    protected void initBinder(WebDataBinder binder) {
-        binder.setValidator(validator);
-    }
+//    /**
+//     * Need to initialise the validator to be used otherwise the @Valid annotation will not work
+//     *
+//     * @param binder
+//     */
+//    @InitBinder
+//    protected void initBinder(WebDataBinder binder) {
+//        binder.setValidator(validator);
+//    }
 
     @RequestMapping(value = {"/upload/dynamicFacets", "/upload/dynamicFacets.json" }, method = RequestMethod.GET)
     public @ResponseBody
