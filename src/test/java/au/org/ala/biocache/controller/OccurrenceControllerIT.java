@@ -360,42 +360,4 @@ public class OccurrenceControllerIT extends TestCase {
         validateJSONErrorReturned(HttpServletResponse.SC_FORBIDDEN);
         restoreSearchDAO(searchDAOOrig);
     }
-
-//    // below we test '/' and '/oldapi' controller which returns a view name
-//
-//    // Accept */*       -> normal controller -> returns text/html when succeed
-//    // Accept text/html -> normal controller -> returns text/html when succeed
-//    @Test
-//    public void testNormalControllerCompatibleFormat() throws Exception {
-//        Object searchDAOOrig = backupSearchDAO();
-//        String[] acceptTypes = new String[]{"text/html", "*/*"};
-//        String[][] urls = new String[][]{{"/", "/WEB-INF/jsp/homePage.jsp"}, {"/oldapi", "/WEB-INF/jsp/oldapi.jsp"}};
-//
-//        for (String[] url : urls) {
-//            for (String type : acceptTypes) {
-//                MvcResult mvcResult = this.mockMvc.perform(get(url[0]).header("Accept", type))
-//                        .andExpect(status().is(HttpServletResponse.SC_OK))
-//                        .andReturn();
-//
-//                assert (mvcResult.getResponse().getForwardedUrl().equals(url[1]));
-//            }
-//        }
-//        restoreSearchDAO(searchDAOOrig);
-//    }
-
-    // Accept application/json -> normal controller -> returns JSON (because contentNegotiatingViewResolvers maps model to json in this case)
-//    @Test
-//    public void testNormalControllerNONCompatibleFormat() throws Exception {
-//        Object searchDAOOrig = backupSearchDAO();
-//        String[] acceptTypes = new String[]{"application/json"};
-//        String[] urls = new String[]{"/", "/oldapi"};
-//        for (String url : urls) {
-//            for (String type : acceptTypes) {
-//                MvcResult mvcResult =
-//                        this.mockMvc.perform(get(url).header("Accept", type)).andExpect(status().is(HttpServletResponse.SC_OK)).andReturn();
-//                assert (mvcResult.getResponse().getContentType().contains(MediaType.APPLICATION_JSON_VALUE));
-//            }
-//        }
-//        restoreSearchDAO(searchDAOOrig);
-//    }
 }

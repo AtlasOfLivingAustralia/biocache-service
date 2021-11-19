@@ -1241,8 +1241,8 @@ public class SearchDAOImpl implements SearchDAO {
         List<OccurrenceIndex> results = qr.getBeans(resultClass);
 
         //facet results
-        searchResult.setTotalRecords(sdl.getNumFound());
-        searchResult.setStartIndex(sdl.getStart());
+        searchResult.setTotalRecords(sdl.getNumFound());        // TODO: PIPELINES: SolrDocumentList::getNumFound entry point
+        searchResult.setStartIndex(sdl.getStart());             // TODO: PIPELINES: SolrDocumentList::getStart entry point
         searchResult.setPageSize(solrQuery.getRows()); //pageSize
         searchResult.setStatus("OK");
         String[] solrSort = StringUtils.split(solrQuery.getSortField(), " "); // e.g. "taxon_name asc"

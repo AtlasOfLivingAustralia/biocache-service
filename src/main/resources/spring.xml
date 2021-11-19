@@ -5,26 +5,8 @@
        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
     http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
 
-    <!-- Enables swagger ui-->
-<!--    <mvc:resources mapping="swagger-ui.html" location="classpath:/META-INF/resources/"/>-->
-<!--    <mvc:resources mapping="/webjars/**" location="classpath:/META-INF/resources/webjars/"/>-->
-
-
     <!--<context:spring-configured/>-->
     <context:component-scan base-package="au.org.ala.biocache"/>
-
-    <!-- Configures the @Controller programming model -->
-<!--    <mvc:annotation-driven />-->
-<!--    <task:annotation-driven />-->
-
-    <!-- Where to load static resources (css, js, images) -->
-<!--    <mvc:resources mapping="/static/**" location="/" />-->
-
-<!--    <bean id="jspViewResolver" class="org.springframework.web.servlet.view.InternalResourceViewResolver" >-->
-<!--        <property name="viewClass" value="org.springframework.web.servlet.view.JstlView"/>-->
-<!--        <property name="prefix" value="/WEB-INF/jsp/"/>-->
-<!--        <property name="suffix" value=".jsp"/>-->
-<!--    </bean>-->
 
     <bean id="messageSource" class="org.springframework.context.support.ReloadableResourceBundleMessageSource">
         <!-- override default /WEB-INF/messages with optional /data/biocache/config/messages -->
@@ -63,25 +45,6 @@
         <property name="defaultErrorView" value="error/general" />
     </bean>
 
-    <!-- Content negotiation view resolver - uses either accept header mime type of the request
-     -   or the file extention for the request URL -->
-<!--    <bean class="org.springframework.web.servlet.view.ContentNegotiatingViewResolver" p:order="1">-->
-<!--        <property name="defaultViews">-->
-<!--            <list>-->
-<!--                <bean class="org.springframework.web.servlet.view.xml.MarshallingView">-->
-<!--                    <property name="marshaller">-->
-<!--                        <bean class="org.springframework.oxm.xstream.XStreamMarshaller">-->
-<!--                            <property name="autodetectAnnotations" value="true" />-->
-<!--                        </bean>-->
-<!--                    </property>-->
-<!--                </bean>-->
-<!--                <bean class="org.springframework.web.servlet.view.json.MappingJackson2JsonView">-->
-<!--                    <property name="objectMapper" ref="jacksonObjectMapper" />-->
-<!--                </bean>-->
-<!--            </list>-->
-<!--        </property>-->
-<!--    </bean>-->
-
     <bean id="htmlMediaType" class="org.springframework.http.MediaType">
         <constructor-arg index="0" value="text" />
         <constructor-arg index="1" value="html" />
@@ -113,13 +76,6 @@
         </property>
     </bean>
     
-<!--    <cache:annotation-driven />-->
-
-<!--    <ehcache:config cache-manager="cacheManager">-->
-<!--        &lt;!&ndash; interval is in minutes &ndash;&gt;-->
-<!--        <ehcache:evict-expired-elements interval="60" />-->
-<!--    </ehcache:config>-->
-
     <!-- MBean configuration for ehcache -->
     <bean id="mbeanServer" class="org.springframework.jmx.support.MBeanServerFactoryBean">
         <property name="locateExistingServerIfPossible" value="true" />

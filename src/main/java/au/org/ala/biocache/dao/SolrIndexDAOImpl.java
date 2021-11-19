@@ -185,7 +185,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
     @Value("${solr.server.indexVersion.refresh:300000}")
     protected int solrIndexVersionRefreshTime = 300000;
 
-    @Value("${solr.home:http://localhost:8983/solr/biocache}")
+    @Value("${solr.home:}")
     protected String solrHome;
 
     // CoreContainer cc;
