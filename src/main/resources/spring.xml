@@ -20,7 +20,7 @@
     <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping" />
 
     <context:property-override location="file:///data/biocache/config/biocache-config.properties" ignore-unresolvable="true" ignore-resource-not-found="true" />
-    <context:property-placeholder location="file:///data/biocache/config/biocache-config.properties" />
+    <context:property-placeholder location="file:///data/biocache/config/biocache-config.properties" ignore-unresolvable="true" ignore-resource-not-found="true"/>
 
     <!--
       - This bean resolves specific types of exceptions to corresponding logical
