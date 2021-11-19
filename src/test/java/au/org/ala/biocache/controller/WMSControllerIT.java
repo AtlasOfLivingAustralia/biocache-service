@@ -2,7 +2,7 @@ package au.org.ala.biocache.controller;
 
 import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.web.WMSController;
-import org.gbif.utils.file.FileUtils;
+import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -51,7 +51,7 @@ public class WMSControllerIT {
         SolrUtils.setupIndex();
 
         // empty ./target/test-wms/
-        if (targetDirectory.exists()) FileUtils.deleteDirectoryRecursively(targetDirectory);
+        if (targetDirectory.exists()) FileUtils.forceDelete(targetDirectory);
         targetDirectory.mkdirs();
     }
 

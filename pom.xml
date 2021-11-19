@@ -553,7 +553,13 @@
         <dependency>
             <groupId>org.gbif</groupId>
             <artifactId>gbif-api</artifactId>
-            <version>0.150</version>
+            <version>0.157</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-compress -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>1.21</version>
         </dependency>
         <dependency>
             <groupId>com.google.code.findbugs</groupId>

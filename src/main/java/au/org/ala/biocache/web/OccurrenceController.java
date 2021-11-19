@@ -32,13 +32,13 @@ import io.swagger.annotations.Api;
 import net.sf.json.JSONArray;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.gbif.dwc.terms.DwcTerm;
-import org.gbif.utils.file.FileUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Controller;
@@ -343,7 +343,7 @@ public class OccurrenceController extends AbstractSecureController {
         File f = new File("/data/biocache/config/messages" + qualifier);
         InputStream is;
         if (f.exists() && f.isFile() && f.canRead()) {
-            is = FileUtils.getInputStream(f);
+            is = FileUtils.openInputStream(f);
         } else {
             is = request.getSession().getServletContext().getResourceAsStream("/WEB-INF/messages" + qualifier);
         }

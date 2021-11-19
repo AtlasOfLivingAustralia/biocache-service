@@ -2,12 +2,13 @@ package au.org.ala.biocache.dto;
 
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
+
+import org.gbif.api.util.AnnotationUtils;
 import org.gbif.api.vocabulary.InterpretationRemark;
 import org.gbif.api.vocabulary.InterpretationRemarkSeverity;
 import org.gbif.dwc.terms.DwcTerm;
 import org.gbif.dwc.terms.GbifTerm;
 import org.gbif.dwc.terms.Term;
-import org.gbif.utils.AnnotationUtils;
 
 /**
  * Copied from pipelines/livingatlas.

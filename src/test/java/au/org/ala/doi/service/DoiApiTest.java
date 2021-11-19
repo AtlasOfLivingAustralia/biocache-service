@@ -5,7 +5,7 @@ import com.google.common.collect.Lists;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import org.gbif.common.shaded.com.google.common.net.UrlEscapers;
+import com.google.common.net.UrlEscapers;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
