@@ -13,8 +13,7 @@ branches:
   only:
     - master
     - develop
-    -
-    - 449-part-2
+    - 677_swagger_spring_boot
     - /^release\/.*$/
     - /^hotfix\/.*$/
 before_install:
