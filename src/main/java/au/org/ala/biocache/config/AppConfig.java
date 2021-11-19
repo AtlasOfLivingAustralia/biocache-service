@@ -7,20 +7,17 @@ import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import au.org.ala.dataquality.client.ApiClient;
 import au.org.ala.names.ws.client.ALANameUsageMatchServiceClient;
 import au.org.ala.ws.ClientConfiguration;
+import org.apache.catalina.Context;
 import org.apache.log4j.Logger;
+import org.apache.tomcat.util.scan.StandardJarScanner;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.CacheManager;
+import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
 import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.cache.ehcache.EhCacheCacheManager;
-import org.springframework.cache.ehcache.EhCacheManagerFactoryBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.AbstractMessageSource;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.web.servlet.ViewResolver;
-import org.springframework.web.servlet.config.annotation.DefaultServletHandlerConfigurer;
-import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.view.InternalResourceViewResolver;
@@ -80,6 +77,17 @@ public class AppConfig implements WebMvcConfigurer {
                         .build();
 
         return new ALANameUsageMatchServiceClient(clientConfiguration);
+    }
+
+    //https://stackoverflow.com/questions/43370840/disable-scanmanifest-of-jar-scan-in-tomcat-embed-in-spring-boot
+    @Bean
+    public TomcatServletWebServerFactory tomcatFactory() {
+        return new TomcatServletWebServerFactory() {
+            @Override
+            protected void postProcessContext(Context context) {
+                ((StandardJarScanner) context.getJarScanner()).setScanManifest(false);
+            }
+        };
     }
 
     protected SpeciesLookupService getNameMatchSpeciesLookupService() {

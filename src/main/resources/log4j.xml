@@ -86,6 +86,9 @@
     <category name="springfox">
         <priority value="ERROR"/>
     </category>
+    <category name="org.apache.tomcat.util.scan">
+        <priority value="ERROR"/>
+    </category>
     <root>
         <priority value="DEBUG"/>
          <appender-ref ref="CONSOLE"/>

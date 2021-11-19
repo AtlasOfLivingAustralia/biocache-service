@@ -33,8 +33,7 @@
         <solr.version>8.11.0</solr.version>
         <cassandra.version>3.11.0</cassandra.version>
         <jackson.version>2.13.0</jackson.version>
-        <gt.version>22.2</gt.version>
-        <guava.hbase.version>23.0</guava.hbase.version>
+        <gt.version>26.0</gt.version>
         <ala-namematching-service.version>1.4</ala-namematching-service.version>
         <solr8.zk.port>9983</solr8.zk.port>
         <solr8.http.port>8983</solr8.http.port>
