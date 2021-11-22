@@ -20,6 +20,7 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import com.ctc.wstx.util.URLUtil;
 import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -385,6 +386,7 @@ public class ExploreController {
     @Operation(summary = "Returns a list of species and record counts for a given location search" +
             " and a higher taxa with rank.", tags = "Explore")
     @RequestMapping(value = {"/explore/group/{group}*", "/explore/group/{group}.json*" }, method = RequestMethod.GET)
+    @ApiParam(value = "group", required = true)
     public @ResponseBody
     List<TaxaCountDTO> listSpeciesForHigherTaxa(
             SpatialSearchRequestParams requestParams,
@@ -465,6 +467,7 @@ public class ExploreController {
      */
     @Operation(summary = "Returns facet values that only occur in the supplied subQueryQid and not in the parentQuery.", tags = "Endemism")
     @RequestMapping(value = {"/explore/endemic/species/{subQueryQid}*", "/explore/endemic/species/{subQueryQid}.json*"}, method = RequestMethod.GET)
+    @ApiParam(value = "subQueryQid", required = true)
     public @ResponseBody
     List<FieldResultDTO> getSpeciesOnlyInOneQuery(SpatialSearchRequestParams parentQuery,
                                                   @PathVariable(value = "subQueryQid") Long subQueryQid,
@@ -491,6 +494,7 @@ public class ExploreController {
      */
     @Operation(summary = "Returns count of facet values that only occur in the supplied subQueryQid and not in the parentQuery.", tags = "Endemism")
     @RequestMapping(value = {"/explore/endemic/speciescount/{subQueryQid}*", "/explore/endemic/speciescount/{subQueryQid}.json*" }, method = RequestMethod.GET)
+    @ApiParam(value = "subQueryQid", required = true)
     public @ResponseBody
     Map getSpeciesOnlyInOneCountQuery(SpatialSearchRequestParams parentQuery,
                                       @PathVariable(value = "subQueryQid") Long subQueryQid,
@@ -547,6 +551,7 @@ public class ExploreController {
      */
     @Operation(summary = "Returns facet values that only occur in the supplied subQueryQid and not in the parentQuery.", tags = {"Endemism", "Download"})
     @RequestMapping(value = "/explore/endemic/species/{subQueryQid}.csv", method = RequestMethod.GET)
+    @ApiParam(value = "subQueryQid", required = true)
     public void getSpeciesOnlyInOneQueryCSV(SpatialSearchRequestParams parentQuery,
                                             @PathVariable(value = "subQueryQid") Long subQueryQid,
                                             @RequestParam(value = "count", required = false, defaultValue = "false") boolean includeCount,

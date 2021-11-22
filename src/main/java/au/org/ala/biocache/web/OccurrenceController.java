@@ -285,8 +285,9 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "List available facets with grouping", tags = "i18n")
-    @RequestMapping(value = "/facets/i18n{qualifier:.*}*", method = RequestMethod.GET)
-    public void writei18nPropertiesFile(@PathVariable("qualifier") String qualifier,
+    @RequestMapping(value = {"facets/i18n", "/facets/i18n.properties"}, method = RequestMethod.GET)
+    @ApiParam(value = "qualifier", required = false)
+    public void writei18nPropertiesFile(@ApiParam(value = "id", required = false) @PathVariable("qualifier") String qualifier,
                                         HttpServletRequest request,
                                         HttpServletResponse response) throws Exception {
         response.setHeader("Content-Type", "text/plain; charset=UTF-8");
@@ -757,9 +758,11 @@ public class OccurrenceController extends AbstractSecureController {
             "/occurrences/dataHubs/{uid}",
             "/occurrences/dataHubs/{uid}.json" }, method = RequestMethod.GET)
     @Deprecated
+    @ApiParam(value = "uid", required = true)
     public @ResponseBody
     SearchResultDTO occurrenceSearchForUID(SpatialSearchRequestParams requestParams,
-                                           @PathVariable("uid") String uid) throws Exception {
+                                           @PathVariable("uid") String uid)
+            throws Exception {
         SearchResultDTO searchResult = new SearchResultDTO();
         // no query so exit method
         if (StringUtils.isEmpty(uid)) {
@@ -1347,6 +1350,7 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(
             value = {"/occurrence/compare/{uuid}.json", "/occurrence/compare/{uuid}"},
             method = RequestMethod.GET)
+    @ApiParam(value = "uuid", required = true)
     public @ResponseBody
     Object showOccurrence(@PathVariable("uuid") String uuid, HttpServletResponse response) throws Exception {
 
@@ -1465,6 +1469,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @Operation(summary = "Full record details", tags = "Occurrence")
     @RequestMapping(value = {"/occurrence/{uuid:.+}", "/occurrences/{uuid:.+}", "/occurrence/{uuid:.+}.json", "/occurrences/{uuid:.+}.json"}, method = RequestMethod.GET)
+    @ApiParam(value = "uuid", required = true)
     public @ResponseBody
     Object showOccurrence(@PathVariable("uuid") String uuid,
                           @RequestParam(value = "apiKey", required = false) String apiKey,
@@ -1484,6 +1489,7 @@ public class OccurrenceController extends AbstractSecureController {
 
     @Operation(summary = "Full record details with sensitive information", tags = "Occurrence")
     @RequestMapping(value = {"/sensitive/occurrence/{uuid:.+}", "/sensitive/occurrences/{uuid:.+}", "/sensitive/occurrence/{uuid:.+}.json"}, method = RequestMethod.GET)
+    @ApiParam(value = "uuid", required = true)
     public @ResponseBody
     Object showSensitiveOccurrence(@PathVariable("uuid") String uuid,
                                    @RequestParam(value = "apiKey", required = true) String apiKey,

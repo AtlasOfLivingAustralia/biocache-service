@@ -21,6 +21,7 @@ import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
 import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import net.sf.json.JSONArray;
@@ -122,6 +123,7 @@ public class DownloadController extends AbstractSecureController {
      */
     @Hidden
     @RequestMapping(value = { "occurrences/offline/{type}/download*", "occurrences/offline/{type}/download.json*" } , method = {RequestMethod.GET, RequestMethod.POST})
+    @ApiParam(value = "type", required = true)
     public @ResponseBody Object occurrenceDownload(
             DownloadRequestParams requestParams,
             @RequestParam(value = "ip", required = false) String ip,
@@ -336,6 +338,7 @@ public class DownloadController extends AbstractSecureController {
 
     @Operation(summary = "Get the status of download", tags = "Monitoring")
     @RequestMapping(value = { "occurrences/offline/status/{id}", "occurrences/offline/status/{id}.json" }, method = RequestMethod.GET)
+    @ApiParam(value = "id", required = true)
     public @ResponseBody Object occurrenceDownloadStatus(@PathVariable("id") String id) throws Exception {
 
         Map<String, Object> status = new LinkedHashMap<>();
@@ -415,6 +418,7 @@ public class DownloadController extends AbstractSecureController {
      */
     @Operation(summary = "Cancel an offline download", tags = "Monitoring")
     @RequestMapping(value = { "occurrences/offline/cancel/{id}", "occurrences/offline/cancel/{id}.json" }, method = RequestMethod.GET)
+    @ApiParam(value = "id", required = true)
     public @ResponseBody Object occurrenceDownloadCancel(
             @PathVariable("id") String id,
             HttpServletResponse response,

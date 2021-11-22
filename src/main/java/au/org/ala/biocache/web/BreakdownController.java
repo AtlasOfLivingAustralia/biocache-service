@@ -19,6 +19,7 @@ import au.org.ala.biocache.dto.BreakdownRequestParams;
 import au.org.ala.biocache.dto.OccurrenceIndex;
 import au.org.ala.biocache.dto.TaxaRankCountDTO;
 import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -53,9 +54,11 @@ public class BreakdownController {
      */
     @Operation(summary = "A breakdown based on a collection", tags = {"Breakdown"})
     @RequestMapping(value = "/breakdown/collections/{uid}*", method = RequestMethod.GET)
+    @ApiParam(value = "uid", required = true)
     public @ResponseBody
     TaxaRankCountDTO breakdownByCollection(BreakdownRequestParams requestParams,
-                                           @PathVariable("uid") String uid, HttpServletResponse response) throws Exception {
+                                           @PathVariable("uid") String uid,
+                                           HttpServletResponse response) throws Exception {
         return performBreakdown(OccurrenceIndex.COLLECTION_UID, uid, requestParams, response);
     }
 
@@ -69,9 +72,11 @@ public class BreakdownController {
      */
     @Operation(summary = "A breakdown based on a institution", tags = {"Breakdown"})
     @RequestMapping(value = "/breakdown/institutions/{uid}*", method = RequestMethod.GET)
+    @ApiParam(value = "uid", required = true)
     public @ResponseBody
     TaxaRankCountDTO breakdownByInstitution(BreakdownRequestParams requestParams,
-                                            @PathVariable("uid") String uid, HttpServletResponse response) throws Exception {
+                                            @PathVariable("uid") String uid,
+                                            HttpServletResponse response) throws Exception {
         return performBreakdown(OccurrenceIndex.INSTITUTION_UID, uid, requestParams, response);
     }
 
@@ -85,9 +90,11 @@ public class BreakdownController {
      */
     @Operation(summary = "A breakdown based on a data resource", tags = {"Breakdown"})
     @RequestMapping(value = "/breakdown/dataResources/{uid}*", method = RequestMethod.GET)
+    @ApiParam(value = "uid", required = true)
     public @ResponseBody
     TaxaRankCountDTO breakdownByDataResource(BreakdownRequestParams requestParams,
-                                             @PathVariable("uid") String uid, HttpServletResponse response) throws Exception {
+                                             @PathVariable("uid") String uid,
+                                             HttpServletResponse response) throws Exception {
         return performBreakdown(OccurrenceIndex.DATA_RESOURCE_UID, uid, requestParams, response);
     }
 
@@ -101,9 +108,11 @@ public class BreakdownController {
      */
     @Operation(summary = "A breakdown based on a data provider", tags = {"Breakdown"})
     @RequestMapping(value = "/breakdown/dataProviders/{uid}*", method = RequestMethod.GET)
+    @ApiParam(value = "uid", required = true)
     public @ResponseBody
     TaxaRankCountDTO breakdownByDataProvider(BreakdownRequestParams requestParams,
-                                             @PathVariable("uid") String uid, HttpServletResponse response) throws Exception {
+                                             @PathVariable("uid") String uid,
+                                             HttpServletResponse response) throws Exception {
         return performBreakdown(OccurrenceIndex.DATA_PROVIDER_UID, uid, requestParams, response);
     }
 
@@ -117,9 +126,11 @@ public class BreakdownController {
      */
     @Operation(summary = "A breakdown based on a data hub", tags = {"Breakdown"})
     @RequestMapping(value = "/breakdown/dataHubs/{uid}*", method = RequestMethod.GET)
+    @ApiParam(value = "uid", required = true)
     public @ResponseBody
     TaxaRankCountDTO breakdownByDataHub(BreakdownRequestParams requestParams,
-                                        @PathVariable("uid") String uid, HttpServletResponse response) throws Exception {
+                                        @PathVariable("uid") String uid,
+                                        HttpServletResponse response) throws Exception {
         return performBreakdown(OccurrenceIndex.DATA_HUB_UID, uid, requestParams, response);
     }
 

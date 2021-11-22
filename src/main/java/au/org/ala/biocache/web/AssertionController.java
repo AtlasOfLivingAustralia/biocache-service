@@ -20,6 +20,7 @@ import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import org.apache.commons.lang3.tuple.Pair;
@@ -167,6 +168,7 @@ public class AssertionController extends AbstractSecureController {
      */
     @Operation(summary = "Add an assertion (REST style)", tags = "Assertions")
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/add"}, method = RequestMethod.POST)
+    @ApiParam(value = "recordUuid", required = true)
     public void addAssertion(
        @PathVariable(value="recordUuid") String recordUuid,
        @RequestParam(value = "apiKey", required = true) String apiKey,
@@ -226,6 +228,7 @@ public class AssertionController extends AbstractSecureController {
      */
     @Operation(summary = "Removes an assertion (REST style)", tags = "Assertions")
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/delete"}, method = RequestMethod.POST)
+    @ApiParam(value = "recordUuid", required = true)
     public void deleteAssertion(
         @PathVariable(value="recordUuid") String recordUuid,
         @RequestParam(value = "apiKey", required = true) String apiKey,
@@ -268,8 +271,8 @@ public class AssertionController extends AbstractSecureController {
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/{assertionUuid}", "/occurrences/{recordUuid}/assertions/{assertionUuid}.json", "/occurrences/{recordUuid}/assertions/{assertionUuid}/"}, method = RequestMethod.GET)
     public @ResponseBody
     QualityAssertion getAssertion(
-            @PathVariable(value = "recordUuid") String recordUuid,
-            @PathVariable(value = "assertionUuid") String assertionUuid,
+            @ApiParam(value = "recordUuid", required = true) @PathVariable(value = "recordUuid") String recordUuid,
+            @ApiParam(value = "assertionUuid", required = true) @PathVariable(value = "assertionUuid") String assertionUuid,
             HttpServletResponse response) throws Exception {
 
         try {
@@ -293,6 +296,7 @@ public class AssertionController extends AbstractSecureController {
      */
     @Operation(summary = "Get a assertions for a record (REST style)", tags = "Assertions")
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions", "/occurrences/{recordUuid}/assertions.json", "/occurrences/{recordUuid}/assertions/"}, method = RequestMethod.GET)
+    @ApiParam(value = "recordUuid", required = true)
     public @ResponseBody List<QualityAssertion> getAssertions(
         @PathVariable(value="recordUuid") String recordUuid,
         HttpServletResponse response
@@ -310,6 +314,7 @@ public class AssertionController extends AbstractSecureController {
     @Hidden
     @Deprecated
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertionQueries", "/occurrences/{recordUuid}/assertionQueries.json", "/occurrences/{recordUuid}/assertionQueries/"}, method = RequestMethod.GET)
+    @ApiParam(value = "recordUuid", required = true)
     public @ResponseBody
     List<QualityAssertion> getAssertionQueries(
             @PathVariable(value = "recordUuid") String recordUuid,
