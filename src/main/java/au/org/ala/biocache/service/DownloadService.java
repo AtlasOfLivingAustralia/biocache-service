@@ -553,7 +553,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @throws Exception
      */
     public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
-                                   OutputStream out, boolean includeSensitive, boolean limit, boolean zip, ExecutorService parallelExecutor, List<CreateDoiResponse> doiResponseList)
+                                   OutputStream out, boolean includeSensitive,
+                                   boolean limit, boolean zip, ExecutorService parallelExecutor,
+                                   List<CreateDoiResponse> doiResponseList)
             throws Exception {
         afterInitialisation();
         String filename = requestParams.getFile();
@@ -774,8 +776,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     requestParams.getEmail(), requestParams.getReason(), ip, dd.getUserAgent(), null, uidStats, sourceUrl);
 
             loggerService.logEvent(vo);
-//                logger.log(RestLevel.REMOTE, vo);
-
 
         } catch (RecordWriterException e) {
             logger.error(e.getMessage(), e);
@@ -862,16 +862,17 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(out), StandardCharsets.UTF_8), sep, '"', esc);) {
                 // Always write something to the citations.csv file so that users can distinguish between cases themselves when reporting issues
                 // i18n of the citation header
-                writer.writeNext(new String[]{messageSource.getMessage("citation.uid", null, "UID", null),
-                        messageSource.getMessage("citation.name", null, "Name", null),
-                        messageSource.getMessage("citation.doi", null, "DOI", null),
-                        messageSource.getMessage("citation.citation", null, "Citation", null),
-                        messageSource.getMessage("citation.rights", null, "Rights", null),
-                        messageSource.getMessage("citation.link", null, "More Information", null),
-                        messageSource.getMessage("citation.dataGeneralizations", null, "Data generalisations", null),
-                        messageSource.getMessage("citation.informationWithheld", null, "Information withheld", null),
-                        messageSource.getMessage("citation.downloadLimit", null, "Download limit", null),
-                        messageSource.getMessage("citation.count", null, "Number of Records in Download", null)
+                writer.writeNext(new String[]{
+                    messageSource.getMessage("citation.uid", null, "UID", null),
+                    messageSource.getMessage("citation.name", null, "Name", null),
+                    messageSource.getMessage("citation.doi", null, "DOI", null),
+                    messageSource.getMessage("citation.citation", null, "Citation", null),
+                    messageSource.getMessage("citation.rights", null, "Rights", null),
+                    messageSource.getMessage("citation.link", null, "More Information", null),
+                    messageSource.getMessage("citation.dataGeneralizations", null, "Data generalisations", null),
+                    messageSource.getMessage("citation.informationWithheld", null, "Information withheld", null),
+                    messageSource.getMessage("citation.downloadLimit", null, "Download limit", null),
+                    messageSource.getMessage("citation.count", null, "Number of Records in Download", null)
                 });
 
                 if (!uidStats.isEmpty()) {

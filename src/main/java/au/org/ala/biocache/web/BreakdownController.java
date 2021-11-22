@@ -19,6 +19,7 @@ import au.org.ala.biocache.dto.BreakdownRequestParams;
 import au.org.ala.biocache.dto.OccurrenceIndex;
 import au.org.ala.biocache.dto.TaxaRankCountDTO;
 import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.Operation;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Controller;
@@ -34,7 +35,6 @@ import javax.servlet.http.HttpServletResponse;
  * @author Natasha Carter (Natasha.Carter@csiro.au)
  */
 @Controller
-@Api(value = "Breakdowns", description = "Data breakdowns", hidden = true, tags = { "Breakdowns" })
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class BreakdownController {
 
@@ -51,6 +51,7 @@ public class BreakdownController {
      * @return
      * @throws Exception
      */
+    @Operation(summary = "A breakdown based on a collection", tags = {"Breakdown"})
     @RequestMapping(value = "/breakdown/collections/{uid}*", method = RequestMethod.GET)
     public @ResponseBody
     TaxaRankCountDTO breakdownByCollection(BreakdownRequestParams requestParams,
@@ -66,6 +67,7 @@ public class BreakdownController {
      * @return
      * @throws Exception
      */
+    @Operation(summary = "A breakdown based on a institution", tags = {"Breakdown"})
     @RequestMapping(value = "/breakdown/institutions/{uid}*", method = RequestMethod.GET)
     public @ResponseBody
     TaxaRankCountDTO breakdownByInstitution(BreakdownRequestParams requestParams,
@@ -81,6 +83,7 @@ public class BreakdownController {
      * @return
      * @throws Exception
      */
+    @Operation(summary = "A breakdown based on a data resource", tags = {"Breakdown"})
     @RequestMapping(value = "/breakdown/dataResources/{uid}*", method = RequestMethod.GET)
     public @ResponseBody
     TaxaRankCountDTO breakdownByDataResource(BreakdownRequestParams requestParams,
@@ -96,6 +99,7 @@ public class BreakdownController {
      * @return
      * @throws Exception
      */
+    @Operation(summary = "A breakdown based on a data provider", tags = {"Breakdown"})
     @RequestMapping(value = "/breakdown/dataProviders/{uid}*", method = RequestMethod.GET)
     public @ResponseBody
     TaxaRankCountDTO breakdownByDataProvider(BreakdownRequestParams requestParams,
@@ -111,23 +115,24 @@ public class BreakdownController {
      * @return
      * @throws Exception
      */
+    @Operation(summary = "A breakdown based on a data hub", tags = {"Breakdown"})
     @RequestMapping(value = "/breakdown/dataHubs/{uid}*", method = RequestMethod.GET)
     public @ResponseBody
     TaxaRankCountDTO breakdownByDataHub(BreakdownRequestParams requestParams,
                                         @PathVariable("uid") String uid, HttpServletResponse response) throws Exception {
         return performBreakdown(OccurrenceIndex.DATA_HUB_UID, uid, requestParams, response);
     }
-	
+
+    @Operation(summary = "A breakdown based on taxon rank", tags = {"Breakdown"})
 	@RequestMapping(value= "/breakdown*", method = RequestMethod.GET)
-	public @ResponseBody TaxaRankCountDTO breakdownByQuery(BreakdownRequestParams  breakdownParams,HttpServletResponse response) throws Exception {
+	public @ResponseBody TaxaRankCountDTO breakdownByQuery(BreakdownRequestParams breakdownParams, HttpServletResponse response) throws Exception {
         logger.debug(breakdownParams);
-	    if(StringUtils.isNotEmpty(breakdownParams.getQ())){
-	        if(breakdownParams.getMax() != null || StringUtils.isNotEmpty(breakdownParams.getRank()) || StringUtils.isNotEmpty(breakdownParams.getLevel()))
+	    if (StringUtils.isNotEmpty(breakdownParams.getQ())){
+	        if (breakdownParams.getMax() != null || StringUtils.isNotEmpty(breakdownParams.getRank()) || StringUtils.isNotEmpty(breakdownParams.getLevel()))
 	            return searchDAO.calculateBreakdown(breakdownParams);
 	        else
 	            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "No context provided for breakdown.  Please supply either max, rank or level as a minimum");
-	    }
-	    else{
+	    } else {
 	        response.sendError(HttpServletResponse.SC_BAD_REQUEST, "No query provided for breakdown");
 	    }
 	    return null;
@@ -159,6 +164,7 @@ public class BreakdownController {
      * @return
      * @throws Exception
      */
+    @Operation(summary = "A breakdown without limiting the collection or institution", tags = {"Breakdown"})
     @RequestMapping(value = {"/breakdown/institutions*","/breakdown/collections*", "/breakdown/data-resources*","/breakdowns/data-providers*","/breakdowns/data-hubs*"}, method = RequestMethod.GET)
     public @ResponseBody TaxaRankCountDTO limitBreakdown(BreakdownRequestParams requestParams, HttpServletResponse response) throws Exception {
         return performBreakdown("*", "*", requestParams, response);                

@@ -25,6 +25,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocument;
@@ -74,66 +76,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  * </ul>
  */
 @Controller
-@Api(value = "Web Mapping Services (WMS)", tags = { "Mapping" })
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class WMSController extends AbstractSecureController {
-
-    /**
-     * webportal results limit
-     */
-    @Value("${wms.pagesize:1000000}")
-    private int DEFAULT_PAGE_SIZE = 1000000;
-
-    @Value("${wms.colour:0x00000000}")
-    private int DEFAULT_COLOUR;
-    /**
-     * webportal image max pixel count
-     */
-    @Value("${wms.image.pixel.count:36000000}")
-    private int MAX_IMAGE_PIXEL_COUNT; //this is slightly larger than 600dpi A4
-    /**
-     * legend limits
-     */
-    private final String NULL_NAME = "Unknown";
-    /**
-     * max uncertainty mappable in m
-     */
-    @Value("${wms.uncertainty.max:30000}")
-    private double MAX_UNCERTAINTY;
-    /**
-     * add pixel radius for wms highlight circles
-     */
-    @Value("${wms.highlight.radius:6}")
-    public int HIGHLIGHT_RADIUS;
-
-    /**
-     * max WMS point width in pixels. This makes better use of the searchDAO.getHeatMap cache.
-     */
-    @Value("${wms.cache.point.width.max:15}")
-    private Integer wmsMaxPointWidth;
-    /**
-     * uncertainty distance grouping used by WMS
-     */
-    @Value("${wms.uncertainty.grouping:0,1000,2000,4000,8000,16000,30000}")
-    private String uncertaintyGroupingStr;
-
-    /**
-     * buffer for hiding rounding errors and some projection errors
-     */
-    int additionalBuffer = 2;
-
-    private double[] uncertaintyGrouping;
-
-    private double[] getUncertaintyGrouping() {
-        if (uncertaintyGrouping == null) {
-            try {
-                uncertaintyGrouping = Arrays.stream(uncertaintyGroupingStr.split(",")).mapToDouble((a -> Double.parseDouble(a))).toArray();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        return uncertaintyGrouping;
-    }
 
     /**
      * Logger initialisation
@@ -210,6 +154,51 @@ public class WMSController extends AbstractSecureController {
     @Value("${wms.cache.cachecontrol.maxage:86400}")
     private String wmsCacheControlHeaderMaxAge;
 
+    /**
+     * webportal image max pixel count
+     */
+    @Value("${wms.image.pixel.count:36000000}")
+    private int MAX_IMAGE_PIXEL_COUNT; //this is slightly larger than 600dpi A4
+    /**
+     * legend limits
+     */
+    private final String NULL_NAME = "Unknown";
+
+    /**
+     * add pixel radius for wms highlight circles
+     */
+    @Value("${wms.highlight.radius:6}")
+    public int HIGHLIGHT_RADIUS;
+
+    /**
+     * max WMS point width in pixels. This makes better use of the searchDAO.getHeatMap cache.
+     */
+    @Value("${wms.cache.point.width.max:15}")
+    private Integer wmsMaxPointWidth;
+    /**
+     * uncertainty distance grouping used by WMS
+     */
+    @Value("${wms.uncertainty.grouping:0,1000,2000,4000,8000,16000,30000}")
+    private String uncertaintyGroupingStr;
+
+    /**
+     * buffer for hiding rounding errors and some projection errors
+     */
+    int additionalBuffer = 2;
+
+    private double[] uncertaintyGrouping;
+
+    private double[] getUncertaintyGrouping() {
+        if (uncertaintyGrouping == null) {
+            try {
+                uncertaintyGrouping = Arrays.stream(uncertaintyGroupingStr.split(",")).mapToDouble((a -> Double.parseDouble(a))).toArray();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return uncertaintyGrouping;
+    }
+
     private final AtomicReference<String> wmsETag = new AtomicReference<String>(UUID.randomUUID().toString());
 
     @Inject
@@ -230,6 +219,7 @@ public class WMSController extends AbstractSecureController {
         System.setProperty("org.geotools.referencing.forceXY", "true");
     }
 
+    @Operation(summary = "Create a query ID", tags = "Query ID")
     @RequestMapping(value = {"/webportal/params", "/mapping/params"}, method = RequestMethod.POST)
     public void storeParams(SpatialSearchRequestParams requestParams,
                             @RequestParam(value = "bbox", required = false, defaultValue = "false") String bbox,
@@ -283,6 +273,7 @@ public class WMSController extends AbstractSecureController {
     /**
      * Test presence of query params {id} in params store.
      */
+    @Operation(summary = "Lookup a query ID", tags = "Query ID")
     @RequestMapping(value = {
             "/webportal/params/{id}",
             "/webportal/params/{id}.json",
@@ -297,6 +288,7 @@ public class WMSController extends AbstractSecureController {
     /**
      * Allows the details of a cached query to be viewed.
      */
+    @Operation(summary = "Lookup a query ID", tags = "Query ID")
     @RequestMapping(value = {
             "/qid/{id}",
             "/qid/{id}.json",
@@ -317,11 +309,9 @@ public class WMSController extends AbstractSecureController {
      *
      * @throws Exception
      */
+    @Operation(summary = "JSON web service that returns a list of species and record counts for a given location search", tags = "Search")
     @RequestMapping(value = {
-            "/webportal/species",
-            "/webportal/species.json",
-            "/mapping/species",
-            "/mapping/species.json"}, method = RequestMethod.GET)
+            "/mapping/species"}, method = RequestMethod.GET)
     public
     @ResponseBody
     List<TaxaCountDTO> listSpecies(SpatialSearchRequestParams requestParams) throws Exception {
@@ -334,6 +324,7 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
+    @Operation(summary = "Download a set of counts for the supplied query", tags = "Download")
     @RequestMapping(value = {"/webportal/species.csv", "/mapping/species.csv"}, method = RequestMethod.GET)
     public void listSpeciesCsv(
             SpatialSearchRequestParams requestParams,
@@ -400,6 +391,7 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
+    @Operation(summary = "Get legend for a query and facet field (colourMode).", tags = "Mapping")
     @RequestMapping(value = {"/webportal/legend", "/mapping/legend"}, method = RequestMethod.GET)
     @ResponseBody
     public List<LegendItem> legend(
@@ -463,6 +455,7 @@ public class WMSController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
+    @Hidden
     @RequestMapping(value = {
             "/webportal/dataProviders",
             "/mapping/dataProviders.json",
@@ -483,6 +476,7 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
+    @Operation(summary = "Get query bounding box as csv containing: min longitude, min latitude, max longitude, max latitude", tags = "Geospatial")
     @RequestMapping(value = {"/webportal/bbox", "/mapping/bbox"}, method = RequestMethod.GET)
     public void boundingBox(
             SpatialSearchRequestParams requestParams,
@@ -510,11 +504,8 @@ public class WMSController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {
-            "/webportal/bounds",
-            "/mapping/bounds.json",
-            "/webportal/bounds",
-            "/mapping/bounds.json" }, method = RequestMethod.GET)
+    @Operation(summary = "Get query bounding box as JSON", tags = "Geospatial")
+    @RequestMapping(value = {"/mapping/bounds" }, method = RequestMethod.GET)
     public
     @ResponseBody
     double[] jsonBoundingBox(
@@ -551,6 +542,8 @@ public class WMSController extends AbstractSecureController {
      * @param requestParams
      * @throws Exception
      */
+    @Operation(summary = "Get query bounding box as JSON", tags = "Deprecated")
+    @Deprecated
     @RequestMapping(value = {
             "/webportal/occurrences*",
             "/mapping/occurrences.json*",
@@ -584,6 +577,8 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
+    @Operation(summary = "Get occurrences by query as gzipped csv.", tags = "Deprecated")
+    @Deprecated
     @RequestMapping(value = {"/webportal/occurrences.gz", "/mapping/occurrences.gz"}, method = RequestMethod.GET)
     public void occurrenceGz(
             SpatialSearchRequestParams requestParams,
@@ -744,6 +739,8 @@ public class WMSController extends AbstractSecureController {
     }
 
     // add this to the GetCapabilities...
+    @Operation(summary = "Get metadata request", tags = "OGC")
+    @Deprecated
     @RequestMapping(value = { "/ogc/getMetadata", "/ogc/getMetadata.json" }, method = RequestMethod.GET)
     public String getMetadata(
             @RequestParam(value = "LAYER", required = false, defaultValue = "") String layer,
@@ -854,6 +851,7 @@ public class WMSController extends AbstractSecureController {
         return "metadata/mcp";
     }
 
+    @Operation(summary = "Get feature request", tags = "OGC")
     @RequestMapping(value = { "/ogc/getFeatureInfo", "/ogc/getFeatureInfo.json" }, method = RequestMethod.GET)
     public String getFeatureInfo(
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
@@ -946,6 +944,7 @@ public class WMSController extends AbstractSecureController {
         return "metadata/getFeatureInfo";
     }
 
+    @Operation(summary = "Get Legend Graphic", tags = "Mapping")
     @RequestMapping(value = {"/ogc/legendGraphic"}, method = RequestMethod.GET)
     public void getLegendGraphic(
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
@@ -1012,6 +1011,7 @@ public class WMSController extends AbstractSecureController {
      * @param model
      * @throws Exception
      */
+    @Operation(summary = "Get Capabilities", tags = "OGC")
     @RequestMapping(value = {
             "/ogc/ows",
             "/ogc/ows.xml",
@@ -1036,7 +1036,6 @@ public class WMSController extends AbstractSecureController {
             @RequestParam(value = "fq", required = false) String[] filterQueries,
             @RequestParam(value = "X", required = true, defaultValue = "0") Double x,
             @RequestParam(value = "Y", required = true, defaultValue = "0") Double y,
-            // Deprecated RequestParam
             @RequestParam(value = "spatiallyValidOnly", required = false, defaultValue = "true") boolean spatiallyValidOnly,
             @RequestParam(value = "marineSpecies", required = false, defaultValue = "false") boolean marineOnly,
             @RequestParam(value = "terrestrialSpecies", required = false, defaultValue = "false") boolean terrestrialOnly,
@@ -1278,6 +1277,7 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
+    @Operation(summary = "Web Mapping Service", tags = "WMS")
     @RequestMapping(value = {
             "/webportal/wms/reflect",
             "/webportal/wms/reflect.png",
@@ -1572,6 +1572,7 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
+    @Operation(summary = "Produces a downloadable map", tags = "Mapping")
     @RequestMapping(value = {"/webportal/wms/image", "/mapping/wms/image"}, method = RequestMethod.GET)
     public void generatePublicationMap(
             SpatialSearchRequestParams requestParams,

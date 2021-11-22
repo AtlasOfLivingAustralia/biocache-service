@@ -24,6 +24,7 @@ import au.org.ala.biocache.util.ColorUtil;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import com.google.common.base.Strings;
 import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.Operation;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ArrayUtils;
@@ -65,7 +66,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * @Deprecated this should be factored out as its been superceded by functionality in WebportalController.
  */
 @Controller("mapController")
-@Api(value = "Maps", hidden = true, tags = { "Mapping" })
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class MapController {
 
@@ -105,6 +105,7 @@ public class MapController {
      * Deprecated and moved from MapController in case it is still in use somewhere.
      */
     @Deprecated
+    @Operation(summary = "Deprecated path.", tags = {"Deprecated"})
     @RequestMapping(value = "/occurrences/wms", method = RequestMethod.GET)
     public void pointsWmsImage(SpatialSearchRequestParams requestParams,
                                @RequestParam(value = "colourby", required = false, defaultValue = "0") Integer colourby,
@@ -140,6 +141,8 @@ public class MapController {
      * @return
      * @throws Exception
      */
+    @Deprecated
+    @Operation(summary = "Occurrence info summary service for map popups.", tags = {"Deprecated"})
     @RequestMapping(value = {"/occurrences/info", "/occurrences/info.json" }, method = RequestMethod.GET)
     public String getOccurrencesInformation(SpatialSearchRequestParams requestParams,
                                             @RequestParam(value = "zoom", required = false, defaultValue = "0") Integer zoomLevel,
@@ -197,6 +200,8 @@ public class MapController {
      * @param height
      * @param response
      */
+    @Deprecated
+    @Operation(summary = "Point legend service", tags = {"Deprecated"})
     @RequestMapping(value = "/occurrences/legend", method = RequestMethod.GET)
     public void pointLegendImage(@RequestParam(value = "colourby", required = false, defaultValue = "0") Integer colourby,
                                  @RequestParam(value = "width", required = false, defaultValue = "50") Integer width,
@@ -241,6 +246,8 @@ public class MapController {
      *
      * @throws Exception
      */
+    @Deprecated
+    @Operation(summary = "Renders a density map for a species.", tags = {"Deprecated"})
     @RequestMapping(value = {"/density/map", "/occurrences/static"}, method = RequestMethod.GET)
     public @ResponseBody
     void speciesDensityMap(SpatialSearchRequestParams requestParams,
@@ -320,6 +327,8 @@ public class MapController {
      *
      * @throws Exception
      */
+    @Deprecated
+    @Operation(summary = "Renders a density map legend for a species.", tags = {"Deprecated"})
     @RequestMapping(value = "/density/legend", method = RequestMethod.GET)
     public @ResponseBody void speciesDensityLegend(SpatialSearchRequestParams requestParams,
                                                    @RequestParam(value = "forceRefresh", required = false, defaultValue = "false") boolean forceRefresh,

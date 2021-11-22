@@ -4,6 +4,7 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.*;
 import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.Hidden;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.geotools.geometry.GeneralDirectPosition;
@@ -44,7 +45,7 @@ public class WMSOSGridController {
     @Inject
     protected WMSUtils wmsUtils;
 
-
+    @Hidden
     @RequestMapping(value = {"/osgrid/lookup.json"}, method = RequestMethod.GET)
     public @ResponseBody
     Map<String, Object> parseGridReference(
@@ -94,6 +95,7 @@ public class WMSOSGridController {
      * @return
      * @throws Exception
      */
+    @Hidden
     @RequestMapping(value = {"/osgrid/feature.json"}, method = RequestMethod.GET)
     public @ResponseBody
     Map<String, Object> getFeatureInfo(

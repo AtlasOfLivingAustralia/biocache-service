@@ -20,6 +20,8 @@ import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,7 +40,6 @@ import java.util.stream.Collectors;
  * This controller provides web services for assertion creation/deletion.
  */
 @RestController
-@Api(value = "Assertions", description = "REST API for Assertions", tags = { "Assertions" })
 public class AssertionController extends AbstractSecureController {
 
     private final static Logger logger = Logger.getLogger(AssertionController.class);
@@ -58,6 +59,7 @@ public class AssertionController extends AbstractSecureController {
      * @return an array of codes
      * @throws Exception
      */
+    @Operation(summary = "Retrieve an array of the assertion codes in use by the processing system", tags = "Assertions")
     @RequestMapping(value = {"/assertions/codes", "/assertions/codes.json", "/assertions/codes/"}, method = RequestMethod.GET)
     public @ResponseBody
     Collection<AssertionCode> showCodes(
@@ -66,6 +68,7 @@ public class AssertionController extends AbstractSecureController {
         return applyi18n(AssertionCodes.getAll(), isDeprecated, true);
     }
 
+    @Operation(summary = "Retrieve an array of the assertion codes in use by users", tags = "Assertions")
     @RequestMapping(value = {"/assertions/user/codes", "/assertions/user/codes.json", "/assertions/user/codes/"}, method = RequestMethod.GET)
     public @ResponseBody Collection<AssertionCode> showUserCodes(
             @RequestParam(value="deprecated", required=false, defaultValue="false") Boolean isDeprecated
@@ -81,10 +84,10 @@ public class AssertionController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
+    @Operation(summary = "Add an assertion", tags = "Assertions")
     @RequestMapping(value={"/occurrences/assertions/add"}, method = RequestMethod.POST)
     public void addAssertionWithParams(
-            @RequestParam(value="recordUuid", required=true) String recordUuid,
-            HttpServletRequest request,
+            @RequestParam(value = "recordUuid", required=true) String recordUuid,
             @RequestParam(value = "apiKey", required = true) String apiKey,
             @RequestParam(value = "code", required = true) String code,
             @RequestParam(value = "comment", required = false) String comment,
@@ -94,9 +97,10 @@ public class AssertionController extends AbstractSecureController {
             @RequestParam(value = "assertionUuid", required = false) String assertionUuid,
             @RequestParam(value = "relatedRecordId", required = false) String relatedRecordId,
             @RequestParam(value = "relatedRecordReason", required = false) String relatedRecordReason,
+            HttpServletRequest request,
             HttpServletResponse response) throws Exception {
 
-        addAssertion(recordUuid, request,apiKey, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason, response);
+        addAssertion(recordUuid, apiKey, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason, request, response);
     }
     /**
      * Adds a bulk list of assertions.
@@ -111,6 +115,7 @@ public class AssertionController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
+    @Operation(summary = "Bulk add an assertion", tags = "Assertions")
     @RequestMapping(value="/bulk/assertions/add", method = RequestMethod.POST)
     public void addBulkAssertions(HttpServletRequest request,
                                   @RequestParam(value = "apiKey", required = true) String apiKey,
@@ -160,10 +165,10 @@ public class AssertionController extends AbstractSecureController {
     /**
      * add an assertion
      */
+    @Operation(summary = "Add an assertion (REST style)", tags = "Assertions")
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/add"}, method = RequestMethod.POST)
     public void addAssertion(
        @PathVariable(value="recordUuid") String recordUuid,
-        HttpServletRequest request,
        @RequestParam(value = "apiKey", required = true) String apiKey,
        @RequestParam(value = "code", required = true) String code,
        @RequestParam(value = "comment", required = false) String comment,
@@ -173,7 +178,8 @@ public class AssertionController extends AbstractSecureController {
        @RequestParam(value = "assertionUuid", required = false) String assertionUuid,
        @RequestParam(value = "relatedRecordId", required = false) String relatedRecordId,
        @RequestParam(value = "relatedRecordReason", required = false) String relatedRecordReason,
-        HttpServletResponse response) throws Exception {
+       HttpServletRequest request,
+       HttpServletResponse response) throws Exception {
 
         if (shouldPerformOperation(request, response)) {
             try {
@@ -204,6 +210,7 @@ public class AssertionController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
+    @Operation(summary = "Removes an assertion", tags = "Assertions")
     @RequestMapping(value = {"/occurrences/assertions/delete"}, method = RequestMethod.POST)
     public void deleteAssertionWithParams(
             @RequestParam(value="recordUuid", required=true) String recordUuid,
@@ -217,6 +224,7 @@ public class AssertionController extends AbstractSecureController {
     /**
      * Remove an assertion
      */
+    @Operation(summary = "Removes an assertion (REST style)", tags = "Assertions")
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/delete"}, method = RequestMethod.POST)
     public void deleteAssertion(
         @PathVariable(value="recordUuid") String recordUuid,
@@ -225,7 +233,7 @@ public class AssertionController extends AbstractSecureController {
         HttpServletRequest request,
         HttpServletResponse response) throws Exception {
 
-        if(shouldPerformOperation(request, response)) {
+        if (shouldPerformOperation(request, response)) {
             try {
                 if (assertionService.deleteAssertion(recordUuid, assertionUuid)) {
                     response.setStatus(HttpServletResponse.SC_OK);
@@ -240,12 +248,13 @@ public class AssertionController extends AbstractSecureController {
         }
     }
 
+    @Operation(summary = "Get assertions for a record", tags = "Assertions")
     @RequestMapping(value = {"/occurrences/assertions", "/occurrences/assertions.json", "/occurrences/assertions/"}, method = RequestMethod.GET)
     public @ResponseBody Object getAssertionWithParams(
             @RequestParam(value="recordUuid", required=true) String recordUuid,
             @RequestParam(value="assertionUuid",required=false) String assertionUuid,
             HttpServletResponse response) throws Exception{
-        if(assertionUuid != null){
+        if (assertionUuid != null){
             return getAssertion(recordUuid, assertionUuid, response);
         } else {
             return getAssertions(recordUuid, response);
@@ -255,6 +264,7 @@ public class AssertionController extends AbstractSecureController {
     /**
      * Get single assertion
      */
+    @Operation(summary = "Get a single assertion", tags = "Assertions")
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/{assertionUuid}", "/occurrences/{recordUuid}/assertions/{assertionUuid}.json", "/occurrences/{recordUuid}/assertions/{assertionUuid}/"}, method = RequestMethod.GET)
     public @ResponseBody
     QualityAssertion getAssertion(
@@ -281,6 +291,7 @@ public class AssertionController extends AbstractSecureController {
     /**
      * Get user assertions
      */
+    @Operation(summary = "Get a assertions for a record (REST style)", tags = "Assertions")
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions", "/occurrences/{recordUuid}/assertions.json", "/occurrences/{recordUuid}/assertions/"}, method = RequestMethod.GET)
     public @ResponseBody List<QualityAssertion> getAssertions(
         @PathVariable(value="recordUuid") String recordUuid,
@@ -296,6 +307,7 @@ public class AssertionController extends AbstractSecureController {
         }
     }
 
+    @Hidden
     @Deprecated
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertionQueries", "/occurrences/{recordUuid}/assertionQueries.json", "/occurrences/{recordUuid}/assertionQueries/"}, method = RequestMethod.GET)
     public @ResponseBody
@@ -306,6 +318,7 @@ public class AssertionController extends AbstractSecureController {
         return new ArrayList<>();
     }
 
+    @Operation(summary = "Synchronise assertions into the index", tags = "Monitoring")
     @RequestMapping(value = {"/sync"}, method = RequestMethod.GET)
     public @ResponseBody Boolean indexAll(@RequestParam(value="apiKey", required=true) String apiKey,
                                                         HttpServletResponse response) throws Exception {
@@ -321,6 +334,7 @@ public class AssertionController extends AbstractSecureController {
         return null;
     }
 
+    @Operation(summary = "Monitoring the progress of synchronising assertions into the index", tags = "Monitoring")
     @RequestMapping(value = {"/sync/status"}, method = RequestMethod.GET)
     public @ResponseBody String indexAllStatus(@RequestParam(value="apiKey", required=true) String apiKey,
                                                          HttpServletResponse response) throws Exception {

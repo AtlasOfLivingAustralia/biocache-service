@@ -21,6 +21,7 @@ import au.org.ala.biocache.dto.PointType;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.util.SearchUtils;
 import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.Operation;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.common.SolrDocument;
@@ -41,7 +42,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import static au.org.ala.biocache.dto.OccurrenceIndex.*;
 
 @Controller
-@Api(value = "Duplicates", tags = { "Duplicates"})
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class DuplicationController {
 
@@ -67,6 +67,7 @@ public class DuplicationController {
      * @return
      * @throws Exception
      */
+    @Operation(summary = "Retrieves the duplication information for the supplied guid.", tags = "Duplicates")
     @RequestMapping(value = {"/duplicates/**"}, method = RequestMethod.GET)
     public @ResponseBody
     DuplicateRecordDetails getDuplicateStats(HttpServletRequest request) throws Exception {
@@ -135,6 +136,7 @@ public class DuplicationController {
         return searchDAO.findByFulltext(query);
     }
 
+    @Operation(summary = "Retrieves the duplication statistics", tags = "Duplicates")
     @RequestMapping(value = {"/stats/**"}, method = RequestMethod.GET)
     public @ResponseBody
     Map<String, FieldStatsInfo> printStats(HttpServletRequest request) throws Exception {

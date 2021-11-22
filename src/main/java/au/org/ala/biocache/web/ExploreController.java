@@ -20,6 +20,7 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import com.ctc.wstx.util.URLUtil;
 import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.Operation;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
@@ -48,8 +49,7 @@ import java.util.*;
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  * @author "Natasha Carter <natasha.carter@csiro.au>"
  */
-@Controller("exploreController")
-@Api(value = "Explore your area", tags = { "Mapping" })
+@Controller
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ExploreController {
 
@@ -139,6 +139,7 @@ public class ExploreController {
      * @return
      * @throws Exception
      */
+    @Operation(summary = "Returns a hierarchical listing of species groups", tags = "Explore")
     @RequestMapping(value = { "/explore/hierarchy/groups*", "/explore/hierarchy/groups.json*" }, method = RequestMethod.GET)
     public @ResponseBody
     Collection<SpeciesGroupDTO> yourHierarchicalAreaView(
@@ -219,6 +220,7 @@ public class ExploreController {
     /**
      * Returns a list of species groups and counts that will need to be displayed.
      */
+    @Operation(summary = "Returns a list of species groups and counts that will need to be displayed", tags = "Explore")
     @RequestMapping(value = { "/explore/groups*", "/explore/groups.json*", }, method = RequestMethod.GET)
     public @ResponseBody
     List<SpeciesGroupDTO> yourAreaView(SpatialSearchRequestParams requestParams) throws Exception {
@@ -287,6 +289,7 @@ public class ExploreController {
      * @return
      * @throws Exception
      */
+    @Operation(summary = "Returns the number of records and distinct species in a particular species group", tags = "Explore")
     @RequestMapping(value = { "/explore/counts/group/{group}*", "/explore/counts/group/{group}.json*" }, method = RequestMethod.GET)
     public @ResponseBody
     Integer[] getYourAreaCount(SpatialSearchRequestParams requestParams,
@@ -344,6 +347,7 @@ public class ExploreController {
      * @return
      * @throws Exception
      */
+    @Operation(summary = "Occurrence search page uses SOLR JSON to display results", tags = "Explore")
     @RequestMapping(value = { "/explore/group/{group}/download*", "/explore/group/{group}/download.json*" } , method = RequestMethod.GET)
     public void yourAreaDownload(
             DownloadRequestParams requestParams,
@@ -378,6 +382,8 @@ public class ExploreController {
      * @param model
      * @throws Exception
      */
+    @Operation(summary = "Returns a list of species and record counts for a given location search" +
+            " and a higher taxa with rank.", tags = "Explore")
     @RequestMapping(value = {"/explore/group/{group}*", "/explore/group/{group}.json*" }, method = RequestMethod.GET)
     public @ResponseBody
     List<TaxaCountDTO> listSpeciesForHigherTaxa(
@@ -407,6 +413,7 @@ public class ExploreController {
      * @return
      * @throws Exception
      */
+    @Operation(summary = "Returns the number of distinct species that are in the supplied region", tags = "Explore")
     @RequestMapping(value = {"/explore/counts/endemic*", "/explore/counts/endemic.json*" }, method = RequestMethod.GET)
     public @ResponseBody
     int getSpeciesCountOnlyInWKT(SpatialSearchRequestParams requestParams,
@@ -423,6 +430,7 @@ public class ExploreController {
      *
      * @return
      */
+    @Operation(summary = "Returns the species that only have occurrences in the supplied WKT.", tags = "Endemism")
     @RequestMapping(value = {"/explore/endemic/species*", "/explore/endemic/species.json*" }, method = RequestMethod.GET)
     public @ResponseBody
     List<FieldResultDTO> getSpeciesOnlyInWKT(SpatialSearchRequestParams requestParams,
@@ -455,6 +463,7 @@ public class ExploreController {
      *
      * @return
      */
+    @Operation(summary = "Returns facet values that only occur in the supplied subQueryQid and not in the parentQuery.", tags = "Endemism")
     @RequestMapping(value = {"/explore/endemic/species/{subQueryQid}*", "/explore/endemic/species/{subQueryQid}.json*"}, method = RequestMethod.GET)
     public @ResponseBody
     List<FieldResultDTO> getSpeciesOnlyInOneQuery(SpatialSearchRequestParams parentQuery,
@@ -480,6 +489,7 @@ public class ExploreController {
      *
      * @return
      */
+    @Operation(summary = "Returns count of facet values that only occur in the supplied subQueryQid and not in the parentQuery.", tags = "Endemism")
     @RequestMapping(value = {"/explore/endemic/speciescount/{subQueryQid}*", "/explore/endemic/speciescount/{subQueryQid}.json*" }, method = RequestMethod.GET)
     public @ResponseBody
     Map getSpeciesOnlyInOneCountQuery(SpatialSearchRequestParams parentQuery,
@@ -498,6 +508,7 @@ public class ExploreController {
      *
      * @return
      */
+    @Operation(summary = "Returns the species that only have occurrences in the supplied WKT", tags = {"Endemism", "Download"})
     @RequestMapping(value = "/explore/endemic/species.csv", method = RequestMethod.GET)
     public void getEndemicSpeciesCSV(SpatialSearchRequestParams requestParams, HttpServletResponse response) throws Exception {
         requestParams.setFacets(new String[]{OccurrenceIndex.NAMES_AND_LSID});
@@ -534,6 +545,7 @@ public class ExploreController {
      *
      * @return
      */
+    @Operation(summary = "Returns facet values that only occur in the supplied subQueryQid and not in the parentQuery.", tags = {"Endemism", "Download"})
     @RequestMapping(value = "/explore/endemic/species/{subQueryQid}.csv", method = RequestMethod.GET)
     public void getSpeciesOnlyInOneQueryCSV(SpatialSearchRequestParams parentQuery,
                                             @PathVariable(value = "subQueryQid") Long subQueryQid,

@@ -510,14 +510,14 @@ public class OccurrenceIndex {
         return occurrenceYear;
     }
 
-    @Field("occurrenceYear")
-    public void setOccurrenceYear(List<Date> occurrenceYears) {
-        if (occurrenceYears != null && occurrenceYears.size() > 0) {
-            this.occurrenceYear = occurrenceYears.get(0);
-        } else {
-            this.occurrenceYear = null;
-        }
-    }
+//    @Field("occurrenceYear")
+//    public void setOccurrenceYear(List<Date> occurrenceYears) {
+//        if (occurrenceYears != null && occurrenceYears.size() > 0) {
+//            this.occurrenceYear = occurrenceYears.get(0);
+//        } else {
+//            this.occurrenceYear = null;
+//        }
+//    }
 
     public void setOccurrenceYear(Date occurrenceYear) {
         this.occurrenceYear = occurrenceYear;

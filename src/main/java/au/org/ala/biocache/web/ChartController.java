@@ -20,6 +20,7 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
@@ -35,10 +36,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-/**
- */
 @Controller
-@Api(value = "Charts", tags = { "Charts" })
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ChartController extends AbstractSecureController implements Serializable {
     /**
@@ -93,9 +91,7 @@ public class ChartController extends AbstractSecureController implements Seriali
      * @return
      * @throws Exception
      */
-    @ApiOperation(value = "Standard charting",
-            notes = "Generate data for a standard chart",
-            response = FieldStatsItem.class, responseContainer = "List")
+    @Operation(summary = "Standard charting", tags = "Charts")
     @RequestMapping(value = { "/chart", "/chart.json" }, method = RequestMethod.GET)
     public
     @ResponseBody

@@ -21,6 +21,8 @@ import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
 import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import net.sf.json.JsonConfig;
@@ -54,7 +56,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  * @author Natasha Carter (natasha.carter@csiro.au)
  */
 @Controller
-@Api(value = "Download monitoring", tags = { "Monitoring" })
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class DownloadController extends AbstractSecureController {
 
@@ -81,6 +82,7 @@ public class DownloadController extends AbstractSecureController {
      * Retrieves all the downloads that are on the queue
      * @return
      */
+    @Operation(summary = "Retrieves all the downloads that are on the queue", tags = "Monitoring")
     @RequestMapping(value = { "occurrences/offline/download/stats", "occurrences/offline/download/stats.json" }, method = RequestMethod.GET)
     public @ResponseBody
     List getCurrentDownloads(
@@ -118,6 +120,7 @@ public class DownloadController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
+    @Hidden
     @RequestMapping(value = { "occurrences/offline/{type}/download*", "occurrences/offline/{type}/download.json*" } , method = {RequestMethod.GET, RequestMethod.POST})
     public @ResponseBody Object occurrenceDownload(
             DownloadRequestParams requestParams,
@@ -141,6 +144,7 @@ public class DownloadController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
+    @Hidden
     @RequestMapping(value = { "occurrences/offline/download*", "occurrences/offline/download.json*" }, method = {RequestMethod.GET, RequestMethod.POST})
     public @ResponseBody Object occurrenceDownload(
             DownloadRequestParams requestParams,
@@ -259,6 +263,7 @@ public class DownloadController extends AbstractSecureController {
         return status;
     }
 
+    @Operation(summary = "List all occurrence downloads", tags = "Monitoring")
     @RequestMapping(value = { "occurrences/offline/status", "occurrences/offline/status.json" }, method = RequestMethod.GET)
     public @ResponseBody Object allOccurrenceDownloadStatus() throws Exception {
 
@@ -329,6 +334,7 @@ public class DownloadController extends AbstractSecureController {
         FileUtils.writeStringToFile(new File(statusDir.getPath() + "/status.json"), json, "UTF-8");
     }
 
+    @Operation(summary = "Get the status of download", tags = "Monitoring")
     @RequestMapping(value = { "occurrences/offline/status/{id}", "occurrences/offline/status/{id}.json" }, method = RequestMethod.GET)
     public @ResponseBody Object occurrenceDownloadStatus(@PathVariable("id") String id) throws Exception {
 
@@ -407,6 +413,7 @@ public class DownloadController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
+    @Operation(summary = "Cancel an offline download", tags = "Monitoring")
     @RequestMapping(value = { "occurrences/offline/cancel/{id}", "occurrences/offline/cancel/{id}.json" }, method = RequestMethod.GET)
     public @ResponseBody Object occurrenceDownloadCancel(
             @PathVariable("id") String id,

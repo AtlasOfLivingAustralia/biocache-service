@@ -6,6 +6,7 @@ import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.stream.ScatterplotSearch;
 import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.Operation;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -45,7 +46,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * - pointradius, double default 3
  */
 @Controller
-@Api(value = "Scatterplots", description = "Generate scatterplot", tags = { "Scatterplots" })
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ScatterplotController {
 
@@ -63,6 +63,7 @@ public class ScatterplotController {
     @Inject
     protected IndexDAO indexDao;
 
+    @Operation(summary = "Generate a scatterplot", tags = "Scatterplots")
     @RequestMapping(value = {"/scatterplot"}, method = RequestMethod.GET)
     public void scatterplot(SpatialSearchRequestParams requestParams,
                             @RequestParam(value = "x", required = true) String x,
@@ -91,6 +92,7 @@ public class ScatterplotController {
         }
     }
 
+    @Operation(summary = "Get details of a point on a plot", tags = "Scatterplots")
     @RequestMapping(value = {"/scatterplot/point", "/scatterplot/point.json" }, method = RequestMethod.GET)
     @ResponseBody
     public Map scatterplotPointInfo(SpatialSearchRequestParams requestParams,
