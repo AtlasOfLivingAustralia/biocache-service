@@ -160,7 +160,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    TaxaRankCountDTO calculateBreakdown(BreakdownRequestParams queryParams) throws Exception;
+    TaxaRankCountDTO calculateBreakdown(BreakdownRequestDTO queryParams) throws Exception;
 
     /**
      * Returns the occurrence counts based on lft and rgt values for each of the supplied taxa.

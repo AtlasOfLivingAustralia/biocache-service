@@ -2,6 +2,7 @@ package au.org.ala.biocache.dto;
 
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
+import org.springframework.beans.BeanUtils;
 
 /**
  * 
@@ -10,17 +11,25 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @author Natasha Carter
  */
 @Schema(name = "Breakdown parameters")
-public class BreakdownRequestParams extends SpatialSearchRequestParams {
+public class BreakdownRequestDTO extends SpatialSearchRequestDTO {
 
-    @Parameter(name="rank", description = "The taxonomic rank to use e.g. 'kingdom'")
     protected String rank = null;
-    @Parameter(name="name", description = "The name of the root taxon to use e.g. 'Animalia'")
     protected String name = null;
-    @Parameter(name="max", description = "The max number of child nodes to return")
     protected Integer max = null;
-    @Parameter(name="level")
     protected String level = null;
-    
+
+    /**
+     * Initialises a DTO based on the request params.
+     *
+     * @param params
+     * @return
+     */
+    public static BreakdownRequestDTO create(BreakdownRequestParams params){
+        BreakdownRequestDTO dto = new BreakdownRequestDTO();
+        BeanUtils.copyProperties(params, dto);
+        return dto;
+    }
+
     public String toString(){
         StringBuilder req = new StringBuilder(super.toString());
         if (rank != null) req.append("&rank=").append(rank);

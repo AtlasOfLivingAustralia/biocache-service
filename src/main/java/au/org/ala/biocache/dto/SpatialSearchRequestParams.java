@@ -25,8 +25,6 @@ import java.util.List;
  * a spatial search on occurrence records against biocache-service.
  *
  * Strictly a bean with no inherent logic other than validation through annotations.
- *
- * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
 @Schema(name = "Spatial search parameters")
 public class SpatialSearchRequestParams {
@@ -34,7 +32,8 @@ public class SpatialSearchRequestParams {
     @Parameter(name="q", description = "Main search query. Examples 'q=Kangaroo' or 'q=vernacularName:red'")
     protected String q = "*:*";
 
-    @Parameter(name="fq", description = "Filter queries. Examples 'fq=stateProvince:Victoria&fq=stateProvince:Queensland")
+    @Parameter(name="fq", description = "Filter queries. " +
+            "Examples 'fq=stateProvince:Victoria&fq=stateProvince:Queensland")
     protected String[] fq = {}; // must not be null
 
     @Parameter(name="qId", description = "Query ID for persisted queries")
@@ -73,7 +72,8 @@ public class SpatialSearchRequestParams {
     @Parameter(name="includeMultivalues", description = "Include multi values")
     protected Boolean includeMultivalues = false;
 
-    @Parameter(name="qc", description = "The query context to be used for the search. This will be used to generate extra query filters.")
+    @Parameter(name="qc", description = "The query context to be used for the search. " +
+            "This will be used to generate extra query filters.")
     protected String qc = "";
 
     @Parameter(name="facet", description = "Enable/disable facets")
@@ -85,19 +85,20 @@ public class SpatialSearchRequestParams {
     @Parameter(name="disableAllQualityFilters", description = "Disable all default filters")
     protected boolean disableAllQualityFilters = false;
 
-    @Parameter(name="disableQualityFilter", description = "Default filters to disable (currently can only disable on category, so it's a list of disabled category name)")
+    @Parameter(name="disableQualityFilter", description = "Default filters to disable (currently can only disable on " +
+            "category, so it's a list of disabled category name)")
     protected List<String> disableQualityFilter = new ArrayList<>();
 
     @Parameter(name="radius", description = "Radius for a spatial search")
     protected Float radius = null;
 
-    @Parameter(name="lat", description = "Radius for a spatial search")
+    @Parameter(name="lat", description = "Decimal latitude for the spatial search")
     protected Float lat = null;
 
-    @Parameter(name="lon", description = "Radius for a spatial search")
+    @Parameter(name="lon", description = "Decimal longitude for the spatial search")
     protected Float lon = null;
 
-    @Parameter(name="wkt", description = "Radius for a spatial search")
+    @Parameter(name="wkt", description = "Well Known Text for the spatial search")
     protected String wkt = "";
 
     public String getQ() {

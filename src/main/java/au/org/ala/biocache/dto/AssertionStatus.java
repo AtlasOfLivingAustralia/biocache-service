@@ -2,8 +2,6 @@ package au.org.ala.biocache.dto;
 
 /**
  * Simple enum of quality assertion code status.
- * <p>
- * Merged from biocache-store
  */
 public class AssertionStatus {
 

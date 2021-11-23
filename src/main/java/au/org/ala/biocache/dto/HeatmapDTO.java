@@ -46,7 +46,7 @@ public class HeatmapDTO {
 
         // default tile extents
         this.tileMinx = minx;
-        this.tileMaxy = miny;
+        this.tileMiny = miny;
         this.tileMaxx = maxx;
         this.tileMaxy = maxy;
     }

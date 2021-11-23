@@ -1,4 +1,4 @@
-/* *************************************************************************
+/**************************************************************************
  *  Copyright (C) 2011 Atlas of Living Australia
  *  All Rights Reserved.
  *
@@ -32,6 +32,7 @@ import java.util.Map;
 /**
  * Data Transfer Object to represent the request parameters required to download
  * the results of a search.
+ *
  *
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */

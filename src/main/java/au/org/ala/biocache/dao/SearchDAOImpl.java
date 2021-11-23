@@ -1157,7 +1157,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * Calculates the breakdown of the supplied query based on the supplied params
      */
-    public TaxaRankCountDTO calculateBreakdown(BreakdownRequestParams queryParams) throws Exception {
+    public TaxaRankCountDTO calculateBreakdown(BreakdownRequestDTO queryParams) throws Exception {
         if (logger.isDebugEnabled()) {
             logger.debug("Attempting to find the counts for " + queryParams);
         }
