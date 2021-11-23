@@ -16,6 +16,7 @@ package au.org.ala.biocache.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateFormatUtils;
 import org.apache.log4j.Logger;
@@ -30,6 +31,7 @@ import java.util.Map;
 /**
  * A DTO representing an result from the search indexes.
  */
+@Schema(name="OccurrenceIndex", description="Represents a single record search result")
 public class OccurrenceIndex {
 
     public static final String MISC = "dynamicProperties";
@@ -354,7 +356,7 @@ public class OccurrenceIndex {
     }
 
     @JsonIgnore
-    public static String defaultFields = org.apache.commons.lang3.StringUtils.join(new OccurrenceIndex().indexToJsonMap().keySet(), ",");
+    public static final String defaultFields = org.apache.commons.lang3.StringUtils.join(new OccurrenceIndex().indexToJsonMap().keySet(), ",");
 
     @JsonIgnore
     public Map<String, String> toMap() {

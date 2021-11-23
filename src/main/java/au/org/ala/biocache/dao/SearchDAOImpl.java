@@ -348,7 +348,7 @@ public class SearchDAOImpl implements SearchDAO {
      * The subQuery is a subset of parentQuery
      * e.g. subQuery is the area of interest. parentQuery is all species.
      */
-    public List<FieldResultDTO> getSubquerySpeciesOnly(SpatialSearchRequestParams subQuery, SpatialSearchRequestParams parentQuery) throws Exception {
+    public List<FieldResultDTO> getSubquerySpeciesOnly(SpatialSearchRequestDTO subQuery, SpatialSearchRequestDTO parentQuery) throws Exception {
         SolrQuery subset = initSolrQuery(subQuery, false, null);
         SolrQuery superset = initSolrQuery(parentQuery, false, null);
 
@@ -358,7 +358,7 @@ public class SearchDAOImpl implements SearchDAO {
         return output;
     }
 
-    public void writeEndemicFacetToStream(SpatialSearchRequestParams subQuery, SpatialSearchRequestParams parentQuery, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out) throws Exception {
+    public void writeEndemicFacetToStream(SpatialSearchRequestDTO subQuery, SpatialSearchRequestDTO parentQuery, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out) throws Exception {
         List<FieldResultDTO> list = getSubquerySpeciesOnly(subQuery, parentQuery);
         String facet = parentQuery.getFacets()[0];
 
@@ -423,7 +423,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * Returns the values and counts for a single facet field.
      */
-    public List<FieldResultDTO> getValuesForFacet(SpatialSearchRequestParams requestParams) throws Exception {
+    public List<FieldResultDTO> getValuesForFacet(SpatialSearchRequestDTO requestParams) throws Exception {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         writeFacetToStream(requestParams, true, false, false, false, outputStream, null);
         outputStream.flush();
@@ -458,10 +458,10 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      */
     @Override
-    public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams searchParams,
+    public SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestDTO searchParams,
                                                       boolean includeSensitive, Map<String, String[]> extraParams) throws Exception {
         SearchResultDTO searchResults = new SearchResultDTO();
-        SpatialSearchRequestParams original = new SpatialSearchRequestParams();
+        SpatialSearchRequestDTO original = new SpatialSearchRequestDTO();
         BeanUtils.copyProperties(searchParams, original);
         Map[] fqMaps = queryFormatUtils.formatSearchQuery(searchParams, true);
         SolrQuery solrQuery = initSolrQuery(searchParams, true, extraParams); // general search settings
@@ -488,9 +488,9 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see au.org.ala.biocache.dao.SearchDAO#writeSpeciesCountByCircleToStream(au.org.ala.biocache.dto.SpatialSearchRequestParams, String, javax.servlet.ServletOutputStream)
+     * @see au.org.ala.biocache.dao.SearchDAO#writeSpeciesCountByCircleToStream(SpatialSearchRequestDTO, String, javax.servlet.ServletOutputStream)
      */
-    public int writeSpeciesCountByCircleToStream(SpatialSearchRequestParams searchParams, String speciesGroup, ServletOutputStream out) throws Exception {
+    public int writeSpeciesCountByCircleToStream(SpatialSearchRequestDTO searchParams, String speciesGroup, ServletOutputStream out) throws Exception {
 
         //get the species counts:
         if (logger.isDebugEnabled()) {
@@ -537,7 +537,7 @@ public class SearchDAOImpl implements SearchDAO {
      *                     <p>
      *                     TODO: use streaming service instead of paging the SOLR facet request
      */
-    public void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out, DownloadDetailsDTO dd) throws Exception {
+    public void writeFacetToStream(SpatialSearchRequestDTO searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out, DownloadDetailsDTO dd) throws Exception {
         //set to unlimited facets
         searchParams.setFlimit(-1);
 
@@ -674,7 +674,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @param out
      * @throws Exception
      */
-    public void writeCoordinatesToStream(SpatialSearchRequestParams searchParams, OutputStream out) throws Exception {
+    public void writeCoordinatesToStream(SpatialSearchRequestDTO searchParams, OutputStream out) throws Exception {
         SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
 
         //We want all the facets so we can dump all the coordinates
@@ -716,7 +716,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @throws Exception
      */
     @Override
-    public DownloadHeaders writeResultsFromIndexToStream(final DownloadRequestParams downloadParams,
+    public DownloadHeaders writeResultsFromIndexToStream(final DownloadRequestDTO downloadParams,
                                                                               final OutputStream out,
                                                                               final  ConcurrentMap<String, AtomicInteger> uidStats,
                                                                               final boolean includeSensitive,
@@ -772,7 +772,7 @@ public class SearchDAOImpl implements SearchDAO {
         return downloadHeaders;
     }
 
-    private RecordWriter createRecordWriter(DownloadRequestParams downloadParams, DownloadHeaders downloadHeaders, OutputStream out) {
+    private RecordWriter createRecordWriter(DownloadRequestDTO downloadParams, DownloadHeaders downloadHeaders, OutputStream out) {
         RecordWriterError recordWriter = downloadParams.getFileType().equals("csv") ?
                 new CSVRecordWriter(out, downloadHeaders.joinedHeader(), downloadParams.getSep(), downloadParams.getEsc()) :
                 new TSVRecordWriter(out, downloadHeaders.joinedHeader());
@@ -782,7 +782,7 @@ public class SearchDAOImpl implements SearchDAO {
         return recordWriter;
     }
 
-    private Callable prepareDownloadRunner(DownloadRequestParams downloadParams, DownloadHeaders downloadHeaders,
+    private Callable prepareDownloadRunner(DownloadRequestDTO downloadParams, DownloadHeaders downloadHeaders,
                                            DownloadDetailsDTO dd, ConcurrentMap<String, AtomicInteger> uidStats,
                                            boolean includeSensitive, RecordWriter recordWriter) throws QidMissingException {
         queryFormatUtils.formatSearchQuery(downloadParams);
@@ -866,7 +866,7 @@ public class SearchDAOImpl implements SearchDAO {
      *
      * @param downloadParams
      */
-    private void insertSensitiveFields(DownloadRequestParams downloadParams) {
+    private void insertSensitiveFields(DownloadRequestDTO downloadParams) {
         String[] originalFields = downloadParams.getFields().split(",");
         List<String> fieldsWithSensitive = new ArrayList<>();
         Set<String> fieldsWithSensitiveSet = new HashSet<>();
@@ -891,7 +891,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @param downloadParams
      * @param includeSensitive
      */
-    private void prepareRequestedFields(DownloadRequestParams downloadParams, boolean includeSensitive) {
+    private void prepareRequestedFields(DownloadRequestDTO downloadParams, boolean includeSensitive) {
         // process field abreviations, defaults
         expandRequestedFields(downloadParams, true);
 
@@ -909,7 +909,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
     }
 
-    private DownloadHeaders prepareHeaders(DownloadRequestParams downloadParams) {
+    private DownloadHeaders prepareHeaders(DownloadRequestDTO downloadParams) {
         DownloadHeaders downloadHeaders = downloadFields.newDownloadHeader(downloadParams);
 
         // add fields that are required for post-processing
@@ -931,7 +931,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @param downloadParams
      * @param downloadHeaders
      */
-    private void addPostProcessingFields(DownloadRequestParams downloadParams, DownloadHeaders downloadHeaders) {
+    private void addPostProcessingFields(DownloadRequestDTO downloadParams, DownloadHeaders downloadHeaders) {
         // include assertion fields
         if (StringUtils.isNotBlank(downloadParams.getQa()) && !"none".equals(downloadParams.getQa())) {
             requestFields(downloadHeaders, new String[]{"assertions"});
@@ -987,7 +987,7 @@ public class SearchDAOImpl implements SearchDAO {
      *
      * @param downloadParams
      */
-    private void expandRequestedFields(DownloadRequestParams downloadParams, boolean isSolr) {
+    private void expandRequestedFields(DownloadRequestDTO downloadParams, boolean isSolr) {
         String fields = getDownloadFields(downloadParams);
 
         try {
@@ -1041,7 +1041,7 @@ public class SearchDAOImpl implements SearchDAO {
         downloadParams.setFields(fields);
     }
 
-    private String getDownloadFields(DownloadRequestParams downloadParams) {
+    private String getDownloadFields(DownloadRequestDTO downloadParams) {
         String dFields = downloadParams.getFields();
         if (StringUtils.isEmpty(dFields)) {
             dFields = defaultDownloadFields;
@@ -1094,14 +1094,14 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see au.org.ala.biocache.dao.SearchDAO#getFacetPoints(au.org.ala.biocache.dto.SpatialSearchRequestParams, au.org.ala.biocache.dto.PointType)
+     * @see au.org.ala.biocache.dao.SearchDAO#getFacetPoints(SpatialSearchRequestDTO, au.org.ala.biocache.dto.PointType)
      */
     @Override
-    public List<OccurrencePoint> getFacetPoints(SpatialSearchRequestParams searchParams, PointType pointType) throws Exception {
+    public List<OccurrencePoint> getFacetPoints(SpatialSearchRequestDTO searchParams, PointType pointType) throws Exception {
         return getPoints(searchParams, pointType, -1);
     }
 
-    private List<OccurrencePoint> getPoints(SpatialSearchRequestParams searchParams, PointType pointType, int max) throws Exception {
+    private List<OccurrencePoint> getPoints(SpatialSearchRequestDTO searchParams, PointType pointType, int max) throws Exception {
         List<OccurrencePoint> points = new ArrayList<>();
 
         SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
@@ -1146,11 +1146,11 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see au.org.ala.biocache.dao.SearchDAO#findRecordsForLocation(au.org.ala.biocache.dto.SpatialSearchRequestParams, au.org.ala.biocache.dto.PointType)
+     * @see au.org.ala.biocache.dao.SearchDAO#findRecordsForLocation(SpatialSearchRequestDTO, au.org.ala.biocache.dto.PointType)
      * This is used by explore your area
      */
     @Override
-    public List<OccurrencePoint> findRecordsForLocation(SpatialSearchRequestParams requestParams, PointType pointType) throws Exception {
+    public List<OccurrencePoint> findRecordsForLocation(SpatialSearchRequestDTO requestParams, PointType pointType) throws Exception {
         return getPoints(requestParams, pointType, MAX_DOWNLOAD_SIZE);
     }
 
@@ -1224,7 +1224,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @param solrQuery
      * @return
      */
-    private SearchResultDTO processSolrResponse(SearchRequestParams params, QueryResponse qr, SolrQuery solrQuery, Class resultClass) {
+    private SearchResultDTO processSolrResponse(SearchRequestDTO params, QueryResponse qr, SolrQuery solrQuery, Class resultClass) {
         SearchResultDTO searchResult = new SearchResultDTO();
         SolrDocumentList sdl = qr.getResults();
         // Iterator it = qr.getResults().iterator() // Use for download
@@ -1468,7 +1468,7 @@ public class SearchDAOImpl implements SearchDAO {
      *
      * @return solrQuery the SolrQuery
      */
-    public SolrQuery initSolrQuery(SpatialSearchRequestParams searchParams, boolean substituteDefaultFacetOrder, Map<String, String[]> extraSolrParams) throws QidMissingException {
+    public SolrQuery initSolrQuery(SpatialSearchRequestDTO searchParams, boolean substituteDefaultFacetOrder, Map<String, String[]> extraSolrParams) throws QidMissingException {
         queryFormatUtils.formatSearchQuery(searchParams);
 
         String occurrenceDate = OccurrenceIndex.OCCURRENCE_DATE;
@@ -1560,7 +1560,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws SolrServerException
      */
-    protected List<TaxaCountDTO> getSpeciesCounts(SpatialSearchRequestParams requestParams) throws Exception {
+    protected List<TaxaCountDTO> getSpeciesCounts(SpatialSearchRequestDTO requestParams) throws Exception {
 
         List<TaxaCountDTO> speciesCounts = new ArrayList<TaxaCountDTO>();
         SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
@@ -1646,7 +1646,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws Exception
      */
-    public Map<String, Integer> getSourcesForQuery(SpatialSearchRequestParams searchParams) throws Exception {
+    public Map<String, Integer> getSourcesForQuery(SpatialSearchRequestDTO searchParams) throws Exception {
 
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
         SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
@@ -1679,7 +1679,7 @@ public class SearchDAOImpl implements SearchDAO {
      * <p>
      * The group count is only accurate when foffset == 0
      */
-    public List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception {
+    public List<FacetResultDTO> getFacetCounts(SpatialSearchRequestDTO searchParams) throws Exception {
         searchParams.setFacet(true);
         searchParams.setPageSize(0);
 
@@ -1737,10 +1737,10 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see au.org.ala.biocache.dao.SearchDAO#findByFulltext(SpatialSearchRequestParams)
+     * @see au.org.ala.biocache.dao.SearchDAO#findByFulltext(SpatialSearchRequestDTO)
      */
     @Override
-    public SolrDocumentList findByFulltext(SpatialSearchRequestParams searchParams) throws Exception {
+    public SolrDocumentList findByFulltext(SpatialSearchRequestDTO searchParams) throws Exception {
         SolrDocumentList sdl = null;
 
         try {
@@ -1766,7 +1766,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
 
-    public List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facetField, String[] cutpoints) throws Exception {
+    public List<LegendItem> getLegend(SpatialSearchRequestDTO searchParams, String facetField, String[] cutpoints) throws Exception {
         return getLegend(searchParams, facetField, cutpoints, false);
     }
 
@@ -1786,7 +1786,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @throws Exception
      */
     @Cacheable("legendCache")
-    public List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facetField, String[] cutpoints, boolean skipI18n) throws Exception {
+    public List<LegendItem> getLegend(SpatialSearchRequestDTO searchParams, String facetField, String[] cutpoints, boolean skipI18n) throws Exception {
         List<LegendItem> legend = new ArrayList<LegendItem>();
 
         queryFormatUtils.formatSearchQuery(searchParams);
@@ -1998,7 +1998,7 @@ public class SearchDAOImpl implements SearchDAO {
             Arrays.stream(solrQuery.getFacetQuery()).forEach(solrQuery::removeFacetQuery);
     }
 
-    public FacetField getFacet(SpatialSearchRequestParams searchParams, String facet) throws Exception {
+    public FacetField getFacet(SpatialSearchRequestDTO searchParams, String facet) throws Exception {
         SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
 
         // convert to a facet only request
@@ -2009,7 +2009,7 @@ public class SearchDAOImpl implements SearchDAO {
         return qr.getFacetFields().get(0);
     }
 
-    public List<DataProviderCountDTO> getDataProviderList(SpatialSearchRequestParams requestParams) throws Exception {
+    public List<DataProviderCountDTO> getDataProviderList(SpatialSearchRequestDTO requestParams) throws Exception {
         List<DataProviderCountDTO> dataProviderList = new ArrayList<DataProviderCountDTO>();
         String dataProviderUid = OccurrenceIndex.DATA_PROVIDER_UID;
         FacetField facet = getFacet(requestParams, dataProviderUid);
@@ -2032,10 +2032,10 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see au.org.ala.biocache.dao.SearchDAO#findAllSpecies(SpatialSearchRequestParams)
+     * @see au.org.ala.biocache.dao.SearchDAO#findAllSpecies(SpatialSearchRequestDTO)
      */
     @Override
-    public List<TaxaCountDTO> findAllSpecies(SpatialSearchRequestParams requestParams) throws Exception {
+    public List<TaxaCountDTO> findAllSpecies(SpatialSearchRequestDTO requestParams) throws Exception {
         if (requestParams.getFacets() == null || requestParams.getFacets().length != 1) {
             requestParams.setFacets(new String[]{NAMES_AND_LSID});
         }
@@ -2151,7 +2151,7 @@ public class SearchDAOImpl implements SearchDAO {
      * pageSize restricts the number of docs in each group returned
      * fl is the list of fields in the returned docs
      */
-    public QueryResponse searchGroupedFacets(SpatialSearchRequestParams searchParams) throws Exception {
+    public QueryResponse searchGroupedFacets(SpatialSearchRequestDTO searchParams) throws Exception {
         searchParams.setPageSize(0);
         searchParams.setFacet(false);
 
@@ -2270,9 +2270,9 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see au.org.ala.biocache.dao.SearchDAO#searchPivot(au.org.ala.biocache.dto.SpatialSearchRequestParams)
+     * @see au.org.ala.biocache.dao.SearchDAO#searchPivot(SpatialSearchRequestDTO)
      */
-    public List<FacetPivotResultDTO> searchPivot(SpatialSearchRequestParams searchParams) throws Exception {
+    public List<FacetPivotResultDTO> searchPivot(SpatialSearchRequestDTO searchParams) throws Exception {
         String pivot = StringUtils.join(searchParams.getFacets(), ",");
         searchParams.setFacets(new String[]{});
         searchParams.setFacet(true);
@@ -2364,7 +2364,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * @see au.org.ala.biocache.dao.SearchDAO#searchStat
      */
-    public List<FieldStatsItem> searchStat(SpatialSearchRequestParams searchParams, String field, String facet,
+    public List<FieldStatsItem> searchStat(SpatialSearchRequestDTO searchParams, String field, String facet,
                                            Collection<String> statType) throws Exception {
         searchParams.setFacets(new String[]{});
 
@@ -2408,7 +2408,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @see au.org.ala.biocache.dao.SearchDAO#getColours
      */
     @Cacheable("getColours")
-    public List<LegendItem> getColours(SpatialSearchRequestParams request, String colourMode) throws Exception {
+    public List<LegendItem> getColours(SpatialSearchRequestDTO request, String colourMode) throws Exception {
         List<LegendItem> colours = new ArrayList<LegendItem>();
         if (colourMode.equals("grid")) {
             for (int i = 0; i <= 500; i += 100) {
@@ -2446,7 +2446,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws Exception
      */
-    public double[] getBBox(SpatialSearchRequestParams requestParams) throws Exception {
+    public double[] getBBox(SpatialSearchRequestDTO requestParams) throws Exception {
         SolrQuery query = initSolrQuery(requestParams, false, null);
         query.setRows(0);
         query.setFacet(false);
@@ -2468,7 +2468,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @throws Exception
      */
     @Override
-    public long estimateUniqueValues(SpatialSearchRequestParams requestParams, String facet) throws Exception {
+    public long estimateUniqueValues(SpatialSearchRequestDTO requestParams, String facet) throws Exception {
         SolrQuery query = initSolrQuery(requestParams, false, null);
         query.setRows(0);
         query.setFacet(false);
@@ -2507,7 +2507,7 @@ public class SearchDAOImpl implements SearchDAO {
 
     // TODO: single request to improve performance
     @Override
-    public List<String> listFacets(SpatialSearchRequestParams searchParams) throws Exception {
+    public List<String> listFacets(SpatialSearchRequestDTO searchParams) throws Exception {
         searchParams.setFacet(true);
         searchParams.setFacets(new String[]{});
 
@@ -2764,7 +2764,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     @Override
-    public int streamingQuery(SpatialSearchRequestParams request, ProcessInterface procSearch, ProcessInterface procFacet) throws Exception {
+    public int streamingQuery(SpatialSearchRequestDTO request, ProcessInterface procSearch, ProcessInterface procFacet) throws Exception {
         return indexDao.streamingQuery(initSolrQuery(request, true, null), procSearch, procFacet, null);
     }
 }

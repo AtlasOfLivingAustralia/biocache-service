@@ -15,7 +15,7 @@
 package au.org.ala.biocache.dao;
 
 import au.org.ala.biocache.dto.FacetThemes;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.util.*;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
@@ -188,7 +188,7 @@ public class QueryFormatTest {
     public void testQueryFormatting() throws QidMissingException {
         
         for (SearchQueryTester sqt : data()) {
-            SpatialSearchRequestParams ssrp = new SpatialSearchRequestParams();
+            SpatialSearchRequestDTO ssrp = new SpatialSearchRequestDTO();
             ssrp.setQ(sqt.query);
             queryFormatUtils.formatSearchQuery(ssrp, false);
             if (sqt.exactMatch) {
@@ -209,14 +209,14 @@ public class QueryFormatTest {
         Map<String, String> filters = new LinkedHashMap();
         filters.put("first", "foo:bar");
         filters.put("second", "baz:qux");
-        when(dataQualityService.getEnabledFiltersByLabel(any(SpatialSearchRequestParams.class))).thenReturn(filters);
+        when(dataQualityService.getEnabledFiltersByLabel(any(SpatialSearchRequestDTO.class))).thenReturn(filters);
 
-        SpatialSearchRequestParams ssrp = new SpatialSearchRequestParams();
+        SpatialSearchRequestDTO ssrp = new SpatialSearchRequestDTO();
         ssrp.setQ("lsid:urn:lsid:biodiversity.org.au:afd.taxon:31a9b8b8-4e8f-4343-a15f-2ed24e0bf1ae"); //"lsid:urn:lsid:biodiversity.org.au:afd.taxon:31a9b8b8-4e8f-4343-a15f-2ed24e0bf1ae", "lft:[", "species", false
         queryFormatUtils.formatSearchQuery(ssrp, false);
         assertThat("filters are added", asList(ssrp.getFormattedFq()), containsInAnyOrder("foo:bar", "baz:qux"));
 
-        ssrp = new SpatialSearchRequestParams();
+        ssrp = new SpatialSearchRequestDTO();
         ssrp.setQ("lsid:urn:lsid:biodiversity.org.au:afd.taxon:31a9b8b8-4e8f-4343-a15f-2ed24e0bf1ae");
         ssrp.setFq(new String[]{"family:MACROPODIDAE"});
         queryFormatUtils.formatSearchQuery(ssrp, false);

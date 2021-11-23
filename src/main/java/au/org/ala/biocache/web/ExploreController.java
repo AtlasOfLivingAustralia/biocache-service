@@ -19,7 +19,6 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import com.ctc.wstx.util.URLUtil;
-import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
 import net.sf.json.JSONArray;
@@ -29,7 +28,9 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.opengis.metadata.identification.CharacterSet;
+import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.StreamUtils;
@@ -58,6 +59,7 @@ public class ExploreController {
      * Logger initialisation
      */
     private final static Logger logger = Logger.getLogger(ExploreController.class);
+    public static final String ENDEMISM_CSV_HEADER = "Family,Scientific name,Common name,Taxon rank,LSID,# Occurrences";
 
     /**
      * Fulltext search DAO
@@ -72,7 +74,7 @@ public class ExploreController {
     protected String speciesSubgroupsUrl;
     private String speciesSubgroups = null;
 
-    public String getSubgroupsConfig() {
+    private String getSubgroupsConfig() {
         if (speciesSubgroups == null) {
             speciesSubgroups = getStringFromPath(speciesSubgroupsUrl);
         }
@@ -84,7 +86,7 @@ public class ExploreController {
     protected String speciesGroupsUrl;
     private String speciesGroups = null;
 
-    public String getGroupsConfig() {
+    private String getGroupsConfig() {
         if (speciesGroups == null) {
             speciesGroups = getStringFromPath(speciesGroupsUrl);
         }
@@ -118,7 +120,9 @@ public class ExploreController {
         radiusToZoomLevelMap.put(50f, 9);
     }
 
-    @RequestMapping(value = { "/explore/hierarchy", "/explore/hierarchy.json" }, method = RequestMethod.GET)
+    @RequestMapping(value = { "/explore/hierarchy"
+//            , "/explore/hierarchy.json"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public void getHierarchy(HttpServletResponse response) throws Exception {
         response.setContentType("application/json");
         try {
@@ -136,15 +140,16 @@ public class ExploreController {
      * <p>
      * TODO push down to service implementation.
      *
-     * @param requestParams
      * @return
      * @throws Exception
      */
     @Operation(summary = "Returns a hierarchical listing of species groups", tags = "Explore")
-    @RequestMapping(value = { "/explore/hierarchy/groups*", "/explore/hierarchy/groups.json*" }, method = RequestMethod.GET)
+    @RequestMapping(value = { "/explore/hierarchy/groups*"
+//            , "/explore/hierarchy/groups.json*"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     Collection<SpeciesGroupDTO> yourHierarchicalAreaView(
-            SpatialSearchRequestParams requestParams, String speciesGroup) throws Exception {
+            @ParameterObject SpatialSearchRequestParams params, String speciesGroup) throws Exception {
 
         JSONArray ssgs = JSONArray.fromObject(getSubgroupsConfig());
         Map<String, SpeciesGroupDTO> parentGroupMap = new LinkedHashMap<String, SpeciesGroupDTO>();
@@ -156,6 +161,7 @@ public class ExploreController {
                     parentLookup.put(((JSONObject) ssg).getString("common").toLowerCase(), ((JSONObject) sg).getString("speciesGroup"))));
 
         //get the species group occurrence counts
+        SpatialSearchRequestDTO requestParams = SpatialSearchRequestDTO.create(params);
         requestParams.setFormattedQuery(null);
         requestParams.setFacets(new String[]{OccurrenceIndex.SPECIES_SUBGROUP});
         requestParams.setFacet(true);
@@ -222,10 +228,13 @@ public class ExploreController {
      * Returns a list of species groups and counts that will need to be displayed.
      */
     @Operation(summary = "Returns a list of species groups and counts that will need to be displayed", tags = "Explore")
-    @RequestMapping(value = { "/explore/groups*", "/explore/groups.json*", }, method = RequestMethod.GET)
+    @RequestMapping(value = { "/explore/groups*"
+//            , "/explore/groups.json*",
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
-    List<SpeciesGroupDTO> yourAreaView(SpatialSearchRequestParams requestParams) throws Exception {
+    List<SpeciesGroupDTO> yourAreaView(@ParameterObject SpatialSearchRequestParams params) throws Exception {
 
+        SpatialSearchRequestDTO requestParams = SpatialSearchRequestDTO.create(params);
         //now we want to grab all the facets to get the counts associated with the species groups
         JSONArray sgs = JSONArray.fromObject(getGroupsConfig());
         List<SpeciesGroupDTO> speciesGroups = new java.util.ArrayList<SpeciesGroupDTO>();
@@ -233,7 +242,7 @@ public class ExploreController {
         String[] originalFqs = requestParams.getFq();
         all.setName("ALL_SPECIES");
         all.setLevel(0);
-        Integer[] counts = getYourAreaCount(requestParams, "ALL_SPECIES");
+        Integer[] counts = getYourAreaCount(params, "ALL_SPECIES");
         all.setCount(counts[0]);
         all.setSpeciesCount(counts[1]);
         speciesGroups.add(all);
@@ -273,7 +282,7 @@ public class ExploreController {
                 //set the original query back to default to clean up after ourselves
                 requestParams.setFq(originalFqs);
                 //query per group
-                counts = getYourAreaCount(requestParams, name);
+                counts = getYourAreaCount(params, name);
                 sdto.setCount(counts[0]);
                 sdto.setSpeciesCount(counts[1]);
                 speciesGroups.add(sdto);
@@ -285,16 +294,19 @@ public class ExploreController {
     /**
      * Returns the number of records and distinct species in a particular species group
      *
-     * @param requestParams
      * @param group
      * @return
      * @throws Exception
      */
     @Operation(summary = "Returns the number of records and distinct species in a particular species group", tags = "Explore")
-    @RequestMapping(value = { "/explore/counts/group/{group}*", "/explore/counts/group/{group}.json*" }, method = RequestMethod.GET)
+    @RequestMapping(value = { "/explore/counts/group/{group}*"
+//            , "/explore/counts/group/{group}.json*"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
-    Integer[] getYourAreaCount(SpatialSearchRequestParams requestParams,
+    Integer[] getYourAreaCount(@ParameterObject SpatialSearchRequestParams params,
                                @PathVariable(value = "group") String group) throws Exception {
+
+        SpatialSearchRequestDTO requestParams = SpatialSearchRequestDTO.create(params);
         addGroupFilterToQuery(requestParams, group);
 
         // find number of occurrences
@@ -311,20 +323,19 @@ public class ExploreController {
     /**
      * Updates the requestParams to take into account the provided species group
      *
-     * @param requestParams
      * @param group
      */
-    private void addGroupFilterToQuery(SpatialSearchRequestParams requestParams, String group) {
+    private void addGroupFilterToQuery(SpatialSearchRequestDTO requestParams, String group) {
         addFacetFilterToQuery(requestParams, OccurrenceIndex.SPECIES_GROUP, group);
     }
 
     /**
      * Updates the requestParams to take into account the provided species group
      *
-     * @param requestParams
      * @param facetValue
      */
-    private void addFacetFilterToQuery(SpatialSearchRequestParams requestParams, String facetName, String facetValue) {
+    private void addFacetFilterToQuery(SpatialSearchRequestDTO requestParams, String facetName, String facetValue) {
+
         if (!facetValue.equals("ALL_SPECIES")) {
             queryFormatUtils.addFqs(new String [] {facetName + ":" + facetValue}, requestParams);
         }
@@ -335,7 +346,7 @@ public class ExploreController {
         requestParams.setFormattedQuery(null);
     }
 
-    private void applyFacetForCounts(SpatialSearchRequestParams requestParams, boolean useCommonName) {
+    private void applyFacetForCounts(SpatialSearchRequestDTO requestParams, boolean useCommonName) {
         if (useCommonName)
             requestParams.setFacets(new String[]{OccurrenceIndex.COMMON_NAME_AND_LSID});
         else
@@ -349,13 +360,17 @@ public class ExploreController {
      * @throws Exception
      */
     @Operation(summary = "Occurrence search page uses SOLR JSON to display results", tags = "Explore")
-    @RequestMapping(value = { "/explore/group/{group}/download*", "/explore/group/{group}/download.json*" } , method = RequestMethod.GET)
+    @RequestMapping(value = { "/explore/group/{group}/download*"
+//            , "/explore/group/{group}/download.json*"
+    } , method = RequestMethod.GET, produces = "application/vnd.ms-excel")
     public void yourAreaDownload(
-            DownloadRequestParams requestParams,
+            @ParameterObject DownloadRequestParams requestParams,
             @PathVariable(value = "group") String group,
             @RequestParam(value = "common", required = false, defaultValue = "false") boolean common,
-            HttpServletResponse response)
-            throws Exception {
+            HttpServletResponse response) {
+
+        DownloadRequestDTO dto = DownloadRequestDTO.create(requestParams);
+
         String filename = requestParams.getFile() != null ? requestParams.getFile() : "data";
         logger.debug("Downloading the species in your area... ");
         response.setHeader("Cache-Control", "must-revalidate");
@@ -363,17 +378,16 @@ public class ExploreController {
         response.setHeader("Content-Disposition", "attachment;filename=" + filename);
         response.setContentType("application/vnd.ms-excel");
 
-        addGroupFilterToQuery(requestParams, group);
-        applyFacetForCounts(requestParams, common);
+        addGroupFilterToQuery(dto, group);
+        applyFacetForCounts(dto, common);
 
         try {
             ServletOutputStream out = response.getOutputStream();
-            int count = searchDao.writeSpeciesCountByCircleToStream(requestParams, group, out);
+            int count = searchDao.writeSpeciesCountByCircleToStream(dto, group, out);
             logger.debug("Exported " + count + " species records in the requested area");
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         }
-
     }
 
     /**
@@ -385,11 +399,13 @@ public class ExploreController {
      */
     @Operation(summary = "Returns a list of species and record counts for a given location search" +
             " and a higher taxa with rank.", tags = "Explore")
-    @RequestMapping(value = {"/explore/group/{group}*", "/explore/group/{group}.json*" }, method = RequestMethod.GET)
+    @RequestMapping(value = {"/explore/group/{group}*"
+//            , "/explore/group/{group}.json*"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ApiParam(value = "group", required = true)
     public @ResponseBody
     List<TaxaCountDTO> listSpeciesForHigherTaxa(
-            SpatialSearchRequestParams requestParams,
+            SpatialSearchRequestDTO requestParams,
             @PathVariable(value = "group") String group,
             @RequestParam(value = "common", required = false, defaultValue = "false") boolean common,
             Model model) throws Exception {
@@ -411,17 +427,17 @@ public class ExploreController {
      * Returns the number of distinct species that are in the supplied region.
      *
      * @param requestParams
-     * @param response
      * @return
      * @throws Exception
      */
     @Operation(summary = "Returns the number of distinct species that are in the supplied region", tags = "Explore")
-    @RequestMapping(value = {"/explore/counts/endemic*", "/explore/counts/endemic.json*" }, method = RequestMethod.GET)
+    @RequestMapping(value = {"/explore/counts/endemic*"
+//            , "/explore/counts/endemic.json*"
+    }, method = RequestMethod.GET)
     public @ResponseBody
-    int getSpeciesCountOnlyInWKT(SpatialSearchRequestParams requestParams,
-                                 HttpServletResponse response)
-            throws Exception {
-        List list = getSpeciesOnlyInWKT(requestParams, response);
+    int getSpeciesCountOnlyInWKT(@ParameterObject SpatialSearchRequestParams requestParams) throws Exception {
+
+        List list = getSpeciesOnlyInWKT(requestParams);
         if (list != null)
             return list.size();
         return 0;
@@ -433,30 +449,32 @@ public class ExploreController {
      * @return
      */
     @Operation(summary = "Returns the species that only have occurrences in the supplied WKT.", tags = "Endemism")
-    @RequestMapping(value = {"/explore/endemic/species*", "/explore/endemic/species.json*" }, method = RequestMethod.GET)
+    @RequestMapping(value = {"/explore/endemic/species*"
+//            , "/explore/endemic/species.json*"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
-    List<FieldResultDTO> getSpeciesOnlyInWKT(SpatialSearchRequestParams requestParams,
-                                             HttpServletResponse response)
-            throws Exception {
-        SpatialSearchRequestParams superset = new SpatialSearchRequestParams();
+    List<FieldResultDTO> getSpeciesOnlyInWKT(@ParameterObject SpatialSearchRequestParams requestParams) throws Exception {
+
+        SpatialSearchRequestDTO requested = SpatialSearchRequestDTO.create(requestParams);
+        SpatialSearchRequestDTO superset = new SpatialSearchRequestDTO();
         superset.setQ("decimalLongitude:[-180 TO 180]");
         superset.setFq(new String[] {"decimalLatitude:[-90 TO 90]"});
 
         // ensure that one facet is set
-        prepareEndemicFacet(requestParams);
+        prepareEndemicFacet(requested);
         prepareEndemicFacet(superset);
 
-        return searchDao.getSubquerySpeciesOnly(requestParams, superset);
+        return searchDao.getSubquerySpeciesOnly(requested, superset);
     }
 
-    private void prepareEndemicFacet(SpatialSearchRequestParams parentQuery) {
+    private void prepareEndemicFacet(SpatialSearchRequestDTO parentQuery) {
         if (parentQuery.getFacets() == null || parentQuery.getFacets().length != 1) {
             parentQuery.setFacets(new String[]{OccurrenceIndex.NAMES_AND_LSID});
         }
     }
 
     /**
-     * Returns facet values that only occur in the supplied subQueryQid
+     * Returns facet values that only occur in the supplied subQueryID
      * and not in the parentQuery.
      * <p>
      * The facet is defined in the parentQuery. Default facet is SearchDAOImpl.NAMES_AND_LSID
@@ -465,17 +483,19 @@ public class ExploreController {
      *
      * @return
      */
-    @Operation(summary = "Returns facet values that only occur in the supplied subQueryQid and not in the parentQuery.", tags = "Endemism")
-    @RequestMapping(value = {"/explore/endemic/species/{subQueryQid}*", "/explore/endemic/species/{subQueryQid}.json*"}, method = RequestMethod.GET)
-    @ApiParam(value = "subQueryQid", required = true)
+    @Operation(summary = "Returns facet values that only occur in the supplied subQueryID and not in the parentQuery.", tags = "Endemism")
+    @RequestMapping(value = {"/explore/endemic/species/{subQueryID}"
+//            , "/explore/endemic/species/{subQueryQid}.json*"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @ApiParam(value = "subQueryID", required = true)
     public @ResponseBody
-    List<FieldResultDTO> getSpeciesOnlyInOneQuery(SpatialSearchRequestParams parentQuery,
-                                                  @PathVariable(value = "subQueryQid") Long subQueryQid,
-                                                  HttpServletResponse response)
+    List<FieldResultDTO> getSpeciesOnlyInOneQuery(@ParameterObject SpatialSearchRequestParams parentQueryParams,
+                                                  @PathVariable(value = "subQueryID") Long subQueryID)
             throws Exception {
-        SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
-        subQuery.setQ("qid:" + subQueryQid);
 
+        SpatialSearchRequestDTO parentQuery = SpatialSearchRequestDTO.create(parentQueryParams);
+        SpatialSearchRequestDTO subQuery = new SpatialSearchRequestDTO();
+        subQuery.setQ("qid:" + subQueryID);
         prepareEndemicFacet(parentQuery);
 
         subQuery.setFacets(parentQuery.getFacets());
@@ -483,7 +503,7 @@ public class ExploreController {
     }
 
     /**
-     * Returns count of facet values that only occur in the supplied subQueryQid
+     * Returns count of facet values that only occur in the supplied subQueryID
      * and not in the parentQuery.
      * <p>
      * The facet is defined in the parentQuery. Default facet is SearchDAOImpl.NAMES_AND_LSID
@@ -492,18 +512,19 @@ public class ExploreController {
      *
      * @return
      */
-    @Operation(summary = "Returns count of facet values that only occur in the supplied subQueryQid and not in the parentQuery.", tags = "Endemism")
-    @RequestMapping(value = {"/explore/endemic/speciescount/{subQueryQid}*", "/explore/endemic/speciescount/{subQueryQid}.json*" }, method = RequestMethod.GET)
-    @ApiParam(value = "subQueryQid", required = true)
+    @Operation(summary = "Returns count of facet values that only occur in the supplied " +
+            "subQueryID and not in the parentQuery.", tags = "Endemism")
+    @RequestMapping(value = {"/explore/endemic/speciescount/{subQueryID}*"
+//            , "/explore/endemic/speciescount/{subQueryID}.json*"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @ApiParam(value = "subQueryID", required = true)
     public @ResponseBody
-    Map getSpeciesOnlyInOneCountQuery(SpatialSearchRequestParams parentQuery,
-                                      @PathVariable(value = "subQueryQid") Long subQueryQid,
-                                      HttpServletResponse response)
+    Map getSpeciesOnlyInOneCountQuery(@ParameterObject SpatialSearchRequestParams parentQuery,
+                                      @PathVariable(value = "subQueryID") Long subQueryID)
             throws Exception {
 
         HashMap m = new HashMap();
-        m.put("count", getSpeciesOnlyInOneQuery(parentQuery, subQueryQid, response).size());
-
+        m.put("count", getSpeciesOnlyInOneQuery(parentQuery, subQueryID).size());
         return m;
     }
 
@@ -512,21 +533,22 @@ public class ExploreController {
      *
      * @return
      */
-    @Operation(summary = "Returns the species that only have occurrences in the supplied WKT", tags = {"Endemism", "Download"})
+    @Operation(summary = "Returns the species that only have occurrences in the supplied WKT. Columns: " + ENDEMISM_CSV_HEADER
+            , tags = {"Endemism", "Download"})
     @RequestMapping(value = "/explore/endemic/species.csv", method = RequestMethod.GET)
-    public void getEndemicSpeciesCSV(SpatialSearchRequestParams requestParams, HttpServletResponse response) throws Exception {
+    public void getEndemicSpeciesCSV(@ParameterObject SpatialSearchRequestParams requestParams, HttpServletResponse response) throws Exception {
         requestParams.setFacets(new String[]{OccurrenceIndex.NAMES_AND_LSID});
         requestParams.setFq((String[]) ArrayUtils.add(requestParams.getFq(), OccurrenceIndex.SPECIESID + ":*"));
 
         // Cannot use getSpeciesOnlyInOneQueryCSV as the output columns differ
-        List<FieldResultDTO> list = getSpeciesOnlyInWKT(requestParams, response);
+        List<FieldResultDTO> list = getSpeciesOnlyInWKT(requestParams);
 
         response.setCharacterEncoding("UTF-8");
         response.setContentType("text/plain");
 
         java.io.PrintWriter writer = response.getWriter();
 
-        writer.write("Family,Scientific name,Common name,Taxon rank,LSID,# Occurrences");
+        writer.write(ENDEMISM_CSV_HEADER);
         for (FieldResultDTO item : list) {
             String s = item.getLabel();
             if (s.startsWith("\"") && s.endsWith("\"") && s.length() > 2) s = s.substring(1, s.length() - 1);
@@ -540,7 +562,7 @@ public class ExploreController {
     }
 
     /**
-     * Returns facet values that only occur in the supplied subQueryQid
+     * Returns facet values that only occur in the supplied subQueryID
      * and not in the parentQuery.
      * <p>
      * The facet is defined in the parentQuery. Default facet is SearchDAOImpl.NAMES_AND_LSID
@@ -549,20 +571,21 @@ public class ExploreController {
      *
      * @return
      */
-    @Operation(summary = "Returns facet values that only occur in the supplied subQueryQid and not in the parentQuery.", tags = {"Endemism", "Download"})
-    @RequestMapping(value = "/explore/endemic/species/{subQueryQid}.csv", method = RequestMethod.GET)
-    @ApiParam(value = "subQueryQid", required = true)
-    public void getSpeciesOnlyInOneQueryCSV(SpatialSearchRequestParams parentQuery,
-                                            @PathVariable(value = "subQueryQid") Long subQueryQid,
+    @Operation(summary = "Returns facet values that only occur in the supplied subQueryID and not in the parentQuery.", tags = {"Endemism", "Download"})
+    @RequestMapping(value = "/explore/endemic/species/{subQueryID}.csv", method = RequestMethod.GET)
+    @ApiParam(value = "subQueryID", required = true)
+    public void getSpeciesOnlyInOneQueryCSV(@ParameterObject SpatialSearchRequestParams parentQueryParams,
+                                            @PathVariable(value = "subQueryID") Long subQueryID,
                                             @RequestParam(value = "count", required = false, defaultValue = "false") boolean includeCount,
                                             @RequestParam(value = "lookup", required = false, defaultValue = "false") boolean lookupName,
                                             @RequestParam(value = "synonym", required = false, defaultValue = "false") boolean includeSynonyms,
                                             @RequestParam(value = "lists", required = false, defaultValue = "false") boolean includeLists,
                                             @RequestParam(value = "file", required = false, defaultValue = "") String file,
-                                            HttpServletResponse response)
-            throws Exception {
-        SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
-        subQuery.setQ("qid:" + subQueryQid);
+                                            HttpServletResponse response) {
+
+        SpatialSearchRequestDTO parentQuery = SpatialSearchRequestDTO.create(parentQueryParams);
+        SpatialSearchRequestDTO subQuery = new SpatialSearchRequestDTO();
+        subQuery.setQ("qid:" + subQueryID);
 
         prepareEndemicFacet(parentQuery);
         prepareEndemicFacet(subQuery);

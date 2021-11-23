@@ -1,7 +1,7 @@
 package au.org.ala.biocache.stream;
 
 import au.com.bytecode.opencsv.CSVWriter;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -21,7 +21,7 @@ public class StreamAsCSV implements ProcessInterface {
 
     FieldMappingUtil fieldMappingUtil;
     CSVWriter csvWriter;
-    SpatialSearchRequestParams requestParams;
+    SpatialSearchRequestDTO requestParams;
 
     String[] row;
 
@@ -35,7 +35,7 @@ public class StreamAsCSV implements ProcessInterface {
     List<String> header = new ArrayList<String>();
     List<String> responseHeader = new ArrayList<String>();
 
-    public StreamAsCSV(FieldMappingUtil fieldMappingUtil, OutputStream stream, SpatialSearchRequestParams requestParams) {
+    public StreamAsCSV(FieldMappingUtil fieldMappingUtil, OutputStream stream, SpatialSearchRequestDTO requestParams) {
         this.fieldMappingUtil = fieldMappingUtil;
         this.csvWriter = new CSVWriter(new OutputStreamWriter(stream));
         this.requestParams = requestParams;

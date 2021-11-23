@@ -16,7 +16,7 @@ package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.OccurrenceIndex;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.dto.SpeciesImageDTO;
 import au.org.ala.biocache.dto.SpeciesImagesDTO;
 import au.org.ala.biocache.util.SearchUtils;
@@ -71,7 +71,7 @@ public class SpeciesImageService {
                 logger.debug("start refresh");
 
                 //lft counts for the query
-                SpatialSearchRequestParams params = new SpatialSearchRequestParams();
+                SpatialSearchRequestDTO params = new SpatialSearchRequestDTO();
                 params.setPageSize(1);
                 params.setFacet(true);
                 params.setFacets(new String[]{OccurrenceIndex.LFT});

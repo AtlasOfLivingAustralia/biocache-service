@@ -1,4 +1,7 @@
 package au.org.ala.biocache.dto;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * 
  * A DTO for the parameters used in the breakdown services.
@@ -6,18 +9,20 @@ package au.org.ala.biocache.dto;
  * @author Natasha Carter
  *
  */
-public class BreakdownRequestParams extends SpatialSearchRequestParams {
-    protected String rank=null;
-    protected String name=null;    
+@Schema(name = "Breakdown parameters")
+public class BreakdownRequestParams extends SpatialSearchRequestDTO {
+
+    protected String rank = null;
+    protected String name = null;
     protected Integer max = null;
-    protected String level=null;
+    protected String level = null;
     
     public String toString(){
         StringBuilder req = new StringBuilder(super.toString());
-        if(rank != null) req.append("&rank=").append(rank);
-        if(name != null) req.append("&name=").append(name);
-        if(max != null) req.append("&max=").append(max);
-        if(level != null) req.append("&level=").append(level);
+        if (rank != null) req.append("&rank=").append(rank);
+        if (name != null) req.append("&name=").append(name);
+        if (max != null) req.append("&max=").append(max);
+        if (level != null) req.append("&level=").append(level);
         return req.toString();
     }
     

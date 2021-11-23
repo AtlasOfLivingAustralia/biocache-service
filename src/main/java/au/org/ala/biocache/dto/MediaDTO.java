@@ -14,6 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -22,6 +24,7 @@ import java.util.Map;
  *  
  * @author Dave Martin
  */
+@Schema(name="Media", description="Represents a media object")
 public class MediaDTO {
 
     protected String contentType;

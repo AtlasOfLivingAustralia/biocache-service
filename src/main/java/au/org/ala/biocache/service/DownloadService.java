@@ -505,7 +505,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param type
      * @return
      */
-    public DownloadDetailsDTO registerDownload(DownloadRequestParams requestParams, String ip, String userAgent,
+    public DownloadDetailsDTO registerDownload(DownloadRequestDTO requestParams, String ip, String userAgent,
                                                DownloadDetailsDTO.DownloadType type) {
         afterInitialisation();
         DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, userAgent, type);
@@ -552,7 +552,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param doiResponseList Return the CreateDoiResponse instance as the first element of the list if requestParams.mintDoi was true
      * @throws Exception
      */
-    public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
+    public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestDTO requestParams, String ip,
                                    OutputStream out, boolean includeSensitive,
                                    boolean limit, boolean zip, ExecutorService parallelExecutor,
                                    List<CreateDoiResponse> doiResponseList)
@@ -814,7 +814,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         return dataQualityFilters;
     }
 
-    public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, String userAgent,
+    public void writeQueryToStream(DownloadRequestDTO requestParams, HttpServletResponse response, String ip, String userAgent,
                                    OutputStream out, boolean includeSensitive, boolean zip, ExecutorService parallelQueryExecutor) throws Exception {
         afterInitialisation();
         String filename = requestParams.getFile();
@@ -950,7 +950,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @throws IOException
      */
     public void getHeadings(DownloadHeaders downloadHeaders, OutputStream out,
-                            DownloadRequestParams params, String[] miscHeaders) throws Exception {
+                            DownloadRequestDTO params, String[] miscHeaders) throws Exception {
         if (headingsEnabled) {
             afterInitialisation();
 
@@ -1038,7 +1038,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param params
      * @return url
      */
-    public String generateSearchUrl(DownloadRequestParams params) {
+    public String generateSearchUrl(DownloadRequestDTO params) {
         return generateSearchUrl(params, null);
     }
 
@@ -1050,7 +1050,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param enabledQualityFiltersByLabel A pre-provided map of enabled quality filter label to fqs or null if the should be looked up on demand.
      * @return url The generated search url
      */
-    public String generateSearchUrl(DownloadRequestParams params, @Nullable Map<String, String> enabledQualityFiltersByLabel) {
+    public String generateSearchUrl(DownloadRequestDTO params, @Nullable Map<String, String> enabledQualityFiltersByLabel) {
         if (params.getSearchUrl() != null) {
             return params.getSearchUrl();
         } else {

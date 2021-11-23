@@ -99,7 +99,7 @@ public class WMSOSGridController {
     @RequestMapping(value = {"/osgrid/feature.json"}, method = RequestMethod.GET)
     public @ResponseBody
     Map<String, Object> getFeatureInfo(
-            SpatialSearchRequestParams requestParams,
+            SpatialSearchRequestDTO requestParams,
             HttpServletRequest request) throws Exception {
 
         try {
@@ -220,7 +220,7 @@ public class WMSOSGridController {
      * @param replaceLast
      * @return
      */
-    private long getRecordCountForGridRef(SpatialSearchRequestParams requestParams, String gridRef, int gridSize, boolean replaceLast) {
+    private long getRecordCountForGridRef(SpatialSearchRequestDTO requestParams, String gridRef, int gridSize, boolean replaceLast) {
 
         try {
             String fq = getFilterQuery(gridRef, gridSize);
@@ -284,7 +284,7 @@ public class WMSOSGridController {
      */
     @RequestMapping(value = {"/osgrid/wms/reflect"}, method = RequestMethod.GET)
     public void generateWmsTile(
-            SpatialSearchRequestParams requestParams,
+            SpatialSearchRequestDTO requestParams,
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
             @RequestParam(value = "ENV", required = true, defaultValue = "") String env,
             @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs, //default to google mercator

@@ -41,7 +41,7 @@ public class DownloadDetailsDTO {
     private String userAgent;
     private boolean emailNotify = true;
     private String email;
-    private DownloadRequestParams requestParams;
+    private DownloadRequestDTO requestParams;
     private String fileLocation;
     private boolean includeSensitive = false;
     private Map<String,String> headerMap = null;
@@ -67,7 +67,7 @@ public class DownloadDetailsDTO {
         this.lastUpdate = new Date();
     }
     
-    public DownloadDetailsDTO(DownloadRequestParams params, String ipAddress, String userAgent, DownloadType type){
+    public DownloadDetailsDTO(DownloadRequestDTO params, String ipAddress, String userAgent, DownloadType type){
         this(params.getUrlParams(), ipAddress, userAgent, type);
         requestParams = params;
         emailNotify = requestParams.isEmailNotify();
@@ -187,14 +187,14 @@ public class DownloadDetailsDTO {
     /**
      * @return the requestParams
      */
-    public DownloadRequestParams getRequestParams() {
+    public DownloadRequestDTO getRequestParams() {
         return requestParams;
     }
 
     /**
      * @param requestParams the requestParams to set
      */
-    public void setRequestParams(DownloadRequestParams requestParams) {
+    public void setRequestParams(DownloadRequestDTO requestParams) {
         this.requestParams = requestParams;
     }
 

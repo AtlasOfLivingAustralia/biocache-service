@@ -27,6 +27,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -61,7 +62,10 @@ public class AssertionController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "Retrieve an array of the assertion codes in use by the processing system", tags = "Assertions")
-    @RequestMapping(value = {"/assertions/codes", "/assertions/codes.json", "/assertions/codes/"}, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "/assertions/codes"
+//            , "/assertions/codes.json", "/assertions/codes/"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     Collection<AssertionCode> showCodes(
             @RequestParam(value="deprecated", required=false, defaultValue="false") Boolean isDeprecated
@@ -70,7 +74,9 @@ public class AssertionController extends AbstractSecureController {
     }
 
     @Operation(summary = "Retrieve an array of the assertion codes in use by users", tags = "Assertions")
-    @RequestMapping(value = {"/assertions/user/codes", "/assertions/user/codes.json", "/assertions/user/codes/"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/assertions/user/codes"
+//            , "/assertions/user/codes.json", "/assertions/user/codes/"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody Collection<AssertionCode> showUserCodes(
             @RequestParam(value="deprecated", required=false, defaultValue="false") Boolean isDeprecated
     ) throws Exception {
@@ -213,8 +219,20 @@ public class AssertionController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "Removes an assertion", tags = "Assertions")
-    @RequestMapping(value = {"/occurrences/assertions/delete"}, method = RequestMethod.POST)
+    @RequestMapping(value = {"/occurrences/assertions/delete"}, method = { RequestMethod.DELETE })
     public void deleteAssertionWithParams(
+            @RequestParam(value="recordUuid", required=true) String recordUuid,
+            @RequestParam(value = "apiKey", required = true) String apiKey,
+            @RequestParam(value="assertionUuid", required=true) String assertionUuid,
+            HttpServletRequest request,
+            HttpServletResponse response) throws Exception {
+        deleteAssertion(recordUuid, apiKey, assertionUuid, request, response);
+    }
+
+    @Deprecated
+    @Operation(summary = "Removes an assertion", tags = "Deprecated")
+    @RequestMapping(value = {"/occurrences/assertions/delete"}, method = { RequestMethod.POST })
+    public void deleteAssertionWithParamsPost(
             @RequestParam(value="recordUuid", required=true) String recordUuid,
             @RequestParam(value = "apiKey", required = true) String apiKey,
             @RequestParam(value="assertionUuid", required=true) String assertionUuid,
@@ -226,8 +244,9 @@ public class AssertionController extends AbstractSecureController {
     /**
      * Remove an assertion
      */
+
     @Operation(summary = "Removes an assertion (REST style)", tags = "Assertions")
-    @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/delete"}, method = RequestMethod.POST)
+    @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/delete"}, method = RequestMethod.DELETE)
     @ApiParam(value = "recordUuid", required = true)
     public void deleteAssertion(
         @PathVariable(value="recordUuid") String recordUuid,
@@ -251,8 +270,39 @@ public class AssertionController extends AbstractSecureController {
         }
     }
 
+    /**
+     * Remove an assertion
+     */
+    @Deprecated
+    @Operation(summary = "Removes an assertion (REST style)", tags = "Deprecated")
+    @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/delete"}, method = RequestMethod.POST)
+    @ApiParam(value = "recordUuid", required = true)
+    public void deleteAssertionPost(
+            @PathVariable(value="recordUuid") String recordUuid,
+            @RequestParam(value = "apiKey", required = true) String apiKey,
+            @RequestParam(value="assertionUuid", required=true) String assertionUuid,
+            HttpServletRequest request,
+            HttpServletResponse response) throws Exception {
+
+        if (shouldPerformOperation(request, response)) {
+            try {
+                if (assertionService.deleteAssertion(recordUuid, assertionUuid)) {
+                    response.setStatus(HttpServletResponse.SC_OK);
+                } else {
+                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "recordUuid " + recordUuid + " or assertionUuid " + assertionUuid + " doesn't exist");
+                }
+            } catch (IOException e) {
+                logger.error("Failed to delete assertion [id: " + assertionUuid + "] for record " + recordUuid);
+                logger.error(e.getMessage(), e);
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+            }
+        }
+    }
+
     @Operation(summary = "Get assertions for a record", tags = "Assertions")
-    @RequestMapping(value = {"/occurrences/assertions", "/occurrences/assertions.json", "/occurrences/assertions/"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrences/assertions"
+//            , "/occurrences/assertions.json", "/occurrences/assertions/"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody Object getAssertionWithParams(
             @RequestParam(value="recordUuid", required=true) String recordUuid,
             @RequestParam(value="assertionUuid",required=false) String assertionUuid,
@@ -268,7 +318,9 @@ public class AssertionController extends AbstractSecureController {
      * Get single assertion
      */
     @Operation(summary = "Get a single assertion", tags = "Assertions")
-    @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/{assertionUuid}", "/occurrences/{recordUuid}/assertions/{assertionUuid}.json", "/occurrences/{recordUuid}/assertions/{assertionUuid}/"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/{assertionUuid}"
+//            , "/occurrences/{recordUuid}/assertions/{assertionUuid}.json", "/occurrences/{recordUuid}/assertions/{assertionUuid}/"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     QualityAssertion getAssertion(
             @ApiParam(value = "recordUuid", required = true) @PathVariable(value = "recordUuid") String recordUuid,
@@ -295,7 +347,9 @@ public class AssertionController extends AbstractSecureController {
      * Get user assertions
      */
     @Operation(summary = "Get a assertions for a record (REST style)", tags = "Assertions")
-    @RequestMapping(value = {"/occurrences/{recordUuid}/assertions", "/occurrences/{recordUuid}/assertions.json", "/occurrences/{recordUuid}/assertions/"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/occurrences/{recordUuid}/assertions"
+//            , "/occurrences/{recordUuid}/assertions.json", "/occurrences/{recordUuid}/assertions/"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ApiParam(value = "recordUuid", required = true)
     public @ResponseBody List<QualityAssertion> getAssertions(
         @PathVariable(value="recordUuid") String recordUuid,
@@ -311,9 +365,13 @@ public class AssertionController extends AbstractSecureController {
         }
     }
 
-    @Hidden
     @Deprecated
-    @RequestMapping(value = {"/occurrences/{recordUuid}/assertionQueries", "/occurrences/{recordUuid}/assertionQueries.json", "/occurrences/{recordUuid}/assertionQueries/"}, method = RequestMethod.GET)
+    @Operation(summary="Retrieve details fo assertion querries applied to this record", tags = "Deprecated")
+    @RequestMapping(value = {
+//            "/occurrences/{recordUuid}/assertionQueries.json",
+//            "/occurrences/{recordUuid}/assertionQueries/",
+            "/occurrences/{recordUuid}/assertionQueries"
+    }, method = RequestMethod.GET)
     @ApiParam(value = "recordUuid", required = true)
     public @ResponseBody
     List<QualityAssertion> getAssertionQueries(

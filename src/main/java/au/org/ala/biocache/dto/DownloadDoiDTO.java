@@ -15,6 +15,7 @@
 package au.org.ala.biocache.dto;
 
 import au.org.ala.biocache.service.DoiService;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.apache.log4j.Logger;
 
 import java.util.Arrays;
@@ -25,6 +26,7 @@ import java.util.Map;
 /**
  * Encapsulates parameters need it to mint a DOI from the offline download functionality
  */
+@Schema(name="DownloadDOI", description="Encapsulates parameters need it to mint a DOI from the offline download functionality")
 public class DownloadDoiDTO {
     public final static List<String> validDisplayTemplates = Arrays.asList(DoiService.DISPLAY_TEMPLATE_BIOCACHE, DoiService.DISPLAY_TEMPLATE_CSDM);
     /** log4 j logger */

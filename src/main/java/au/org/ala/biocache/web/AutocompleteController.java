@@ -18,6 +18,7 @@ import au.org.ala.biocache.service.SpeciesLookupService;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.annotations.Api;
 import io.swagger.v3.oas.annotations.Operation;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,7 +36,9 @@ public class AutocompleteController extends AbstractSecureController {
     protected SpeciesLookupService speciesLookupService;
 
     @Operation(summary = "Autocomplete service which filters only lists taxa with occurrence data", tags = "Autocomplete")
-    @RequestMapping(value = { "autocomplete/search", "autocomplete/search.json" }, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "autocomplete/search",
+            "autocomplete/search.json" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public
     @ResponseBody
     Map search(

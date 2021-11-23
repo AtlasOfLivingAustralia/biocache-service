@@ -359,7 +359,7 @@ public class AssertionService {
             return false;
         }
 
-        SpatialSearchRequestParams idRequest = new SpatialSearchRequestParams();
+        SpatialSearchRequestDTO idRequest = new SpatialSearchRequestDTO();
         idRequest.setQ(OccurrenceIndex.ID + ":" + recordUuid);
         idRequest.setFacet(false);
         idRequest.setFl(OccurrenceIndex.ID);

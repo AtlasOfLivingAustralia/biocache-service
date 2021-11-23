@@ -1,20 +1,5 @@
 package au.org.ala.biocache.web;
 
-import au.org.ala.biocache.dto.DownloadRequestDTO;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
-import au.org.ala.biocache.dto.TaxaCountDTO;
-import io.swagger.v3.oas.annotations.Operation;
-import org.springdoc.api.annotations.ParameterObject;
-import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.*;
-
-import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.util.List;
-import java.util.Map;
-
 public class DeprecatedController {
 //
 //    @Inject

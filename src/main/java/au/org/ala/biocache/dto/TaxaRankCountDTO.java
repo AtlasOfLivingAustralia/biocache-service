@@ -14,6 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,6 +23,7 @@ import java.util.List;
  * A DTO that stores the rank and list of corresponding taxa/counts
  * @author Natasha
  */
+@Schema(name = "TaxaRankCount", description = "Represents a count of records for a taxon rank")
 public class TaxaRankCountDTO {
 
     protected String rank;

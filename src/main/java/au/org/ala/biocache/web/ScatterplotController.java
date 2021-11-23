@@ -3,9 +3,9 @@ package au.org.ala.biocache.web;
 import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.IndexFieldDTO;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.stream.ScatterplotSearch;
-import io.swagger.annotations.Api;
 import io.swagger.v3.oas.annotations.Operation;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
@@ -20,6 +20,8 @@ import org.jfree.chart.plot.XYPlot;
 import org.jfree.data.xy.DefaultXYDataset;
 import org.jfree.ui.RectangleEdge;
 import org.locationtech.jts.math.Vector2D;
+import org.springdoc.api.annotations.ParameterObject;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -64,8 +66,8 @@ public class ScatterplotController {
     protected IndexDAO indexDao;
 
     @Operation(summary = "Generate a scatterplot", tags = "Scatterplots")
-    @RequestMapping(value = {"/scatterplot"}, method = RequestMethod.GET)
-    public void scatterplot(SpatialSearchRequestParams requestParams,
+    @RequestMapping(value = {"/scatterplot"}, method = RequestMethod.GET, produces = "image/png")
+    public void scatterplot(@ParameterObject SpatialSearchRequestParams params,
                             @RequestParam(value = "x", required = true) String x,
                             @RequestParam(value = "y", required = true) String y,
                             @RequestParam(value = "height", required = false, defaultValue = DEFAULT_SCATTERPLOT_HEIGHT) Integer height,
@@ -74,6 +76,8 @@ public class ScatterplotController {
                             @RequestParam(value = "pointcolour", required = false, defaultValue = DEFAULT_SCATTERPLOT_POINTCOLOUR) String pointcolour,
                             @RequestParam(value = "pointradius", required = false, defaultValue = DEFAULT_SCATTERPLOT_POINTRADIUS) Double pointradius,
                             HttpServletResponse response) throws Exception {
+
+        SpatialSearchRequestDTO requestParams = SpatialSearchRequestDTO.create(params);
 
         JFreeChart jChart = makeScatterplot(requestParams, x, y, title, pointcolour, pointradius);
 
@@ -93,9 +97,9 @@ public class ScatterplotController {
     }
 
     @Operation(summary = "Get details of a point on a plot", tags = "Scatterplots")
-    @RequestMapping(value = {"/scatterplot/point", "/scatterplot/point.json" }, method = RequestMethod.GET)
+    @RequestMapping(value = {"/scatterplot/point", "/scatterplot/point.json" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
-    public Map scatterplotPointInfo(SpatialSearchRequestParams requestParams,
+    public Map scatterplotPointInfo(@ParameterObject SpatialSearchRequestParams params,
                                     @RequestParam(value = "x", required = true) String x,
                                     @RequestParam(value = "y", required = true) String y,
                                     @RequestParam(value = "height", required = false, defaultValue = DEFAULT_SCATTERPLOT_HEIGHT) Integer height,
@@ -105,6 +109,8 @@ public class ScatterplotController {
                                     @RequestParam(value = "pointy1", required = true) Integer pointy1,
                                     @RequestParam(value = "pointx2", required = true) Integer pointx2,
                                     @RequestParam(value = "pointy2", required = true) Integer pointy2) throws Exception {
+
+        SpatialSearchRequestDTO requestParams = SpatialSearchRequestDTO.create(params);
 
         JFreeChart jChart = makeScatterplot(requestParams, x, y, title, "000000", 1.0);
 
@@ -135,7 +141,7 @@ public class ScatterplotController {
         return map;
     }
 
-    JFreeChart makeScatterplot(SpatialSearchRequestParams requestParams, String x, String y
+    private JFreeChart makeScatterplot(SpatialSearchRequestDTO requestParams, String x, String y
             , String title, String pointcolour, Double pointradius) throws Exception {
         //verify x and y are numerical and stored
         String displayNameX = null;

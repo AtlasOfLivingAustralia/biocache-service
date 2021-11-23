@@ -15,15 +15,11 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dao.SearchDAO;
-import au.org.ala.biocache.dto.OccurrenceIndex;
-import au.org.ala.biocache.dto.OccurrencePoint;
-import au.org.ala.biocache.dto.PointType;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.heatmap.HeatMap;
 import au.org.ala.biocache.util.ColorUtil;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import com.google.common.base.Strings;
-import io.swagger.annotations.Api;
 import io.swagger.v3.oas.annotations.Operation;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
@@ -31,6 +27,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
+import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -107,7 +104,7 @@ public class MapController {
     @Deprecated
     @Operation(summary = "Deprecated path.", tags = {"Deprecated"})
     @RequestMapping(value = "/occurrences/wms", method = RequestMethod.GET)
-    public void pointsWmsImage(SpatialSearchRequestParams requestParams,
+    public void pointsWmsImage(@ParameterObject SpatialSearchRequestParams requestParams,
                                @RequestParam(value = "colourby", required = false, defaultValue = "0") Integer colourby,
                                @RequestParam(value = "width", required = false, defaultValue = "256") Integer width,
                                @RequestParam(value = "height", required = false, defaultValue = "256") Integer height,
@@ -144,7 +141,7 @@ public class MapController {
     @Deprecated
     @Operation(summary = "Occurrence info summary service for map popups.", tags = {"Deprecated"})
     @RequestMapping(value = {"/occurrences/info", "/occurrences/info.json" }, method = RequestMethod.GET)
-    public String getOccurrencesInformation(SpatialSearchRequestParams requestParams,
+    public String getOccurrencesInformation(SpatialSearchRequestDTO requestParams,
                                             @RequestParam(value = "zoom", required = false, defaultValue = "0") Integer zoomLevel,
                                             @RequestParam(value = "callback", required = false) String callback,
                                             Model model,
@@ -250,7 +247,7 @@ public class MapController {
     @Operation(summary = "Renders a density map for a species.", tags = {"Deprecated"})
     @RequestMapping(value = {"/density/map", "/occurrences/static"}, method = RequestMethod.GET)
     public @ResponseBody
-    void speciesDensityMap(SpatialSearchRequestParams requestParams,
+    void speciesDensityMap(SpatialSearchRequestDTO requestParams,
                            @RequestParam(value = "forceRefresh", required = false, defaultValue = "false") boolean forceRefresh,
                            @RequestParam(value = "forcePointsDisplay", required = false, defaultValue = "false") boolean forcePointsDisplay,
                            @RequestParam(value = "pointColour", required = false, defaultValue = "0000ff") String pointColour,
@@ -330,7 +327,7 @@ public class MapController {
     @Deprecated
     @Operation(summary = "Renders a density map legend for a species.", tags = {"Deprecated"})
     @RequestMapping(value = "/density/legend", method = RequestMethod.GET)
-    public @ResponseBody void speciesDensityLegend(SpatialSearchRequestParams requestParams,
+    public @ResponseBody void speciesDensityLegend(SpatialSearchRequestDTO requestParams,
                                                    @RequestParam(value = "forceRefresh", required = false, defaultValue = "false") boolean forceRefresh,
                                                    @RequestParam(value = "pointHeatMapThreshold", required = false, defaultValue = "500") Integer pointHeatMapThreshold,
                                                    HttpServletRequest request,
@@ -374,7 +371,7 @@ public class MapController {
      * @param requestParams
      */
     public void generateStaticHeatmapImages(
-            SpatialSearchRequestParams requestParams, 
+            SpatialSearchRequestDTO requestParams,
             boolean generateLegend,
             boolean forcePointsDisplay,
             Integer pointHeatMapThreshold,
@@ -438,7 +435,7 @@ public class MapController {
      * @param pointType
      * @return returns an empty array if none found.
      */
-    private double[] retrievePoints(SpatialSearchRequestParams requestParams, PointType pointType) {
+    private double[] retrievePoints(SpatialSearchRequestDTO requestParams, PointType pointType) {
 
         double[] points = new double[0];
         try {

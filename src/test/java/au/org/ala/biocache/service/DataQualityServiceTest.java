@@ -1,8 +1,8 @@
 package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dto.FacetThemes;
-import au.org.ala.biocache.dto.SearchRequestParams;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SearchRequestDTO;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import okhttp3.MediaType;
 import okhttp3.ResponseBody;
@@ -61,7 +61,7 @@ public class DataQualityServiceTest {
     public void testDisabled() {
         // given:
         dataQualityService.dataQualityEnabled = false;
-        SearchRequestParams params = new SearchRequestParams();
+        SearchRequestDTO params = new SearchRequestDTO();
         params.setDisableAllQualityFilters(false);
         params.setQualityProfile("default");
         params.setDisableQualityFilter(Collections.emptyList());
@@ -76,7 +76,7 @@ public class DataQualityServiceTest {
     public void testEnabledBlankProfileIsDisabled() {
         // given a null profile:
         dataQualityService.dataQualityEnabled = true;
-        SearchRequestParams params = new SearchRequestParams();
+        SearchRequestDTO params = new SearchRequestDTO();
         params.setDisableAllQualityFilters(false);
         params.setQualityProfile(null);
         params.setDisableQualityFilter(Collections.emptyList());
@@ -88,7 +88,7 @@ public class DataQualityServiceTest {
 
         // given a blank profile:
         dataQualityService.dataQualityEnabled = true;
-        params = new SearchRequestParams();
+        params = new SearchRequestDTO();
         params.setDisableAllQualityFilters(false);
         params.setQualityProfile("");
         params.setDisableQualityFilter(Collections.emptyList());
@@ -100,7 +100,7 @@ public class DataQualityServiceTest {
 
         // given a profile name:
         dataQualityService.dataQualityEnabled = true;
-        params = new SearchRequestParams();
+        params = new SearchRequestDTO();
         params.setDisableAllQualityFilters(false);
         params.setQualityProfile("default");
         params.setDisableQualityFilter(Collections.emptyList());
@@ -121,7 +121,7 @@ public class DataQualityServiceTest {
         /// given disable all quality filters is set:
         ///
         dataQualityService.dataQualityEnabled = true;
-        SearchRequestParams params = new SearchRequestParams();
+        SearchRequestDTO params = new SearchRequestDTO();
         params.setDisableAllQualityFilters(true);
         params.setQualityProfile("profile");
         params.setDisableQualityFilter(Collections.emptyList());
@@ -138,7 +138,7 @@ public class DataQualityServiceTest {
         /// given a profile is provided and some filters are disabled:
         ///
         dataQualityService.dataQualityEnabled = true;
-        SearchRequestParams params = new SearchRequestParams();
+        SearchRequestDTO params = new SearchRequestDTO();
         params.setDisableAllQualityFilters(false);
         params.setQualityProfile("profile");
         params.setDisableQualityFilter(newArrayList("first"));
@@ -352,7 +352,7 @@ public class DataQualityServiceTest {
         when(qualityServiceRpcApi.getEnabledFiltersByLabel("profile")).then((invocation) -> response(responseValue));
 
         // given a request with disable all quality filters
-        SpatialSearchRequestParams ssrp = new SpatialSearchRequestParams();
+        SpatialSearchRequestDTO ssrp = new SpatialSearchRequestDTO();
         ssrp.setFq(new String[]{"a:b", "d:e"});
         ssrp.setDisableAllQualityFilters(true);
         ssrp.setQualityProfile("profile");
@@ -376,7 +376,7 @@ public class DataQualityServiceTest {
         when(qualityServiceRpcApi.getEnabledFiltersByLabel("profile")).then((invocation) -> response(responseValue));
 
         // given a request with a quality profile
-        SpatialSearchRequestParams ssrp = new SpatialSearchRequestParams();
+        SpatialSearchRequestDTO ssrp = new SpatialSearchRequestDTO();
         ssrp.setFq(new String[]{"a:b", "d:e"});
         ssrp.setDisableAllQualityFilters(false);
         ssrp.setQualityProfile("profile");
@@ -400,7 +400,7 @@ public class DataQualityServiceTest {
         when(qualityServiceRpcApi.getEnabledFiltersByLabel("profile")).then((invocation) -> response(responseValue));
 
         // given a request with a quality profile and some disabled filters
-        SpatialSearchRequestParams ssrp = new SpatialSearchRequestParams();
+        SpatialSearchRequestDTO ssrp = new SpatialSearchRequestDTO();
         ssrp.setFq(new String[]{ "a:b", "d:e" });
         ssrp.setDisableAllQualityFilters(false);
         ssrp.setQualityProfile("profile");
@@ -416,7 +416,7 @@ public class DataQualityServiceTest {
     @Test
     public void testGenerateCombinedFqsWithDqDisabled() {
         dataQualityService.dataQualityEnabled = false;
-        SpatialSearchRequestParams ssrp = new SpatialSearchRequestParams();
+        SpatialSearchRequestDTO ssrp = new SpatialSearchRequestDTO();
         ssrp.setFq(new String[]{ "a:b", "d:e" });
         ssrp.setQualityProfile("profile");
 

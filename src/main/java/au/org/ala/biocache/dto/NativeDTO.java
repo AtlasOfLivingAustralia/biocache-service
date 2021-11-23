@@ -14,12 +14,15 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * DTO for the native information about a species.
  * This class has been renamed from AustralianDTO.
  *  
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
+@Schema(name = "Native")
 public class NativeDTO {
 	
     /** Indicates that the supplied taxon guid is on the National Species List*/

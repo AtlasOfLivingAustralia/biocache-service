@@ -4,7 +4,7 @@ import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.FacetResultDTO;
 import au.org.ala.biocache.dto.FieldResultDTO;
 import au.org.ala.biocache.dto.SearchResultDTO;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.io.Tuple;
@@ -30,7 +30,7 @@ public class ProcessFacet implements ProcessInterface {
     private final static Logger logger = Logger.getLogger(ProcessFacet.class);
 
     SearchResultDTO searchResult;
-    SpatialSearchRequestParams requestParams;
+    SpatialSearchRequestDTO requestParams;
     SearchDAOImpl searchDao;
     AbstractMessageSource messageSource;
 
@@ -39,7 +39,7 @@ public class ProcessFacet implements ProcessInterface {
     String facetName = null;
     private List<FieldResultDTO> currentFieldList;
 
-    public ProcessFacet(SearchResultDTO searchResult, SpatialSearchRequestParams requestParams,
+    public ProcessFacet(SearchResultDTO searchResult, SpatialSearchRequestDTO requestParams,
                         SearchDAOImpl searchDao) {
         this.requestParams = requestParams;
         this.searchResult = searchResult;

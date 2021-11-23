@@ -2,7 +2,7 @@ package au.org.ala.biocache.dao;
 
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
-import au.org.ala.biocache.dto.DownloadRequestParams;
+import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.biocache.dto.FacetThemes;
 import org.junit.After;
 import org.junit.Before;
@@ -54,8 +54,8 @@ public class PersistentQueueDAOTest {
         queueDAO.shutdown();
     }
 
-    private DownloadRequestParams getParams(String query){
-        DownloadRequestParams d = new DownloadRequestParams();
+    private DownloadRequestDTO getParams(String query){
+        DownloadRequestDTO d = new DownloadRequestDTO();
         d.setQ(query);
         d.setFile("Testing");
         d.setEmail("natasha.carter@csiro.au");

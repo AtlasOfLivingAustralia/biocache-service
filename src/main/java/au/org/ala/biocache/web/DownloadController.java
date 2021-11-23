@@ -17,10 +17,10 @@ package au.org.ala.biocache.web;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
+import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
-import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,7 +31,9 @@ import net.sf.json.util.PropertyFilter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.solr.common.SolrDocumentList;
+import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -84,7 +86,10 @@ public class DownloadController extends AbstractSecureController {
      * @return
      */
     @Operation(summary = "Retrieves all the downloads that are on the queue", tags = "Monitoring")
-    @RequestMapping(value = { "occurrences/offline/download/stats", "occurrences/offline/download/stats.json" }, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "occurrences/offline/download/stats"
+//            , "occurrences/offline/download/stats.json"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     List getCurrentDownloads(
             HttpServletResponse response,
@@ -122,10 +127,13 @@ public class DownloadController extends AbstractSecureController {
      * @throws Exception
      */
     @Hidden
-    @RequestMapping(value = { "occurrences/offline/{type}/download*", "occurrences/offline/{type}/download.json*" } , method = {RequestMethod.GET, RequestMethod.POST})
+    @RequestMapping(value = {
+            "occurrences/offline/{type}/download*"
+//            , "occurrences/offline/{type}/download.json*"
+    } , method = {RequestMethod.GET, RequestMethod.POST}, produces = MediaType.APPLICATION_JSON_VALUE)
     @ApiParam(value = "type", required = true)
     public @ResponseBody Object occurrenceDownload(
-            DownloadRequestParams requestParams,
+            @ParameterObject DownloadRequestParams requestParams,
             @RequestParam(value = "ip", required = false) String ip,
             @RequestParam(value = "apiKey", required = false) String apiKey,
             @RequestParam(value = "email", required = true) String email,
@@ -133,7 +141,8 @@ public class DownloadController extends AbstractSecureController {
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
 
-        return download(requestParams, ip, getUserAgent(request), apiKey, email, response, request, DownloadDetailsDTO.DownloadType.RECORDS_INDEX);
+        DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(requestParams);
+        return download(downloadRequestDTO, ip, getUserAgent(request), apiKey, email, response, request, DownloadDetailsDTO.DownloadType.RECORDS_INDEX);
     }
 
     /**
@@ -147,20 +156,22 @@ public class DownloadController extends AbstractSecureController {
      * @throws Exception
      */
     @Hidden
-    @RequestMapping(value = { "occurrences/offline/download*", "occurrences/offline/download.json*" }, method = {RequestMethod.GET, RequestMethod.POST})
+    @RequestMapping(value = { "occurrences/offline/download*"
+//            , "occurrences/offline/download.json*"
+    }, method = {RequestMethod.GET, RequestMethod.POST})
     public @ResponseBody Object occurrenceDownload(
-            DownloadRequestParams requestParams,
+            @ParameterObject DownloadRequestParams requestParams,
             @RequestParam(value = "ip", required = false) String ip,
             @RequestParam(value = "apiKey", required = false) String apiKey,
             @RequestParam(value = "email", required = true) String email,
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
 
-        return download(requestParams, ip, getUserAgent(request), apiKey, email, response, request, DownloadDetailsDTO.DownloadType.RECORDS_INDEX);
-
+        DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(requestParams);
+        return download(downloadRequestDTO, ip, getUserAgent(request), apiKey, email, response, request, DownloadDetailsDTO.DownloadType.RECORDS_INDEX);
     }
 
-    private Object download(DownloadRequestParams requestParams, String ip, String userAgent, String apiKey, String email,
+    private Object download(DownloadRequestDTO requestParams, String ip, String userAgent, String apiKey, String email,
                             HttpServletResponse response, HttpServletRequest request,
                             DownloadDetailsDTO.DownloadType downloadType) throws Exception {
 
@@ -266,7 +277,10 @@ public class DownloadController extends AbstractSecureController {
     }
 
     @Operation(summary = "List all occurrence downloads", tags = "Monitoring")
-    @RequestMapping(value = { "occurrences/offline/status", "occurrences/offline/status.json" }, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "occurrences/offline/status"
+//            , "occurrences/offline/status.json"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody Object allOccurrenceDownloadStatus() throws Exception {
 
         List<Map<String, Object>> allStatus = new ArrayList<Map<String, Object>>();
@@ -337,7 +351,9 @@ public class DownloadController extends AbstractSecureController {
     }
 
     @Operation(summary = "Get the status of download", tags = "Monitoring")
-    @RequestMapping(value = { "occurrences/offline/status/{id}", "occurrences/offline/status/{id}.json" }, method = RequestMethod.GET)
+    @RequestMapping(value = { "occurrences/offline/status/{id}"
+//            , "occurrences/offline/status/{id}.json"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ApiParam(value = "id", required = true)
     public @ResponseBody Object occurrenceDownloadStatus(@PathVariable("id") String id) throws Exception {
 
@@ -417,7 +433,10 @@ public class DownloadController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "Cancel an offline download", tags = "Monitoring")
-    @RequestMapping(value = { "occurrences/offline/cancel/{id}", "occurrences/offline/cancel/{id}.json" }, method = RequestMethod.GET)
+    @RequestMapping(value = {
+            "occurrences/offline/cancel/{id}"
+//            , "occurrences/offline/cancel/{id}.json"
+    }, method = RequestMethod.GET)
     @ApiParam(value = "id", required = true)
     public @ResponseBody Object occurrenceDownloadCancel(
             @PathVariable("id") String id,

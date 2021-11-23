@@ -15,7 +15,7 @@
 package au.org.ala.biocache.util;
 
 import au.org.ala.biocache.dto.DownloadHeaders;
-import au.org.ala.biocache.dto.DownloadRequestParams;
+import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.service.LayersService;
 import au.org.ala.biocache.service.ListsService;
@@ -126,7 +126,7 @@ public class DownloadFields {
         }
     }
 
-    public DownloadHeaders newDownloadHeader(DownloadRequestParams downloadParams) {
+    public DownloadHeaders newDownloadHeader(DownloadRequestDTO downloadParams) {
         updateLayerNames();
 
         boolean dwcHeaders = downloadParams.getDwcHeaders();

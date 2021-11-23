@@ -1,9 +1,11 @@
 package au.org.ala.biocache.dto;
 
 import au.org.ala.biocache.util.LegendItem;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 
+@Schema(name = "HeatMap")
 public class HeatmapDTO {
 
     public final Integer gridLevel;

@@ -106,7 +106,7 @@ public class QueryFormatUtils {
         this.maxBooleanClauses = maxBooleanClauses;
     }
 
-    public Map[] formatSearchQuery(SpatialSearchRequestParams searchParams) throws QidMissingException {
+    public Map[] formatSearchQuery(SpatialSearchRequestDTO searchParams) throws QidMissingException {
         return formatSearchQuery(searchParams, false);
     }
 
@@ -120,7 +120,7 @@ public class QueryFormatUtils {
      * @return
      */
 //    @Cacheable(cacheName = "formatSearchQuery")
-    public Map[] formatSearchQuery(SpatialSearchRequestParams searchParams, boolean forceQueryFormat) throws QidMissingException{
+    public Map[] formatSearchQuery(SpatialSearchRequestDTO searchParams, boolean forceQueryFormat) throws QidMissingException{
         Map<String, Facet> activeFacetMap = new HashMap();
         Map<String, List<Facet>> activeFacetObj = new HashMap<>();
         Map[] fqMaps = {activeFacetMap, activeFacetObj};
@@ -234,7 +234,7 @@ public class QueryFormatUtils {
         return null;
     }
 
-    public void addFqs(String [] fqs, SpatialSearchRequestParams searchParams) {
+    public void addFqs(String [] fqs, SpatialSearchRequestDTO searchParams) {
         if (fqs != null && searchParams != null) {
             String[] currentFqs = searchParams.getFq();
             if (currentFqs == null || currentFqs.length == 0 || (currentFqs.length == 1 && currentFqs[0].length() == 0)) {
@@ -245,7 +245,7 @@ public class QueryFormatUtils {
             }
         }
     }
-    private void addFormattedFq(String [] fqs, SearchRequestParams searchParams) {
+    private void addFormattedFq(String [] fqs, SearchRequestDTO searchParams) {
         if (fqs != null && searchParams != null) {
             String[] currentFqs = searchParams.getFormattedFq();
             if (currentFqs == null || currentFqs.length == 0 || (currentFqs.length == 1 && currentFqs[0].length() == 0)) {
@@ -266,7 +266,7 @@ public class QueryFormatUtils {
      * @param searchParams
      * @return
      */
-    private String [] formatQid(String query, SpatialSearchRequestParams searchParams) throws QidMissingException{
+    private String [] formatQid(String query, SpatialSearchRequestDTO searchParams) throws QidMissingException{
         String q = query;
         String displayString = query;
         if (query != null && query.contains("qid:")) {
@@ -682,7 +682,7 @@ public class QueryFormatUtils {
             Matcher matcher = spatialPattern.matcher(current[1]);
             if (matcher.find()) {
                 String spatial = matcher.group();
-                SpatialSearchRequestParams subQuery = new SpatialSearchRequestParams();
+                SpatialSearchRequestDTO subQuery = new SpatialSearchRequestDTO();
                 if (logger.isDebugEnabled()) {
                     logger.debug("region Start : " + matcher.regionStart() + " start :  " + matcher.start() + " spatial length " + spatial.length() + " query length " + current[1].length());
                 }
@@ -731,7 +731,7 @@ public class QueryFormatUtils {
      * @param current String [] { displayString, formattedQuery } to update.
      * @param searchParams The search parameters
      */
-    private void formatGeneral(String [] current, SpatialSearchRequestParams searchParams) {
+    private void formatGeneral(String [] current, SpatialSearchRequestDTO searchParams) {
         if(current == null || current.length < 2 || current[1] == null){
             return;
         }
@@ -801,7 +801,7 @@ public class QueryFormatUtils {
      * @param searchParams The search parameters.
      * @return String [] { displayString, formattedQuery }
      */
-    public String [] formatQueryTerm(String query, SpatialSearchRequestParams searchParams) throws QidMissingException {
+    public String [] formatQueryTerm(String query, SpatialSearchRequestDTO searchParams) throws QidMissingException {
 
         String tQuery = fieldMappingUtil.translateQueryFields(query);
         String [] formatted = formatQid(tQuery, searchParams);
@@ -1037,7 +1037,7 @@ public class QueryFormatUtils {
         return sb.toString();
     }
 
-    protected void updateQueryContext(SearchRequestParams searchParams) {
+    protected void updateQueryContext(SearchRequestDTO searchParams) {
         //TODO better method of getting the mappings between qc on solr fields names
         String qc = searchParams.getQc();
         if (StringUtils.isNotEmpty(qc)) {
@@ -1060,7 +1060,7 @@ public class QueryFormatUtils {
         return new String[]{};
     }
 
-    protected void updateQualityProfileContext(SearchRequestParams searchParams) {
+    protected void updateQualityProfileContext(SearchRequestDTO searchParams) {
         Map<String, String> enabledFiltersByLabel = dataQualityService.getEnabledFiltersByLabel(searchParams);
         String[] enabledFilters = enabledFiltersByLabel.values().toArray(new String[0]);
         addFormattedFq(enabledFilters, searchParams);
@@ -1108,7 +1108,7 @@ public class QueryFormatUtils {
         return query.toString();
     }
 
-    public String buildSpatialQueryString(SpatialSearchRequestParams searchParams) {
+    public String buildSpatialQueryString(SpatialSearchRequestDTO searchParams) {
         if (searchParams != null) {
             StringBuilder sb = new StringBuilder();
             if (searchParams.getLat() != null) {
