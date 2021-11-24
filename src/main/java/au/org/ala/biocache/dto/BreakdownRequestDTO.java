@@ -10,7 +10,7 @@ import org.springframework.beans.BeanUtils;
  * 
  * @author Natasha Carter
  */
-@Schema(name = "Breakdown parameters")
+@Schema(name = "BreakdownRequest")
 public class BreakdownRequestDTO extends SpatialSearchRequestDTO {
 
     protected String rank = null;

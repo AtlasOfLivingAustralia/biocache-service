@@ -132,7 +132,7 @@ public class DownloadController extends AbstractSecureController {
 //            , "occurrences/offline/{type}/download.json*"
     } , method = {RequestMethod.GET, RequestMethod.POST}, produces = MediaType.APPLICATION_JSON_VALUE)
     @ApiParam(value = "type", required = true)
-    public @ResponseBody Object occurrenceDownload(
+    public @ResponseBody Map<String, Object> occurrenceDownload(
             @ParameterObject DownloadRequestParams requestParams,
             @RequestParam(value = "ip", required = false) String ip,
             @RequestParam(value = "apiKey", required = false) String apiKey,
@@ -171,7 +171,7 @@ public class DownloadController extends AbstractSecureController {
         return download(downloadRequestDTO, ip, getUserAgent(request), apiKey, email, response, request, DownloadDetailsDTO.DownloadType.RECORDS_INDEX);
     }
 
-    private Object download(DownloadRequestDTO requestParams, String ip, String userAgent, String apiKey, String email,
+    private Map<String, Object> download(DownloadRequestDTO requestParams, String ip, String userAgent, String apiKey, String email,
                             HttpServletResponse response, HttpServletRequest request,
                             DownloadDetailsDTO.DownloadType downloadType) throws Exception {
 

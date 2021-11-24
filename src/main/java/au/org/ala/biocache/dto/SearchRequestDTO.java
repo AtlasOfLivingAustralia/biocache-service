@@ -62,13 +62,13 @@ public class SearchRequestDTO {
      */
     protected Integer flimit = 30;
     /** The sort order in which to return the facets.  Either count or index.  When empty string the default values are used as defined in the Theme based facets */
-    protected String fsort="";
+    protected String fsort = "";
     /** The offset of facets to return.  Used in conjunction to flimit */
     protected Integer foffset = 0;
     /** The prefix to limit facet values*/
-    protected String fprefix ="";
+    protected String fprefix = "";
     protected Integer pageSize = 10;
-    protected String sort = "score";
+    protected String sort = "";
     protected String dir = "asc";
     private String displayString;
 

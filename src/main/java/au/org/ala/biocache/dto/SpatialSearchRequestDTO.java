@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.apache.commons.lang.ArrayUtils;
 import org.springframework.beans.BeanUtils;
 
@@ -25,6 +26,7 @@ import java.util.Arrays;
  *
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
+@Schema(name="SpatialSearchRequest")
 public class SpatialSearchRequestDTO extends SearchRequestDTO {
 
     @Deprecated

@@ -526,15 +526,11 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = {
 //            "index/maxBooleanClauses.json",
             "index/maxBooleanClauses"
-    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody
-    Map getIndexedFields() throws Exception {
-
+    }, method = RequestMethod.GET)
+    public @ResponseBody Map getIndexedFields(){
         int m = searchDAO.getMaxBooleanClauses();
-
         Map map = new HashMap();
         map.put("maxBooleanClauses", m);
-
         return map;
     }
 
@@ -919,7 +915,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "Downloads the complete list of values in the supplied facet", tags="Download")
-    @RequestMapping(value = "/occurrences/facets/download*", method = RequestMethod.GET, produces = "text/csv")
+    @RequestMapping(value = "/occurrences/facets/download", method = RequestMethod.GET, produces = "text/csv")
     public void downloadFacet(
             @ParameterObject DownloadRequestParams downloadParams,
             @RequestParam(value = "count", required = false, defaultValue = "false") boolean includeCount,
@@ -1167,7 +1163,7 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = { "/occurrences/taxaCount"},
             method = {RequestMethod.POST, RequestMethod.GET}, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody Map<String, Integer> occurrenceSpeciesCounts(
-            @RequestParam String listOfGuids,
+            @RequestParam(name="guids") String listOfGuids,
             @RequestParam(value = "fq", required = false) String[] filterQueries,
             @RequestParam(defaultValue = "\n") String separator,
             HttpServletResponse response
@@ -1205,8 +1201,8 @@ public class OccurrenceController extends AbstractSecureController {
     @Operation(summary = "Download occurrence service", tags = "Download")
     @GetMapping(value = "/occurrences/download")
     public void occurrenceDownload(@ParameterObject DownloadRequestParams downloadParams,
-                                   @RequestParam String apiKey,
-                                   @RequestParam Boolean zip,
+                                   @RequestParam(required = false) String apiKey,
+                                   @RequestParam(required = false, defaultValue = "true") Boolean zip,
                                    BindingResult result,
                                    Model model,
                                    HttpServletResponse response,
@@ -1559,6 +1555,7 @@ public class OccurrenceController extends AbstractSecureController {
         idRequest.setQ(OccurrenceIndex.ID + ":\"" + uuid + "\"");
         idRequest.setFacet(false);
         idRequest.setFl("*");
+        idRequest.setPageSize(1);
 
         SolrDocumentList sdl = searchDAO.findByFulltext(idRequest);
         if (sdl == null || sdl.isEmpty()) {

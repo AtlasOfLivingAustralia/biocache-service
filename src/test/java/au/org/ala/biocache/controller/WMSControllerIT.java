@@ -63,7 +63,7 @@ public class WMSControllerIT {
     @Test
     public void testWMS() throws Exception {
         String acceptType = "image/png";
-        String url = "/webportal/wms/reflect";
+        String url = "/mapping/wms/reflect";
 
         try {
             // smaller blue circles
@@ -138,7 +138,7 @@ public class WMSControllerIT {
     @Test
     public void testWMSSel() throws Exception {
         String acceptType = "image/png";
-        String url = "/webportal/wms/reflect";
+        String url = "/mapping/wms/reflect";
 
         try {
             // with selection on all points, blue

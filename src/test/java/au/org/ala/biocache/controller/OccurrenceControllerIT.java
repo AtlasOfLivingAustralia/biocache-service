@@ -164,12 +164,9 @@ public class OccurrenceControllerIT extends TestCase {
     @Test
     public void taxaCountTest() throws Exception {
 
-        //FIXME
         MvcResult result = this.mockMvc.perform(post("/occurrences/taxaCount")
                 .param("guids", "urn:lsid:biodiversity.org.au:afd.taxon:75801261-975f-436f-b1c7-d395a06dc067")
                 .contentType(MediaType.APPLICATION_JSON)).andReturn();
-
-        System.out.println("TAXACOUNT:" + result.getResponse().getContentAsString());
 
         this.mockMvc.perform(post("/occurrences/taxaCount")
                 .param("guids", "urn:lsid:biodiversity.org.au:afd.taxon:75801261-975f-436f-b1c7-d395a06dc067")
@@ -180,7 +177,7 @@ public class OccurrenceControllerIT extends TestCase {
     @Test
     public void downloadTest() throws Exception {
 
-        this.mockMvc.perform(get("/occurrences/download*")
+        this.mockMvc.perform(get("/occurrences/download")
                 .header("user-agent", "test User-Agent")
                 .param("reasonTypeId", "10"))
                 .andExpect(status().isOk())
@@ -196,7 +193,7 @@ public class OccurrenceControllerIT extends TestCase {
     @Test
     public void downloadValidEmailTest() throws Exception {
 
-        this.mockMvc.perform(get("/occurrences/download*")
+        this.mockMvc.perform(get("/occurrences/download")
                 .header("user-agent", "test User-Agent")
                 .param("reasonTypeId", "10")
                 .param("email", "test@test.com"))
@@ -210,154 +207,18 @@ public class OccurrenceControllerIT extends TestCase {
         // need to set rate limit count to 0 to cause failure on first attempt
         ReflectionTestUtils.setField(occurrenceController, "rateLimitCount", 0);
 
-        this.mockMvc.perform(get("/occurrences/download*")
+        this.mockMvc.perform(get("/occurrences/download")
                 .param("reasonTypeId", "10")
                 .param("email", ""))
                 .andExpect(status().is(HttpServletResponse.SC_FORBIDDEN));
 
-        this.mockMvc.perform(get("/occurrences/download*")
+        this.mockMvc.perform(get("/occurrences/download")
                 .param("reasonTypeId", "10"))
                 .andExpect(status().is(HttpServletResponse.SC_FORBIDDEN));
 
-        this.mockMvc.perform(get("/occurrences/download*")
+        this.mockMvc.perform(get("/occurrences/download")
                 .param("reasonTypeId", "10")
                 .param("email", "test"))
                 .andExpect(status().is(HttpServletResponse.SC_FORBIDDEN));
-    }
-
-    private Object backupSearchDAO() {
-        Object searchDAOOrig = ReflectionTestUtils.getField(occurrenceController, "searchDAO");
-        ReflectionTestUtils.setField(occurrenceController, "searchDAO", searchDAO);
-        return searchDAOOrig;
-    }
-
-    private void restoreSearchDAO(Object object) {
-        ReflectionTestUtils.setField(occurrenceController, "searchDAO", object);
-    }
-
-    // Accept */* -> REST controller -> returns json when succeed
-    // Accept application/json -> REST controller -> returns json when succeed
-    @Test
-    public void testRESTControllerCompatibleFormat() throws Exception {
-        Object searchDAOOrig = backupSearchDAO();
-        when(this.searchDAO.getMaxBooleanClauses()).thenReturn((int) 1234);
-        String[] acceptTypes = new String[]{
-                "application/json",
-                "*/*"};
-        for (String type : acceptTypes) {
-            MvcResult mvcResult = this.mockMvc.perform(get("/index/maxBooleanClauses").header("Accept", type))
-                    .andExpect(status().is(HttpServletResponse.SC_OK))
-                    .andExpect(jsonPath("maxBooleanClauses").value(1234))
-                    .andReturn();
-
-            assert (mvcResult.getResponse().getContentType().contains(MediaType.APPLICATION_JSON_VALUE));
-        }
-        restoreSearchDAO(searchDAOOrig);
-    }
-
-    // Accept text/html -> REST controller -> returns 406 Not Acceptable (not compatible header), contentType = text/html
-    @Test
-    public void testRESTControllerNONCompatibleFormat() throws Exception {
-        Object searchDAOOrig = backupSearchDAO();
-        when(searchDAO.getMaxBooleanClauses()).thenReturn((int) 1234);
-        String[] acceptTypes = new String[]{
-                "text/plain",
-                "text/html, text/plain"};
-        for (String type : acceptTypes) {
-            this.mockMvc.perform(get("/index/maxBooleanClauses").header("Accept", type))
-                    .andExpect(status().is(HttpServletResponse.SC_NOT_ACCEPTABLE));
-
-            // no content type set so we can't test it
-            //assert(mvnResult.getResponse().getContentType().contains(MediaType.TEXT_HTML_VALUE));
-        }
-        restoreSearchDAO(searchDAOOrig);
-    }
-
-    private void validateErrorPageReturned() throws Exception {
-        Object searchDAOOrig = backupSearchDAO();
-        String[] acceptTypes = new String[]{
-                "*/*",
-                "text/html"
-        };
-
-        for (String type : acceptTypes) {
-            MvcResult mvcResult = this.mockMvc.perform(get("/index/maxBooleanClauses").header("Accept", type))
-                    .andExpect(status().is(HttpServletResponse.SC_INTERNAL_SERVER_ERROR)).andReturn();
-            assert (mvcResult.getResponse().getForwardedUrl().equals("/WEB-INF/jsp/error/dataAccessFailure.jsp"));
-        }
-        restoreSearchDAO(searchDAOOrig);
-    }
-
-    // Accept */*       -> REST controller -> returns error page in case of an DataAccessException thrown
-    // Accept text/html -> REST controller -> returns error page in case of an DataAccessException thrown
-    @Test
-    public void testRESTControllerHTMLFormatDataAccessException() throws Exception {
-        Object searchDAOOrig = backupSearchDAO();
-        when(searchDAO.getMaxBooleanClauses()).thenThrow(new QueryTimeoutException("test-QueryTimeoutException"));
-        validateErrorPageReturned();
-        restoreSearchDAO(searchDAOOrig);
-    }
-
-    // Accept */*       -> REST controller -> returns error page in case of an TransactionException thrown
-    // Accept text/html -> REST controller -> returns error page in case of an TransactionException thrown
-    @Test
-    public void testRESTControllerHTMLFormatTransactionException() throws Exception {
-        Object searchDAOOrig = backupSearchDAO();
-        when(searchDAO.getMaxBooleanClauses()).thenThrow(new TransactionTimedOutException("test-TransactionTimedOutException"));
-        validateErrorPageReturned();
-        restoreSearchDAO(searchDAOOrig);
-    }
-
-    private void validateJSONErrorReturned(int expectedError) throws Exception {
-        Object searchDAOOrig = backupSearchDAO();
-        String[] acceptTypes = new String[]{
-                "application/json"
-        };
-
-        for (String type : acceptTypes) {
-            MvcResult mvcResult = this.mockMvc.perform(get("/index/maxBooleanClauses").header("Accept", type))
-                    .andExpect(status().is(expectedError))
-                    .andExpect(jsonPath("message").exists())
-                    .andExpect(jsonPath("errorType").exists()).andReturn();
-
-            assert (mvcResult.getResponse().getContentType().contains(MediaType.APPLICATION_JSON_VALUE));
-        }
-        restoreSearchDAO(searchDAOOrig);
-    }
-
-    // Accept application/json -> REST controller -> returns JSON with status 500 in case of an DataAccessException thrown
-    @Test
-    public void testRESTControllerJSONFormatDataAccessException() throws Exception {
-        Object searchDAOOrig = backupSearchDAO();
-        when(searchDAO.getMaxBooleanClauses()).thenThrow(new QueryTimeoutException("test-QueryTimeoutException"));
-        validateJSONErrorReturned(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        restoreSearchDAO(searchDAOOrig);
-    }
-
-    // Accept application/json -> REST controller -> returns JSON with status 500 in case of an TransactionException thrown
-    @Test
-    public void testRESTControllerJSONFormatTransactionException() throws Exception {
-        Object searchDAOOrig = backupSearchDAO();
-        when(searchDAO.getMaxBooleanClauses()).thenThrow(new TransactionTimedOutException("test-TransactionTimedOutException"));
-        validateJSONErrorReturned(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        restoreSearchDAO(searchDAOOrig);
-    }
-
-    // Accept application/json -> REST controller -> returns JSON with status 400 in case of an SolrException (bad request) thrown
-    @Test
-    public void testRESTControllerJSONFormatSolrException400() throws Exception {
-        Object searchDAOOrig = backupSearchDAO();
-        when(searchDAO.getMaxBooleanClauses()).thenThrow(new SolrException(BAD_REQUEST, "test-SolrException"));
-        validateJSONErrorReturned(HttpServletResponse.SC_BAD_REQUEST);
-        restoreSearchDAO(searchDAOOrig);
-    }
-
-    // Accept application/json -> REST controller -> returns JSON with status 400 in case of an SolrException (bad request) thrown
-    @Test
-    public void testRESTControllerJSONFormatSolrException403() throws Exception {
-        Object searchDAOOrig = backupSearchDAO();
-        when(searchDAO.getMaxBooleanClauses()).thenThrow(new SolrException(FORBIDDEN, "test-SolrException"));
-        validateJSONErrorReturned(HttpServletResponse.SC_FORBIDDEN);
-        restoreSearchDAO(searchDAOOrig);
     }
 }

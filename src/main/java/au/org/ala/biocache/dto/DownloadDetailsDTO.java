@@ -15,6 +15,7 @@
 package au.org.ala.biocache.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
@@ -29,6 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * 
  * @author Natasha Carter
  */
+@Schema(name = "DownloadDetails")
 public class DownloadDetailsDTO {
 
     private DownloadType downloadType;

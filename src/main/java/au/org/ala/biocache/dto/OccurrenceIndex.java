@@ -76,7 +76,7 @@ public class OccurrenceIndex {
     final static public String INSTITUTION_UID = "institutionUid";
     final static public String DATA_PROVIDER_UID = "dataProviderUid";
     final static public String DATA_RESOURCE_UID = "dataResourceUid";
-    final static public String SPECIES_HABITATS = "speciesHabitats";
+    final static public String BIOME = "biome";
     final public static String LOCALITY = "locality";
 
     @Field("id")

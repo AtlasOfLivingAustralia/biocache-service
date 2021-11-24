@@ -19,6 +19,7 @@ import au.org.ala.biocache.service.DoiService;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.validate.LogType;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.apache.log4j.Logger;
 import org.springframework.beans.BeanUtils;
 
@@ -36,6 +37,7 @@ import java.util.Map;
  *
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
+@Schema(name="DownloadRequest")
 public class DownloadRequestDTO extends SpatialSearchRequestDTO {
 
     public final static List<String> validTemplates = Arrays.asList(DownloadService.DEFAULT_SELECTOR, DownloadService.DOI_SELECTOR, DownloadService.CSDM_SELECTOR);
