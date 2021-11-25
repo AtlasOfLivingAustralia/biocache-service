@@ -31,6 +31,10 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.swagger.annotations.*;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import net.sf.json.JSONArray;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
@@ -90,6 +94,7 @@ import static au.org.ala.biocache.dto.OccurrenceIndex.*;
  */
 @Controller(value = "Occurrence")
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@SecurityScheme(name = "JWT", type = SecuritySchemeType.HTTP, scheme = "bearer", bearerFormat= "JWT")
 public class OccurrenceController extends AbstractSecureController {
 
     /** Logger initialisation*/
@@ -499,11 +504,11 @@ public class OccurrenceController extends AbstractSecureController {
             "index/version"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
-    Map getIndexedFields(@RequestParam(value = "apiKey", required = false) String apiKey,
-                         @RequestParam(value = "force", required = false, defaultValue = "false") Boolean force,
+    Map getIndexedFields(@RequestParam(value = "force", required = false, defaultValue = "false") Boolean force,
+                         HttpServletRequest request,
                          HttpServletResponse response) throws Exception {
         Long version;
-        if (force && shouldPerformOperation(apiKey, response)) {
+        if (force && shouldPerformOperation(request, response)) {
             version = indexDao.getIndexVersion(force);
         } else {
             version = indexDao.getIndexVersion(false);
@@ -837,7 +842,7 @@ public class OccurrenceController extends AbstractSecureController {
          if (apiKey == null) {
              srtdto = searchDAO.findByFulltextSpatialQuery(dto, false, map);
          } else {
-             srtdto = occurrenceSearchSensitive(dto, apiKey, request, response);
+             srtdto = occurrenceSearchSensitive(dto, request, response);
          }
 
          if (srtdto.getTotalRecords() > 0 && lookupImageMetadata) {
@@ -859,11 +864,10 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     private SearchResultDTO occurrenceSearchSensitive(SpatialSearchRequestDTO requestParams,
-                                              String apiKey,
                                               HttpServletRequest request,
                                               HttpServletResponse response) throws Exception {
         // handle empty param values, e.g. &sort=&dir=
-        if (shouldPerformOperation(apiKey, response, false)) {
+        if (shouldPerformOperation(request, response)) {
             SearchUtils.setDefaultParams(requestParams);
             Map<String, String[]> map = SearchUtils.getExtraParams(request.getParameterMap());
             if (map != null) {
@@ -1197,7 +1201,13 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @Operation(summary = "Download occurrence service", tags = "Download")
+    @SecurityRequirement(name = "JWT")
+
+    @Operation(
+            summary = "Download occurrence service",
+            tags = "Download",
+            security =  @SecurityRequirement(name = "JWT")
+    )
     @GetMapping(value = "/occurrences/download")
     public void occurrenceDownload(@ParameterObject DownloadRequestParams downloadParams,
                                    @RequestParam(required = false) String apiKey,
@@ -1262,7 +1272,7 @@ public class OccurrenceController extends AbstractSecureController {
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
 
-        if (shouldPerformOperation(apiKey, response, false)) {
+        if (shouldPerformOperation(request, response)) {
 
             //search params must have a query or formatted query for the downlaod to work
             if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
@@ -1515,7 +1525,7 @@ public class OccurrenceController extends AbstractSecureController {
                           HttpServletRequest request, HttpServletResponse response) throws Exception {
         Object responseObject;
         if (apiKey != null) {
-            responseObject = showSensitiveOccurrence(uuid, apiKey, im, request, response);
+            responseObject = showSensitiveOccurrence(uuid, im, request, response);
         } else {
             responseObject = getOccurrenceInformation(uuid, im, request, false);
         }
@@ -1535,10 +1545,9 @@ public class OccurrenceController extends AbstractSecureController {
     @ApiParam(value = "uuid", required = true)
     public @ResponseBody
     Object showSensitiveOccurrence(@PathVariable("uuid") String uuid,
-                                   @RequestParam(value = "apiKey", required = true) String apiKey,
-                                   @RequestParam(value = "im", required = false) String im,
+                                   @Parameter(description = "Include image metadata") @RequestParam(value = "im", required = false) String im,
                                    HttpServletRequest request, HttpServletResponse response) throws Exception {
-        if (shouldPerformOperation(apiKey, response)) {
+        if (shouldPerformOperation(request, response)) {
             return getOccurrenceInformation(uuid, im, request, true);
         }
         return null;
@@ -2472,9 +2481,9 @@ public class OccurrenceController extends AbstractSecureController {
     public
     @ResponseBody
     List<FacetPivotResultDTO> searchPivot(SpatialSearchRequestDTO searchParams,
-                                          @RequestParam(value = "apiKey", required = true) String apiKey,
+                                          HttpServletRequest request,
                                           HttpServletResponse response) throws Exception {
-        if (isValidKey(apiKey)) {
+        if (request.getUserPrincipal() != null) {
             return searchDAO.searchPivot(searchParams);
         }
 
@@ -2493,9 +2502,9 @@ public class OccurrenceController extends AbstractSecureController {
     public
     @ResponseBody
     List<String> listFacets(SpatialSearchRequestDTO searchParams,
-                            @RequestParam(value = "apiKey", required = true) String apiKey,
+                            HttpServletRequest request,
                             HttpServletResponse response) throws Exception {
-        if (isValidKey(apiKey)) {
+        if (request.getUserPrincipal() != null) {
             return searchDAO.listFacets(searchParams);
         }
 

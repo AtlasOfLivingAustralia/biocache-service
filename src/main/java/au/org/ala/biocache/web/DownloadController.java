@@ -92,10 +92,11 @@ public class DownloadController extends AbstractSecureController {
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     List getCurrentDownloads(
+            HttpServletRequest request,
             HttpServletResponse response,
             @RequestParam(value = "apiKey", required = true) String apiKey) throws Exception {
         if (apiKey != null) {
-            if (shouldPerformOperation(apiKey, response, false)) {
+            if (shouldPerformOperation(request, response)) {
                 JsonConfig config = new JsonConfig();
                 config.setJsonPropertyFilter(new PropertyFilter() {
                     @Override
@@ -218,7 +219,7 @@ public class DownloadController extends AbstractSecureController {
 
         boolean includeSensitive = false;
         if (apiKey != null) {
-            if (shouldPerformOperation(apiKey, response, false)) {
+            if (shouldPerformOperation(request, response)) {
                 includeSensitive = true;
             }
         }
@@ -440,10 +441,10 @@ public class DownloadController extends AbstractSecureController {
     @ApiParam(value = "id", required = true)
     public @ResponseBody Object occurrenceDownloadCancel(
             @PathVariable("id") String id,
-            HttpServletResponse response,
-            @RequestParam(value = "apiKey", required = true) String apiKey) throws Exception {
+            HttpServletRequest request,
+            HttpServletResponse response) throws Exception {
 
-        if (apiKey == null || !shouldPerformOperation(apiKey, response, false)) {
+        if (!shouldPerformOperation(request, response)) {
             return null;
         }
 
@@ -476,7 +477,7 @@ public class DownloadController extends AbstractSecureController {
      * @throws ParseException If the sensitiveAccessRoles configuration was not parseable
      */
     private String getSensitiveFq(HttpServletRequest request) {
-        if (!isValidKey(request.getHeader("apiKey"))) {
+        if (request.getUserPrincipal() == null) {
             return null;
         } else {
             String xAlaUserIdHeader = request.getHeader("X-ALA-userId");

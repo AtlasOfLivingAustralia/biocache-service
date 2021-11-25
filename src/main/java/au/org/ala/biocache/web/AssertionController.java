@@ -383,9 +383,9 @@ public class AssertionController extends AbstractSecureController {
 
     @Operation(summary = "Synchronise assertions into the index", tags = "Monitoring")
     @RequestMapping(value = {"/sync"}, method = RequestMethod.GET)
-    public @ResponseBody Boolean indexAll(@RequestParam(value="apiKey", required=true) String apiKey,
+    public @ResponseBody Boolean indexAll(HttpServletRequest request,
                                                         HttpServletResponse response) throws Exception {
-        if (isValidKey(apiKey)) {
+        if (request.getUserPrincipal() != null) {
             if (assertionService.indexAll()) {
                 response.setStatus(HttpServletResponse.SC_OK);
             } else {
@@ -399,9 +399,9 @@ public class AssertionController extends AbstractSecureController {
 
     @Operation(summary = "Monitoring the progress of synchronising assertions into the index", tags = "Monitoring")
     @RequestMapping(value = {"/sync/status"}, method = RequestMethod.GET)
-    public @ResponseBody String indexAllStatus(@RequestParam(value="apiKey", required=true) String apiKey,
+    public @ResponseBody String indexAllStatus(HttpServletRequest request,
                                                          HttpServletResponse response) throws Exception {
-        if (isValidKey(apiKey)) {
+        if (request.getUserPrincipal() != null) {
             return assertionService.isIndexAllRunning() ? "indexAll task is running" : "No task is running";
         } else {
             response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
