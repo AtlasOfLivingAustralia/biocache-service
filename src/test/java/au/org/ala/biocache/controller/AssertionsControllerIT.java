@@ -6,6 +6,7 @@ import au.org.ala.biocache.dto.UserAssertions;
 import au.org.ala.biocache.service.AssertionService;
 import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
+import au.org.ala.biocache.web.AlaWebServiceAuthFilter;
 import au.org.ala.biocache.web.AssertionController;
 import junit.framework.TestCase;
 import org.junit.Before;
@@ -53,6 +54,9 @@ public class AssertionsControllerIT extends TestCase {
 
     @Autowired
     AssertionController assertionController;
+
+    @Autowired
+    AlaWebServiceAuthFilter alaWebServiceAuthFilter;
 
     @Autowired
     FieldMappingUtil fieldMappingUtil;
@@ -117,7 +121,7 @@ public class AssertionsControllerIT extends TestCase {
 
     @Test
     public void testAddSingle() throws Exception {
-        ReflectionTestUtils.setField(assertionController, "apiKeyCheckedEnabled", false);
+        ReflectionTestUtils.setField(alaWebServiceAuthFilter, "legacyApiKeysEnabled", false);
 
         // add succeed
         when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
@@ -155,7 +159,7 @@ public class AssertionsControllerIT extends TestCase {
 
     @Test
     public void testDeleteSingle() throws Exception {
-        ReflectionTestUtils.setField(assertionController, "apiKeyCheckedEnabled", false);
+        ReflectionTestUtils.setField(alaWebServiceAuthFilter, "legacyApiKeysEnabled", false);
 
         // delete succeed
         when(assertionService.deleteAssertion(Mockito.any(), Mockito.any())).thenReturn(true);
@@ -234,7 +238,7 @@ public class AssertionsControllerIT extends TestCase {
 
     @Test
     public void testBulkAdd() throws Exception {
-        ReflectionTestUtils.setField(assertionController, "apiKeyCheckedEnabled", false);
+        ReflectionTestUtils.setField(alaWebServiceAuthFilter, "legacyApiKeysEnabled", false);
 
         when(assertionService.bulkAddAssertions(Mockito.any(), Mockito.any())).thenReturn(true);
         this.mockMvc.perform(post("/bulk/assertions/add")

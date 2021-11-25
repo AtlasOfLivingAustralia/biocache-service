@@ -892,7 +892,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @param includeSensitive
      */
     private void prepareRequestedFields(DownloadRequestDTO downloadParams, boolean includeSensitive) {
-        // process field abreviations, defaults
+        // process field abbreviations, defaults
         expandRequestedFields(downloadParams, true);
 
         // include sensitive versions of requested fields

@@ -52,7 +52,7 @@ import java.util.*;
 @Component
 @DependsOn("springSecurityFilterChain")
 @Slf4j
-class AlaWebServiceAuthFilter extends OncePerRequestFilter {
+public class AlaWebServiceAuthFilter extends OncePerRequestFilter {
 
     public static final String BEARER = "Bearer";
 

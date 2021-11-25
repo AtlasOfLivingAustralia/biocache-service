@@ -49,7 +49,7 @@ public class DeprecatedController {
                                               Model model,
                                               HttpServletResponse response,
                                               HttpServletRequest request) throws Exception {
-        occurrenceController.occurrenceDownload(requestParams, apiKey, zip, result, model, response, request);
+        occurrenceController.occurrenceDownload(requestParams, zip, result, model, response, request);
     }
 
     /**

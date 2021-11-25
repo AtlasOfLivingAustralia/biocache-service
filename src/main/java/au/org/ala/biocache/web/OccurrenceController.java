@@ -1210,7 +1210,6 @@ public class OccurrenceController extends AbstractSecureController {
     )
     @GetMapping(value = "/occurrences/download")
     public void occurrenceDownload(@ParameterObject DownloadRequestParams downloadParams,
-                                   @RequestParam(required = false) String apiKey,
                                    @RequestParam(required = false, defaultValue = "true") Boolean zip,
                                    BindingResult result,
                                    Model model,
@@ -1234,8 +1233,13 @@ public class OccurrenceController extends AbstractSecureController {
             }
         }
 
-        if (apiKey == null && !validEmail && rateLimitRequest(request, response)) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN, "API Key or email required");
+//        if (request.getUserPrincipal() == null) {
+//            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Supply a valid JWT or API key");
+//            return;
+//        }
+
+        if (!validEmail && rateLimitRequest(request, response)) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Valid email required");
             return;
         }
 
@@ -1245,8 +1249,8 @@ public class OccurrenceController extends AbstractSecureController {
             return;
         }
 
-        if (apiKey != null) {
-            occurrenceSensitiveDownload(downloadRequestDTO, apiKey, zip, response, request);
+        if (request.getUserPrincipal() != null) {
+            occurrenceSensitiveDownload(downloadRequestDTO, zip, response, request);
         } else {
             try {
                 ServletOutputStream out = response.getOutputStream();
@@ -1267,14 +1271,13 @@ public class OccurrenceController extends AbstractSecureController {
 
     private void occurrenceSensitiveDownload(
             DownloadRequestDTO requestParams,
-            String apiKey,
             boolean zip,
             HttpServletResponse response,
             HttpServletRequest request) throws Exception {
 
         if (shouldPerformOperation(request, response)) {
 
-            //search params must have a query or formatted query for the downlaod to work
+            //search params must have a query or formatted query for the download to work
             if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
                 return;
             }
