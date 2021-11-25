@@ -1,8 +1,10 @@
 package au.org.ala.biocache.controller;
 
 import au.org.ala.biocache.dto.AssertionCodes;
+import au.org.ala.biocache.dto.AuthenticatedUser;
 import au.org.ala.biocache.dto.QualityAssertion;
 import au.org.ala.biocache.dto.UserAssertions;
+import au.org.ala.biocache.service.ApiKeyService;
 import au.org.ala.biocache.service.AssertionService;
 import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
@@ -58,6 +60,8 @@ public class AssertionsControllerIT extends TestCase {
     @Autowired
     AlaWebServiceAuthFilter alaWebServiceAuthFilter;
 
+    ApiKeyService apiKeyService;
+
     @Autowired
     FieldMappingUtil fieldMappingUtil;
 
@@ -67,6 +71,9 @@ public class AssertionsControllerIT extends TestCase {
     WebApplicationContext wac;
 
     MockMvc mockMvc;
+
+    final static AuthenticatedUser TEST_USER =
+            new AuthenticatedUser("test@test.com","Tester",null,null);
 
     @BeforeClass
     public static void setupBeforeClass() throws Exception {
@@ -80,6 +87,7 @@ public class AssertionsControllerIT extends TestCase {
         DEPRECATED_CODES_LENGTH = fieldMappingUtil.getFieldValueMappingStream("assertions").collect(Collectors.toList()).size();
 
         assertionService = mock(AssertionService.class);
+        apiKeyService = mock(ApiKeyService.class);
         ReflectionTestUtils.setField(assertionController, "assertionService", assertionService);
 
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).build();
@@ -127,6 +135,7 @@ public class AssertionsControllerIT extends TestCase {
         when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
                 .thenReturn(Optional.empty());
         this.mockMvc.perform(post("/occurrences/assertions/add")
+                .principal(TEST_USER)
                 .param("recordUuid", "recordUuid")
                 .param("apiKey", "apiKey")
                 .param("code", "code")
@@ -138,6 +147,7 @@ public class AssertionsControllerIT extends TestCase {
         when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
                 .thenReturn(Optional.of(new QualityAssertion()));
         this.mockMvc.perform(post("/occurrences/assertions/add")
+                .principal(TEST_USER)
                 .param("recordUuid", "recordUuid")
                 .param("apiKey", "apiKey")
                 .param("code", "code")
@@ -149,6 +159,7 @@ public class AssertionsControllerIT extends TestCase {
         when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
                 .thenThrow(IOException.class);
         this.mockMvc.perform(post("/occurrences/assertions/add")
+                .principal(TEST_USER)
                 .param("recordUuid", "recordUuid")
                 .param("apiKey", "apiKey")
                 .param("code", "code")
@@ -159,30 +170,34 @@ public class AssertionsControllerIT extends TestCase {
 
     @Test
     public void testDeleteSingle() throws Exception {
-        ReflectionTestUtils.setField(alaWebServiceAuthFilter, "legacyApiKeysEnabled", false);
+        ReflectionTestUtils.setField(alaWebServiceAuthFilter, "legacyApiKeysEnabled", true);
 
         // delete succeed
+//        when(apiKeyService.isValidKey(Mockito.any())).thenReturn(new AuthenticatedUser(
+//                "test@test.com","Tester",null,null));
         when(assertionService.deleteAssertion(Mockito.any(), Mockito.any())).thenReturn(true);
-
         this.mockMvc.perform(post("/occurrences/assertions/delete")
+                .principal(TEST_USER)
                 .param("recordUuid", "recordUuid")
                 .param("apiKey", "apiKey")
                 .param("assertionUuid", "assertionUuid"))
                 .andExpect(status().isOk());
 
         // record not found
+//        when(apiKeyService.isValidKey(Mockito.any())).thenReturn(new AuthenticatedUser(Mockito.any(),Mockito.any(),Mockito.any(),Mockito.any()));
         when(assertionService.deleteAssertion(Mockito.any(), Mockito.any())).thenReturn(false);
-
         this.mockMvc.perform(post("/occurrences/assertions/delete")
+                .principal(TEST_USER)
                 .param("recordUuid", "recordUuid")
                 .param("apiKey", "apiKey")
                 .param("assertionUuid", "assertionUuid"))
                 .andExpect(status().isBadRequest());
 
         // exception
+//        when(apiKeyService.isValidKey(Mockito.any())).thenReturn(new AuthenticatedUser(Mockito.any(),Mockito.any(),Mockito.any(),Mockito.any()));
         when(assertionService.deleteAssertion(Mockito.any(), Mockito.any())).thenThrow(IOException.class);
-
         this.mockMvc.perform(post("/occurrences/assertions/delete")
+                .principal(TEST_USER)
                 .param("recordUuid", "recordUuid")
                 .param("apiKey", "apiKey")
                 .param("assertionUuid", "assertionUuid"))
@@ -242,6 +257,7 @@ public class AssertionsControllerIT extends TestCase {
 
         when(assertionService.bulkAddAssertions(Mockito.any(), Mockito.any())).thenReturn(true);
         this.mockMvc.perform(post("/bulk/assertions/add")
+                .principal(TEST_USER)
                 .param("apiKey", "apiKey")
                 .param("assertions", "[\n" +
                         "{\n" +
