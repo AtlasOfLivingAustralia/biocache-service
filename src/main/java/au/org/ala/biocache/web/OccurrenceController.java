@@ -31,9 +31,6 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.swagger.annotations.*;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import net.sf.json.JSONArray;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
@@ -45,7 +42,6 @@ import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.gbif.dwc.terms.DwcTerm;
 import org.springdoc.api.annotations.ParameterObject;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.http.MediaType;
@@ -260,10 +256,11 @@ public class OccurrenceController extends AbstractSecureController {
 
     /**
      * Returns the default facets that are applied to a search
-     *
+     * No longer in use
      * @return
      */
-    @Operation(summary = "List available facets", tags = "Search")
+    @Deprecated
+    @Operation(summary = "List available facets", tags = "Deprecated")
     @RequestMapping(value = {
 //            "/search/facets.json",
             "/search/facets"
@@ -297,9 +294,8 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "List available facets with grouping", tags = "i18n")
-    @RequestMapping(value = {"facets/i18n", "/facets/i18n.properties"}, method = RequestMethod.GET)
-    @ApiParam(value = "qualifier", required = false)
-    public void writei18nPropertiesFile(@ApiParam(value = "id", required = false) @PathVariable("qualifier") String qualifier,
+    @RequestMapping(value = {"/facets/i18n", "/facets/i18n{qualifier}"}, method = RequestMethod.GET)
+    public void writei18nPropertiesFile(@PathVariable(name = "qualifier", required = false) String qualifier,
                                         HttpServletRequest request,
                                         HttpServletResponse response) throws Exception {
         response.setHeader("Content-Type", "text/plain; charset=UTF-8");
@@ -573,7 +569,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @Operation(summary = "Get facet counts", tags = "Search")
+    @Operation(summary = "Get facet counts", tags = "Occurrence")
     @RequestMapping(value = {
 //            "occurrence/facets.json",
             "occurrence/facets"
@@ -584,19 +580,19 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     /**
-     * Returns a list of image urls for the supplied taxon guid.
+     * Returns a list of image urls for the supplied taxon uuid.
      * An empty list is returned when no images are available.
      *
      * @return
      * @throws Exception
      */
     @Operation(summary = "Show a list of images associated with records for a taxon", tags = "Images")
-    @RequestMapping(value = "/images/taxon/{recordUuid}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/images/taxon/{taxonConceptID}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
-    List<String> getImages(@PathVariable(name="recordUuid") String guid) throws Exception {
+    List<String> getImages(@PathVariable(name="taxonConceptID") String taxonConceptID) throws Exception {
 
         SpatialSearchRequestDTO srp = new SpatialSearchRequestDTO();
-        srp.setQ("lsid:" + guid);
+        srp.setQ("taxonConceptID:" + taxonConceptID);
         srp.setPageSize(0);
         srp.setFacets(new String[]{OccurrenceIndex.IMAGE_URL});
         SearchResultDTO results = searchDAO.findByFulltextSpatialQuery(srp, false, null);
@@ -666,7 +662,7 @@ public class OccurrenceController extends AbstractSecureController {
         requestParams.setPageSize(0);
         requestParams.setFacets(new String[]{});
         String query =
-                "lsid:"
+                "taxonConceptID:"
                         + taxonConceptID
                         + " AND "
                         + "(" + COUNTRY + ":\""
@@ -681,7 +677,7 @@ public class OccurrenceController extends AbstractSecureController {
         if (adto.isHasOccurrences()) {
             //check to see if the records have only been provided by citizen science
             //TODO change this to a confidence setting after it has been included in the index
-            requestParams.setQ("lsid:" + taxonConceptID + " AND (" + PROVENANCE + ":\"Published dataset\")");
+            requestParams.setQ("taxonConceptID:" + taxonConceptID + " AND (" + PROVENANCE + ":\"Published dataset\")");
             results = searchDAO.findByFulltextSpatialQuery(requestParams, false, null);
             adto.setHasCSOnly(results.getTotalRecords() == 0);
         }
@@ -730,7 +726,7 @@ public class OccurrenceController extends AbstractSecureController {
             @NotNull @PathVariable(name="taxonConceptID") String taxonConceptID,
             @ParameterObject SpatialSearchRequestParams requestParams) throws Exception {
 
-        requestParams.setQ("lsid:" + taxonConceptID);
+        requestParams.setQ("taxonConceptID:" + taxonConceptID);
         SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
         SearchUtils.setDefaultParams(dto);
         return occurrenceSearch(requestParams);
@@ -748,7 +744,7 @@ public class OccurrenceController extends AbstractSecureController {
     List<OccurrenceSourceDTO> sourceByTaxon(SpatialSearchRequestDTO requestParams,
                                             HttpServletRequest request) throws Exception {
         String guid = searchUtils.getGuidFromPath(request);
-        requestParams.setQ("lsid:" + guid);
+        requestParams.setQ("taxonConceptID:" + guid);
         Map<String, Integer> sources = searchDAO.getSourcesForQuery(requestParams);
         //now turn them to a list of OccurrenceSourceDTO
         return searchUtils.getSourceInformation(sources);
@@ -807,7 +803,10 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @Operation(summary = "Occurrence JSON search", tags="Search")
+    @Operation(summary = "Occurrence search",
+               description = "Occurrence search service that supports facets",
+               tags="Occurrence"
+    )
     @RequestMapping(value = {
 //            "/occurrences/search.json*",
             "/occurrences/search"
@@ -968,7 +967,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @Hidden
-    @Operation(summary = "Webservice to support bulk downloads for a long list of queries for a single field.", tags="Search")
+    @Operation(summary = "Webservice to support bulk downloads for a long list of queries for a single field.", tags="Occurrence")
     @RequestMapping(value = "/occurrences/batchSearch", method = RequestMethod.POST, params = "action=Download")
     public void batchDownload(
             @ParameterObject DownloadRequestParams requestParams,
@@ -999,7 +998,7 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     @Hidden
-    @Operation(summary = "Webservice to support bulk downloads for a long list of queries for a single field.", tags="Search")
+    @Operation(summary = "Webservice to support bulk downloads for a long list of queries for a single field.", tags="Occurrence")
     @RequestMapping(value = "/occurrences/download/batchFile", method = RequestMethod.GET)
     public String batchDownload(
             @Valid @ParameterObject DownloadRequestParams requestParams,
@@ -1047,10 +1046,10 @@ public class OccurrenceController extends AbstractSecureController {
                                     String outputFilePath = directory + File.separatorChar + row[0].replace(" ", "_") + ".txt";
                                     String citationFilePath = directory + File.separatorChar + row[0].replace(" ", "_") + "_citations.txt";
                                     if (logger.isDebugEnabled()) {
-                                        logger.debug("Outputting results to:" + outputFilePath + ", with LSID: " + lsid);
+                                        logger.debug("Outputting results to:" + outputFilePath + ", with taxonConceptID: " + lsid);
                                     }
                                     try (FileOutputStream output = new FileOutputStream(outputFilePath);) {
-                                        dto.setQ("lsid:\"" + lsid + "\"");
+                                        dto.setQ("taxonConceptID:\"" + lsid + "\"");
                                         ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
                                         searchDAO.writeResultsFromIndexToStream(dto, new CloseShieldOutputStream(output), uidStats,false, dd, false, null);
                                         output.flush();
@@ -1090,7 +1089,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @Hidden
-    @Operation(summary = "Given a list of queries for a single field, return an AJAX response with the qid (cached query id).", tags="Search")
+    @Operation(summary = "Given a list of queries for a single field, return an AJAX response with the qid (cached query id).", tags="Occurrence")
     @RequestMapping(value = "/occurrences/batchSearch", method = RequestMethod.POST, params = "action=Search")
     public void batchSearch(
             HttpServletResponse response,
@@ -1158,7 +1157,7 @@ public class OccurrenceController extends AbstractSecureController {
     /**
      * Webservice to report the occurrence counts for the supplied list of taxa
      */
-    @Operation(summary = "Report the occurrence counts for the supplied list of taxa", tags="Search"
+    @Operation(summary = "Report the occurrence counts for the supplied list of taxa", tags="Occurrence"
     )
     @RequestMapping(value = { "/occurrences/taxaCount"},
             method = {RequestMethod.POST, RequestMethod.GET}, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -1318,7 +1317,6 @@ public class OccurrenceController extends AbstractSecureController {
         if (requestParams.getLat() == null || requestParams.getLon() == null) {
             return new HashMap<String, Object>();
         }
-        //requestParams.setRadius(1f);
         requestParams.setDir("asc");
         requestParams.setFacet(false);
 
@@ -1489,6 +1487,7 @@ public class OccurrenceController extends AbstractSecureController {
         response.getOutputStream().print(new ObjectMapper().writeValueAsString(content));
         response.flushBuffer();
     }
+
     /**
      * Occurrence record page
      * <p>
@@ -1526,7 +1525,8 @@ public class OccurrenceController extends AbstractSecureController {
         return responseObject;
     }
 
-    @Operation(summary = "Full record details with sensitive information", tags = "Occurrence")
+    @Deprecated
+    @Operation(summary = "Full record details with sensitive information", tags = "Deprecated")
     @RequestMapping(value = {
             "/sensitive/occurrence/{uuid:.+}",
             "/sensitive/occurrences/{uuid:.+}",

@@ -91,7 +91,7 @@ public class AssertionController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @Operation(summary = "Add an assertion", tags = "Assertions")
+    @Operation(summary = "Add an assertion", tags = {"Assertions", "Occurrence"})
     @RequestMapping(value={"/occurrences/assertions/add"}, method = RequestMethod.POST)
     public void addAssertionWithParams(
             @RequestParam(value = "recordUuid", required=true) String recordUuid,
@@ -218,7 +218,7 @@ public class AssertionController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @Operation(summary = "Removes an assertion", tags = "Assertions")
+    @Operation(summary = "Removes an assertion", tags = {"Assertions", "Occurrence"})
     @RequestMapping(value = {"/occurrences/assertions/delete"}, method = { RequestMethod.DELETE })
     public void deleteAssertionWithParams(
             @RequestParam(value="recordUuid", required=true) String recordUuid,
@@ -245,7 +245,7 @@ public class AssertionController extends AbstractSecureController {
      * Remove an assertion
      */
 
-    @Operation(summary = "Removes an assertion (REST style)", tags = "Assertions")
+    @Operation(summary = "Removes an assertion (REST style)", tags = {"Assertions", "Occurrence"})
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/delete"}, method = RequestMethod.DELETE)
     @ApiParam(value = "recordUuid", required = true)
     public void deleteAssertion(
@@ -299,7 +299,8 @@ public class AssertionController extends AbstractSecureController {
         }
     }
 
-    @Operation(summary = "Get assertions for a record", tags = "Assertions")
+    @Deprecated
+    @Operation(summary = "Get assertions for a record", tags = {"Deprecated"})
     @RequestMapping(value = {"/occurrences/assertions"
 //            , "/occurrences/assertions.json", "/occurrences/assertions/"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -375,8 +376,7 @@ public class AssertionController extends AbstractSecureController {
     @ApiParam(value = "recordUuid", required = true)
     public @ResponseBody
     List<QualityAssertion> getAssertionQueries(
-            @PathVariable(value = "recordUuid") String recordUuid,
-            HttpServletResponse response
+            @PathVariable(value = "recordUuid") String recordUuid
     ) throws Exception {
         return new ArrayList<>();
     }

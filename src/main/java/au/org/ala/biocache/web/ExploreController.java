@@ -144,7 +144,7 @@ public class ExploreController {
      * @throws Exception
      */
     @Operation(summary = "Returns a hierarchical listing of species groups", tags = "Explore")
-    @RequestMapping(value = { "/explore/hierarchy/groups*"
+    @RequestMapping(value = { "/explore/hierarchy/groups"
 //            , "/explore/hierarchy/groups.json*"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
@@ -228,7 +228,7 @@ public class ExploreController {
      * Returns a list of species groups and counts that will need to be displayed.
      */
     @Operation(summary = "Returns a list of species groups and counts that will need to be displayed", tags = "Explore")
-    @RequestMapping(value = { "/explore/groups*"
+    @RequestMapping(value = { "/explore/groups"
 //            , "/explore/groups.json*",
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
@@ -431,7 +431,7 @@ public class ExploreController {
      * @throws Exception
      */
     @Operation(summary = "Returns the number of distinct species that are in the supplied region", tags = "Explore")
-    @RequestMapping(value = {"/explore/counts/endemic*"
+    @RequestMapping(value = {"/explore/counts/endemic"
 //            , "/explore/counts/endemic.json*"
     }, method = RequestMethod.GET)
     public @ResponseBody
@@ -449,7 +449,7 @@ public class ExploreController {
      * @return
      */
     @Operation(summary = "Returns the species that only have occurrences in the supplied WKT.", tags = "Endemism")
-    @RequestMapping(value = {"/explore/endemic/species*"
+    @RequestMapping(value = {"/explore/endemic/species"
 //            , "/explore/endemic/species.json*"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
@@ -514,7 +514,7 @@ public class ExploreController {
      */
     @Operation(summary = "Returns count of facet values that only occur in the supplied " +
             "subQueryID and not in the parentQuery.", tags = "Endemism")
-    @RequestMapping(value = {"/explore/endemic/speciescount/{subQueryID}*"
+    @RequestMapping(value = {"/explore/endemic/speciescount/{subQueryID}"
 //            , "/explore/endemic/speciescount/{subQueryID}.json*"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ApiParam(value = "subQueryID", required = true)
