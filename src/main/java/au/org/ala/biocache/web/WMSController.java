@@ -1043,13 +1043,12 @@ public class WMSController extends AbstractSecureController {
      * @param model
      * @throws Exception
      */
-    @Operation(summary = "Get Capabilities", tags = "OGC")
+    @Operation(summary = "Get Capabilities OGC request", tags = "OGC")
     @RequestMapping(value = {
-//            "/ogc/ows",
-//            "/ogc/ows.xml",
-            "/ogc/capabilities"
-//            ,
-//            "/ogc/capabilities.xml"
+            "/ogc/ows",
+            "/ogc/ows.xml",
+            "/ogc/capabilities",
+            "/ogc/capabilities.xml"
     }, method = RequestMethod.GET, produces="text/xml")
     public void getCapabilities(
             @ParameterObject SpatialSearchRequestParams requestParams,
@@ -1080,8 +1079,6 @@ public class WMSController extends AbstractSecureController {
             HttpServletResponse response,
             Model model)
             throws Exception {
-
-
 
         if ("GetMap".equalsIgnoreCase(requestString)) {
             generateWmsTileViaHeatmap(
@@ -1132,7 +1129,7 @@ public class WMSController extends AbstractSecureController {
         response.setHeader("Content-Transfer-Encoding", "binary");
 
         try {
-            //webservicesRoot
+            // webservices root
             String biocacheServerUrl = request.getSession().getServletContext().getInitParameter("webservicesRoot");
             PrintWriter writer = response.getWriter();
 
@@ -1300,6 +1297,36 @@ public class WMSController extends AbstractSecureController {
         return sb.toString();
     }
 
+    @Deprecated
+    @Operation(summary = "Web Mapping Service", tags = {"Deprecated"})
+    @GetMapping(value = {
+            "/webportal/wms/reflect",
+            "/webportal/wms/reflect.png",
+    }, produces = "image/png")
+    public void generateWmsTileViaHeatmapDeprecated(
+            @ParameterObject SpatialSearchRequestParams params,
+            @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
+            @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
+            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs, //default to google mercator
+            @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
+            @RequestParam(value = "BBOX", required = true, defaultValue = "") String bboxString,
+            @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
+            @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
+            @RequestParam(value = "CACHE", required = true, defaultValue = "default") String cache,
+            @RequestParam(value = "REQUEST", required = true, defaultValue = "") String requestString,
+            @RequestParam(value = "OUTLINE", required = true, defaultValue = "true") boolean outlinePoints,
+            @RequestParam(value = "OUTLINECOLOUR", required = true, defaultValue = "0x000000") String outlineColour,
+            @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
+            @RequestParam(value = "HQ", required = false) String[] hqs,
+            @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") Integer gridDivisionCount,
+            HttpServletRequest request,
+            HttpServletResponse response)
+            throws Exception {
+        generateWmsTileViaHeatmap(params, cql_filter, env, srs, styles,bboxString, width, height,
+                cache, requestString, outlinePoints, outlineColour, layers, hqs, gridDivisionCount,
+                request, response);
+    }
+
     /**
      * WMS services
      *
@@ -1313,7 +1340,7 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @Operation(summary = "Web Mapping Service", tags = "WMS")
+    @Operation(summary = "Web Mapping Service", tags = {"WMS", "OGC"})
     @GetMapping(value = {
 //            "/webportal/wms/reflect",
 //            "/webportal/wms/reflect.png",

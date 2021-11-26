@@ -97,7 +97,7 @@ public class ScatterplotController {
     }
 
     @Operation(summary = "Get details of a point on a plot", tags = "Scatterplots")
-    @RequestMapping(value = {"/scatterplot/point", "/scatterplot/point.json" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = {"/scatterplot/point" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public Map scatterplotPointInfo(@ParameterObject SpatialSearchRequestParams params,
                                     @RequestParam(value = "x", required = true) String x,
@@ -139,6 +139,23 @@ public class ScatterplotController {
         map.put("yaxis_range", new double[]{y1, y2});
 
         return map;
+    }
+
+    @Deprecated
+    @Operation(summary = "Get details of a point on a plot", tags = "Deprecated")
+    @RequestMapping(value = {"/scatterplot/point.json" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    public Map scatterplotPointInfoDeprecated(@ParameterObject SpatialSearchRequestParams params,
+                                    @RequestParam(value = "x", required = true) String x,
+                                    @RequestParam(value = "y", required = true) String y,
+                                    @RequestParam(value = "height", required = false, defaultValue = DEFAULT_SCATTERPLOT_HEIGHT) Integer height,
+                                    @RequestParam(value = "width", required = false, defaultValue = DEFAULT_SCATTERPLOT_WIDTH) Integer width,
+                                    @RequestParam(value = "title", required = false, defaultValue = DEFAULT_SCATTERPLOT_TITLE) String title,
+                                    @RequestParam(value = "pointx1", required = true) Integer pointx1,
+                                    @RequestParam(value = "pointy1", required = true) Integer pointy1,
+                                    @RequestParam(value = "pointx2", required = true) Integer pointx2,
+                                    @RequestParam(value = "pointy2", required = true) Integer pointy2) throws Exception {
+        return scatterplotPointInfo(params,x,y,height,width,title,pointx1,pointy1,pointx2,pointy2);
     }
 
     private JFreeChart makeScatterplot(SpatialSearchRequestDTO requestParams, String x, String y

@@ -25,10 +25,24 @@ public class OutlierController {
      */
 
     @Operation(summary = "Retrieves the environmental outlier details for a record", tags = "Outliers")
-    @RequestMapping(value={"/outlier/record/{uuid}", "/outlier/record/{uuid}.json" }, method = RequestMethod.GET)
-    @ApiParam(value = "uuid", required = true)
+    @RequestMapping(value={"/outlier/record/{recordUuid}", }, method = RequestMethod.GET)
+    @ApiParam(value = "recordUuid", required = true)
     public @ResponseBody List<RecordJackKnifeStats> getOutlierForUUid(
-             @PathVariable("uuid") String recordUuid) throws Exception {
+             @PathVariable("recordUuid") String recordUuid) throws Exception {
+        return searchDAO.getOutlierStatsFor(recordUuid);
+    }
+
+    /**
+     * Checks to see if the supplied GUID represents an Australian species.
+     * @return
+     * @throws Exception
+     */
+    @Deprecated
+    @Operation(summary = "Deprecated - use /outlier/record/{recordUuid}", tags = "Deprecated")
+    @RequestMapping(value={"/outlier/record/{uuid}.json" }, method = RequestMethod.GET)
+    @ApiParam(value = "uuid", required = true)
+    public @ResponseBody List<RecordJackKnifeStats> getOutlierForUUidDeprecated(
+            @PathVariable("uuid") String recordUuid) throws Exception {
         return searchDAO.getOutlierStatsFor(recordUuid);
     }
 }

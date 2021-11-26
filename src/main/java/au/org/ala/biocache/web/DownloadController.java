@@ -24,6 +24,7 @@ import au.org.ala.biocache.service.DownloadService;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import net.sf.json.JsonConfig;
@@ -34,6 +35,7 @@ import org.apache.solr.common.SolrDocumentList;
 import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.annotation.Secured;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -85,6 +87,8 @@ public class DownloadController extends AbstractSecureController {
      * Retrieves all the downloads that are on the queue
      * @return
      */
+    @SecurityRequirement(name="JWT")
+    @Secured({"ROLE_ADMIN"})
     @Operation(summary = "Retrieves all the downloads that are on the queue", tags = "Monitoring")
     @RequestMapping(value = {
             "occurrences/offline/download/stats"
@@ -277,6 +281,8 @@ public class DownloadController extends AbstractSecureController {
         return status;
     }
 
+    @SecurityRequirement(name="JWT")
+    @Secured({"ROLE_ADMIN"})
     @Operation(summary = "List all occurrence downloads", tags = "Monitoring")
     @RequestMapping(value = {
             "occurrences/offline/status"
@@ -351,7 +357,7 @@ public class DownloadController extends AbstractSecureController {
         FileUtils.writeStringToFile(new File(statusDir.getPath() + "/status.json"), json, "UTF-8");
     }
 
-    @Operation(summary = "Get the status of download", tags = "Monitoring")
+    @Operation(summary = "Get the status of download", tags = "Download")
     @RequestMapping(value = { "occurrences/offline/status/{id}"
 //            , "occurrences/offline/status/{id}.json"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -433,6 +439,8 @@ public class DownloadController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
+    @SecurityRequirement(name="JWT")
+    @Secured({"ROLE_ADMIN"})
     @Operation(summary = "Cancel an offline download", tags = "Monitoring")
     @RequestMapping(value = {
             "occurrences/offline/cancel/{id}"

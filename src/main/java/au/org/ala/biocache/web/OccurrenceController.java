@@ -49,6 +49,7 @@ import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.annotation.Secured;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -252,6 +253,8 @@ public class OccurrenceController extends AbstractSecureController {
         return map;
     }
 
+    @Secured({"ROLE_ADMIN"})
+    @SecurityRequirement(name="JWT")
     @Operation(summary = "Get list of current downloads", tags = "Monitoring")
     @RequestMapping(value = { "/active/download/stats" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
@@ -498,11 +501,10 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
+    @Secured({"ROLE_ADMIN"})
+    @SecurityRequirement(name="JWT")
     @Operation(summary = "Show index version information", tags = "Monitoring")
-    @RequestMapping(value = {
-//         "index/version.json",
-            "index/version"
-    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = {"index/version"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     Map getIndexedFields(@RequestParam(value = "force", required = false, defaultValue = "false") Boolean force,
                          HttpServletRequest request,
@@ -523,6 +525,8 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
+    @Secured({"ROLE_ADMIN"})
+    @SecurityRequirement(name="JWT")
     @Operation(summary = "Show configured max boolean clauses", tags = "Monitoring")
     @RequestMapping(value = {
 //            "index/maxBooleanClauses.json",
@@ -541,6 +545,8 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
+    @Secured({"ROLE_ADMIN"})
+    @SecurityRequirement(name="JWT")
     @Operation(summary = "Show configuration", tags = "Monitoring")
     @RequestMapping(value = {
 //            "config.json"
@@ -576,11 +582,21 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @Operation(summary = "Get facet counts", tags = "Occurrence")
     @RequestMapping(value = {
-//            "occurrence/facets.json",
-            "occurrence/facets"
+            "occurrences/facets"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     List<FacetResultDTO> getOccurrenceFacetDetails(@ParameterObject SpatialSearchRequestParams params) throws Exception {
+        return searchDAO.getFacetCounts(SpatialSearchRequestDTO.create(params));
+    }
+
+    @Deprecated
+    @Operation(summary = "Deprecated - use /occurrences/facets", tags = "Deprecated")
+    @RequestMapping(value = {
+            "occurrence/facets.json",
+            "occurrence/facets"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody
+    List<FacetResultDTO> getOccurrenceFacetDetailsDeprecated(@ParameterObject SpatialSearchRequestParams params) throws Exception {
         return searchDAO.getFacetCounts(SpatialSearchRequestDTO.create(params));
     }
 
@@ -799,7 +815,7 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     private SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams) throws Exception {
-        return occurrenceSearch(requestParams, null, false, null, null);
+        return occurrenceSearch(requestParams, false, null, null);
     }
 
     /**
@@ -808,6 +824,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
+    @SecurityRequirement(name = "JWT")
     @Operation(summary = "Occurrence search",
                description = "Occurrence search service that supports facets",
                tags="Occurrence"
@@ -820,7 +837,6 @@ public class OccurrenceController extends AbstractSecureController {
     public @ResponseBody
     SearchResultDTO occurrenceSearch(
                                      @ParameterObject SpatialSearchRequestParams requestParams,
-                                     @RequestParam(value = "apiKey", required = false) String apiKey,
                                      @RequestParam(value = "im", required = false, defaultValue = "false") Boolean lookupImageMetadata,
                                      HttpServletRequest request,
                                      HttpServletResponse response) throws Exception {
@@ -839,7 +855,7 @@ public class OccurrenceController extends AbstractSecureController {
          }
 
          SearchResultDTO srtdto = null;
-         if (apiKey == null) {
+         if (request.getUserPrincipal() == null) {
              srtdto = searchDAO.findByFulltextSpatialQuery(dto, false, map);
          } else {
              srtdto = occurrenceSearchSensitive(dto, request, response);
@@ -886,6 +902,8 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
+    @Secured({"ROLE_ADMIN"})
+    @SecurityRequirement(name="JWT")
     @Operation(summary = "Refresh caches", tags="Monitoring")
     @RequestMapping(value = {"/cache/refresh"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
@@ -917,7 +935,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @Operation(summary = "Downloads the complete list of values in the supplied facet", tags="Download")
+    @Operation(summary = "Downloads the complete list of values in the supplied facet", tags={"Download", "Occurrence"})
     @RequestMapping(value = "/occurrences/facets/download", method = RequestMethod.GET, produces = "text/csv")
     public void downloadFacet(
             @ParameterObject DownloadRequestParams downloadParams,
@@ -1202,7 +1220,6 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @SecurityRequirement(name = "JWT")
-
     @Operation(
             summary = "Download occurrence service",
             tags = "Download",
@@ -1385,16 +1402,38 @@ public class OccurrenceController extends AbstractSecureController {
      * @param uuid
      * @throws Exception
      */
-    @Operation(summary = "Full record details", tags = "Occurrence")
+    @Deprecated
+    @Operation(summary = "Deprecated - use /occurrences/compare/{uuid}", tags = "Deprecated")
     @RequestMapping(
             value = {
-//                    "/occurrence/compare/{uuid}.json",
+                    "/occurrence/compare.json*",
+                    "/occurrence/compare*",
+                    "/occurrence/compare/{uuid}.json",
                     "/occurrence/compare/{uuid}"
             },
             method = RequestMethod.GET)
     @ApiParam(value = "uuid", required = true)
     public @ResponseBody
-    Object showOccurrence(@PathVariable("uuid") String uuid, HttpServletResponse response) throws Exception {
+    Object showOccurrenceDeprecated(@PathVariable("uuid") String uuid, HttpServletResponse response) throws Exception {
+        return showOccurrence(uuid, response);
+    }
+
+    /**
+     * Occurrence record page
+     * <p>
+     * When user supplies a uuid that is not found search for a unique record
+     * with the supplied occurrence_id
+     * <p>
+     * Returns a SearchResultDTO when there is more than 1 record with the supplied UUID
+     *
+     * @param uuid
+     * @throws Exception
+     */
+    @Operation(summary = "Returns a data structure allowing comparison of verbatim vs interpreted values", tags = "Occurrence")
+    @RequestMapping( value = {"/occurrences/compare/{recordUuid}"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @ApiParam(value = "uuid", required = true)
+    public @ResponseBody
+    Object showOccurrence(@PathVariable("recordUuid") String uuid, HttpServletResponse response) throws Exception {
 
         SpatialSearchRequestDTO idRequest = new SpatialSearchRequestDTO();
         idRequest.setQ(OccurrenceIndex.ID + ":\"" + uuid + "\"");
@@ -1476,23 +1515,6 @@ public class OccurrenceController extends AbstractSecureController {
         return groups;
     }
 
-    /**
-     * Returns a comparison of the occurrence versions.
-     *
-     * @param uuid
-     * @return
-     */
-    @Operation(summary = "Comparison of verbatim and interpreted record fields", tags = "Occurrence")
-    @RequestMapping(value = {
-//            "/occurrence/compare.json*",
-            "/occurrence/compare*"
-    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody
-    Object compareOccurrenceVersions(@RequestParam(value = "uuid") String uuid,
-                                     HttpServletResponse response) throws Exception {
-        return showOccurrence(uuid, response);
-    }
-
     private void sendCustomJSONResponse(HttpServletResponse response, int statusCode, Map<String, String> content) throws IOException {
         response.resetBuffer();
         response.setStatus(statusCode);
@@ -1509,33 +1531,46 @@ public class OccurrenceController extends AbstractSecureController {
      * <p>
      * Returns a SearchResultDTO when there is more than 1 record with the supplied UUID
      *
-     * @param uuid
-     * @param apiKey
+     * @param recordUuid
      * @throws Exception
      */
-    @Operation(summary = "Full record details", tags = "Occurrence")
+    @SecurityRequirement(name = "JWT")
+    @Operation(summary = "Full record details ", tags = "Occurrence",
+            description = "If an JWT is supplied, and the user has the appropriate permissions the ")
     @RequestMapping(value = {
-//            "/occurrence/{uuid:.+}.json",
-//            "/occurrences/{uuid:.+}.json",
-            "/occurrence/{uuid:.+}",
-            "/occurrences/{uuid:.+}"
+            "/occurrences/{recordUuid}"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ApiParam(value = "uuid", required = true)
     public @ResponseBody
-    Object showOccurrence(@PathVariable("uuid") String uuid,
-                          @RequestParam(value = "apiKey", required = false) String apiKey,
+    Object showOccurrence(@PathVariable("recordUuid") String recordUuid,
                           @RequestParam(value = "im", required = false) String im,
                           HttpServletRequest request, HttpServletResponse response) throws Exception {
         Object responseObject;
-        if (apiKey != null) {
-            responseObject = showSensitiveOccurrence(uuid, im, request, response);
+        if (request.getUserPrincipal() != null) {
+            responseObject = showSensitiveOccurrence(recordUuid, im, request, response);
         } else {
-            responseObject = getOccurrenceInformation(uuid, im, request, false);
+            responseObject = getOccurrenceInformation(recordUuid, im, request, false);
         }
         if (responseObject == null) {
             sendCustomJSONResponse(response, HttpServletResponse.SC_NOT_FOUND, new HashMap<String, String>() {{put("message", "Unrecognised UID");}});
         }
         return responseObject;
+    }
+
+    @Deprecated
+    @SecurityRequirement(name = "JWT")
+    @Operation(summary = "Deprecated - use /occurrences/{recordUuid}", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/occurrence/{uuid:.+}.json",
+            "/occurrences/{uuid:.+}.json",
+            "/occurrence/{recordUuid}"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @ApiParam(value = "uuid", required = true)
+    public @ResponseBody
+    Object showOccurrenceDeprecated(@PathVariable("recordUuid") String recordUuid,
+                          @RequestParam(value = "im", required = false) String im,
+                          HttpServletRequest request, HttpServletResponse response) throws Exception {
+        return showOccurrence(recordUuid, im, request, response);
     }
 
     @Deprecated

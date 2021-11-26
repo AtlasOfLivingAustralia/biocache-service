@@ -23,11 +23,13 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.annotation.Secured;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -172,7 +174,7 @@ public class AssertionController extends AbstractSecureController {
     /**
      * add an assertion
      */
-    @Operation(summary = "Add an assertion (REST style)", tags = "Assertions")
+    @Operation(summary = "Add an assertion to a record", tags = "Assertions")
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/add"}, method = RequestMethod.POST)
     @ApiParam(value = "recordUuid", required = true)
     public void addAssertion(
@@ -245,7 +247,7 @@ public class AssertionController extends AbstractSecureController {
      * Remove an assertion
      */
 
-    @Operation(summary = "Removes an assertion (REST style)", tags = {"Assertions", "Occurrence"})
+    @Operation(summary = "Removes an assertion from a record", tags = {"Assertions", "Occurrence"})
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/delete"}, method = RequestMethod.DELETE)
     @ApiParam(value = "recordUuid", required = true)
     public void deleteAssertion(
@@ -274,7 +276,7 @@ public class AssertionController extends AbstractSecureController {
      * Remove an assertion
      */
     @Deprecated
-    @Operation(summary = "Removes an assertion (REST style)", tags = "Deprecated")
+    @Operation(summary = "Deprecated - use HTTP DELETE", tags = "Deprecated")
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/delete"}, method = RequestMethod.POST)
     @ApiParam(value = "recordUuid", required = true)
     public void deleteAssertionPost(
@@ -347,7 +349,7 @@ public class AssertionController extends AbstractSecureController {
     /**
      * Get user assertions
      */
-    @Operation(summary = "Get a assertions for a record (REST style)", tags = "Assertions")
+    @Operation(summary = "Get a assertions for a record", tags = "Assertions")
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions"
 //            , "/occurrences/{recordUuid}/assertions.json", "/occurrences/{recordUuid}/assertions/"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -381,6 +383,8 @@ public class AssertionController extends AbstractSecureController {
         return new ArrayList<>();
     }
 
+    @SecurityRequirement(name="JWT")
+    @Secured({"ROLE_ADMIN"})
     @Operation(summary = "Synchronise assertions into the index", tags = "Monitoring")
     @RequestMapping(value = {"/sync"}, method = RequestMethod.GET)
     public @ResponseBody Boolean indexAll(HttpServletRequest request,
