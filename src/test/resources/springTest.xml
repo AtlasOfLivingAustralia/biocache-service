@@ -30,8 +30,8 @@
     <context:component-scan base-package="au.org.ala.biocache"/>
 
     <!-- Configures the @Controller programming model -->
-    <mvc:annotation-driven />
-    <task:annotation-driven />
+<!--    <mvc:annotation-driven />-->
+<!--    <task:annotation-driven />-->
 
     <!-- Where to load static resources (css, js, images) -->
     <mvc:resources mapping="/static/**" location="/" />
