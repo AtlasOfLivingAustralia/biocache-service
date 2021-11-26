@@ -14,9 +14,13 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import au.org.ala.biocache.validate.SpatialParamsValidator;
+import au.org.ala.biocache.validate.ValidSpatialParams;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import javax.validation.Constraint;
+import javax.validation.constraints.Pattern;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,6 +31,7 @@ import java.util.List;
  * Strictly a bean with no inherent logic other than validation through annotations.
  */
 @Schema(name = "Spatial search parameters")
+@ValidSpatialParams
 public class SpatialSearchRequestParams {
 
     @Parameter(name="q", description = "Main search query. Examples 'q=Kangaroo' or 'q=vernacularName:red'")
@@ -67,6 +72,7 @@ public class SpatialSearchRequestParams {
     protected String sort = "score";
 
     @Parameter(name="dir", description = "Direction of sort")
+    @Pattern(regexp="(asc|desc)")
     protected String dir = "asc";
 
     @Parameter(name="includeMultivalues", description = "Include multi values")

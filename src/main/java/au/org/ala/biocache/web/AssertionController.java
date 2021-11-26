@@ -93,11 +93,11 @@ public class AssertionController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
+    @SecurityRequirement(name="JWT")
     @Operation(summary = "Add an assertion", tags = {"Assertions", "Occurrence"})
     @RequestMapping(value={"/occurrences/assertions/add"}, method = RequestMethod.POST)
     public void addAssertionWithParams(
             @RequestParam(value = "recordUuid", required=true) String recordUuid,
-            @RequestParam(value = "apiKey", required = true) String apiKey,
             @RequestParam(value = "code", required = true) String code,
             @RequestParam(value = "comment", required = false) String comment,
             @RequestParam(value = "userId", required = true) String userId,
@@ -109,7 +109,7 @@ public class AssertionController extends AbstractSecureController {
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
 
-        addAssertion(recordUuid, apiKey, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason, request, response);
+        addAssertion(recordUuid, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason, request, response);
     }
     /**
      * Adds a bulk list of assertions.
@@ -124,10 +124,10 @@ public class AssertionController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
+    @SecurityRequirement(name="JWT")
     @Operation(summary = "Bulk add an assertion", tags = "Assertions")
     @RequestMapping(value="/bulk/assertions/add", method = RequestMethod.POST)
     public void addBulkAssertions(HttpServletRequest request,
-                                  @RequestParam(value = "apiKey", required = true) String apiKey,
                                   @RequestParam(value = "assertions", required = true) String json,
                                   @RequestParam(value = "userId", required = true) String userId,
                                   @RequestParam(value = "userDisplayName", required = true) String userDisplayName,
@@ -174,12 +174,12 @@ public class AssertionController extends AbstractSecureController {
     /**
      * add an assertion
      */
+    @SecurityRequirement(name="JWT")
     @Operation(summary = "Add an assertion to a record", tags = "Assertions")
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/add"}, method = RequestMethod.POST)
     @ApiParam(value = "recordUuid", required = true)
     public void addAssertion(
-       @PathVariable(value="recordUuid") String recordUuid,
-       @RequestParam(value = "apiKey", required = true) String apiKey,
+       @PathVariable(value = "recordUuid") String recordUuid,
        @RequestParam(value = "code", required = true) String code,
        @RequestParam(value = "comment", required = false) String comment,
        @RequestParam(value = "userId", required = true) String userId,
@@ -220,39 +220,38 @@ public class AssertionController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
+    @SecurityRequirement(name="JWT")
     @Operation(summary = "Removes an assertion", tags = {"Assertions", "Occurrence"})
     @RequestMapping(value = {"/occurrences/assertions/delete"}, method = { RequestMethod.DELETE })
     public void deleteAssertionWithParams(
-            @RequestParam(value="recordUuid", required=true) String recordUuid,
-            @RequestParam(value = "apiKey", required = true) String apiKey,
-            @RequestParam(value="assertionUuid", required=true) String assertionUuid,
+            @RequestParam(value = "recordUuid", required=true) String recordUuid,
+            @RequestParam(value = "assertionUuid", required=true) String assertionUuid,
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
-        deleteAssertion(recordUuid, apiKey, assertionUuid, request, response);
+        deleteAssertion(recordUuid, assertionUuid, request, response);
     }
 
     @Deprecated
+    @SecurityRequirement(name="JWT")
     @Operation(summary = "Removes an assertion", tags = "Deprecated")
     @RequestMapping(value = {"/occurrences/assertions/delete"}, method = { RequestMethod.POST })
     public void deleteAssertionWithParamsPost(
-            @RequestParam(value="recordUuid", required=true) String recordUuid,
-            @RequestParam(value = "apiKey", required = true) String apiKey,
-            @RequestParam(value="assertionUuid", required=true) String assertionUuid,
+            @RequestParam(value = "recordUuid", required=true) String recordUuid,
+            @RequestParam(value = "assertionUuid", required=true) String assertionUuid,
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
-        deleteAssertion(recordUuid, apiKey, assertionUuid, request, response);
+        deleteAssertion(recordUuid, assertionUuid, request, response);
     }
 
     /**
      * Remove an assertion
      */
-
+    @SecurityRequirement(name="JWT")
     @Operation(summary = "Removes an assertion from a record", tags = {"Assertions", "Occurrence"})
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/delete"}, method = RequestMethod.DELETE)
     @ApiParam(value = "recordUuid", required = true)
     public void deleteAssertion(
         @PathVariable(value="recordUuid") String recordUuid,
-        @RequestParam(value = "apiKey", required = true) String apiKey,
         @RequestParam(value="assertionUuid", required=true) String assertionUuid,
         HttpServletRequest request,
         HttpServletResponse response) throws Exception {
@@ -276,6 +275,7 @@ public class AssertionController extends AbstractSecureController {
      * Remove an assertion
      */
     @Deprecated
+    @SecurityRequirement(name="JWT")
     @Operation(summary = "Deprecated - use HTTP DELETE", tags = "Deprecated")
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/delete"}, method = RequestMethod.POST)
     @ApiParam(value = "recordUuid", required = true)
@@ -302,6 +302,7 @@ public class AssertionController extends AbstractSecureController {
     }
 
     @Deprecated
+    @SecurityRequirement(name="JWT")
     @Operation(summary = "Get assertions for a record", tags = {"Deprecated"})
     @RequestMapping(value = {"/occurrences/assertions"
 //            , "/occurrences/assertions.json", "/occurrences/assertions/"
@@ -345,7 +346,6 @@ public class AssertionController extends AbstractSecureController {
         return null;
     }
 
-
     /**
      * Get user assertions
      */
@@ -371,8 +371,6 @@ public class AssertionController extends AbstractSecureController {
     @Deprecated
     @Operation(summary="Retrieve details fo assertion querries applied to this record", tags = "Deprecated")
     @RequestMapping(value = {
-//            "/occurrences/{recordUuid}/assertionQueries.json",
-//            "/occurrences/{recordUuid}/assertionQueries/",
             "/occurrences/{recordUuid}/assertionQueries"
     }, method = RequestMethod.GET)
     @ApiParam(value = "recordUuid", required = true)
@@ -416,11 +414,11 @@ public class AssertionController extends AbstractSecureController {
     private Collection<AssertionCode> applyi18n(ErrorCode[] errorCodes, boolean includeDeprecated, boolean sortByName) {
 
         //use i18n descriptions
-        List<AssertionCode> formatedAssertionCodes = new ArrayList<>();
+        List<AssertionCode> formattedAssertionCodes = new ArrayList<>();
 
         for (ErrorCode errorCode: errorCodes) {
 
-            formatedAssertionCodes.add(new AssertionCode(errorCode.getName(), errorCode.getCode(),
+            formattedAssertionCodes.add(new AssertionCode(errorCode.getName(), errorCode.getCode(),
                     errorCode.getFatal(),
                     messageSource.getMessage(errorCode.getName(), null, errorCode.getDescription(), null),
                     ErrorCode.Category.valueOf(errorCode.getCategory()),
@@ -442,13 +440,13 @@ public class AssertionController extends AbstractSecureController {
 
                         return assertionCode;
                     })
-                    .forEach(formatedAssertionCodes::add);
+                    .forEach(formattedAssertionCodes::add);
         }
 
         if (sortByName) {
-            formatedAssertionCodes.sort(Comparator.comparing(AssertionCode::getName, String.CASE_INSENSITIVE_ORDER));
+            formattedAssertionCodes.sort(Comparator.comparing(AssertionCode::getName, String.CASE_INSENSITIVE_ORDER));
         }
 
-        return formatedAssertionCodes;
+        return formattedAssertionCodes;
     }
 }

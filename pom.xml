@@ -22,7 +22,6 @@
     <properties>
         <!-- This project uses UTF8 for Regular Expressions -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <openrdf.sesame.version>2.2</openrdf.sesame.version>
         <spring.version>5.3.9</spring.version>
         <spring-boot.version>2.5.7</spring-boot.version>
         <junit.version>4.13.1</junit.version>

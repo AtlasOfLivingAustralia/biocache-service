@@ -54,7 +54,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
-//import org.springframework.validation.Validator;
+import org.springframework.validation.Validator;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
@@ -134,8 +135,8 @@ public class OccurrenceController extends AbstractSecureController {
     private AbstractMessageSource messageSource;
     @Inject
     private ImageMetadataService imageMetadataService;
-//    @Inject
-//    protected Validator validator;
+    @Inject
+    protected Validator validator;
     @Inject
     protected QidCacheDAO qidCacheDao;
     @Inject
@@ -232,15 +233,15 @@ public class OccurrenceController extends AbstractSecureController {
         return taxonIDPattern;
     }
 
-//    /**
-//     * Need to initialise the validator to be used otherwise the @Valid annotation will not work
-//     *
-//     * @param binder
-//     */
-//    @InitBinder
-//    protected void initBinder(WebDataBinder binder) {
-//        binder.setValidator(validator);
-//    }
+    /**
+     * Need to initialise the validator to be used otherwise the @Valid annotation will not work
+     *
+     * @param binder
+     */
+    @InitBinder
+    protected void initBinder(WebDataBinder binder) {
+        binder.setValidator(validator);
+    }
 
     @Hidden
     @RequestMapping(value = {
@@ -534,15 +535,11 @@ public class OccurrenceController extends AbstractSecureController {
         return map;
     }
 
-    /**
-     * Public service that reports limits and other useful config for clients.
-     *
-     * @return
-     * @throws Exception
-     */
     @Secured({"ROLE_ADMIN"})
-    @SecurityRequirement(name="JWT")
-    @Operation(summary = "Show configuration", tags = "Monitoring")
+    @SecurityRequirement(name="JWT", scopes = {"ROLE_ADMIN"})
+    @Operation(summary = "Show configuration", tags = "Monitoring",
+        description = " Public service that reports limits and other useful config for clients."
+    )
     @RequestMapping(value = {
             "config",
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -568,18 +565,15 @@ public class OccurrenceController extends AbstractSecureController {
         return map;
     }
 
-    /**
-     * Returns a facet list including the number of distinct values for a field
-     *
-     * @return
-     * @throws Exception
-     */
-    @Operation(summary = "Get facet counts", tags = "Occurrence")
+    @Operation(summary = "Get distinct facet counts", tags = "Occurrence",
+            description="Can be used to retrieve distinct counts in a query. e.g. the distinct number of " +
+                    "scientificName values where stateProvince:Queensland"
+    )
     @RequestMapping(value = {
             "occurrences/facets"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
-    List<FacetResultDTO> getOccurrenceFacetDetails(@ParameterObject SpatialSearchRequestParams params) throws Exception {
+    List<FacetResultDTO> getOccurrenceFacetDetails(@Valid @ParameterObject SpatialSearchRequestParams params) throws Exception {
         return searchDAO.getFacetCounts(SpatialSearchRequestDTO.create(params));
     }
 
@@ -590,18 +584,14 @@ public class OccurrenceController extends AbstractSecureController {
             "occurrence/facets"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
-    List<FacetResultDTO> getOccurrenceFacetDetailsDeprecated(@ParameterObject SpatialSearchRequestParams params) throws Exception {
+    List<FacetResultDTO> getOccurrenceFacetDetailsDeprecated(@Valid @ParameterObject SpatialSearchRequestParams params) throws Exception {
         return searchDAO.getFacetCounts(SpatialSearchRequestDTO.create(params));
     }
 
-    /**
-     * Returns a list of image urls for the supplied taxon uuid.
-     * An empty list is returned when no images are available.
-     *
-     * @return
-     * @throws Exception
-     */
-    @Operation(summary = "Show a list of images associated with records for a taxon", tags = "Images")
+    @Operation(summary = "Show a list of images associated with records for a taxon", tags = "Images",
+        description="Returns a list of image urls for the supplied taxon uuid." +
+            "An empty list is returned when no images are available."
+    )
     @RequestMapping(value = "/images/taxon/{taxonConceptID}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     List<String> getImages(@PathVariable(name="taxonConceptID") String taxonConceptID) throws Exception {
@@ -621,13 +611,9 @@ public class OccurrenceController extends AbstractSecureController {
         return Collections.EMPTY_LIST;
     }
 
-    /**
-     * Checks to see if the supplied GUID represents an native species.
-     *
-     * @return
-     * @throws Exception
-     */
-    @Operation(summary = "Checks to see if the supplied GUID represents an native species", tags = "Taxon")
+    @Operation(summary = "Checks to see if the supplied GUID represents an native species", tags = "Taxon",
+        description="Checks to see if the supplied GUID represents an native species."
+    )
     @RequestMapping(value = {"/native/taxon/{taxonConceptID}"},
             method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_VALUE
@@ -740,7 +726,7 @@ public class OccurrenceController extends AbstractSecureController {
     public @ResponseBody
     SearchResultDTO occurrenceSearchByTaxon(
             @NotNull @PathVariable(name="taxonConceptID") String taxonConceptID,
-            @ParameterObject SpatialSearchRequestParams requestParams) throws Exception {
+            @Valid @ParameterObject SpatialSearchRequestParams requestParams) throws Exception {
 
         requestParams.setQ("taxonConceptID:" + taxonConceptID);
         SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
@@ -762,7 +748,6 @@ public class OccurrenceController extends AbstractSecureController {
         String guid = searchUtils.getGuidFromPath(request);
         requestParams.setQ("taxonConceptID:" + guid);
         Map<String, Integer> sources = searchDAO.getSourcesForQuery(requestParams);
-        //now turn them to a list of OccurrenceSourceDTO
         return searchUtils.getSourceInformation(sources);
     }
 
@@ -791,7 +776,7 @@ public class OccurrenceController extends AbstractSecureController {
     @Deprecated
     @ApiParam(value = "uid", required = true)
     public @ResponseBody
-    SearchResultDTO occurrenceSearchForUID(@ParameterObject SpatialSearchRequestParams requestParams,
+    SearchResultDTO occurrenceSearchForUID(@Valid @ParameterObject SpatialSearchRequestParams requestParams,
                                            @PathVariable("uid") String uid)
             throws Exception {
         SearchResultDTO searchResult = new SearchResultDTO();
@@ -831,7 +816,7 @@ public class OccurrenceController extends AbstractSecureController {
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     SearchResultDTO occurrenceSearch(
-                                     @ParameterObject SpatialSearchRequestParams requestParams,
+                                     @Valid @ParameterObject SpatialSearchRequestParams requestParams,
                                      @Parameter(description = "Include image metadata")
                                      @RequestParam(value = "im", required = false, defaultValue = "false") Boolean lookupImageMetadata,
                                      HttpServletRequest request,
@@ -923,18 +908,14 @@ public class OccurrenceController extends AbstractSecureController {
         occurrenceETag.set(UUID.randomUUID().toString());
     }
 
-    /**
-     * Downloads the complete list of values in the supplied facet
-     * <p>
-     * ONLY 1 facet should be included in the params.
-     *
-     * @param response
-     * @throws Exception
-     */
-    @Operation(summary = "Downloads the complete list of values in the supplied facet", tags={"Download", "Occurrence"})
+    @Operation(summary = "Downloads the complete list of values in the supplied facet",
+            tags={"Download", "Occurrence"},
+            description ="Downloads the complete list of values in the supplied e.g. complete list" +
+                    " of distinct scientificNames matching a query"
+    )
     @RequestMapping(value = "/occurrences/facets/download", method = RequestMethod.GET, produces = "text/csv")
     public void downloadFacet(
-            @ParameterObject DownloadRequestParams downloadParams,
+            @Valid @ParameterObject DownloadRequestParams downloadParams,
             @RequestParam(value = "count", required = false, defaultValue = "false") boolean includeCount,
             @RequestParam(value = "lookup", required = false, defaultValue = "false") boolean lookupName,
             @RequestParam(value = "synonym", required = false, defaultValue = "false") boolean includeSynonyms,
@@ -1175,12 +1156,11 @@ public class OccurrenceController extends AbstractSecureController {
     /**
      * Webservice to report the occurrence counts for the supplied list of taxa
      */
-    @Operation(summary = "Report the occurrence counts for the supplied list of taxa", tags="Occurrence"
-    )
+    @Operation(summary = "Report the occurrence counts for the supplied list of taxa", tags="Occurrence")
     @RequestMapping(value = { "/occurrences/taxaCount"},
-            method = {RequestMethod.POST, RequestMethod.GET}, produces = MediaType.APPLICATION_JSON_VALUE)
+            method = {RequestMethod.POST}, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody Map<String, Integer> occurrenceSpeciesCounts(
-            @RequestParam(name="guids") String listOfGuids,
+            @Parameter(description = "taxonConceptIDs, newline separated (by default)") @RequestParam(name="guids") String listOfGuids,
             @RequestParam(value = "fq", required = false) String[] filterQueries,
             @RequestParam(defaultValue = "\n") String separator,
             HttpServletResponse response
@@ -1222,7 +1202,7 @@ public class OccurrenceController extends AbstractSecureController {
             security =  @SecurityRequirement(name = "JWT")
     )
     @GetMapping(value = "/occurrences/download")
-    public void occurrenceDownload(@ParameterObject DownloadRequestParams downloadParams,
+    public void occurrenceDownload(@Valid @ParameterObject DownloadRequestParams downloadParams,
                                    @RequestParam(required = false, defaultValue = "true") Boolean zip,
                                    BindingResult result,
                                    Model model,

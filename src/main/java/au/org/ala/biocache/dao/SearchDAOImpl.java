@@ -469,8 +469,7 @@ public class SearchDAOImpl implements SearchDAO {
         QueryResponse qr = indexDao.runSolrQuery(solrQuery);
 
         //need to set the original q to the processed value so that we remove the wkt etc that is added from paramcache object
-        Class resultClass;
-        resultClass = includeSensitive ? au.org.ala.biocache.dto.SensitiveOccurrenceIndex.class : OccurrenceIndex.class;
+        Class resultClass = includeSensitive ? au.org.ala.biocache.dto.SensitiveOccurrenceIndex.class : OccurrenceIndex.class;
 
         searchResults = processSolrResponse(original, qr, solrQuery, resultClass);
         searchResults.setQueryTitle(searchParams.getDisplayString());
@@ -508,7 +507,7 @@ public class SearchDAOImpl implements SearchDAO {
                     "Family",
                     "Scientific name",
                     "Common name",
-                    "Record count",});
+                    "Record count"});
             int count = 0;
             for (TaxaCountDTO item : species) {
 
