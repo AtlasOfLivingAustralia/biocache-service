@@ -394,7 +394,6 @@ public class ExploreController {
      * JSON web service that returns a list of species and record counts for a given location search
      * and a higher taxa with rank.
      *
-     * @param model
      * @throws Exception
      */
     @Operation(summary = "Returns a list of species and record counts for a given location search" +
@@ -407,8 +406,7 @@ public class ExploreController {
     List<TaxaCountDTO> listSpeciesForHigherTaxa(
             SpatialSearchRequestDTO requestParams,
             @PathVariable(value = "group") String group,
-            @RequestParam(value = "common", required = false, defaultValue = "false") boolean common,
-            Model model) throws Exception {
+            @RequestParam(value = "common", required = false, defaultValue = "false") boolean common) throws Exception {
 
         addGroupFilterToQuery(requestParams, group);
         applyFacetForCounts(requestParams, common);
@@ -449,9 +447,7 @@ public class ExploreController {
      * @return
      */
     @Operation(summary = "Returns the species that only have occurrences in the supplied WKT.", tags = "Endemism")
-    @RequestMapping(value = {"/explore/endemic/species"
-//            , "/explore/endemic/species.json*"
-    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = {"/explore/endemic/species"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     List<FieldResultDTO> getSpeciesOnlyInWKT(@ParameterObject SpatialSearchRequestParams requestParams) throws Exception {
 
@@ -522,10 +518,7 @@ public class ExploreController {
     Map getSpeciesOnlyInOneCountQuery(@ParameterObject SpatialSearchRequestParams parentQuery,
                                       @PathVariable(value = "subQueryID") Long subQueryID)
             throws Exception {
-
-        HashMap m = new HashMap();
-        m.put("count", getSpeciesOnlyInOneQuery(parentQuery, subQueryID).size());
-        return m;
+        return Collections.singletonMap("count", getSpeciesOnlyInOneQuery(parentQuery, subQueryID).size());
     }
 
     /**
