@@ -976,7 +976,7 @@ public class WMSController extends AbstractSecureController {
         return "metadata/getFeatureInfo";
     }
 
-    @Operation(summary = "Get Legend Graphic", tags = "Mapping")
+    @Operation(summary = "Get Legend Graphic", tags = "OGC")
     @RequestMapping(value = {"/ogc/legendGraphic"}, method = RequestMethod.GET, produces = "image/png")
     public void getLegendGraphic(
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
@@ -1033,7 +1033,6 @@ public class WMSController extends AbstractSecureController {
      * @param filterQueries
      * @param x
      * @param y
-     * @param spatiallyValidOnly
      * @param marineOnly
      * @param terrestrialOnly
      * @param limitToFocus
@@ -1048,7 +1047,8 @@ public class WMSController extends AbstractSecureController {
             "/ogc/ows",
             "/ogc/ows.xml",
             "/ogc/capabilities",
-            "/ogc/capabilities.xml"
+            "/ogc/capabilities.xml",
+            "/ogc/getCapabilities"
     }, method = RequestMethod.GET, produces="text/xml")
     public void getCapabilities(
             @ParameterObject SpatialSearchRequestParams requestParams,
@@ -1069,12 +1069,12 @@ public class WMSController extends AbstractSecureController {
             @RequestParam(value = "fq", required = false) String[] filterQueries,
             @RequestParam(value = "X", required = true, defaultValue = "0") Double x,
             @RequestParam(value = "Y", required = true, defaultValue = "0") Double y,
-            @RequestParam(value = "spatiallyValidOnly", required = false, defaultValue = "true") boolean spatiallyValidOnly,
+            @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") int gridDivisionCount,
+            @RequestParam(value = "HQ", required = false) String[] hqs,
             @RequestParam(value = "marineSpecies", required = false, defaultValue = "false") boolean marineOnly,
             @RequestParam(value = "terrestrialSpecies", required = false, defaultValue = "false") boolean terrestrialOnly,
             @RequestParam(value = "limitToFocus", required = false, defaultValue = "false") boolean limitToFocus,
             @RequestParam(value = "useSpeciesGroups", required = false, defaultValue = "false") boolean useSpeciesGroups,
-            @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") int gridDivisionCount,
             HttpServletRequest request,
             HttpServletResponse response,
             Model model)
@@ -1095,7 +1095,7 @@ public class WMSController extends AbstractSecureController {
                     outlinePoints,
                     outlineColour,
                     layers,
-                    null,
+                    hqs,
                     gridDivisionCount,
                     request,
                     response);
@@ -1180,10 +1180,10 @@ public class WMSController extends AbstractSecureController {
                     "        <DCPType>\n" +
                     "          <HTTP>\n" +
                     "            <Get>\n" +
-                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/capabilities?SERVICE=WMS&amp;\"/>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/getCapabilities?SERVICE=WMS&amp;\"/>\n" +
                     "            </Get>\n" +
                     "            <Post>\n" +
-                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/capabilities?SERVICE=WMS&amp;\"/>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/getCapabilities?SERVICE=WMS&amp;\"/>\n" +
                     "            </Post>\n" +
                     "          </HTTP>\n" +
                     "        </DCPType>\n" +
