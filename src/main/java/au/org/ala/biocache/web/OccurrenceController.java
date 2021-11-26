@@ -66,7 +66,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import javax.ws.rs.Produces;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -270,7 +269,6 @@ public class OccurrenceController extends AbstractSecureController {
     @Deprecated
     @Operation(summary = "List available facets", tags = "Deprecated")
     @RequestMapping(value = {
-//            "/search/facets.json",
             "/search/facets"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
@@ -285,7 +283,6 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @Operation(summary = "List available facets with grouping", tags = "Search")
     @RequestMapping(value = {
-//            "/search/grouped/facets.json" ,
             "/search/grouped/facets"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
@@ -360,7 +357,6 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @Operation(summary = "List indexed fields", tags = "Search")
     @RequestMapping(value = {
-//          "index/fields.json"
             "index/fields"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
@@ -529,7 +525,6 @@ public class OccurrenceController extends AbstractSecureController {
     @SecurityRequirement(name="JWT")
     @Operation(summary = "Show configured max boolean clauses", tags = "Monitoring")
     @RequestMapping(value = {
-//            "index/maxBooleanClauses.json",
             "index/maxBooleanClauses"
     }, method = RequestMethod.GET)
     public @ResponseBody Map getIndexedFields(){
@@ -549,7 +544,6 @@ public class OccurrenceController extends AbstractSecureController {
     @SecurityRequirement(name="JWT")
     @Operation(summary = "Show configuration", tags = "Monitoring")
     @RequestMapping(value = {
-//            "config.json"
             "config",
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody Map getConfig() {
@@ -838,6 +832,7 @@ public class OccurrenceController extends AbstractSecureController {
     public @ResponseBody
     SearchResultDTO occurrenceSearch(
                                      @ParameterObject SpatialSearchRequestParams requestParams,
+                                     @Parameter(description = "Include image metadata")
                                      @RequestParam(value = "im", required = false, defaultValue = "false") Boolean lookupImageMetadata,
                                      HttpServletRequest request,
                                      HttpServletResponse response) throws Exception {
@@ -1544,7 +1539,8 @@ public class OccurrenceController extends AbstractSecureController {
     @ApiParam(value = "uuid", required = true)
     public @ResponseBody
     Object showOccurrence(@PathVariable("recordUuid") String recordUuid,
-                          @RequestParam(value = "im", required = false) String im,
+                          @Parameter(description = "Include image metadata")
+                          @RequestParam(value = "im", required = false, defaultValue = "false") Boolean im,
                           HttpServletRequest request, HttpServletResponse response) throws Exception {
         Object responseObject;
         if (request.getUserPrincipal() != null) {
@@ -1569,7 +1565,8 @@ public class OccurrenceController extends AbstractSecureController {
     @ApiParam(value = "uuid", required = true)
     public @ResponseBody
     Object showOccurrenceDeprecated(@PathVariable("recordUuid") String recordUuid,
-                          @RequestParam(value = "im", required = false) String im,
+                                    @Parameter(description = "Include image metadata")
+                                    @RequestParam(value = "im", required = false, defaultValue = "false") Boolean im,
                           HttpServletRequest request, HttpServletResponse response) throws Exception {
         return showOccurrence(recordUuid, im, request, response);
     }
@@ -1584,7 +1581,8 @@ public class OccurrenceController extends AbstractSecureController {
     @ApiParam(value = "uuid", required = true)
     public @ResponseBody
     Object showSensitiveOccurrence(@PathVariable("uuid") String uuid,
-                                   @Parameter(description = "Include image metadata") @RequestParam(value = "im", required = false) String im,
+                                   @Parameter(description = "Include image metadata")
+                                   @RequestParam(value = "im", required = false, defaultValue = "false") Boolean im,
                                    HttpServletRequest request, HttpServletResponse response) throws Exception {
         if (shouldPerformOperation(request, response)) {
             return getOccurrenceInformation(uuid, im, request, true);
@@ -1592,7 +1590,7 @@ public class OccurrenceController extends AbstractSecureController {
         return null;
     }
 
-    private Object getOccurrenceInformation(String uuid, String im, HttpServletRequest request,
+    private Object getOccurrenceInformation(String uuid, Boolean includeImageMetadata, HttpServletRequest request,
                                             boolean includeSensitive) throws Exception {
 
         logger.debug("Retrieving occurrence record with guid: '" + uuid + "'");
@@ -1662,7 +1660,6 @@ public class OccurrenceController extends AbstractSecureController {
             logViewEvent(ip, sd, getUserAgent(request), null, "Viewing Occurrence Record " + uuid);
         }
 
-        boolean includeImageMetadata = (im == null || !im.equalsIgnoreCase("false"));
         return mapAsFullRecord(sd, includeImageMetadata, includeSensitive);
     }
 
