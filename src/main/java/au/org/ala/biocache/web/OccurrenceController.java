@@ -634,7 +634,10 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "Checks to see if the supplied GUID represents an native species", tags = "Taxon")
-    @RequestMapping(value = {"/native/taxon/{taxonConceptID}"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = {"/native/taxon/{taxonConceptID}"},
+            method = RequestMethod.GET,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
     public @ResponseBody
     NativeDTO isNative(@PathVariable(name="taxonConceptID") String taxonConceptID) throws Exception {
         //check to see if we have any occurrences on Australia  country:Australia or state != empty
@@ -652,11 +655,9 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @Operation(summary = "Checks to see if the supplied GUIDs represents native species", tags = "Taxon")
-    @RequestMapping(value = {
-//            "/native/taxa.json*",
-            "/native/taxa*"
-    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @Deprecated
+    @Operation(summary = "Checks to see if the supplied GUIDs represents native species", tags = "Deprecated")
+    @RequestMapping(value = {"/native/taxa"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     List<NativeDTO> isNativeForList(@RequestParam(value = "guids") String guids) throws Exception {
         List<NativeDTO> nativeDTOs = new ArrayList<NativeDTO>();

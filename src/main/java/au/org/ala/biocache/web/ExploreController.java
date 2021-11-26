@@ -299,7 +299,7 @@ public class ExploreController {
      * @throws Exception
      */
     @Operation(summary = "Returns the number of records and distinct species in a particular species group", tags = "Explore")
-    @RequestMapping(value = { "/explore/counts/group/{group}*"
+    @RequestMapping(value = { "/explore/counts/group/{group}"
 //            , "/explore/counts/group/{group}.json*"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
@@ -360,7 +360,7 @@ public class ExploreController {
      * @throws Exception
      */
     @Operation(summary = "Occurrence search page uses SOLR JSON to display results", tags = "Explore")
-    @RequestMapping(value = { "/explore/group/{group}/download*"
+    @RequestMapping(value = { "/explore/group/{group}/download"
 //            , "/explore/group/{group}/download.json*"
     } , method = RequestMethod.GET, produces = "application/vnd.ms-excel")
     public void yourAreaDownload(
@@ -399,7 +399,7 @@ public class ExploreController {
      */
     @Operation(summary = "Returns a list of species and record counts for a given location search" +
             " and a higher taxa with rank.", tags = "Explore")
-    @RequestMapping(value = {"/explore/group/{group}*"
+    @RequestMapping(value = {"/explore/group/{group}"
 //            , "/explore/group/{group}.json*"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ApiParam(value = "group", required = true)
