@@ -138,11 +138,9 @@ public class MapController {
      * @return
      * @throws Exception
      */
-    @Deprecated
-    @Operation(summary = "Occurrence info summary service for map popups.", tags = {"Deprecated"})
-    @RequestMapping(value = {"/occurrences/info", "/occurrences/info.json" }, method = RequestMethod.GET)
+    @Operation(summary = "Occurrence info summary service for JS map popups.", tags = {"Mapping"})
+    @RequestMapping(value = {"/occurrences/info" }, method = RequestMethod.GET, produces = "application/json")
     public String getOccurrencesInformation(SpatialSearchRequestDTO requestParams,
-                                            @RequestParam(value = "zoom", required = false, defaultValue = "0") Integer zoomLevel,
                                             @RequestParam(value = "callback", required = false) String callback,
                                             Model model,
                                             HttpServletResponse response)

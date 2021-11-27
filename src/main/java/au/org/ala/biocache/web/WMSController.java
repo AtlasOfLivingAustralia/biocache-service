@@ -27,6 +27,7 @@ import com.google.common.base.Strings;
 import io.swagger.annotations.*;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocument;
@@ -44,6 +45,7 @@ import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.repository.query.Param;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.annotation.Secured;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -224,6 +226,8 @@ public class WMSController extends AbstractSecureController {
         System.setProperty("org.geotools.referencing.forceXY", "true");
     }
 
+    @SecurityRequirement(name="JWT")
+    @Secured({"ROLE_USER", "ROLE_ADMIN"})
     @Operation(summary = "Create a query ID", tags = "Query ID")
     @RequestMapping(value = {
 //            "/webportal/params",
@@ -603,10 +607,11 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @Operation(summary = "Get occurrences by query as gzipped csv.", tags = "Deprecated")
+    @SecurityRequirement(name="JWT")
+    @Secured({"ROLE_USER", "ROLE_ADMIN"})
+    @Operation(summary = "Get occurrences by query as gzipped csv.", tags = "Download")
     @Deprecated
     @RequestMapping(value = {
-//            "/webportal/occurrences.gz",
             "/mapping/occurrences.gz"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     public void occurrenceGz(
             @ParameterObject SpatialSearchRequestParams params,

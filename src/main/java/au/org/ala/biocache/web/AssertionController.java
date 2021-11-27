@@ -23,6 +23,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.Logger;
@@ -111,26 +112,28 @@ public class AssertionController extends AbstractSecureController {
 
         addAssertion(recordUuid, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason, request, response);
     }
+
     /**
      * Adds a bulk list of assertions.
-     * 
+     *
      * This method expects certain request params to be provided
      * apiKey
      * userId
      * userDisplayName
      * assertions - a json list of assertion maps to be applied.
-     * 
+     *
      * @param request
      * @param response
      * @throws Exception
      */
+    @Hidden
     @SecurityRequirement(name="JWT")
     @Operation(summary = "Bulk add an assertion", tags = "Assertions")
     @RequestMapping(value="/bulk/assertions/add", method = RequestMethod.POST)
-    public void addBulkAssertions(HttpServletRequest request,
-                                  @RequestParam(value = "assertions", required = true) String json,
+    public void addBulkAssertions(@RequestParam(value = "assertions", required = true) String json,
                                   @RequestParam(value = "userId", required = true) String userId,
                                   @RequestParam(value = "userDisplayName", required = true) String userDisplayName,
+                                  HttpServletRequest request,
                                   HttpServletResponse response) throws Exception {
         // check to see that the assertions have come from a valid source before adding
         if (shouldPerformOperation(request, response)) {
@@ -180,10 +183,10 @@ public class AssertionController extends AbstractSecureController {
     @ApiParam(value = "recordUuid", required = true)
     public void addAssertion(
        @PathVariable(value = "recordUuid") String recordUuid,
-       @RequestParam(value = "code", required = true) String code,
+       @Parameter(description = "Assertion code") @RequestParam(value = "code") String code,
+       @Parameter(description = "Atlas user ID") @RequestParam(value = "userId") String userId,
+       @RequestParam(value = "userDisplayName") String userDisplayName,
        @RequestParam(value = "comment", required = false) String comment,
-       @RequestParam(value = "userId", required = true) String userId,
-       @RequestParam(value = "userDisplayName", required = true) String userDisplayName,
        @RequestParam(value = "userAssertionStatus", required = false) String userAssertionStatus,
        @RequestParam(value = "assertionUuid", required = false) String assertionUuid,
        @RequestParam(value = "relatedRecordId", required = false) String relatedRecordId,

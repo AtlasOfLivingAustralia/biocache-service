@@ -48,6 +48,10 @@ public class JwtService {
 
             try {
                 algorithm.verify(jwt);
+
+                //TODO check the expiry....
+
+
                 List<String> roles = jwt.getClaims().get("role").asList(String.class);
                 String email = jwt.getClaims().get("email").asString();
                 String userId = jwt.getClaims().get("userid").asString();

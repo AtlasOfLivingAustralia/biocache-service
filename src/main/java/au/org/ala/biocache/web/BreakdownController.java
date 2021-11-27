@@ -52,7 +52,7 @@ public class BreakdownController {
      * @throws Exception
      */
     @Operation(summary = "Taxonomic breakdown based on a collection", tags = {"Taxonomy"})
-    @RequestMapping(value = "/breakdown/collections/{uid}*", method = RequestMethod.GET)
+    @RequestMapping(value = "/breakdown/collections/{uid}", method = RequestMethod.GET)
     @ApiParam(value = "uid", required = true)
     public @ResponseBody
     TaxaRankCountDTO breakdownByCollection(@ParameterObject BreakdownRequestParams breakdownParams,
@@ -69,7 +69,7 @@ public class BreakdownController {
      * @throws Exception
      */
     @Operation(summary = "Taxonomic breakdown based on a institution", tags = {"Taxonomy"})
-    @RequestMapping(value = "/breakdown/institutions/{uid}*", method = RequestMethod.GET)
+    @RequestMapping(value = "/breakdown/institutions/{uid}", method = RequestMethod.GET)
     @ApiParam(value = "uid", required = true)
     public @ResponseBody
     TaxaRankCountDTO breakdownByInstitution(@ParameterObject BreakdownRequestParams breakdownParams,
@@ -86,7 +86,7 @@ public class BreakdownController {
      * @throws Exception
      */
     @Operation(summary = "Taxonomic breakdown based on a data resource", tags = {"Taxonomy"})
-    @RequestMapping(value = "/breakdown/dataResources/{uid}*", method = RequestMethod.GET)
+    @RequestMapping(value = "/breakdown/dataResources/{uid}", method = RequestMethod.GET)
     @ApiParam(value = "uid", required = true)
     public @ResponseBody
     TaxaRankCountDTO breakdownByDataResource(@ParameterObject BreakdownRequestParams breakdownParams,
@@ -103,7 +103,7 @@ public class BreakdownController {
      * @throws Exception
      */
     @Operation(summary = "Taxonomic breakdown based on a data provider", tags = {"Taxonomy"})
-    @RequestMapping(value = "/breakdown/dataProviders/{uid}*", method = RequestMethod.GET)
+    @RequestMapping(value = "/breakdown/dataProviders/{uid}", method = RequestMethod.GET)
     @ApiParam(value = "uid", required = true)
     public @ResponseBody
     TaxaRankCountDTO breakdownByDataProvider(@ParameterObject BreakdownRequestParams breakdownParams,
@@ -121,17 +121,17 @@ public class BreakdownController {
      * @throws Exception
      */
     @Operation(summary = "Taxonomic breakdown based on a data hub", tags = {"Taxonomy"})
-    @RequestMapping(value = "/breakdown/dataHubs/{uid}*", method = RequestMethod.GET)
+    @RequestMapping(value = "/breakdown/dataHubs/{uid}", method = RequestMethod.GET)
     @ApiParam(value = "uid", required = true)
     public @ResponseBody
-    TaxaRankCountDTO breakdownByDataHub(BreakdownRequestParams requestParams,
+    TaxaRankCountDTO breakdownByDataHub(@ParameterObject BreakdownRequestParams requestParams,
                                         @PathVariable("uid") String uid,
                                         HttpServletResponse response) throws Exception {
         return performBreakdown(OccurrenceIndex.DATA_HUB_UID, uid, requestParams, response);
     }
 
     @Operation(summary = "A breakdown based on taxon rank", tags = {"Taxonomy"})
-	@RequestMapping(value= "/breakdown*", method = RequestMethod.GET)
+	@RequestMapping(value= "/breakdown", method = RequestMethod.GET)
 	public @ResponseBody TaxaRankCountDTO breakdownByQuery(@ParameterObject BreakdownRequestParams breakdownParams, HttpServletResponse response) throws Exception {
 
 	    if (StringUtils.isNotEmpty(breakdownParams.getQ())){
@@ -154,9 +154,9 @@ public class BreakdownController {
 	 */
 	private TaxaRankCountDTO performBreakdown(String source, String uid, BreakdownRequestParams requestParams, HttpServletResponse response) throws Exception{
 	    StringBuilder sb = new StringBuilder("(");
-	    //support CSV list of uids
-	    for(String u:uid.split(",")){
-	        if(sb.length()>1)
+	    // support CSV list of uids
+	    for (String u : uid.split(",")){
+	        if (sb.length()>1)
 	            sb.append(" OR ");
 	        sb.append(source).append(":").append(u);
 	    }
@@ -166,14 +166,27 @@ public class BreakdownController {
 	    return breakdownByQuery(requestParams, response);
 	}
 
-    /**
-     * Performs a breakdown without limiting the collection or institution
-     * @return
-     * @throws Exception
-     */
-    @Operation(summary = "A breakdown without limiting the collection or institution", tags = {"Taxonomy"})
-    @RequestMapping(value = {"/breakdown/institutions*","/breakdown/collections*", "/breakdown/data-resources*","/breakdowns/data-providers*","/breakdowns/data-hubs*"}, method = RequestMethod.GET)
-    public @ResponseBody TaxaRankCountDTO limitBreakdown(@ParameterObject BreakdownRequestParams requestParams, HttpServletResponse response) throws Exception {
-        return performBreakdown("*", "*", requestParams, response);                
-    }
+//    /**
+//     * Performs a breakdown without limiting the collection or institution
+//     * @return
+//     * @throws Exception
+//     */
+//    @Deprecated
+//    @Operation(summary = "A breakdown without limiting the collection or institution", tags = {"Deprecated"})
+//    @RequestMapping(value = {"/breakdown/institutions*","/breakdown/collections*"}, method = RequestMethod.GET)
+//    public @ResponseBody TaxaRankCountDTO limitBreakdown(@ParameterObject BreakdownRequestParams requestParams, HttpServletResponse response) throws Exception {
+//        return performBreakdown("*", "*", requestParams, response);
+//    }
+//
+//    /**
+//     * Performs a breakdown without limiting the collection or institution
+//     * @return
+//     * @throws Exception
+//     */
+//    @Deprecated
+//    @Operation(summary = "A breakdown without limiting the collection or institution", tags = {"Deprecated"})
+//    @RequestMapping(value = { "/breakdown/data-resources*","/breakdowns/data-providers*", "/breakdowns/data-hubs*"}, method = RequestMethod.GET)
+//    public @ResponseBody TaxaRankCountDTO limitBreakdownDeprecated(@ParameterObject BreakdownRequestParams requestParams, HttpServletResponse response) throws Exception {
+//        return performBreakdown("*", "*", requestParams, response);
+//    }
 }

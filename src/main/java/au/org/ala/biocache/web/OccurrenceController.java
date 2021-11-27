@@ -1348,12 +1348,11 @@ public class OccurrenceController extends AbstractSecureController {
      * Dumps the distinct latitudes and longitudes that are used in the
      * connected index (to 4 decimal places)
      */
-    @Operation(summary = "Dumps the distinct latitudes and longitudes that are used in the connected index (to 4 decimal places)", tags = "Deprecated")
+    @Operation(summary = "Dumps the distinct latitudes and longitudes that are used in the connected index (to 4 decimal places)", tags = "Download")
     @RequestMapping(value = {
 //            "/occurrences/coordinates.json*",
             "/occurrences/coordinates*"
     }, method = {RequestMethod.GET, RequestMethod.POST})
-    @Deprecated
     public void dumpDistinctLatLongs(SpatialSearchRequestDTO requestParams, HttpServletResponse response) throws Exception {
         requestParams.setFacets(new String[]{OccurrenceIndex.LAT_LNG});
         requestParams.setFacet(true);

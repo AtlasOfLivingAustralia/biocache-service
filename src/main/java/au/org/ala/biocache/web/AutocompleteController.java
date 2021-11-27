@@ -37,8 +37,7 @@ public class AutocompleteController extends AbstractSecureController {
 
     @Operation(summary = "Autocomplete service which filters only lists taxa with occurrence data", tags = "Autocomplete")
     @RequestMapping(value = {
-            "autocomplete/search",
-            "autocomplete/search.json" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+            "autocomplete/search" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public
     @ResponseBody
     Map search(

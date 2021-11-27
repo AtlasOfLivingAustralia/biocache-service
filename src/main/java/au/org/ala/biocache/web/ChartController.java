@@ -93,8 +93,7 @@ public class ChartController extends AbstractSecureController implements Seriali
      */
     @Operation(summary = "Standard charting", tags = "Charts")
     @RequestMapping(value = {
-            "/chart",
-            "/chart.json"
+            "/chart"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public
     @ResponseBody
@@ -114,6 +113,30 @@ public class ChartController extends AbstractSecureController implements Seriali
     ) throws Exception {
         SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(searchParams);
         return generateChart(dto, x, xranges, stats, statType, series, seriesranges, seriesother, xother, seriesmissing, xmissing, fsort);
+    }
+
+    @Deprecated
+    @Operation(summary = "Standard charting", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/chart.json"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public
+    @ResponseBody
+    Map chartDeprecated(@ParameterObject SpatialSearchRequestParams searchParams,
+              @RequestParam(value = "x", required = false) String x,
+              @RequestParam(value = "xranges", required = false) String xranges,
+              @RequestParam(value = "stats", required = false) String stats,
+              // default stats value is only for backwards compatibility
+              @RequestParam(value = "statType", required = false, defaultValue = "min,max,mean,missing,stddev,count,sum") String statType,
+              @RequestParam(value = "series", required = false) String series,
+              @RequestParam(value = "seriesranges", required = false) String seriesranges,
+              @RequestParam(value = "seriesother", required = false, defaultValue = "false") Boolean seriesother,
+              @RequestParam(value = "xother", required = false, defaultValue = "true") Boolean xother,
+              @RequestParam(value = "seriesmissing", required = false, defaultValue = "false") Boolean seriesmissing,
+              @RequestParam(value = "xmissing", required = false, defaultValue = "true") Boolean xmissing,
+              @RequestParam(value = "fsort", required = false, defaultValue = "index") String fsort
+    ) throws Exception {
+        return chart(searchParams, x, xranges, stats, statType, series, seriesranges, seriesother, xother, seriesmissing, xmissing, fsort);
     }
 
     @NotNull

@@ -526,7 +526,7 @@ public class ExploreController {
      *
      * @return
      */
-    @Operation(summary = "Returns the species that only have occurrences in the supplied WKT. Columns: " + ENDEMISM_CSV_HEADER
+    @Operation(summary = "Download a CSV of the species that only have occurrences in the supplied WKT. Columns: " + ENDEMISM_CSV_HEADER
             , tags = {"Endemism", "Download"})
     @RequestMapping(value = "/explore/endemic/species.csv", method = RequestMethod.GET)
     public void getEndemicSpeciesCSV(@ParameterObject SpatialSearchRequestParams requestParams, HttpServletResponse response) throws Exception {
@@ -564,7 +564,7 @@ public class ExploreController {
      *
      * @return
      */
-    @Operation(summary = "Returns facet values that only occur in the supplied subQueryID and not in the parentQuery.", tags = {"Endemism", "Download"})
+    @Operation(summary = "Download a CSV of facet values that only occur in the supplied subQueryID and not in the parentQuery.", tags = {"Endemism", "Download"})
     @RequestMapping(value = "/explore/endemic/species/{subQueryID}.csv", method = RequestMethod.GET)
     @ApiParam(value = "subQueryID", required = true)
     public void getSpeciesOnlyInOneQueryCSV(@ParameterObject SpatialSearchRequestParams parentQueryParams,
