@@ -17,41 +17,37 @@ package au.org.ala.biocache.dto;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import javax.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Stores the details of a download.  Will allow for monitoring of downloads
+ * Stores the details of a logged download.  Will allow for monitoring of downloads.
  * 
  * @author Natasha Carter
  */
 @Schema(name = "DownloadDetails")
 public class DownloadDetailsDTO {
 
+    private DownloadRequestDTO requestParams;
     private DownloadType downloadType;
+
+    private String ipAddress;
+    private String userAgent;
+    private AuthenticatedUser authenticatedUser;
+
+    // processing fields
+    private String fileLocation;
+    private Map<String,String> headerMap = null;
+    private String [] miscFields = null;
+
     private Date startDate;
     private Date lastUpdate;
     private long totalRecords = 0;
-    private AtomicLong recordsDownloaded = new AtomicLong(0);
-    private String downloadParams;
-    private String ipAddress;
-    private String userAgent;
-    private boolean emailNotify = true;
-    private String email;
-    private DownloadRequestDTO requestParams;
-    private String fileLocation;
-    private boolean includeSensitive = false;
-    private Map<String,String> headerMap = null;
-    private String [] miscFields = null;
-    /**
-     * **MUST** be null if the user is not allowed to access sensitive fields.
-     */
-    private String sensitiveFq = null;
+    private final AtomicLong recordsDownloaded = new AtomicLong(0);
     private AtomicBoolean interrupt = new AtomicBoolean(false);
     private String processingThreadName = null;
 
@@ -59,21 +55,15 @@ public class DownloadDetailsDTO {
      * Default constructor necessary for Jackson to create an object from the JSON. 
      */
     public DownloadDetailsDTO(){}
-    
-    public DownloadDetailsDTO(String params, String ipAddress, String userAgent, DownloadType type){
-        this.downloadParams = params;
+
+    public DownloadDetailsDTO(@NotNull DownloadRequestDTO params, AuthenticatedUser authenticatedUser, String ipAddress, String userAgent, DownloadType type){
+        this.requestParams = params;
+        this.authenticatedUser = authenticatedUser;
         this.ipAddress = ipAddress;
         this.userAgent = userAgent;
         this.downloadType = type;
         this.startDate = new Date();
         this.lastUpdate = new Date();
-    }
-    
-    public DownloadDetailsDTO(DownloadRequestDTO params, String ipAddress, String userAgent, DownloadType type){
-        this(params.getUrlParams(), ipAddress, userAgent, type);
-        requestParams = params;
-        emailNotify = requestParams.isEmailNotify();
-        email = requestParams.getEmail();
     }
 
     public Date getLastUpdate() {
@@ -108,17 +98,6 @@ public class DownloadDetailsDTO {
     public AtomicLong getRecordsDownloaded(){
         return recordsDownloaded;
     }
-    
-    public String getDownloadParams(){
-        return downloadParams;
-    }
-    
-    /**
-     * @param downloadParams the downloadParams to set
-     */
-    public void setDownloadParams(String downloadParams) {
-        this.downloadParams = downloadParams;
-    }
 
     public String getIpAddress(){
         return ipAddress;
@@ -151,27 +130,6 @@ public class DownloadDetailsDTO {
         return totalRecords;
     }
 
-    public boolean isEmailNotify() {
-        return emailNotify;
-    }
-
-    public void setEmailNotify(boolean emailNotify) {
-        this.emailNotify = emailNotify;
-    }
-
-    /**
-     * @return the email
-     */
-    public String getEmail() {
-        return email;
-    }
-
-    /**
-     * @param email the email to set
-     */
-    public void setEmail(String email) {
-        this.email = email;
-    }
     /**
      * @return the fileLocation
      */
@@ -198,20 +156,6 @@ public class DownloadDetailsDTO {
      */
     public void setRequestParams(DownloadRequestDTO requestParams) {
         this.requestParams = requestParams;
-    }
-
-    /**
-     * @return the includeSensitive
-     */
-    public boolean getIncludeSensitive() {
-        return includeSensitive;
-    }
-
-    /**
-     * @param includeSensitive the includeSensitive to set
-     */
-    public void setIncludeSensitive(boolean includeSensitive) {
-        this.includeSensitive = includeSensitive;
     }
 
     /**
@@ -251,7 +195,7 @@ public class DownloadDetailsDTO {
      * @return unique id constructed from email and start time
      */
     public String getUniqueId() {
-        return UUID.nameUUIDFromBytes(getEmail().getBytes(StandardCharsets.UTF_8)) + "-" + getStartTime();
+        return UUID.nameUUIDFromBytes(requestParams.getEmail().getBytes(StandardCharsets.UTF_8)) + "-" + getStartTime();
     }
 
     /**
@@ -259,23 +203,6 @@ public class DownloadDetailsDTO {
      */
     public void setHeaderMap(Map<String, String> headerMap) {
         this.headerMap = headerMap;
-    }
-
-    /**
-     * This **MUST** be set to null if the user is not allowed to view sensitive fields.
-     * <br>
-     * Any non-null value could result in the user getting access to sensitive fields.
-     * @param sensitiveFq Null to disallow the user from getting access to sensitive fields, and a non-null string to give the user access.
-     */
-    public void setSensitiveFq(String sensitiveFq) {
-        this.sensitiveFq = sensitiveFq;
-    }
-
-    /**
-     * @return A non-null string if the user is allowed to view sensitive fields, and null otherwise.
-     */
-    public String getSensitiveFq() {
-        return sensitiveFq;
     }
 
     public void setInterrupt(AtomicBoolean interrupt) {
@@ -292,6 +219,14 @@ public class DownloadDetailsDTO {
 
     public void setProcessingThreadName(String processingThreadName) {
         this.processingThreadName = processingThreadName;
+    }
+
+    public AuthenticatedUser getAuthenticatedUser() {
+        return authenticatedUser;
+    }
+
+    public void setAuthenticatedUser(AuthenticatedUser authenticatedUser) {
+        this.authenticatedUser = authenticatedUser;
     }
 
     public void resetCounts() {
@@ -318,11 +253,10 @@ public class DownloadDetailsDTO {
                 .append(", lastUpdate=").append(lastUpdate)
                 .append(", totalRecords=").append(totalRecords)
                 .append(", recordsDownloaded=").append(recordsDownloaded)
-                .append(", downloadParams=").append(downloadParams)
+                .append(", downloadParams=").append(requestParams.toString())
                 .append(", ipAddress=").append(ipAddress).append(", email=")
-                .append(email).append(", requestParams=").append(requestParams)
+                .append(requestParams.getEmail()).append(", requestParams=").append(requestParams)
                 .append("]");
         return builder.toString();
     }
-  
 }

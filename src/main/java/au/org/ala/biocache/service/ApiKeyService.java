@@ -18,10 +18,12 @@ import java.util.Map;
 @Slf4j
 public class ApiKeyService {
 
+    public static final String ROLE_LEGACY_APIKEY = "ROLE_LEGACY_APIKEY";
+
     @Value("${spring.security.legacy.apikey.serviceUrl}")
     String legacyApiKeyServiceUrl;
 
-    String[] legacyApiKeysRoles = new String[]{"ROLE_ADMIN"};
+    String[] legacyApiKeysRoles = new String[]{ROLE_LEGACY_APIKEY};
 
     @Inject
     protected RestOperations restTemplate;
@@ -62,7 +64,7 @@ public class ApiKeyService {
             log.debug("Checking api key: " + keyToTest + ", valid: " + isValid);
             AuthenticatedUser auth = null;
             if (isValid) {
-                auth = new AuthenticatedUser(email, userId, Arrays.asList(legacyApiKeysRoles), Collections.emptyMap());
+                auth = new AuthenticatedUser(email, userId, Arrays.asList(legacyApiKeysRoles), Collections.emptyMap(), null, null);
                 cache.put(keyToTest, auth);
             }
             return auth;

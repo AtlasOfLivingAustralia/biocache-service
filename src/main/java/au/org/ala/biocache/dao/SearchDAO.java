@@ -76,12 +76,11 @@ public interface SearchDAO {
      * @param downloadParams
      * @param out
      * @param uidStats
-     * @param includeSensitive
      * @param parallelQueryExecutor The ExecutorService to manage parallel query executions
      * @return
      * @throws Exception
      */
-    DownloadHeaders writeResultsFromIndexToStream(DownloadRequestDTO downloadParams, OutputStream out, ConcurrentMap<String, AtomicInteger> uidStats, boolean includeSensitive, DownloadDetailsDTO dd, boolean checkLimit, ExecutorService parallelQueryExecutor) throws Exception;
+    DownloadHeaders writeResultsFromIndexToStream(DownloadRequestDTO downloadParams, OutputStream out, ConcurrentMap<String, AtomicInteger> uidStats, DownloadDetailsDTO dd, boolean checkLimit, ExecutorService parallelQueryExecutor) throws Exception;
 
     /**
      * Write coordinates out to the supplied stream.

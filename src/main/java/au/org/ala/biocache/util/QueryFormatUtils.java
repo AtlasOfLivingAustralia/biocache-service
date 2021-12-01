@@ -497,7 +497,10 @@ public class QueryFormatUtils {
                 }
                 m.appendReplacement(sb, prefix + q);
             } catch (Exception e) {
-                logger.error("failed to get species list: " + speciesList, e);
+                logger.error("failed to get species list: " + speciesList);
+                if (logger.isDebugEnabled()){
+                    logger.debug("Failed to get species list: " + speciesList, e);
+                }
                 m.appendReplacement(sb, prefix + "(NOT *:*)");
                 failedLists.add(speciesList);
             }

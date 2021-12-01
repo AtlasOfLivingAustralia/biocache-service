@@ -55,7 +55,9 @@ public class JwtService {
                 List<String> roles = jwt.getClaims().get("role").asList(String.class);
                 String email = jwt.getClaims().get("email").asString();
                 String userId = jwt.getClaims().get("userid").asString();
-                return new AuthenticatedUser(email, userId, roles, jwt.getClaims());
+                String firstName = jwt.getClaims().get("givenName").asString();
+                String lastName = jwt.getClaims().get("family_name").asString();
+                return new AuthenticatedUser(email, userId, roles, jwt.getClaims(), firstName, lastName);
             } catch (SignatureVerificationException e) {
                 log.error("Verify of JWT failed");
                 return null;

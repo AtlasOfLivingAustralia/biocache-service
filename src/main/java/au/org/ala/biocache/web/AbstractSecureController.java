@@ -112,11 +112,10 @@ public class AbstractSecureController {
      * OR if the IP address of the request is not in the excludedNetworks OR in the includedNetworks
      *
      * @param request
-     * @param response
      * @return if the request should be rate limited
      * @throws IOException
      */
-    public boolean rateLimitRequest(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    public boolean rateLimitRequest(HttpServletRequest request) throws IOException {
 
         String ipAddress = getIPAddress(request);
         boolean ratelimitIp = true;

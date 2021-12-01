@@ -609,7 +609,7 @@ public class WMSController extends AbstractSecureController {
      */
     @SecurityRequirement(name="JWT")
     @Secured({"ROLE_USER", "ROLE_ADMIN"})
-    @Operation(summary = "Get occurrences by query as gzipped csv.", tags = "Download")
+    @Operation(summary = "Get occurrences by query as gzipped csv.", tags = "Deprecated")
     @Deprecated
     @RequestMapping(value = {
             "/mapping/occurrences.gz"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)

@@ -38,6 +38,7 @@ import org.springframework.web.bind.annotation.*;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.OutputStream;
@@ -367,9 +368,10 @@ public class ExploreController {
             @ParameterObject DownloadRequestParams requestParams,
             @PathVariable(value = "group") String group,
             @RequestParam(value = "common", required = false, defaultValue = "false") boolean common,
+            HttpServletRequest request,
             HttpServletResponse response) {
 
-        DownloadRequestDTO dto = DownloadRequestDTO.create(requestParams);
+        DownloadRequestDTO dto = DownloadRequestDTO.create(requestParams, request);
 
         String filename = requestParams.getFile() != null ? requestParams.getFile() : "data";
         logger.debug("Downloading the species in your area... ");

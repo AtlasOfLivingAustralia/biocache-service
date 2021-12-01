@@ -16,7 +16,6 @@ package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.service.SpeciesLookupService;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import io.swagger.annotations.Api;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
@@ -41,7 +40,7 @@ public class AutocompleteController extends AbstractSecureController {
     public
     @ResponseBody
     Map search(
-            @RequestParam(value = "q", required = true) String query,
+            @RequestParam(value = "q") String query,
             @RequestParam(value = "fq", required = false) String[] filterQuery,
             @RequestParam(value = "pageSize", required = false, defaultValue = "10") Integer max,
             @RequestParam(value = "all", required = false, defaultValue = "false") Boolean includeAll,

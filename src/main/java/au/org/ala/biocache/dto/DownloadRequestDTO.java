@@ -23,6 +23,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import org.apache.log4j.Logger;
 import org.springframework.beans.BeanUtils;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 import java.util.Arrays;
@@ -34,7 +35,6 @@ import java.util.Map;
  * Data Transfer Object to represent the request parameters required to download
  * the results of a search.
  *
- *
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
 @Schema(name="DownloadRequest")
@@ -42,7 +42,7 @@ public class DownloadRequestDTO extends SpatialSearchRequestDTO {
 
     public final static List<String> validTemplates = Arrays.asList(DownloadService.DEFAULT_SELECTOR, DownloadService.DOI_SELECTOR, DownloadService.CSDM_SELECTOR);
     /** log4 j logger */
-    private static final Logger logger = Logger.getLogger(SearchRequestDTO.class);
+    private static final Logger logger = Logger.getLogger(DownloadRequestDTO.class);
 
     protected boolean emailNotify = true;
     protected String email = "";
@@ -79,7 +79,7 @@ public class DownloadRequestDTO extends SpatialSearchRequestDTO {
     /**
      * Request to generate a DOI for the download or not. Default false
      */
-    protected Boolean mintDoi=false;
+    protected Boolean mintDoi = false;
 
     /**
      * The name of display template to be used to show DOI information.
@@ -118,9 +118,12 @@ public class DownloadRequestDTO extends SpatialSearchRequestDTO {
      * @param params
      * @return
      */
-    public static DownloadRequestDTO create(DownloadRequestParams params){
+    public static DownloadRequestDTO create(DownloadRequestParams params, HttpServletRequest request){
         DownloadRequestDTO dto = new DownloadRequestDTO();
         BeanUtils.copyProperties(params, dto);
+        if (dto.getEmail() == null){
+            dto.setEmail(request.getUserPrincipal().getName());
+        }
         return dto;
     }
 

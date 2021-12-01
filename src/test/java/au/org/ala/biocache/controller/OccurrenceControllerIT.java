@@ -1,11 +1,14 @@
 package au.org.ala.biocache.controller;
 
 import au.org.ala.biocache.dao.SearchDAO;
+import au.org.ala.biocache.dto.AuthenticatedUser;
+import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.service.LoggerService;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.web.OccurrenceController;
+import com.google.common.collect.ImmutableMap;
 import junit.framework.TestCase;
 import org.ala.client.model.LogEventVO;
 import org.apache.solr.common.SolrException;
@@ -30,6 +33,9 @@ import org.springframework.web.context.WebApplicationContext;
 
 import javax.servlet.http.HttpServletResponse;
 
+import java.util.Collections;
+import java.util.Map;
+
 import static org.apache.solr.common.SolrException.ErrorCode.BAD_REQUEST;
 import static org.apache.solr.common.SolrException.ErrorCode.FORBIDDEN;
 import static org.mockito.Mockito.*;
@@ -49,7 +55,10 @@ public class OccurrenceControllerIT extends TestCase {
         System.setProperty("biocache.config", System.getProperty("user.dir") + "/src/test/resources/biocache-test-config.properties");
     }
 
-    public final int TEST_INDEX_SIZE = 1000;
+    final static AuthenticatedUser TEST_USER =
+            new AuthenticatedUser("test@test.com","Tester", Collections.EMPTY_LIST,Collections.EMPTY_MAP, null, null);
+
+    public final int TEST_INDEX_SIZE = 1005;
     public final int DEFAULT_SEARCH_PAGE_SIZE = 10;
     public final int INDEXED_FIELD_SIZE = 435;
 
@@ -68,6 +77,7 @@ public class OccurrenceControllerIT extends TestCase {
     @Autowired
     WebApplicationContext wac;
 
+    AuthService authService;
 
     MockMvc mockMvc;
 
@@ -80,14 +90,17 @@ public class OccurrenceControllerIT extends TestCase {
     public void setup() throws Exception {
         loggerService = mock(LoggerService.class);
         searchDAO = mock(SearchDAO.class);
+        authService = mock(AuthService.class);
         Validator validator = mock(Validator.class);
 
         ReflectionTestUtils.setField(occurrenceController, "loggerService", loggerService);
         ReflectionTestUtils.setField(downloadService, "loggerService", loggerService);
         ReflectionTestUtils.setField(occurrenceController, "rateLimitCount", 5);
+        ReflectionTestUtils.setField(occurrenceController, "authService", authService);
 //        ReflectionTestUtils.setField(occurrenceController, "validator", validator);
 
         when(validator.supports(any())).thenReturn(true);
+
 
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).build();
     }
@@ -177,9 +190,13 @@ public class OccurrenceControllerIT extends TestCase {
     @Test
     public void downloadTest() throws Exception {
 
+        when(authService.getDownloadUser(any(),any())).thenReturn(TEST_USER);
+
         this.mockMvc.perform(get("/occurrences/download")
-                .header("user-agent", "test User-Agent")
-                .param("reasonTypeId", "10"))
+                        .header("user-agent", "test User-Agent")
+                        .param("reasonTypeId", "10")
+                        .param("email", "test@test.com")
+                )
                 .andExpect(status().isOk())
                 .andExpect(content().contentType("application/zip"));
 
@@ -192,6 +209,16 @@ public class OccurrenceControllerIT extends TestCase {
 
     @Test
     public void downloadValidEmailTest() throws Exception {
+
+        when(authService.getDownloadUser(any(),any()))
+                .thenReturn(TEST_USER);
+
+//        when(authService.getUserDetails("test@test.com"))
+//                .thenReturn((Map) ImmutableMap.of(
+//                        "email","test@test.com",
+//                        "activated", true,
+//                        "locked", true
+//                ));
 
         this.mockMvc.perform(get("/occurrences/download")
                 .header("user-agent", "test User-Agent")

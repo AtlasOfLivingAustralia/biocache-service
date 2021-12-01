@@ -507,7 +507,7 @@ public class OccurrenceController extends AbstractSecureController {
                          HttpServletRequest request,
                          HttpServletResponse response) throws Exception {
         Long version;
-        if (force && shouldPerformOperation(request, response)) {
+        if (shouldPerformOperation(request, response)) {
             version = indexDao.getIndexVersion(force);
         } else {
             version = indexDao.getIndexVersion(false);
@@ -915,7 +915,7 @@ public class OccurrenceController extends AbstractSecureController {
     )
     @RequestMapping(value = "/occurrences/facets/download", method = RequestMethod.GET, produces = "text/csv")
     public void downloadFacet(
-            @Valid @ParameterObject DownloadRequestParams downloadParams,
+            @Valid @ParameterObject DownloadRequestParams requestParams,
             @RequestParam(value = "count", required = false, defaultValue = "false") boolean includeCount,
             @RequestParam(value = "lookup", required = false, defaultValue = "false") boolean lookupName,
             @RequestParam(value = "synonym", required = false, defaultValue = "false") boolean includeSynonyms,
@@ -923,11 +923,16 @@ public class OccurrenceController extends AbstractSecureController {
             HttpServletRequest request,
             HttpServletResponse response){
 
-        DownloadRequestDTO dto = DownloadRequestDTO.create(downloadParams);
+        DownloadRequestDTO dto = DownloadRequestDTO.create(requestParams, request);
+        AuthenticatedUser downloadUser = authService.getDownloadUser(dto, request);
+
+        String userId = null;
+        List<String> roles = Collections.emptyList();
 
         if (dto.getFacets().length > 0) {
             DownloadDetailsDTO dd = downloadService.registerDownload(
                     dto,
+                    downloadUser,
                     getIPAddress(request),
                     getUserAgent(request),
                     DownloadDetailsDTO.DownloadType.FACET
@@ -981,7 +986,7 @@ public class OccurrenceController extends AbstractSecureController {
         logger.info("/occurrences/batchSearch with action=Download Records");
         Long qid = getQidForBatchSearch(queries, field, separator, title);
 
-        DownloadRequestDTO downloadRequestDTO =  DownloadRequestDTO.create(requestParams);
+        DownloadRequestDTO downloadRequestDTO =  DownloadRequestDTO.create(requestParams, request);
 
         if (qid != null) {
             if ("*:*".equals(downloadRequestDTO.getQ())) {
@@ -1018,12 +1023,18 @@ public class OccurrenceController extends AbstractSecureController {
             return VALIDATION_ERROR;
         }
 
-        final DownloadRequestDTO dto =  DownloadRequestDTO.create(requestParams);
+        DownloadRequestDTO dto = DownloadRequestDTO.create(requestParams, request);
+        AuthenticatedUser downloadUser = authService.getDownloadUser(dto, request);
 
         final File file = new File(filepath);
 
         final SpeciesLookupService mySpeciesLookupService = this.speciesLookupService;
-        final DownloadDetailsDTO dd = downloadService.registerDownload(dto, getIPAddress(request), getUserAgent(request), DownloadType.RECORDS_INDEX);
+
+        String userId = null;
+        List<String> roles = Collections.emptyList();
+
+        final DownloadDetailsDTO dd = downloadService.registerDownload(dto, downloadUser,
+                getIPAddress(request), getUserAgent(request), DownloadType.RECORDS_INDEX);
 
         if (file.exists()) {
             Runnable t = new Runnable() {
@@ -1050,7 +1061,7 @@ public class OccurrenceController extends AbstractSecureController {
                                     try (FileOutputStream output = new FileOutputStream(outputFilePath);) {
                                         dto.setQ("taxonConceptID:\"" + lsid + "\"");
                                         ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
-                                        searchDAO.writeResultsFromIndexToStream(dto, new CloseShieldOutputStream(output), uidStats,false, dd, false, null);
+                                        searchDAO.writeResultsFromIndexToStream(dto, new CloseShieldOutputStream(output), uidStats, dd, false, null);
                                         output.flush();
                                         try (FileOutputStream citationOutput = new FileOutputStream(citationFilePath);) {
                                             downloadService.getCitations(uidStats, citationOutput, dto.getSep(), dto.getEsc(), null, null);
@@ -1187,17 +1198,16 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     /**
-     * Occurrence search page uses SOLR JSON to display results
-     * <p>
-     * Please NOTE that the q and fq provided to this URL should be obtained
-     * from SearchResultDTO.urlParameters
-     *
-     * @return
-     * @throws Exception
+     * Synchronous downloads.
+     * Authentication runs thus:
+     * 1) JWT - user is retrieved from JWT, supplied email address is ignored...
+     * 2) API Key and X-Auth-Id - email address retrieved from CAS/Userdetails - email address is ignored...
+     * 3) Email address supplied (Galah) - email address is verified - no sensitive access
      */
+    @Deprecated
     @SecurityRequirement(name = "JWT")
     @Operation(
-            summary = "Download occurrence service",
+            summary = "Download occurrence service - Synchronous",
             tags = "Download",
             security =  @SecurityRequirement(name = "JWT")
     )
@@ -1208,6 +1218,7 @@ public class OccurrenceController extends AbstractSecureController {
                                    Model model,
                                    HttpServletResponse response,
                                    HttpServletRequest request) throws Exception {
+
         if (result.hasErrors()) {
             logger.info("Validation failed  " + result.getErrorCount() + " checks");
             logger.debug(result.toString());
@@ -1215,24 +1226,16 @@ public class OccurrenceController extends AbstractSecureController {
             return;
         }
 
-        DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(downloadParams);
+        DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(downloadParams, request);
+        AuthenticatedUser downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
 
-        boolean validEmail = false;
-        if (downloadRequestDTO.getEmail() != null) {
-            try {
-                new InternetAddress(downloadRequestDTO.getEmail()).validate();
-                validEmail = true;
-            } catch (AddressException e) {
-            }
+        if (downloadUser == null || downloadUser.getEmail() == null) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "A valid registered email is required");
+            return;
         }
 
-//        if (request.getUserPrincipal() == null) {
-//            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Supply a valid JWT or API key");
-//            return;
-//        }
-
-        if (!validEmail && rateLimitRequest(request, response)) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Valid email required");
+        if (rateLimitRequest(request)) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Request is rate limited");
             return;
         }
 
@@ -1242,54 +1245,19 @@ public class OccurrenceController extends AbstractSecureController {
             return;
         }
 
-        if (request.getUserPrincipal() != null) {
-            occurrenceSensitiveDownload(downloadRequestDTO, zip, response, request);
-        } else {
-            try {
-                ServletOutputStream out = response.getOutputStream();
-                downloadService.writeQueryToStream(
-                        downloadRequestDTO,
-                        response,
-                        getIPAddress(request),
-                        getUserAgent(request),
-                        new CloseShieldOutputStream(out),
-                        true,
-                        zip,
-                        executor);
-            } catch (Exception e) {
-                logger.error(e.getMessage(), e);
-            }
-        }
-    }
-
-    private void occurrenceSensitiveDownload(
-            DownloadRequestDTO requestParams,
-            boolean zip,
-            HttpServletResponse response,
-            HttpServletRequest request) throws Exception {
-
-        if (shouldPerformOperation(request, response)) {
-
-            //search params must have a query or formatted query for the download to work
-            if (requestParams.getQ().isEmpty() && requestParams.getFormattedQuery().isEmpty()) {
-                return;
-            }
-
-            try {
-                ServletOutputStream out = response.getOutputStream();
-                downloadService.writeQueryToStream(
-                        requestParams,
-                        response,
-                        getIPAddress(request),
-                        getUserAgent(request),
-                        new CloseShieldOutputStream(out),
-                        true,
-                        zip,
-                        executor
-                );
-            } catch (Exception e) {
-                logger.error(e.getMessage(), e);
-            }
+        try {
+            ServletOutputStream out = response.getOutputStream();
+            downloadService.writeQueryToStream(
+                    downloadRequestDTO,
+                    response,
+                    downloadUser,
+                    getIPAddress(request),
+                    getUserAgent(request),
+                    new CloseShieldOutputStream(out),
+                    zip,
+                    executor);
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
         }
     }
 
@@ -1348,10 +1316,10 @@ public class OccurrenceController extends AbstractSecureController {
      * Dumps the distinct latitudes and longitudes that are used in the
      * connected index (to 4 decimal places)
      */
-    @Operation(summary = "Dumps the distinct latitudes and longitudes that are used in the connected index (to 4 decimal places)", tags = "Download")
+    @Deprecated
+    @Operation(summary = "Dumps the distinct latitudes and longitudes that are used in the connected index (to 4 decimal places)", tags = "Deprecated")
     @RequestMapping(value = {
-//            "/occurrences/coordinates.json*",
-            "/occurrences/coordinates*"
+            "/occurrences/coordinates"
     }, method = {RequestMethod.GET, RequestMethod.POST})
     public void dumpDistinctLatLongs(SpatialSearchRequestDTO requestParams, HttpServletResponse response) throws Exception {
         requestParams.setFacets(new String[]{OccurrenceIndex.LAT_LNG});
@@ -1510,7 +1478,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @SecurityRequirement(name = "JWT")
-    @Operation(summary = "Full record details ", tags = "Occurrence",
+    @Operation(summary = "Retrieve full record details", tags = "Occurrence",
             description = "If an JWT is supplied, and the user has the appropriate permissions the ")
     @RequestMapping(value = {
             "/occurrences/{recordUuid}"
@@ -1521,12 +1489,10 @@ public class OccurrenceController extends AbstractSecureController {
                           @Parameter(description = "Include image metadata")
                           @RequestParam(value = "im", required = false, defaultValue = "false") Boolean im,
                           HttpServletRequest request, HttpServletResponse response) throws Exception {
-        Object responseObject;
-        if (request.getUserPrincipal() != null) {
-            responseObject = showSensitiveOccurrence(recordUuid, im, request, response);
-        } else {
-            responseObject = getOccurrenceInformation(recordUuid, im, request, false);
-        }
+
+        AuthenticatedUser authenticatedUser = authService.getRecordViewUser(request);
+        Object responseObject = getOccurrenceInformation(recordUuid, im, request, authenticatedUser);
+
         if (responseObject == null) {
             sendCustomJSONResponse(response, HttpServletResponse.SC_NOT_FOUND, new HashMap<String, String>() {{put("message", "Unrecognised UID");}});
         }
@@ -1550,39 +1516,38 @@ public class OccurrenceController extends AbstractSecureController {
         return showOccurrence(recordUuid, im, request, response);
     }
 
-    @Deprecated
-    @Operation(summary = "Full record details with sensitive information", tags = "Deprecated")
-    @RequestMapping(value = {
-            "/sensitive/occurrence/{uuid:.+}",
-            "/sensitive/occurrences/{uuid:.+}",
-            "/sensitive/occurrence/{uuid:.+}.json"},
-            method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    @ApiParam(value = "uuid", required = true)
-    public @ResponseBody
-    Object showSensitiveOccurrence(@PathVariable("uuid") String uuid,
-                                   @Parameter(description = "Include image metadata")
-                                   @RequestParam(value = "im", required = false, defaultValue = "false") Boolean im,
-                                   HttpServletRequest request, HttpServletResponse response) throws Exception {
-        if (shouldPerformOperation(request, response)) {
-            return getOccurrenceInformation(uuid, im, request, true);
-        }
-        return null;
-    }
-
     private Object getOccurrenceInformation(String uuid, Boolean includeImageMetadata, HttpServletRequest request,
-                                            boolean includeSensitive) throws Exception {
+                                            AuthenticatedUser authenticatedUser) throws Exception {
 
         logger.debug("Retrieving occurrence record with guid: '" + uuid + "'");
 
         String ip = getIPAddress(request);
 
-        SpatialSearchRequestDTO idRequest = new SpatialSearchRequestDTO();
-        idRequest.setQ(OccurrenceIndex.ID + ":\"" + uuid + "\"");
-        idRequest.setFacet(false);
-        idRequest.setFl("*");
-        idRequest.setPageSize(1);
+        SolrDocumentList sdl = null;
+        Boolean includeSensitive = false;
 
-        SolrDocumentList sdl = searchDAO.findByFulltext(idRequest);
+        if (authenticatedUser == null || authenticatedUser.getRoles().isEmpty()){
+            // no authentication
+            SpatialSearchRequestDTO idRequest = createRecirdQuery(uuid);
+            sdl = searchDAO.findByFulltext(idRequest);
+        } else {
+            // do queries with sensitive filters....if no records returned, do without sensitive filters
+            String sensitiveFq = downloadService.getSensitiveFq(authenticatedUser.getRoles());
+            if (StringUtils.isNotEmpty(sensitiveFq)){
+                SpatialSearchRequestDTO idRequest = createRecirdQuery(uuid);
+                idRequest.setFq(new String[]{sensitiveFq});
+                sdl = searchDAO.findByFulltext(idRequest);
+            }
+            if (sdl == null || sdl.isEmpty()){
+                SpatialSearchRequestDTO idRequest = createRecirdQuery(uuid);
+                // do query without filter, user doesnt have access
+                idRequest.setFq(new String[]{});
+                sdl = searchDAO.findByFulltext(idRequest);
+            } else {
+                includeSensitive = true;
+            }
+        }
+
         if (sdl == null || sdl.isEmpty()) {
             return null;
         }
@@ -1640,6 +1605,16 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         return mapAsFullRecord(sd, includeImageMetadata, includeSensitive);
+    }
+
+    @org.jetbrains.annotations.NotNull
+    private SpatialSearchRequestDTO createRecirdQuery(String uuid) {
+        SpatialSearchRequestDTO idRequest = new SpatialSearchRequestDTO();
+        idRequest.setQ(OccurrenceIndex.ID + ":\"" + uuid + "\"");
+        idRequest.setFacet(false);
+        idRequest.setFl("*");
+        idRequest.setPageSize(1);
+        return idRequest;
     }
 
     private boolean isSensitive(SolrDocument doc) {
@@ -2302,12 +2277,7 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         // sort alphabetically
-        passed = passed.stream().sorted(new Comparator<ErrorCode>() {
-            @Override
-            public int compare(ErrorCode o1, ErrorCode o2) {
-                return o1.getName().compareTo(o2.getName());
-            }
-        }).collect(Collectors.toList());
+        passed = passed.stream().sorted((o1, o2) -> o1.getName().compareTo(o2.getName())).collect(Collectors.toList());
 
         warning = warning.stream().sorted(new Comparator<ErrorCode>() {
             @Override
@@ -2316,12 +2286,7 @@ public class OccurrenceController extends AbstractSecureController {
             }
         }).collect(Collectors.toList());
 
-        missing = missing.stream().sorted(new Comparator<ErrorCode>() {
-            @Override
-            public int compare(ErrorCode o1, ErrorCode o2) {
-                return o1.getName().compareTo(o2.getName());
-            }
-        }).collect(Collectors.toList());
+        missing = missing.stream().sorted((o1, o2) -> o1.getName().compareTo(o2.getName())).collect(Collectors.toList());
 
         Map systemAssertions = new HashMap();
         systemAssertions.put("missing", missing);

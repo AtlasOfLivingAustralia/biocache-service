@@ -41,7 +41,7 @@
         <alanm.port>9179</alanm.port>
         <alanm.admin.port>9180</alanm.admin.port>
         <alanm.host>localhost</alanm.host>
-        <docker-maven-plugin.version>0.34.1</docker-maven-plugin.version>
+        <docker-maven-plugin.version>0.38.0</docker-maven-plugin.version>
         <findbugs-jsr305.version>3.0.2</findbugs-jsr305.version>
         <!-- Checkstyle -->
         <plexus-compiler-javac-errorprone.version>2.8.3</plexus-compiler-javac-errorprone.version>
@@ -857,6 +857,12 @@
                         <goals>
                             <goal>merge</goal>
                             <goal>report</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>default-prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
                         </goals>
                     </execution>
                 </executions>

@@ -89,6 +89,9 @@ public class AlaWebServiceAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
+        // prevent stateful requests
+        request.getSession().invalidate();
+
         if (jwtApiKeysEnabled) {
             String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
             if (authorizationHeader != null) {

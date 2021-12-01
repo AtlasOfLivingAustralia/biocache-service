@@ -16,15 +16,17 @@ package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
+import au.org.ala.biocache.dto.AuthenticatedUser;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
 import io.swagger.annotations.ApiParam;
-import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import lombok.extern.slf4j.Slf4j;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import net.sf.json.JsonConfig;
@@ -42,12 +44,12 @@ import org.springframework.web.bind.annotation.*;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.text.ParseException;
 import java.util.*;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
@@ -62,6 +64,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  */
 @Controller
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Slf4j
 public class DownloadController extends AbstractSecureController {
 
     /** Fulltext search DAO */
@@ -90,160 +93,76 @@ public class DownloadController extends AbstractSecureController {
     @SecurityRequirement(name="JWT")
     @Secured({"ROLE_ADMIN"})
     @Operation(summary = "Retrieves all the downloads that are on the queue", tags = "Monitoring")
-    @RequestMapping(value = {
-            "occurrences/offline/download/stats"
-//            , "occurrences/offline/download/stats.json"
-    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody
-    List getCurrentDownloads(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            @RequestParam(value = "apiKey", required = true) String apiKey) throws Exception {
-        if (apiKey != null) {
-            if (shouldPerformOperation(request, response)) {
-                JsonConfig config = new JsonConfig();
-                config.setJsonPropertyFilter(new PropertyFilter() {
-                    @Override
-                    public boolean apply(Object source, String name, Object value) {
-                        return value == null;
-                    }
-                });
+    @RequestMapping(value = {"occurrences/offline/download/stats"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody List getCurrentDownloads() {
 
-                JSONArray ja = JSONArray.fromObject(persistentQueueDAO.getAllDownloads(), config);
-                for (Object jo : ja) {
-                    String id = (String) ((net.sf.json.JSONObject) jo).get("uniqueId");
-                    ((net.sf.json.JSONObject) jo).put("cancelURL", downloadService.webservicesRoot + "/occurrences/offline/cancel/" + id + "?apiKey=" + apiKey);
-                }
-                return ja;
-            }
+        JsonConfig config = new JsonConfig();
+        config.setJsonPropertyFilter((source, name, value) -> value == null);
+
+        JSONArray ja = JSONArray.fromObject(persistentQueueDAO.getAllDownloads(), config);
+        for (Object jo : ja) {
+            String id = (String) ((net.sf.json.JSONObject) jo).get("uniqueId");
+            // TODO  how can we construct these urls
+            ((net.sf.json.JSONObject) jo).put("cancelURL", downloadService.webservicesRoot + "/occurrences/offline/cancel/" + id + "?apiKey=TO_BE_ADDED");
+//            ((net.sf.json.JSONObject) jo).put("cancelURL", downloadService.webservicesRoot + "/occurrences/offline/cancel/" + id + "?apiKey=" + apiKey);
+
         }
-        return null;
+        return ja;
     }
 
     /**
      * Add a download to the offline queue
      * @param requestParams
      * @param ip
-     * @param apiKey
-     * @param type
      * @param response
      * @param request
      * @return
      * @throws Exception
      */
-    @Hidden
-    @RequestMapping(value = {
-            "occurrences/offline/{type}/download*"
-//            , "occurrences/offline/{type}/download.json*"
-    } , method = {RequestMethod.GET, RequestMethod.POST}, produces = MediaType.APPLICATION_JSON_VALUE)
-    @ApiParam(value = "type", required = true)
-    public @ResponseBody Map<String, Object> occurrenceDownload(
-            @ParameterObject DownloadRequestParams requestParams,
-            @RequestParam(value = "ip", required = false) String ip,
-            @RequestParam(value = "apiKey", required = false) String apiKey,
-            @RequestParam(value = "email", required = true) String email,
-            @PathVariable("type") String type,
-            HttpServletResponse response,
-            HttpServletRequest request) throws Exception {
-
-        DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(requestParams);
-        return download(downloadRequestDTO, ip, getUserAgent(request), apiKey, email, response, request, DownloadDetailsDTO.DownloadType.RECORDS_INDEX);
-    }
-
-    /**
-     * Add a download to the offline queue
-     * @param requestParams
-     * @param ip
-     * @param apiKey
-     * @param response
-     * @param request
-     * @return
-     * @throws Exception
-     */
-    @Hidden
-    @RequestMapping(value = { "occurrences/offline/download*"
-//            , "occurrences/offline/download.json*"
-    }, method = {RequestMethod.GET, RequestMethod.POST})
+    @Operation(summary = "Asynchronous occurrence download", tags = "Download")
+    @RequestMapping(value = { "occurrences/offline/download"}, method = {RequestMethod.GET, RequestMethod.POST})
     public @ResponseBody Object occurrenceDownload(
-            @ParameterObject DownloadRequestParams requestParams,
-            @RequestParam(value = "ip", required = false) String ip,
-            @RequestParam(value = "apiKey", required = false) String apiKey,
-            @RequestParam(value = "email", required = true) String email,
-            HttpServletResponse response,
-            HttpServletRequest request) throws Exception {
+            @Valid @ParameterObject DownloadRequestParams requestParams,
+            @Parameter(description = "Original IP making the request") @RequestParam(value = "ip", required = false) String ip,
+            HttpServletRequest request,
+            HttpServletResponse response) throws Exception {
 
-        DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(requestParams);
-        return download(downloadRequestDTO, ip, getUserAgent(request), apiKey, email, response, request, DownloadDetailsDTO.DownloadType.RECORDS_INDEX);
+        DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(requestParams, request);
+        AuthenticatedUser downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
+
+        if (downloadUser == null || downloadUser.getEmail() == null){
+            response.sendError(400, "No valid email");
+            return null;
+        }
+
+        return download(
+                downloadRequestDTO,
+                downloadUser,
+                ip,
+                request.getHeader("user-agent"),
+                request,
+                response,
+                DownloadDetailsDTO.DownloadType.RECORDS_INDEX);
     }
 
-    private Map<String, Object> download(DownloadRequestDTO requestParams, String ip, String userAgent, String apiKey, String email,
-                            HttpServletResponse response, HttpServletRequest request,
-                            DownloadDetailsDTO.DownloadType downloadType) throws Exception {
+    private Map<String, Object> download(DownloadRequestDTO requestParams,
+                                         AuthenticatedUser authenticatedUser,
+                                         String ip,
+                                         String userAgent,
+                                         HttpServletRequest request,
+                                         HttpServletResponse response,
+                                         DownloadDetailsDTO.DownloadType downloadType) throws Exception {
 
         // check the email is supplied and a matching user account exists with the required privileges
-        if (StringUtils.isEmpty(email)) {
+        if (StringUtils.isEmpty(requestParams.getEmail())) {
             response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
             return null;
-
-        }
-
-        if (!authBypass) {
-
-            // lookup the user details and check privileges based on the supplied email
-            try {
-                Map<String, Object> userDetails = (Map<String, Object>) authService.getUserDetails(email);
-
-                if (userDetails == null) {
-                    response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, user not recognised");
-                    return null;
-                }
-
-                boolean activated = (Boolean) userDetails.getOrDefault("activated", true);
-                boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
-                boolean hasRole = false;
-
-                if (downloadRole == null) {
-                    // no download role defined, allow based on role privileges
-                    hasRole = true;
-                } else {
-                    // check that the user roles contains the download role
-                    List<String> roles = (List<String>) userDetails.get("roles");
-                    hasRole = roles == null ? false : roles.stream().anyMatch(downloadRole::equals);
-                }
-
-                if (!activated || locked || !hasRole) {
-                    response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, insufficient privileges");
-                    return null;
-                }
-            } catch (Exception e) {
-                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Unable to perform an offline download, unable to verify user details");
-                return null;
-            }
-        }
-
-        boolean includeSensitive = false;
-        if (apiKey != null) {
-            if (shouldPerformOperation(request, response)) {
-                includeSensitive = true;
-            }
-        }
-
-        // Pre SDS roles the sensitive flag controlled access to sensitive data.
-        // After SDS roles were introduced, sensitiveFq variable drives the logic for sensitive data down the excution flow.
-        // In Summary either sensitive is true or sensitiveFq is not null but not both
-
-        //get the fq that includes only the sensitive data that the userId ROLES permits
-        String sensitiveFq = null;
-        if (!includeSensitive) {
-            sensitiveFq = getSensitiveFq(request);
         }
 
         ip = ip == null ? request.getRemoteAddr() : ip;
 
         //create a new task
-        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, userAgent, downloadType);
-        dd.setIncludeSensitive(includeSensitive);
-        dd.setSensitiveFq(sensitiveFq);
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, authenticatedUser, ip, userAgent, downloadType);
 
         //get query (max) count for queue priority
         requestParams.setPageSize(0);
@@ -261,7 +180,7 @@ public class DownloadController extends AbstractSecureController {
             status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + d.getUniqueId());
         } else if (dd.getTotalRecords() > downloadService.dowloadOfflineMaxSize) {
             //identify this download as too large
-            File file = new File(downloadService.biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getEmail().getBytes(StandardCharsets.UTF_8)) + File.separator + dd.getStartTime() + File.separator + "tooLarge");
+            File file = new File(downloadService.biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getRequestParams().getEmail().getBytes(StandardCharsets.UTF_8)) + File.separator + dd.getStartTime() + File.separator + "tooLarge");
             FileUtils.forceMkdir(file.getParentFile());
             FileUtils.writeStringToFile(file, "", "UTF-8");
             status.put("downloadUrl", downloadService.biocacheDownloadUrl);
@@ -284,10 +203,7 @@ public class DownloadController extends AbstractSecureController {
     @SecurityRequirement(name="JWT")
     @Secured({"ROLE_ADMIN"})
     @Operation(summary = "List all occurrence downloads", tags = "Monitoring")
-    @RequestMapping(value = {
-            "occurrences/offline/status"
-//            , "occurrences/offline/status.json"
-    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = {"occurrences/offline/status"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody Object allOccurrenceDownloadStatus() throws Exception {
 
         List<Map<String, Object>> allStatus = new ArrayList<Map<String, Object>>();
@@ -306,11 +222,11 @@ public class DownloadController extends AbstractSecureController {
             }
             status.put("id", id);
             status.put("totalRecords", dd.getTotalRecords());
-            status.put("downloadParams", dd.getDownloadParams());
+            status.put("downloadParams", dd.getRequestParams());
             status.put("startDate", dd.getStartDateString());
             status.put("thread", dd.getProcessingThreadName());
             if (userIdLookup != null) {
-                status.put("userId", authService.getMapOfEmailToId().get(dd.getEmail()));
+                status.put("userId", authService.getMapOfEmailToId().get(dd.getRequestParams().getEmail()));
             }
             status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + id);
 
@@ -358,9 +274,7 @@ public class DownloadController extends AbstractSecureController {
     }
 
     @Operation(summary = "Get the status of download", tags = "Download")
-    @RequestMapping(value = { "occurrences/offline/status/{id}"
-//            , "occurrences/offline/status/{id}.json"
-    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = { "occurrences/offline/status/{id}"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ApiParam(value = "id", required = true)
     public @ResponseBody Object occurrenceDownloadStatus(@PathVariable("id") String id) throws Exception {
 
@@ -379,7 +293,7 @@ public class DownloadController extends AbstractSecureController {
                 status.put("totalRecords", dd.getTotalRecords());
                 status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + id);
                 if (authService.getMapOfEmailToId() != null) {
-                    status.put("userId", authService.getMapOfEmailToId().get(dd.getEmail()));
+                    status.put("userId", authService.getMapOfEmailToId().get(dd.getRequestParams().getEmail()));
                 }
                 break;
             }
@@ -442,10 +356,7 @@ public class DownloadController extends AbstractSecureController {
     @SecurityRequirement(name="JWT")
     @Secured({"ROLE_ADMIN"})
     @Operation(summary = "Cancel an offline download", tags = "Monitoring")
-    @RequestMapping(value = {
-            "occurrences/offline/cancel/{id}"
-//            , "occurrences/offline/cancel/{id}.json"
-    }, method = RequestMethod.GET)
+    @RequestMapping(value = {"occurrences/offline/cancel/{id}"}, method = RequestMethod.GET)
     @ApiParam(value = "id", required = true)
     public @ResponseBody Object occurrenceDownloadCancel(
             @PathVariable("id") String id,
@@ -475,24 +386,5 @@ public class DownloadController extends AbstractSecureController {
         }
 
         return status;
-    }
-
-    /**
-     * IMPORTANT: Must return null if the user does not have access to sensitive data.
-     *
-     * @param request The request to get the "X-ALA-userId" header from to send to the authentication service to see if the user has access to sensitive data
-     * @return Null if the user does not have access to sensitive data, and a Solr query string containing the filters giving the user access to sensitive data based on their assigned role otherwise
-     * @throws ParseException If the sensitiveAccessRoles configuration was not parseable
-     */
-    private String getSensitiveFq(HttpServletRequest request) {
-        if (request.getUserPrincipal() == null) {
-            return null;
-        } else {
-            String xAlaUserIdHeader = request.getHeader("X-ALA-userId");
-            if (xAlaUserIdHeader == null) {
-                return null;
-            }
-            return downloadService.getSensitiveFq(xAlaUserIdHeader);
-        }
     }
 }

@@ -184,9 +184,6 @@ public class SearchDAOImpl implements SearchDAO {
     protected LayersService layersService;
 
     @Inject
-    protected QidCacheDAO qidCacheDao;
-
-    @Inject
     protected RangeBasedFacets rangeBasedFacets;
 
     @Inject
@@ -708,7 +705,6 @@ public class SearchDAOImpl implements SearchDAO {
      *
      * @param downloadParams
      * @param out
-     * @param includeSensitive
      * @param dd               The details of the download
      * @param checkLimit
      * @param nextExecutor     The ExecutorService to use to process results on different threads
@@ -716,12 +712,11 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Override
     public DownloadHeaders writeResultsFromIndexToStream(final DownloadRequestDTO downloadParams,
-                                                                              final OutputStream out,
-                                                                              final  ConcurrentMap<String, AtomicInteger> uidStats,
-                                                                              final boolean includeSensitive,
-                                                                              final DownloadDetailsDTO dd,
-                                                                              boolean checkLimit,
-                                                                              ExecutorService nextExecutor) throws Exception {
+                                                         final OutputStream out,
+                                                         final ConcurrentMap<String, AtomicInteger> uidStats,
+                                                         final DownloadDetailsDTO dd,
+                                                         boolean checkLimit,
+                                                         ExecutorService nextExecutor) throws Exception {
         if (downloadFields == null) {
             // PostConstruct not finished
             throw new Exception("PostConstruct not finished, downloadFields==null");
@@ -735,7 +730,7 @@ public class SearchDAOImpl implements SearchDAO {
         dd.resetCounts();
 
         // prepare requested download fields (defaults, substitutions)
-        prepareRequestedFields(downloadParams, includeSensitive || dd.getSensitiveFq() != null);
+        prepareRequestedFields(downloadParams, !dd.getAuthenticatedUser().roles.isEmpty());
 
         // prepare headers
         DownloadHeaders downloadHeaders = prepareHeaders(downloadParams);
@@ -744,7 +739,7 @@ public class SearchDAOImpl implements SearchDAO {
         RecordWriter recordWriter = createRecordWriter(downloadParams, downloadHeaders, out);
 
         // submit download
-        Future future = nextExecutor.submit(prepareDownloadRunner(downloadParams, downloadHeaders, dd, uidStats, includeSensitive, recordWriter));
+        Future future = nextExecutor.submit(prepareDownloadRunner(downloadParams, downloadHeaders, dd, uidStats, recordWriter));
 
         // wait for download to finish
         // Busy wait because we need to be able to respond to an interrupt on any callable
@@ -783,7 +778,7 @@ public class SearchDAOImpl implements SearchDAO {
 
     private Callable prepareDownloadRunner(DownloadRequestDTO downloadParams, DownloadHeaders downloadHeaders,
                                            DownloadDetailsDTO dd, ConcurrentMap<String, AtomicInteger> uidStats,
-                                           boolean includeSensitive, RecordWriter recordWriter) throws QidMissingException {
+                                           RecordWriter recordWriter) throws QidMissingException {
         queryFormatUtils.formatSearchQuery(downloadParams);
 
         SolrQuery solrQuery = new SolrQuery();
@@ -791,13 +786,13 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFilterQueries(downloadParams.getFormattedFq());
         solrQuery.setRows(-1);
         solrQuery.setStart(0);
-
-        //split into sensitive and non-sensitive queries when
+        String sensitiveFq = downloadService.getSensitiveFq(dd.getAuthenticatedUser().roles);
+        // Split into sensitive and non-sensitive queries when
         // - not including all sensitive values
         // - there is a sensitive fq
-        List<SolrQuery> queries = new ArrayList<SolrQuery>();
-        if (!includeSensitive && dd.getSensitiveFq() != null) {
-            queries.addAll(splitQueries(solrQuery, dd.getSensitiveFq(), downloadHeaders.included,
+        List<SolrQuery> queries = new ArrayList<>();
+        if (sensitiveFq != null) {
+            queries.addAll(splitQueries(solrQuery, sensitiveFq, downloadHeaders.included,
                     Arrays.stream(downloadHeaders.included).filter(field -> {
                         return !ArrayUtils.contains(sensitiveSOLRHdr, field);
                     }).collect(Collectors.toList()).toArray(new String[0])));
@@ -817,7 +812,7 @@ public class SearchDAOImpl implements SearchDAO {
     Map<String, String[]> sensitiveFieldMapping = new HashMap();
 
     private void initSensitiveFieldMapping() {
-        // TODO: verify these mappings only apply to the new fields
+
         sensitiveFieldMapping.put("longitude", new String[]{"sensitive_decimalLongitude"});
         sensitiveFieldMapping.put("decimalLongitude", new String[]{"sensitive_decimalLongitude"});
         sensitiveFieldMapping.put("latitude", new String[]{"sensitive_decimalLatitude"});
@@ -945,7 +940,7 @@ public class SearchDAOImpl implements SearchDAO {
                         return count.getCount() > 0;
                     }).map(count -> {
                         return count.getName();
-                    }).collect(Collectors.toList()).toArray(new String[0]);
+                    }).filter(s -> s != null).collect(Collectors.toList()).toArray(new String[0]);
                 } catch (Exception e) {
                     logger.error("error getting assertions facet for download: " + downloadParams, e);
                 }

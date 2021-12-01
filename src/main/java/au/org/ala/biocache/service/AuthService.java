@@ -14,19 +14,23 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import au.org.ala.biocache.dto.AuthenticatedUser;
+import au.org.ala.biocache.dto.DownloadRequestDTO;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
 import javax.inject.Inject;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import javax.mail.internet.AddressException;
+import javax.mail.internet.InternetAddress;
+import javax.servlet.http.HttpServletRequest;
+import java.util.*;
 
 /**
  * Service to lookup and cache user details from auth.ala.org.au (CAS)
@@ -43,8 +47,10 @@ import java.util.Map;
 public class AuthService {
 
     private final static Logger logger = Logger.getLogger(AuthService.class);
+    public static final String LEGACY_X_ALA_USER_ID_HEADER = "X-ALA-userId";
     @Inject
     protected RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
+    // e.g. https://auth-test.ala.org.au/userdetails/userDetails/
     @Value("${auth.user.details.url:}")
     protected String userDetailsUrl = null;
     @Value("${auth.user.names.id.path:getUserList}")
@@ -59,6 +65,12 @@ public class AuthService {
     protected boolean startupInitialise = false;
     @Value("${caches.auth.enabled:true}")
     protected Boolean enabled = true;
+
+    @Value("${auth.legacy.apikey.enabled:true}")
+    protected Boolean legacyApiKeyEnabled = true;
+    @Value("${auth.legacy.emailonly.downloads.enabled:true}")
+    protected Boolean emailOnlyEnabled = true;
+
     // Keep a reference to the output Map in case subsequent web service lookups fail
     protected Map<String, String> userNamesById = RestartDataService.get(this, "userNamesById", new TypeReference<HashMap<String, String>>(){}, HashMap.class);
     protected Map<String, String> userNamesByNumericIds = RestartDataService.get(this, "userNamesByNumericIds", new TypeReference<HashMap<String, String>>(){}, HashMap.class);
@@ -126,7 +138,7 @@ public class AuthService {
     }
 
     private void loadMapOfAllUserNamesByNumericId() {
-        if(StringUtils.isNotBlank(userDetailsUrl)) {
+        if (StringUtils.isNotBlank(userDetailsUrl)) {
             final String jsonUri = userDetailsUrl + userNamesForNumericIdPath;
             try {
                 logger.debug("authCache requesting: " + jsonUri);
@@ -141,7 +153,7 @@ public class AuthService {
     }
 
     private void loadMapOfEmailToUserId() {
-        if(StringUtils.isNotBlank(userDetailsUrl)) {
+        if (StringUtils.isNotBlank(userDetailsUrl)) {
             final String jsonUri = userDetailsUrl + userNamesFullPath;
             try {
                 logger.debug("authCache requesting: " + jsonUri);
@@ -184,12 +196,12 @@ public class AuthService {
         } else {
             thread.run();
         }
-
     }
 
-    public List<String> getUserRoles(String userId) {
+    @Deprecated
+    private List<String> getUserRoles(String userId) {
         List<String> roles = new ArrayList<>();
-        if(StringUtils.isNotBlank(userDetailsUrl)) {
+        if (StringUtils.isNotBlank(userDetailsUrl)) {
             final String jsonUri = userDetailsUrl + userDetailsPath + "?userName=" + userId;
             logger.info("authCache requesting: " + jsonUri);
             roles = (List) restTemplate.postForObject(jsonUri, null, Map.class).get("roles");
@@ -197,13 +209,122 @@ public class AuthService {
         return roles;
     }
 
-    public Map<String,?> getUserDetails(String userId) {
+    @Deprecated
+    private Map<String,?> getUserDetails(String userId) {
         Map<String,?> userDetails = new HashMap<>();
-        if(StringUtils.isNotBlank(userDetailsUrl)){
+        if (StringUtils.isNotBlank(userDetailsUrl)){
             final String jsonUri = userDetailsUrl + userDetailsPath + "?userName=" + userId;
             logger.info("authCache requesting: " + jsonUri);
             userDetails = (Map) restTemplate.postForObject(jsonUri, null, Map.class);
         }
         return userDetails;
     }
+
+    /**
+     * Authentication for download users has 3 routes:
+     *
+     * 1) Check for JWT / OAuth- user is retrieved from UserPrincipal along with a set of roles, supplied email address is ignored...
+     * 2) Legacy API Key and X-Auth-Id - email address retrieved from CAS/Userdetails - email address is ignored...
+     * 3) Email address supplied (Galah) - email address is verified - no sensitive access
+     */
+    public AuthenticatedUser getDownloadUser(DownloadRequestDTO downloadRequestDTO, HttpServletRequest request) {
+
+        // 1) Legacy API Key and X-ALA-userId
+        String xAlaUserIdHeader = request.getHeader(LEGACY_X_ALA_USER_ID_HEADER);
+        if (legacyApiKeyEnabled && request.isUserInRole(ApiKeyService.ROLE_LEGACY_APIKEY) && xAlaUserIdHeader != null){
+            Map<String, Object> userDetails = (Map<String, Object>) getUserDetails(xAlaUserIdHeader);
+            boolean activated = (Boolean) userDetails.getOrDefault("activated", true);
+            boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
+            String firstName = (String) userDetails.getOrDefault("firstName", true);
+            String lastName = (String) userDetails.getOrDefault("lastName", true);
+            List<String> userRoles = getUserRoles(xAlaUserIdHeader);
+            String email = (String) userDetails.getOrDefault("email", null);
+            if (email != null && activated && !locked) {
+                return new AuthenticatedUser(email, xAlaUserIdHeader, userRoles, Collections.emptyMap(), firstName, lastName);
+            } else {
+                logger.info("Download request with API key failed " +
+                        "- email  " + email +
+                        " , activated " + activated +
+                        " , locked " + locked);
+            }
+        }
+
+        // 2) Check for JWT / OAuth
+        if (request.getUserPrincipal() != null && request.getUserPrincipal() instanceof PreAuthenticatedAuthenticationToken){
+            return (AuthenticatedUser) ((PreAuthenticatedAuthenticationToken) request.getUserPrincipal()).getPrincipal();
+        }
+
+        // 3) Email address supplied (Galah / ala4r) - email address is verified - no roles, no sensitive access
+        if (emailOnlyEnabled && downloadRequestDTO.getEmail() != null) {
+            try {
+                new InternetAddress(downloadRequestDTO.getEmail()).validate();
+                // verify the email address is registered
+                Map<String, Object> userDetails = (Map<String, Object>) getUserDetails(downloadRequestDTO.getEmail());
+                boolean activated = (Boolean) userDetails.getOrDefault("activated", true);
+                boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
+                String firstName = (String) userDetails.getOrDefault("firstName", true);
+                String lastName = (String) userDetails.getOrDefault("lastName", true);
+
+                // check the email address is registered to a user
+                boolean registeredEmail = userDetails != null && !userDetails.isEmpty();
+                // is account activated or locked ?
+                if (registeredEmail && activated && !locked){
+                    // email is valid and registered
+                    return new AuthenticatedUser(downloadRequestDTO.getEmail(), null, Collections.emptyList(),
+                            Collections.emptyMap(), firstName, lastName);
+                } else {
+                    logger.info("Email only download request failed " +
+                                    "- registeredEmail  " + registeredEmail +
+                                    " , activated " + activated +
+                                    " , locked " + locked);
+                }
+            } catch (AddressException e) {
+                // invalid email
+                logger.info("Email only download request failed - invalid email " + downloadRequestDTO.getEmail());
+            }
+        }
+
+        return null;
+    }
+
+
+    /**
+     * Authentication for download users has 3 routes:
+     *
+     * 1) Check for JWT / OAuth- user is retrieved from UserPrincipal along with a set of roles, supplied email address is ignored...
+     * 2) Legacy API Key and X-Auth-Id - email address retrieved from CAS/Userdetails - email address is ignored...
+     * 3) Email address supplied (Galah) - email address is verified - no sensitive access
+     */
+    public AuthenticatedUser getRecordViewUser(HttpServletRequest request) {
+
+        // 1) Legacy API Key and X-ALA-userId
+        String xAlaUserIdHeader = request.getHeader(LEGACY_X_ALA_USER_ID_HEADER);
+        if (legacyApiKeyEnabled && request.isUserInRole(ApiKeyService.ROLE_LEGACY_APIKEY) && xAlaUserIdHeader != null){
+            Map<String, Object> userDetails = (Map<String, Object>) getUserDetails(xAlaUserIdHeader);
+            boolean activated = (Boolean) userDetails.getOrDefault("activated", true);
+            boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
+            String firstName = (String) userDetails.getOrDefault("firstName", true);
+            String lastName = (String) userDetails.getOrDefault("lastName", true);
+            List<String> userRoles = getUserRoles(xAlaUserIdHeader);
+            String email = (String) userDetails.getOrDefault("email", null);
+            if (email != null && activated && !locked) {
+                return new AuthenticatedUser(email, xAlaUserIdHeader, userRoles, Collections.emptyMap(), firstName, lastName);
+            } else {
+                logger.info("Download request with API key failed " +
+                        "- email  " + email +
+                        " , activated " + activated +
+                        " , locked " + locked);
+            }
+            return null;
+        }
+
+        // 2) Check for JWT / OAuth
+        if (request.getUserPrincipal() != null && request.getUserPrincipal() instanceof PreAuthenticatedAuthenticationToken){
+            return (AuthenticatedUser) ((PreAuthenticatedAuthenticationToken) request.getUserPrincipal()).getPrincipal();
+        }
+
+        return null;
+    }
+
+
 }

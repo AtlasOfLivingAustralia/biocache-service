@@ -73,7 +73,7 @@ public class AssertionsControllerIT extends TestCase {
     MockMvc mockMvc;
 
     final static AuthenticatedUser TEST_USER =
-            new AuthenticatedUser("test@test.com","Tester",null,null);
+            new AuthenticatedUser("test@test.com","Tester",null,null, null, null);
 
     @BeforeClass
     public static void setupBeforeClass() throws Exception {
