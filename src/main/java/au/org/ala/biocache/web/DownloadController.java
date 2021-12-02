@@ -128,16 +128,16 @@ public class DownloadController extends AbstractSecureController {
             HttpServletResponse response) throws Exception {
 
         DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(requestParams, request);
-        AuthenticatedUser downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
+        Optional<AuthenticatedUser> downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
 
-        if (downloadUser == null || downloadUser.getEmail() == null){
+        if (!downloadUser.isPresent()){
             response.sendError(400, "No valid email");
             return null;
         }
 
         return download(
                 downloadRequestDTO,
-                downloadUser,
+                downloadUser.get(),
                 ip,
                 request.getHeader("user-agent"),
                 request,

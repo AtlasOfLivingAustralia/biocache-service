@@ -77,7 +77,7 @@ public class AuthService {
 
     public AuthService() {
         logger.info("Instantiating AuthService: " + this);
-        if(startupInitialise){
+        if (startupInitialise){
             logger.info("Loading auth caches now");
             reloadCaches();
         }
@@ -173,7 +173,6 @@ public class AuthService {
     }
 
     @Scheduled(fixedDelay = 600000) // schedule to run every 10 min
-    //@Async NC 2013-07-29: Disabled the Async so that we don't get bombarded with calls.
     public void reloadCaches() {
         Thread thread = new Thread() {
             @Override
@@ -226,31 +225,17 @@ public class AuthService {
      * 2) Legacy API Key and X-Auth-Id - email address retrieved from CAS/Userdetails - email address is ignored...
      * 3) Email address supplied (Galah) - email address is verified - no sensitive access
      */
-    public AuthenticatedUser getDownloadUser(DownloadRequestDTO downloadRequestDTO, HttpServletRequest request) {
+    public Optional<AuthenticatedUser> getDownloadUser(DownloadRequestDTO downloadRequestDTO, HttpServletRequest request) {
 
         // 1) Legacy API Key and X-ALA-userId
         String xAlaUserIdHeader = request.getHeader(LEGACY_X_ALA_USER_ID_HEADER);
         if (legacyApiKeyEnabled && request.isUserInRole(LegacyApiKeyService.ROLE_LEGACY_APIKEY) && xAlaUserIdHeader != null){
-            Map<String, Object> userDetails = (Map<String, Object>) getUserDetails(xAlaUserIdHeader);
-            boolean activated = (Boolean) userDetails.getOrDefault("activated", true);
-            boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
-            String firstName = (String) userDetails.getOrDefault("firstName", true);
-            String lastName = (String) userDetails.getOrDefault("lastName", true);
-            List<String> userRoles = getUserRoles(xAlaUserIdHeader);
-            String email = (String) userDetails.getOrDefault("email", null);
-            if (email != null && activated && !locked) {
-                return new AuthenticatedUser(email, xAlaUserIdHeader, userRoles, Collections.emptyMap(), firstName, lastName);
-            } else {
-                logger.info("Download request with API key failed " +
-                        "- email  " + email +
-                        " , activated " + activated +
-                        " , locked " + locked);
-            }
+            return lookupAuthUser(xAlaUserIdHeader, true);
         }
 
         // 2) Check for JWT / OAuth
         if (request.getUserPrincipal() != null && request.getUserPrincipal() instanceof PreAuthenticatedAuthenticationToken){
-            return (AuthenticatedUser) ((PreAuthenticatedAuthenticationToken) request.getUserPrincipal()).getPrincipal();
+            return Optional.of((AuthenticatedUser) ((PreAuthenticatedAuthenticationToken) request.getUserPrincipal()).getPrincipal());
         }
 
         // 3) Email address supplied (Galah / ala4r) - email address is verified - no roles, no sensitive access
@@ -258,32 +243,47 @@ public class AuthService {
             try {
                 new InternetAddress(downloadRequestDTO.getEmail()).validate();
                 // verify the email address is registered
-                Map<String, Object> userDetails = (Map<String, Object>) getUserDetails(downloadRequestDTO.getEmail());
-                boolean activated = (Boolean) userDetails.getOrDefault("activated", true);
-                boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
-                String firstName = (String) userDetails.getOrDefault("firstName", true);
-                String lastName = (String) userDetails.getOrDefault("lastName", true);
-
-                // check the email address is registered to a user
-                boolean registeredEmail = userDetails != null && !userDetails.isEmpty();
-                // is account activated or locked ?
-                if (registeredEmail && activated && !locked){
-                    // email is valid and registered
-                    return new AuthenticatedUser(downloadRequestDTO.getEmail(), null, Collections.emptyList(),
-                            Collections.emptyMap(), firstName, lastName);
-                } else {
-                    logger.info("Email only download request failed " +
-                                    "- registeredEmail  " + registeredEmail +
-                                    " , activated " + activated +
-                                    " , locked " + locked);
-                }
+                return lookupAuthUser(downloadRequestDTO.getEmail(), false);
             } catch (AddressException e) {
                 // invalid email
                 logger.info("Email only download request failed - invalid email " + downloadRequestDTO.getEmail());
             }
         }
 
-        return null;
+        return Optional.empty();
+    }
+
+    /**
+     * Use user details services to get user.
+     * @param userIdOrEmail
+     * @param getRoles
+     * @return
+     */
+    private Optional<AuthenticatedUser> lookupAuthUser(String userIdOrEmail, boolean getRoles) {
+        Map<String, Object> userDetails = (Map<String, Object>) getUserDetails(userIdOrEmail);
+        String userId = (String) userDetails.getOrDefault("userid", true);
+        boolean activated = (Boolean) userDetails.getOrDefault("activated", true);
+        boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
+        String firstName = (String) userDetails.getOrDefault("firstName", true);
+        String lastName = (String) userDetails.getOrDefault("lastName", true);
+        String email = (String) userDetails.getOrDefault("email", null);
+
+        List<String>  userRoles = Collections.emptyList();
+        if( getRoles){
+            userRoles = getUserRoles(userIdOrEmail);
+        }
+
+        if (email != null && activated && !locked) {
+            return Optional.of(
+                    new AuthenticatedUser(email, userId, userRoles, Collections.emptyMap(), firstName, lastName)
+            );
+        } else {
+            logger.info("Download request with API key failed " +
+                    "- email  " + email +
+                    " , activated " + activated +
+                    " , locked " + locked);
+        }
+        return Optional.empty();
     }
 
 
@@ -294,36 +294,20 @@ public class AuthService {
      * 2) Legacy API Key and X-Auth-Id - email address retrieved from CAS/Userdetails - email address is ignored...
      * 3) Email address supplied (Galah) - email address is verified - no sensitive access
      */
-    public AuthenticatedUser getRecordViewUser(HttpServletRequest request) {
+    public Optional<AuthenticatedUser> getRecordViewUser(HttpServletRequest request) {
 
         // 1) Legacy API Key and X-ALA-userId
         String xAlaUserIdHeader = request.getHeader(LEGACY_X_ALA_USER_ID_HEADER);
         if (legacyApiKeyEnabled && request.isUserInRole(LegacyApiKeyService.ROLE_LEGACY_APIKEY) && xAlaUserIdHeader != null){
-            Map<String, Object> userDetails = (Map<String, Object>) getUserDetails(xAlaUserIdHeader);
-            boolean activated = (Boolean) userDetails.getOrDefault("activated", true);
-            boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
-            String firstName = (String) userDetails.getOrDefault("firstName", true);
-            String lastName = (String) userDetails.getOrDefault("lastName", true);
-            List<String> userRoles = getUserRoles(xAlaUserIdHeader);
-            String email = (String) userDetails.getOrDefault("email", null);
-            if (email != null && activated && !locked) {
-                return new AuthenticatedUser(email, xAlaUserIdHeader, userRoles, Collections.emptyMap(), firstName, lastName);
-            } else {
-                logger.info("Download request with API key failed " +
-                        "- email  " + email +
-                        " , activated " + activated +
-                        " , locked " + locked);
-            }
-            return null;
+            return lookupAuthUser(xAlaUserIdHeader, true);
         }
 
         // 2) Check for JWT / OAuth
         if (request.getUserPrincipal() != null && request.getUserPrincipal() instanceof PreAuthenticatedAuthenticationToken){
-            return (AuthenticatedUser) ((PreAuthenticatedAuthenticationToken) request.getUserPrincipal()).getPrincipal();
+            return Optional.of(
+                    (AuthenticatedUser) ((PreAuthenticatedAuthenticationToken) request.getUserPrincipal()).getPrincipal()
+            );
         }
-
-        return null;
+        return Optional.empty();
     }
-
-
 }

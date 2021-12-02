@@ -924,15 +924,12 @@ public class OccurrenceController extends AbstractSecureController {
             HttpServletResponse response){
 
         DownloadRequestDTO dto = DownloadRequestDTO.create(requestParams, request);
-        AuthenticatedUser downloadUser = authService.getDownloadUser(dto, request);
-
-        String userId = null;
-        List<String> roles = Collections.emptyList();
+        Optional<AuthenticatedUser> downloadUser = authService.getDownloadUser(dto, request);
 
         if (dto.getFacets().length > 0) {
             DownloadDetailsDTO dd = downloadService.registerDownload(
                     dto,
-                    downloadUser,
+                    downloadUser.orElseGet(null),  // anonymous facet downloads are allowed
                     getIPAddress(request),
                     getUserAgent(request),
                     DownloadDetailsDTO.DownloadType.FACET
@@ -1010,7 +1007,8 @@ public class OccurrenceController extends AbstractSecureController {
             @RequestParam(value = "file", required = true) String filepath,
             @RequestParam(value = "directory", required = true, defaultValue = "/data/biocache-exports") final String directory,
             HttpServletRequest request,
-            Model model) {
+            HttpServletResponse response,
+            Model model) throws Exception {
 
         if (result.hasErrors()) {
             if (logger.isInfoEnabled()) {
@@ -1024,16 +1022,15 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         DownloadRequestDTO dto = DownloadRequestDTO.create(requestParams, request);
-        AuthenticatedUser downloadUser = authService.getDownloadUser(dto, request);
+        Optional<AuthenticatedUser> downloadUser = authService.getDownloadUser(dto, request);
+        if (!downloadUser.isPresent()){
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "No authentication");
+            return null;
+        }
 
         final File file = new File(filepath);
-
         final SpeciesLookupService mySpeciesLookupService = this.speciesLookupService;
-
-        String userId = null;
-        List<String> roles = Collections.emptyList();
-
-        final DownloadDetailsDTO dd = downloadService.registerDownload(dto, downloadUser,
+        final DownloadDetailsDTO dd = downloadService.registerDownload(dto, downloadUser.get(),
                 getIPAddress(request), getUserAgent(request), DownloadType.RECORDS_INDEX);
 
         if (file.exists()) {
@@ -1227,9 +1224,9 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(downloadParams, request);
-        AuthenticatedUser downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
+        Optional<AuthenticatedUser> downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
 
-        if (downloadUser == null || downloadUser.getEmail() == null) {
+        if (!downloadUser.isPresent()) {
             response.sendError(HttpServletResponse.SC_FORBIDDEN, "A valid registered email is required");
             return;
         }
@@ -1250,7 +1247,7 @@ public class OccurrenceController extends AbstractSecureController {
             downloadService.writeQueryToStream(
                     downloadRequestDTO,
                     response,
-                    downloadUser,
+                    downloadUser.get(),
                     getIPAddress(request),
                     getUserAgent(request),
                     new CloseShieldOutputStream(out),
@@ -1490,7 +1487,7 @@ public class OccurrenceController extends AbstractSecureController {
                           @RequestParam(value = "im", required = false, defaultValue = "false") Boolean im,
                           HttpServletRequest request, HttpServletResponse response) throws Exception {
 
-        AuthenticatedUser authenticatedUser = authService.getRecordViewUser(request);
+        Optional<AuthenticatedUser> authenticatedUser = authService.getRecordViewUser(request);
         Object responseObject = getOccurrenceInformation(recordUuid, im, request, authenticatedUser);
 
         if (responseObject == null) {
@@ -1517,7 +1514,7 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     private Object getOccurrenceInformation(String uuid, Boolean includeImageMetadata, HttpServletRequest request,
-                                            AuthenticatedUser authenticatedUser) throws Exception {
+                                            Optional<AuthenticatedUser> authenticatedUser) throws Exception {
 
         logger.debug("Retrieving occurrence record with guid: '" + uuid + "'");
 
@@ -1526,13 +1523,13 @@ public class OccurrenceController extends AbstractSecureController {
         SolrDocumentList sdl = null;
         Boolean includeSensitive = false;
 
-        if (authenticatedUser == null || authenticatedUser.getRoles().isEmpty()){
+        if (!authenticatedUser.isPresent() || authenticatedUser.get().getRoles().isEmpty()){
             // no authentication
             SpatialSearchRequestDTO idRequest = createRecirdQuery(uuid);
             sdl = searchDAO.findByFulltext(idRequest);
         } else {
             // do queries with sensitive filters....if no records returned, do without sensitive filters
-            String sensitiveFq = downloadService.getSensitiveFq(authenticatedUser.getRoles());
+            String sensitiveFq = downloadService.getSensitiveFq(authenticatedUser.get().getRoles());
             if (StringUtils.isNotEmpty(sensitiveFq)){
                 SpatialSearchRequestDTO idRequest = createRecirdQuery(uuid);
                 idRequest.setFq(new String[]{sensitiveFq});

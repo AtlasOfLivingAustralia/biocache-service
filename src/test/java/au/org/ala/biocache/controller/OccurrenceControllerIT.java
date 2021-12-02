@@ -8,17 +8,14 @@ import au.org.ala.biocache.service.LoggerService;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.web.OccurrenceController;
-import com.google.common.collect.ImmutableMap;
 import junit.framework.TestCase;
 import org.ala.client.model.LogEventVO;
-import org.apache.solr.common.SolrException;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -27,17 +24,14 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.transaction.TransactionTimedOutException;
 import org.springframework.validation.Validator;
 import org.springframework.web.context.WebApplicationContext;
 
 import javax.servlet.http.HttpServletResponse;
 
 import java.util.Collections;
-import java.util.Map;
+import java.util.Optional;
 
-import static org.apache.solr.common.SolrException.ErrorCode.BAD_REQUEST;
-import static org.apache.solr.common.SolrException.ErrorCode.FORBIDDEN;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -190,7 +184,7 @@ public class OccurrenceControllerIT extends TestCase {
     @Test
     public void downloadTest() throws Exception {
 
-        when(authService.getDownloadUser(any(),any())).thenReturn(TEST_USER);
+        when(authService.getDownloadUser(any(),any())).thenReturn(Optional.of(TEST_USER));
 
         this.mockMvc.perform(get("/occurrences/download")
                         .header("user-agent", "test User-Agent")
@@ -211,14 +205,7 @@ public class OccurrenceControllerIT extends TestCase {
     public void downloadValidEmailTest() throws Exception {
 
         when(authService.getDownloadUser(any(),any()))
-                .thenReturn(TEST_USER);
-
-//        when(authService.getUserDetails("test@test.com"))
-//                .thenReturn((Map) ImmutableMap.of(
-//                        "email","test@test.com",
-//                        "activated", true,
-//                        "locked", true
-//                ));
+                .thenReturn(Optional.of(TEST_USER));
 
         this.mockMvc.perform(get("/occurrences/download")
                 .header("user-agent", "test User-Agent")

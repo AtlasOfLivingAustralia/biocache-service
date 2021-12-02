@@ -506,7 +506,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @return
      */
     public DownloadDetailsDTO registerDownload(@NotNull DownloadRequestDTO requestParams,
-                                               @NotNull AuthenticatedUser authenticatedUser,
+                                               AuthenticatedUser authenticatedUser,
                                                String ip,
                                                String userAgent,
                                                DownloadDetailsDTO.DownloadType type) {
