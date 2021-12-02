@@ -111,7 +111,7 @@ public class AlaWebServiceAuthFilter extends OncePerRequestFilter {
             // check for requestParam - for backwards compatibilty
             String apiKeyHeader = request.getHeader(API_KEY);
             String apiKeyParam = request.getParameter(API_KEY);
-            Optional<AuthenticatedUser> user = null;
+            Optional<AuthenticatedUser> user = Optional.empty();
             if (apiKeyHeader != null){
                 user = apiKeyService.isValidKey(apiKeyHeader);
             }

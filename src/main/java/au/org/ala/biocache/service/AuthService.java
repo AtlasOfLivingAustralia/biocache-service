@@ -261,7 +261,11 @@ public class AuthService {
      */
     private Optional<AuthenticatedUser> lookupAuthUser(String userIdOrEmail, boolean getRoles) {
         Map<String, Object> userDetails = (Map<String, Object>) getUserDetails(userIdOrEmail);
-        String userId = (String) userDetails.getOrDefault("userid", true);
+        if (userDetails == null || userDetails.isEmpty()){
+            return Optional.empty();
+        }
+
+        String userId = (String) userDetails.getOrDefault("userid", null);
         boolean activated = (Boolean) userDetails.getOrDefault("activated", true);
         boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
         String firstName = (String) userDetails.getOrDefault("firstName", true);
@@ -269,7 +273,7 @@ public class AuthService {
         String email = (String) userDetails.getOrDefault("email", null);
 
         List<String>  userRoles = Collections.emptyList();
-        if( getRoles){
+        if (getRoles){
             userRoles = getUserRoles(userIdOrEmail);
         }
 
