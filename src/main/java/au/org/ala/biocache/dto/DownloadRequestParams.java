@@ -2,10 +2,14 @@ package au.org.ala.biocache.dto;
 
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Getter;
+import lombok.Setter;
 
 import javax.validation.constraints.Pattern;
 
 @Schema(name = "Download parameters")
+@Getter
+@Setter
 public class DownloadRequestParams extends SpatialSearchRequestParams {
 
     @Parameter(name="email", description = "The email address to sent the download email once complete.")
@@ -59,140 +63,4 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
 
     @Parameter(name="emailNotify", description = "Send notification email.")
     boolean emailNotify = true;
-
-    public boolean isEmailNotify() {
-        return emailNotify;
-    }
-
-    public void setEmailNotify(boolean emailNotify) {
-        this.emailNotify = emailNotify;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getReason() {
-        return reason;
-    }
-
-    public void setReason(String reason) {
-        this.reason = reason;
-    }
-
-    public String getFile() {
-        return file;
-    }
-
-    public void setFile(String file) {
-        this.file = file;
-    }
-
-    public String getFields() {
-        return fields;
-    }
-
-    public void setFields(String fields) {
-        this.fields = fields;
-    }
-
-    public String getExtra() {
-        return extra;
-    }
-
-    public void setExtra(String extra) {
-        this.extra = extra;
-    }
-
-    public String getQa() {
-        return qa;
-    }
-
-    public void setQa(String qa) {
-        this.qa = qa;
-    }
-
-    public Character getSep() {
-        return sep;
-    }
-
-    public void setSep(Character sep) {
-        this.sep = sep;
-    }
-
-    public Character getEsc() {
-        return esc;
-    }
-
-    public void setEsc(Character esc) {
-        this.esc = esc;
-    }
-
-    public Boolean getDwcHeaders() {
-        return dwcHeaders;
-    }
-
-    public void setDwcHeaders(Boolean dwcHeaders) {
-        this.dwcHeaders = dwcHeaders;
-    }
-
-    public Boolean getIncludeMisc() {
-        return includeMisc;
-    }
-
-    public void setIncludeMisc(Boolean includeMisc) {
-        this.includeMisc = includeMisc;
-    }
-
-    public Integer getReasonTypeId() {
-        return reasonTypeId;
-    }
-
-    public void setReasonTypeId(Integer reasonTypeId) {
-        this.reasonTypeId = reasonTypeId;
-    }
-
-    public Integer getSourceTypeId() {
-        return sourceTypeId;
-    }
-
-    public void setSourceTypeId(Integer sourceTypeId) {
-        this.sourceTypeId = sourceTypeId;
-    }
-
-    public String getFileType() {
-        return fileType;
-    }
-
-    public void setFileType(String fileType) {
-        this.fileType = fileType;
-    }
-
-    public String getLayersServiceUrl() {
-        return layersServiceUrl;
-    }
-
-    public void setLayersServiceUrl(String layersServiceUrl) {
-        this.layersServiceUrl = layersServiceUrl;
-    }
-
-    public String getCustomHeader() {
-        return customHeader;
-    }
-
-    public void setCustomHeader(String customHeader) {
-        this.customHeader = customHeader;
-    }
-
-    public Boolean getMintDoi() {
-        return mintDoi;
-    }
-
-    public void setMintDoi(Boolean mintDoi) {
-        this.mintDoi = mintDoi;
-    }
 }

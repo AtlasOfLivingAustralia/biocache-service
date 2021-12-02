@@ -57,9 +57,6 @@ import org.springframework.web.client.RestOperations;
 import javax.annotation.Nullable;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import javax.mail.internet.AddressException;
-import javax.mail.internet.InternetAddress;
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.constraints.NotNull;
 import java.io.*;
@@ -586,7 +583,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             }
 
             final ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
-            DownloadHeaders downloadHeaders = searchDAO.writeResultsFromIndexToStream(requestParams, sp, uidStats, dd, limit, parallelExecutor);
+            DownloadHeaders downloadHeaders = searchDAO.writeResultsFromIndexToStream(
+                    requestParams, sp, uidStats, dd, limit, parallelExecutor);
 
             sp.closeEntry();
 
@@ -700,7 +698,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 }
 
                 String readmeTemplate = "";
-                if (new File(readmeFile).exists()) {
+                if (readmeFile != null && new File(readmeFile).exists()) {
                     readmeTemplate = FileUtils.readFileToString(new File(readmeFile), StandardCharsets.UTF_8);
                 }
 

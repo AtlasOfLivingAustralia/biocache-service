@@ -555,6 +555,7 @@ public class DownloadServiceTest {
         given(FileUtils.openOutputStream(any())).willCallRealMethod();
         given(FileUtils.openOutputStream(any(), anyBoolean())).willCallRealMethod();
 
+        when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), any(),  any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
         when(testService.dataQualityService.convertDataQualityParameters(any(), any())).thenAnswer(returnsFirstArg());
 
         testService.support = "support@ala.org.au";
@@ -758,6 +759,13 @@ public class DownloadServiceTest {
 
         testService = createDownloadServiceForOfflineTest();
 
+        when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), any(),  any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
+        when(testService.dataQualityService.convertDataQualityParameters(any(), any())).thenAnswer(returnsFirstArg());
+
+        testService.support = "support@ala.org.au";
+        testService.myDownloadsUrl = "https://dev.ala.org.au/myDownloads";
+        testService.biocacheDownloadUrl = "http://dev.ala.org.au/biocache-download";
+        testService.biocacheDownloadEmailTemplate = "/tmp/download-email.html";
         testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
 
         testService.init();

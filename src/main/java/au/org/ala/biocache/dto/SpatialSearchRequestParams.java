@@ -14,12 +14,12 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
-import au.org.ala.biocache.validate.SpatialParamsValidator;
 import au.org.ala.biocache.validate.ValidSpatialParams;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Getter;
+import lombok.Setter;
 
-import javax.validation.Constraint;
 import javax.validation.constraints.Pattern;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +32,8 @@ import java.util.List;
  */
 @Schema(name = "Spatial search parameters")
 @ValidSpatialParams
+@Getter
+@Setter
 public class SpatialSearchRequestParams {
 
     @Parameter(name="q", description = "Main search query. Examples 'q=Kangaroo' or 'q=vernacularName:red'")
@@ -106,188 +108,4 @@ public class SpatialSearchRequestParams {
 
     @Parameter(name="wkt", description = "Well Known Text for the spatial search")
     protected String wkt = "";
-
-    public String getQ() {
-        return q;
-    }
-
-    public void setQ(String q) {
-        this.q = q;
-    }
-
-    public String[] getFq() {
-        return fq;
-    }
-
-    public void setFq(String[] fq) {
-        this.fq = fq;
-    }
-
-    public Long getqId() {
-        return qId;
-    }
-
-    public void setqId(Long qId) {
-        this.qId = qId;
-    }
-
-    public String getFl() {
-        return fl;
-    }
-
-    public void setFl(String fl) {
-        this.fl = fl;
-    }
-
-    public String[] getFacets() {
-        return facets;
-    }
-
-    public void setFacets(String[] facets) {
-        this.facets = facets;
-    }
-
-    public Integer getFlimit() {
-        return flimit;
-    }
-
-    public void setFlimit(Integer flimit) {
-        this.flimit = flimit;
-    }
-
-    public String getFsort() {
-        return fsort;
-    }
-
-    public void setFsort(String fsort) {
-        this.fsort = fsort;
-    }
-
-    public Integer getFoffset() {
-        return foffset;
-    }
-
-    public void setFoffset(Integer foffset) {
-        this.foffset = foffset;
-    }
-
-    public String getFprefix() {
-        return fprefix;
-    }
-
-    public void setFprefix(String fprefix) {
-        this.fprefix = fprefix;
-    }
-
-    public Integer getStart() {
-        return start;
-    }
-
-    public void setStart(Integer start) {
-        this.start = start;
-    }
-
-    public Integer getPageSize() {
-        return pageSize;
-    }
-
-    public void setPageSize(Integer pageSize) {
-        this.pageSize = pageSize;
-    }
-
-    public String getSort() {
-        return sort;
-    }
-
-    public void setSort(String sort) {
-        this.sort = sort;
-    }
-
-    public String getDir() {
-        return dir;
-    }
-
-    public void setDir(String dir) {
-        this.dir = dir;
-    }
-
-    public Boolean getIncludeMultivalues() {
-        return includeMultivalues;
-    }
-
-    public void setIncludeMultivalues(Boolean includeMultivalues) {
-        this.includeMultivalues = includeMultivalues;
-    }
-
-    public String getQc() {
-        return qc;
-    }
-
-    public void setQc(String qc) {
-        this.qc = qc;
-    }
-
-    public Boolean getFacet() {
-        return facet;
-    }
-
-    public void setFacet(Boolean facet) {
-        this.facet = facet;
-    }
-
-    public String getQualityProfile() {
-        return qualityProfile;
-    }
-
-    public void setQualityProfile(String qualityProfile) {
-        this.qualityProfile = qualityProfile;
-    }
-
-    public boolean isDisableAllQualityFilters() {
-        return disableAllQualityFilters;
-    }
-
-    public void setDisableAllQualityFilters(boolean disableAllQualityFilters) {
-        this.disableAllQualityFilters = disableAllQualityFilters;
-    }
-
-    public List<String> getDisableQualityFilter() {
-        return disableQualityFilter;
-    }
-
-    public void setDisableQualityFilter(List<String> disableQualityFilter) {
-        this.disableQualityFilter = disableQualityFilter;
-    }
-
-    public Float getRadius() {
-        return radius;
-    }
-
-    public void setRadius(Float radius) {
-        this.radius = radius;
-    }
-
-    public Float getLat() {
-        return lat;
-    }
-
-    public void setLat(Float lat) {
-        this.lat = lat;
-    }
-
-    public Float getLon() {
-        return lon;
-    }
-
-    public void setLon(Float lon) {
-        this.lon = lon;
-    }
-
-    public String getWkt() {
-        return wkt;
-    }
-
-    public void setWkt(String wkt) {
-        this.wkt = wkt;
-    }
 }

@@ -1,7 +1,7 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dto.AuthenticatedUser;
-import au.org.ala.biocache.service.ApiKeyService;
+import au.org.ala.biocache.service.LegacyApiKeyService;
 import au.org.ala.biocache.service.JwtService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -57,7 +57,7 @@ public class AlaWebServiceAuthFilter extends OncePerRequestFilter {
     JwtService jwtService;
 
     @Inject
-    ApiKeyService apiKeyService;
+    LegacyApiKeyService apiKeyService;
 
     /** The name of the filter which this filter should be placed after in the spring security filter array. */
     String addAfterFilterName = "LogoutFilter";
@@ -97,9 +97,9 @@ public class AlaWebServiceAuthFilter extends OncePerRequestFilter {
             if (authorizationHeader != null) {
                 // parse JWT or check whitelist or Check API Key
                 if (authorizationHeader.startsWith(BEARER)) {
-                    AuthenticatedUser authenticatedUser = jwtService.checkJWT(authorizationHeader);
-                    if (authenticatedUser != null) {
-                        setAuthenticatedUserAsPrincipal(authenticatedUser);
+                    Optional<AuthenticatedUser> authenticatedUser = jwtService.checkJWT(authorizationHeader);
+                    if (authenticatedUser.isPresent()) {
+                        setAuthenticatedUserAsPrincipal(authenticatedUser.get());
                     }
                 }
             }
@@ -111,7 +111,7 @@ public class AlaWebServiceAuthFilter extends OncePerRequestFilter {
             // check for requestParam - for backwards compatibilty
             String apiKeyHeader = request.getHeader(API_KEY);
             String apiKeyParam = request.getParameter(API_KEY);
-            AuthenticatedUser user = null;
+            Optional<AuthenticatedUser> user = null;
             if (apiKeyHeader != null){
                 user = apiKeyService.isValidKey(apiKeyHeader);
             }
@@ -119,8 +119,8 @@ public class AlaWebServiceAuthFilter extends OncePerRequestFilter {
                 user = apiKeyService.isValidKey(apiKeyParam);
             }
 
-            if (user != null) {
-                setAuthenticatedUserAsPrincipal(user);
+            if (user.isPresent()) {
+                setAuthenticatedUserAsPrincipal(user.get());
             }
         }
         

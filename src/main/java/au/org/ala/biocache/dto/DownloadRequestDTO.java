@@ -53,13 +53,13 @@ public class DownloadRequestDTO extends SpatialSearchRequestDTO {
     /** CSV list of extra fields to be added to the download - useful if wish to make use of default list */
     protected String extra = "";
     /** the CSV list of issue types to include in the download, defaults to all. Also supports none. */
-    protected String qa="all";
+    protected String qa = "all";
     /** The CSV separator to use */
-    protected Character sep=',';
+    protected Character sep =',';
     /** The CSV escape character to use*/
-    protected Character esc='"';
+    protected Character esc = '"';
     /** The header is to use darwin core headers (from messages.properties) */
-    protected Boolean dwcHeaders=false;
+    protected Boolean dwcHeaders = false;
     /** Include all available misc fields. For Cassandra downloads only. */
     protected Boolean includeMisc = false;
     
@@ -69,7 +69,7 @@ public class DownloadRequestDTO extends SpatialSearchRequestDTO {
     protected Integer sourceTypeId = null;
     //The file type for the download file.
     @Pattern(regexp="(csv|tsv)")
-    protected String fileType="csv";
+    protected String fileType = "csv";
 
     /** URL to layersService to include intersections with layers that are not indexed */
     protected String layersServiceUrl = "";

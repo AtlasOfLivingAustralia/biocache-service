@@ -1,7 +1,6 @@
 package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dto.AuthenticatedUser;
-import au.org.ala.biocache.web.AlaWebServiceAuthFilter;
 import com.auth0.jwk.Jwk;
 import com.auth0.jwk.JwkProvider;
 import com.auth0.jwk.UrlJwkProvider;
@@ -16,7 +15,9 @@ import org.springframework.stereotype.Service;
 
 import java.net.URL;
 import java.security.interfaces.RSAPublicKey;
+import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 import static au.org.ala.biocache.web.AlaWebServiceAuthFilter.BEARER;
 
@@ -33,9 +34,13 @@ public class JwtService {
      * @param authorizationHeader
      * @return
      */
-    public AuthenticatedUser checkJWT(String authorizationHeader) {
+    public Optional<AuthenticatedUser> checkJWT(String authorizationHeader) {
 
         try {
+            if (!authorizationHeader.startsWith(BEARER)){
+                return Optional.empty();
+            }
+
             // https://auth0.com/docs/security/tokens/json-web-tokens/validate-json-web-tokens
             String token = authorizationHeader.substring(BEARER.length() + 1);
 
@@ -48,19 +53,20 @@ public class JwtService {
 
             try {
                 algorithm.verify(jwt);
-
-                //TODO check the expiry....
-
-
+                // check the expiry....
+                if (jwt.getExpiresAt().before(new Date())){
+                    log.error("JWT expired");
+                    return Optional.empty();
+                }
                 List<String> roles = jwt.getClaims().get("role").asList(String.class);
                 String email = jwt.getClaims().get("email").asString();
                 String userId = jwt.getClaims().get("userid").asString();
-                String firstName = jwt.getClaims().get("givenName").asString();
+                String firstName = jwt.getClaims().get("given_name").asString();
                 String lastName = jwt.getClaims().get("family_name").asString();
-                return new AuthenticatedUser(email, userId, roles, jwt.getClaims(), firstName, lastName);
+                return Optional.of(new AuthenticatedUser(email, userId, roles, jwt.getClaims(), firstName, lastName));
             } catch (SignatureVerificationException e) {
                 log.error("Verify of JWT failed");
-                return null;
+                return Optional.empty();
             }
         } catch (JWTDecodeException e){
             // this will happen for some legacy API keys which are past in the Authorization header
@@ -71,6 +77,6 @@ public class JwtService {
             log.debug("Check of JWT failed, supplied authorizationHeader is not a recognised JWT");
             log.debug(e.getMessage(), e);
         }
-        return null;
+        return Optional.empty();
     }
 }

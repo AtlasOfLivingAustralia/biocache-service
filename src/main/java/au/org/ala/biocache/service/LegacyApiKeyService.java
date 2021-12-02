@@ -13,12 +13,17 @@ import javax.inject.Inject;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 
+/**
+ * Service for validating legacy api keys provided by apikey app.
+ */
 @Service
 @Slf4j
-public class ApiKeyService {
+public class LegacyApiKeyService {
 
     public static final String ROLE_LEGACY_APIKEY = "ROLE_LEGACY_APIKEY";
+    public static final String API_KEYS_CACHE_NAME = "apiKeys";
 
     @Value("${spring.security.legacy.apikey.serviceUrl}")
     String legacyApiKeyServiceUrl;
@@ -37,41 +42,45 @@ public class ApiKeyService {
      * @param keyToTest
      * @return True if API key checking is disabled, or the API key is valid, and false otherwise.
      */
-    public AuthenticatedUser isValidKey(String keyToTest){
+    public Optional<AuthenticatedUser> isValidKey(String keyToTest){
 
         if (StringUtils.isBlank(keyToTest)){
-            return null;
+            return Optional.empty();
         }
 
         // caching manually managed via the cacheManager not using the @Cacheable annotation
         // the @Cacheable annotation only works when an external call is made to a method, for
         // an explanation see: https://stackoverflow.com/a/32999744
-        Cache cache = cacheManager.getCache("apiKeys");
+        Cache cache = cacheManager.getCache(API_KEYS_CACHE_NAME);
         Cache.ValueWrapper valueWrapper = cache.get(keyToTest);
 
         if (valueWrapper != null && (AuthenticatedUser) valueWrapper.get() != null) {
-            return (AuthenticatedUser) valueWrapper.get();
+            return Optional.of((AuthenticatedUser) valueWrapper.get());
         }
 
         //check via a web service
         try {
-            log.debug("Checking api key: + keyToTest");
+            if (log.isDebugEnabled()) {
+                log.debug("Checking api key: " + keyToTest);
+            }
             String url = legacyApiKeyServiceUrl + keyToTest;
             Map<String,Object> response = restTemplate.getForObject(url, Map.class);
             boolean isValid = (Boolean) response.get("valid");
             String userId = (String) response.get("userId");
             String email = (String) response.get("email");
-            log.debug("Checking api key: " + keyToTest + ", valid: " + isValid);
-            AuthenticatedUser auth = null;
-            if (isValid) {
-                auth = new AuthenticatedUser(email, userId, Arrays.asList(legacyApiKeysRoles), Collections.emptyMap(), null, null);
-                cache.put(keyToTest, auth);
+            if (log.isDebugEnabled()) {
+                log.debug("Checking api key: " + keyToTest + ", valid: " + isValid);
             }
-            return auth;
+            if (isValid) {
+                AuthenticatedUser auth = new AuthenticatedUser(email, userId, Arrays.asList(legacyApiKeysRoles), Collections.emptyMap(), null, null);
+                cache.put(keyToTest, auth);
+                return Optional.of(auth);
+            }
+
         } catch (Exception e){
             log.error(e.getMessage(), e);
         }
 
-        return null;
+        return Optional.empty();
     }
 }

@@ -17,7 +17,6 @@ package au.org.ala.biocache.service;
 import au.org.ala.biocache.dto.AuthenticatedUser;
 import au.org.ala.biocache.dto.DownloadRequestDTO;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
@@ -231,7 +230,7 @@ public class AuthService {
 
         // 1) Legacy API Key and X-ALA-userId
         String xAlaUserIdHeader = request.getHeader(LEGACY_X_ALA_USER_ID_HEADER);
-        if (legacyApiKeyEnabled && request.isUserInRole(ApiKeyService.ROLE_LEGACY_APIKEY) && xAlaUserIdHeader != null){
+        if (legacyApiKeyEnabled && request.isUserInRole(LegacyApiKeyService.ROLE_LEGACY_APIKEY) && xAlaUserIdHeader != null){
             Map<String, Object> userDetails = (Map<String, Object>) getUserDetails(xAlaUserIdHeader);
             boolean activated = (Boolean) userDetails.getOrDefault("activated", true);
             boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
@@ -299,7 +298,7 @@ public class AuthService {
 
         // 1) Legacy API Key and X-ALA-userId
         String xAlaUserIdHeader = request.getHeader(LEGACY_X_ALA_USER_ID_HEADER);
-        if (legacyApiKeyEnabled && request.isUserInRole(ApiKeyService.ROLE_LEGACY_APIKEY) && xAlaUserIdHeader != null){
+        if (legacyApiKeyEnabled && request.isUserInRole(LegacyApiKeyService.ROLE_LEGACY_APIKEY) && xAlaUserIdHeader != null){
             Map<String, Object> userDetails = (Map<String, Object>) getUserDetails(xAlaUserIdHeader);
             boolean activated = (Boolean) userDetails.getOrDefault("activated", true);
             boolean locked = (Boolean) userDetails.getOrDefault("locked", true);

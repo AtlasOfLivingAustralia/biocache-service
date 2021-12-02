@@ -4,7 +4,7 @@ import au.org.ala.biocache.dto.AssertionCodes;
 import au.org.ala.biocache.dto.AuthenticatedUser;
 import au.org.ala.biocache.dto.QualityAssertion;
 import au.org.ala.biocache.dto.UserAssertions;
-import au.org.ala.biocache.service.ApiKeyService;
+import au.org.ala.biocache.service.LegacyApiKeyService;
 import au.org.ala.biocache.service.AssertionService;
 import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
@@ -60,7 +60,7 @@ public class AssertionsControllerIT extends TestCase {
     @Autowired
     AlaWebServiceAuthFilter alaWebServiceAuthFilter;
 
-    ApiKeyService apiKeyService;
+    LegacyApiKeyService apiKeyService;
 
     @Autowired
     FieldMappingUtil fieldMappingUtil;
@@ -87,7 +87,7 @@ public class AssertionsControllerIT extends TestCase {
         DEPRECATED_CODES_LENGTH = fieldMappingUtil.getFieldValueMappingStream("assertions").collect(Collectors.toList()).size();
 
         assertionService = mock(AssertionService.class);
-        apiKeyService = mock(ApiKeyService.class);
+        apiKeyService = mock(LegacyApiKeyService.class);
         ReflectionTestUtils.setField(assertionController, "assertionService", assertionService);
 
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).build();
