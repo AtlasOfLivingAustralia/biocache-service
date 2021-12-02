@@ -36,6 +36,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -149,7 +150,7 @@ public class DownloadControllerIT extends TestCase {
     public void downloadInvalidEmailTest() throws Exception {
 
         when(authService.getDownloadUser(any(), any()))
-                .thenReturn(null);
+                .thenReturn(Optional.empty());
 
         this.mockMvc.perform(get("/occurrences/offline/download")
                 .param("reasonTypeId", "10")
