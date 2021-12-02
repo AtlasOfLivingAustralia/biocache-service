@@ -229,7 +229,8 @@ public class AuthService {
 
         // 1) Legacy API Key and X-ALA-userId
         String xAlaUserIdHeader = request.getHeader(LEGACY_X_ALA_USER_ID_HEADER);
-        if (legacyApiKeyEnabled && request.isUserInRole(LegacyApiKeyService.ROLE_LEGACY_APIKEY) && xAlaUserIdHeader != null){
+        boolean userInLegacyRole = request.isUserInRole(LegacyApiKeyService.ROLE_LEGACY_APIKEY);
+        if (legacyApiKeyEnabled && userInLegacyRole && xAlaUserIdHeader != null){
             return lookupAuthUser(xAlaUserIdHeader, true);
         }
 
@@ -266,11 +267,11 @@ public class AuthService {
         }
 
         String userId = (String) userDetails.getOrDefault("userid", null);
-        boolean activated = (Boolean) userDetails.getOrDefault("activated", true);
+        boolean activated = (Boolean) userDetails.getOrDefault("activated", false);
         boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
-        String firstName = (String) userDetails.getOrDefault("firstName", true);
-        String lastName = (String) userDetails.getOrDefault("lastName", true);
-        String email = (String) userDetails.getOrDefault("email", null);
+        String firstName = (String) userDetails.getOrDefault("firstName", "");
+        String lastName = (String) userDetails.getOrDefault("lastName", "");
+        String email = (String) userDetails.getOrDefault("email", "");
 
         List<String>  userRoles = Collections.emptyList();
         if (getRoles){
