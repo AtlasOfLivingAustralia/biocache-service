@@ -112,7 +112,7 @@ public class WMSController extends AbstractSecureController {
     final static byte[] blankImageBytes;
 
     @Value("${webservices.root:https://biocache-ws.ala.org.au/ws}")
-    protected String baseWsUrl;
+    protected String  baseWsUrl;
 
     @Value("${biocache.ui.url:https://biocache.ala.org.au}")
     protected String baseUiUrl;
@@ -1660,8 +1660,8 @@ public class WMSController extends AbstractSecureController {
             @RequestParam(value = "scale", required = false, defaultValue = "off") String scale,
             @RequestParam(value = "dpi", required = false, defaultValue = "300") Integer dpi,
             @RequestParam(value = "baselayerStyle", required = false, defaultValue = "") String baselayerStyle,
-            @RequestParam(value = "outline", required = true, defaultValue = "false") boolean outlinePoints,
-            @RequestParam(value = "outlineColour", required = true, defaultValue = "#000000") String outlineColour,
+            @RequestParam(value = "outline", defaultValue = "false") boolean outlinePoints,
+            @RequestParam(value = "outlineColour", defaultValue = "#000000") String outlineColour,
             @RequestParam(value = "fileName", required = false) String fileName,
             @RequestParam(value = "baseMap", required = false, defaultValue = "ALA") String baseMap,
             HttpServletRequest request, HttpServletResponse response) throws Exception {

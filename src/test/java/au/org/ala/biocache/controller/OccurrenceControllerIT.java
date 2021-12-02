@@ -104,7 +104,7 @@ public class OccurrenceControllerIT extends TestCase {
 
         ReflectionTestUtils.setField(occurrenceController, "occurrenceLogEnabled", true);
 
-        this.mockMvc.perform(get("/occurrence/41fcf3f2-fa7b-4ba6-a88c-4ac5240c8aab")
+        this.mockMvc.perform(get("/occurrences/41fcf3f2-fa7b-4ba6-a88c-4ac5240c8aab")
                 .header("user-agent", "test User-Agent")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -115,6 +115,17 @@ public class OccurrenceControllerIT extends TestCase {
 
         LogEventVO logEventVO = argument.getValue();
         assertEquals(logEventVO.getUserAgent(), "test User-Agent");
+    }
+
+    @Test
+    public void getCompareRecordTest() throws Exception {
+
+        this.mockMvc.perform(get("/occurrences/compare/41fcf3f2-fa7b-4ba6-a88c-4ac5240c8aab")
+                        .header("user-agent", "test User-Agent")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+//                .andExpect(jsonPath("$.Classification[0].name").value("scientificName"))
+//                .andExpect(jsonPath("$.Classification[0].processed").value("Circus assimilis"));
     }
 
     @Test

@@ -827,19 +827,18 @@ public class OccurrenceController extends AbstractSecureController {
             // handle empty param values, e.g. &sort=&dir=
          SearchUtils.setDefaultParams(dto);
          Map<String, String[]> map = request != null ? SearchUtils.getExtraParams(request.getParameterMap()) : null;
-         if (map != null) {
-             map.remove("apiKey");
-         }
 
          if (logger.isDebugEnabled()) {
              logger.debug("occurrence search params = " + requestParams + " extra params = " + map);
          }
 
          SearchResultDTO srtdto = null;
-         if (request.getUserPrincipal() == null) {
-             srtdto = searchDAO.findByFulltextSpatialQuery(dto, false, map);
+         //FIXME - under what circumstances do we allow sensitive search results....
+         if (request.getUserPrincipal() == null && request.isUserInRole("ROLE_ADMIN")) {
+             // what do we do here
+             srtdto = searchDAO.findByFulltextSpatialQuery(dto, true, map);
          } else {
-             srtdto = occurrenceSearchSensitive(dto, request, response);
+             srtdto = searchDAO.findByFulltextSpatialQuery(dto, false, map);
          }
 
          if (srtdto.getTotalRecords() > 0 && lookupImageMetadata) {
@@ -858,23 +857,6 @@ public class OccurrenceController extends AbstractSecureController {
              }
          }
          return srtdto;
-    }
-
-    private SearchResultDTO occurrenceSearchSensitive(SpatialSearchRequestDTO requestParams,
-                                              HttpServletRequest request,
-                                              HttpServletResponse response) throws Exception {
-        // handle empty param values, e.g. &sort=&dir=
-        if (shouldPerformOperation(request, response)) {
-            SearchUtils.setDefaultParams(requestParams);
-            Map<String, String[]> map = SearchUtils.getExtraParams(request.getParameterMap());
-            if (map != null) {
-                map.remove("apiKey");
-            }
-            logger.debug("occurrence search params = " + requestParams);
-            SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, true, map);
-            return searchResult;
-        }
-        return null;
     }
 
     /**
@@ -2452,6 +2434,7 @@ public class OccurrenceController extends AbstractSecureController {
      * <p/>
      * facets is the pivot facet list
      */
+    @SecurityRequirement(name="JWT")
     @Deprecated
     @Hidden
     @RequestMapping("occurrence/pivot")
@@ -2473,6 +2456,7 @@ public class OccurrenceController extends AbstractSecureController {
      * <p/>
      * Requires valid apiKey because it is very slow.
      */
+    @SecurityRequirement(name="JWT")
     @Deprecated
     @RequestMapping("occurrences/facets/available")
     @Hidden
