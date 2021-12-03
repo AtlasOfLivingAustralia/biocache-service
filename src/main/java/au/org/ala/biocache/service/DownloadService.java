@@ -66,6 +66,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
 
@@ -888,59 +889,60 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 if (!uidStats.isEmpty()) {
                     List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl,
                             uidStats.keySet(), List.class);
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Posting to " + citationServiceUrl);
+                        logger.debug("UIDs " + uidStats.keySet().stream().collect(Collectors.joining(",")));
+                    }
                     final int UID = 0;
                     final int NAME = 1;
                     final int CITATION = 3;
                     final int RIGHTS = 4;
                     final int LINK = 5;
                     final int COUNT = 9;
-                    for (Map<String, Object> record : entities) {
-                        // ensure that the record is not null to prevent NPE on
-                        // the "get"s
-                        if (record != null) {
-                            Object value = record.get("uid");
-                            if (value != null) {
-                                AtomicInteger uidRecordCount = uidStats.get(value);
-                                String count = Optional.ofNullable(uidRecordCount).orElseGet(() -> new AtomicInteger(0)).toString();
-                                String[] row = new String[]{
-                                        (String) record.getOrDefault( "uid", ""),
-                                        (String) record.getOrDefault( "name", ""),
-                                        (String) record.getOrDefault( "DOI", ""),
-                                        (String) record.getOrDefault( "citation", ""),
-                                        (String) record.getOrDefault( "rights", ""),
-                                        (String) record.getOrDefault( "link", ""),
-                                        (String) record.getOrDefault( "dataGeneralizations", ""),
-                                        (String) record.getOrDefault( "informationWithheld", ""),
-                                        (String) record.getOrDefault( "downloadLimit", ""),
-                                        count};
-                                writer.writeNext(row);
 
-                                if (readmeCitations != null) {
-                                    // used in README.txt
-                                    readmeCitations.add(row[CITATION] + " (" + row[RIGHTS] + "). " + row[LINK]);
-                                }
+                    List<Map<String, Object>> useableRecords = entities.stream()
+                            .filter(m -> m != null && m.get("uid") != null).collect(toList());
 
-                                if (datasetMetadata != null) {
-                                    Map<String, String> dataSet = new HashMap<>();
+                    for (Map<String, Object> record : useableRecords) {
+                        Object uid = record.get("uid");
+                        AtomicInteger uidRecordCount = uidStats.get(uid);
+                        String count = Optional.ofNullable(uidRecordCount).orElseGet(() -> new AtomicInteger(0)).toString();
+                        String[] row = new String[]{
+                                (String) record.getOrDefault( "uid", ""),
+                                (String) record.getOrDefault( "name", ""),
+                                (String) record.getOrDefault( "DOI", ""),
+                                (String) record.getOrDefault( "citation", ""),
+                                (String) record.getOrDefault( "rights", ""),
+                                (String) record.getOrDefault( "link", ""),
+                                (String) record.getOrDefault( "dataGeneralizations", ""),
+                                (String) record.getOrDefault( "informationWithheld", ""),
+                                (String) record.getOrDefault( "downloadLimit", ""),
+                                count};
+                        writer.writeNext(row);
 
-                                    dataSet.put("uid", row[UID]);
-                                    dataSet.put("name", row[NAME]);
-                                    dataSet.put("licence", row[RIGHTS]);
-                                    dataSet.put("count", row[COUNT]);
+                        if (readmeCitations != null) {
+                            // used in README.txt
+                            readmeCitations.add(row[CITATION] + " (" + row[RIGHTS] + "). " + row[LINK]);
+                        }
 
-                                    datasetMetadata.add(dataSet);
-                                }
-                            } else {
-                                logger.error("Record did not have a uid attribute: " + record);
-                            }
-                        } else {
-                            if (logger.isDebugEnabled()) {
-                                logger.error("A null record was returned from the collectory citation service: " + entities + ", collected stats were: " + uidStats);
-                            } else {
-                                logger.error("A null record was returned from the collectory citation service.");
-                            }
+                        if (datasetMetadata != null) {
+                            Map<String, String> dataSet = new HashMap<>();
+
+                            dataSet.put("uid", row[UID]);
+                            dataSet.put("name", row[NAME]);
+                            dataSet.put("licence", row[RIGHTS]);
+                            dataSet.put("count", row[COUNT]);
+
+                            datasetMetadata.add(dataSet);
                         }
                     }
+
+                    if (useableRecords.size() < uidStats.keySet().size()) {
+                        List<String> usedUids = useableRecords.stream().map(record -> (String)record.get("uid")).collect(toList());
+                        String missingUids = uidStats.keySet().stream().filter(uid -> !usedUids.contains(uid)).collect(Collectors.joining());
+                        logger.warn("The following UIDs will not have citations (missing in registry): " + missingUids);
+                    }
+
                 } else {
                     logger.warn("No collected stats for a download");
                 }
