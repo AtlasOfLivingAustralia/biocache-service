@@ -144,15 +144,6 @@
 
     <cache:annotation-driven />
 
-<!--    <ehcache:config cache-manager="cacheManager">-->
-<!--        &lt;!&ndash; interval is in minutes &ndash;&gt;-->
-<!--        <ehcache:evict-expired-elements interval="60" />-->
-<!--    </ehcache:config>-->
-
-<!--    <bean id="cacheManager" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">-->
-<!--        <property name="configLocation"  value="/WEB-INF/ehcache.xml"/>-->
-<!--    </bean>-->
-
     <bean id="ehCacheManager" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">
         <property name="configLocation"  value="/WEB-INF/ehcache.xml"/>
         <property name="shared" value="true" />

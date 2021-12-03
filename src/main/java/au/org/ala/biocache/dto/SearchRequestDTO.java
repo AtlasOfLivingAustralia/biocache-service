@@ -54,9 +54,12 @@ public class SearchRequestDTO {
      * The facets to be included by the search
      * Initialised with the default facets to use
      */
-    protected String[] facets = FacetThemes.getAllFacetsLimited();
+    protected String[] facets =  new String[0]; //FacetThemes.getAllFacetsLimited();
+    protected Integer facetsMax = 30; //FacetThemes.getFacetsMax();
+    /** To disable facets */
+    protected Boolean facet = false; //FacetThemes.getFacetDefault();
+
     protected Integer start = 0;
-    protected Integer facetsMax = FacetThemes.getFacetsMax();
     /*
      * The limit for the number of facets to return 
      */
@@ -76,8 +79,7 @@ public class SearchRequestDTO {
 
     /**  The query context to be used for the search.  This will be used to generate extra query filters based on the search technology */
     protected String qc = "";
-    /** To disable facets */
-    protected Boolean facet = FacetThemes.getFacetDefault();
+
 
     /** The quality profile to use, null for default */
     protected String qualityProfile;
