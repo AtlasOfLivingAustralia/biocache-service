@@ -108,8 +108,7 @@ public class OccurrenceIndex {
     Date eventDate;
     @Field("eventDateEnd") @JsonFormat(shape = JsonFormat.Shape.NUMBER) @Schema(description="Event date end in unix time format")
     Date eventDateEnd;
-    // @Field for occurrenceYear is on Setter
-    Date occurrenceYear;
+
     @Field("scientificName") @Schema(description="http://rs.tdwg.org/dwc/terms/scientificName")
     String scientificName;
     @Field("vernacularName") @Schema(description="http://rs.tdwg.org/dwc/terms/vernacularName")
@@ -242,7 +241,9 @@ public class OccurrenceIndex {
     String[] imageUrls;
 
     // DEPRECATED FIELDS - located here to appear at the bottom of API listings
-    @Field("spatiallyValid") @Schema(deprecated = true)
+//    @Deprecated @Field("occurrenceYear")
+    Date occurrenceYear;
+    @Deprecated @Field("spatiallyValid") @Schema(deprecated = true)
     Boolean geospatialKosher;
     @Deprecated
     String taxonomicKosher;
@@ -524,15 +525,6 @@ public class OccurrenceIndex {
 
     public Date getOccurrenceYear() {
         return occurrenceYear;
-    }
-
-    @Field("occurrenceYear")
-    public void setOccurrenceYear(List<Date> occurrenceYears) {
-        if (occurrenceYears != null && occurrenceYears.size() > 0) {
-            this.occurrenceYear = occurrenceYears.get(0);
-        } else {
-            this.occurrenceYear = null;
-        }
     }
 
     public void setOccurrenceYear(Date occurrenceYear) {

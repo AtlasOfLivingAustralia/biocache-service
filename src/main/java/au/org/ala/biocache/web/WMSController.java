@@ -532,7 +532,26 @@ public class WMSController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @Operation(summary = "Get query bounding box as JSON", tags = "Geospatial")
+    @Operation(summary = "Deprecated use /mapping/bounds", tags = "Deprecated")
+    @RequestMapping(value = {"/mapping/bounds.json" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public
+    @ResponseBody
+    double[] jsonBoundingBoxDeprecated(
+            @ParameterObject SpatialSearchRequestParams params,
+            HttpServletResponse response)
+            throws Exception {
+        return jsonBoundingBox(params, response);
+    }
+
+    /**
+     * Get query bounding box as JSON array containing:
+     * min longitude, min latitude, max longitude, max latitude
+     *
+     * @param response
+     * @return
+     * @throws Exception
+     */
+    @Operation(summary = "Get query bounding box as JSON", tags = "Mapping")
     @RequestMapping(value = {"/mapping/bounds" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public
     @ResponseBody

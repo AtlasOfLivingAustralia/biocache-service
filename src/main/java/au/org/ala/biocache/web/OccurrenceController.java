@@ -358,7 +358,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @Operation(summary = "List indexed fields", tags = "Search")
     @RequestMapping(value = {
-            "index/fields"
+            "index/fields", "index/fields.json"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     Collection<IndexFieldDTO> getIndexedFields(
@@ -795,7 +795,24 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     private SearchResultDTO occurrenceSearch(SpatialSearchRequestParams requestParams) throws Exception {
-        return occurrenceSearch(requestParams, false, null, null);
+        return occurrenceSearch(requestParams, false, null);
+    }
+
+    @Deprecated
+    @Operation(summary = "Deprecated - use /occurrences/search",
+            tags="Deprecated"
+    )
+    @RequestMapping(value = {
+            "/occurrences/search.json*",
+            "/occurrence/search"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody
+    SearchResultDTO occurrenceSearchDeprecated(
+            @Valid @ParameterObject SpatialSearchRequestParams requestParams,
+            @Parameter(description = "Include image metadata")
+            @RequestParam(value = "im", required = false, defaultValue = "false") Boolean lookupImageMetadata,
+            HttpServletRequest request) throws Exception {
+        return occurrenceSearch(requestParams, lookupImageMetadata, request);
     }
 
     /**
@@ -819,8 +836,7 @@ public class OccurrenceController extends AbstractSecureController {
                                      @Valid @ParameterObject SpatialSearchRequestParams requestParams,
                                      @Parameter(description = "Include image metadata")
                                      @RequestParam(value = "im", required = false, defaultValue = "false") Boolean lookupImageMetadata,
-                                     HttpServletRequest request,
-                                     HttpServletResponse response) throws Exception {
+                                     HttpServletRequest request) throws Exception {
 
         SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
 
@@ -1313,30 +1329,31 @@ public class OccurrenceController extends AbstractSecureController {
         }
     }
 
-    /**
-     * Occurrence record page
-     * <p>
-     * When user supplies a uuid that is not found search for a unique record
-     * with the supplied occurrence_id
-     * <p>
-     * Returns a SearchResultDTO when there is more than 1 record with the supplied UUID
-     *
-     * @param uuid
-     * @throws Exception
-     */
     @Deprecated
-    @Operation(summary = "Deprecated - use /occurrences/compare/{uuid}", tags = "Deprecated")
+    @Operation(summary = "Deprecated - use /occurrences/compare/{recordUuid}", tags = "Deprecated")
     @RequestMapping(
             value = {
                     "/occurrence/compare.json*",
-                    "/occurrence/compare*",
-                    "/occurrence/compare/{uuid}.json",
-                    "/occurrence/compare/{uuid}"
+                    "/occurrence/compare/{recordUuid}.json",
+                    "/occurrence/compare/{recordUuid}"
             },
             method = RequestMethod.GET)
-    @ApiParam(value = "uuid", required = true)
+    @ApiParam(value = "recordUuid", required = true)
     public @ResponseBody
-    Object showOccurrenceDeprecated(@PathVariable("uuid") String uuid, HttpServletResponse response) throws Exception {
+    Object showOccurrenceDeprecated(@PathVariable("recordUuid") String recordUuid, HttpServletResponse response) throws Exception {
+        return showOccurrence(recordUuid, response);
+    }
+
+    @Deprecated
+    @Operation(summary = "Deprecated - use /occurrences/compare/{recordUuid}", tags = "Deprecated")
+    @RequestMapping(
+            value = {
+                    "/occurrence/compare"
+            },
+            method = RequestMethod.GET)
+    @ApiParam(value = "recordUuid", required = true)
+    public @ResponseBody
+    Object showOccurrenceNonRestDeprecated(@RequestParam("uuid") String uuid, HttpServletResponse response) throws Exception {
         return showOccurrence(uuid, response);
     }
 
@@ -1348,17 +1365,17 @@ public class OccurrenceController extends AbstractSecureController {
      * <p>
      * Returns a SearchResultDTO when there is more than 1 record with the supplied UUID
      *
-     * @param uuid
+     * @param recordUuid
      * @throws Exception
      */
     @Operation(summary = "Returns a data structure allowing comparison of verbatim vs interpreted values", tags = "Occurrence")
     @RequestMapping( value = {"/occurrences/compare/{recordUuid}"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    @ApiParam(value = "uuid", required = true)
+    @ApiParam(value = "recordUuid", required = true)
     public @ResponseBody
-    Object showOccurrence(@PathVariable("recordUuid") String uuid, HttpServletResponse response) throws Exception {
+    Object showOccurrence(@PathVariable("recordUuid") String recordUuid, HttpServletResponse response) throws Exception {
 
         SpatialSearchRequestDTO idRequest = new SpatialSearchRequestDTO();
-        idRequest.setQ(OccurrenceIndex.ID + ":\"" + uuid + "\"");
+        idRequest.setQ(OccurrenceIndex.ID + ":\"" + recordUuid + "\"");
         idRequest.setFl(StringUtils.join(indexDao.getIndexedFieldsMap().keySet(), ","));
         idRequest.setFacet(false);
 
@@ -1462,7 +1479,7 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = {
             "/occurrences/{recordUuid}"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    @ApiParam(value = "uuid", required = true)
+    @ApiParam(value = "recordUuid", required = true)
     public @ResponseBody
     Object showOccurrence(@PathVariable("recordUuid") String recordUuid,
                           @Parameter(description = "Include image metadata")
@@ -1482,11 +1499,11 @@ public class OccurrenceController extends AbstractSecureController {
     @SecurityRequirement(name = "JWT")
     @Operation(summary = "Deprecated - use /occurrences/{recordUuid}", tags = "Deprecated")
     @RequestMapping(value = {
-            "/occurrence/{uuid:.+}.json",
-            "/occurrences/{uuid:.+}.json",
+            "/occurrence/{recordUuid:.+}.json",
+            "/occurrences/{recordUuid:.+}.json",
             "/occurrence/{recordUuid}"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    @ApiParam(value = "uuid", required = true)
+    @ApiParam(value = "recordUuid", required = true)
     public @ResponseBody
     Object showOccurrenceDeprecated(@PathVariable("recordUuid") String recordUuid,
                                     @Parameter(description = "Include image metadata")
