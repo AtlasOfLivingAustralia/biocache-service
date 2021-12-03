@@ -57,7 +57,7 @@ public class SearchRequestDTO {
     protected String[] facets =  new String[0]; //FacetThemes.getAllFacetsLimited();
     protected Integer facetsMax = 30; //FacetThemes.getFacetsMax();
     /** To disable facets */
-    protected Boolean facet = false; //FacetThemes.getFacetDefault();
+    protected Boolean facet = true; //FacetThemes.getFacetDefault();
 
     protected Integer start = 0;
     /*
