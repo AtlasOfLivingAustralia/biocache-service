@@ -26,9 +26,10 @@ import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -54,14 +55,15 @@ public class SpeciesImageService {
     @Inject
     protected SearchDAO searchDAO;
 
+
     @Inject
-    private FieldMappingUtil fieldMappingUtil;
+    protected FieldMappingUtil fieldMappingUtil;
 
     private Object cacheLock = new Object();
     private SpeciesImagesDTO cache = RestartDataService.get(this, "cache", new TypeReference<SpeciesImagesDTO>(){}, SpeciesImagesDTO.class);
     private boolean updatingCache = false;
 
-    Thread updateCacheThread = new CacheThread();
+    Thread updateCacheThread;// = new CacheThread();
 
     class CacheThread extends Thread {
         @Override
@@ -76,11 +78,9 @@ public class SpeciesImageService {
                 params.setFacet(true);
                 params.setFacets(new String[]{OccurrenceIndex.LFT});
                 params.setFlimit(99999999);
-                params.setFl(OccurrenceIndex.DATA_RESOURCE_UID + "," + OccurrenceIndex.IMAGE_URL);  // PIPELINES: recheck pipelines field mapping
+                params.setFl(OccurrenceIndex.DATA_RESOURCE_UID + "," + OccurrenceIndex.IMAGE_URL);
                 params.setQ(OccurrenceIndex.IMAGE_URL + ":*");
 
-                // TODO: PIPELINES: no need to perform mapping of fields in query params or response
-                // FieldMappingUtil.disableMapping();
                 QueryResponse qr = searchDAO.searchGroupedFacets(params);
 
                 Map<Long, SpeciesImageDTO> map = new HashMap();
@@ -135,11 +135,10 @@ public class SpeciesImageService {
         }
     }
 
-    @PostConstruct
+    @EventListener(ApplicationReadyEvent.class)
     public void init() {
         resetCache();
     }
-
 
     /**
      * Permit disabling of cached species images

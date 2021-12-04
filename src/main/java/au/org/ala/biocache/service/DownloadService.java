@@ -1269,6 +1269,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             if (mintDoi) {
                                 doiResponseList = new ArrayList<>();
                             }
+
+                            logger.info("Writing download to file " + mintDoi);
                             writeQueryToStream(
                                     currentDownload,
                                     new CloseShieldOutputStream(fos),
@@ -1278,12 +1280,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     doiResponseList
                             );
 
+                            logger.info("Sending email to recipient mintDoi " + mintDoi);
                             if (mintDoi && doiResponseList.size() <= 0) {
                                 //DOI Minting failed
                                 doiFailureMessage = biocacheDownloadDoiFailureMessage;
                                 mintDoi = false; //Prevent any updates
                             }
 
+                            logger.info("Sending email to recipient");
                             // now that the download is complete email a link to the
                             // recipient.
                             final String hubName = currentDownload.getRequestParams().getHubName() != null ? currentDownload.getRequestParams().getHubName() : "ALA";
@@ -1291,7 +1295,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     .replace("[filename]", currentDownload.getRequestParams().getFile())
                                     .replace("[hubName]", hubName);
 
+                            logger.info("currentDownload = " + currentDownload );
+
                             if (currentDownload != null && currentDownload.getFileLocation() != null) {
+
+                                logger.info("currentDownload.getFileLocation() = " + currentDownload.getFileLocation() );
                                 insertMiscHeader(currentDownload);
 
                                 //ensure new directories and download file have correct permissions
@@ -1340,6 +1348,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     substitutions.put(DOWNLOAD_FILE_LOCATION, archiveFileLocation);
                                 }
 
+                                logger.info("currentDownload.getRequestParams().isEmailNotify()  = " + currentDownload.getRequestParams().isEmailNotify());
+
                                 if (currentDownload.getRequestParams().isEmailNotify()) {
 
                                     // save the statistics to the download directory
@@ -1360,12 +1370,16 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                         objectMapper.writeValue(statsStream, currentDownload);
                                     }
 
+                                    logger.info("Delay sending the email to allow.....");
                                     if (mintDoi && doiResponseList != null && !doiResponseList.isEmpty() && doiResponseList.get(0) != null) {
                                         // Delay sending the email to allow the DOI to propagate through to upstream DOI providers
+                                        logger.info("Delay sending the email to allow....." + doiPropagationDelay);
                                         Thread.sleep(doiPropagationDelay);
                                     }
 
+                                    logger.info("Sending email now to  " + currentDownload.getRequestParams().getEmail());
                                     emailService.sendEmail(currentDownload.getRequestParams().getEmail(), subject, emailBody);
+                                    logger.info("Email sent to  " + currentDownload.getRequestParams().getEmail());
                                 }
                             }
 
@@ -1376,6 +1390,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             throw e;
                         } catch (CancellationException e) {
                             //download cancelled, do not send an email
+                            logger.info("Download cancelled...");
                         } catch (Exception e) {
                             logger.error("Error in offline download, sending email. download path: "
                                     + currentDownload.getFileLocation(), e);

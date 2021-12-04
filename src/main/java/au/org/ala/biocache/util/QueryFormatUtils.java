@@ -55,13 +55,13 @@ public class QueryFormatUtils {
     protected ListsService listsService;
 
     @Inject
-    private AuthService authService;
+    protected AuthService authService;
 
     @Inject
-    private DataQualityService dataQualityService;
+    protected DataQualityService dataQualityService;
 
     @Inject
-    private FieldMappingUtil fieldMappingUtil;
+    protected FieldMappingUtil fieldMappingUtil;
 
     protected static final String QUOTE = "\"";
     protected static final char[] CHARS = {' ', ':'};
@@ -802,9 +802,9 @@ public class QueryFormatUtils {
      *
      * @param query The query or fq
      * @param searchParams The search parameters.
-     * @return String [] { displayString, formattedQuery }
+     * @return String[] { displayString, formattedQuery }
      */
-    public String [] formatQueryTerm(String query, SpatialSearchRequestDTO searchParams) throws QidMissingException {
+    public String[] formatQueryTerm(String query, SpatialSearchRequestDTO searchParams) throws QidMissingException {
 
         String tQuery = fieldMappingUtil.translateQueryFields(query);
         String [] formatted = formatQid(tQuery, searchParams);
