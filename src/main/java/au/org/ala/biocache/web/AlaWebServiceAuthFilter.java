@@ -131,7 +131,7 @@ public class AlaWebServiceAuthFilter extends OncePerRequestFilter {
         SecurityContext securityContext = SecurityContextHolder.getContext();
         List<String> credentials = new ArrayList<>();
         List<GrantedAuthority> authorities = new ArrayList<>();
-        authenticatedUser.roles.forEach( s -> authorities.add(new SimpleGrantedAuthority(s)));
+        authenticatedUser.getRoles().forEach( s -> authorities.add(new SimpleGrantedAuthority(s)));
         PreAuthenticatedAuthenticationToken token = new PreAuthenticatedAuthenticationToken(
                 authenticatedUser, credentials, authorities);
         token.setAuthenticated(true);

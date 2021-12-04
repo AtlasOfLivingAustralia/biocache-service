@@ -412,11 +412,17 @@
             <artifactId>json-path</artifactId>
             <version>2.4.0</version>
         </dependency>
-        <!-- javax.mail to match dependency in gt-refrencing -->
+        <!-- javax.mail to match dependency in gt-referencing -->
         <dependency>
             <groupId>com.sun.mail</groupId>
             <artifactId>javax.mail</artifactId>
-            <version>1.5.0</version>
+            <version>1.6.2</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/com.sun.mail/smtp -->
+        <dependency>
+            <groupId>com.sun.mail</groupId>
+            <artifactId>smtp</artifactId>
+            <version>2.0.1</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

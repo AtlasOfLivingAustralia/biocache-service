@@ -69,8 +69,8 @@ public class AuthServiceTest {
         Optional<AuthenticatedUser> authenticatedUser = authService.getDownloadUser(dto, request);
 
         assertTrue(authenticatedUser.isPresent());
-        assertEquals("1234", authenticatedUser.get().userId);
-        assertEquals("test@test.com", authenticatedUser.get().email);
+        assertEquals("1234", authenticatedUser.get().getUserId());
+        assertEquals("test@test.com", authenticatedUser.get().getEmail());
     }
 
     @Test
