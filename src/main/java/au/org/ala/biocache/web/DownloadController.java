@@ -154,7 +154,7 @@ public class DownloadController extends AbstractSecureController {
                                          DownloadDetailsDTO.DownloadType downloadType) throws Exception {
 
         // check the email is supplied and a matching user account exists with the required privileges
-        if (StringUtils.isEmpty(requestParams.getEmail())) {
+        if (authenticatedUser == null || StringUtils.isEmpty(authenticatedUser.getEmail())) {
             response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
             return null;
         }

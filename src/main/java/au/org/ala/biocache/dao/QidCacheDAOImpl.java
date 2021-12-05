@@ -153,9 +153,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
 
         try {
             updateTriggerCleanSize();
-
-            logger.info("maxCacheSize > " + maxCacheSize);
-            logger.info("minCacheSize > " + minCacheSize);
+            logger.debug("maxCacheSize > " + maxCacheSize + ", minCacheSize > " + minCacheSize);
         } catch (Exception e) {
             logger.error("cannot load qid.properties", e);
         }
