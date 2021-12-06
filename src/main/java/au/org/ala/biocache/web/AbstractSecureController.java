@@ -176,7 +176,7 @@ public class AbstractSecureController {
      */
     public boolean shouldPerformOperation(HttpServletRequest request, HttpServletResponse response) throws Exception {
         if (request.getUserPrincipal() == null) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Insufficient authentication credentials provided.");
             return false;
         } else if (response.isCommitted()) {
             return false;

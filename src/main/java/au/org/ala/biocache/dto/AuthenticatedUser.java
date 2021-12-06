@@ -8,6 +8,7 @@ import lombok.ToString;
 import org.springframework.security.core.AuthenticatedPrincipal;
 
 import java.security.Principal;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -19,8 +20,8 @@ public class AuthenticatedUser implements Principal, AuthenticatedPrincipal {
 
     String email;
     String userId;
-    List<String> roles;
-    Map<String, Claim> attributes;
+    List<String> roles = Collections.emptyList();
+    Map<String, Claim> attributes = Collections.emptyMap();
     String firstName;
     String lastName;
 

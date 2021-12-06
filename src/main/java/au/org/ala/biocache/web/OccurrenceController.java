@@ -927,7 +927,7 @@ public class OccurrenceController extends AbstractSecureController {
         if (dto.getFacets().length > 0) {
             DownloadDetailsDTO dd = downloadService.registerDownload(
                     dto,
-                    downloadUser.orElseGet(null),  // anonymous facet downloads are allowed
+                    downloadUser.orElse(new AuthenticatedUser()),  // anonymous facet downloads are allowed
                     getIPAddress(request),
                     getUserAgent(request),
                     DownloadDetailsDTO.DownloadType.FACET
@@ -1490,7 +1490,9 @@ public class OccurrenceController extends AbstractSecureController {
         Object responseObject = getOccurrenceInformation(recordUuid, im, request, authenticatedUser);
 
         if (responseObject == null) {
-            sendCustomJSONResponse(response, HttpServletResponse.SC_NOT_FOUND, new HashMap<String, String>() {{put("message", "Unrecognised UID");}});
+            sendCustomJSONResponse(response, HttpServletResponse.SC_NOT_FOUND, new HashMap<String, String>() {{
+                put("message", "Unrecognised recordUUID");
+            }});
         }
         return responseObject;
     }

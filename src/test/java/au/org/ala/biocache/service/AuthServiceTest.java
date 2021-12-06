@@ -15,6 +15,7 @@ import org.springframework.web.client.RestTemplate;
 import java.util.*;
 
 import static au.org.ala.biocache.service.LegacyApiKeyService.ROLE_LEGACY_APIKEY;
+import static au.org.ala.biocache.web.AlaWebServiceAuthFilter.LEGACY_X_ALA_USER_ID_HEADER;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -57,7 +58,7 @@ public class AuthServiceTest {
                 }});
 
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader(AuthService.LEGACY_X_ALA_USER_ID_HEADER, "1234");
+        request.addHeader(LEGACY_X_ALA_USER_ID_HEADER, "1234");
         request.setUserPrincipal(new PreAuthenticatedAuthenticationToken(
                 API_KEY_TEST_USER, null,
                 Lists.newArrayList(new SimpleGrantedAuthority(ROLE_LEGACY_APIKEY))
@@ -87,7 +88,7 @@ public class AuthServiceTest {
                 }});
 
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader(AuthService.LEGACY_X_ALA_USER_ID_HEADER, "1234");
+        request.addHeader(LEGACY_X_ALA_USER_ID_HEADER, "1234");
         request.setUserPrincipal(new PreAuthenticatedAuthenticationToken(
                         API_KEY_TEST_USER, null,
                         Lists.newArrayList(new SimpleGrantedAuthority(ROLE_LEGACY_APIKEY))
@@ -115,7 +116,7 @@ public class AuthServiceTest {
                 }});
 
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader(AuthService.LEGACY_X_ALA_USER_ID_HEADER, "1234");
+        request.addHeader(LEGACY_X_ALA_USER_ID_HEADER, "1234");
         request.setUserPrincipal(new PreAuthenticatedAuthenticationToken(
                         API_KEY_TEST_USER, null,
                         Lists.newArrayList(new SimpleGrantedAuthority(ROLE_LEGACY_APIKEY))
@@ -136,7 +137,7 @@ public class AuthServiceTest {
                 .thenReturn(new HashMap<String, Object>() {{ }});
 
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader(AuthService.LEGACY_X_ALA_USER_ID_HEADER, "invalid-id");
+        request.addHeader(LEGACY_X_ALA_USER_ID_HEADER, "invalid-id");
         request.setUserPrincipal(new PreAuthenticatedAuthenticationToken(
                         API_KEY_TEST_USER, null,
                         Lists.newArrayList(new SimpleGrantedAuthority(ROLE_LEGACY_APIKEY))

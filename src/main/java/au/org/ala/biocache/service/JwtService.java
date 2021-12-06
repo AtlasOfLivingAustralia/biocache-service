@@ -70,12 +70,16 @@ public class JwtService {
             }
         } catch (JWTDecodeException e){
             // this will happen for some legacy API keys which are past in the Authorization header
-            log.debug("Decode of JWT failed, supplied authorizationHeader is not a recognised JWT");
-            log.debug(e.getMessage(), e);
+            if (log.isDebugEnabled()) {
+                log.debug("Decode of JWT failed, supplied authorizationHeader is not a recognised JWT");
+                log.debug(e.getMessage(), e);
+            }
         }  catch (Exception  e){
-            // this will happen for some legacy API keys which are past in the Authorization header
-            log.debug("Check of JWT failed, supplied authorizationHeader is not a recognised JWT");
-            log.debug(e.getMessage(), e);
+            if (log.isDebugEnabled()) {
+                // this will happen for some legacy API keys which are past in the Authorization header
+                log.debug("Check of JWT failed, supplied authorizationHeader is not a recognised JWT");
+                log.debug(e.getMessage(), e);
+            }
         }
         return Optional.empty();
     }

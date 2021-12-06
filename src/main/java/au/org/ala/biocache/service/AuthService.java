@@ -17,6 +17,7 @@ package au.org.ala.biocache.service;
 import au.org.ala.biocache.dto.AuthenticatedUser;
 import au.org.ala.biocache.dto.DownloadRequestDTO;
 import com.fasterxml.jackson.core.type.TypeReference;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,10 +44,11 @@ import java.util.*;
  * Time: 10:38 AM
  */
 @Component("authService")
+@Slf4j
 public class AuthService {
 
     private final static Logger logger = Logger.getLogger(AuthService.class);
-    public static final String LEGACY_X_ALA_USER_ID_HEADER = "X-ALA-userId";
+//    public static final String LEGACY_X_ALA_USER_ID_HEADER = "X-ALA-userId";
     @Inject
     protected RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
     // e.g. https://auth-test.ala.org.au/userdetails/userDetails/
@@ -76,7 +78,6 @@ public class AuthService {
     protected Map<String, String> userEmailToId = RestartDataService.get(this, "userEmailToId", new TypeReference<HashMap<String, String>>(){}, HashMap.class);
 
     public AuthService() {
-        logger.info("Instantiating AuthService: " + this);
         if (startupInitialise){
             logger.info("Loading auth caches now");
             reloadCaches();
@@ -197,7 +198,7 @@ public class AuthService {
     }
 
     @Deprecated
-    private List<String> getUserRoles(String userId) {
+    public List<String> getUserRoles(String userId) {
         List<String> roles = new ArrayList<>();
         if (StringUtils.isNotBlank(userDetailsUrl)) {
             final String jsonUri = userDetailsUrl + userDetailsPath + "?userName=" + userId;
@@ -208,7 +209,7 @@ public class AuthService {
     }
 
     @Deprecated
-    private Map<String,?> getUserDetails(String userId) {
+    public Map<String,?> getUserDetails(String userId) {
         Map<String,?> userDetails = new HashMap<>();
         if (StringUtils.isNotBlank(userDetailsUrl)){
             final String jsonUri = userDetailsUrl + userDetailsPath + "?userName=" + userId;
@@ -226,13 +227,6 @@ public class AuthService {
      * 3) Email address supplied (Galah) - email address is verified - no sensitive access
      */
     public Optional<AuthenticatedUser> getDownloadUser(DownloadRequestDTO downloadRequestDTO, HttpServletRequest request) {
-
-        // 1) Legacy API Key and X-ALA-userId
-        String xAlaUserIdHeader = request.getHeader(LEGACY_X_ALA_USER_ID_HEADER);
-        boolean userInLegacyRole = request.isUserInRole(LegacyApiKeyService.ROLE_LEGACY_APIKEY);
-        if (legacyApiKeyEnabled && userInLegacyRole && xAlaUserIdHeader != null){
-            return lookupAuthUser(xAlaUserIdHeader, true);
-        }
 
         // 2) Check for JWT / OAuth
         if (request.getUserPrincipal() != null && request.getUserPrincipal() instanceof PreAuthenticatedAuthenticationToken){
@@ -254,15 +248,33 @@ public class AuthService {
         return Optional.empty();
     }
 
+
+    /**
+     * Authentication for download users has 3 routes:
+     *
+     * 1) Check for JWT / OAuth- user is retrieved from UserPrincipal along with a set of roles, supplied email address is ignored...
+     * 2) Legacy API Key and X-Auth-Id - email address retrieved from CAS/Userdetails - email address is ignored...
+     */
+    public Optional<AuthenticatedUser> getRecordViewUser(HttpServletRequest request) {
+        // 2) Check for JWT / OAuth
+        if (request.getUserPrincipal() != null && request.getUserPrincipal() instanceof PreAuthenticatedAuthenticationToken){
+            return Optional.of(
+                    (AuthenticatedUser) ((PreAuthenticatedAuthenticationToken) request.getUserPrincipal()).getPrincipal()
+            );
+        }
+        return Optional.empty();
+    }
+
     /**
      * Use user details services to get user.
+     *
      * @param userIdOrEmail
      * @param getRoles
      * @return
      */
-    private Optional<AuthenticatedUser> lookupAuthUser(String userIdOrEmail, boolean getRoles) {
+    public Optional<AuthenticatedUser> lookupAuthUser(String userIdOrEmail, boolean getRoles) {
         Map<String, Object> userDetails = (Map<String, Object>) getUserDetails(userIdOrEmail);
-        if (userDetails == null || userDetails.isEmpty()){
+        if (userDetails == null || userDetails.isEmpty()) {
             return Optional.empty();
         }
 
@@ -273,8 +285,8 @@ public class AuthService {
         String lastName = (String) userDetails.getOrDefault("lastName", "");
         String email = (String) userDetails.getOrDefault("email", "");
 
-        List<String>  userRoles = Collections.emptyList();
-        if (getRoles){
+        List<String> userRoles = Collections.emptyList();
+        if (getRoles) {
             userRoles = getUserRoles(userIdOrEmail);
         }
 
@@ -283,35 +295,10 @@ public class AuthService {
                     new AuthenticatedUser(email, userId, userRoles, Collections.emptyMap(), firstName, lastName)
             );
         } else {
-            logger.info("Download request with API key failed " +
+            log.info("Download request with API key failed " +
                     "- email  " + email +
                     " , activated " + activated +
                     " , locked " + locked);
-        }
-        return Optional.empty();
-    }
-
-
-    /**
-     * Authentication for download users has 3 routes:
-     *
-     * 1) Check for JWT / OAuth- user is retrieved from UserPrincipal along with a set of roles, supplied email address is ignored...
-     * 2) Legacy API Key and X-Auth-Id - email address retrieved from CAS/Userdetails - email address is ignored...
-     * 3) Email address supplied (Galah) - email address is verified - no sensitive access
-     */
-    public Optional<AuthenticatedUser> getRecordViewUser(HttpServletRequest request) {
-
-        // 1) Legacy API Key and X-ALA-userId
-        String xAlaUserIdHeader = request.getHeader(LEGACY_X_ALA_USER_ID_HEADER);
-        if (legacyApiKeyEnabled && request.isUserInRole(LegacyApiKeyService.ROLE_LEGACY_APIKEY) && xAlaUserIdHeader != null){
-            return lookupAuthUser(xAlaUserIdHeader, true);
-        }
-
-        // 2) Check for JWT / OAuth
-        if (request.getUserPrincipal() != null && request.getUserPrincipal() instanceof PreAuthenticatedAuthenticationToken){
-            return Optional.of(
-                    (AuthenticatedUser) ((PreAuthenticatedAuthenticationToken) request.getUserPrincipal()).getPrincipal()
-            );
         }
         return Optional.empty();
     }

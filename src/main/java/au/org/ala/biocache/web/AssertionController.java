@@ -109,8 +109,7 @@ public class AssertionController extends AbstractSecureController {
             @RequestParam(value = "relatedRecordReason", required = false) String relatedRecordReason,
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
-
-        addAssertion(recordUuid, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason, request, response);
+        addAssertion(recordUuid, code, userId, userDisplayName, comment, userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason, request, response);
     }
 
     /**
@@ -196,7 +195,10 @@ public class AssertionController extends AbstractSecureController {
 
         if (shouldPerformOperation(request, response)) {
             try {
-                Optional<QualityAssertion> qa = assertionService.addAssertion(recordUuid, code, comment, userId, userDisplayName, userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason);
+                Optional<QualityAssertion> qa = assertionService.addAssertion(
+                        recordUuid, code, comment, userId, userDisplayName,
+                        userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason
+                );
                 if (qa.isPresent()) {
                     String server = request.getSession().getServletContext().getInitParameter("serverName");
                     response.setHeader("Location", server + "/occurrences/" + recordUuid + "/assertions/" + qa.get().getUuid());

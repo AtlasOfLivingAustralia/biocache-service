@@ -10,10 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestOperations;
 
 import javax.inject.Inject;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * Service for validating legacy api keys provided by apikey app.
@@ -36,15 +33,18 @@ public class LegacyApiKeyService {
     @Inject
     protected CacheManager cacheManager;
 
+    @Inject
+    protected AuthService authService;
+
     /**
      * Use a webservice to validate a key
      *
      * @param keyToTest
      * @return True if API key checking is disabled, or the API key is valid, and false otherwise.
      */
-    public Optional<AuthenticatedUser> isValidKey(String keyToTest){
+    public Optional<AuthenticatedUser> isValidKey(String keyToTest) {
 
-        if (StringUtils.isBlank(keyToTest)){
+        if (StringUtils.isBlank(keyToTest)) {
             return Optional.empty();
         }
 
@@ -64,7 +64,7 @@ public class LegacyApiKeyService {
                 log.debug("Checking api key: " + keyToTest);
             }
             String url = legacyApiKeyServiceUrl + keyToTest;
-            Map<String,Object> response = restTemplate.getForObject(url, Map.class);
+            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
             boolean isValid = (Boolean) response.get("valid");
             String userId = (String) response.get("userId");
             String email = (String) response.get("email");
@@ -77,10 +77,11 @@ public class LegacyApiKeyService {
                 return Optional.of(auth);
             }
 
-        } catch (Exception e){
+        } catch (Exception e) {
             log.error(e.getMessage(), e);
         }
 
         return Optional.empty();
     }
+
 }

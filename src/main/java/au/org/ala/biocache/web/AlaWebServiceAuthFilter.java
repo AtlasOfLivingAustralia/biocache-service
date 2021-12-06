@@ -1,6 +1,7 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dto.AuthenticatedUser;
+import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.LegacyApiKeyService;
 import au.org.ala.biocache.service.JwtService;
 
@@ -42,6 +43,8 @@ public class AlaWebServiceAuthFilter extends OncePerRequestFilter {
 
     public static final String BEARER = "Bearer";
     public static final String API_KEY = "apiKey";
+    public static final String LEGACY_X_ALA_USER_ID_HEADER = "X-ALA-userId";
+    public static final String USER_ID_REQUEST_PARAM = "userId";
 
     @Autowired
     @Qualifier("springSecurityFilterChain")
@@ -58,6 +61,9 @@ public class AlaWebServiceAuthFilter extends OncePerRequestFilter {
 
     @Inject
     LegacyApiKeyService apiKeyService;
+
+    @Inject
+    AuthService authService;
 
     /** The name of the filter which this filter should be placed after in the spring security filter array. */
     String addAfterFilterName = "LogoutFilter";
@@ -93,38 +99,83 @@ public class AlaWebServiceAuthFilter extends OncePerRequestFilter {
         request.getSession().invalidate();
 
         if (jwtApiKeysEnabled) {
-            String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-            if (authorizationHeader != null) {
-                // parse JWT or check whitelist or Check API Key
-                if (authorizationHeader.startsWith(BEARER)) {
-                    Optional<AuthenticatedUser> authenticatedUser = jwtService.checkJWT(authorizationHeader);
-                    if (authenticatedUser.isPresent()) {
-                        setAuthenticatedUserAsPrincipal(authenticatedUser.get());
-                    }
-                }
-            }
+            checkForJWT(request);
         }
 
         // look for annotations ????
         if (legacyApiKeysEnabled){
-            // check header
-            // check for requestParam - for backwards compatibilty
-            String apiKeyHeader = request.getHeader(API_KEY);
-            String apiKeyParam = request.getParameter(API_KEY);
-            Optional<AuthenticatedUser> user = Optional.empty();
-            if (apiKeyHeader != null){
-                user = apiKeyService.isValidKey(apiKeyHeader);
-            }
-            if (user == null && apiKeyParam != null){
-                user = apiKeyService.isValidKey(apiKeyParam);
-            }
-
-            if (user.isPresent()) {
-                setAuthenticatedUserAsPrincipal(user.get());
-            }
+            checkForApiKey(request);
         }
         
         chain.doFilter(request, response);
+    }
+
+    private void checkForApiKey(HttpServletRequest request) {
+        // check for requestParam - for backwards compatibilty
+        String apiKeyHeader = request.getHeader(API_KEY);
+        String apiKeyParam = request.getParameter(API_KEY);
+
+        Optional<AuthenticatedUser> apiKeyUser = Optional.empty();
+
+        if (apiKeyHeader != null){
+            log.debug("Validating API key supplied in request header " + apiKeyHeader);
+            apiKeyUser = apiKeyService.isValidKey(apiKeyHeader);
+        }
+        if (apiKeyHeader == null && apiKeyParam != null){
+            log.debug("Validating API key supplied in request param " + apiKeyParam);
+            apiKeyUser = apiKeyService.isValidKey(apiKeyParam);
+        }
+
+        if (apiKeyUser.isPresent()){
+
+            // check X-ALA-Auth header...
+            String userIdHeader = request.getHeader(LEGACY_X_ALA_USER_ID_HEADER);
+            //check the body
+            String userId = request.getParameter(USER_ID_REQUEST_PARAM);
+
+            log.debug("Valid API key, userIdHeader = " + userIdHeader + ", userId param = " + userId);
+
+            if (userIdHeader != null){
+                // lookup this user
+                log.debug("Checking user from header: " + userIdHeader);
+                Optional<AuthenticatedUser> user = authService.lookupAuthUser(userIdHeader, true);
+                if (user.isPresent()){
+                    log.debug("Valid user from header: " + userId);
+                    setAuthenticatedUserAsPrincipal(user.get());
+                } else {
+                    log.debug("Invalid user from header: " + userId);
+                }
+            } else if (userId != null){
+                // lookup this user
+                log.debug("Checking user from param: " + userId);
+                Optional<AuthenticatedUser> user = authService.lookupAuthUser(userId, true);
+                if (user.isPresent()){
+                    log.debug("Valid user from param: " + userId);
+                    setAuthenticatedUserAsPrincipal(user.get());
+                } else {
+                    log.debug("Invalid user from param: " + userId);
+                }
+            } else {
+                log.debug("Only validated legacy api key - no user provided");
+                // the user is the API key holder with a single role of
+                setAuthenticatedUserAsPrincipal(apiKeyUser.get());
+            }
+        }
+    }
+
+    private void checkForJWT(HttpServletRequest request) {
+        String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (authorizationHeader != null) {
+            log.info("Authorization Header detected - validating JWT");
+            // parse JWT or check whitelist or Check API Key
+            if (authorizationHeader.startsWith(BEARER)) {
+                Optional<AuthenticatedUser> authenticatedUser = jwtService.checkJWT(authorizationHeader);
+                if (authenticatedUser.isPresent()) {
+                    log.info("Valid JWT supplied");
+                    setAuthenticatedUserAsPrincipal(authenticatedUser.get());
+                }
+            }
+        }
     }
 
     private void setAuthenticatedUserAsPrincipal(AuthenticatedUser authenticatedUser) {

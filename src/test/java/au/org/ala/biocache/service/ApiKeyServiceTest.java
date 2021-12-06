@@ -1,27 +1,15 @@
 package au.org.ala.biocache.service;
 
-import au.org.ala.biocache.dao.IndexDAO;
-import au.org.ala.biocache.dao.StoreDAO;
 import au.org.ala.biocache.dto.AuthenticatedUser;
-import au.org.ala.biocache.dto.FacetThemes;
-import au.org.ala.biocache.dto.QualityAssertion;
-import au.org.ala.biocache.dto.UserAssertions;
-import au.org.ala.biocache.util.OccurrenceUtils;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.web.client.RestTemplate;
 
-import javax.inject.Inject;
-
-import java.net.URI;
-import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
