@@ -60,7 +60,7 @@ public class AlaWebServiceAuthFilter extends OncePerRequestFilter {
     JwtService jwtService;
 
     @Inject
-    LegacyApiKeyService apiKeyService;
+    LegacyApiKeyService legacyApiKeyService;
 
     @Inject
     AuthService authService;
@@ -119,11 +119,11 @@ public class AlaWebServiceAuthFilter extends OncePerRequestFilter {
 
         if (apiKeyHeader != null){
             log.debug("Validating API key supplied in request header " + apiKeyHeader);
-            apiKeyUser = apiKeyService.isValidKey(apiKeyHeader);
+            apiKeyUser = legacyApiKeyService.isValidKey(apiKeyHeader);
         }
         if (apiKeyHeader == null && apiKeyParam != null){
             log.debug("Validating API key supplied in request param " + apiKeyParam);
-            apiKeyUser = apiKeyService.isValidKey(apiKeyParam);
+            apiKeyUser = legacyApiKeyService.isValidKey(apiKeyParam);
         }
 
         if (apiKeyUser.isPresent()){

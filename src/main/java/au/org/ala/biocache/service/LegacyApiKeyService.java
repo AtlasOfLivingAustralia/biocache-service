@@ -6,6 +6,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestOperations;
 
@@ -17,6 +18,7 @@ import java.util.*;
  */
 @Service
 @Slf4j
+@Component("LegacyApiKeyService")
 public class LegacyApiKeyService {
 
     public static final String ROLE_LEGACY_APIKEY = "ROLE_LEGACY_APIKEY";
