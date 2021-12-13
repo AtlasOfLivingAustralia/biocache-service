@@ -26,6 +26,7 @@ import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.util.OccurrenceUtils;
 import au.org.ala.biocache.util.QidSizeException;
 import au.org.ala.biocache.util.SearchUtils;
+import au.org.ala.ws.security.AuthenticatedUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.swagger.annotations.*;
@@ -1203,7 +1204,7 @@ public class OccurrenceController extends AbstractSecureController {
     @SecurityRequirement(name = "JWT")
     @Operation(
             summary = "Download occurrence service - Synchronous",
-            tags = "Download",
+            tags = "Deprecated",
             security =  @SecurityRequirement(name = "JWT")
     )
     @GetMapping(value = "/occurrences/download")
@@ -1211,6 +1212,7 @@ public class OccurrenceController extends AbstractSecureController {
                                    @RequestParam(required = false, defaultValue = "true") Boolean zip,
                                    BindingResult result,
                                    Model model,
+
                                    HttpServletResponse response,
                                    HttpServletRequest request) throws Exception {
 

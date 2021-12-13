@@ -12,6 +12,7 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.doi.CreateDoiResponse;
+import au.org.ala.ws.security.AuthenticatedUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.io.FileUtils;

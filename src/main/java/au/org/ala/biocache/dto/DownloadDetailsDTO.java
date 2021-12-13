@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import au.org.ala.ws.security.AuthenticatedUser;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 

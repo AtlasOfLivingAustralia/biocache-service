@@ -1,15 +1,15 @@
 package au.org.ala.biocache.controller;
 
 import au.org.ala.biocache.dto.AssertionCodes;
-import au.org.ala.biocache.dto.AuthenticatedUser;
 import au.org.ala.biocache.dto.QualityAssertion;
 import au.org.ala.biocache.dto.UserAssertions;
-import au.org.ala.biocache.service.LegacyApiKeyService;
 import au.org.ala.biocache.service.AssertionService;
 import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
-import au.org.ala.biocache.web.AlaWebServiceAuthFilter;
 import au.org.ala.biocache.web.AssertionController;
+import au.org.ala.ws.security.AlaWebServiceAuthFilter;
+import au.org.ala.ws.security.AuthenticatedUser;
+import au.org.ala.ws.security.LegacyApiKeyService;
 import junit.framework.TestCase;
 import org.junit.Before;
 import org.junit.BeforeClass;

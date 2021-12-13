@@ -7,12 +7,14 @@ import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import au.org.ala.dataquality.client.ApiClient;
 import au.org.ala.names.ws.client.ALANameUsageMatchServiceClient;
 import au.org.ala.ws.ClientConfiguration;
+import au.org.ala.ws.security.AlaWebServiceAuthFilter;
 import org.apache.catalina.Context;
 import org.apache.log4j.Logger;
 import org.apache.tomcat.util.scan.StandardJarScanner;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -90,8 +92,7 @@ public class AppConfig implements WebMvcConfigurer {
         return service;
     }
 
-    public @Bean(name = "speciesLookupService")
-    SpeciesLookupService speciesLookupServiceBean() {
+    public @Bean(name = "speciesLookupService") SpeciesLookupService speciesLookupServiceBean() {
         logger.info("Initialising species lookup services.");
         return getNameMatchSpeciesLookupService();
     }

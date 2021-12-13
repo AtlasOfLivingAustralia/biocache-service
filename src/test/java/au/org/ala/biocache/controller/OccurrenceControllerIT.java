@@ -1,13 +1,13 @@
 package au.org.ala.biocache.controller;
 
 import au.org.ala.biocache.dao.SearchDAO;
-import au.org.ala.biocache.dto.AuthenticatedUser;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.service.LoggerService;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.web.OccurrenceController;
+import au.org.ala.ws.security.AuthenticatedUser;
 import junit.framework.TestCase;
 import org.ala.client.model.LogEventVO;
 import org.junit.Before;

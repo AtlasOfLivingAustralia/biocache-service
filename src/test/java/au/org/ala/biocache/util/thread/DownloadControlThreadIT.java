@@ -2,11 +2,11 @@ package au.org.ala.biocache.util.thread;
 
 import au.org.ala.biocache.dao.JsonPersistentQueueDAOImpl;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
-import au.org.ala.biocache.dto.AuthenticatedUser;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.biocache.dto.FacetThemes;
+import au.org.ala.ws.security.AuthenticatedUser;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -15,7 +15,6 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
 
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.Queue;
 import java.util.concurrent.*;
 
@@ -351,7 +350,7 @@ public class DownloadControlThreadIT {
         for (int i = 0; i < count; i++) {
             DownloadDetailsDTO nextDownload = new DownloadDetailsDTO(
                     new DownloadRequestDTO(),
-                    new AuthenticatedUser(null, null,null,null,null,null),
+                    new AuthenticatedUser(),
                     "127.0.0.1",
                     "",
                     DownloadType.RECORDS_INDEX);

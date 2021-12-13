@@ -1,8 +1,8 @@
 package au.org.ala.biocache.service;
 
-import au.org.ala.biocache.dto.AuthenticatedUser;
-import au.org.ala.biocache.dto.DownloadRequestDTO;
-import com.google.common.collect.Lists;
+import au.org.ala.ws.security.AuthenticatedUser;
+import au.org.ala.ws.security.JwtService;
+import au.org.ala.ws.security.LegacyApiKeyService;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
@@ -11,7 +11,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 
-import static au.org.ala.biocache.service.LegacyApiKeyService.ROLE_LEGACY_APIKEY;
+import static au.org.ala.ws.security.LegacyApiKeyService.ROLE_LEGACY_APIKEY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;

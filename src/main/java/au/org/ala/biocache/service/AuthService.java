@@ -14,8 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
-import au.org.ala.biocache.dto.AuthenticatedUser;
 import au.org.ala.biocache.dto.DownloadRequestDTO;
+import au.org.ala.ws.security.AuthenticatedUser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;

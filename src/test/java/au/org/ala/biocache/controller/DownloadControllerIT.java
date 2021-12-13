@@ -2,40 +2,29 @@ package au.org.ala.biocache.controller;
 
 import au.org.ala.biocache.dao.JsonPersistentQueueDAOImpl;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
-import au.org.ala.biocache.dto.AuthenticatedUser;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
-import au.org.ala.biocache.service.LoggerService;
 import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.web.DownloadController;
-import au.org.ala.biocache.web.OccurrenceController;
-import com.google.common.collect.ImmutableMap;
+import au.org.ala.ws.security.AuthenticatedUser;
 import junit.framework.TestCase;
-import org.ala.client.model.LogEventVO;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
-import javax.servlet.http.HttpServletResponse;
-
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.mockito.Mockito.*;
