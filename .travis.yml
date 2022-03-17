@@ -13,7 +13,7 @@ branches:
   only:
     - master
     - develop
-    - 677_swagger_spring_boot
+    - /^epic\/.*\/develop$/
     - /^release\/.*$/
     - /^hotfix\/.*$/
 before_install:
