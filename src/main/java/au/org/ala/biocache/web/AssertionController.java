@@ -29,15 +29,18 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -97,7 +100,7 @@ public class AssertionController extends AbstractSecureController {
     @SecurityRequirement(name="JWT")
     @Operation(summary = "Add an assertion", tags = {"Assertions", "Occurrence"})
     @RequestMapping(value={"/occurrences/assertions/add"}, method = RequestMethod.POST)
-    public void addAssertionWithParams(
+    public ResponseEntity addAssertionWithParams(
             @RequestParam(value = "recordUuid", required=true) String recordUuid,
             @RequestParam(value = "code", required = true) String code,
             @RequestParam(value = "comment", required = false) String comment,
@@ -109,7 +112,8 @@ public class AssertionController extends AbstractSecureController {
             @RequestParam(value = "relatedRecordReason", required = false) String relatedRecordReason,
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
-        addAssertion(recordUuid, code, userId, userDisplayName, comment, userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason, request, response);
+
+        return addAssertion(recordUuid, code, userId, userDisplayName, comment, userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason, request, response);
     }
 
     /**
@@ -135,42 +139,45 @@ public class AssertionController extends AbstractSecureController {
                                   HttpServletRequest request,
                                   HttpServletResponse response) throws Exception {
         // check to see that the assertions have come from a valid source before adding
-        if (shouldPerformOperation(request, response)) {
-            ObjectMapper om = new ObjectMapper();
-            List<Map<String, String>> assertions = om.readValue(json, new TypeReference<List<Map<String, String>>>() {});
-            logger.debug("The assertions in a list of maps: " + assertions);
+        if (!shouldPerformOperation(request, response)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient authentication credentials provided.");
+        }
 
-            // uuid -> [assertion, assertion]
-            Map<String, List<Map<String, String>>> uuidMappedAssertions = assertions.stream().collect(Collectors.groupingBy(assertion -> (String)assertion.get("recordUuid")));
+        ObjectMapper om = new ObjectMapper();
+        List<Map<String, String>> assertions = om.readValue(json, new TypeReference<List<Map<String, String>>>() {});
+        logger.debug("The assertions in a list of maps: " + assertions);
 
-            uuidMappedAssertions.forEach((uuid, maps) -> {
-                try {
-                    UserAssertions userAssertions = new UserAssertions();
-                    for (Map<String, String> as : maps) {
-                        QualityAssertion qa = new QualityAssertion();
-                        Integer code = Integer.parseInt(as.get("code"));
-                        qa.setCode(code);
-                        if (code.equals(AssertionCodes.VERIFIED.getCode())) {
-                            qa.setRelatedUuid(as.get("assertionUuid"));
-                            qa.setQaStatus(Integer.parseInt(as.get("userAssertionStatus")));
-                        } else {
-                            qa.setQaStatus(AssertionStatus.QA_UNCONFIRMED);
-                        }
+        // uuid -> [assertion, assertion]
+        Map<String, List<Map<String, String>>> uuidMappedAssertions = assertions.stream().collect(Collectors.groupingBy(assertion -> (String)assertion.get("recordUuid")));
 
-                        qa.setComment(as.get("comment"));
-                        qa.setUserId(userId);
-                        qa.setUserDisplayName(userDisplayName);
-                        qa.setReferenceRowKey(uuid);
-                        userAssertions.add(qa);
+        uuidMappedAssertions.forEach((uuid, maps) -> {
+            try {
+                UserAssertions userAssertions = new UserAssertions();
+                for (Map<String, String> as : maps) {
+                    QualityAssertion qa = new QualityAssertion();
+                    Integer code = Integer.parseInt(as.get("code"));
+                    qa.setCode(code);
+                    if (code.equals(AssertionCodes.VERIFIED.getCode())) {
+                        qa.setRelatedUuid(as.get("assertionUuid"));
+                        qa.setQaStatus(Integer.parseInt(as.get("userAssertionStatus")));
+                    } else {
+                        qa.setQaStatus(AssertionStatus.QA_UNCONFIRMED);
                     }
 
-                    assertionService.bulkAddAssertions(uuid, userAssertions);
-                } catch (IOException e) {
-                    logger.error("Failed to bulk add assertions for record: " + uuid);
-                    logger.error(e.getMessage(), e);
+                    qa.setComment(as.get("comment"));
+                    qa.setUserId(userId);
+                    qa.setUserDisplayName(userDisplayName);
+                    qa.setReferenceRowKey(uuid);
+                    userAssertions.add(qa);
                 }
-            });
-        }
+
+                assertionService.bulkAddAssertions(uuid, userAssertions);
+
+            } catch (IOException e) {
+                logger.error("Failed to bulk add assertions for record: " + uuid);
+                logger.error(e.getMessage(), e);
+            }
+        });
     }
 
     /**
@@ -180,7 +187,7 @@ public class AssertionController extends AbstractSecureController {
     @Operation(summary = "Add an assertion to a record", tags = "Assertions")
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/add"}, method = RequestMethod.POST)
     @ApiParam(value = "recordUuid", required = true)
-    public void addAssertion(
+    public ResponseEntity addAssertion(
        @PathVariable(value = "recordUuid") String recordUuid,
        @Parameter(description = "Assertion code") @RequestParam(value = "code") String code,
        @Parameter(description = "Atlas user ID") @RequestParam(value = "userId") String userId,
@@ -193,23 +200,29 @@ public class AssertionController extends AbstractSecureController {
        HttpServletRequest request,
        HttpServletResponse response) throws Exception {
 
-        if (shouldPerformOperation(request, response)) {
-            try {
-                Optional<QualityAssertion> qa = assertionService.addAssertion(
-                        recordUuid, code, comment, userId, userDisplayName,
-                        userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason
-                );
-                if (qa.isPresent()) {
-                    String server = request.getSession().getServletContext().getInitParameter("serverName");
-                    response.setHeader("Location", server + "/occurrences/" + recordUuid + "/assertions/" + qa.get().getUuid());
-                    response.setStatus(HttpServletResponse.SC_CREATED);
-                } else {
-                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                }
-            } catch (IOException e) {
-                logger.error(e.getMessage(), e);
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        if (!shouldPerformOperation(request, response)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient authentication credentials provided.");
+        }
+
+        try {
+            Optional<QualityAssertion> qa = assertionService.addAssertion(
+                    recordUuid, code, comment, userId, userDisplayName,
+                    userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason
+            );
+            if (qa.isPresent()) {
+
+                String server = request.getSession().getServletContext().getInitParameter("serverName");
+                return ResponseEntity
+                        .created(new URI(server + "/occurrences/" + recordUuid + "/assertions/" + qa.get().getUuid()))
+                        .contentLength(0)
+                        .build();
             }
+
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+
+        } catch (IOException e) {
+            logger.error(e.getMessage(), e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, " e.getMessage()", e);
         }
     }
 
@@ -228,24 +241,26 @@ public class AssertionController extends AbstractSecureController {
     @SecurityRequirement(name="JWT")
     @Operation(summary = "Removes an assertion", tags = {"Assertions", "Occurrence"})
     @RequestMapping(value = {"/occurrences/assertions/delete"}, method = { RequestMethod.DELETE })
-    public void deleteAssertionWithParams(
+    public ResponseEntity deleteAssertionWithParams(
             @RequestParam(value = "recordUuid", required=true) String recordUuid,
             @RequestParam(value = "assertionUuid", required=true) String assertionUuid,
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
-        deleteAssertion(recordUuid, assertionUuid, request, response);
+
+        return deleteAssertion(recordUuid, assertionUuid, request, response);
     }
 
     @Deprecated
     @SecurityRequirement(name="JWT")
     @Operation(summary = "Removes an assertion", tags = "Deprecated")
     @RequestMapping(value = {"/occurrences/assertions/delete"}, method = { RequestMethod.POST })
-    public void deleteAssertionWithParamsPost(
+    public ResponseEntity deleteAssertionWithParamsPost(
             @RequestParam(value = "recordUuid", required=true) String recordUuid,
             @RequestParam(value = "assertionUuid", required=true) String assertionUuid,
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
-        deleteAssertion(recordUuid, assertionUuid, request, response);
+
+        return deleteAssertion(recordUuid, assertionUuid, request, response);
     }
 
     /**
@@ -255,24 +270,28 @@ public class AssertionController extends AbstractSecureController {
     @Operation(summary = "Removes an assertion from a record", tags = {"Assertions", "Occurrence"})
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/delete"}, method = RequestMethod.DELETE)
     @ApiParam(value = "recordUuid", required = true)
-    public void deleteAssertion(
+    public ResponseEntity deleteAssertion(
         @PathVariable(value="recordUuid") String recordUuid,
         @RequestParam(value="assertionUuid", required=true) String assertionUuid,
         HttpServletRequest request,
         HttpServletResponse response) throws Exception {
 
-        if (shouldPerformOperation(request, response)) {
-            try {
-                if (assertionService.deleteAssertion(recordUuid, assertionUuid)) {
-                    response.setStatus(HttpServletResponse.SC_OK);
-                } else {
-                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "recordUuid " + recordUuid + " or assertionUuid " + assertionUuid + " doesn't exist");
-                }
-            } catch (IOException e) {
-                logger.error("Failed to delete assertion [id: " + assertionUuid + "] for record " + recordUuid);
-                logger.error(e.getMessage(), e);
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        if (!shouldPerformOperation(request, response)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient authentication credentials provided.");
+        }
+
+        try {
+            if (assertionService.deleteAssertion(recordUuid, assertionUuid)) {
+                return ResponseEntity.ok().build();
             }
+
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "recordUuid " + recordUuid + " or assertionUuid " + assertionUuid + " doesn't exist");
+
+        } catch (IOException e) {
+            logger.error("Failed to delete assertion [id: " + assertionUuid + "] for record " + recordUuid);
+            logger.error(e.getMessage(), e);
+
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage(), e);
         }
     }
 
@@ -284,25 +303,30 @@ public class AssertionController extends AbstractSecureController {
     @Operation(summary = "Deprecated - use HTTP DELETE", tags = "Deprecated")
     @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/delete"}, method = RequestMethod.POST)
     @ApiParam(value = "recordUuid", required = true)
-    public void deleteAssertionPost(
+    public ResponseEntity deleteAssertionPost(
             @PathVariable(value="recordUuid") String recordUuid,
             @RequestParam(value = "apiKey", required = true) String apiKey,
             @RequestParam(value="assertionUuid", required=true) String assertionUuid,
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
 
-        if (shouldPerformOperation(request, response)) {
-            try {
-                if (assertionService.deleteAssertion(recordUuid, assertionUuid)) {
-                    response.setStatus(HttpServletResponse.SC_OK);
-                } else {
-                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "recordUuid " + recordUuid + " or assertionUuid " + assertionUuid + " doesn't exist");
-                }
-            } catch (IOException e) {
-                logger.error("Failed to delete assertion [id: " + assertionUuid + "] for record " + recordUuid);
-                logger.error(e.getMessage(), e);
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        if (!shouldPerformOperation(request, response)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient authentication credentials provided.");
+        }
+
+        try {
+
+            if (assertionService.deleteAssertion(recordUuid, assertionUuid)) {
+                return ResponseEntity.ok().build();
             }
+
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "recordUuid " + recordUuid + " or assertionUuid " + assertionUuid + " doesn't exist");
+
+        } catch (IOException e) {
+            logger.error("Failed to delete assertion [id: " + assertionUuid + "] for record " + recordUuid);
+            logger.error(e.getMessage(), e);
+
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage(), e);
         }
     }
 

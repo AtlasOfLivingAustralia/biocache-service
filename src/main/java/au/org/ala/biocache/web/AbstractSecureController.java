@@ -175,12 +175,11 @@ public class AbstractSecureController {
      * @throws Exception If the store is in read-only mode, or the API key is invalid.
      */
     public boolean shouldPerformOperation(HttpServletRequest request, HttpServletResponse response) throws Exception {
-        if (request.getUserPrincipal() == null) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Insufficient authentication credentials provided.");
-            return false;
-        } else if (response.isCommitted()) {
+
+        if (request.getUserPrincipal() == null || response.isCommitted()) {
             return false;
         }
+
         return true;
     }
 }

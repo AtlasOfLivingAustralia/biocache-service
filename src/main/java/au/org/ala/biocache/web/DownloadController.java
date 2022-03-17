@@ -35,6 +35,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.solr.common.SolrDocumentList;
 import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.stereotype.Controller;
@@ -51,6 +52,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * A Controller for downloading records based on queries.  This controller
@@ -363,7 +365,7 @@ public class DownloadController extends AbstractSecureController {
             HttpServletResponse response) throws Exception {
 
         if (!shouldPerformOperation(request, response)) {
-            return null;
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient authentication credentials provided.");
         }
 
         Map<String, Object> status = new LinkedHashMap<>();
