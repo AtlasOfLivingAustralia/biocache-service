@@ -15,6 +15,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
@@ -102,6 +103,7 @@ public class OccurrenceControllerMockedDAOTestIT extends TestCase {
     // Accept */* -> REST controller -> returns json when succeed
     // Accept application/json -> REST controller -> returns json when succeed
     @Test
+    @WithMockUser(username="admin", roles="ADMIN")
     public void testRESTControllerCompatibleFormat() throws Exception {
         Object searchDAOOrig = backupSearchDAO();
         when(this.searchDAO.getMaxBooleanClauses()).thenReturn((int) 1234);
@@ -121,6 +123,7 @@ public class OccurrenceControllerMockedDAOTestIT extends TestCase {
 
     // Accept text/html -> REST controller -> returns 406 Not Acceptable (not compatible header), contentType = text/html
     @Test
+    @WithMockUser(username="admin", roles="ADMIN")
     public void testRESTControllerNONCompatibleFormat() throws Exception {
         Object searchDAOOrig = backupSearchDAO();
         when(searchDAO.getMaxBooleanClauses()).thenReturn((int) 1234);
@@ -155,6 +158,7 @@ public class OccurrenceControllerMockedDAOTestIT extends TestCase {
     // Accept */*       -> REST controller -> returns error page in case of an DataAccessException thrown
     // Accept text/html -> REST controller -> returns error page in case of an DataAccessException thrown
     @Test
+    @WithMockUser(username="admin", roles="ADMIN")
     public void testRESTControllerHTMLFormatDataAccessException() throws Exception {
         Object searchDAOOrig = backupSearchDAO();
         when(searchDAO.getMaxBooleanClauses()).thenThrow(new QueryTimeoutException("test-QueryTimeoutException"));
@@ -165,6 +169,7 @@ public class OccurrenceControllerMockedDAOTestIT extends TestCase {
     // Accept */*       -> REST controller -> returns error page in case of an TransactionException thrown
     // Accept text/html -> REST controller -> returns error page in case of an TransactionException thrown
     @Test
+    @WithMockUser(username="admin", roles="ADMIN")
     public void testRESTControllerHTMLFormatTransactionException() throws Exception {
         Object searchDAOOrig = backupSearchDAO();
         when(searchDAO.getMaxBooleanClauses()).thenThrow(new TransactionTimedOutException("test-TransactionTimedOutException"));
@@ -205,6 +210,7 @@ public class OccurrenceControllerMockedDAOTestIT extends TestCase {
 
     // Accept application/json -> REST controller -> returns JSON with status 400 in case of an SolrException (bad request) thrown
     @Test
+    @WithMockUser(username="admin", roles="ADMIN")
     public void testRESTControllerJSONFormatSolrException400() throws Exception {
         Object searchDAOOrig = backupSearchDAO();
         when(searchDAO.getMaxBooleanClauses()).thenThrow(new SolrException(BAD_REQUEST, "test-SolrException"));
@@ -214,6 +220,7 @@ public class OccurrenceControllerMockedDAOTestIT extends TestCase {
 
     // Accept application/json -> REST controller -> returns JSON with status 400 in case of an SolrException (bad request) thrown
     @Test
+    @WithMockUser(username="admin", roles="ADMIN")
     public void testRESTControllerJSONFormatSolrException403() throws Exception {
         Object searchDAOOrig = backupSearchDAO();
         when(searchDAO.getMaxBooleanClauses()).thenThrow(new SolrException(FORBIDDEN, "test-SolrException"));
