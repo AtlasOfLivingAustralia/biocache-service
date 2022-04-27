@@ -161,7 +161,7 @@ public class OccurrenceIndex {
     @Field("basisOfRecord")
     String basisOfRecord;
     @Field("typeStatus")
-    String typeStatus;
+    String[] typeStatus;
     @Field("locationRemarks")
     String raw_locationRemarks;
     @Field("occurrenceRemarks")
@@ -719,11 +719,11 @@ public class OccurrenceIndex {
         this.basisOfRecord = basisOfRecord;
     }
 
-    public String getTypeStatus() {
+    public String[] getTypeStatus() {
         return typeStatus;
     }
 
-    public void setTypeStatus(String typeStatus) {
+    public void setTypeStatus(String[] typeStatus) {
         this.typeStatus = typeStatus;
     }
 
