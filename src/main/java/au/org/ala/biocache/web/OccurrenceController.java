@@ -2012,7 +2012,6 @@ public class OccurrenceController extends AbstractSecureController {
 
         addField(sd, classification, "left", getFieldName.apply("lft"));
         addField(sd, classification, "right", getFieldName.apply("rgt"));
-        addField(sd, classification, "speciesHabitats", getFieldName);
         addField(sd, classification, "speciesGroups", getFieldName);
         addField(sd, classification, "matchType", getFieldName); //stores the type of name match that was performed
         addField(sd, classification, "taxonomicIssues", getFieldName); //stores if no issue, questionableSpecies, conferSpecies or affinitySpecies

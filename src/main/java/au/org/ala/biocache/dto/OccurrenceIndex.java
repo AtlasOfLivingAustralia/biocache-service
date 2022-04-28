@@ -78,8 +78,8 @@ public class OccurrenceIndex {
     final static public String INSTITUTION_UID = "institutionUid";
     final static public String DATA_PROVIDER_UID = "dataProviderUid";
     final static public String DATA_RESOURCE_UID = "dataResourceUid";
-    final static public String SPECIES_HABITATS = "speciesHabitats";
     final public static String LOCALITY = "locality";
+    final public static String BIOME = "biome";
 
     @Field("id")
     String uuid;
@@ -314,7 +314,6 @@ public class OccurrenceIndex {
     public static final String SPECIES_GROUP = "speciesGroup";
     public static final String IMAGE_URL = "imageID";
     public static final String LAT_LNG = "lat_long";
-    public static final String ALL_IMAGE_URL = "imageIDs";
     public static final String RAW_NAME = "raw_scientificName"; // TODO: check mapping (this is a guess)
     public static final String LFT = "lft";
     public static final String MONTH = "month";
