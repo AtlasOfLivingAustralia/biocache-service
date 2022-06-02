@@ -451,4 +451,21 @@ public interface SearchDAO {
      * @return
      */
     List<String> listFacets(SpatialSearchRequestParams searchParams) throws Exception;
+
+    /**
+     * Query for heatmaps.
+     *
+     * @param query
+     * @param filterQueries
+     * @param minx
+     * @param miny
+     * @param maxx
+     * @param maxy
+     * @param legend
+     * @return
+     * @throws Exception
+     */
+    HeatmapDTO getHeatMap(String query, String[] filterQueries, Double minx, Double miny, Double maxx, Double maxy,
+                          List<LegendItem> legend,
+                          int gridSize) throws Exception;
 }
