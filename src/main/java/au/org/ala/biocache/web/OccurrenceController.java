@@ -2088,6 +2088,9 @@ public class OccurrenceController extends AbstractSecureController {
         // au.org.ala.biocache.model.Event
         Map event = new HashMap();
         fullRecord.put("event", event);
+        addField(sd, event, "eventID", getFieldName);
+        addField(sd, event, "parentEventID", getFieldName);
+        addField(sd, event, "datasetName", getFieldName);
         addField(sd, event, "day", getFieldName);
         addField(sd, event, "endDayOfYear", getFieldName);
         addField(sd, event, "eventAttributes", getFieldName);
