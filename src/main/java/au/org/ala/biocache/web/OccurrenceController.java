@@ -1133,7 +1133,13 @@ public class OccurrenceController extends AbstractSecureController {
                 } else {
                     sb.append(" OR ");
                 }
-                sb.append(field + ":\"" + normalised + "\"");
+                String[] fields = field.split(",");
+                List<String> fieldQ = new ArrayList<>();
+                for (String f : fields) {
+                    fieldQ.add(f + ":\"" + normalised + "\"");
+                }
+
+                sb.append(String.join(" OR ", fieldQ));
                 terms++;
 
                 if (terms >= searchDAO.getMaxBooleanClauses()) {
