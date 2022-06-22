@@ -59,7 +59,7 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
  * @author Peter Ansell
  */
 @RunWith(PowerMockRunner.class)
-@PowerMockIgnore({ "javax.net.ssl.*" })
+@PowerMockIgnore({ "com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*", "org.w3c.*", "javax.net.ssl.*" })
 @PrepareForTest(FileUtils.class)
 @ContextConfiguration(locations = {"classpath:springTest.xml"})
 public class DownloadServiceTest {

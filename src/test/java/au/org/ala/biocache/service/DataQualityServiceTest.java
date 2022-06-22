@@ -7,7 +7,6 @@ import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import okhttp3.MediaType;
 import okhttp3.ResponseBody;
 import org.apache.commons.lang3.StringUtils;
-import org.hamcrest.Factory;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.hamcrest.core.SubstringMatcher;
@@ -444,7 +443,6 @@ public class DataQualityServiceTest {
 
     }
 
-    @Factory
     public static Matcher<String> containsStringOnce(String substring) {
         return new StringContainsExactlyOnce(substring);
     }
@@ -455,17 +453,12 @@ public class DataQualityServiceTest {
      */
     public static class StringContainsExactlyOnce extends SubstringMatcher {
         public StringContainsExactlyOnce(String substring) {
-            super(substring);
+            super("containing only once", false, substring);
         }
 
         @Override
         protected boolean evalSubstringOf(String s) {
             return StringUtils.countMatches(s, substring) == 1;
-        }
-
-        @Override
-        protected String relationship() {
-            return "containing only once";
         }
     }
 }
