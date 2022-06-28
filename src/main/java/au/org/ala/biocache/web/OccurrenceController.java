@@ -1953,7 +1953,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, occurrence, "countryInvasive", getFieldName);
 
         // concatenate all recordedBy values for hubs
-        addAll(sd, occurrence, "recordedBy", getFieldName);
+        addField(sd, occurrence, "recordedBy", getFieldName);
         addAll(sd, occurrence, "recordedByID", getFieldName);
         addAll(sd, occurrence, "identifiedByID", getFieldName);
 
