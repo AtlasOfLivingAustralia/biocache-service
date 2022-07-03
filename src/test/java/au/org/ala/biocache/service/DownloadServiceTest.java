@@ -374,7 +374,7 @@ public class DownloadServiceTest {
 
         DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", "", DownloadType.RECORDS_INDEX);
 
-        when(searchDAO.writeResultsFromIndexToStream(any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new ConcurrentHashMap<String, AtomicInteger>());
+        when(searchDAO.writeResultsFromIndexToStream(any(), any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
         when(doiService.mintDoi(isA(DownloadDoiDTO.class))).thenReturn(new CreateDoiResponse());
         String doiSearchUrl = "https://biocache-test.ala.org.au/occurrences/search?q=lsid%3Aurn%3Alsid%3Abiodiversity.org.au%3Aafd.taxon%3Ae6aff6af-ff36-4ad5-95f2-2dfdcca8caff&disableAllQualityFilters=true&fq=month%3A%2207%22&foo%3Abar&baz%3Aqux";
         when(testService.dataQualityService.convertDataQualityParameters(anyString(), any())).thenReturn(doiSearchUrl);
@@ -429,7 +429,7 @@ public class DownloadServiceTest {
         DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", "", DownloadType.RECORDS_INDEX);
         final String profileFullName = "Full Name";
 
-        when(searchDAO.writeResultsFromIndexToStream(any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new ConcurrentHashMap<String, AtomicInteger>());
+        when(searchDAO.writeResultsFromIndexToStream(any(), any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
         when(doiService.mintDoi(isA(DownloadDoiDTO.class))).thenReturn(new CreateDoiResponse());
         String doiSearchUrl = "https://biocache-test.ala.org.au/occurrences/search?q=lsid%3Aurn%3Alsid%3Abiodiversity.org.au%3Aafd.taxon%3Ae6aff6af-ff36-4ad5-95f2-2dfdcca8caff&disableAllQualityFilters=true&fq=month%3A%2207%22&foo%3Abar&baz%3Aqux";
         when(testService.dataQualityService.convertDataQualityParameters(anyString(), any())).thenReturn(doiSearchUrl);
@@ -484,7 +484,7 @@ public class DownloadServiceTest {
 
         DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", "", DownloadType.RECORDS_INDEX);
 
-        when(searchDAO.writeResultsFromIndexToStream(any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new ConcurrentHashMap<String, AtomicInteger>());
+        when(searchDAO.writeResultsFromIndexToStream(any(), any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
         when(doiService.mintDoi(isA(DownloadDoiDTO.class))).thenReturn(new CreateDoiResponse());
         String doiSearchUrl = "https://biocache-test.ala.org.au/occurrences/search?q=lsid%3Aurn%3Alsid%3Abiodiversity.org.au%3Aafd.taxon%3Ae6aff6af-ff36-4ad5-95f2-2dfdcca8caff&disableAllQualityFilters=true&fq=month%3A%2207%22&foo%3Abar&baz%3Aqux";
         when(testService.dataQualityService.convertDataQualityParameters(anyString(), any())).thenReturn(doiSearchUrl);
@@ -534,7 +534,7 @@ public class DownloadServiceTest {
 
         DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", "test User-Agent", DownloadType.RECORDS_INDEX);
 
-        when(searchDAO.writeResultsFromIndexToStream(any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new ConcurrentHashMap<String, AtomicInteger>());
+        when(searchDAO.writeResultsFromIndexToStream(any(), any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
         when(doiService.mintDoi(isA(DownloadDoiDTO.class))).thenReturn(new CreateDoiResponse());
         when(testService.dataQualityService.convertDataQualityParameters(any(), any())).thenAnswer(returnsFirstArg());
         testService.writeQueryToStream(
@@ -561,11 +561,13 @@ public class DownloadServiceTest {
         given(FileUtils.openOutputStream(any())).willCallRealMethod();
         given(FileUtils.openOutputStream(any(), anyBoolean())).willCallRealMethod();
 
+        when(testService.dataQualityService.convertDataQualityParameters(any(), any())).thenAnswer(returnsFirstArg());
+
         testService.support = "support@ala.org.au";
         testService.myDownloadsUrl = "https://dev.ala.org.au/myDownloads";
         testService.biocacheDownloadUrl = "http://dev.ala.org.au/biocache-download";
         testService.biocacheDownloadEmailTemplate = "/tmp/download-email.html";
-        testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
+        testService.biocacheDownloadReadmeTemplate = "/tmp/readme.txt";
 
         testService.init();
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
@@ -599,6 +601,7 @@ public class DownloadServiceTest {
         testService.biocacheDownloadEmailTemplate = "/tmp/download-email.html";
         testService.biocacheDownloadDoiEmailTemplate = "/tmp/download-email.html";
         testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
+
 
         testService.init();
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
@@ -636,8 +639,7 @@ public class DownloadServiceTest {
         createDoiResponse.setDoiServiceLandingPage("https://doi.example.org/");
         when(testService.doiService.mintDoi(any(DownloadDoiDTO.class))).thenReturn(createDoiResponse);
 
-        ConcurrentMap<String, AtomicInteger> uidStats = newConcurrentMap();
-        when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(uidStats);
+        when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
 
         DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, "::1", "", DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
@@ -723,8 +725,7 @@ public class DownloadServiceTest {
         createDoiResponse.setDoiServiceLandingPage("https://doi.example.org/");
         when(testService.doiService.mintDoi(any(DownloadDoiDTO.class))).thenReturn(createDoiResponse);
 
-        ConcurrentMap<String, AtomicInteger> uidStats = newConcurrentMap();
-        when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(uidStats);
+        when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
 
         DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, "::1", "", DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);

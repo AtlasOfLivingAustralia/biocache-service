@@ -12,7 +12,7 @@
     <groupId>au.org.ala</groupId>
     <artifactId>biocache-service</artifactId>
     <packaging>war</packaging>
-    <version>3.0.23</version>
+    <version>3.0.24</version>
     <name>biocache-service</name>
     <url>https://biocache-ws.ala.org.au/ws</url>
     <description>
@@ -43,7 +43,7 @@
         <alanm.port>9179</alanm.port>
         <alanm.admin.port>9180</alanm.admin.port>
         <alanm.host>localhost</alanm.host>
-        <docker-maven-plugin.version>0.34.1</docker-maven-plugin.version>
+        <docker-maven-plugin.version>0.39.1</docker-maven-plugin.version>
         <findbugs-jsr305.version>3.0.2</findbugs-jsr305.version>
         <!-- Checkstyle -->
         <plexus-compiler-javac-errorprone.version>2.8.3</plexus-compiler-javac-errorprone.version>
@@ -74,7 +74,6 @@
             <artifactId>hibernate-validator</artifactId>
             <version>6.2.0.Final</version>
         </dependency>
-
         <dependency>
             <groupId>org.apache.solr</groupId>
             <artifactId>solr-solrj</artifactId>
@@ -544,7 +543,7 @@
                 <configuration>
                     <images>
                         <image>
-                            <alias>cassandra3</alias>
+                            <alias>biocache-cassandra3</alias>
                             <name>cassandra:3.11.10</name>
                             <run>
                                 <env>
@@ -567,26 +566,17 @@
                                     <port>${solr8.zk.port}:${solr8.zk.port}</port>
                                     <port>${solr8.http.port}:${solr8.http.port}</port>
                                 </ports>
-                                <wait>
-                                    <http>
-                                        <url>http://${solr8.http.host}:${solr8.http.port}/solr/</url>
-                                        <method>GET</method>
-                                        <status>200</status>
-                                    </http>
-                                    <time>20000</time>
-                                </wait>
                                 <env>
-                                    <ZK_HOST>localhost:${solr8.zk.port}</ZK_HOST>
                                     <SOLR_PORT>${solr8.http.port}</SOLR_PORT>
-                                    <SOLR_HOST>localhost</SOLR_HOST>
+                                    <SOLR_HOST>127.0.0.1</SOLR_HOST>
                                 </env>
                                 <entrypoint>
-                                    <shell>solr start -c -f -p ${solr8.http.port}</shell>
+                                    <shell>solr start -c -f</shell>
                                 </entrypoint>
                             </run>
                         </image>
                         <image>
-                            <alias>ala-nameservice</alias>
+                            <alias>biocache-ala-nameservice</alias>
                             <name>djtfmartin/ala-namematching-service:v20200214-17</name>
                             <run>
                                 <ports>

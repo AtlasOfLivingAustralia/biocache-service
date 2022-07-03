@@ -1052,7 +1052,8 @@ public class OccurrenceController extends AbstractSecureController {
                                     }
                                     try (FileOutputStream output = new FileOutputStream(outputFilePath);) {
                                         params.setQ("lsid:\"" + lsid + "\"");
-                                        ConcurrentMap<String, AtomicInteger> uidStats = searchDAO.writeResultsFromIndexToStream(params, new CloseShieldOutputStream(output), false, dd, false, null);
+                                        ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
+                                        searchDAO.writeResultsFromIndexToStream(params, new CloseShieldOutputStream(output), uidStats,false, dd, false, null);
                                         output.flush();
                                         try (FileOutputStream citationOutput = new FileOutputStream(citationFilePath);) {
                                             downloadService.getCitations(uidStats, citationOutput, params.getSep(), params.getEsc(), null, null);
@@ -1132,7 +1133,13 @@ public class OccurrenceController extends AbstractSecureController {
                 } else {
                     sb.append(" OR ");
                 }
-                sb.append(field + ":\"" + normalised + "\"");
+                String[] fields = field.split(",");
+                List<String> fieldQ = new ArrayList<>();
+                for (String f : fields) {
+                    fieldQ.add(f + ":\"" + normalised + "\"");
+                }
+
+                sb.append(String.join(" OR ", fieldQ));
                 terms++;
 
                 if (terms >= searchDAO.getMaxBooleanClauses()) {
@@ -1946,7 +1953,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, occurrence, "countryInvasive", getFieldName);
 
         // concatenate all recordedBy values for hubs
-        addAll(sd, occurrence, "recordedBy", getFieldName);
+        addField(sd, occurrence, "recordedBy", getFieldName);
         addAll(sd, occurrence, "recordedByID", getFieldName);
         addAll(sd, occurrence, "identifiedByID", getFieldName);
 
@@ -2011,7 +2018,6 @@ public class OccurrenceController extends AbstractSecureController {
 
         addField(sd, classification, "left", getFieldName.apply("lft"));
         addField(sd, classification, "right", getFieldName.apply("rgt"));
-        addField(sd, classification, "speciesHabitats", getFieldName);
         addField(sd, classification, "speciesGroups", getFieldName);
         addField(sd, classification, "matchType", getFieldName); //stores the type of name match that was performed
         addField(sd, classification, "taxonomicIssues", getFieldName); //stores if no issue, questionableSpecies, conferSpecies or affinitySpecies
@@ -2088,6 +2094,9 @@ public class OccurrenceController extends AbstractSecureController {
         // au.org.ala.biocache.model.Event
         Map event = new HashMap();
         fullRecord.put("event", event);
+        addField(sd, event, "eventID", getFieldName);
+        addField(sd, event, "parentEventID", getFieldName);
+        addField(sd, event, "datasetName", getFieldName);
         addField(sd, event, "day", getFieldName);
         addField(sd, event, "endDayOfYear", getFieldName);
         addField(sd, event, "eventAttributes", getFieldName);

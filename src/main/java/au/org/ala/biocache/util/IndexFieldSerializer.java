@@ -41,6 +41,13 @@ public class IndexFieldSerializer extends JsonSerializer<IndexFieldDTO> {
             if (indexFieldDTO.getInfo() != null) { jsonGenerator.writeStringField("info", indexFieldDTO.getInfo()); }
             if (indexFieldDTO.getInfoUrl() != null) { jsonGenerator.writeStringField("infoUrl", indexFieldDTO.getInfoUrl()); }
             if (indexFieldDTO.getNumberDistinctValues() != null) { jsonGenerator.writeNumberField("numberDistinctValues", indexFieldDTO.getNumberDistinctValues()); }
+            if (indexFieldDTO.getSourceFields() != null && indexFieldDTO.getSourceFields().size() > 0) {
+                jsonGenerator.writeArrayFieldStart("sourceFields");
+                for (String sourceField : indexFieldDTO.getSourceFields()) {
+                   jsonGenerator.writeString(sourceField);
+                }
+                jsonGenerator.writeEndArray();
+            }
         }
 
         jsonGenerator.writeEndObject();
