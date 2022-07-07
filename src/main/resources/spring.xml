@@ -17,10 +17,10 @@
          and not map file extensions automagically -->
     <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping" />
 
-    <bean class="au.org.ala.ws.security.AlaWebServiceAuthFilter" name="alaWebServiceAuthFilter" />
-    <bean class="au.org.ala.ws.security.JwtService" />
-    <bean class="au.org.ala.ws.security.LegacyApiKeyService" />
-    <bean class="au.org.ala.ws.security.AlaRoleMapper" />
+<!--    <bean class="au.org.ala.ws.security.AlaWebServiceAuthFilter" name="alaWebServiceAuthFilter" />-->
+<!--    <bean class="au.org.ala.ws.security.JwtService" />-->
+<!--    <bean class="au.org.ala.ws.security.LegacyApiKeyService" />-->
+<!--    <bean class="au.org.ala.ws.security.AlaRoleMapper" />-->
 
     <!--
       - This bean resolves specific types of exceptions to corresponding logical

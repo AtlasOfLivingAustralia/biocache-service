@@ -97,6 +97,7 @@ import static au.org.ala.biocache.dto.OccurrenceIndex.*;
 @Controller(value = "Occurrence")
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @SecurityScheme(name = "JWT", type = SecuritySchemeType.HTTP, scheme = "bearer", bearerFormat= "JWT")
+@Secured("IS_AUTHENTICATED_ANONYMOUSLY")
 public class OccurrenceController extends AbstractSecureController {
 
     /** Logger initialisation*/
