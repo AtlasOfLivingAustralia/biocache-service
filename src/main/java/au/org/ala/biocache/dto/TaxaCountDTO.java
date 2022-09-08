@@ -14,11 +14,14 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * DTO bean to store taxa name, guid and count from a search
  *
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
+@Schema(name = "TaxaCount", description = "Represents a count of records for a taxon")
 public class TaxaCountDTO {
 
     protected String name;

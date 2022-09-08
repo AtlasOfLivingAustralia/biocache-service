@@ -1,7 +1,7 @@
 package au.org.ala.biocache.stream;
 
 import au.org.ala.biocache.dao.SearchDAOImpl;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.io.Tuple;
@@ -16,13 +16,13 @@ public class ExploreFacet implements ProcessInterface {
     private final static Logger logger = Logger.getLogger(ExploreFacet.class);
 
     Map<String, Long> occurrenceCounts;
-    SpatialSearchRequestParams requestParams;
+    SpatialSearchRequestDTO requestParams;
     SearchDAOImpl searchDao;
     AbstractMessageSource messageSource;
 
     String facetName;
 
-    public ExploreFacet(Map<String, Long> occurrenceCounts, SpatialSearchRequestParams requestParams, SearchDAOImpl searchDao) {
+    public ExploreFacet(Map<String, Long> occurrenceCounts, SpatialSearchRequestDTO requestParams, SearchDAOImpl searchDao) {
         this.requestParams = requestParams;
         this.occurrenceCounts = occurrenceCounts;
         this.searchDao = searchDao;

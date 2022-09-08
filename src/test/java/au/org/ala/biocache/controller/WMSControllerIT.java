@@ -2,7 +2,7 @@ package au.org.ala.biocache.controller;
 
 import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.web.WMSController;
-import org.gbif.utils.file.FileUtils;
+import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -51,7 +51,7 @@ public class WMSControllerIT {
         SolrUtils.setupIndex();
 
         // empty ./target/test-wms/
-        if (targetDirectory.exists()) FileUtils.deleteDirectoryRecursively(targetDirectory);
+        if (targetDirectory.exists()) FileUtils.forceDelete(targetDirectory);
         targetDirectory.mkdirs();
     }
 
@@ -63,7 +63,7 @@ public class WMSControllerIT {
     @Test
     public void testWMS() throws Exception {
         String acceptType = "image/png";
-        String url = "/webportal/wms/reflect";
+        String url = "/mapping/wms/reflect";
 
         try {
             // smaller blue circles
@@ -138,7 +138,7 @@ public class WMSControllerIT {
     @Test
     public void testWMSSel() throws Exception {
         String acceptType = "image/png";
-        String url = "/webportal/wms/reflect";
+        String url = "/mapping/wms/reflect";
 
         try {
             // with selection on all points, blue
@@ -184,6 +184,33 @@ public class WMSControllerIT {
             assert (false);
         }
     }
+
+// https://biocache-ws.ala.org.au/ws/webportal/wms/image?q=lsid%3Aurn%3Alsid%3Abiodiversity.org.au%3Aafd.taxon%3Ae6aff6af-ff36-4ad5-95f2-2dfdcca8caff&disableAllQualityFilters=true&extents=89.296875,-48.166085419012525,192.65625,-2.3723687086440504&format=jpg&dpi=300&pradiusmm=0.7&popacity=0.7&pcolour=0D00FB&widthmm=150&scale=on&outline=true&outlineColour=0x000000&baselayer=world&baseMap=&fileName=MyMap.jpg
+
+//    @Test
+//    public void testPublicationMap() throws Exception {
+//        String acceptType = "image/png";
+//        MvcResult mvcResult1 = this.mockMvc.perform(get("/mapping/wms/image")
+//                        .header("Accept", acceptType)
+//                        .queryParam("q", "*:*")
+//                        .queryParam("disableAllQualityFilters", "true")
+//                        .queryParam("extents", "89.296875,-48.166085419012525,192.65625,-2.3723687086440504")
+//                        .queryParam("format", "jpg")
+//                        .queryParam("dpi", "300")
+//                        .queryParam("pradiusmm", "0.7")
+//                        .queryParam("popacity", "0.7")
+//                        .queryParam("pcolour", "0D00FB")
+//                        .queryParam("widthmm","150")
+//                        .queryParam("scale", "on")
+//                        .queryParam("outline", "true")
+//                        .queryParam("outlineColour","0x000000")
+//                        .queryParam("baselayer","world")
+//                        .queryParam("fileName", "MyMap.jpg")
+//                )
+//                .andExpect(status().isOk()).andReturn();
+//        Map<Integer, Integer> colourCounts1 = imageColourCount(mvcResult1.getResponse().getContentAsByteArray());
+//        Files.write(new File(targetDirectory, "testPubMap.png").toPath(), mvcResult1.getResponse().getContentAsByteArray());
+//    }
 
     // Not suitable when border is black.
     static int borderCount(int borderColourNoAlpha, int pointColourNoAlpha, Map<Integer, Integer> counts) {

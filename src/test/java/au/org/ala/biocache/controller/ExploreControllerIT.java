@@ -1,12 +1,14 @@
 package au.org.ala.biocache.controller;
 
+import au.org.ala.biocache.service.SpeciesImageService;
 import au.org.ala.biocache.util.QueryFormatUtils;
+import au.org.ala.biocache.util.SearchUtils;
 import au.org.ala.biocache.util.SolrUtils;
+import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import au.org.ala.biocache.web.ExploreController;
 import junit.framework.TestCase;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,10 +37,6 @@ public class ExploreControllerIT extends TestCase {
         System.setProperty("biocache.config", System.getProperty("user.dir") + "/src/test/resources/biocache-test-config.properties");
     }
 
-    public final int TEST_INDEX_SIZE = 1000;
-    public final int DEFAULT_SEARCH_PAGE_SIZE = 10;
-    public final int INDEXED_FIELD_SIZE = 21;
-
     @Autowired
     ExploreController exploreController;
 
@@ -46,7 +44,16 @@ public class ExploreControllerIT extends TestCase {
     QueryFormatUtils queryFormatUtils;
 
     @Autowired
+    SearchUtils searchUtils;
+
+    @Autowired
+    FieldMappingUtil fieldMappingUtil;
+
+    @Autowired
     WebApplicationContext wac;
+
+    @Autowired
+    SpeciesImageService speciesImageService;
 
     MockMvc mockMvc;
 
@@ -57,6 +64,7 @@ public class ExploreControllerIT extends TestCase {
 
     @Before
     public void setup() throws Exception {
+
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).build();
     }
 
@@ -114,16 +122,16 @@ public class ExploreControllerIT extends TestCase {
     public void getExploreCountsGroup1() throws Exception {
         this.mockMvc.perform(get("/explore/counts/group/Birds")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.[0]]").value(1000))
-                .andExpect(jsonPath("$.[1]]").value(1));
+                .andExpect(jsonPath("$.[0]").value(1000))
+                .andExpect(jsonPath("$.[1]").value(1));
     }
 
     @Test
     public void getExploreCountsGroup2() throws Exception {
         this.mockMvc.perform(get("/explore/counts/group/Birds?q=-*:*")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.[0]]").value(0))
-                .andExpect(jsonPath("$.[1]]").value(0));
+                .andExpect(jsonPath("$.[0]").value(0))
+                .andExpect(jsonPath("$.[1]").value(0));
     }
 
     @Test
@@ -187,56 +195,26 @@ public class ExploreControllerIT extends TestCase {
                 .andExpect(jsonPath("$.[0].count").value(1000));
     }
 
-    String wkt = "MULTIPOLYGON+(((150.1171875+-26.543080020962417,+154.86328125+-26.543080020962417,+154.86328125+-24.16053726999624,+150.1171875+-24.16053726999624,+150.1171875+-26.543080020962417)))";
+    String wkt = "MULTIPOLYGON (((150.1171875 -26.543080020962417, 154.86328125 -26.543080020962417, 154.86328125 -24.16053726999624, 150.1171875 -24.16053726999624, 150.1171875 -26.543080020962417)))";
 
-    @Ignore
     @Test
     public void getExploreCountsEndemic() throws Exception {
         this.mockMvc.perform(get("/explore/counts/endemic?wkt=" + wkt)
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isOk());
     }
 
-    @Ignore
     @Test
     public void getExploreEndemic() throws Exception {
         this.mockMvc.perform(get("/explore/endemic/species?wkt=" + wkt)
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isOk());
     }
 
-    @Ignore
     @Test
     public void getExploreEndemicCSV() throws Exception {
         this.mockMvc.perform(get("/explore/endemic/species.csv?wkt=" + wkt)
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isOk());
     }
-
-    String qid = "1";
-
-    @Ignore
-    @Test
-    public void getExploreEndemicGeneral() throws Exception {
-        this.mockMvc.perform(get("/explore/endemic/species/" + qid + "?wkt=" + wkt)
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Ignore
-    @Test
-    public void getExploreEndemicSpeciescountGeneral() throws Exception {
-        this.mockMvc.perform(get("/explore/endemic/speciescount/" + qid + "?q=*:*")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Ignore
-    @Test
-    public void getExploreEndemicGeneralCSV() throws Exception {
-        this.mockMvc.perform(get("/explore/endemic/species/" + qid + ".csv?q=*:*")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-    }
-
 }

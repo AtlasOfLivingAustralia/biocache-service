@@ -32,10 +32,10 @@ import java.util.Objects;
  * 
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
-public class SearchRequestParams {
+public class SearchRequestDTO {
 
     /** log4 j logger */
-    private static final Logger logger = Logger.getLogger(SearchRequestParams.class);
+    private static final Logger logger = Logger.getLogger(SearchRequestDTO.class);
 
     /** Only used to store the formattedQuery to be passed around in biocache-service**/
 
@@ -54,21 +54,24 @@ public class SearchRequestParams {
      * The facets to be included by the search
      * Initialised with the default facets to use
      */
-    protected String[] facets = FacetThemes.getAllFacetsLimited();
+    protected String[] facets =  new String[0]; //FacetThemes.getAllFacetsLimited();
+    protected Integer facetsMax = 30; //FacetThemes.getFacetsMax();
+    /** To disable facets */
+    protected Boolean facet = true; //FacetThemes.getFacetDefault();
+
     protected Integer start = 0;
-    protected Integer facetsMax = FacetThemes.getFacetsMax();
     /*
      * The limit for the number of facets to return 
      */
     protected Integer flimit = 30;
     /** The sort order in which to return the facets.  Either count or index.  When empty string the default values are used as defined in the Theme based facets */
-    protected String fsort="";
+    protected String fsort = "";
     /** The offset of facets to return.  Used in conjunction to flimit */
     protected Integer foffset = 0;
     /** The prefix to limit facet values*/
-    protected String fprefix ="";
+    protected String fprefix = "";
     protected Integer pageSize = 10;
-    protected String sort = "score";
+    protected String sort = "";
     protected String dir = "asc";
     private String displayString;
 
@@ -76,8 +79,7 @@ public class SearchRequestParams {
 
     /**  The query context to be used for the search.  This will be used to generate extra query filters based on the search technology */
     protected String qc = "";
-    /** To disable facets */
-    protected Boolean facet = FacetThemes.getFacetDefault();
+
 
     /** The quality profile to use, null for default */
     protected String qualityProfile;
@@ -233,7 +235,7 @@ public class SearchRequestParams {
      * @param query new value of q
      */
     public void setQ(String query) {
-        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "q", query);
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestDTO.class, "q", query);
         this.q = query;
     }
 
@@ -260,7 +262,7 @@ public class SearchRequestParams {
      * @param filterQuery new value of fq
      */
     public void setFq(String[] filterQuery) {
-        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "fq", filterQuery);
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestDTO.class, "fq", filterQuery);
         this.fq = filterQuery;
     }
     
@@ -331,7 +333,7 @@ public class SearchRequestParams {
      * @param sort new value of sort
      */
     public void setSort(String sort) {
-        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "sort", sort);
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestDTO.class, "sort", sort);
         this.sort = sort;
     }
 
@@ -350,7 +352,7 @@ public class SearchRequestParams {
      * @param sortDirection new value of dir
      */
     public void setDir(String sortDirection) {
-        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "sortDirection", sortDirection);
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestDTO.class, "sortDirection", sortDirection);
         this.dir = sortDirection;
     }
 
@@ -359,7 +361,7 @@ public class SearchRequestParams {
     }
 
     public void setDisplayString(String displayString) {
-        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "displayString", displayString);
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestDTO.class, "displayString", displayString);
         this.displayString = displayString;
     }
 
@@ -368,7 +370,7 @@ public class SearchRequestParams {
     }
 
     public void setFacets(String[] facets) {
-        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "facets", facets);
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestDTO.class, "facets", facets);
 
         if (facets != null && facets.length == 1 && facets[0].contains(",")) facets = facets[0].split(",");
 
@@ -398,7 +400,7 @@ public class SearchRequestParams {
     }
 
     public void setQc(String qc) {
-        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "qc", qc);
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestDTO.class, "qc", qc);
         this.qc = qc;
     }
     public String getFl() {
@@ -406,7 +408,7 @@ public class SearchRequestParams {
     }
 
     public void setFl(String fl) {
-        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "fl", fl);
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestDTO.class, "fl", fl);
         this.fl = fl;
     }
 
@@ -421,7 +423,7 @@ public class SearchRequestParams {
      * @param formattedQuery the formattedQuery to set
      */
     public void setFormattedQuery(String formattedQuery) {
-        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "formattedQuery", formattedQuery);
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestDTO.class, "formattedQuery", formattedQuery);
         this.formattedQuery = formattedQuery;
     }
 
@@ -442,7 +444,7 @@ public class SearchRequestParams {
 	 * @param fsort the fsort to set
 	 */
 	public void setFsort(String fsort) {
-        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "fsort", fsort);
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestDTO.class, "fsort", fsort);
         this.fsort = fsort;
 	}
 	/**
@@ -483,7 +485,7 @@ public class SearchRequestParams {
     }
 
     public void setFormattedFq(String[] formattedFq) {
-        QueryFormatUtils.assertNoSensitiveValues(SearchRequestParams.class, "formattedFq", formattedFq);
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestDTO.class, "formattedFq", formattedFq);
         this.formattedFq = formattedFq;
     }
 
@@ -515,7 +517,7 @@ public class SearchRequestParams {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        SearchRequestParams that = (SearchRequestParams) o;
+        SearchRequestDTO that = (SearchRequestDTO) o;
         return disableAllQualityFilters == that.disableAllQualityFilters &&
                 Objects.equals(formattedQuery, that.formattedQuery) &&
                 Objects.equals(q, that.q) &&

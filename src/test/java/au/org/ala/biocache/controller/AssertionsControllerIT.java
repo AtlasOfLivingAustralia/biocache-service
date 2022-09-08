@@ -7,6 +7,9 @@ import au.org.ala.biocache.service.AssertionService;
 import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import au.org.ala.biocache.web.AssertionController;
+import au.org.ala.ws.security.AlaUser;
+import au.org.ala.ws.security.AlaWebServiceAuthFilter;
+import au.org.ala.ws.security.JwtProperties;
 import junit.framework.TestCase;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -55,6 +58,9 @@ public class AssertionsControllerIT extends TestCase {
     AssertionController assertionController;
 
     @Autowired
+    AlaWebServiceAuthFilter alaWebServiceAuthFilter;
+
+    @Autowired
     FieldMappingUtil fieldMappingUtil;
 
     AssertionService assertionService;
@@ -63,6 +69,9 @@ public class AssertionsControllerIT extends TestCase {
     WebApplicationContext wac;
 
     MockMvc mockMvc;
+
+    final static AlaUser TEST_USER =
+            new AlaUser("test@test.com","Tester",null,null, null, null);
 
     @BeforeClass
     public static void setupBeforeClass() throws Exception {
@@ -117,12 +126,15 @@ public class AssertionsControllerIT extends TestCase {
 
     @Test
     public void testAddSingle() throws Exception {
-        ReflectionTestUtils.setField(assertionController, "apiKeyCheckedEnabled", false);
+
+//        JwtProperties jwtProperties = (JwtProperties) ReflectionTestUtils.getField(alaWebServiceAuthFilter, "jwtProperties");
+//        jwtProperties.setFallbackToLegacyBehaviour(false);
 
         // add succeed
         when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
                 .thenReturn(Optional.empty());
         this.mockMvc.perform(post("/occurrences/assertions/add")
+                .principal(TEST_USER)
                 .param("recordUuid", "recordUuid")
                 .param("apiKey", "apiKey")
                 .param("code", "code")
@@ -134,6 +146,7 @@ public class AssertionsControllerIT extends TestCase {
         when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
                 .thenReturn(Optional.of(new QualityAssertion()));
         this.mockMvc.perform(post("/occurrences/assertions/add")
+                .principal(TEST_USER)
                 .param("recordUuid", "recordUuid")
                 .param("apiKey", "apiKey")
                 .param("code", "code")
@@ -145,6 +158,7 @@ public class AssertionsControllerIT extends TestCase {
         when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
                 .thenThrow(IOException.class);
         this.mockMvc.perform(post("/occurrences/assertions/add")
+                .principal(TEST_USER)
                 .param("recordUuid", "recordUuid")
                 .param("apiKey", "apiKey")
                 .param("code", "code")
@@ -155,30 +169,36 @@ public class AssertionsControllerIT extends TestCase {
 
     @Test
     public void testDeleteSingle() throws Exception {
-        ReflectionTestUtils.setField(assertionController, "apiKeyCheckedEnabled", false);
+
+//        JwtProperties jwtProperties = (JwtProperties) ReflectionTestUtils.getField(alaWebServiceAuthFilter, "jwtProperties");
+//        jwtProperties.setFallbackToLegacyBehaviour(true);
 
         // delete succeed
+//        when(apiKeyService.isValidKey(Mockito.any())).thenReturn(new AuthenticatedUser(
+//                "test@test.com","Tester",null,null));
         when(assertionService.deleteAssertion(Mockito.any(), Mockito.any())).thenReturn(true);
-
         this.mockMvc.perform(post("/occurrences/assertions/delete")
+                .principal(TEST_USER)
                 .param("recordUuid", "recordUuid")
                 .param("apiKey", "apiKey")
                 .param("assertionUuid", "assertionUuid"))
                 .andExpect(status().isOk());
 
         // record not found
+//        when(apiKeyService.isValidKey(Mockito.any())).thenReturn(new AuthenticatedUser(Mockito.any(),Mockito.any(),Mockito.any(),Mockito.any()));
         when(assertionService.deleteAssertion(Mockito.any(), Mockito.any())).thenReturn(false);
-
         this.mockMvc.perform(post("/occurrences/assertions/delete")
+                .principal(TEST_USER)
                 .param("recordUuid", "recordUuid")
                 .param("apiKey", "apiKey")
                 .param("assertionUuid", "assertionUuid"))
                 .andExpect(status().isBadRequest());
 
         // exception
+//        when(apiKeyService.isValidKey(Mockito.any())).thenReturn(new AuthenticatedUser(Mockito.any(),Mockito.any(),Mockito.any(),Mockito.any()));
         when(assertionService.deleteAssertion(Mockito.any(), Mockito.any())).thenThrow(IOException.class);
-
         this.mockMvc.perform(post("/occurrences/assertions/delete")
+                .principal(TEST_USER)
                 .param("recordUuid", "recordUuid")
                 .param("apiKey", "apiKey")
                 .param("assertionUuid", "assertionUuid"))
@@ -234,10 +254,13 @@ public class AssertionsControllerIT extends TestCase {
 
     @Test
     public void testBulkAdd() throws Exception {
-        ReflectionTestUtils.setField(assertionController, "apiKeyCheckedEnabled", false);
+
+//        JwtProperties jwtProperties = (JwtProperties) ReflectionTestUtils.getField(alaWebServiceAuthFilter, "jwtProperties");
+//        jwtProperties.setFallbackToLegacyBehaviour(false);
 
         when(assertionService.bulkAddAssertions(Mockito.any(), Mockito.any())).thenReturn(true);
         this.mockMvc.perform(post("/bulk/assertions/add")
+                .principal(TEST_USER)
                 .param("apiKey", "apiKey")
                 .param("assertions", "[\n" +
                         "{\n" +

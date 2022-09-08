@@ -43,10 +43,19 @@ import java.util.stream.Stream;
  */
 public class AbstractSecureController {
 
-    private final static Logger logger = LoggerFactory.getLogger(AbstractSecureController.class);
-
     protected Supplier<Stream<IpAddressMatcher>> excludedNetworkStream;
     protected Supplier<Stream<IpAddressMatcher>> includedNetworkStream;
+
+    @Value("${ratelimit.window.seconds:300}")
+    protected int rateLimitWindowSeconds;
+
+    @Value("${ratelimit.count:5}")
+    protected int rateLimitCount;
+
+    @Inject
+    protected CacheManager cacheManager;
+
+    public AbstractSecureController(){}
 
     /**
      * networks to exclude from rate limiting.
@@ -76,26 +85,6 @@ public class AbstractSecureController {
         }
     }
 
-    @Value("${ratelimit.window.seconds:300}")
-    protected int rateLimitWindowSeconds;
-
-    @Value("${ratelimit.count:5}")
-    protected int rateLimitCount;
-
-    @Value("${apikey.check.url:https://auth.ala.org.au/apikey/ws/check?apikey=}")
-    protected String apiCheckUrl;
-
-    @Value("${apikey.check.enabled:true}")
-    protected Boolean apiKeyCheckedEnabled = true;
-
-    @Inject
-    protected RestOperations restTemplate;
-
-    @Inject
-    protected CacheManager cacheManager;
-
-    public AbstractSecureController(){}
-
     /**
      * Returns the IP address for the supplied request. It will look for the existence of
      * an X-Forwarded-For Header before extracting it from the request.
@@ -114,7 +103,6 @@ public class AbstractSecureController {
     }
 
     protected String getUserAgent(HttpServletRequest request) {
-
         return request.getHeader(Constants.USER_AGENT_PARAM);
     }
 
@@ -124,11 +112,10 @@ public class AbstractSecureController {
      * OR if the IP address of the request is not in the excludedNetworks OR in the includedNetworks
      *
      * @param request
-     * @param response
      * @return if the request should be rate limited
      * @throws IOException
      */
-    public boolean rateLimitRequest(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    public boolean rateLimitRequest(HttpServletRequest request) throws IOException {
 
         String ipAddress = getIPAddress(request);
         boolean ratelimitIp = true;
@@ -188,84 +175,11 @@ public class AbstractSecureController {
      * @throws Exception If the store is in read-only mode, or the API key is invalid.
      */
     public boolean shouldPerformOperation(HttpServletRequest request, HttpServletResponse response) throws Exception {
-        String apiKey = request.getParameter("apiKey");
-        return shouldPerformOperation(apiKey, response, true);
-    }
 
-    /**
-     * Check the validity of the supplied key, returning false if the store is in read only mode.
-     *
-     * @param apiKey The API key to check
-     * @param response The response to check for {@link HttpServletResponse#isCommitted()} and to send errors on if the operation should not be committed
-     * @return True if the store is not in read-only mode, the API key is valid, and the response has not already been committed, and false otherwise
-     * @throws Exception If the store is in read-only mode, or the API key is invalid.
-     */
-    public boolean shouldPerformOperation(String apiKey, HttpServletResponse response) throws Exception {
-        return shouldPerformOperation(apiKey, response, true);
-    }
-    
-    /**
-     * Use a webservice to validate a key
-     * 
-     * @param keyToTest
-     * @return True if API key checking is disabled, or the API key is valid, and false otherwise.
-     */
-    @Cacheable("apiKeys")
-    public boolean isValidKey(String keyToTest){
-
-        if(!apiKeyCheckedEnabled){
-            return true;
-        }
-
-        if(StringUtils.isBlank(keyToTest)){
+        if (request.getUserPrincipal() == null || response.isCommitted()) {
             return false;
         }
 
-        // caching manually managed via the cacheManager not using the @Cacheable annotation
-        // the @Cacheable annotation only works when an external call is made to a method, for
-        // an explanation see: https://stackoverflow.com/a/32999744
-        Cache cache = cacheManager.getCache("apiKeys");
-        Cache.ValueWrapper valueWrapper = cache.get(keyToTest);
-
-        if (valueWrapper != null && (Boolean)valueWrapper.get()) {
-            return true;
-        }
-
-		//check via a web service
-		try {
-			logger.debug("Checking api key: {}", keyToTest);
-    		String url = apiCheckUrl + keyToTest;
-    		Map<String,Object> response = restTemplate.getForObject(url, Map.class);
-    		boolean isValid = (Boolean) response.get("valid");
-    		logger.debug("Checking api key: {}, valid: {}", keyToTest, isValid);
-    		if (isValid) {
-    		    cache.put(keyToTest, true);
-            }
-    		return isValid; 
-		} catch (Exception e){
-			logger.error(e.getMessage(), e);
-		}
-		
-    	return false;
-    }
-
-	/**
-     * Returns true when the operation should be performed.
-     *
-     * @param apiKey The API key to check for validity, after appending it to the api.check.url property.
-     * @param response The response to either send an error on, or return false if the {@link HttpServletResponse#isCommitted()} returns true.
-     * @param checkReadOnly deprecated
-     * @return True if the operation is able to be performed
-     * @throws Exception
-     */
-    public boolean shouldPerformOperation(String apiKey,HttpServletResponse response, boolean checkReadOnly) throws Exception {
-        if (!isValidKey(apiKey)) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
-            return false;
-        } else if (response.isCommitted()) {
-            return false;
-        }
-        
         return true;
     }
 }

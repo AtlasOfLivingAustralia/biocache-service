@@ -15,7 +15,7 @@
 package au.org.ala.biocache.dao;
 
 import au.org.ala.biocache.dto.Qid;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.util.QidMissingException;
 import au.org.ala.biocache.util.QidSizeException;
 
@@ -71,9 +71,9 @@ public interface QidCacheDAO {
 
     long getSize();
 
-    String[] getFq(SpatialSearchRequestParams requestParams);
+    String[] getFq(SpatialSearchRequestDTO requestParams);
 
-    String generateQid(SpatialSearchRequestParams requestParams, String bbox, String title, Long maxage, String source);
+    String generateQid(SpatialSearchRequestDTO requestParams, String bbox, String title, Long maxage, String source);
 
     void clear();
 }

@@ -1,7 +1,7 @@
 package au.org.ala.biocache.service;
 
-import au.org.ala.biocache.dto.SearchRequestParams;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SearchRequestDTO;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import au.org.ala.dataquality.model.QualityProfile;
 import com.google.common.annotations.VisibleForTesting;
@@ -11,12 +11,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
-import org.springframework.web.util.UriUtils;
 import retrofit2.Call;
 import retrofit2.HttpException;
 import retrofit2.Response;
 
-import javax.annotation.CheckForNull;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -68,18 +66,18 @@ public class DataQualityService {
      * Get all enabled filters by label for the search params.  This method will take into account whether
      * the request explicitly disables quality filters or disables individual filters.
      *
-     * @param searchRequestParams The search request params
+     * @param searchRequestDTO The search request params
      * @return The enabled filters for this request
      * @throws HttpException if an http error code is returned from the service
      * @throws RuntimeException if a network error occurs
      */
-    public Map<String, String> getEnabledFiltersByLabel(SearchRequestParams searchRequestParams) {
-        if (searchRequestParams.isDisableAllQualityFilters()) {
+    public Map<String, String> getEnabledFiltersByLabel(SearchRequestDTO searchRequestDTO) {
+        if (searchRequestDTO.isDisableAllQualityFilters()) {
             return new LinkedHashMap<>();
         }
 
-        Map<String, String> filtersByLabel = getEnabledFiltersByLabel(searchRequestParams.getQualityProfile());
-        filtersByLabel.keySet().removeAll(searchRequestParams.getDisableQualityFilter());
+        Map<String, String> filtersByLabel = getEnabledFiltersByLabel(searchRequestDTO.getQualityProfile());
+        filtersByLabel.keySet().removeAll(searchRequestDTO.getDisableQualityFilter());
         return filtersByLabel;
     }
 
@@ -196,7 +194,7 @@ public class DataQualityService {
      * @param requestParams The params
      * @return The combined fqs
      */
-    public String[] generateCombinedFqs(SpatialSearchRequestParams requestParams) {
+    public String[] generateCombinedFqs(SpatialSearchRequestDTO requestParams) {
         String[] fqs = requestParams.getFq();
         if (fqs == null) {
             fqs = new String[0];

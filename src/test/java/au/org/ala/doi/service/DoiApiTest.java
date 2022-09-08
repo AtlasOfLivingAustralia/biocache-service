@@ -2,10 +2,11 @@ package au.org.ala.doi.service;
 
 import au.org.ala.doi.*;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import org.gbif.common.shaded.com.google.common.net.UrlEscapers;
+import com.google.common.net.UrlEscapers;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -15,10 +16,7 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
@@ -87,7 +85,7 @@ public class DoiApiTest {
         createRequest.setLicence(licence);
         createRequest.setUserId("UserId");
 
-        List<String> authorisedRoles = Lists.asList("ROLE 1", new String[]{"ROLE 2"});
+        Set<String> authorisedRoles = Sets.newHashSet("ROLE 1", "ROLE 2");
         createRequest.setAuthorisedRoles(authorisedRoles);
 
         createRequest.setProvider("DATACITE");

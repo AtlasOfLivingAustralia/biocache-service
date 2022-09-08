@@ -13,14 +13,14 @@ branches:
   only:
     - master
     - develop
-    - 449-part-2
+    - /^epic\/.*\/develop$/
     - /^release\/.*$/
     - /^hotfix\/.*$/
 before_install:
   - mkdir -p ~/.m2; wget -q -O ~/.m2/settings.xml https://raw.githubusercontent.com/AtlasOfLivingAustralia/travis-build-configuration/master/travis_maven_settings.xml
   - cd $TRAVIS_BUILD_DIR
 script:
-  - "[ \"${TRAVIS_PULL_REQUEST}\" = \"false\" ] && mvn -P travis clean deploy || mvn -P travis clean install"
+  - '[ "${TRAVIS_PULL_REQUEST}" = "false" ] && ./gradlew clean && travis_retry ./gradlew publish'
 after_success:
   - mvn coveralls:report
 env:

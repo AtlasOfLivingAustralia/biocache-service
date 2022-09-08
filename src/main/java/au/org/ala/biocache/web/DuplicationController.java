@@ -18,26 +18,27 @@ import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.DuplicateRecordDetails;
 import au.org.ala.biocache.dto.PointType;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.util.SearchUtils;
+import io.swagger.v3.oas.annotations.Operation;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import static au.org.ala.biocache.dto.OccurrenceIndex.*;
 
 @Controller
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class DuplicationController {
 
     /**
@@ -62,12 +63,11 @@ public class DuplicationController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/duplicates/**"}, method = RequestMethod.GET)
+    @Operation(summary = "Retrieves the duplication information for the supplied guid.", tags = "Duplicates")
+    @RequestMapping(value = {"/duplicates/{recordUuid}"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
-    DuplicateRecordDetails getDuplicateStats(HttpServletRequest request) throws Exception {
-        String guid = searchUtils.getGuidFromPath(request);
-
-        return getDuplicateStatsForGuid(guid);
+    DuplicateRecordDetails getDuplicateStats(@PathVariable("recordUuid") String recordUuid) throws Exception {
+        return getDuplicateStatsForGuid(recordUuid);
     }
 
     private DuplicateRecordDetails getDuplicateStatsForGuid(String guid) {
@@ -106,7 +106,7 @@ public class DuplicationController {
     }
 
     private SolrDocumentList searchDuplicates(String field, String value) throws Exception {
-        SpatialSearchRequestParams query = new SpatialSearchRequestParams();
+        SpatialSearchRequestDTO query = new SpatialSearchRequestDTO();
         query.setFacet(false);
         query.setQ(field + ":" + value);
         query.setFl(String.join(",",
@@ -130,10 +130,10 @@ public class DuplicationController {
         return searchDAO.findByFulltext(query);
     }
 
-    @RequestMapping(value = {"/stats/**"}, method = RequestMethod.GET)
+    @Operation(summary = "Retrieves the duplication statistics", tags = "Duplicates")
+    @RequestMapping(value = {"/stats/{recordUuid}"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
-    Map<String, FieldStatsInfo> printStats(HttpServletRequest request) throws Exception {
-        String guid = searchUtils.getGuidFromPath(request);
-        return indexDao.getStatistics(guid);
+    Map<String, FieldStatsInfo> printStats(@PathVariable("recordUuid") String recordUuid) throws Exception {
+        return indexDao.getStatistics(recordUuid);
     }
 }

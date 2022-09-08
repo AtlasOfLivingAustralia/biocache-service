@@ -12,6 +12,7 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.doi.CreateDoiResponse;
+import au.org.ala.ws.security.AlaUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.io.FileUtils;
@@ -40,10 +41,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.collect.Lists.newArrayList;
-import static com.google.common.collect.Maps.newConcurrentMap;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
@@ -60,7 +59,7 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
  * @author Peter Ansell
  */
 @RunWith(PowerMockRunner.class)
-@PowerMockIgnore({ "javax.net.ssl.*" })
+@PowerMockIgnore({ "com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*", "org.w3c.*", "javax.net.ssl.*" })
 @PrepareForTest(FileUtils.class)
 @ContextConfiguration(locations = {"classpath:springTest.xml"})
 public class DownloadServiceTest {
@@ -83,6 +82,10 @@ public class DownloadServiceTest {
 
     @Autowired
     IndexDAO indexDAO;
+
+    final static AlaUser TEST_USER =
+            new AlaUser("test@test.com","Tester", Collections.EMPTY_SET, Collections.EMPTY_MAP, null, null);
+
 
     /**
      * This latch is used to reliably simulate stalled and successful downloads.
@@ -222,12 +225,12 @@ public class DownloadServiceTest {
 
     /**
      * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#registerDownload(DownloadRequestParams requestParams, String ip, String userAgent, DownloadDetailsDTO.DownloadType type)}.
+     * {@link au.org.ala.biocache.service.DownloadService#registerDownload(DownloadRequestDTO, AlaUser, String, String, DownloadType)}
      */
     @Test
     public final void testRegisterDownload() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestDTO(), TEST_USER, "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
     }
@@ -239,7 +242,7 @@ public class DownloadServiceTest {
     @Test
     public final void testUnregisterDownload() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestDTO(), TEST_USER, "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         Thread.sleep(5000);
@@ -254,7 +257,7 @@ public class DownloadServiceTest {
     public final void testUnregisterDownloadWithoutDownloadLatchWait() throws Exception {
         testLatch.countDown();
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestDTO(), TEST_USER, "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         Thread.sleep(5000);
@@ -268,7 +271,7 @@ public class DownloadServiceTest {
     @Test
     public final void testUnregisterDownloadMultipleWithDownloadLatchWaitOn() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestDTO(), TEST_USER, "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         Thread.sleep(5000);
@@ -283,7 +286,7 @@ public class DownloadServiceTest {
     @Test
     public final void testUnregisterDownloadMultipleWithDownloadLatchWaitOnNoSleep() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestDTO(), TEST_USER, "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         testService.unregisterDownload(registerDownload);
@@ -299,7 +302,7 @@ public class DownloadServiceTest {
         testService.init();
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestDTO(), TEST_USER, "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         Thread.sleep(5000);
@@ -323,7 +326,7 @@ public class DownloadServiceTest {
         testService.init();
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestParams(), "::1", "",
+        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestDTO(), TEST_USER, "::1", "",
                 DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         Thread.sleep(5000);
@@ -365,31 +368,29 @@ public class DownloadServiceTest {
         OutputStream out = new ByteArrayOutputStream();
         List<CreateDoiResponse> doiResponseList = new ArrayList<CreateDoiResponse>();
 
-        DownloadRequestParams downloadRequestParams = new DownloadRequestParams();
-        downloadRequestParams.setMintDoi(true);
-        downloadRequestParams.setDisplayString("");
+        DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
+        downloadRequestDTO.setMintDoi(true);
+        downloadRequestDTO.setDisplayString("");
         Map<String, String> doiApplicationMetadata = new HashMap<String, String>();
         doiApplicationMetadata.put("key1", "value1");
         doiApplicationMetadata.put("key2", "value2");
 
-        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", "", DownloadType.RECORDS_INDEX);
+        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestDTO, TEST_USER, "192.168.0.1", "", DownloadType.RECORDS_INDEX);
 
-        when(searchDAO.writeResultsFromIndexToStream(any(), any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
+        when(searchDAO.writeResultsFromIndexToStream(any(), any(), any(), any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
         when(doiService.mintDoi(isA(DownloadDoiDTO.class))).thenReturn(new CreateDoiResponse());
         String doiSearchUrl = "https://biocache-test.ala.org.au/occurrences/search?q=lsid%3Aurn%3Alsid%3Abiodiversity.org.au%3Aafd.taxon%3Ae6aff6af-ff36-4ad5-95f2-2dfdcca8caff&disableAllQualityFilters=true&fq=month%3A%2207%22&foo%3Abar&baz%3Aqux";
         when(testService.dataQualityService.convertDataQualityParameters(anyString(), any())).thenReturn(doiSearchUrl);
         testService.writeQueryToStream(
                 downloadDetailsDTO,
-                downloadRequestParams,
-                downloadDetailsDTO.getIpAddress(),
                 out,
-                true, true, false, (ExecutorService)null, doiResponseList);
+                 true, false, (ExecutorService) null, doiResponseList);
 
         ArgumentCaptor<DownloadDoiDTO> argument = ArgumentCaptor.forClass(DownloadDoiDTO.class);
         verify(doiService).mintDoi(argument.capture());
 
         DownloadDoiDTO downloadDoiDTO = argument.getValue();
-        assertEquals(downloadDoiDTO.getApplicationMetadata(), downloadRequestParams.getDoiMetadata());
+        assertEquals(downloadDoiDTO.getApplicationMetadata(), downloadRequestDTO.getDoiMetadata());
     }
 
     /**
@@ -421,25 +422,23 @@ public class DownloadServiceTest {
         OutputStream out = new ByteArrayOutputStream();
         List<CreateDoiResponse> doiResponseList = new ArrayList<CreateDoiResponse>();
 
-        DownloadRequestParams downloadRequestParams = new DownloadRequestParams();
-        downloadRequestParams.setMintDoi(true);
-        downloadRequestParams.setDisplayString("");
-        downloadRequestParams.setQualityProfile("short-name");
+        DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
+        downloadRequestDTO.setMintDoi(true);
+        downloadRequestDTO.setDisplayString("");
+        downloadRequestDTO.setQualityProfile("short-name");
 
-        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", "", DownloadType.RECORDS_INDEX);
+        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestDTO, TEST_USER,  "192.168.0.1", "", DownloadType.RECORDS_INDEX);
         final String profileFullName = "Full Name";
 
-        when(searchDAO.writeResultsFromIndexToStream(any(), any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
+        when(searchDAO.writeResultsFromIndexToStream(any(), any(), any(),  any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
         when(doiService.mintDoi(isA(DownloadDoiDTO.class))).thenReturn(new CreateDoiResponse());
         String doiSearchUrl = "https://biocache-test.ala.org.au/occurrences/search?q=lsid%3Aurn%3Alsid%3Abiodiversity.org.au%3Aafd.taxon%3Ae6aff6af-ff36-4ad5-95f2-2dfdcca8caff&disableAllQualityFilters=true&fq=month%3A%2207%22&foo%3Abar&baz%3Aqux";
         when(testService.dataQualityService.convertDataQualityParameters(anyString(), any())).thenReturn(doiSearchUrl);
-        when(testService.dataQualityService.getProfileFullName(downloadRequestParams.getQualityProfile())).thenReturn(profileFullName);
+        when(testService.dataQualityService.getProfileFullName(downloadRequestDTO.getQualityProfile())).thenReturn(profileFullName);
         testService.writeQueryToStream(
                 downloadDetailsDTO,
-                downloadRequestParams,
-                downloadDetailsDTO.getIpAddress(),
                 out,
-                true, true, false, (ExecutorService)null, doiResponseList);
+                 true, false, (ExecutorService)null, doiResponseList);
 
         ArgumentCaptor<DownloadDoiDTO> argument = ArgumentCaptor.forClass(DownloadDoiDTO.class);
         verify(doiService).mintDoi(argument.capture());
@@ -462,39 +461,37 @@ public class DownloadServiceTest {
 
         // Setup mocks and stubs - could be in setup but I don't want to interfere with the other tests.
         DoiService doiService = mock(DoiService.class);
-        testService.doiService = doiService;
         SearchDAO searchDAO = mock(SearchDAO.class);
+        AbstractMessageSource messageSource = mock(AbstractMessageSource.class);
+        AuthService authService = mock(AuthService.class);
+
+        testService.doiService = doiService;
         testService.searchDAO = searchDAO;
         testService.loggerService = mock(LoggerService.class);
-        AbstractMessageSource messageSource = mock(AbstractMessageSource.class);
         testService.messageSource = messageSource;
-        AuthService authService = mock(AuthService.class);
         testService.authService = authService;
-
         testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
 
         // Setup method parameters
         OutputStream out = new ByteArrayOutputStream();
         List<CreateDoiResponse> doiResponseList = new ArrayList<CreateDoiResponse>();
 
-        DownloadRequestParams downloadRequestParams = new DownloadRequestParams();
-        downloadRequestParams.setMintDoi(true);
-        downloadRequestParams.setDisplayString("");
-        downloadRequestParams.setQualityProfile("");
+        DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
+        downloadRequestDTO.setMintDoi(true);
+        downloadRequestDTO.setDisplayString("");
+        downloadRequestDTO.setQualityProfile("");
 
-        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", "", DownloadType.RECORDS_INDEX);
+        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestDTO, TEST_USER,  "192.168.0.1", "", DownloadType.RECORDS_INDEX);
 
-        when(searchDAO.writeResultsFromIndexToStream(any(), any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
+        when(searchDAO.writeResultsFromIndexToStream(any(), any(), any(), any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
         when(doiService.mintDoi(isA(DownloadDoiDTO.class))).thenReturn(new CreateDoiResponse());
         String doiSearchUrl = "https://biocache-test.ala.org.au/occurrences/search?q=lsid%3Aurn%3Alsid%3Abiodiversity.org.au%3Aafd.taxon%3Ae6aff6af-ff36-4ad5-95f2-2dfdcca8caff&disableAllQualityFilters=true&fq=month%3A%2207%22&foo%3Abar&baz%3Aqux";
         when(testService.dataQualityService.convertDataQualityParameters(anyString(), any())).thenReturn(doiSearchUrl);
         verify(testService.dataQualityService, never()).getProfileFullName(anyString());
         testService.writeQueryToStream(
                 downloadDetailsDTO,
-                downloadRequestParams,
-                downloadDetailsDTO.getIpAddress(),
                 out,
-                true, true, false, (ExecutorService)null, doiResponseList);
+                 true, false, (ExecutorService) null, doiResponseList);
 
         ArgumentCaptor<DownloadDoiDTO> argument = ArgumentCaptor.forClass(DownloadDoiDTO.class);
         verify(doiService).mintDoi(argument.capture());
@@ -528,21 +525,19 @@ public class DownloadServiceTest {
         OutputStream out = new ByteArrayOutputStream();
         List<CreateDoiResponse> doiResponseList = new ArrayList<CreateDoiResponse>();
 
-        DownloadRequestParams downloadRequestParams = new DownloadRequestParams();
-        downloadRequestParams.setMintDoi(true);
-        downloadRequestParams.setDisplayString("");
+        DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
+        downloadRequestDTO.setMintDoi(true);
+        downloadRequestDTO.setDisplayString("");
 
-        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestParams, "192.168.0.1", "test User-Agent", DownloadType.RECORDS_INDEX);
+        DownloadDetailsDTO downloadDetailsDTO = new DownloadDetailsDTO(downloadRequestDTO, TEST_USER,  "192.168.0.1", "test User-Agent", DownloadType.RECORDS_INDEX);
 
-        when(searchDAO.writeResultsFromIndexToStream(any(), any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
+        when(searchDAO.writeResultsFromIndexToStream(any(), any(), any(), any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
         when(doiService.mintDoi(isA(DownloadDoiDTO.class))).thenReturn(new CreateDoiResponse());
         when(testService.dataQualityService.convertDataQualityParameters(any(), any())).thenAnswer(returnsFirstArg());
         testService.writeQueryToStream(
                 downloadDetailsDTO,
-                downloadRequestParams,
-                downloadDetailsDTO.getIpAddress(),
                 out,
-                true, true, false, (ExecutorService) null, doiResponseList);
+                 true, false, (ExecutorService) null, doiResponseList);
 
         ArgumentCaptor<LogEventVO> argument = ArgumentCaptor.forClass(LogEventVO.class);
         verify(loggerService).logEvent(argument.capture());
@@ -561,6 +556,7 @@ public class DownloadServiceTest {
         given(FileUtils.openOutputStream(any())).willCallRealMethod();
         given(FileUtils.openOutputStream(any(), anyBoolean())).willCallRealMethod();
 
+        when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), any(),  any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
         when(testService.dataQualityService.convertDataQualityParameters(any(), any())).thenAnswer(returnsFirstArg());
 
         testService.support = "support@ala.org.au";
@@ -573,10 +569,10 @@ public class DownloadServiceTest {
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
 
-        DownloadRequestParams requestParams = new DownloadRequestParams();
+        DownloadRequestDTO requestParams = new DownloadRequestDTO();
         requestParams.setDisplayString("[all records]");
 
-        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, "::1", "", DownloadType.RECORDS_INDEX);
+        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, null, "::1", "", DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
         Thread.sleep(5000);
@@ -607,7 +603,7 @@ public class DownloadServiceTest {
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
 
-        DownloadRequestParams requestParams = new DownloadRequestParams();
+        DownloadRequestDTO requestParams = new DownloadRequestDTO();
         requestParams.setDisplayString("[all records]");
 
         //
@@ -626,7 +622,7 @@ public class DownloadServiceTest {
         filters.put("first", "foo:bar");
         filters.put("second", "baz:qux");
 
-        when(testService.dataQualityService.getEnabledFiltersByLabel(any(DownloadRequestParams.class))).thenReturn(filters);
+        when(testService.dataQualityService.getEnabledFiltersByLabel(any(DownloadRequestDTO.class))).thenReturn(filters);
 
         // Return first argument, because in this case our searchUrl will be generated by biocache service and won't be need to be
         // munged by the DataQualityService
@@ -639,9 +635,9 @@ public class DownloadServiceTest {
         createDoiResponse.setDoiServiceLandingPage("https://doi.example.org/");
         when(testService.doiService.mintDoi(any(DownloadDoiDTO.class))).thenReturn(createDoiResponse);
 
-        when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
+        when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), any(),  any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
 
-        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, "::1", "", DownloadType.RECORDS_INDEX);
+        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, TEST_USER, "::1", "", DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
         Thread.sleep(5000);
@@ -692,7 +688,7 @@ public class DownloadServiceTest {
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
 
-        DownloadRequestParams requestParams = new DownloadRequestParams();
+        DownloadRequestDTO requestParams = new DownloadRequestDTO();
         requestParams.setDisplayString("[all records]");
 
         //
@@ -713,7 +709,7 @@ public class DownloadServiceTest {
         filters.put("first", "foo:bar");
         filters.put("second", "baz:qux");
 
-        when(testService.dataQualityService.getEnabledFiltersByLabel(any(DownloadRequestParams.class))).thenReturn(filters);
+        when(testService.dataQualityService.getEnabledFiltersByLabel(any(DownloadRequestDTO.class))).thenReturn(filters);
 
         String doiSearchUrl = "https://biocache-test.ala.org.au/occurrences/search?q=lsid%3Aurn%3Alsid%3Abiodiversity.org.au%3Aafd.taxon%3Ae6aff6af-ff36-4ad5-95f2-2dfdcca8caff&disableAllQualityFilters=true&fq=month%3A%2207%22&foo%3Abar&baz%3Aqux";
         when(testService.dataQualityService.convertDataQualityParameters(eq(searchUrl), eq(filters))).thenReturn(doiSearchUrl);
@@ -725,9 +721,9 @@ public class DownloadServiceTest {
         createDoiResponse.setDoiServiceLandingPage("https://doi.example.org/");
         when(testService.doiService.mintDoi(any(DownloadDoiDTO.class))).thenReturn(createDoiResponse);
 
-        when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), any(), anyBoolean(), any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
+        when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), any(),  any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
 
-        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, "::1", "", DownloadType.RECORDS_INDEX);
+        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, TEST_USER, "::1", "", DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
         Thread.sleep(5000);
@@ -764,17 +760,24 @@ public class DownloadServiceTest {
 
         testService = createDownloadServiceForOfflineTest();
 
+        when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), any(),  any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
+        when(testService.dataQualityService.convertDataQualityParameters(any(), any())).thenAnswer(returnsFirstArg());
+
+        testService.support = "support@ala.org.au";
+        testService.myDownloadsUrl = "https://dev.ala.org.au/myDownloads";
+        testService.biocacheDownloadUrl = "http://dev.ala.org.au/biocache-download";
+        testService.biocacheDownloadEmailTemplate = "/tmp/download-email.html";
         testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
 
         testService.init();
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
 
-        DownloadRequestParams requestParams = new DownloadRequestParams();
+        DownloadRequestDTO requestParams = new DownloadRequestDTO();
         requestParams.setEmailNotify(false);
         requestParams.setDisplayString("[all records]");
 
-        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, "::1", "", DownloadType.RECORDS_INDEX);
+        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, null, "::1", "", DownloadType.RECORDS_INDEX);
         assertNotNull(registerDownload);
         testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
         Thread.sleep(5000);

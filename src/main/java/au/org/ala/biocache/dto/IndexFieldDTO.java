@@ -16,6 +16,7 @@ package au.org.ala.biocache.dto;
 
 import au.org.ala.biocache.util.IndexFieldSerializer;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.Collection;
 
@@ -26,6 +27,7 @@ import java.util.Collection;
  * 
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
+@Schema(name = "IndexField", description = "Details of an index field")
 @JsonSerialize(using = IndexFieldSerializer.class)
 public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     /** The name of the field in the index */
