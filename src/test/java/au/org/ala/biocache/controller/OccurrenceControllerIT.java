@@ -7,7 +7,7 @@ import au.org.ala.biocache.service.LoggerService;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.web.OccurrenceController;
-import au.org.ala.ws.security.AuthenticatedUser;
+import au.org.ala.ws.security.AlaUser;
 import junit.framework.TestCase;
 import org.ala.client.model.LogEventVO;
 import org.junit.Before;
@@ -49,8 +49,8 @@ public class OccurrenceControllerIT extends TestCase {
         System.setProperty("biocache.config", System.getProperty("user.dir") + "/src/test/resources/biocache-test-config.properties");
     }
 
-    final static AuthenticatedUser TEST_USER =
-            new AuthenticatedUser("test@test.com","Tester", Collections.EMPTY_LIST,Collections.EMPTY_MAP, null, null);
+    final static AlaUser TEST_USER =
+            new AlaUser("test@test.com","Tester", Collections.EMPTY_SET, Collections.EMPTY_MAP, null, null);
 
     public final int TEST_INDEX_SIZE = 1005;
     public final int DEFAULT_SEARCH_PAGE_SIZE = 10;

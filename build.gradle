@@ -34,7 +34,9 @@ repositories {
 }
 
 group = 'au.org.ala'
-version = '3.1.1-SNAPSHOT'
+version = '3.1.2-SNAPSHOT'
+
+boolean inplace = true
 
 configurations {
 
@@ -108,8 +110,6 @@ dependencies {
     implementation 'com.squareup.okhttp3:logging-interceptor:4.3.1'
     implementation 'com.squareup.okhttp3:okhttp:4.3.1'
     implementation 'au.org.ala:data-quality-filter-service-client:1.0.0'
-//    implementation 'org.grails.plugins:ala-ws-security-plugin:4.0.0-SNAPSHOT'
-    implementation 'au.org.ala:ala-ws-security:1.0.1-SNAPSHOT'
     implementation 'com.auth0:java-jwt:3.18.2'
     implementation 'com.auth0:jwks-rsa:0.20.0'
     implementation 'org.gbif:gbif-api:0.157'
@@ -117,17 +117,21 @@ dependencies {
     implementation 'com.google.code.findbugs:jsr305:3.0.2'
     implementation 'org.springframework.boot:spring-boot-autoconfigure:2.5.7'
 
-//    implementation project(':ala-ws-security-plugin')
-    implementation 'org.grails.plugins:ala-ws-security-plugin:4.0.1-SNAPSHOT', {
-        exclude group: 'org.grails'
-        exclude group: 'org.grails.plugins'
+    if (inplace) {
+
+        implementation project(':ala-ws-security-plugin'), {
+            exclude group: 'org.grails'
+            exclude group: 'org.grails.plugins'
+        }
+    } else {
+
+        implementation 'org.grails.plugins:ala-ws-security-plugin:4.3.0-SNAPSHOT', {
+            exclude group: 'org.grails'
+            exclude group: 'org.grails.plugins'
+        }
     }
-    implementation 'org.pac4j:spring-security-pac4j:7.0.3'
-//    implementation 'org.pac4j:spring-webmvc-pac4j:6.0.3'
 
-
-//    implementation 'org.codehaus.groovy:groovy-all:2.5.17'
-    implementation 'org.grails:grails-bootstrap:4.0.13'
+    implementation 'org.codehaus.groovy:groovy-all:3.0.11'
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
     testImplementation 'org.junit.jupiter:junit-jupiter-migrationsupport:5.7.0'

@@ -730,7 +730,7 @@ public class SearchDAOImpl implements SearchDAO {
         dd.resetCounts();
 
         // prepare requested download fields (defaults, substitutions)
-        prepareRequestedFields(downloadParams, !dd.getAuthenticatedUser().getRoles().isEmpty());
+        prepareRequestedFields(downloadParams, !dd.getAlaUser().getRoles().isEmpty());
 
         // prepare headers
         DownloadHeaders downloadHeaders = prepareHeaders(downloadParams);
@@ -786,7 +786,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFilterQueries(downloadParams.getFormattedFq());
         solrQuery.setRows(-1);
         solrQuery.setStart(0);
-        String sensitiveFq = downloadService.getSensitiveFq(dd.getAuthenticatedUser().getRoles());
+        String sensitiveFq = downloadService.getSensitiveFq(dd.getAlaUser().getRoles());
         // Split into sensitive and non-sensitive queries when
         // - not including all sensitive values
         // - there is a sensitive fq

@@ -21,7 +21,7 @@ import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
-import au.org.ala.ws.security.AuthenticatedUser;
+import au.org.ala.ws.security.AlaUser;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -129,7 +129,7 @@ public class DownloadController extends AbstractSecureController {
             HttpServletResponse response) throws Exception {
 
         DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(requestParams, request);
-        Optional<AuthenticatedUser> downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
+        Optional<AlaUser> downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
 
         if (!downloadUser.isPresent()){
             response.sendError(400, "No valid email");
@@ -147,7 +147,7 @@ public class DownloadController extends AbstractSecureController {
     }
 
     private Map<String, Object> download(DownloadRequestDTO requestParams,
-                                         AuthenticatedUser authenticatedUser,
+                                         AlaUser alaUser,
                                          String ip,
                                          String userAgent,
                                          HttpServletRequest request,
@@ -155,7 +155,7 @@ public class DownloadController extends AbstractSecureController {
                                          DownloadDetailsDTO.DownloadType downloadType) throws Exception {
 
         // check the email is supplied and a matching user account exists with the required privileges
-        if (authenticatedUser == null || StringUtils.isEmpty(authenticatedUser.getEmail())) {
+        if (alaUser == null || StringUtils.isEmpty(alaUser.getEmail())) {
             response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED, "Unable to perform an offline download without an email address");
             return null;
         }
@@ -163,7 +163,7 @@ public class DownloadController extends AbstractSecureController {
         ip = ip == null ? request.getRemoteAddr() : ip;
 
         //create a new task
-        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, authenticatedUser, ip, userAgent, downloadType);
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, alaUser, ip, userAgent, downloadType);
 
         //get query (max) count for queue priority
         requestParams.setPageSize(0);

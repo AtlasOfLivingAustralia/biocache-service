@@ -121,7 +121,7 @@ public class DownloadRequestDTO extends SpatialSearchRequestDTO {
     public static DownloadRequestDTO create(DownloadRequestParams params, HttpServletRequest request){
         DownloadRequestDTO dto = new DownloadRequestDTO();
         BeanUtils.copyProperties(params, dto);
-        if (dto.getEmail() == null){
+        if (dto.getEmail() == null) {
             dto.setEmail(request.getUserPrincipal().getName());
         }
         return dto;

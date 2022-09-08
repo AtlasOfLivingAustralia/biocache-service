@@ -18,10 +18,7 @@ import au.org.ala.biocache.service.DoiService;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.apache.log4j.Logger;
 
-import java.util.Arrays;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Encapsulates parameters need it to mint a DOI from the offline download functionality
@@ -37,7 +34,7 @@ public class DownloadDoiDTO {
     private String query;
     private String fileUrl;
     private String requesterId;
-    private List<String> authorisedRoles;
+    private Set<String> authorisedRoles;
     private List<String> licence;
     private String requesterName;
     private long recordCount;
@@ -140,11 +137,11 @@ public class DownloadDoiDTO {
 
     }
 
-    public List<String> getAuthorisedRoles() {
+    public Set<String> getAuthorisedRoles() {
         return authorisedRoles;
     }
 
-    public void setAuthorisedRoles(List<String> authorisedRoles) {
+    public void setAuthorisedRoles(Set<String> authorisedRoles) {
         this.authorisedRoles = authorisedRoles;
     }
 

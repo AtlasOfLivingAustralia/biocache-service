@@ -7,9 +7,9 @@ import au.org.ala.biocache.service.AssertionService;
 import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import au.org.ala.biocache.web.AssertionController;
+import au.org.ala.ws.security.AlaUser;
 import au.org.ala.ws.security.AlaWebServiceAuthFilter;
-import au.org.ala.ws.security.AuthenticatedUser;
-import au.org.ala.ws.security.LegacyApiKeyService;
+import au.org.ala.ws.security.JwtProperties;
 import junit.framework.TestCase;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -60,8 +60,6 @@ public class AssertionsControllerIT extends TestCase {
     @Autowired
     AlaWebServiceAuthFilter alaWebServiceAuthFilter;
 
-    LegacyApiKeyService apiKeyService;
-
     @Autowired
     FieldMappingUtil fieldMappingUtil;
 
@@ -72,8 +70,8 @@ public class AssertionsControllerIT extends TestCase {
 
     MockMvc mockMvc;
 
-    final static AuthenticatedUser TEST_USER =
-            new AuthenticatedUser("test@test.com","Tester",null,null, null, null);
+    final static AlaUser TEST_USER =
+            new AlaUser("test@test.com","Tester",null,null, null, null);
 
     @BeforeClass
     public static void setupBeforeClass() throws Exception {
@@ -87,7 +85,6 @@ public class AssertionsControllerIT extends TestCase {
         DEPRECATED_CODES_LENGTH = fieldMappingUtil.getFieldValueMappingStream("assertions").collect(Collectors.toList()).size();
 
         assertionService = mock(AssertionService.class);
-        apiKeyService = mock(LegacyApiKeyService.class);
         ReflectionTestUtils.setField(assertionController, "assertionService", assertionService);
 
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).build();
@@ -129,7 +126,9 @@ public class AssertionsControllerIT extends TestCase {
 
     @Test
     public void testAddSingle() throws Exception {
-        ReflectionTestUtils.setField(alaWebServiceAuthFilter, "legacyApiKeysEnabled", false);
+
+//        JwtProperties jwtProperties = (JwtProperties) ReflectionTestUtils.getField(alaWebServiceAuthFilter, "jwtProperties");
+//        jwtProperties.setFallbackToLegacyBehaviour(false);
 
         // add succeed
         when(assertionService.addAssertion(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
@@ -170,7 +169,9 @@ public class AssertionsControllerIT extends TestCase {
 
     @Test
     public void testDeleteSingle() throws Exception {
-        ReflectionTestUtils.setField(alaWebServiceAuthFilter, "legacyApiKeysEnabled", true);
+
+//        JwtProperties jwtProperties = (JwtProperties) ReflectionTestUtils.getField(alaWebServiceAuthFilter, "jwtProperties");
+//        jwtProperties.setFallbackToLegacyBehaviour(true);
 
         // delete succeed
 //        when(apiKeyService.isValidKey(Mockito.any())).thenReturn(new AuthenticatedUser(
@@ -253,7 +254,9 @@ public class AssertionsControllerIT extends TestCase {
 
     @Test
     public void testBulkAdd() throws Exception {
-        ReflectionTestUtils.setField(alaWebServiceAuthFilter, "legacyApiKeysEnabled", false);
+
+//        JwtProperties jwtProperties = (JwtProperties) ReflectionTestUtils.getField(alaWebServiceAuthFilter, "jwtProperties");
+//        jwtProperties.setFallbackToLegacyBehaviour(false);
 
         when(assertionService.bulkAddAssertions(Mockito.any(), Mockito.any())).thenReturn(true);
         this.mockMvc.perform(post("/bulk/assertions/add")

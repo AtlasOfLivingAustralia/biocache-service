@@ -26,7 +26,7 @@ import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.util.OccurrenceUtils;
 import au.org.ala.biocache.util.QidSizeException;
 import au.org.ala.biocache.util.SearchUtils;
-import au.org.ala.ws.security.AuthenticatedUser;
+import au.org.ala.ws.security.AlaUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.swagger.annotations.*;
@@ -97,7 +97,6 @@ import static au.org.ala.biocache.dto.OccurrenceIndex.*;
 @Controller(value = "Occurrence")
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @SecurityScheme(name = "JWT", type = SecuritySchemeType.HTTP, scheme = "bearer", bearerFormat= "JWT")
-@Secured("IS_AUTHENTICATED_ANONYMOUSLY")
 public class OccurrenceController extends AbstractSecureController {
 
     /** Logger initialisation*/
@@ -924,12 +923,12 @@ public class OccurrenceController extends AbstractSecureController {
             HttpServletResponse response){
 
         DownloadRequestDTO dto = DownloadRequestDTO.create(requestParams, request);
-        Optional<AuthenticatedUser> downloadUser = authService.getDownloadUser(dto, request);
+        Optional<AlaUser> downloadUser = authService.getDownloadUser(dto, request);
 
         if (dto.getFacets().length > 0) {
             DownloadDetailsDTO dd = downloadService.registerDownload(
                     dto,
-                    downloadUser.orElse(new AuthenticatedUser()),  // anonymous facet downloads are allowed
+                    downloadUser.orElse(new AlaUser()),  // anonymous facet downloads are allowed
                     getIPAddress(request),
                     getUserAgent(request),
                     DownloadDetailsDTO.DownloadType.FACET
@@ -1022,7 +1021,7 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         DownloadRequestDTO dto = DownloadRequestDTO.create(requestParams, request);
-        Optional<AuthenticatedUser> downloadUser = authService.getDownloadUser(dto, request);
+        Optional<AlaUser> downloadUser = authService.getDownloadUser(dto, request);
         if (!downloadUser.isPresent()){
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "No authentication");
             return null;
@@ -1225,7 +1224,7 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(downloadParams, request);
-        Optional<AuthenticatedUser> downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
+        Optional<AlaUser> downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
 
         if (!downloadUser.isPresent()) {
             response.sendError(HttpServletResponse.SC_FORBIDDEN, "A valid registered email is required");
@@ -1489,8 +1488,8 @@ public class OccurrenceController extends AbstractSecureController {
                           @RequestParam(value = "im", required = false, defaultValue = "false") Boolean im,
                           HttpServletRequest request, HttpServletResponse response) throws Exception {
 
-        Optional<AuthenticatedUser> authenticatedUser = authService.getRecordViewUser(request);
-        Object responseObject = getOccurrenceInformation(recordUuid, im, request, authenticatedUser);
+        Optional<AlaUser> alaUser = authService.getRecordViewUser(request);
+        Object responseObject = getOccurrenceInformation(recordUuid, im, request, alaUser);
 
         if (responseObject == null) {
             sendCustomJSONResponse(response, HttpServletResponse.SC_NOT_FOUND, new HashMap<String, String>() {{
@@ -1518,7 +1517,7 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     private Object getOccurrenceInformation(String uuid, Boolean includeImageMetadata, HttpServletRequest request,
-                                            Optional<AuthenticatedUser> authenticatedUser) throws Exception {
+                                            Optional<AlaUser> authenticatedUser) throws Exception {
 
         logger.debug("Retrieving occurrence record with guid: '" + uuid + "'");
 

@@ -4,5 +4,5 @@
 
 rootProject.name = 'biocache-service'
 
-//include ':ala-ws-security-plugin'
-//project(':ala-ws-security-plugin').projectDir = new File(settingsDir, '../ala-ws-security-plugin')
+include ':ala-ws-security-plugin'
+project(':ala-ws-security-plugin').projectDir = new File(settingsDir, '../ala-ws-security-plugin')

@@ -27,7 +27,7 @@ import au.org.ala.biocache.util.thread.DownloadControlThread;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.biocache.writer.RecordWriterException;
 import au.org.ala.doi.CreateDoiResponse;
-import au.org.ala.ws.security.AuthenticatedUser;
+import au.org.ala.ws.security.AlaUser;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -508,12 +508,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @return
      */
     public DownloadDetailsDTO registerDownload(@NotNull DownloadRequestDTO requestParams,
-                                               AuthenticatedUser authenticatedUser,
+                                               AlaUser alaUser,
                                                String ip,
                                                String userAgent,
                                                DownloadDetailsDTO.DownloadType type) {
         afterInitialisation();
-        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, authenticatedUser, ip, userAgent, type);
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, alaUser, ip, userAgent, type);
         dd.setRequestParams(requestParams);
         currentDownloads.add(dd);
         return dd;
@@ -636,9 +636,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                         doiDetails.setTitle(biocacheDownloadDoiTitlePrefix + filename);
                         doiDetails.setApplicationUrl(dqFixedSearchUrl);
-                        doiDetails.setRequesterId(dd.getAuthenticatedUser().getUserId());
-                        doiDetails.setRequesterName(dd.getAuthenticatedUser().getFirstName() + " " + dd.getAuthenticatedUser().getLastName());
-                        doiDetails.setAuthorisedRoles(dd.getAuthenticatedUser().getRoles());
+                        doiDetails.setRequesterId(dd.getAlaUser().getUserId());
+                        doiDetails.setRequesterName(dd.getAlaUser().getFirstName() + " " + dd.getAlaUser().getLastName());
+                        doiDetails.setAuthorisedRoles(dd.getAlaUser().getRoles());
                         doiDetails.setDatasetMetadata(datasetMetadata);
                         doiDetails.setRequestTime(dd.getStartDateString());
                         doiDetails.setRecordCount(dd.getTotalRecords());
@@ -812,7 +812,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * Synchronous
      * @param requestParams
      * @param response
-     * @param authenticatedUser
+     * @param alaUser
      * @param ip
      * @param userAgent
      * @param out
@@ -822,7 +822,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      */
     public void writeQueryToStream(DownloadRequestDTO requestParams,
                                    HttpServletResponse response,
-                                   AuthenticatedUser authenticatedUser,
+                                   AlaUser alaUser,
                                    String ip,
                                    String userAgent,
                                    OutputStream out,
@@ -843,7 +843,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         }
 
         DownloadDetailsDTO.DownloadType type = DownloadType.RECORDS_INDEX;
-        DownloadDetailsDTO dd = registerDownload(requestParams, authenticatedUser, ip, userAgent, type);
+        DownloadDetailsDTO dd = registerDownload(requestParams, alaUser, ip, userAgent, type);
         writeQueryToStream(dd, new CloseShieldOutputStream(out), true, zip, parallelQueryExecutor, null);
     }
 
@@ -1217,7 +1217,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      *
      * @return A String with a Solr filter
      */
-    public String getSensitiveFq(List<String> userRoles) {
+    public String getSensitiveFq(Set<String> userRoles) {
 
         if (downloadAuthSensitive == null || !downloadAuthSensitive) {
             return null;

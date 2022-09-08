@@ -1,8 +1,7 @@
 package au.org.ala.biocache.service;
 
-import au.org.ala.ws.security.AuthenticatedUser;
-import au.org.ala.ws.security.JwtService;
-import au.org.ala.ws.security.LegacyApiKeyService;
+import au.org.ala.ws.security.AlaUser;
+import com.google.common.collect.Sets;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
@@ -11,7 +10,6 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 
-import static au.org.ala.ws.security.LegacyApiKeyService.ROLE_LEGACY_APIKEY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
@@ -23,19 +21,14 @@ public class AuthServiceTest {
 
     AutoCloseable mocks;
 
-    JwtService jwtService;
-    LegacyApiKeyService legacyApiKeyService;
     RestTemplate restTemplate;
 
-    final static AuthenticatedUser API_KEY_TEST_USER =
-            new AuthenticatedUser("test@test.com","Tester",
-                    Arrays.asList(new String[]{ROLE_LEGACY_APIKEY}), Collections.EMPTY_MAP, null, null);
+    final static AlaUser API_KEY_TEST_USER =
+            new AlaUser("test@test.com","Tester", Sets.newHashSet("ROLE_LEGACY_APIKEY"), Collections.EMPTY_MAP, null, null);
 
     @Before
     public void setup() {
         authService.userDetailsUrl = "http://mocked";
-        jwtService = mock(JwtService.class);
-        legacyApiKeyService = mock(LegacyApiKeyService.class);
         restTemplate = mock(RestTemplate.class);
         mocks = MockitoAnnotations.openMocks(this);
     }
@@ -53,7 +46,7 @@ public class AuthServiceTest {
                     put("last_name", "User");
                 }});
 
-        Optional<AuthenticatedUser> authenticatedUser =
+        Optional<AlaUser> authenticatedUser =
                 authService.lookupAuthUser("1234", true);
         assertTrue(authenticatedUser.isPresent());
         assertEquals("1234", authenticatedUser.get().getUserId());
@@ -73,7 +66,7 @@ public class AuthServiceTest {
                     put("last_name", "User");
                 }});
 
-        Optional<AuthenticatedUser> authenticatedUser =
+        Optional<AlaUser> authenticatedUser =
                 authService.lookupAuthUser("1234", true);
 
         assertFalse(authenticatedUser.isPresent());
@@ -95,7 +88,7 @@ public class AuthServiceTest {
                     put("last_name", "User");
                 }});
 
-        Optional<AuthenticatedUser> authenticatedUser =
+        Optional<AlaUser> authenticatedUser =
                 authService.lookupAuthUser("1234", true);
 
         assertFalse(authenticatedUser.isPresent());
@@ -107,7 +100,7 @@ public class AuthServiceTest {
         when(restTemplate.postForObject(any(String.class), any(), any()))
                 .thenReturn(new HashMap<String, Object>() {{ }});
 
-        Optional<AuthenticatedUser> authenticatedUser =
+        Optional<AlaUser> authenticatedUser =
                 authService.lookupAuthUser("1234", true);
 
         assertFalse(authenticatedUser.isPresent());

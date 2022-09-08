@@ -14,7 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
-import au.org.ala.ws.security.AuthenticatedUser;
+import au.org.ala.ws.security.AlaUser;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -38,7 +38,7 @@ public class DownloadDetailsDTO {
 
     private String ipAddress;
     private String userAgent;
-    private AuthenticatedUser authenticatedUser;
+    private AlaUser alaUser;
 
     // processing fields
     private String fileLocation;
@@ -57,9 +57,9 @@ public class DownloadDetailsDTO {
      */
     public DownloadDetailsDTO(){}
 
-    public DownloadDetailsDTO(@NotNull DownloadRequestDTO params, AuthenticatedUser authenticatedUser, String ipAddress, String userAgent, DownloadType type){
+    public DownloadDetailsDTO(@NotNull DownloadRequestDTO params, AlaUser alaUser, String ipAddress, String userAgent, DownloadType type){
         this.requestParams = params;
-        this.authenticatedUser = authenticatedUser;
+        this.alaUser = alaUser;
         this.ipAddress = ipAddress;
         this.userAgent = userAgent;
         this.downloadType = type;
@@ -222,12 +222,12 @@ public class DownloadDetailsDTO {
         this.processingThreadName = processingThreadName;
     }
 
-    public AuthenticatedUser getAuthenticatedUser() {
-        return authenticatedUser;
+    public AlaUser getAlaUser() {
+        return alaUser;
     }
 
-    public void setAuthenticatedUser(AuthenticatedUser authenticatedUser) {
-        this.authenticatedUser = authenticatedUser;
+    public void setAlaUser(AlaUser alaUser) {
+        this.alaUser = alaUser;
     }
 
     public void resetCounts() {
