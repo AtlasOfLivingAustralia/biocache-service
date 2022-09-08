@@ -8,7 +8,7 @@ cache:
 services:
   - docker
 jdk:
-  - openjdk8
+  - openjdk11
 branches:
   only:
     - master
