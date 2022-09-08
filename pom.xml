@@ -12,7 +12,7 @@
     <groupId>au.org.ala</groupId>
     <artifactId>biocache-service</artifactId>
     <packaging>war</packaging>
-    <version>3.1.1-SNAPSHOT</version>
+    <version>3.0.25-SNAPSHOT</version>
     <name>biocache-service</name>
     <url>https://biocache-ws.ala.org.au/ws</url>
     <description>
@@ -22,17 +22,19 @@
     <properties>
         <!-- This project uses UTF8 for Regular Expressions -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <openrdf.sesame.version>2.2</openrdf.sesame.version>
         <spring.version>5.3.9</spring.version>
-        <spring-boot.version>2.5.7</spring-boot.version>
         <junit.version>4.13.1</junit.version>
         <netbeans.hint.deploy.server>Tomcat</netbeans.hint.deploy.server>
         <targetJdk>1.8</targetJdk>
         <animal-sniffer-signature.artifact>java18</animal-sniffer-signature.artifact>
         <animal-sniffer-signature.version>1.0</animal-sniffer-signature.version>
-        <solr.version>8.11.0</solr.version>
-        <cassandra.version>3.11.0</cassandra.version>
-        <jackson.version>2.13.0</jackson.version>
-        <gt.version>26.0</gt.version>
+        <solr.version>8.8.2</solr.version>
+        <cassandra.version>3.10.2</cassandra.version>
+        <jackson.version>2.9.10</jackson.version>
+        <jackson.databind.version>2.9.10.8</jackson.databind.version>
+        <gt.version>22.2</gt.version>
+        <guava.hbase.version>23.0</guava.hbase.version>
         <ala-namematching-service.version>1.4</ala-namematching-service.version>
         <solr8.zk.port>9983</solr8.zk.port>
         <solr8.http.port>8983</solr8.http.port>
@@ -41,12 +43,11 @@
         <alanm.port>9179</alanm.port>
         <alanm.admin.port>9180</alanm.admin.port>
         <alanm.host>localhost</alanm.host>
-        <docker-maven-plugin.version>0.38.0</docker-maven-plugin.version>
+        <docker-maven-plugin.version>0.39.1</docker-maven-plugin.version>
         <findbugs-jsr305.version>3.0.2</findbugs-jsr305.version>
         <!-- Checkstyle -->
         <plexus-compiler-javac-errorprone.version>2.8.3</plexus-compiler-javac-errorprone.version>
         <error_prone_core.version>2.3.2</error_prone_core.version>
-        <slf4j.version>1.7.24</slf4j.version>
     </properties>
     <!-- AN SCM entry that points to the SVN directory that contains the pom file for the project  -->
     <scm>
@@ -56,103 +57,12 @@
         <tag>HEAD</tag>
     </scm>
     <dependencies>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-parent</artifactId>
-            <version>${spring-boot.version}</version>
-            <type>pom</type>
-            <scope>import</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>ch.qos.logback</groupId>
-                    <artifactId>logback-classic</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>ch.qos.logback</groupId>
-                    <artifactId>logback-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.logging.log4j</groupId>
-                    <artifactId>log4j-to-slf4j</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.logging.log4j</groupId>
-                    <artifactId>log4j-api</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-            <version>${spring-boot.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>ch.qos.logback</groupId>
-                    <artifactId>logback-classic</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>ch.qos.logback</groupId>
-                    <artifactId>logback-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.logging.log4j</groupId>
-                    <artifactId>log4j-to-slf4j</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.logging.log4j</groupId>
-                    <artifactId>log4j-api</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.tomcat.embed</groupId>
-            <artifactId>tomcat-embed-jasper</artifactId>
-            <version>9.0.55</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-cache</artifactId>
-            <version>${spring-boot.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
-            <version>${spring-boot.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
-            <version>${spring-boot.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-jersey</artifactId>
-            <version>${spring-boot.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-oxm</artifactId>
-            <version>5.3.13</version>
-        </dependency>
-        <dependency>
-            <groupId>javax.cache</groupId>
-            <artifactId>cache-api</artifactId>
-            <version>1.1.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.ehcache</groupId>
-            <artifactId>ehcache</artifactId>
-            <version>3.8.1</version>
-        </dependency>
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient-cache</artifactId>
-            <version>4.5.13</version>
+            <version>4.5.6</version>
         </dependency>
+
         <!-- JSR 380 validation support -->
         <dependency>
             <groupId>javax</groupId>
@@ -164,7 +74,7 @@
             <artifactId>hibernate-validator</artifactId>
             <version>6.2.0.Final</version>
         </dependency>
-        <!-- SOLR -->
+
         <dependency>
             <groupId>org.apache.solr</groupId>
             <artifactId>solr-solrj</artifactId>
@@ -177,10 +87,6 @@
                 <exclusion>
                     <groupId>org.eclipse.jetty</groupId>
                     <artifactId>jetty-alpn-java-server</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>jcl-over-slf4j</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -203,13 +109,8 @@
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
+            <version>${jackson.databind.version}</version>
         </dependency>
 
         <!-- geotools GML support -->
@@ -239,6 +140,7 @@
             <artifactId>ala-namematching-client</artifactId>
             <version>${ala-namematching-service.version}</version>
         </dependency>
+
         <dependency>
             <groupId>com.googlecode.json-simple</groupId>
             <artifactId>json-simple</artifactId>
@@ -269,16 +171,11 @@
             <artifactId>ehcache</artifactId>
             <version>2.10.9.2</version>
         </dependency>
-
+        <!-- LOG4J -->
         <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpcore</artifactId>
-            <version>4.4.14</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpclient</artifactId>
-            <version>4.5.13</version>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>1.2.16</version>
         </dependency>
         <!-- COMMONS -->
         <dependency>
@@ -294,15 +191,11 @@
 
         <!-- swagger -->
         <dependency>
-            <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-ui</artifactId>
-            <version>1.5.12</version>
+            <groupId>io.springfox</groupId>
+            <artifactId>springfox-swagger2</artifactId>
+            <version>2.6.0</version>
         </dependency>
-        <dependency>
-            <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-data-rest</artifactId>
-            <version>1.5.12</version>
-        </dependency>
+
         <!-- Sun's JSP API-->
         <dependency>
             <groupId>javax.servlet</groupId>
@@ -320,7 +213,7 @@
         <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>jstl</artifactId>
-            <version>1.2</version>
+            <version>1.1.2</version>
         </dependency>
         <dependency>
             <groupId>taglibs</groupId>
@@ -411,39 +304,51 @@
             <groupId>com.jayway.jsonpath</groupId>
             <artifactId>json-path</artifactId>
             <version>2.4.0</version>
+            <scope>test</scope>
         </dependency>
-        <!-- javax.mail to match dependency in gt-referencing -->
+        <!-- SPRING 5.3 -->
         <dependency>
-            <groupId>com.sun.mail</groupId>
-            <artifactId>javax.mail</artifactId>
-            <version>1.6.2</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/com.sun.mail/smtp -->
-        <dependency>
-            <groupId>com.sun.mail</groupId>
-            <artifactId>smtp</artifactId>
-            <version>2.0.1</version>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>${spring.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-oauth2-client</artifactId>
-            <version>${spring-boot.version}</version>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <!-- test only? -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-oxm</artifactId>
+            <version>${spring.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
-            <version>${spring-boot.version}</version>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <!-- test only? -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context-support</artifactId>
+            <version>${spring.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-devtools</artifactId>
-            <version>${spring-boot.version}</version>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+            <version>${spring.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-test</artifactId>
-            <version>5.6.0</version>
-            <scope>test</scope>
+            <artifactId>spring-security-web</artifactId>
+            <version>5.5.1</version>
         </dependency>
         <dependency>
             <groupId>commons-collections</groupId>
@@ -471,18 +376,36 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
+            <version>1.6.1</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jul-to-slf4j</artifactId>
-            <version>${slf4j.version}</version>
+            <version>1.6.1</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
-            <version>${slf4j.version}</version>
+            <version>1.6.1</version>
         </dependency>
+        <!-- JSR-250 -->
+<!--        <dependency>-->
+<!--            <groupId>javax.annotation</groupId>-->
+<!--            <artifactId>jsr250-api</artifactId>-->
+<!--            <version>1.0</version>-->
+<!--            <scope>provided</scope>-->
+<!--        </dependency>-->
+        <!-- DOM4J -->
+        <!--        <dependency>-->
+        <!--            <groupId>dom4j</groupId>-->
+        <!--            <artifactId>dom4j</artifactId>-->
+        <!--            <version>1.6.1</version>-->
+        <!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>jaxen</groupId>-->
+        <!--            <artifactId>jaxen</artifactId>-->
+        <!--            <version>1.1.1</version>-->
+        <!--        </dependency>-->
         <!-- VELOCITY -->
         <dependency>
             <groupId>org.apache.velocity</groupId>
@@ -511,6 +434,13 @@
             <artifactId>xmlpull</artifactId>
             <version>1.1.3.1</version>
         </dependency>
+
+        <!-- GEOIP - geocoding from IP address -->
+        <!--        <dependency>-->
+        <!--            <groupId>org.dspace.dependencies</groupId>-->
+        <!--            <artifactId>dspace-geoip</artifactId>-->
+        <!--            <version>1.2.3</version>-->
+        <!--        </dependency>-->
         <dependency>
             <groupId>commons-httpclient</groupId>
             <artifactId>commons-httpclient</artifactId>
@@ -553,17 +483,6 @@
             <groupId>au.org.ala</groupId>
             <artifactId>data-quality-filter-service-client</artifactId>
             <version>1.0.0</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>io.swagger</groupId>
-                    <artifactId>swagger-annotations</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>au.org.ala</groupId>
-            <artifactId>ala-ws-security</artifactId>
-            <version>1.0.1-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
@@ -571,29 +490,14 @@
             <version>2.5.14</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>com.auth0</groupId>
-            <artifactId>java-jwt</artifactId>
-            <version>3.18.2</version>
-        </dependency>
-        <dependency>
-            <groupId>com.auth0</groupId>
-            <artifactId>jwks-rsa</artifactId>
-            <version>0.20.0</version>
-        </dependency>
 
         <!-- GBIF assertion vocabulary -->
         <dependency>
             <groupId>org.gbif</groupId>
             <artifactId>gbif-api</artifactId>
-            <version>0.157</version>
+            <version>0.150</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-compress -->
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-compress</artifactId>
-            <version>1.21</version>
-        </dependency>
+
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>jsr305</artifactId>
@@ -604,17 +508,6 @@
             <artifactId>spring-tx</artifactId>
             <version>${spring.version}</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-autoconfigure</artifactId>
-            <version>${spring-boot.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>RELEASE</version>
-            <scope>compile</scope>
         </dependency>
 
     </dependencies>
@@ -627,22 +520,6 @@
             </resource>
         </resources>
         <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>${spring-boot.version}</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>repackage</goal>
-                        </goals>
-                        <configuration>
-                            <classifier>spring-boot</classifier>
-                            <mainClass>au.org.ala.biocache.config.Application</mainClass>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
             <plugin>
                 <groupId>io.fabric8</groupId>
                 <artifactId>docker-maven-plugin</artifactId>
@@ -667,7 +544,7 @@
                 <configuration>
                     <images>
                         <image>
-                            <alias>cassandra3</alias>
+                            <alias>biocache-cassandra3</alias>
                             <name>cassandra:3.11.10</name>
                             <run>
                                 <env>
@@ -690,26 +567,17 @@
                                     <port>${solr8.zk.port}:${solr8.zk.port}</port>
                                     <port>${solr8.http.port}:${solr8.http.port}</port>
                                 </ports>
-                                <wait>
-                                    <http>
-                                        <url>http://${solr8.http.host}:${solr8.http.port}/solr/</url>
-                                        <method>GET</method>
-                                        <status>200</status>
-                                    </http>
-                                    <time>20000</time>
-                                </wait>
                                 <env>
-                                    <ZK_HOST>localhost:${solr8.zk.port}</ZK_HOST>
                                     <SOLR_PORT>${solr8.http.port}</SOLR_PORT>
-                                    <SOLR_HOST>localhost</SOLR_HOST>
+                                    <SOLR_HOST>127.0.0.1</SOLR_HOST>
                                 </env>
                                 <entrypoint>
-                                    <shell>solr start -c -f -p ${solr8.http.port}</shell>
+                                    <shell>solr start -c -f</shell>
                                 </entrypoint>
                             </run>
                         </image>
                         <image>
-                            <alias>ala-nameservice</alias>
+                            <alias>biocache-ala-nameservice</alias>
                             <name>djtfmartin/ala-namematching-service:v20200214-17</name>
                             <run>
                                 <ports>
@@ -792,6 +660,7 @@
                         <configuration>
                             <includes>
                                 <include>**/*IT.java</include>
+
                                 <!-- *.groovy integration tests -->
                                 <include>**/*SpecIT.class</include>
                             </includes>
@@ -867,12 +736,6 @@
                         <goals>
                             <goal>merge</goal>
                             <goal>report</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>default-prepare-agent</id>
-                        <goals>
-                            <goal>prepare-agent</goal>
                         </goals>
                     </execution>
                 </executions>

@@ -3,8 +3,9 @@ package au.org.ala.biocache.util;
 import java.io.*;
 import java.net.URI;
 import java.nio.file.*;
-import java.nio.file.FileSystem;
 import java.util.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import okhttp3.*;
 import okio.BufferedSink;
@@ -46,11 +47,11 @@ public class SolrUtils {
     public static final String BIOCACHE_CONFIG_SET = "biocache";
 
     public static List<String> getZkHost() throws Exception {
-        return Arrays.asList( "localhost:9983");
+        return Arrays.asList( "127.0.0.1:9983");
     }
 
     public static String getHttpHost() throws Exception {
-        return "localhost:8983";
+        return "127.0.0.1:8983";
     }
 
     public static void main(String[] args) throws Exception{
@@ -104,11 +105,14 @@ public class SolrUtils {
             // File isn't present on the first run of the test.
         }
 
+
+        ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(new File("/tmp/configset.zip")));
+
         Map<String, String> env = new HashMap<>();
         env.put("create", "true");
-
+//
         URI uri = URI.create("jar:file:/tmp/configset.zip");
-
+//
         String absolutePath = new File(".").getAbsolutePath();
         String fullPath = absolutePath + "/solr/conf";
 
@@ -117,19 +121,23 @@ public class SolrUtils {
             fullPath = new File("../solr/conf").getAbsolutePath();
         }
 
+
         Path currentDir = Paths.get(fullPath);
-        FileSystem zipfs = FileSystems.newFileSystem(uri, env);
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(currentDir)) {
 
             for (Path solrFilePath : stream) {
                 if (!Files.isDirectory(solrFilePath)) {
-                    Path pathInZipfile = zipfs.getPath("/" + solrFilePath.getFileName());
+                    ZipEntry e = new ZipEntry(solrFilePath.getFileName().toString());
+                    zip.putNextEntry(e);
+                    byte[] fileContent = Files.readAllBytes(solrFilePath);
+                    zip.write(fileContent, 0, fileContent.length);
+                    zip.closeEntry();
                     // Copy a file into the zip file
-                    Files.copy(solrFilePath, pathInZipfile, StandardCopyOption.REPLACE_EXISTING);
+                    Files.copy(solrFilePath, solrFilePath, StandardCopyOption.REPLACE_EXISTING);
                 }
             }
         }
-        zipfs.close();
+        zip.close();
 
         OkHttpClient client = new OkHttpClient();
         MediaType MEDIA_TYPE_OCTET = MediaType.parse("application/octet-stream");
