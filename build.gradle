@@ -14,8 +14,8 @@ plugins {
     id 'java'
     id 'war'
     id 'maven-publish'
-    id 'org.springframework.boot' version "2.7.0"
-    id("com.avast.gradle.docker-compose") version "0.14.0"
+    id 'org.springframework.boot' version "2.7.3"
+    id 'com.avast.gradle.docker-compose' version "0.16.9"
 }
 
 repositories {

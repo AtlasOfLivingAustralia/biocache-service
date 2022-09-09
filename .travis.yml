@@ -1,14 +1,9 @@
-sudo: yes
 language: java
-cache:
-  directories:
-    - .docker
-    - .autoconf
-    - $HOME/.m2
-services:
-  - docker
+sudo: false
 jdk:
   - openjdk11
+services:
+  - docker
 branches:
   only:
     - master
@@ -16,14 +11,24 @@ branches:
     - /^epic\/.*\/develop$/
     - /^release\/.*$/
     - /^hotfix\/.*$/
+before_cache:
+  - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
+  - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
+cache:
+  directories:
+    - .docker
+    - .autoconf
+    - $HOME/.m2
+    - $HOME/.gradle/caches/
+    - $HOME/.gradle/wrapper/
 before_install:
-  - mkdir -p ~/.m2; wget -q -O ~/.m2/settings.xml https://raw.githubusercontent.com/AtlasOfLivingAustralia/travis-build-configuration/master/travis_maven_settings.xml
-  - cd $TRAVIS_BUILD_DIR
-script:
-  - '[ "${TRAVIS_PULL_REQUEST}" = "false" ] && ./gradlew clean && travis_retry ./gradlew publish'
+  - export TZ=Australia/Canberra
 after_success:
-  - mvn coveralls:report
+  - '[ "${TRAVIS_PULL_REQUEST}" = "false" ] && ./gradlew clean && travis_retry ./gradlew publish'
+#after_success:
+#  - mvn coveralls:report
 env:
   global:
+    - JAVA_TOOL_OPTIONS=-Dhttps.protocols=TLSv1.2
     - secure: Cz3CJDjuIm52LplBphLsQwNv055US4oxG51PgpJE6IYdta8KJxv04QwK+ytgb3eDNA6ec7XpGPuCaMnDXhpTTdMiluN0ATZY4dEkCIVTnHWGW0Fr0ydlwutkYx/kFUYIJwu9FueEPJYMYgPZ2LTxa6rrUATJ2U13N7R2ul3A5kQ=
     - secure: fLDJXNgi3H8PkGkquJZ3UdsdD1f99cJhbwFCv2PcaIaMyh29Y40EHIlCOmcfdYNEFa4kfOib2vj0e6u8VWDhSzJc+FzOPUU1bi7VzkWAWlQo8jPoq61VBELa+Gq/PayBvsZCN2lqE3Rb92NbyN9D/4rsRWRkKan/MZ/2KZGlK8U=
