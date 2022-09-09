@@ -155,6 +155,13 @@ dependencies {
     implementation 'javax.servlet:jsp-api:2.0'
 }
 
+test {
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+    }
+}
+
 publishing {
     publications {
         maven(MavenPublication) {
