@@ -22,19 +22,8 @@ import javax.inject.Inject;
 @Order(1)
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
-//    @Inject
-//    AlaWebServiceAuthFilter alaWebServiceAuthFilter;
-//
-//    @Inject
-//    @Named("pac4jJwtFilter")
-//    FilterRegistrationBean pac4jJwtFilter;
-
     @Autowired
     AlaWebServiceAuthFilter alaWebServiceAuthFilter;
-
-    @Inject
-    Config pac4jConfig;
-
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
