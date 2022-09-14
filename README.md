@@ -16,6 +16,16 @@ There are currently two supported versions:
 
 ## Development environment Setup
 
+SOLR and Cassandra are required by Biocache servcie.
+
+We can run those two docker instances
+
+or SSH tunnel in our test servers
+```
+ssh -L 8983:localhost:8983 aws-solr-test-1.ala
+ssh -L 9042:localhost:9042 aws-cass-test-1.ala
+```
+
 see wiki: https://github.com/AtlasOfLivingAustralia/biocache-service/wiki
 
 ## Integration Tests
@@ -37,3 +47,6 @@ Prerequisites are Docker version 17+. For more details see this [readme](/src/te
 Tests: please follow the conventions of the Maven Surefire plugin 
 or unit tests and those of the Maven Failsafe plugin for integration tests. To run the integration tests 
 just run the verify phase, e.g.: `mvn clean verify`
+
+
+

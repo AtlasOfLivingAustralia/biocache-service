@@ -152,6 +152,7 @@
     "measurement_value": "measurementValue",
     "min_depth_d": "minimumDepthInMeters",
     "min_elevation_d": "minimumElevationInMeters",
+    "min_elevation_d_rng": "minimumElevationInMeters",
     "misc_properties": "dynamicProperties",
     "modified_date": "modified",
     "mytest": null,
