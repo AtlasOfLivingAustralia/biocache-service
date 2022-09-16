@@ -67,8 +67,6 @@ public class AuthService {
     @Value("${caches.auth.enabled:true}")
     protected Boolean enabled = true;
 
-    @Value("${auth.legacy.apikey.enabled:true}")
-    protected Boolean legacyApiKeyEnabled = true;
     @Value("${auth.legacy.emailonly.downloads.enabled:true}")
     protected Boolean emailOnlyEnabled = true;
 
