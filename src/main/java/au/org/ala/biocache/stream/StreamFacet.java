@@ -45,7 +45,7 @@ public class StreamFacet implements ProcessInterface {
         this.includeLists = includeLists;
         this.missingCount = missingCount;
 
-        String facetName = downloadDetails.getRequestParams().getFacets()[0];
+        String facetName = request.getFacets()[0];
 
         // shouldLookup is valid for 1.0 and 2.0 SOLR schema
         boolean isGuid = request.getFacets()[0].contains("_guid") ||

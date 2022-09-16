@@ -57,8 +57,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * WMS and static map controller. This controller generates static PNG image files
- * that provide a heatmap of occurrences. 
- * 
+ * that provide a heatmap of occurrences.
+ *
  * TODO: This functionality is currently only supporting
  * overview maps for Australia but could be extended to support other regions.
  *
@@ -364,8 +364,9 @@ public class MapController {
      * Generate heatmap image (and associated legend if applicable)
      * @param requestParams
      */
+    @Deprecated
     public void generateStaticHeatmapImages(
-            SpatialSearchRequestParams requestParams, 
+            SpatialSearchRequestParams requestParams,
             boolean generateLegend,
             boolean forcePointsDisplay,
             Integer pointHeatMapThreshold,
@@ -374,7 +375,7 @@ public class MapController {
             String[] colours,
             Float opacity,
             HttpServletRequest request) throws Exception {
-        
+
         File baseDir = new File(heatmapOutputDir);
         logger.debug("Heatmap output directory is " + heatmapOutputDir);
         String outputHMFile = getOutputFile(request);
@@ -382,7 +383,7 @@ public class MapController {
         PointType pointType = PointType.POINT_001;
 
         double[] points = retrievePoints(requestParams, pointType);
-        
+
         HeatMap hm = new HeatMap();
 
         //heatmap versus points
@@ -429,6 +430,7 @@ public class MapController {
      * @param pointType
      * @return returns an empty array if none found.
      */
+    @Deprecated
     private double[] retrievePoints(SpatialSearchRequestParams requestParams, PointType pointType) {
 
         double[] points = new double[0];

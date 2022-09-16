@@ -1207,7 +1207,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
             cexpr.append(", bucketSorts=\"").append(facetName).append(" asc\"");
         } else {
             // default to count sort
-            cexpr.append(", bucketSorts=\"count(*) desc\"");
+            cexpr.append(", bucketSorts=\"count(*) desc\", count(*)");
         }
 
         int limit = query.getFacetLimit() >= 0 ? query.getFacetLimit() : -1;

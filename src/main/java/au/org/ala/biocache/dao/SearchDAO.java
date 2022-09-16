@@ -127,6 +127,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
+    @Deprecated
     List<OccurrencePoint> getFacetPoints(SpatialSearchRequestParams searchParams, PointType pointType) throws Exception;
 
     /**
@@ -137,6 +138,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
+    @Deprecated
     List<OccurrencePoint> findRecordsForLocation(SpatialSearchRequestParams requestParams, PointType pointType) throws Exception;
 
     /**
