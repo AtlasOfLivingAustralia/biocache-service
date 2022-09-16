@@ -162,12 +162,12 @@ test {
     }
 }
 
-publishing {
-    publications {
-        maven(MavenPublication) {
-            from(components.java)
-        }
-    }
+bootWar {
+    enabled = false
+}
+
+war {
+    archiveClassifier = ''
 }
 
 tasks.withType(JavaCompile) {
@@ -192,7 +192,7 @@ publishing {
     }
     publications {
         mavenJava(MavenPublication) {
-//            from components.java
+            from components.java
 //            artifact sourcesJar
 //            artifact javadocJar
 
