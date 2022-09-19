@@ -1035,11 +1035,6 @@
         "indexed":true,
         "docValues":true},
       {
-        "name":"minimumDepthInMeters",
-        "type":"string",
-        "indexed":true,
-        "docValues":true},
-      {
         "name":"minimumDistanceAboveSurfaceInMeters",
         "type":"string",
         "indexed":true,
