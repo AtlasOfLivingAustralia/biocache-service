@@ -953,18 +953,15 @@ public class OccurrenceController extends AbstractSecureController {
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
         if (requestParams.getFacets().length > 0) {
-            DownloadDetailsDTO dd = downloadService.registerDownload(requestParams, getIPAddress(request), getUserAgent(request), DownloadDetailsDTO.DownloadType.FACET);
             try {
                 String filename = requestParams.getFile() != null ? requestParams.getFile() : requestParams.getFacets()[0];
                 response.setHeader("Cache-Control", "must-revalidate");
                 response.setHeader("Pragma", "must-revalidate");
                 response.setHeader("Content-Disposition", "attachment;filename=" + filename + ".csv");
                 response.setContentType("text/csv");
-                searchDAO.writeFacetToStream(requestParams, includeCount, lookupName, includeSynonyms, includeLists, response.getOutputStream(), dd);
+                searchDAO.writeFacetToStream(requestParams, includeCount, lookupName, includeSynonyms, includeLists, response.getOutputStream(), null);
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
-            } finally {
-                downloadService.unregisterDownload(dd);
             }
         }
     }

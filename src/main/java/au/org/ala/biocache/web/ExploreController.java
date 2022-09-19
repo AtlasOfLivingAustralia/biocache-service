@@ -360,8 +360,7 @@ public class ExploreController {
 
         try {
             ServletOutputStream out = response.getOutputStream();
-            int count = searchDao.writeSpeciesCountByCircleToStream(requestParams, group, out);
-            logger.debug("Exported " + count + " species records in the requested area");
+            searchDao.writeSpeciesCountByCircleToStream(requestParams, group, out);
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         }
@@ -372,16 +371,14 @@ public class ExploreController {
      * JSON web service that returns a list of species and record counts for a given location search
      * and a higher taxa with rank.
      *
-     * @param model
      * @throws Exception
      */
     @RequestMapping(value = {"/explore/group/{group}*", "/explore/group/{group}.json*" }, method = RequestMethod.GET)
-    public @ResponseBody
-    List<TaxaCountDTO> listSpeciesForHigherTaxa(
+    public void listSpeciesForHigherTaxa(
             SpatialSearchRequestParams requestParams,
             @PathVariable(value = "group") String group,
             @RequestParam(value = "common", required = false, defaultValue = "false") boolean common,
-            Model model) throws Exception {
+            HttpServletResponse response) throws Exception {
 
         addGroupFilterToQuery(requestParams, group);
         applyFacetForCounts(requestParams, common);
@@ -393,7 +390,9 @@ public class ExploreController {
         requestParams.setFsort(requestParams.getSort());
         requestParams.setSort("");
 
-        return searchDao.findAllSpecies(requestParams);
+        response.setContentType("application/json");
+
+        searchDao.findAllSpeciesJSON(requestParams, response.getOutputStream());
     }
 
     /**

@@ -45,25 +45,25 @@ import java.util.concurrent.CountDownLatch;
 public class QidCacheDAOImpl implements QidCacheDAO {
 
     private final Logger logger = Logger.getLogger(QidCacheDAOImpl.class);
-    
+
     /**
      * max size of cached params in bytes
      */
     @Value("${qid.cache.size.max:104857600}")
     long maxCacheSize;
-    
+
     /**
      * min size of cached params in bytes
      */
     @Value("${qid.cache.size.min:52428800}")
     long minCacheSize;
-    
+
     /**
      * max single cacheable object size
      */
     @Value("${qid.cache.largestCacheableSize:5242880}")
     long largestCacheableSize;
-    
+
     /**
      * Limit WKT complexity to reduce index query time for qids.
      */
@@ -98,14 +98,14 @@ public class QidCacheDAOImpl implements QidCacheDAO {
      * in memory store of params
      */
     private ConcurrentMap<String, Qid> cache = new ConcurrentHashMap<String, Qid>();
-    
+
     /**
      * counter and lock
      */
     final private Object counterLock = new Object();
 
     private long cacheSize;
-    
+
     private CountDownLatch counter;
 
     private long triggerCleanSize = minCacheSize + (maxCacheSize - minCacheSize) / 2;
@@ -236,6 +236,11 @@ public class QidCacheDAOImpl implements QidCacheDAO {
         if (obj == null) {
             obj = load(key);
 
+            // Remove formatted q/fq when loading from database so that the query is formatted at least once.
+            // This is required to handle stored queries that do not reflect the current legacy field handling.
+            // e.g. queries that contained `lsid:`
+            obj.setDisplayString(null);
+
             if (obj != null) {
                 cache.put(key, obj);
 
@@ -284,7 +289,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
      */
     synchronized void cleanCache() {
         updateTriggerCleanSize();
-                
+
         if (cacheSize < triggerCleanSize) {
             return;
         }

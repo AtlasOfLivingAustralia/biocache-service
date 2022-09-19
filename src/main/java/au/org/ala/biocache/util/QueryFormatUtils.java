@@ -539,7 +539,7 @@ public class QueryFormatUtils {
 
         // TODO: remove the translation.
         // translation has been performed prior to formatting lsid (in formatQueryTerm)
-        // other formatting functions called prior should not use not inject query fields that need translation.   
+        // other formatting functions called prior should not use not inject query fields that need translation.
         String translatedQuery = fieldMappingUtil.translateQueryFields(current[1]);
 
         //if the query string contains lsid: we will need to replace it with the corresponding lft range

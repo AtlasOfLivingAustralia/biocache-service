@@ -318,10 +318,12 @@ public class WMSController extends AbstractSecureController {
             "/webportal/species.json",
             "/mapping/species",
             "/mapping/species.json"}, method = RequestMethod.GET)
-    public
-    @ResponseBody
-    List<TaxaCountDTO> listSpecies(SpatialSearchRequestParams requestParams) throws Exception {
-        return searchDAO.findAllSpecies(requestParams);
+    public void listSpecies(SpatialSearchRequestParams requestParams,
+                                   HttpServletResponse response) throws Exception {
+
+        response.setContentType("application/json");
+
+        searchDAO.findAllSpeciesJSON(requestParams, response.getOutputStream());
     }
 
     /**
@@ -335,55 +337,9 @@ public class WMSController extends AbstractSecureController {
             SpatialSearchRequestParams requestParams,
             HttpServletResponse response) throws Exception {
 
-        List<TaxaCountDTO> list = searchDAO.findAllSpecies(requestParams);
+        response.setContentType("application/json");
 
-        //format as csv
-        StringBuilder sb = new StringBuilder();
-        sb.append("Family,Scientific name,Common name,Taxon rank,LSID,# Occurrences");
-        for (TaxaCountDTO d : list) {
-            String family = d.getFamily();
-            String name = d.getName();
-            String commonName = d.getCommonName();
-            String guid = d.getGuid();
-            String rank = d.getRank();
-
-            if (family == null) {
-                family = "";
-            }
-            if (name == null) {
-                name = "";
-            }
-            if (commonName == null) {
-                commonName = "";
-            }
-
-            if (d.getGuid() == null) {
-                //when guid is empty name contains name_lsid value.
-                if (d.getName() != null) {
-                    //parse name
-                    String[] nameLsid = d.getName().split("\\|");
-                    if (nameLsid.length >= 2) {
-                        name = nameLsid[0];
-                        guid = nameLsid[1];
-                        rank = "scientific name";
-
-                        if (nameLsid.length >= 3) {
-                            commonName = nameLsid[2];
-                        }
-                    } else {
-                        name = NULL_NAME;
-                    }
-                }
-            }
-            if (d.getCount() != null && guid != null) {
-                sb.append("\n\"").append(family.replace("\"", "\"\"").trim()).append("\",\"").append(name.replace("\"", "\"\"").trim()).append("\",\"").append(commonName.replace("\"", "\"\"").trim()).append("\",").append(rank).append(",").append(guid).append(",").append(d.getCount());
-            }
-        }
-
-        response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
-        response.setHeader("ETag", wmsETag.get());
-
-        writeBytes(response, sb.toString().getBytes(StandardCharsets.UTF_8));
+        searchDAO.findAllSpeciesCSV(requestParams, response.getOutputStream());
     }
 
     /**

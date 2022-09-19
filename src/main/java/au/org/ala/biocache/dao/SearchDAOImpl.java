@@ -496,36 +496,10 @@ public class SearchDAOImpl implements SearchDAO {
             logger.debug("Writing CSV file for species count by circle");
         }
         searchParams.setFlimit(-1);
-        List<TaxaCountDTO> species = getSpeciesCounts(searchParams);
-        if (logger.isDebugEnabled()) {
-            logger.debug("There are " + species.size() + "records being downloaded");
-        }
-        try (CSVWriter csvWriter = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(out), StandardCharsets.UTF_8), '\t', '"');) {
-            csvWriter.writeNext(new String[]{
-                    "Taxon ID",
-                    "Kingdom",
-                    "Family",
-                    "Scientific name",
-                    "Common name",
-                    "Record count",});
-            int count = 0;
-            for (TaxaCountDTO item : species) {
 
-                String[] record = new String[]{
-                        item.getGuid(),
-                        item.getKingdom(),
-                        item.getFamily(),
-                        item.getName(),
-                        item.getCommonName(),
-                        item.getCount().toString()
-                };
+        getSpeciesCountsCSVCircle(searchParams, out);
 
-                csvWriter.writeNext(record);
-                count++;
-            }
-            csvWriter.flush();
-            return count;
-        }
+        return 0;
     }
 
     /**
@@ -1470,16 +1444,28 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws SolrServerException
      */
-    protected List<TaxaCountDTO> getSpeciesCounts(SpatialSearchRequestParams requestParams) throws Exception {
-
-        List<TaxaCountDTO> speciesCounts = new ArrayList<TaxaCountDTO>();
+    protected void getSpeciesCountsJSON(SpatialSearchRequestParams requestParams, OutputStream outputStream) throws Exception {
         SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
         solrQuery.setFacetMissing(false);
 
-        StreamTaxaCount procFacet = new StreamTaxaCount(this, searchUtils, requestParams, speciesCounts);
+        StreamTaxaCount procFacet = new StreamTaxaCount(this, searchUtils, requestParams, outputStream);
         indexDao.streamingQuery(solrQuery, null, procFacet, null);
+    }
 
-        return speciesCounts;
+    protected void getSpeciesCountsCSV(SpatialSearchRequestParams requestParams, OutputStream outputStream) throws Exception {
+        SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
+        solrQuery.setFacetMissing(false);
+
+        StreamTaxaAsCSV procFacet = new StreamTaxaAsCSV(this, searchUtils, requestParams, outputStream);
+        indexDao.streamingQuery(solrQuery, null, procFacet, null);
+    }
+
+    protected void getSpeciesCountsCSVCircle(SpatialSearchRequestParams requestParams, OutputStream outputStream) throws Exception {
+        SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
+        solrQuery.setFacetMissing(false);
+
+        StreamTaxaAsCSVCircle procFacet = new StreamTaxaAsCSVCircle(this, searchUtils, requestParams, outputStream);
+        indexDao.streamingQuery(solrQuery, null, procFacet, null);
     }
 
     /**
@@ -1875,15 +1861,27 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see au.org.ala.biocache.dao.SearchDAO#findAllSpecies(SpatialSearchRequestParams)
+     * @see au.org.ala.biocache.dao.SearchDAO#findAllSpeciesJSON(SpatialSearchRequestParams, OutputStream)
      */
     @Override
-    public List<TaxaCountDTO> findAllSpecies(SpatialSearchRequestParams requestParams) throws Exception {
+    public void findAllSpeciesJSON(SpatialSearchRequestParams requestParams, OutputStream outputStream) throws Exception {
         if (requestParams.getFacets() == null || requestParams.getFacets().length != 1) {
             requestParams.setFacets(new String[]{NAMES_AND_LSID});
         }
 
-        return getSpeciesCounts(requestParams);
+        getSpeciesCountsJSON(requestParams, outputStream);
+    }
+
+    /**
+     * @see au.org.ala.biocache.dao.SearchDAO#findAllSpeciesJSON(SpatialSearchRequestParams, OutputStream)
+     */
+    @Override
+    public void findAllSpeciesCSV(SpatialSearchRequestParams requestParams, OutputStream outputStream) throws Exception {
+        if (requestParams.getFacets() == null || requestParams.getFacets().length != 1) {
+            requestParams.setFacets(new String[]{NAMES_AND_LSID});
+        }
+
+        getSpeciesCountsCSV(requestParams, outputStream);
     }
 
     /**
@@ -2348,7 +2346,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
     }
 
-    // TODO: single request to improve performance
+    @Deprecated
     @Override
     public List<String> listFacets(SpatialSearchRequestParams searchParams) throws Exception {
         searchParams.setFacet(true);

@@ -4,11 +4,16 @@ import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.dto.TaxaCountDTO;
 import au.org.ala.biocache.util.SearchUtils;
+import com.fasterxml.jackson.core.JsonEncoding;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.io.Tuple;
 
-import java.util.List;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.regex.Pattern;
 
 import static au.org.ala.biocache.dto.OccurrenceIndex.COMMON_NAME_AND_LSID;
@@ -21,19 +26,23 @@ public class StreamTaxaCount implements ProcessInterface {
     SearchDAOImpl searchDAO;
     SearchUtils searchUtils;
     SpatialSearchRequestParams request;
-    List<TaxaCountDTO> speciesCounts;
+    OutputStream outputStream;
     boolean isNamesAndLSID;
     boolean isCommonNameAndLSID;
     Pattern pattern = java.util.regex.Pattern.compile("\\|");
+    JsonGenerator jsonGenerator;
 
-    public StreamTaxaCount(SearchDAOImpl searchDAO, SearchUtils searchUtils, SpatialSearchRequestParams request, List<TaxaCountDTO> speciesCounts) {
-        this.speciesCounts = speciesCounts;
+
+    public StreamTaxaCount(SearchDAOImpl searchDAO, SearchUtils searchUtils, SpatialSearchRequestParams request, OutputStream outputStream) {
         this.request = request;
         this.searchDAO = searchDAO;
         this.searchUtils = searchUtils;
+        this.outputStream = outputStream;
 
         isNamesAndLSID = NAMES_AND_LSID.equals(request.getFacets()[0]);
         isCommonNameAndLSID = COMMON_NAME_AND_LSID.equals(request.getFacets()[0]);
+
+        initWriter();
     }
 
     public boolean process(Tuple tuple) {
@@ -70,7 +79,7 @@ public class StreamTaxaCount implements ProcessInterface {
                 }
 
                 if (tcDTO != null && tcDTO.getCount() > 0)
-                    speciesCounts.add(tcDTO);
+                    write(tcDTO);
             } else if (isCommonNameAndLSID) {
                 String[] values = pattern.split(name, 6);
 
@@ -93,7 +102,7 @@ public class StreamTaxaCount implements ProcessInterface {
                 }
 
                 if (tcDTO != null && tcDTO.getCount() > 0) {
-                    speciesCounts.add(tcDTO);
+                    write(tcDTO);
                 }
             }
         } catch (Exception e) {
@@ -104,6 +113,29 @@ public class StreamTaxaCount implements ProcessInterface {
     }
 
     public boolean flush() {
+        try {
+            jsonGenerator.writeEndArray();
+            jsonGenerator.flush();
+        } catch (Exception e) {
+            logger.error("cannot finish writing JSON", e);
+        }
+
         return true;
+    }
+
+    void initWriter() {
+        try {
+            JsonFactory jsonFactory = new JsonFactory();
+            jsonGenerator = jsonFactory.createGenerator(outputStream, JsonEncoding.UTF8);
+            jsonGenerator.setCodec(new ObjectMapper());
+
+            // start output array
+            jsonGenerator.writeStartArray();
+        } catch (Exception e) {
+            logger.error("cannot output JSON", e);
+        }
+    }
+    void write(TaxaCountDTO d) throws IOException {
+        jsonGenerator.writeObject(d);
     }
 }

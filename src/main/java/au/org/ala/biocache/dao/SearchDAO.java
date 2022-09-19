@@ -174,13 +174,22 @@ public interface SearchDAO {
     Map<String, Integer> getOccurrenceCountsForTaxa(List<String> taxa, String[] filterQueries) throws Exception;
 
     /**
-     * Find all species (and counts) for a given query.
+     * Find all species (and counts) for a given query and stream as JSON
      *
      * @param requestParams
      * @return
      * @throws Exception
      */
-    List<TaxaCountDTO> findAllSpecies(SpatialSearchRequestParams requestParams) throws Exception;
+    void findAllSpeciesJSON(SpatialSearchRequestParams requestParams, OutputStream outputStream) throws Exception;
+
+    /**
+     * Find all species (and counts) for a given query and stream as CSV
+     *
+     * @param requestParams
+     * @return
+     * @throws Exception
+     */
+    void findAllSpeciesCSV(SpatialSearchRequestParams requestParams, OutputStream outputStream) throws Exception;
 
     /**
      * Find all occurrences for a given query as SolrDocumentList
