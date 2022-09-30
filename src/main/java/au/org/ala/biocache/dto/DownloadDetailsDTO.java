@@ -14,7 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
-import au.org.ala.ws.security.AlaUser;
+import au.org.ala.ws.security.profile.AlaUserProfile;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -38,7 +38,7 @@ public class DownloadDetailsDTO {
 
     private String ipAddress;
     private String userAgent;
-    private AlaUser alaUser;
+    private AlaUserProfile alaUser;
 
     // processing fields
     private String fileLocation;
@@ -57,7 +57,7 @@ public class DownloadDetailsDTO {
      */
     public DownloadDetailsDTO(){}
 
-    public DownloadDetailsDTO(@NotNull DownloadRequestDTO params, AlaUser alaUser, String ipAddress, String userAgent, DownloadType type){
+    public DownloadDetailsDTO(@NotNull DownloadRequestDTO params, AlaUserProfile alaUser, String ipAddress, String userAgent, DownloadType type){
         this.requestParams = params;
         this.alaUser = alaUser;
         this.ipAddress = ipAddress;
@@ -222,11 +222,11 @@ public class DownloadDetailsDTO {
         this.processingThreadName = processingThreadName;
     }
 
-    public AlaUser getAlaUser() {
+    public AlaUserProfile getAlaUser() {
         return alaUser;
     }
 
-    public void setAlaUser(AlaUser alaUser) {
+    public void setAlaUser(AlaUserProfile alaUser) {
         this.alaUser = alaUser;
     }
 

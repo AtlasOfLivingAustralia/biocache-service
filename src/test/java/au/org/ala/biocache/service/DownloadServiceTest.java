@@ -12,7 +12,7 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.doi.CreateDoiResponse;
-import au.org.ala.ws.security.AlaUser;
+import au.org.ala.ws.security.profile.AlaUserProfile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.io.FileUtils;
@@ -83,8 +83,8 @@ public class DownloadServiceTest {
     @Autowired
     IndexDAO indexDAO;
 
-    final static AlaUser TEST_USER =
-            new AlaUser("test@test.com","Tester", Collections.EMPTY_SET, Collections.EMPTY_MAP, null, null);
+    final static AlaUserProfile TEST_USER =
+            new AlaUserProfile("Tester", "test@test.com", null, null, Collections.EMPTY_SET, Collections.EMPTY_MAP);
 
 
     /**
@@ -225,7 +225,7 @@ public class DownloadServiceTest {
 
     /**
      * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#registerDownload(DownloadRequestDTO, AlaUser, String, String, DownloadType)}
+     * {@link DownloadService#registerDownload(DownloadRequestDTO, au.org.ala.ws.security.profile.AlaUserProfile, String, String, DownloadType)}
      */
     @Test
     public final void testRegisterDownload() throws Exception {

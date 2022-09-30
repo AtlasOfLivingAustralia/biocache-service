@@ -15,7 +15,7 @@
 package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dto.DownloadRequestDTO;
-import au.org.ala.ws.security.AlaUser;
+import au.org.ala.ws.security.profile.AlaUserProfile;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
@@ -30,6 +30,7 @@ import javax.inject.Inject;
 import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 import javax.servlet.http.HttpServletRequest;
+import java.security.Principal;
 import java.util.*;
 
 /**
@@ -224,11 +225,13 @@ public class AuthService {
      * 2) Legacy API Key and X-Auth-Id - email address retrieved from CAS/Userdetails - email address is ignored...
      * 3) Email address supplied (Galah) - email address is verified - no sensitive access
      */
-    public Optional<AlaUser> getDownloadUser(DownloadRequestDTO downloadRequestDTO, HttpServletRequest request) {
+    public Optional<AlaUserProfile> getDownloadUser(DownloadRequestDTO downloadRequestDTO, HttpServletRequest request) {
 
         // 2) Check for JWT / OAuth
-        if (request.getUserPrincipal() != null && request.getUserPrincipal() instanceof PreAuthenticatedAuthenticationToken){
-            return Optional.of((AlaUser) ((PreAuthenticatedAuthenticationToken) request.getUserPrincipal()).getPrincipal());
+        Principal userPrincipal = request.getUserPrincipal();
+
+        if (userPrincipal != null && userPrincipal instanceof AlaUserProfile){
+            return Optional.of((AlaUserProfile) userPrincipal);
         }
 
         // 3) Email address supplied (Galah / ala4r) - email address is verified - no roles, no sensitive access
@@ -253,12 +256,12 @@ public class AuthService {
      * 1) Check for JWT / OAuth- user is retrieved from UserPrincipal along with a set of roles, supplied email address is ignored...
      * 2) Legacy API Key and X-Auth-Id - email address retrieved from CAS/Userdetails - email address is ignored...
      */
-    public Optional<AlaUser> getRecordViewUser(HttpServletRequest request) {
+    public Optional<AlaUserProfile> getRecordViewUser(HttpServletRequest request) {
         // 2) Check for JWT / OAuth
-        if (request.getUserPrincipal() != null && request.getUserPrincipal() instanceof PreAuthenticatedAuthenticationToken){
-            return Optional.of(
-                    (AlaUser) ((PreAuthenticatedAuthenticationToken) request.getUserPrincipal()).getPrincipal()
-            );
+        Principal userPrincipal = request.getUserPrincipal();
+
+        if (userPrincipal != null && userPrincipal instanceof AlaUserProfile){
+            return Optional.of((AlaUserProfile) userPrincipal);
         }
         return Optional.empty();
     }
@@ -270,7 +273,7 @@ public class AuthService {
      * @param getRoles
      * @return
      */
-    public Optional<AlaUser> lookupAuthUser(String userIdOrEmail, boolean getRoles) {
+    public Optional<AlaUserProfile> lookupAuthUser(String userIdOrEmail, boolean getRoles) {
         Map<String, Object> userDetails = (Map<String, Object>) getUserDetails(userIdOrEmail);
         if (userDetails == null || userDetails.isEmpty()) {
             return Optional.empty();
@@ -290,7 +293,7 @@ public class AuthService {
 
         if (email != null && activated && !locked) {
             return Optional.of(
-                    new AlaUser(email, userId, userRoles, Collections.emptyMap(), firstName, lastName)
+                    new AlaUserProfile(userId, email, firstName, lastName, userRoles, Collections.emptyMap())
             );
         } else {
             log.info("Download request with API key failed " +

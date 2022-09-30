@@ -6,7 +6,7 @@ import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.web.DownloadController;
-import au.org.ala.ws.security.AlaUser;
+import au.org.ala.ws.security.profile.AlaUserProfile;
 import junit.framework.TestCase;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -44,8 +44,8 @@ public class DownloadControllerIT extends TestCase {
         System.setProperty("biocache.config", System.getProperty("user.dir") + "/src/test/resources/biocache-test-config.properties");
     }
 
-    final static AlaUser TEST_USER =
-            new AlaUser("test@test.com","Tester", Collections.EMPTY_SET,Collections.EMPTY_MAP, null, null);
+    final static AlaUserProfile TEST_USER =
+            new AlaUserProfile("Tester","test@test.com", null, null, Collections.EMPTY_SET,Collections.EMPTY_MAP);
 
     @Autowired
     DownloadController downloadController;

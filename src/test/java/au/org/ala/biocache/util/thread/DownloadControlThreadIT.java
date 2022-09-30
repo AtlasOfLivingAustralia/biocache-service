@@ -6,7 +6,6 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.biocache.dto.FacetThemes;
-import au.org.ala.ws.security.AlaUser;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -350,7 +349,7 @@ public class DownloadControlThreadIT {
         for (int i = 0; i < count; i++) {
             DownloadDetailsDTO nextDownload = new DownloadDetailsDTO(
                     new DownloadRequestDTO(),
-                    new AlaUser(),
+                    null,
                     "127.0.0.1",
                     "",
                     DownloadType.RECORDS_INDEX);

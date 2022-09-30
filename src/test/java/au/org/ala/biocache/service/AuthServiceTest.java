@@ -1,6 +1,6 @@
 package au.org.ala.biocache.service;
 
-import au.org.ala.ws.security.AlaUser;
+import au.org.ala.ws.security.profile.AlaUserProfile;
 import com.google.common.collect.Sets;
 import org.junit.Before;
 import org.junit.Test;
@@ -23,8 +23,8 @@ public class AuthServiceTest {
 
     RestTemplate restTemplate;
 
-    final static AlaUser API_KEY_TEST_USER =
-            new AlaUser("test@test.com","Tester", Sets.newHashSet("ROLE_LEGACY_APIKEY"), Collections.EMPTY_MAP, null, null);
+    final static AlaUserProfile API_KEY_TEST_USER =
+            new AlaUserProfile("Tester", "test@test.com", null, null, Sets.newHashSet("ROLE_LEGACY_APIKEY"), Collections.EMPTY_MAP);
 
     @Before
     public void setup() {
@@ -46,10 +46,10 @@ public class AuthServiceTest {
                     put("last_name", "User");
                 }});
 
-        Optional<AlaUser> authenticatedUser =
+        Optional<AlaUserProfile> authenticatedUser =
                 authService.lookupAuthUser("1234", true);
         assertTrue(authenticatedUser.isPresent());
-        assertEquals("1234", authenticatedUser.get().getUserId());
+        assertEquals("1234", authenticatedUser.get().getId());
         assertEquals("test@test.com", authenticatedUser.get().getEmail());
     }
 
@@ -66,7 +66,7 @@ public class AuthServiceTest {
                     put("last_name", "User");
                 }});
 
-        Optional<AlaUser> authenticatedUser =
+        Optional<AlaUserProfile> authenticatedUser =
                 authService.lookupAuthUser("1234", true);
 
         assertFalse(authenticatedUser.isPresent());
@@ -88,7 +88,7 @@ public class AuthServiceTest {
                     put("last_name", "User");
                 }});
 
-        Optional<AlaUser> authenticatedUser =
+        Optional<AlaUserProfile> authenticatedUser =
                 authService.lookupAuthUser("1234", true);
 
         assertFalse(authenticatedUser.isPresent());
@@ -100,7 +100,7 @@ public class AuthServiceTest {
         when(restTemplate.postForObject(any(String.class), any(), any()))
                 .thenReturn(new HashMap<String, Object>() {{ }});
 
-        Optional<AlaUser> authenticatedUser =
+        Optional<AlaUserProfile> authenticatedUser =
                 authService.lookupAuthUser("1234", true);
 
         assertFalse(authenticatedUser.isPresent());

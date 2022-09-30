@@ -26,7 +26,7 @@ import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.util.OccurrenceUtils;
 import au.org.ala.biocache.util.QidSizeException;
 import au.org.ala.biocache.util.SearchUtils;
-import au.org.ala.ws.security.AlaUser;
+import au.org.ala.ws.security.profile.AlaUserProfile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.swagger.annotations.*;
@@ -851,7 +851,7 @@ public class OccurrenceController extends AbstractSecureController {
 
          SearchResultDTO srtdto = null;
          //FIXME - under what circumstances do we allow sensitive search results....
-         if (request.getUserPrincipal() == null && request.isUserInRole("ROLE_ADMIN")) {
+         if (request.getUserPrincipal() != null && request.isUserInRole("ROLE_ADMIN")) {
              // what do we do here
              srtdto = searchDAO.findByFulltextSpatialQuery(dto, true, map);
          } else {
@@ -923,12 +923,12 @@ public class OccurrenceController extends AbstractSecureController {
             HttpServletResponse response){
 
         DownloadRequestDTO dto = DownloadRequestDTO.create(requestParams, request);
-        Optional<AlaUser> downloadUser = authService.getDownloadUser(dto, request);
+        Optional<AlaUserProfile> downloadUser = authService.getDownloadUser(dto, request);
 
         if (dto.getFacets().length > 0) {
             DownloadDetailsDTO dd = downloadService.registerDownload(
                     dto,
-                    downloadUser.orElse(new AlaUser()),  // anonymous facet downloads are allowed
+                    downloadUser.orElse(null),  // anonymous facet downloads are allowed
                     getIPAddress(request),
                     getUserAgent(request),
                     DownloadDetailsDTO.DownloadType.FACET
@@ -1021,7 +1021,7 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         DownloadRequestDTO dto = DownloadRequestDTO.create(requestParams, request);
-        Optional<AlaUser> downloadUser = authService.getDownloadUser(dto, request);
+        Optional<AlaUserProfile> downloadUser = authService.getDownloadUser(dto, request);
         if (!downloadUser.isPresent()){
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "No authentication");
             return null;
@@ -1230,7 +1230,7 @@ public class OccurrenceController extends AbstractSecureController {
         }
 
         DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(downloadParams, request);
-        Optional<AlaUser> downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
+        Optional<AlaUserProfile> downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
 
         if (!downloadUser.isPresent()) {
             response.sendError(HttpServletResponse.SC_FORBIDDEN, "A valid registered email is required");
@@ -1494,7 +1494,7 @@ public class OccurrenceController extends AbstractSecureController {
                           @RequestParam(value = "im", required = false, defaultValue = "false") Boolean im,
                           HttpServletRequest request, HttpServletResponse response) throws Exception {
 
-        Optional<AlaUser> alaUser = authService.getRecordViewUser(request);
+        Optional<AlaUserProfile> alaUser = authService.getRecordViewUser(request);
         Object responseObject = getOccurrenceInformation(recordUuid, im, request, alaUser);
 
         if (responseObject == null) {
@@ -1523,7 +1523,7 @@ public class OccurrenceController extends AbstractSecureController {
     }
 
     private Object getOccurrenceInformation(String uuid, Boolean includeImageMetadata, HttpServletRequest request,
-                                            Optional<AlaUser> authenticatedUser) throws Exception {
+                                            Optional<AlaUserProfile> authenticatedUser) throws Exception {
 
         logger.debug("Retrieving occurrence record with guid: '" + uuid + "'");
 

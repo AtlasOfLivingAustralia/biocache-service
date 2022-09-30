@@ -47,6 +47,7 @@ dependencies {
 
     compileOnly 'org.projectlombok:lombok:1.18.24'
     annotationProcessor 'org.projectlombok:lombok:1.18.24'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
 //    implementation 'org.springframework.boot:spring-boot-starter-parent:2.5.7'
 
@@ -153,6 +154,9 @@ dependencies {
 
     implementation 'javax.servlet:javax.servlet-api:3.1.0'
     implementation 'javax.servlet:jsp-api:2.0'
+
+    providedRuntime 'javax.el:javax.el-api:3.0.0'
+    providedRuntime 'org.glassfish:javax.el:3.0.0'
 }
 
 test {

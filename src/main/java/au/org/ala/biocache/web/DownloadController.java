@@ -21,7 +21,7 @@ import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
-import au.org.ala.ws.security.AlaUser;
+import au.org.ala.ws.security.profile.AlaUserProfile;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -34,7 +34,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.solr.common.SolrDocumentList;
 import org.springdoc.api.annotations.ParameterObject;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.annotation.Secured;
@@ -81,12 +80,6 @@ public class DownloadController extends AbstractSecureController {
     @Inject
     protected DownloadService downloadService;
 
-    @Value("${download.auth.bypass:false}")
-    boolean authBypass = false;
-
-    @Value("${download.auth.role:ROLE_USER}")
-    String downloadRole;
-
     /**
      * Retrieves all the downloads that are on the queue
      * @return
@@ -129,7 +122,7 @@ public class DownloadController extends AbstractSecureController {
             HttpServletResponse response) throws Exception {
 
         DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(requestParams, request);
-        Optional<AlaUser> downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
+        Optional<AlaUserProfile> downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
 
         if (!downloadUser.isPresent()){
             response.sendError(400, "No valid email");
@@ -147,7 +140,7 @@ public class DownloadController extends AbstractSecureController {
     }
 
     private Map<String, Object> download(DownloadRequestDTO requestParams,
-                                         AlaUser alaUser,
+                                         AlaUserProfile alaUser,
                                          String ip,
                                          String userAgent,
                                          HttpServletRequest request,
