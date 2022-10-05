@@ -346,7 +346,7 @@ public class WMSController extends AbstractSecureController {
     @RequestMapping(value = {
 //            "/webportal/species.csv",
             "/mapping/species.csv"
-    }, method = RequestMethod.GET, produces = "text/csv")
+    }, method = RequestMethod.GET, produces = {"text/csv", "text/plain"})
     public void listSpeciesCsv(
             @ParameterObject SpatialSearchRequestParams requestParams,
             HttpServletResponse response) throws Exception {
