@@ -20,7 +20,8 @@ plugins {
     id 'com.avast.gradle.docker-compose' version "0.16.9"
     id "com.gorylenko.gradle-git-properties" version "2.4.1"
     id 'jacoco'
-    id "com.github.nbaztec.coveralls-jacoco" version "1.2.15"
+    id 'com.github.kt3k.coveralls' version '2.12.0'
+//    id "com.github.nbaztec.coveralls-jacoco" version "1.2.15"
 }
 
 repositories {
@@ -227,9 +228,13 @@ dockerCompose {
 jacocoTestReport {
     reports {
         xml.enabled = true
+        html.enabled = true
     }
 }
 
+tasks.coveralls {
+    dependsOn 'check'
+}
 
 publishing {
     repositories {
