@@ -282,7 +282,7 @@ public class AssertionController extends AbstractSecureController {
 
         try {
             if (assertionService.deleteAssertion(recordUuid, assertionUuid)) {
-                return ResponseEntity.ok().build();
+                return ResponseEntity.ok().contentLength(0).build();
             }
 
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "recordUuid " + recordUuid + " or assertionUuid " + assertionUuid + " doesn't exist");
@@ -317,7 +317,7 @@ public class AssertionController extends AbstractSecureController {
         try {
 
             if (assertionService.deleteAssertion(recordUuid, assertionUuid)) {
-                return ResponseEntity.ok().build();
+                return ResponseEntity.ok().contentLength(0).build();
             }
 
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "recordUuid " + recordUuid + " or assertionUuid " + assertionUuid + " doesn't exist");
