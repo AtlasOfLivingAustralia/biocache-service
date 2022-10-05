@@ -19,6 +19,8 @@ plugins {
     id 'org.springframework.boot' version "2.7.3"
     id 'com.avast.gradle.docker-compose' version "0.16.9"
     id "com.gorylenko.gradle-git-properties" version "2.4.1"
+    id 'jacoco'
+    id "com.github.nbaztec.coveralls-jacoco" version "1.2.15"
 }
 
 repositories {
@@ -221,6 +223,13 @@ dockerCompose {
     useComposeFiles.add("src/test/resources/docker-compose.yaml")
     isRequiredBy(tasks.test)
 }
+
+jacocoTestReport {
+    reports {
+        xml.enabled = true
+    }
+}
+
 
 publishing {
     repositories {
