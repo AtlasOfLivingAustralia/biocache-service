@@ -25,6 +25,7 @@ before_install:
   - export TZ=Australia/Canberra
 after_success:
   - '[ "${TRAVIS_PULL_REQUEST}" = "false" ] && ./gradlew clean && travis_retry ./gradlew publish'
+  - ./gradlew coveralls
 #after_success:
 #  - mvn coveralls:report
 env:
