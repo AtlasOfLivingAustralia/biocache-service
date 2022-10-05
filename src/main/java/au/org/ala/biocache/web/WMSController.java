@@ -346,7 +346,7 @@ public class WMSController extends AbstractSecureController {
     @RequestMapping(value = {
 //            "/webportal/species.csv",
             "/mapping/species.csv"
-    }, method = RequestMethod.GET, produces = "text/csv")
+    }, method = RequestMethod.GET, produces = {"text/csv", "text/plain"})
     public void listSpeciesCsv(
             @ParameterObject SpatialSearchRequestParams requestParams,
             HttpServletResponse response) throws Exception {
@@ -506,7 +506,7 @@ public class WMSController extends AbstractSecureController {
     @Operation(summary = "Get query bounding box as csv containing: min longitude, min latitude, max longitude, max latitude", tags = "Geospatial")
     @RequestMapping(value = {
 //            "/webportal/bbox",
-            "/mapping/bbox"}, method = RequestMethod.GET, produces = "text/plain")
+            "/mapping/bbox"}, method = RequestMethod.GET, produces = {"text/csv", "text/plain"})
     public void boundingBox(
             @ParameterObject SpatialSearchRequestParams requestParams,
             HttpServletResponse response)

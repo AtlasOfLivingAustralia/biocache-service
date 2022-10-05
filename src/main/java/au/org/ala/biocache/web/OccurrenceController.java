@@ -418,7 +418,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "Download a list of indexed fields", tags = "Download")
-    @RequestMapping(value = "index/fields.csv", method = RequestMethod.GET, produces = "text/csv")
+    @RequestMapping(value = "index/fields.csv", method = RequestMethod.GET,  produces = {"text/csv", "text/plain"})
     public void getIndexedFields(
             @RequestParam(value = "fl", required = false) String fields,
             @RequestParam(value = "indexed", required = false) Boolean indexed,
@@ -912,7 +912,7 @@ public class OccurrenceController extends AbstractSecureController {
             description ="Downloads the complete list of values in the supplied e.g. complete list" +
                     " of distinct scientificNames matching a query"
     )
-    @RequestMapping(value = "/occurrences/facets/download", method = RequestMethod.GET, produces = "text/csv")
+    @RequestMapping(value = "/occurrences/facets/download", method = RequestMethod.GET,  produces = {"text/csv", "text/plain"})
     public void downloadFacet(
             @Valid @ParameterObject DownloadRequestParams requestParams,
             @RequestParam(value = "count", required = false, defaultValue = "false") boolean includeCount,
