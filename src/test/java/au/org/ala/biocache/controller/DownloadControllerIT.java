@@ -136,6 +136,18 @@ public class DownloadControllerIT extends TestCase {
 //    }
 
     @Test
+    public void downloadTest() throws Exception {
+
+        when(authService.getDownloadUser(any(), any()))
+                .thenReturn(Optional.of(new AlaUserProfile("", "test@test.com", null, null, null, null)));
+
+        this.mockMvc.perform(get("/occurrences/offline/download")
+                        .param("reasonTypeId", "10")
+                        .param("email", "test@test.com"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     public void downloadInvalidEmailTest() throws Exception {
 
         when(authService.getDownloadUser(any(), any()))
@@ -149,19 +161,7 @@ public class DownloadControllerIT extends TestCase {
         verify(authService).getDownloadUser(any(), any());
     }
 
-//    @Test
-//    public void downloadInvalidEmailByPassAuthTest() throws Exception {
-//
-//        boolean authBypass = (boolean) ReflectionTestUtils.getField(downloadController, "authBypass");
-//        ReflectionTestUtils.setField(downloadController, "authBypass", true);
-//
-//        this.mockMvc.perform(get("/occurrences/offline/download")
-//                .param("reasonTypeId", "10")
-//                .param("email", "test@test.com"))
-//                .andExpect(status().isOk());
-//
-//        ReflectionTestUtils.setField(downloadController, "authBypass", authBypass);
-//    }
+
 
 //    @Test
 //    public void downloadLockedEmailTest() throws Exception {

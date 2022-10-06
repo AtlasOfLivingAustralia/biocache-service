@@ -1,11 +1,13 @@
 package au.org.ala.biocache.service;
 
+import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.ws.security.profile.AlaUserProfile;
 import com.google.common.collect.Sets;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.MockitoAnnotations;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
@@ -33,7 +35,46 @@ public class AuthServiceTest {
         mocks = MockitoAnnotations.openMocks(this);
     }
 
-        @Test
+    @Test
+    public void authenticatedRequest() {
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setUserPrincipal(new AlaUserProfile());
+
+        Optional<AlaUserProfile> authenticatedUser = authService.getRecordViewUser(request);
+
+        assertTrue(authenticatedUser.isPresent());
+    }
+
+    @Test
+    public void authenticateDownload() {
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setUserPrincipal(new AlaUserProfile());
+
+        DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
+
+        Optional<AlaUserProfile> authenticatedUser = authService.getDownloadUser(downloadRequestDTO, request);
+
+        assertTrue(authenticatedUser.isPresent());
+    }
+
+    @Test
+    public void authenticateRequiredDownload() {
+
+        DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
+        downloadRequestDTO.setEmail("test@test.com");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setParameter("email", "test@test.com");
+
+        authService.emailOnlyEnabled = false;
+        Optional<AlaUserProfile> authenticatedUser = authService.getDownloadUser(downloadRequestDTO, request);
+
+        assertFalse(authenticatedUser.isPresent());
+    }
+
+    @Test
     public void authValidEmailTestAllAttributes() {
         // mock the user details lookup
         when(restTemplate.postForObject(any(String.class), any(), any()))
@@ -46,8 +87,15 @@ public class AuthServiceTest {
                     put("last_name", "User");
                 }});
 
+        DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
+        downloadRequestDTO.setEmail("test@test.com");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setParameter("email", "test@test.com");
+
         Optional<AlaUserProfile> authenticatedUser =
-                authService.lookupAuthUser("1234", true);
+                authService.getDownloadUser(downloadRequestDTO, request);
+
         assertTrue(authenticatedUser.isPresent());
         assertEquals("1234", authenticatedUser.get().getId());
         assertEquals("test@test.com", authenticatedUser.get().getEmail());
@@ -66,8 +114,14 @@ public class AuthServiceTest {
                     put("last_name", "User");
                 }});
 
+        DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
+        downloadRequestDTO.setEmail("test@test.com");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setParameter("email", "test@test.com");
+
         Optional<AlaUserProfile> authenticatedUser =
-                authService.lookupAuthUser("1234", true);
+                authService.getDownloadUser(downloadRequestDTO, request);
 
         assertFalse(authenticatedUser.isPresent());
     }
@@ -88,8 +142,14 @@ public class AuthServiceTest {
                     put("last_name", "User");
                 }});
 
+        DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
+        downloadRequestDTO.setEmail("test@test.com");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setParameter("email", "test@test.com");
+
         Optional<AlaUserProfile> authenticatedUser =
-                authService.lookupAuthUser("1234", true);
+                authService.getDownloadUser(downloadRequestDTO, request);
 
         assertFalse(authenticatedUser.isPresent());
     }
@@ -100,8 +160,14 @@ public class AuthServiceTest {
         when(restTemplate.postForObject(any(String.class), any(), any()))
                 .thenReturn(new HashMap<String, Object>() {{ }});
 
+        DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
+        downloadRequestDTO.setEmail("test@test.com");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setParameter("email", "test@test.com");
+
         Optional<AlaUserProfile> authenticatedUser =
-                authService.lookupAuthUser("1234", true);
+                authService.getDownloadUser(downloadRequestDTO, request);
 
         assertFalse(authenticatedUser.isPresent());
     }
