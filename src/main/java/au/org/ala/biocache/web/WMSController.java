@@ -224,12 +224,9 @@ public class WMSController extends AbstractSecureController {
         System.setProperty("org.geotools.referencing.forceXY", "true");
     }
 
-    @SecurityRequirement(name="JWT")
-    @Secured({"ROLE_USER", "ROLE_ADMIN"})
+
     @Operation(summary = "Create a query ID", tags = "Query ID")
     @RequestMapping(value = {
-//            "/webportal/params",
-//            "/mapping/params"
             "/qid"
     }, method = RequestMethod.POST)
     public void storeParams(@ParameterObject SpatialSearchRequestParams params,
@@ -283,24 +280,38 @@ public class WMSController extends AbstractSecureController {
         }
     }
 
-//    /**
-//     * Test presence of query params {id} in params store.
-//     */
-//    @Operation(summary = "Lookup a query ID", tags = "Query ID")
-////    @Path("/mapping/params/{queryID}")
-//    @RequestMapping(value = {
-////            "/webportal/params/{queryID}",
-////            "/webportal/params/{queryID}.json",
-//            "/mapping/params/{queryID}",
-//            "/mapping/params/{queryID}.json"
-//    }, method = RequestMethod.GET)
-////    @ApiImplicitParams({
-////        @ApiImplicitParam(name = "id", value = "query id", required = true, dataType = "string", paramType = "query"),
-////    })
-//    public @ResponseBody Boolean storeParams(
-//            @ApiParam(name = "queryID", required = true) @PathVariable("queryID") Long id) throws Exception {
-//        return qidCacheDAO.get(String.valueOf(id)) != null;
-//    }
+    /**
+     * Test presence of query params {id} in params store.
+     */
+    @Deprecated
+    @Operation(summary = "Test presence of query params {id} in params store", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/webportal/params/{id}",
+            "/webportal/params/{id}.json",
+            "/mapping/params/{id}",
+            "/mapping/params/{id}.json"}, method = RequestMethod.GET)
+    public
+    @ResponseBody
+    Boolean storeParamsDeprecated(@PathVariable("id") Long id) throws Exception {
+        return qidCacheDAO.get(String.valueOf(id)) != null;
+    }
+
+    @Deprecated
+    @Operation(summary = "Deprecated  - use /qid", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/webportal/params",
+            "/mapping/params",
+    }, method = RequestMethod.POST)
+    public void storeParamsDeprecated(@ParameterObject SpatialSearchRequestParams params,
+                            @RequestParam(value = "bbox", required = false, defaultValue = "false") String bbox,
+                            @RequestParam(value = "title", required = false) String title,
+                            @RequestParam(value = "maxage", required = false, defaultValue = "-1") Long maxage,
+                            @RequestParam(value = "source", required = false) String source,
+                            HttpServletResponse response) throws Exception {
+        storeParams(params, bbox, title, maxage, source, response);
+    }
+
+
 
     /**
      * Allows the details of a cached query to be viewed.
@@ -308,16 +319,26 @@ public class WMSController extends AbstractSecureController {
     @Operation(summary = "Lookup a query ID", tags = "Query ID")
     @RequestMapping(value = {
             "/qid/{queryID}"
-//            ,
-//            "/qid/{queryID}.json",
-//            "/mapping/qid/{queryID}",
-//            "/mapping/qid/{queryID}.json",
-//            "/webportal/params/details/{id}"  // used by spatial portal
-//            "/mapping/params/details/{queryID}"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ApiParam(value = "queryID", required = true)
     public @ResponseBody Qid showQid(@PathVariable("queryID") Long id) throws Exception {
         return qidCacheDAO.get(String.valueOf(id));
+    }
+
+    /**
+     * Allows the details of a cached query to be viewed.
+     */
+    @Deprecated
+    @Operation(summary = "Deprecated use /qid/{queryID}", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/mapping/qid/{queryID}",
+            "/mapping/qid/{queryID}.json",
+            "/webportal/params/details/{id}",  // used by spatial portal
+            "/mapping/params/details/{queryID}"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @ApiParam(value = "queryID", required = true)
+    public @ResponseBody Qid showQidDeprecated(@PathVariable("queryID") Long id) throws Exception {
+        return showQid(id);
     }
 
     /**
@@ -342,7 +363,6 @@ public class WMSController extends AbstractSecureController {
      */
     @Operation(summary = "Download a set of counts for the supplied query", tags = "Download")
     @RequestMapping(value = {
-//            "/webportal/species.csv",
             "/mapping/species.csv"
     }, method = RequestMethod.GET, produces = {"text/csv", "text/plain"})
     public void listSpeciesCsv(
@@ -402,6 +422,23 @@ public class WMSController extends AbstractSecureController {
     }
 
     /**
+     * List of species for webportal as csv.
+     *
+     * @param response
+     * @throws Exception
+     */
+    @Deprecated
+    @Operation(summary = "Download a set of counts for the supplied query. Deprecated use /mapping/species.csv", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/webportal/species.csv"
+    }, method = RequestMethod.GET, produces = {"text/csv", "text/plain"})
+    public void listSpeciesCsvDeprecated(
+            @ParameterObject SpatialSearchRequestParams requestParams,
+            HttpServletResponse response) throws Exception {
+        listSpeciesCsv(requestParams, response);
+    }
+
+    /**
      * Get legend for a query and facet field (colourMode).
      * <p>
      * if "Accept" header is application/json return json otherwise
@@ -412,7 +449,6 @@ public class WMSController extends AbstractSecureController {
      */
     @Operation(summary = "Get legend for a query and facet field (colourMode).", tags = "Mapping")
     @RequestMapping(value = {
-//            "/webportal/legend",
             "/mapping/legend"
     }, method = RequestMethod.GET, produces = {MediaType.APPLICATION_JSON_VALUE, "text/plain"})
     @ResponseBody
@@ -473,6 +509,31 @@ public class WMSController extends AbstractSecureController {
     }
 
     /**
+     * Get legend for a query and facet field (colourMode).
+     * <p>
+     * if "Accept" header is application/json return json otherwise
+     *
+     * @param colourMode
+     * @param response
+     * @throws Exception
+     */
+    @Deprecated
+    @Operation(summary = "Get legend for a query and facet field (colourMode). Deprecated use /mapping/legend", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/webportal/legend"
+    }, method = RequestMethod.GET, produces = {MediaType.APPLICATION_JSON_VALUE, "text/plain"})
+    @ResponseBody
+    public List<LegendItem> legendDeprecated(
+            @ParameterObject SpatialSearchRequestParams params,
+            @RequestParam(value = "cm", required = false, defaultValue = "") String colourMode,
+            @RequestParam(value = "type", required = false, defaultValue = "application/csv") String returnType,
+            HttpServletRequest request,
+            HttpServletResponse response)
+            throws Exception {
+        return legend(params, colourMode, returnType, request, response);
+    }
+
+    /**
      * List data providers for a query.
      *
      * @param requestParams
@@ -481,9 +542,6 @@ public class WMSController extends AbstractSecureController {
      */
     @Hidden
     @RequestMapping(value = {
-//            "/webportal/dataProviders",
-//            "/mapping/dataProviders.json",
-//            "/webportal/dataProviders",
             "/mapping/dataProviders"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
@@ -491,6 +549,26 @@ public class WMSController extends AbstractSecureController {
             @ParameterObject SpatialSearchRequestParams requestParams)
             throws Exception {
         return searchDAO.getDataProviderList(SpatialSearchRequestDTO.create(requestParams));
+    }
+
+    /**
+     * List data providers for a query.
+     *
+     * @param requestParams
+     * @return
+     * @throws Exception
+     */
+    @Deprecated
+    @RequestMapping(value = {
+            "/webportal/dataProviders",
+            "/mapping/dataProviders.json",
+            "/webportal/dataProviders",
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    public List<DataProviderCountDTO> queryInfoDeprecated(
+            @ParameterObject SpatialSearchRequestParams requestParams)
+            throws Exception {
+        return queryInfo(requestParams);
     }
 
     /**
@@ -503,7 +581,6 @@ public class WMSController extends AbstractSecureController {
      */
     @Operation(summary = "Get query bounding box as csv containing: min longitude, min latitude, max longitude, max latitude", tags = "Geospatial")
     @RequestMapping(value = {
-//            "/webportal/bbox",
             "/mapping/bbox"}, method = RequestMethod.GET, produces = "text/plain")
     public void boundingBox(
             @ParameterObject SpatialSearchRequestParams requestParams,
@@ -523,6 +600,27 @@ public class WMSController extends AbstractSecureController {
     }
 
     /**
+     * Get query bounding box as csv containing:
+     * min longitude, min latitude, max longitude, max latitude
+     *
+     * @param requestParams
+     * @param response
+     * @throws Exception
+     */
+    @Deprecated
+    @Operation(summary = "Get query bounding box as csv containing: min longitude, min latitude, max longitude, max latitude - Deprecated use /mapping/bbox", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/webportal/bbox"
+       }, method = RequestMethod.GET, produces = "text/plain")
+    public void boundingBoxDeprecated(
+            @ParameterObject SpatialSearchRequestParams requestParams,
+            HttpServletResponse response)
+            throws Exception {
+        boundingBox(requestParams, response);
+    }
+
+
+    /**
      * Get query bounding box as JSON array containing:
      * min longitude, min latitude, max longitude, max latitude
      *
@@ -530,6 +628,7 @@ public class WMSController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
+    @Deprecated
     @Operation(summary = "Deprecated use /mapping/bounds", tags = "Deprecated")
     @RequestMapping(value = {"/mapping/bounds.json" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public
@@ -591,10 +690,10 @@ public class WMSController extends AbstractSecureController {
     @Operation(summary = "Get query bounding box as JSON", tags = "Deprecated")
     @Deprecated
     @RequestMapping(value = {
-//            "/webportal/occurrences*",
+            "/webportal/occurrences*",
             "/mapping/occurrences.json*",
-//            "/webportal/occurrences*",
-//            "/mapping/occurrences.json*"
+            "/webportal/occurrences*",
+            "/mapping/occurrences.json*"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public SearchResultDTO occurrences(
@@ -1364,8 +1463,6 @@ public class WMSController extends AbstractSecureController {
      */
     @Operation(summary = "Web Mapping Service", tags = {"WMS", "OGC"})
     @GetMapping(value = {
-//            "/webportal/wms/reflect",
-//            "/webportal/wms/reflect.png",
             "/ogc/wms/reflect",
             "/mapping/wms/reflect",
     }, produces = "image/png")
@@ -1659,7 +1756,6 @@ public class WMSController extends AbstractSecureController {
      */
     @Operation(summary = "Produces a downloadable map", tags = "Mapping")
     @RequestMapping(value = {
-//            "/webportal/wms/image",
             "/mapping/wms/image"}, method = RequestMethod.GET, produces="image/png")
     public void generatePublicationMap(
             @ParameterObject SpatialSearchRequestParams params,
@@ -1814,6 +1910,57 @@ public class WMSController extends AbstractSecureController {
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         }
+    }
+
+    /**
+     * Method that produces the downloadable map integrated in AVH/OZCAM/Biocache.
+     *
+     * @param format
+     * @param extents       bounding box in decimal degrees
+     * @param bboxString    bounding box in target SRS
+     * @param widthMm
+     * @param pointRadiusMm
+     * @param pradiusPx
+     * @param pointColour
+     * @param pointOpacity
+     * @param baselayer
+     * @param scale
+     * @param dpi
+     * @param outlinePoints
+     * @param outlineColour
+     * @param fileName
+     * @param request
+     * @param response
+     * @throws Exception
+     */
+    @Deprecated
+    @Operation(summary = "Produces a downloadable map - Deprecated use /mapping/wms/image", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/webportal/wms/image",
+    }, method = RequestMethod.GET, produces="image/png")
+    public void generatePublicationMapDeprecated(
+            @ParameterObject SpatialSearchRequestParams params,
+            @RequestParam(value = "format", required = false, defaultValue = "jpg") String format,
+            @RequestParam(value = "extents", required = false) String extents,
+            @RequestParam(value = "bbox", required = false) String bboxString,
+            @RequestParam(value = "widthmm", required = false, defaultValue = "60") Double widthMm,
+            @RequestParam(value = "pradiusmm", required = false, defaultValue = "2") Double pointRadiusMm,
+            @RequestParam(value = "pradiuspx", required = false) Integer pradiusPx,
+            @RequestParam(value = "pcolour", required = false, defaultValue = "FF0000") String pointColour,
+            @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
+            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs,
+            @RequestParam(value = "popacity", required = false, defaultValue = "0.8") Double pointOpacity,
+            @RequestParam(value = "baselayer", required = false, defaultValue = "world") String baselayer,
+            @RequestParam(value = "scale", required = false, defaultValue = "off") String scale,
+            @RequestParam(value = "dpi", required = false, defaultValue = "300") Integer dpi,
+            @RequestParam(value = "baselayerStyle", required = false, defaultValue = "") String baselayerStyle,
+            @RequestParam(value = "outline", defaultValue = "false") boolean outlinePoints,
+            @RequestParam(value = "outlineColour", defaultValue = "#000000") String outlineColour,
+            @RequestParam(value = "fileName", required = false) String fileName,
+            @RequestParam(value = "baseMap", required = false, defaultValue = "ALA") String baseMap,
+            HttpServletRequest request, HttpServletResponse response) throws Exception {
+
+        generatePublicationMap(params, format, extents, bboxString, widthMm, pointRadiusMm, pradiusPx, pointColour, env, srs, pointOpacity, baselayer, scale, dpi, baselayerStyle, outlinePoints, outlineColour, fileName, baseMap, request, response);
     }
 
     private BufferedImage basemapGoogle(int width, int height, double[] extents, String maptype) throws Exception {
