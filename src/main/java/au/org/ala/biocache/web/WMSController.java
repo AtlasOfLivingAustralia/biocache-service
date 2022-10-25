@@ -333,7 +333,7 @@ public class WMSController extends AbstractSecureController {
     @RequestMapping(value = {
             "/mapping/qid/{queryID}",
             "/mapping/qid/{queryID}.json",
-            "/webportal/params/details/{id}",  // used by spatial portal
+            "/webportal/params/details/{queryID}",  // used by spatial portal
             "/mapping/params/details/{queryID}"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ApiParam(value = "queryID", required = true)
