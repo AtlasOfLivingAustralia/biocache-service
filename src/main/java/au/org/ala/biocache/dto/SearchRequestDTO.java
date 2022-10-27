@@ -60,6 +60,8 @@ public class SearchRequestDTO {
     protected Boolean facet = true; //FacetThemes.getFacetDefault();
 
     protected Integer start = 0;
+    /**  Deprecated  - startIndex only used for handling legacy requests which include startIndex instead of start */
+    protected  Integer startIndex = 0;
     /*
      * The limit for the number of facets to return 
      */
@@ -285,19 +287,19 @@ public class SearchRequestDTO {
     }
 
     /**
-     * Set the value of start
+     * Set the value of startIndex  - Deprecated  - only used for handling legacy requests which include startIndex instead of start
      *
      * @param startIndex new value of start
      */
     public void setStartIndex(Integer startIndex) {
-        this.start = startIndex;
+        this.startIndex = startIndex;
     }
 
     /**
-     * Set the value of start
+     * Set the value of startIndex  - Deprecated  - only used for handling legacy requests which include startIndex instead of start
      */
     public Integer getStartIndex() {
-        return this.start;
+        return this.startIndex;
     }
 
     /**

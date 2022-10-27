@@ -65,7 +65,10 @@ public class SpatialSearchRequestParams {
     protected String fprefix ="";
 
     @Parameter(name="start", description = "Paging start index")
-    protected Integer start = 0;
+    protected Integer start;
+
+    @Parameter(name="startIndex", description = "Deprecated  - Paging start index", deprecated = true)
+    protected Integer startIndex ;
 
     @Parameter(name="pageSize", description = "The prefix to limit facet values")
     protected Integer pageSize = 10;

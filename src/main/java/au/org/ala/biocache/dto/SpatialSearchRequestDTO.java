@@ -49,6 +49,13 @@ public class SpatialSearchRequestDTO extends SearchRequestDTO {
     public static SpatialSearchRequestDTO create(SpatialSearchRequestParams params){
         SpatialSearchRequestDTO dto = new SpatialSearchRequestDTO();
         BeanUtils.copyProperties(params, dto);
+        // TODO - remove once spatial service/hub has upgraded to the usage of 'start' param
+        // workaround to handle legacy usage of startIndex instead of start
+        if (dto.getStart() == null) {
+            if(dto.getStartIndex() != null){
+                dto.setStart(dto.getStartIndex());
+            }
+        }
         return dto;
     }
 
