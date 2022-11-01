@@ -132,11 +132,20 @@ public class ListsService {
     public List<String> getListItems(String dataResourceUid) throws Exception {
         List<String> list = new ArrayList();
 
-        List<SpeciesListItemDTO> speciesListItems = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesListItems/" + dataResourceUid), SpeciesListItemsDTO.class);
+        boolean hasAnotherPage = true;
+        int max = 400; // response size can be limited by the gateway
+        int offset = 0;
 
-        for (SpeciesListItemDTO s : speciesListItems) {
-            if (s.lsid != null) {
-                list.add(s.lsid);
+        while (hasAnotherPage) {
+            List<SpeciesListItemDTO> speciesListItems = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesListItems/" + dataResourceUid + "?max=" + max + "&offset=" + offset), SpeciesListItemsDTO.class);
+
+            offset += max;
+            hasAnotherPage = speciesListItems.size() == max;
+
+            for (SpeciesListItemDTO s : speciesListItems) {
+                if (s.lsid != null) {
+                    list.add(s.lsid);
+                }
             }
         }
 
@@ -155,32 +164,40 @@ public class ListsService {
     public List<Kvp> getKvp(String dataResourceUid) {
         List<Kvp> list = new ArrayList();
 
+        boolean hasAnotherPage = true;
+        int max = 400;  // response size can be limited by api gateway
+        int offset = 0;
+
         try {
-            SpeciesListItemsDTO speciesListItems = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesListItems/" + dataResourceUid + "?includeKVP=true"), SpeciesListItemsDTO.class);
+            while (hasAnotherPage) {
+                SpeciesListItemsDTO speciesListItems = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesListItems/" + dataResourceUid + "?includeKVP=true&max=" + max + "&offset=" + offset), SpeciesListItemsDTO.class);
 
-            for (SpeciesListItemDTO item : speciesListItems) {
-                if (item.lsid != null) {
-                    // ignore species list item when there are no lft rgt values for the LSID
-                    String fq = searchUtils.getTaxonSearch(item.lsid)[0];
-                    if (fq.startsWith("lft:[")) {
-                        List<String> keys = new ArrayList<>();
-                        List<String> values = new ArrayList<>();
+                offset += max;
+                hasAnotherPage = speciesListItems.size() == max;
 
-                        for (KvpDTO kvp : item.kvpValues) {
-                            keys.add(kvp.key);
-                            values.add(kvp.value);
+                for (SpeciesListItemDTO item : speciesListItems) {
+                    if (item.lsid != null) {
+                        // ignore species list item when there are no lft rgt values for the LSID
+                        String fq = searchUtils.getTaxonSearch(item.lsid)[0];
+                        if (fq.startsWith("lft:[")) {
+                            List<String> keys = new ArrayList<>();
+                            List<String> values = new ArrayList<>();
+
+                            for (KvpDTO kvp : item.kvpValues) {
+                                keys.add(kvp.key);
+                                values.add(kvp.value);
+                            }
+
+                            long lft = Long.parseLong(fq.replaceAll("(.*\\[| TO.*)", ""));
+
+                            long rgt = Long.parseLong(fq.replaceAll("(.*TO |\\].*)", ""));
+                            Kvp kvp = new Kvp(lft, rgt, keys, values);
+
+                            list.add(kvp);
                         }
-
-                        long lft = Long.parseLong(fq.replaceAll("(.*\\[| TO.*)", ""));
-                        ;
-                        long rgt = Long.parseLong(fq.replaceAll("(.*TO |\\].*)", ""));
-                        Kvp kvp = new Kvp(lft, rgt, keys, values);
-
-                        list.add(kvp);
                     }
                 }
             }
-
         } catch (Exception e) {
             logger.error("failed to get species list kvp for list: " + dataResourceUid, e);
         }
