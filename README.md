@@ -16,6 +16,16 @@ There are currently two supported versions:
 
 ## Development environment Setup
 
+SOLR and Cassandra are required by Biocache servcie.
+
+We can run those two docker instances
+
+or SSH tunnel in our test servers
+```
+ssh -L 8983:localhost:8983 aws-solr-test-1.ala
+ssh -L 9042:localhost:9042 aws-cass-test-1.ala
+```
+
 see wiki: https://github.com/AtlasOfLivingAustralia/biocache-service/wiki
 
 ## Integration Tests
@@ -35,3 +45,4 @@ To shutdown, run the following:
 Prerequisites are Docker version 17+. For more details see this [readme](/src/test/docker/README.md).
 
 To run the integration tests just run the check task, e.g.: `./gradlew clean check`
+
