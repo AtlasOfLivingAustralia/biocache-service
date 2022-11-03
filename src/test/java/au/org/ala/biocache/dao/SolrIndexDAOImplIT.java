@@ -190,7 +190,7 @@ public class SolrIndexDAOImplIT extends TestCase {
         Map<String, FieldStatsInfo> yearStats = solrIndexDAO.getStatistics("year");
 
         assert (yearStats != null);
-        assert (yearStats.get("year").getCount() == 1000);
+        assert (yearStats.get("year").getCount() == 1005);
         assertEquals(1865.0, yearStats.get("year").getMin());
         assertEquals(2019.0, yearStats.get("year").getMax());
         assert (yearStats.get("year").getMissing() == 0);
@@ -219,5 +219,4 @@ public class SolrIndexDAOImplIT extends TestCase {
             return true;
         }
     }
-
 }

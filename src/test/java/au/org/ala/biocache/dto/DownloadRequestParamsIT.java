@@ -18,7 +18,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Test for {@link DownloadRequestParams}
+ * Test for {@link DownloadRequestDTO}
  */
 
 @RunWith(SpringJUnit4ClassRunner.class)
@@ -51,40 +51,40 @@ public class DownloadRequestParamsIT {
     }
 
     /**
-     * Test for {@link DownloadRequestParams#setFileType(String)}.
+     * Test for {@link DownloadRequestDTO#setFileType(String)}.
      */
     @Test
     public final void testSetFileType() throws Exception {
 
-        DownloadRequestParams downloadRequestParams = new DownloadRequestParams();
-        downloadRequestParams.setFileType("csv");
-        assertTrue("csv".equals(downloadRequestParams.getFileType()));
+        DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
+        downloadRequestDTO.setFileType("csv");
+        assertTrue("csv".equals(downloadRequestDTO.getFileType()));
 
-        downloadRequestParams = new DownloadRequestParams();
-        downloadRequestParams.setFileType("tsv");
-        assertTrue("tsv".equals(downloadRequestParams.getFileType()));
+        downloadRequestDTO = new DownloadRequestDTO();
+        downloadRequestDTO.setFileType("tsv");
+        assertTrue("tsv".equals(downloadRequestDTO.getFileType()));
     }
 
     /**
-     * Test for {@link DownloadRequestParams#setEmailTemplate(String)}.
+     * Test for {@link DownloadRequestDTO#setEmailTemplate(String)}.
      */
     @Test
     public final void testSetEmailTemplate() throws Exception {
 
-        DownloadRequestParams downloadRequestParams = new DownloadRequestParams();
-        assertTrue("default".equals(downloadRequestParams.getEmailTemplate()));
+        DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
+        assertTrue("default".equals(downloadRequestDTO.getEmailTemplate()));
 
-        downloadRequestParams = new DownloadRequestParams();
-        downloadRequestParams.setEmailTemplate("doi");
-        assertTrue("doi".equals(downloadRequestParams.getEmailTemplate()));
+        downloadRequestDTO = new DownloadRequestDTO();
+        downloadRequestDTO.setEmailTemplate("doi");
+        assertTrue("doi".equals(downloadRequestDTO.getEmailTemplate()));
 
-        downloadRequestParams = new DownloadRequestParams();
-        downloadRequestParams.setEmailTemplate("csdm");
-        assertTrue("csdm".equals(downloadRequestParams.getEmailTemplate()));
+        downloadRequestDTO = new DownloadRequestDTO();
+        downloadRequestDTO.setEmailTemplate("csdm");
+        assertTrue("csdm".equals(downloadRequestDTO.getEmailTemplate()));
 
-        downloadRequestParams = new DownloadRequestParams();
-        downloadRequestParams.setEmailTemplate("uuidaof");
-        assertFalse("uuidaof".equals(downloadRequestParams.getEmailTemplate()));
-        assertTrue("default".equals(downloadRequestParams.getEmailTemplate()));
+        downloadRequestDTO = new DownloadRequestDTO();
+        downloadRequestDTO.setEmailTemplate("uuidaof");
+        assertFalse("uuidaof".equals(downloadRequestDTO.getEmailTemplate()));
+        assertTrue("default".equals(downloadRequestDTO.getEmailTemplate()));
     }
 }

@@ -3,6 +3,8 @@ package au.org.ala.biocache.web;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.*;
+import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.Hidden;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.geotools.geometry.GeneralDirectPosition;
@@ -32,6 +34,7 @@ import java.util.*;
  * WMS controller that supports OS grid rendering.
  */
 @Controller
+@Api(value = "Web Mapping Services - OS GRID", hidden = true)
 public class WMSOSGridController {
 
     private final static Logger logger = Logger.getLogger(WMSOSGridController.class);
@@ -42,7 +45,7 @@ public class WMSOSGridController {
     @Inject
     protected WMSUtils wmsUtils;
 
-
+    @Hidden
     @RequestMapping(value = {"/osgrid/lookup.json"}, method = RequestMethod.GET)
     public @ResponseBody
     Map<String, Object> parseGridReference(
@@ -92,10 +95,11 @@ public class WMSOSGridController {
      * @return
      * @throws Exception
      */
+    @Hidden
     @RequestMapping(value = {"/osgrid/feature.json"}, method = RequestMethod.GET)
     public @ResponseBody
     Map<String, Object> getFeatureInfo(
-            SpatialSearchRequestParams requestParams,
+            SpatialSearchRequestDTO requestParams,
             HttpServletRequest request) throws Exception {
 
         try {
@@ -216,7 +220,7 @@ public class WMSOSGridController {
      * @param replaceLast
      * @return
      */
-    private long getRecordCountForGridRef(SpatialSearchRequestParams requestParams, String gridRef, int gridSize, boolean replaceLast) {
+    private long getRecordCountForGridRef(SpatialSearchRequestDTO requestParams, String gridRef, int gridSize, boolean replaceLast) {
 
         try {
             String fq = getFilterQuery(gridRef, gridSize);
@@ -280,7 +284,7 @@ public class WMSOSGridController {
      */
     @RequestMapping(value = {"/osgrid/wms/reflect"}, method = RequestMethod.GET)
     public void generateWmsTile(
-            SpatialSearchRequestParams requestParams,
+            SpatialSearchRequestDTO requestParams,
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
             @RequestParam(value = "ENV", required = true, defaultValue = "") String env,
             @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs, //default to google mercator

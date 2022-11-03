@@ -1,7 +1,10 @@
 package au.org.ala.biocache.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Objects;
 
+@Schema(name = "QualityFilter", description = "Data Quality Filter")
 public class QualityFilterDTO {
 
     private String name;

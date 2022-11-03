@@ -1,5 +1,7 @@
 package au.org.ala.biocache.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Comparator;
 import java.util.List;
 
@@ -10,7 +12,10 @@ import java.util.List;
  * <p>
  * Species LSID is stored as left right values.
  */
+@Schema(name="Species list key value pairs",
+        description="Species list key value pairs as a list of keys and a list of values.")
 public class Kvp {
+
     public long lft;
     public long rgt;
 

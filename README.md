@@ -34,19 +34,15 @@ Integration testing is supported using docker containers for SOLR and Cassandra.
 To start the required containers, run the following:
 
 ```
-mvn docker:start
+./gradlew composeUp
 ```
 
 To shutdown, run the following:
 ```
-mvn docker:stop
+./gradlew composeDown
 ```
 
 Prerequisites are Docker version 17+. For more details see this [readme](/src/test/docker/README.md).
 
-Tests: please follow the conventions of the Maven Surefire plugin 
-or unit tests and those of the Maven Failsafe plugin for integration tests. To run the integration tests 
-just run the verify phase, e.g.: `mvn clean verify`
-
-
+To run the integration tests just run the check task, e.g.: `./gradlew clean check`
 

@@ -14,9 +14,12 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * Group result for a SOLR search
  */
+@Schema(name = "SpeciesCount", description = "Species count with left values and occurrence counts")
 public class SpeciesCountDTO {
 
     /**

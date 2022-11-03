@@ -2,11 +2,13 @@
 target/*
 *.iml
 out/*
+build/
 *.ipr
 *.iws
 
 src/main/resources/git.properties
 target/
+.gradle
 .classpath
 .project
 .settings/

@@ -159,7 +159,7 @@ public class ProcessDownload implements ProcessInterface {
                 recordCoordinates(tuple);
                 batch.add(Arrays.copyOf(values, values.length));
 
-                if (batch.size() > MAX_BATCH_SIZE) {
+                if (batch.size() == MAX_BATCH_SIZE) {
                     flush();
                 }
             } else {

@@ -2,23 +2,21 @@ package au.org.ala.biocache.stream;
 
 import au.org.ala.biocache.dto.OccurrenceIndex;
 import au.org.ala.biocache.dto.SearchResultDTO;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.io.Tuple;
-
-import java.util.Map;
 
 public class ProcessOcc implements ProcessInterface {
 
     private final static Logger logger = Logger.getLogger(ProcessOcc.class);
 
     SearchResultDTO searchResult;
-    SpatialSearchRequestParams requestParams;
+    SpatialSearchRequestDTO requestParams;
     boolean includeSensitive;
 
-    public ProcessOcc(SearchResultDTO searchResult, SpatialSearchRequestParams requestParams, boolean includeSensitive) {
+    public ProcessOcc(SearchResultDTO searchResult, SpatialSearchRequestDTO requestParams, boolean includeSensitive) {
         this.requestParams = requestParams;
         this.includeSensitive = includeSensitive;
         this.searchResult = searchResult;

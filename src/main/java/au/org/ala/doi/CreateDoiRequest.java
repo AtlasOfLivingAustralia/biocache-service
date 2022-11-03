@@ -2,6 +2,7 @@ package au.org.ala.doi;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class CreateDoiRequest {
     protected String provider;
@@ -13,7 +14,7 @@ public class CreateDoiRequest {
     protected String fileUrl;
     protected List<String> licence;
     protected String userId;
-    protected List<String> authorisedRoles;
+    protected Set<String> authorisedRoles;
     protected Map<String, ?> applicationMetadata;
     protected String customLandingPageUrl;
     protected Boolean active;
@@ -124,11 +125,11 @@ public class CreateDoiRequest {
         this.userId = userId;
     }
 
-    public List<String> getAuthorisedRoles() {
+    public Set<String> getAuthorisedRoles() {
         return authorisedRoles;
     }
 
-    public void setAuthorisedRoles(List<String> authorisedRoles) {
+    public void setAuthorisedRoles(Set<String> authorisedRoles) {
         this.authorisedRoles = authorisedRoles;
     }
 

@@ -1,11 +1,14 @@
 package au.org.ala.biocache.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.codehaus.jackson.annotate.JsonIgnore;
 
 /**
- * Merged from biocache-store.
+ * Query ID bean. Represents a persisted query.
  */
+@Schema(name = "QueryID", description = "Represents a persisted query")
 public class Qid {
+
     private String rowKey;
     private String q;
     private String displayString;
@@ -16,8 +19,7 @@ public class Qid {
     private Long maxAge;
     private String source;
 
-    public Qid() {
-    }
+    public Qid() {}
 
     public Qid(String rowKey, String q, String displayString, String wkt, double[] bbox, Long lastUse, String[] fqs, Long maxAge, String source) {
         this.rowKey = rowKey;

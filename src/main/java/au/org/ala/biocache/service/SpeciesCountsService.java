@@ -80,7 +80,7 @@ public class SpeciesCountsService {
         if (!enabled) return null;
 
         //lft counts for the query
-        SpatialSearchRequestParams params = new SpatialSearchRequestParams();
+        SpatialSearchRequestDTO params = new SpatialSearchRequestDTO();
         StringBuilder fq = new StringBuilder();
         if (filterQuery == null || filterQuery.length == 0) {
             params.setQ("*:*");
@@ -172,9 +172,9 @@ class UpdateThread extends Thread {
 
     SpeciesCountsService speciesCountsService;
     int hashCode;
-    SpatialSearchRequestParams params;
+    SpatialSearchRequestDTO params;
 
-    public UpdateThread(SpeciesCountsService speciesCountsService, int hashCode, SpatialSearchRequestParams params) {
+    public UpdateThread(SpeciesCountsService speciesCountsService, int hashCode, SpatialSearchRequestDTO params) {
         this.speciesCountsService = speciesCountsService;
         this.hashCode = hashCode;
         this.params = params;

@@ -14,22 +14,29 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * DTO for the native information about a species.
  * This class has been renamed from AustralianDTO.
  *  
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
+@Schema(name = "Native")
 public class NativeDTO {
 	
-    /** Indicates that the supplied taxon guid is on the National Species List*/
-    private boolean isNSL = false;
-    /** Indicates that there are occurrence records for taxonGuid */
-    private boolean hasOccurrences = false;
-    /** Indicates that the only occurrence records found were source from CS */
-    private boolean hasCSOnly = false;
+    @Parameter(description = "Indicates that the supplied taxon guid is on the National Species List")
+    boolean isNSL = false;
+
+    @Parameter(description = " Indicates that there are occurrence records for taxonConceptID")
+    boolean hasOccurrences = false;
+
+    @Parameter(description = " Indicates that the only occurrence records found were source from Citizen science")
+    boolean hasCSOnly = false;
+
     /** The taxonGuid that the information is about */
-    private String taxonGuid;
+    String taxonGuid;
     
     /**
      * @return the isNSL
@@ -87,10 +94,10 @@ public class NativeDTO {
     }
 
     /**
-     * 
-     * @return True when the species is considered Australian.
+     *
+     * @return True when the species is considered native.
      */
-    public boolean getIsAustralian(){
+    public boolean getIsNative(){
         return isNSL || hasOccurrences;
-    }    
+    }
 }

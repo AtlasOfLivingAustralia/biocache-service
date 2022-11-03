@@ -15,7 +15,7 @@
 package au.org.ala.biocache.dao;
 
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
-import au.org.ala.biocache.dto.DownloadRequestParams;
+import au.org.ala.biocache.dto.DownloadRequestDTO;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.FileUtils;
@@ -177,9 +177,9 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
                         (maxRecords == null || dd.getTotalRecords() <= maxRecords) &&
                         (type == null || dd.getDownloadType().equals(type))) {
                     //give a place for the downlaod
-                    UUID emailUUID = UUID.nameUUIDFromBytes(dd.getEmail().getBytes(StandardCharsets.UTF_8));
+                    UUID emailUUID = UUID.nameUUIDFromBytes(dd.getRequestParams().getEmail().getBytes(StandardCharsets.UTF_8));
                     long startTime = dd.getStartTime();
-                    DownloadRequestParams requestParams = dd.getRequestParams();
+                    DownloadRequestDTO requestParams = dd.getRequestParams();
                     String file = requestParams.getFile();
                     dd.setFileLocation(biocacheDownloadDir + File.separator + emailUUID + File.separator + startTime + File.separator + file + ".zip");
                     return dd;
@@ -292,14 +292,14 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
         afterInitialisation();
         synchronized (listLock) {
             for (DownloadDetailsDTO d : offlineDownloadList) {
-                if (d.getEmail().equalsIgnoreCase(d.getEmail()) &&
-                        d.getDownloadParams().equalsIgnoreCase(dd.getDownloadParams())) {
+                if (d.getRequestParams().getEmail().equalsIgnoreCase(d.getRequestParams().getEmail()) &&
+                        d.getRequestParams().toString().equalsIgnoreCase(dd.getRequestParams().toString())) {
                     return d;
                 }
             }
         }
 
-        //if we reached here it was not found
+        // if we reached here it was not found
         return null;
     }
     

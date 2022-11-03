@@ -2,8 +2,8 @@ package au.org.ala.biocache.util;
 
 import au.org.ala.biocache.dto.OccurrenceIndex;
 import au.org.ala.biocache.dto.OccurrenceSourceDTO;
-import au.org.ala.biocache.dto.SearchRequestParams;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SearchRequestDTO;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.names.ws.api.NameSearch;
 import au.org.ala.names.ws.api.NameUsageMatch;
 import au.org.ala.names.ws.client.ALANameUsageMatchServiceClient;
@@ -59,7 +59,7 @@ public class SearchUtils {
     protected static List<String> defaultParams = new ArrayList<String>();
 
     static {
-        java.lang.reflect.Field[] fields = (java.lang.reflect.Field[]) ArrayUtils.addAll(SpatialSearchRequestParams.class.getDeclaredFields(), SearchRequestParams.class.getDeclaredFields());
+        java.lang.reflect.Field[] fields = (java.lang.reflect.Field[]) ArrayUtils.addAll(SpatialSearchRequestDTO.class.getDeclaredFields(), SearchRequestDTO.class.getDeclaredFields());
         for (java.lang.reflect.Field field : fields) {
             defaultParams.add(field.getName());
         }
@@ -147,7 +147,7 @@ public class SearchUtils {
     *
     * @return true when UID could be located and query updated correctly
     */
-    public boolean updateCollectionSearchString(SearchRequestParams searchParams, String uid) {
+    public boolean updateCollectionSearchString(SearchRequestDTO searchParams, String uid) {
         try {
             // query the collectory for the institute and collection codes
             // needed to perform the search
@@ -419,8 +419,8 @@ public class SearchUtils {
      *
      * @param requestParams
      */
-    public static void setDefaultParams(SearchRequestParams requestParams) {
-        SearchRequestParams blankRequestParams = new SearchRequestParams(); // use for default values
+    public static void setDefaultParams(SearchRequestDTO requestParams) {
+        SearchRequestDTO blankRequestParams = new SearchRequestDTO(); // use for default values
         logger.debug("requestParams = " + requestParams);
 
         if (requestParams.getStart() == null) {

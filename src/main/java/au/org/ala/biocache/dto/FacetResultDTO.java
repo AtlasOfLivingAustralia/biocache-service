@@ -14,6 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 
 /**
@@ -21,6 +23,7 @@ import java.util.List;
  * 
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
+@Schema(name = "FacetResult")
 public class FacetResultDTO {
     /** Name of the field being treated as a facet */
     private String fieldName;

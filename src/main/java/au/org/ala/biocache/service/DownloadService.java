@@ -27,6 +27,7 @@ import au.org.ala.biocache.util.thread.DownloadControlThread;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.biocache.writer.RecordWriterException;
 import au.org.ala.doi.CreateDoiResponse;
+import au.org.ala.ws.security.profile.AlaUserProfile;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -58,6 +59,7 @@ import javax.annotation.Nullable;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletResponse;
+import javax.validation.constraints.NotNull;
 import java.io.*;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -65,6 +67,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
 
@@ -350,7 +353,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 JSONObject jo = (JSONObject) o;
                                 int threads = ((Long) jo.get("threads")).intValue();
                                 Integer maxRecords = jo.containsKey("maxRecords") ? ((Long) jo.get("maxRecords")).intValue() : null;
-                                String type = jo.containsKey("type") ? jo.get("type").toString() : null;
                                 String label = jo.containsKey("label") ? jo.get("label").toString() + "-" : "";
                                 Long pollDelayMs = jo.containsKey("pollDelay") ? (Long) jo.get("pollDelay") : null;
                                 Long executionDelayMs = jo.containsKey("executionDelay") ? (Long) jo.get("executionDelay") : null;
@@ -501,14 +503,18 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * Registers a new active download
      *
      * @param requestParams
+     * @param alaUser
      * @param ip
      * @param type
      * @return
      */
-    public DownloadDetailsDTO registerDownload(DownloadRequestParams requestParams, String ip, String userAgent,
-                                               DownloadDetailsDTO.DownloadType type) {
+    public DownloadDetailsDTO registerDownload(@NotNull DownloadRequestDTO requestParams,
+                                               AlaUserProfile alaUser,
+                                               String ip,
+                                               String userAgent,
+                                               DownloadType type) {
         afterInitialisation();
-        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, ip, userAgent, type);
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, alaUser, ip, userAgent, type);
         dd.setRequestParams(requestParams);
         currentDownloads.add(dd);
         return dd;
@@ -541,23 +547,27 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     }
 
     /**
+     * Asynchronous
+     *
      * Writes the supplied download to the supplied output stream. It will
      * include all the appropriate citations etc.
      *
      * @param dd
-     * @param requestParams
-     * @param ip
      * @param out
-     * @param includeSensitive
      * @param doiResponseList Return the CreateDoiResponse instance as the first element of the list if requestParams.mintDoi was true
      * @throws Exception
      */
-    public void writeQueryToStream(DownloadDetailsDTO dd, DownloadRequestParams requestParams, String ip,
-                                   OutputStream out, boolean includeSensitive, boolean limit, boolean zip, ExecutorService parallelExecutor, List<CreateDoiResponse> doiResponseList)
+    public void writeQueryToStream(DownloadDetailsDTO dd,
+                                   OutputStream out,
+                                   boolean limit,
+                                   boolean zip,
+                                   ExecutorService parallelExecutor,
+                                   List<CreateDoiResponse> doiResponseList)
             throws Exception {
         afterInitialisation();
-        String filename = requestParams.getFile();
-        String originalParams = requestParams.toString();
+        DownloadRequestDTO requestParams = dd.getRequestParams();
+        String filename = dd.getRequestParams().getFile();
+        String originalParams = dd.getRequestParams().toString();
 
         String assertions = OccurrenceIndex.ASSERTIONS;
         String data_resource_uid = OccurrenceIndex.DATA_RESOURCE_UID;
@@ -576,7 +586,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             }
 
             final ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
-            DownloadHeaders downloadHeaders = searchDAO.writeResultsFromIndexToStream(requestParams, sp, uidStats, includeSensitive, dd, limit, parallelExecutor);
+            DownloadHeaders downloadHeaders = searchDAO.writeResultsFromIndexToStream(
+                    requestParams, sp, uidStats, dd, limit, parallelExecutor);
 
             sp.closeEntry();
 
@@ -591,7 +602,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             List<QualityFilterDTO> qualityFilters = getQualityFilterDTOS(enabledQualityFiltersByLabel);
             final String searchUrl = generateSearchUrl(requestParams, enabledQualityFiltersByLabel);
             String dqFixedSearchUrl = dataQualityService.convertDataQualityParameters(searchUrl, enabledQualityFiltersByLabel);
-
 
             if (citationsEnabled) {
                 List<Map<String, String>> datasetMetadata = null;
@@ -608,14 +618,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 }
                 sp.closeEntry();
 
-
                 if (mintDoi) {
-
-                    Map<String, ?> userDetails = authService.getUserDetails(dd.getEmail());
-
-                    //Source requester details
-                    String requesterId = (String) userDetails.get("userId");
-                    String requesterName = userDetails.get("firstName") + " " + userDetails.get("lastName");
 
                     // Prepare licence
                     Set<String> datasetLicences = new TreeSet<>();
@@ -630,19 +633,13 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     List<String> licence = Lists.newArrayList(datasetLicences);
 
                     try {
-
-
                         DownloadDoiDTO doiDetails = new DownloadDoiDTO();
 
                         doiDetails.setTitle(biocacheDownloadDoiTitlePrefix + filename);
                         doiDetails.setApplicationUrl(dqFixedSearchUrl);
-                        doiDetails.setRequesterId(requesterId);
-                        if (dd.getSensitiveFq() != null) {
-                            doiDetails.setAuthorisedRoles(
-                                    getSensitiveRolesForUser(requesterId));
-                        }
-
-                        doiDetails.setRequesterName(requesterName);
+                        doiDetails.setRequesterId(dd.getAlaUser() == null ? null : dd.getAlaUser().getId());
+                        doiDetails.setRequesterName(dd.getAlaUser() == null ? null : dd.getAlaUser().getFirstName() + " " + dd.getAlaUser().getLastName());
+                        doiDetails.setAuthorisedRoles(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles());
                         doiDetails.setDatasetMetadata(datasetMetadata);
                         doiDetails.setRequestTime(dd.getStartDateString());
                         doiDetails.setRecordCount(dd.getTotalRecords());
@@ -704,7 +701,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 }
 
                 String readmeTemplate = "";
-                if (new File(readmeFile).exists()) {
+                if (readmeFile != null && new File(readmeFile).exists()) {
                     readmeTemplate = FileUtils.readFileToString(new File(readmeFile), StandardCharsets.UTF_8);
                 }
 
@@ -771,11 +768,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
             // log the stats to ala logger
             LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
-                    requestParams.getEmail(), requestParams.getReason(), ip, dd.getUserAgent(), null, uidStats, sourceUrl);
+                    requestParams.getEmail(), requestParams.getReason(), dd.getIpAddress(), dd.getUserAgent(), null, uidStats, sourceUrl);
 
             loggerService.logEvent(vo);
-//                logger.log(RestLevel.REMOTE, vo);
-
 
         } catch (RecordWriterException e) {
             logger.error(e.getMessage(), e);
@@ -814,8 +809,26 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         return dataQualityFilters;
     }
 
-    public void writeQueryToStream(DownloadRequestParams requestParams, HttpServletResponse response, String ip, String userAgent,
-                                   OutputStream out, boolean includeSensitive, boolean zip, ExecutorService parallelQueryExecutor) throws Exception {
+    /**
+     * Synchronous
+     * @param requestParams
+     * @param response
+     * @param alaUser
+     * @param ip
+     * @param userAgent
+     * @param out
+     * @param zip
+     * @param parallelQueryExecutor
+     * @throws Exception
+     */
+    public void writeQueryToStream(DownloadRequestDTO requestParams,
+                                   HttpServletResponse response,
+                                   AlaUserProfile alaUser,
+                                   String ip,
+                                   String userAgent,
+                                   OutputStream out,
+                                   boolean zip,
+                                   ExecutorService parallelQueryExecutor) throws Exception {
         afterInitialisation();
         String filename = requestParams.getFile();
 
@@ -831,8 +844,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         }
 
         DownloadDetailsDTO.DownloadType type = DownloadType.RECORDS_INDEX;
-        DownloadDetailsDTO dd = registerDownload(requestParams, ip, userAgent, type);
-        writeQueryToStream(dd, requestParams, ip, new CloseShieldOutputStream(out), includeSensitive, true, zip, parallelQueryExecutor, null);
+        DownloadDetailsDTO dd = registerDownload(requestParams, alaUser, ip, userAgent, type);
+        writeQueryToStream(dd, new CloseShieldOutputStream(out), true, zip, parallelQueryExecutor, null);
     }
 
     /**
@@ -862,74 +875,76 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(out), StandardCharsets.UTF_8), sep, '"', esc);) {
                 // Always write something to the citations.csv file so that users can distinguish between cases themselves when reporting issues
                 // i18n of the citation header
-                writer.writeNext(new String[]{messageSource.getMessage("citation.uid", null, "UID", null),
-                        messageSource.getMessage("citation.name", null, "Name", null),
-                        messageSource.getMessage("citation.doi", null, "DOI", null),
-                        messageSource.getMessage("citation.citation", null, "Citation", null),
-                        messageSource.getMessage("citation.rights", null, "Rights", null),
-                        messageSource.getMessage("citation.link", null, "More Information", null),
-                        messageSource.getMessage("citation.dataGeneralizations", null, "Data generalisations", null),
-                        messageSource.getMessage("citation.informationWithheld", null, "Information withheld", null),
-                        messageSource.getMessage("citation.downloadLimit", null, "Download limit", null),
-                        messageSource.getMessage("citation.count", null, "Number of Records in Download", null)
+                writer.writeNext(new String[]{
+                    messageSource.getMessage("citation.uid", null, "UID", null),
+                    messageSource.getMessage("citation.name", null, "Name", null),
+                    messageSource.getMessage("citation.doi", null, "DOI", null),
+                    messageSource.getMessage("citation.citation", null, "Citation", null),
+                    messageSource.getMessage("citation.rights", null, "Rights", null),
+                    messageSource.getMessage("citation.link", null, "More Information", null),
+                    messageSource.getMessage("citation.dataGeneralizations", null, "Data generalisations", null),
+                    messageSource.getMessage("citation.informationWithheld", null, "Information withheld", null),
+                    messageSource.getMessage("citation.downloadLimit", null, "Download limit", null),
+                    messageSource.getMessage("citation.count", null, "Number of Records in Download", null)
                 });
 
                 if (!uidStats.isEmpty()) {
                     List<LinkedHashMap<String, Object>> entities = restTemplate.postForObject(citationServiceUrl,
                             uidStats.keySet(), List.class);
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Posting to " + citationServiceUrl);
+                        logger.debug("UIDs " + uidStats.keySet().stream().collect(Collectors.joining(",")));
+                    }
                     final int UID = 0;
                     final int NAME = 1;
                     final int CITATION = 3;
                     final int RIGHTS = 4;
                     final int LINK = 5;
                     final int COUNT = 9;
-                    for (Map<String, Object> record : entities) {
-                        // ensure that the record is not null to prevent NPE on
-                        // the "get"s
-                        if (record != null) {
-                            Object value = record.get("uid");
-                            if (value != null) {
-                                AtomicInteger uidRecordCount = uidStats.get(value);
-                                String count = Optional.ofNullable(uidRecordCount).orElseGet(() -> new AtomicInteger(0)).toString();
-                                String[] row = new String[]{
-                                        getOrElse(record, "uid", ""),
-                                        getOrElse(record, "name", ""),
-                                        getOrElse(record, "DOI", ""),
-                                        getOrElse(record, "citation", ""),
-                                        getOrElse(record, "rights", ""),
-                                        getOrElse(record, "link", ""),
-                                        getOrElse(record, "dataGeneralizations", ""),
-                                        getOrElse(record, "informationWithheld", ""),
-                                        getOrElse(record, "downloadLimit", ""),
-                                        count};
-                                writer.writeNext(row);
 
-                                if (readmeCitations != null) {
-                                    // used in README.txt
-                                    readmeCitations.add(row[CITATION] + " (" + row[RIGHTS] + "). " + row[LINK]);
-                                }
+                    List<Map<String, Object>> useableRecords = entities.stream()
+                            .filter(m -> m != null && m.get("uid") != null).collect(toList());
 
-                                if (datasetMetadata != null) {
-                                    Map<String, String> dataSet = new HashMap<>();
+                    for (Map<String, Object> record : useableRecords) {
+                        Object uid = record.get("uid");
+                        AtomicInteger uidRecordCount = uidStats.get(uid);
+                        String count = Optional.ofNullable(uidRecordCount).orElseGet(() -> new AtomicInteger(0)).toString();
+                        String[] row = new String[]{
+                                (String) record.getOrDefault( "uid", ""),
+                                (String) record.getOrDefault( "name", ""),
+                                (String) record.getOrDefault( "DOI", ""),
+                                (String) record.getOrDefault( "citation", ""),
+                                (String) record.getOrDefault( "rights", ""),
+                                (String) record.getOrDefault( "link", ""),
+                                (String) record.getOrDefault( "dataGeneralizations", ""),
+                                (String) record.getOrDefault( "informationWithheld", ""),
+                                (String) record.getOrDefault( "downloadLimit", ""),
+                                count};
+                        writer.writeNext(row);
 
-                                    dataSet.put("uid", row[UID]);
-                                    dataSet.put("name", row[NAME]);
-                                    dataSet.put("licence", row[RIGHTS]);
-                                    dataSet.put("count", row[COUNT]);
+                        if (readmeCitations != null) {
+                            // used in README.txt
+                            readmeCitations.add(row[CITATION] + " (" + row[RIGHTS] + "). " + row[LINK]);
+                        }
 
-                                    datasetMetadata.add(dataSet);
-                                }
-                            } else {
-                                logger.error("Record did not have a uid attribute: " + record);
-                            }
-                        } else {
-                            if (logger.isDebugEnabled()) {
-                                logger.error("A null record was returned from the collectory citation service: " + entities + ", collected stats were: " + uidStats);
-                            } else {
-                                logger.error("A null record was returned from the collectory citation service.");
-                            }
+                        if (datasetMetadata != null) {
+                            Map<String, String> dataSet = new HashMap<>();
+
+                            dataSet.put("uid", row[UID]);
+                            dataSet.put("name", row[NAME]);
+                            dataSet.put("licence", row[RIGHTS]);
+                            dataSet.put("count", row[COUNT]);
+
+                            datasetMetadata.add(dataSet);
                         }
                     }
+
+                    if (useableRecords.size() < uidStats.keySet().size()) {
+                        List<String> usedUids = useableRecords.stream().map(record -> (String)record.get("uid")).collect(toList());
+                        String missingUids = uidStats.keySet().stream().filter(uid -> !usedUids.contains(uid)).collect(Collectors.joining());
+                        logger.warn("The following UIDs will not have citations (missing in registry): " + missingUids);
+                    }
+
                 } else {
                     logger.warn("No collected stats for a download");
                 }
@@ -949,7 +964,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @throws IOException
      */
     public void getHeadings(DownloadHeaders downloadHeaders, OutputStream out,
-                            DownloadRequestParams params, String[] miscHeaders) throws Exception {
+                            DownloadRequestDTO params, String[] miscHeaders) throws Exception {
         if (headingsEnabled) {
             afterInitialisation();
 
@@ -968,7 +983,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                 String[] fieldsRequested = downloadHeaders.joinOriginalIncluded();
                 String[] headerOutput = downloadHeaders.joinedHeader();
-
 
                 if (fieldsRequested != null && headerOutput != null) {
                     // ignore first fieldsRequested and headerOutput record
@@ -1026,10 +1040,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         }
     }
 
-    private String getOrElse(Map<String, Object> map, String key, String defaultValue) {
-        return map.getOrDefault(key, defaultValue).toString();
-    }
-
     /**
      * Generate a search URL the user can use to regenerate the same download
      * (assumes they came via biocache UI)
@@ -1037,7 +1047,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param params
      * @return url
      */
-    public String generateSearchUrl(DownloadRequestParams params) {
+    public String generateSearchUrl(DownloadRequestDTO params) {
         return generateSearchUrl(params, null);
     }
 
@@ -1049,7 +1059,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @param enabledQualityFiltersByLabel A pre-provided map of enabled quality filter label to fqs or null if the should be looked up on demand.
      * @return url The generated search url
      */
-    public String generateSearchUrl(DownloadRequestParams params, @Nullable Map<String, String> enabledQualityFiltersByLabel) {
+    public String generateSearchUrl(DownloadRequestDTO params, @Nullable Map<String, String> enabledQualityFiltersByLabel) {
         if (params.getSearchUrl() != null) {
             return params.getSearchUrl();
         } else {
@@ -1206,18 +1216,20 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     /**
      * Generates the Solr filter to query sensitive data for the user sensitive roles
      *
-     * @param userId The user the filter is built for
      * @return A String with a Solr filter
      */
-    public String getSensitiveFq(String userId) {
+    public String getSensitiveFq(Set<String> userRoles) {
 
         if (downloadAuthSensitive == null || !downloadAuthSensitive) {
             return null;
         }
 
+        List<String> sensitiveRoles = new ArrayList<>(sensitiveAccessRolesToSolrFilters20.keySet());
+        sensitiveRoles.retainAll(userRoles);
+
         String sensitiveFq = "";
 
-        for (String sensitiveRole : getSensitiveRolesForUser(userId)) {
+        for (String sensitiveRole : sensitiveRoles) {
             if (sensitiveFq.length() > 0) {
                 sensitiveFq += " OR ";
             }
@@ -1228,30 +1240,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             return null;
         }
 
-        if (logger.isDebugEnabled()) {
-            logger.debug("sensitiveOnly download requested for user: " + userId +
-                    ", using fq: " + sensitiveFq);
-        }
-
         return sensitiveFq;
     }
-
-    /**
-     * List the sensitive roles for a given user
-     *
-     * @param userId The user
-     * @return The sensitive roles for the user, the list will be empty if the user has no sensitive roles
-     */
-    public List<String> getSensitiveRolesForUser(String userId) {
-        List<String> userRoles = authService.getUserRoles(userId);
-
-        List<String> result = new ArrayList<>(sensitiveAccessRolesToSolrFilters20.keySet());
-
-        result.retainAll(userRoles);
-
-        return result;
-    }
-
 
     private class DownloadCreatorImpl implements DownloadCreator {
         @Override
@@ -1281,16 +1271,25 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             if (mintDoi) {
                                 doiResponseList = new ArrayList<>();
                             }
-                            writeQueryToStream(currentDownload, currentDownload.getRequestParams(),
-                                    currentDownload.getIpAddress(), new CloseShieldOutputStream(fos), currentDownload.getIncludeSensitive(),
-                                    currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX, true, parallelExecutor, doiResponseList);
 
+                            logger.info("Writing download to file " + mintDoi);
+                            writeQueryToStream(
+                                    currentDownload,
+                                    new CloseShieldOutputStream(fos),
+                                    currentDownload.getDownloadType() == DownloadType.RECORDS_INDEX,
+                                    true,
+                                    parallelExecutor,
+                                    doiResponseList
+                            );
+
+                            logger.info("Sending email to recipient mintDoi " + mintDoi);
                             if (mintDoi && doiResponseList.size() <= 0) {
                                 //DOI Minting failed
                                 doiFailureMessage = biocacheDownloadDoiFailureMessage;
                                 mintDoi = false; //Prevent any updates
                             }
 
+                            logger.info("Sending email to recipient");
                             // now that the download is complete email a link to the
                             // recipient.
                             final String hubName = currentDownload.getRequestParams().getHubName() != null ? currentDownload.getRequestParams().getHubName() : "ALA";
@@ -1298,7 +1297,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     .replace("[filename]", currentDownload.getRequestParams().getFile())
                                     .replace("[hubName]", hubName);
 
+                            logger.info("currentDownload = " + currentDownload );
+
                             if (currentDownload != null && currentDownload.getFileLocation() != null) {
+
+                                logger.info("currentDownload.getFileLocation() = " + currentDownload.getFileLocation() );
                                 insertMiscHeader(currentDownload);
 
                                 //ensure new directories and download file have correct permissions
@@ -1347,7 +1350,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                     substitutions.put(DOWNLOAD_FILE_LOCATION, archiveFileLocation);
                                 }
 
-                                if (currentDownload.isEmailNotify()) {
+                                logger.info("currentDownload.getRequestParams().isEmailNotify()  = " + currentDownload.getRequestParams().isEmailNotify());
+
+                                if (currentDownload.getRequestParams().isEmailNotify()) {
 
                                     // save the statistics to the download directory
                                     try (FileOutputStream statsStream = FileUtils
@@ -1367,12 +1372,16 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                         objectMapper.writeValue(statsStream, currentDownload);
                                     }
 
+                                    logger.info("Delay sending the email to allow.....");
                                     if (mintDoi && doiResponseList != null && !doiResponseList.isEmpty() && doiResponseList.get(0) != null) {
                                         // Delay sending the email to allow the DOI to propagate through to upstream DOI providers
+                                        logger.info("Delay sending the email to allow....." + doiPropagationDelay);
                                         Thread.sleep(doiPropagationDelay);
                                     }
 
-                                    emailService.sendEmail(currentDownload.getEmail(), subject, emailBody);
+                                    logger.info("Sending email now to  " + currentDownload.getRequestParams().getEmail());
+                                    emailService.sendEmail(currentDownload.getRequestParams().getEmail(), subject, emailBody);
+                                    logger.info("Email sent to  " + currentDownload.getRequestParams().getEmail());
                                 }
                             }
 
@@ -1383,6 +1392,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             throw e;
                         } catch (CancellationException e) {
                             //download cancelled, do not send an email
+                            logger.info("Download cancelled...");
                         } catch (Exception e) {
                             logger.error("Error in offline download, sending email. download path: "
                                     + currentDownload.getFileLocation(), e);
@@ -1407,7 +1417,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 String emailTemplate = getFailEmailBodyTemplate();
                                 String emailBody = generateEmailContent(emailTemplate, substitutions);
                                 // email error to user and support (configurable)
-                                emailService.sendEmail(currentDownload.getEmail(), copyTo, subject, emailBody);
+                                emailService.sendEmail(currentDownload.getRequestParams().getEmail(), copyTo, subject, emailBody);
 
                             } catch (Exception ex) {
                                 logger.error("Error sending error message to download email. "
