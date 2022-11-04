@@ -957,7 +957,7 @@
                         <artifactId>docker-maven-plugin</artifactId>
                     </plugin>
                 </plugins>
-            </build>
-        </profile>
     </profiles>
 </project>
+            </build>
+        </profile>
