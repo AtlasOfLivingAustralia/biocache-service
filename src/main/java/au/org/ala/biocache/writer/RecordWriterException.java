@@ -15,7 +15,7 @@
 package au.org.ala.biocache.writer;
 
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
-import au.org.ala.biocache.dto.DownloadRequestParams;
+import au.org.ala.biocache.dto.DownloadRequestDTO;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -39,7 +39,7 @@ public class RecordWriterException extends IOException {
         super("RecordWriter Exception: " + msg, cause);
     }
     
-    public static RecordWriterException newRecordWriterException(DownloadDetailsDTO dd, DownloadRequestParams downloadParams, boolean solr, RecordWriterError writer) {
+    public static RecordWriterException newRecordWriterException(DownloadDetailsDTO dd, DownloadRequestDTO downloadParams, boolean solr, RecordWriterError writer) {
         String msg = "";
         if (dd != null) {
             if (dd.getFileLocation() != null) {

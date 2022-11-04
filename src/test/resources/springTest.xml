@@ -30,8 +30,8 @@
     <context:component-scan base-package="au.org.ala.biocache"/>
 
     <!-- Configures the @Controller programming model -->
-    <mvc:annotation-driven />
-    <task:annotation-driven />
+<!--    <mvc:annotation-driven />-->
+<!--    <task:annotation-driven />-->
 
     <!-- Where to load static resources (css, js, images) -->
     <mvc:resources mapping="/static/**" location="/" />
@@ -143,15 +143,6 @@
     </bean>
 
     <cache:annotation-driven />
-
-<!--    <ehcache:config cache-manager="cacheManager">-->
-<!--        &lt;!&ndash; interval is in minutes &ndash;&gt;-->
-<!--        <ehcache:evict-expired-elements interval="60" />-->
-<!--    </ehcache:config>-->
-
-<!--    <bean id="cacheManager" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">-->
-<!--        <property name="configLocation"  value="/WEB-INF/ehcache.xml"/>-->
-<!--    </bean>-->
 
     <bean id="ehCacheManager" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">
         <property name="configLocation"  value="/WEB-INF/ehcache.xml"/>

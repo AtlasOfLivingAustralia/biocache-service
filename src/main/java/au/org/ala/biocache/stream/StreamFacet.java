@@ -3,7 +3,7 @@ package au.org.ala.biocache.stream;
 import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.OccurrenceIndex;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.writer.CSVRecordWriter;
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.ArrayUtils;
@@ -20,7 +20,7 @@ public class StreamFacet implements ProcessInterface {
 
     SearchDAOImpl searchDAO;
     DownloadDetailsDTO downloadDetails;
-    SpatialSearchRequestParams request;
+    SpatialSearchRequestDTO request;
     boolean includeCount;
     boolean includeSynonyms;
     boolean includeLists;
@@ -33,7 +33,7 @@ public class StreamFacet implements ProcessInterface {
 
     long missingCount;
 
-    public StreamFacet(SearchDAOImpl searchDAO, DownloadDetailsDTO downloadDetails, SpatialSearchRequestParams request,
+    public StreamFacet(SearchDAOImpl searchDAO, DownloadDetailsDTO downloadDetails, SpatialSearchRequestDTO request,
                        boolean lookupName, boolean includeCount, boolean includeSynonyms, boolean includeLists,
                        long missingCount, OutputStream out) {
         this.out = out;

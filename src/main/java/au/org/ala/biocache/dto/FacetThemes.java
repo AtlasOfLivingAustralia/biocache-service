@@ -183,8 +183,7 @@ public class FacetThemes {
                 new FacetDTO(OccurrenceIndex.PHYLUM, "index", null, null, null),
                 new FacetDTO(OccurrenceIndex.KINGDOM, "index", null, null, null),
                 new FacetDTO(OccurrenceIndex.SPECIES_GROUP, "index", null, null, null),
-                new FacetDTO(OccurrenceIndex.TAXON_RANK, "count", null, null, null),
-                new FacetDTO(OccurrenceIndex.BIOME, "count", null, null, null)));
+                new FacetDTO(OccurrenceIndex.TAXON_RANK, "count", null, null, null)));
 
         allThemes.add(new FacetTheme("Geospatial",
                 new FacetDTO(OccurrenceIndex.COORDINATE_UNCERTAINTY, "index", null, null, null),

@@ -2,7 +2,7 @@ package au.org.ala.biocache.dao;
 
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
-import au.org.ala.biocache.dto.DownloadRequestParams;
+import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.biocache.dto.FacetThemes;
 import org.junit.After;
 import org.junit.Before;
@@ -31,7 +31,6 @@ public class PersistentQueueDAOTest {
     
     @Before
     public void setUp() throws Exception{
-        System.out.println("BEFORE...");
 
         //init FacetThemes
         new FacetThemes();
@@ -54,8 +53,8 @@ public class PersistentQueueDAOTest {
         queueDAO.shutdown();
     }
 
-    private DownloadRequestParams getParams(String query){
-        DownloadRequestParams d = new DownloadRequestParams();
+    private DownloadRequestDTO getParams(String query){
+        DownloadRequestDTO d = new DownloadRequestDTO();
         d.setQ(query);
         d.setFile("Testing");
         d.setEmail("natasha.carter@csiro.au");
@@ -64,12 +63,11 @@ public class PersistentQueueDAOTest {
     
     @Test
     public void testQueue(){
-        System.out.println("test add");
-        DownloadDetailsDTO dd = new DownloadDetailsDTO(getParams("test1"), "127.0.0.1", "", DownloadType.FACET);
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(getParams("test1"), null,"127.0.0.1", "", DownloadType.FACET);
         
         queueDAO.addDownloadToQueue(dd);
         assertEquals(1,queueDAO.getTotalDownloads());
-        DownloadDetailsDTO dd2 = new DownloadDetailsDTO(getParams("test2"), "127.0.0.1", "", DownloadType.FACET);
+        DownloadDetailsDTO dd2 = new DownloadDetailsDTO(getParams("test2"), null,"127.0.0.1", "", DownloadType.FACET);
         
         queueDAO.addDownloadToQueue(dd2);
         assertEquals(2,queueDAO.getTotalDownloads());

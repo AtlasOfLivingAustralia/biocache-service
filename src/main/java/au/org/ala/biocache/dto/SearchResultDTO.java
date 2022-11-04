@@ -15,6 +15,7 @@
 package au.org.ala.biocache.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.apache.solr.client.solrj.response.QueryResponse;
 
 import java.util.Collection;
@@ -28,6 +29,7 @@ import java.util.Map;
  *
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
+@Schema(name="SearchResults", description="Represents a page of search results")
 public class SearchResultDTO {
 
     /** Maximum number of results returned from a query */

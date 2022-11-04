@@ -1,7 +1,7 @@
 package au.org.ala.biocache.util;
 
 import au.org.ala.biocache.dao.QidCacheDAO;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.stereotype.Component;
 
@@ -13,7 +13,7 @@ public class WMSUtils {
     @Inject
     protected QidCacheDAO qidCacheDAO;
 
-    public String[] getFq(SpatialSearchRequestParams requestParams) {
+    public String[] getFq(SpatialSearchRequestDTO requestParams) {
         int requestParamsFqLength = requestParams.getFq() != null ? requestParams.getFq().length : 0;
 
         String[] qidFq = null;

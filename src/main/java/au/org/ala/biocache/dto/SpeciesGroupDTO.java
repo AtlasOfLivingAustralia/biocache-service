@@ -14,6 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 
 /**
@@ -21,6 +23,7 @@ import java.util.List;
  * 
  * @author "Natasha Carter <natasha.carter@csiro.au>"
  */
+@Schema(name = "SpeciesGroup", description = "Species Group")
 public class SpeciesGroupDTO {
 
     private String name;

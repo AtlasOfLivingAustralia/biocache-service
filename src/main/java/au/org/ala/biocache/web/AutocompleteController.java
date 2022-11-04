@@ -15,11 +15,11 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.service.SpeciesLookupService;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.Operation;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import javax.inject.Inject;
 import java.util.Map;
@@ -28,23 +28,24 @@ import java.util.Map;
  * a basic autocomplete service using the SpeciesLookupService
  */
 @Controller
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class AutocompleteController extends AbstractSecureController {
 
     @Inject
     protected SpeciesLookupService speciesLookupService;
 
-    @RequestMapping(value = { "autocomplete/search", "autocomplete/search.json" }, method = RequestMethod.GET)
+    @Operation(summary = "Autocomplete service which filters only lists taxa with occurrence data", tags = "Autocomplete")
+    @RequestMapping(value = {
+            "autocomplete/search" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public
     @ResponseBody
     Map search(
-            @RequestParam(value = "q", required = true) String query,
+            @RequestParam(value = "q") String query,
             @RequestParam(value = "fq", required = false) String[] filterQuery,
             @RequestParam(value = "pageSize", required = false, defaultValue = "10") Integer max,
             @RequestParam(value = "all", required = false, defaultValue = "false") Boolean includeAll,
             @RequestParam(value = "synonyms", required = false, defaultValue = "true") Boolean searchSynonyms,
             @RequestParam(value = "counts", required = false, defaultValue = "true") Boolean counts) throws Exception {
-
-
         return speciesLookupService.search(query, filterQuery, max, searchSynonyms, includeAll, counts);
     }
 }

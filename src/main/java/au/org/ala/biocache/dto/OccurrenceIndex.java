@@ -14,7 +14,10 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateFormatUtils;
 import org.apache.log4j.Logger;
@@ -29,14 +32,12 @@ import java.util.Map;
 /**
  * A DTO representing an result from the search indexes.
  */
+@Schema(name="OccurrenceIndex", description="Represents a single record search result")
 public class OccurrenceIndex {
 
     public static final String MISC = "dynamicProperties";
     protected static final Logger logger = Logger.getLogger(OccurrenceIndex.class);
 
-    final static public String IMAGES = "imageIDs";
-    final static public String SOUNDS = "soundIDs";
-    //final static public String GEOSPATIAL_KOSHER = "geospatial_kosher"; // Not in pipelines
     final static public String COUNTRY = "country";
     final static public String STATE = "stateProvince";
     final static public String PROVENANCE = "provenance";
@@ -71,203 +72,216 @@ public class OccurrenceIndex {
     public static final String TAXON_CONCEPT_ID = "taxonConceptID";
     public static final String SPECIESID = "speciesID";
     public static final String GENUSID = "genusID";
-    public static final String DATA_PROVIDER_NAME = "dataProviderName";
     public static final String DATA_HUB_UID = "dataHubUid";
     final static public String COLLECTION_UID = "collectionUid";
-    final static public String COLLECTION_NAME = "collectionName";
     final static public String INSTITUTION_UID = "institutionUid";
     final static public String DATA_PROVIDER_UID = "dataProviderUid";
     final static public String DATA_RESOURCE_UID = "dataResourceUid";
+
     final public static String LOCALITY = "locality";
     final public static String BIOME = "biome";
 
-    @Field("id")
+    @Field("id") @Schema(description="Atlas persistent UUID for this record")
     String uuid;
-    @Field("occurrenceID")
+    @Field("occurrenceID") @Schema(description="http://rs.tdwg.org/dwc/terms/occurrenceID")
     String occurrenceID;
-    //processed values
-    @Field("dataHubUid")
+    @Field("dataHubUid") @Schema(description="UIDs of the associated data hubs")
     String[] dataHubUid;
-    @Field("dataHubName")
+    @Field("dataHubName") @Schema(description="Names of the associated data hubs")
     String[] dataHub;
-    @Field("institutionUid")
+    @Field("institutionUid") @Schema(description="Atlas ID for this Institution")
     String institutionUid;
-    @Field("institutionCode")
+    @Field("institutionCode") @Schema(description="http://rs.tdwg.org/dwc/terms/institutionCode")
     String raw_institutionCode;
-    @Field("institutionName")
+    @Field("institutionName") @Schema(description="Institution name")
     String institutionName;
-    @Field("collectionUid")
-    String collectionUid;
-    @Field("collectionCode")
+    @Field("collectionCode") @Schema(description="http://rs.tdwg.org/dwc/terms/collectionCode")
     String raw_collectionCode;
-    @Field("collectionName")
+    @Field("collectionUid") @Schema(description="Atlas ID for this Collection")
+    String collectionUid;
+    @Field("collectionName") @Schema(description="Collection name")
     String collectionName;
-    @Field("catalogNumber")
+    @Field("catalogNumber") @Schema(description="http://rs.tdwg.org/dwc/terms/catalogNumber")
     String raw_catalogNumber;
-    @Field("taxonConceptID")
+    @Field("taxonConceptID") @Schema(description="http://rs.tdwg.org/dwc/terms/taxonConceptID")
     String taxonConceptID;
-    @Field("eventDate")
+    @Field("eventDate")  @JsonFormat(shape = JsonFormat.Shape.NUMBER) @Schema(description="Event date in unix time format")
     Date eventDate;
-    @Field("eventDateEnd")
+    @Field("eventDateEnd") @JsonFormat(shape = JsonFormat.Shape.NUMBER) @Schema(description="Event date end in unix time format")
     Date eventDateEnd;
-    // @Field for occurrenceYear is on Setter
-    Date occurrenceYear;
-    @Field("scientificName")
+
+    @Field("scientificName") @Schema(description="http://rs.tdwg.org/dwc/terms/scientificName")
     String scientificName;
-    @Field("vernacularName")
+    @Field("vernacularName") @Schema(description="http://rs.tdwg.org/dwc/terms/vernacularName")
     String vernacularName;
-    @Field("taxonRank")
+    @Field("taxonRank") @Schema(description="http://rs.tdwg.org/dwc/terms/taxonRank")
     String taxonRank;
-    @Field("taxonRankID")
+    @Field("taxonRankID") @Schema(description="http://rs.tdwg.org/dwc/terms/taxonRankID")
     Integer taxonRankID;
-    @Field("raw_countryCode")
+    @Field("raw_countryCode") @Schema(description="http://rs.tdwg.org/dwc/terms/countryCode")
     String raw_countryCode;
-    @Field("country")
+    @Field("country") @Schema(description="http://rs.tdwg.org/dwc/terms/country")
     String country;
-    @Field("kingdom")
+    @Field("kingdom") @Schema(description="http://rs.tdwg.org/dwc/terms/kingdom")
     String kingdom;
-    @Field("phylum")
+    @Field("phylum") @Schema(description="http://rs.tdwg.org/dwc/terms/phylum")
     String phylum;
-    @Field("class")
+    @Field("class") @Schema(description="http://rs.tdwg.org/dwc/terms/class")
     String classs;
-    @Field("order")
+    @Field("order") @Schema(description="http://rs.tdwg.org/dwc/terms/order")
     String order;
-    @Field("family")
+    @Field("family") @Schema(description="http://rs.tdwg.org/dwc/terms/family")
     String family;
-    @Field("genus")
+    @Field("genus") @Schema(description="http://rs.tdwg.org/dwc/terms/genus")
     String genus;
     @Field("genusID")
     String genusGuid;
-    @Field("species")
+    @Field("species") @Schema(description="Species name")
     String species;
-    @Field("speciesID")
+    @Field("speciesID") @Schema(description="Species ID")
     String speciesGuid;
     @Field("subspecies")
     String subspecies;
     @Field("subspeciesID")
     String subspeciesGuid;
-    @Field("stateProvince")
+    @Field("stateProvince") @Schema(description="http://rs.tdwg.org/dwc/terms/stateProvince")
     String stateProvince;
-    @Field("decimalLatitude")
+    @Field("decimalLatitude") @Schema(description="http://rs.tdwg.org/dwc/terms/decimalLatitude")
     Double decimalLatitude;
-    @Field("decimalLongitude")
+    @Field("decimalLongitude") @Schema(description="http://rs.tdwg.org/dwc/terms/decimalLongitude")
     Double decimalLongitude;
-    @Field("coordinateUncertaintyInMeters")
+    @Field("coordinateUncertaintyInMeters") @Schema(description="http://rs.tdwg.org/dwc/terms/coordinateUncertaintyInMeters")
     Double coordinateUncertaintyInMeters;
-    @Field("year")
+    @Field("year") @Schema(description="http://rs.tdwg.org/dwc/terms/year")
     Integer year;
-    @Field("month")
+    @Field("month") @Schema(description="http://rs.tdwg.org/dwc/terms/month")
     Integer month;
-    @Field("basisOfRecord")
+    @Field("basisOfRecord") @Schema(description="http://rs.tdwg.org/dwc/terms/basisOfRecord")
     String basisOfRecord;
-    @Field("typeStatus")
+    @Field("typeStatus") @Schema(description="http://rs.tdwg.org/dwc/terms/typeStatus")
     String[] typeStatus;
-    @Field("locationRemarks")
+    @Field("locationRemarks") @Schema(description="http://rs.tdwg.org/dwc/terms/locationRemarks")
     String raw_locationRemarks;
-    @Field("occurrenceRemarks")
+    @Field("occurrenceRemarks") @Schema(description="http://rs.tdwg.org/dwc/terms/occurrenceRemarks")
     String raw_occurrenceRemarks;
-    @Field("lft")
-    Integer left;
-    @Field("rgt")
-    Integer right;
-    //@Field("ibra")
-    String ibra;
-    //@Field("imcra")
-    String imcra;
-    //@Field("places")
-    String lga;
     @Field("dataProviderUid")
     String dataProviderUid;
-    @Field("dataProviderName")
+    @Field("dataProviderName")  @Schema(description="Data provider name")
     String dataProviderName;
     @Field("dataResourceUid")
     String dataResourceUid;
-    @Field("dataResourceName")
+    @Field("dataResourceName")   @Schema(description="Data resource name")
     String dataResourceName;
-    @Field("assertions")
+    @Field("assertions") @Schema(description="Array of quality assertion flags")
     String[] assertions;
     @Field("userAssertions")
     String userAssertions;
-    @Field("hasUserAssertions")
+    @Field("hasUserAssertions") @Schema(description="Indicates if users have supplied assertions for this occurrence")
     Boolean hasUserAssertions;
-    @Field("speciesGroup")
+    @Field("speciesGroup") @Schema(description="Higher leve species groups associated with this taxon e.g. Birds")
     String[] speciesGroups;
     @Field("imageID")
     String image;
-    @Field("imageIDs")
+    @Field("imageIDs")  @Schema(description="Array of identifiers for images")
     String[] images;
-    @Field("spatiallyValid")
-    Boolean geospatialKosher;
-    //@Field("taxonomic_kosher")
-    String taxonomicKosher;
-    @Field("recordedBy")
-    String[] collector;
-    @Field("recordedBy")
+    @Field("spatiallyValid") @Schema(description="Set to false if certain geospatial issues have been identified")
+    Boolean spatiallyValid;
+    @Field("recordedBy") @Schema(description="http://rs.tdwg.org/dwc/terms/recordedBy")
+    String[] recordedBy;
+    @Field("recordedBy")  @Schema(description="The recordedBy value tokenized into separate agents")
     String[] collectors;
     //extra raw record fields
-    @Field("raw_scientificName")
+    @Field("raw_scientificName") @Schema(description="http://rs.tdwg.org/dwc/terms/scientificName")
     String raw_scientificName;
-    @Field("raw_basisOfRecord")
+    @Field("raw_basisOfRecord") @Schema(description="http://rs.tdwg.org/dwc/terms/basisOfRecord")
     String raw_basisOfRecord;
-    @Field("raw_typeStatus")
+    @Field("raw_typeStatus") @Schema(description="http://rs.tdwg.org/dwc/terms/typeStatus")
     String raw_typeStatus;
-    @Field("raw_vernacularName")
+    @Field("raw_vernacularName") @Schema(description="http://rs.tdwg.org/dwc/terms/vernacularName")
     String raw_vernacularName;
     //constructed fields
-    @Field("lat_long")
-    String latLong;
-    @Field("point-1")
-    String point1;
-    @Field("point-0.1")
-    String point01;
-    @Field("point-0.01")
-    String point001;
-    @Field("point-0.001")
-    String point0001;
-    @Field("point-0.0001")
-    String point00001;
-    @Field("names_and_lsid")
-    String namesLsid;
-    @Field("multimedia")
+    @Field("multimedia") @Schema(description="Array of identifiers for multimedia objects associated with this occurrence")
     String[] multimedia;
-    @Field("license")
+    @Field("license") @Schema(description = "http://purl.org/dc/elements/1.1/license")
     String license;
-    @Field("identificationVerificationStatus")
+    @Field("identificationVerificationStatus")  @Schema(description="http://rs.tdwg.org/dwc/terms/identificationVerificationStatus")
     String identificationVerificationStatus;
-    //conservation status field
-    @Field("countryConservation")
-    String austConservation;
-    @Field("stateConservation")
+
+    // conservation status field
+    @Field("countryConservation")  @Schema(description = "Country conservation status associated with taxon for this record")
+    String countryConservation;
+    @Field("stateConservation") @Schema(description = "State conservation status associated with taxon for this record")
     String stateConservation;
-    @Field("sensitive")
+    @Field("countryInvasive")  @Schema(description = "Country invasive status associated with taxon for this record")
+    String countryInvasive;
+    @Field("stateInvasive") @Schema(description = "State invasive status associated with taxon for this record")
+    String stateInvasive;
+    @Field("sensitive") @Schema(description = "Sensitive status of this record")
     String sensitive;
     //AVH extra fields
     @Field("recordNumber")
     String recordNumber;
     //For harvesting of images into the BIE
-    @Field("references")
-    String occurrenceDetails;
-    @Field("rights")
+    @Field("references") @Schema(description = "http://purl.org/dc/elements/1.1/references")
+    String references;
+    @Field("rights") @Schema(description = "http://purl.org/dc/elements/1.1/rights")
     String rights;
-    //@Field("photographer_s")
-    String photographer;
     //@Field("grid_ref")
     String gridReference;
-    @Field("*_s")
-    Map<String, Object> miscStringProperties;
-    @Field("*_i")
-    Map<String, Object> miscIntProperties;
-    @Field("*_d")
-    Map<String, Object> miscDoubleProperties;
-    @Field("*_dt")
-    Map<String, Object> miscDateProperties;
+    @Schema(description="Metadata for the images associated with this occurrence")
     List<Map<String, Object>> imageMetadata;
-
+    @Schema(description="URL for the first image associated with this record")
     String imageUrl;
+    @Schema(description="URL for the first large version of an image associated with this record")
     String largeImageUrl;
+    @Schema(description="URL for the first small version of an image associated with this record")
     String smallImageUrl;
+    @Schema(description="URL for the first image thumbnail associated with this record")
     String thumbnailUrl;
+    @Schema(description="All URLs for the images associated with this record")
     String[] imageUrls;
+
+    // DEPRECATED FIELDS - located here to appear at the bottom of API listings
+//    @Deprecated @Field("occurrenceYear")
+    Date occurrenceYear;
+    @Deprecated @Field("spatiallyValid") @Schema(deprecated = true)
+    Boolean geospatialKosher;
+    @Deprecated
+    String taxonomicKosher;
+    @Deprecated @Field("lat_long")
+    String latLong;
+    @Deprecated @Field("point-1")
+    String point1;
+    @Deprecated @Field("point-0.1")
+    String point01;
+    @Deprecated @Field("point-0.01")
+    String point001;
+    @Deprecated @Field("point-0.001")
+    String point0001;
+    @Deprecated @Field("point-0.0001")
+    String point00001;
+    @Deprecated @Field("recordedBy")
+    String[] collector;
+    @Deprecated @Field("references")
+    String occurrenceDetails;
+    @Deprecated
+    String photographer;
+    @Deprecated @Field("countryConservation")  @Schema(deprecated = true)
+    String austConservation;
+    @Deprecated @Field("names_and_lsid") @Schema(deprecated = true)
+    String namesLsid;
+    @Deprecated @Field("lft")  @Schema(description="Nested set left value used for taxonomy navigation",deprecated = true)
+    Integer left;
+    @Deprecated @Field("rgt")  @Schema(description="Nested set left value used for taxonomy navigation",deprecated = true)
+    Integer right;
+    @Deprecated @Field("*_s")  @Schema(deprecated = true)
+    Map<String, Object> miscStringProperties;
+    @Deprecated @Field("*_i")  @Schema(deprecated = true)
+    Map<String, Object> miscIntProperties;
+    @Deprecated @Field("*_d") @Schema(deprecated = true)
+    Map<String, Object> miscDoubleProperties;
+    @Deprecated @Field("*_dt") @Schema(deprecated = true)
+    Map<String, Object> miscDateProperties;
 
     //sensitive fields and their non-sensitive replacements
     public static final String EVENT_DATE = "eventDate";
@@ -357,7 +371,7 @@ public class OccurrenceIndex {
     }
 
     @JsonIgnore
-    public static String defaultFields = org.apache.commons.lang3.StringUtils.join(new OccurrenceIndex().indexToJsonMap().keySet(), ",");
+    public static final String defaultFields = org.apache.commons.lang3.StringUtils.join(new OccurrenceIndex().indexToJsonMap().keySet(), ",");
 
     @JsonIgnore
     public Map<String, String> toMap() {
@@ -511,15 +525,6 @@ public class OccurrenceIndex {
 
     public Date getOccurrenceYear() {
         return occurrenceYear;
-    }
-
-    @Field("occurrenceYear")
-    public void setOccurrenceYear(List<Date> occurrenceYears) {
-        if (occurrenceYears != null && occurrenceYears.size() > 0) {
-            this.occurrenceYear = occurrenceYears.get(0);
-        } else {
-            this.occurrenceYear = null;
-        }
     }
 
     public void setOccurrenceYear(Date occurrenceYear) {
@@ -756,30 +761,6 @@ public class OccurrenceIndex {
 
     public void setRight(Integer right) {
         this.right = right;
-    }
-
-    public String getIbra() {
-        return ibra;
-    }
-
-    public void setIbra(String ibra) {
-        this.ibra = ibra;
-    }
-
-    public String getImcra() {
-        return imcra;
-    }
-
-    public void setImcra(String imcra) {
-        this.imcra = imcra;
-    }
-
-    public String getLga() {
-        return lga;
-    }
-
-    public void setLga(String lga) {
-        this.lga = lga;
     }
 
     public String getDataProviderUid() {
@@ -1184,5 +1165,53 @@ public class OccurrenceIndex {
 
     public void setImageUrls(String[] imageUrls) {
         this.imageUrls = imageUrls;
+    }
+
+    public Boolean getSpatiallyValid() {
+        return spatiallyValid;
+    }
+
+    public void setSpatiallyValid(Boolean spatiallyValid) {
+        this.spatiallyValid = spatiallyValid;
+    }
+
+    public String[] getRecordedBy() {
+        return recordedBy;
+    }
+
+    public void setRecordedBy(String[] recordedBy) {
+        this.recordedBy = recordedBy;
+    }
+
+    public String getCountryConservation() {
+        return countryConservation;
+    }
+
+    public void setCountryConservation(String countryConservation) {
+        this.countryConservation = countryConservation;
+    }
+
+    public String getCountryInvasive() {
+        return countryInvasive;
+    }
+
+    public void setCountryInvasive(String countryInvasive) {
+        this.countryInvasive = countryInvasive;
+    }
+
+    public String getStateInvasive() {
+        return stateInvasive;
+    }
+
+    public void setStateInvasive(String stateInvasive) {
+        this.stateInvasive = stateInvasive;
+    }
+
+    public String getReferences() {
+        return references;
+    }
+
+    public void setReferences(String references) {
+        this.references = references;
     }
 }

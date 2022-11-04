@@ -3,7 +3,7 @@ package au.org.ala.biocache.dao;
 
 import au.org.ala.biocache.dto.Facet;
 import au.org.ala.biocache.dto.FacetThemes;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.service.DataQualityService;
 import au.org.ala.biocache.service.SpeciesLookupService;
 import au.org.ala.biocache.util.*;
@@ -142,7 +142,7 @@ public class FilterQueryParserTest {
                 "month:09 OR month:10 OR month:11"
         };
 
-        SpatialSearchRequestParams query = new SpatialSearchRequestParams();
+        SpatialSearchRequestDTO query = new SpatialSearchRequestDTO();
         query.setFq(fqs);
         facetMap = queryFormatUtils.formatSearchQuery(query, true)[0];
 
@@ -196,7 +196,7 @@ public class FilterQueryParserTest {
 //        Mockito.when(fieldMappingUtil.translateFieldValue("month", "09")).thenReturn("September");
 //        Mockito.when(fieldMappingUtil.translateFieldValue("month", "10")).thenReturn("October");
 
-        SpatialSearchRequestParams query = new SpatialSearchRequestParams();
+        SpatialSearchRequestDTO query = new SpatialSearchRequestDTO();
         String[][] fqs = new String[][] {
                 {"-month:\"09\"", "-Month:\"September\""},
                 {"-(month:\"09\")", "-(Month:\"September\")"},
@@ -256,7 +256,7 @@ public class FilterQueryParserTest {
     }
 
     private void runFqParsingTest(List<Facet> facets) throws QidMissingException {
-        SpatialSearchRequestParams query = new SpatialSearchRequestParams();
+        SpatialSearchRequestDTO query = new SpatialSearchRequestDTO();
 
         // collect values into fq list
         query.setFq(facets.stream().map(Facet::getValue).collect(Collectors.toList()).toArray(new String[0]));
@@ -267,7 +267,7 @@ public class FilterQueryParserTest {
 
     @Test
     public void testActiveFacetObj_invalidfq() throws QidMissingException {
-        SpatialSearchRequestParams query = new SpatialSearchRequestParams();
+        SpatialSearchRequestDTO query = new SpatialSearchRequestDTO();
         // Construct fq
         query.setFq(new String[] {null, "", " ", "month", "   month  ", "(month", "month)", "(month:\"11\"", "month\"11\"", ":\"11\"", "    :\"11\"", "(:\"11\")", "(    :\"11\")", "month:", "month:   ",  "(month:   )", "-(month:   )"});
         assertTrue(queryFormatUtils.formatSearchQuery(query)[1].isEmpty());

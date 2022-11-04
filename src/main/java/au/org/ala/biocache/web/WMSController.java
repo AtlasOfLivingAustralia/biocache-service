@@ -24,6 +24,10 @@ import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
+import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocument;
@@ -37,7 +41,10 @@ import org.opengis.referencing.crs.CRSAuthorityFactory;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.CoordinateOperation;
 import org.opengis.referencing.operation.TransformException;
+import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.security.access.annotation.Secured;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -60,6 +67,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
  * This controller provides mapping services which include WMS services. Includes support for:
@@ -72,69 +80,14 @@ import java.util.concurrent.atomic.AtomicReference;
  * </ul>
  */
 @Controller
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class WMSController extends AbstractSecureController {
-
-    /**
-     * webportal results limit
-     */
-    @Value("${wms.pagesize:1000000}")
-    private int DEFAULT_PAGE_SIZE = 1000000;
-
-    @Value("${wms.colour:0x00000000}")
-    private int DEFAULT_COLOUR;
-    /**
-     * webportal image max pixel count
-     */
-    @Value("${wms.image.pixel.count:36000000}")
-    private int MAX_IMAGE_PIXEL_COUNT; //this is slightly larger than 600dpi A4
-    /**
-     * legend limits
-     */
-    private final String NULL_NAME = "Unknown";
-    /**
-     * max uncertainty mappable in m
-     */
-    @Value("${wms.uncertainty.max:30000}")
-    private double MAX_UNCERTAINTY;
-    /**
-     * add pixel radius for wms highlight circles
-     */
-    @Value("${wms.highlight.radius:6}")
-    public int HIGHLIGHT_RADIUS;
-
-    /**
-     * max WMS point width in pixels. This makes better use of the searchDAO.getHeatMap cache.
-     */
-    @Value("${wms.cache.point.width.max:15}")
-    private Integer wmsMaxPointWidth;
-    /**
-     * uncertainty distance grouping used by WMS
-     */
-    @Value("${wms.uncertainty.grouping:0,1000,2000,4000,8000,16000,30000}")
-    private String uncertaintyGroupingStr;
-
-    /**
-     * buffer for hiding rounding errors and some projection errors
-     */
-    int additionalBuffer = 2;
-
-    private double[] uncertaintyGrouping;
-
-    private double[] getUncertaintyGrouping() {
-        if (uncertaintyGrouping == null) {
-            try {
-                uncertaintyGrouping = Arrays.stream(uncertaintyGroupingStr.split(",")).mapToDouble((a -> Double.parseDouble(a))).toArray();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        return uncertaintyGrouping;
-    }
 
     /**
      * Logger initialisation
      */
     private final static Logger logger = Logger.getLogger(WMSController.class);
+    private static final String SPECIES_LIST_CSV_HEADER = "Family,Scientific name,Common name,Taxon rank,LSID,# Occurrences";
     /**
      * Fulltext search DAO
      */
@@ -157,7 +110,7 @@ public class WMSController extends AbstractSecureController {
     final static byte[] blankImageBytes;
 
     @Value("${webservices.root:https://biocache-ws.ala.org.au/ws}")
-    protected String baseWsUrl;
+    protected String  baseWsUrl;
 
     @Value("${biocache.ui.url:https://biocache.ala.org.au}")
     protected String baseUiUrl;
@@ -206,6 +159,51 @@ public class WMSController extends AbstractSecureController {
     @Value("${wms.cache.cachecontrol.maxage:86400}")
     private String wmsCacheControlHeaderMaxAge;
 
+    /**
+     * webportal image max pixel count
+     */
+    @Value("${wms.image.pixel.count:36000000}")
+    private int MAX_IMAGE_PIXEL_COUNT; //this is slightly larger than 600dpi A4
+    /**
+     * legend limits
+     */
+    private final String NULL_NAME = "Unknown";
+
+    /**
+     * add pixel radius for wms highlight circles
+     */
+    @Value("${wms.highlight.radius:6}")
+    public int HIGHLIGHT_RADIUS;
+
+    /**
+     * max WMS point width in pixels. This makes better use of the searchDAO.getHeatMap cache.
+     */
+    @Value("${wms.cache.point.width.max:15}")
+    private Integer wmsMaxPointWidth;
+    /**
+     * uncertainty distance grouping used by WMS
+     */
+    @Value("${wms.uncertainty.grouping:0,1000,2000,4000,8000,16000,30000}")
+    private String uncertaintyGroupingStr;
+
+    /**
+     * buffer for hiding rounding errors and some projection errors
+     */
+    int additionalBuffer = 2;
+
+    private double[] uncertaintyGrouping;
+
+    private double[] getUncertaintyGrouping() {
+        if (uncertaintyGrouping == null) {
+            try {
+                uncertaintyGrouping = Arrays.stream(uncertaintyGroupingStr.split(",")).mapToDouble((a -> Double.parseDouble(a))).toArray();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return uncertaintyGrouping;
+    }
+
     private final AtomicReference<String> wmsETag = new AtomicReference<String>(UUID.randomUUID().toString());
 
     @Inject
@@ -226,13 +224,19 @@ public class WMSController extends AbstractSecureController {
         System.setProperty("org.geotools.referencing.forceXY", "true");
     }
 
-    @RequestMapping(value = {"/webportal/params", "/mapping/params"}, method = RequestMethod.POST)
-    public void storeParams(SpatialSearchRequestParams requestParams,
+
+    @Operation(summary = "Create a query ID", tags = "Query ID")
+    @RequestMapping(value = {
+            "/qid"
+    }, method = RequestMethod.POST)
+    public void storeParams(@ParameterObject SpatialSearchRequestParams params,
                             @RequestParam(value = "bbox", required = false, defaultValue = "false") String bbox,
                             @RequestParam(value = "title", required = false) String title,
                             @RequestParam(value = "maxage", required = false, defaultValue = "-1") Long maxage,
                             @RequestParam(value = "source", required = false) String source,
                             HttpServletResponse response) throws Exception {
+
+        SpatialSearchRequestDTO requestParams = SpatialSearchRequestDTO.create(params);
 
         //set default values for parameters not stored in the qid.
         requestParams.setFl("");
@@ -279,6 +283,8 @@ public class WMSController extends AbstractSecureController {
     /**
      * Test presence of query params {id} in params store.
      */
+    @Deprecated
+    @Operation(summary = "Test presence of query params {id} in params store", tags = "Deprecated")
     @RequestMapping(value = {
             "/webportal/params/{id}",
             "/webportal/params/{id}.json",
@@ -286,26 +292,53 @@ public class WMSController extends AbstractSecureController {
             "/mapping/params/{id}.json"}, method = RequestMethod.GET)
     public
     @ResponseBody
-    Boolean storeParams(@PathVariable("id") Long id) throws Exception {
+    Boolean storeParamsDeprecated(@PathVariable("id") Long id) throws Exception {
         return qidCacheDAO.get(String.valueOf(id)) != null;
+    }
+
+    @Deprecated
+    @Operation(summary = "Deprecated  - use /qid", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/webportal/params",
+            "/mapping/params",
+    }, method = RequestMethod.POST)
+    public void storeParamsDeprecated(@ParameterObject SpatialSearchRequestParams params,
+                            @RequestParam(value = "bbox", required = false, defaultValue = "false") String bbox,
+                            @RequestParam(value = "title", required = false) String title,
+                            @RequestParam(value = "maxage", required = false, defaultValue = "-1") Long maxage,
+                            @RequestParam(value = "source", required = false) String source,
+                            HttpServletResponse response) throws Exception {
+        storeParams(params, bbox, title, maxage, source, response);
+    }
+
+
+
+    /**
+     * Allows the details of a cached query to be viewed.
+     */
+    @Operation(summary = "Lookup a query ID", tags = "Query ID")
+    @RequestMapping(value = {
+            "/qid/{queryID}"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @ApiParam(value = "queryID", required = true)
+    public @ResponseBody Qid showQid(@PathVariable("queryID") Long id) throws Exception {
+        return qidCacheDAO.get(String.valueOf(id));
     }
 
     /**
      * Allows the details of a cached query to be viewed.
      */
+    @Deprecated
+    @Operation(summary = "Deprecated use /qid/{queryID}", tags = "Deprecated")
     @RequestMapping(value = {
-            "/qid/{id}",
-            "/qid/{id}.json",
-            "/mapping/qid/{id}",
-            "/mapping/qid/{id}.json",
-            "/webportal/params/details/{id}",
-            "/webportal/params/details/{id}.json",
-            "/mapping/params/details/{id}",
-            "/mapping/params/details/{id}json"}, method = RequestMethod.GET)
-    public
-    @ResponseBody
-    Qid showQid(@PathVariable("id") Long id) throws Exception {
-        return qidCacheDAO.get(String.valueOf(id));
+            "/mapping/qid/{queryID}",
+            "/mapping/qid/{queryID}.json",
+            "/webportal/params/details/{queryID}",  // used by spatial portal
+            "/mapping/params/details/{queryID}"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @ApiParam(value = "queryID", required = true)
+    public @ResponseBody Qid showQidDeprecated(@PathVariable("queryID") Long id) throws Exception {
+        return showQid(id);
     }
 
     /**
@@ -313,15 +346,13 @@ public class WMSController extends AbstractSecureController {
      *
      * @throws Exception
      */
+    @Operation(summary = "JSON web service that returns a list of species and record counts for a given location search", tags = "Search")
     @RequestMapping(value = {
-            "/webportal/species",
-            "/webportal/species.json",
-            "/mapping/species",
-            "/mapping/species.json"}, method = RequestMethod.GET)
+            "/mapping/species"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public
     @ResponseBody
-    List<TaxaCountDTO> listSpecies(SpatialSearchRequestParams requestParams) throws Exception {
-        return searchDAO.findAllSpecies(requestParams);
+    List<TaxaCountDTO> listSpecies(@ParameterObject SpatialSearchRequestParams params) throws Exception {
+        return searchDAO.findAllSpecies(SpatialSearchRequestDTO.create(params));
     }
 
     /**
@@ -330,16 +361,20 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @RequestMapping(value = {"/webportal/species.csv", "/mapping/species.csv"}, method = RequestMethod.GET)
+    @Operation(summary = "Download a set of counts for the supplied query", tags = "Download")
+    @RequestMapping(value = {
+            "/mapping/species.csv"
+    }, method = RequestMethod.GET, produces = {"text/csv", "text/plain"})
     public void listSpeciesCsv(
-            SpatialSearchRequestParams requestParams,
+            @ParameterObject SpatialSearchRequestParams requestParams,
             HttpServletResponse response) throws Exception {
 
-        List<TaxaCountDTO> list = searchDAO.findAllSpecies(requestParams);
+        SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
+        List<TaxaCountDTO> list = searchDAO.findAllSpecies(dto);
 
         //format as csv
         StringBuilder sb = new StringBuilder();
-        sb.append("Family,Scientific name,Common name,Taxon rank,LSID,# Occurrences");
+        sb.append(SPECIES_LIST_CSV_HEADER);
         for (TaxaCountDTO d : list) {
             String family = d.getFamily();
             String name = d.getName();
@@ -387,24 +422,45 @@ public class WMSController extends AbstractSecureController {
     }
 
     /**
+     * List of species for webportal as csv.
+     *
+     * @param response
+     * @throws Exception
+     */
+    @Deprecated
+    @Operation(summary = "Download a set of counts for the supplied query. Deprecated use /mapping/species.csv", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/webportal/species.csv"
+    }, method = RequestMethod.GET, produces = {"text/csv", "text/plain"})
+    public void listSpeciesCsvDeprecated(
+            @ParameterObject SpatialSearchRequestParams requestParams,
+            HttpServletResponse response) throws Exception {
+        listSpeciesCsv(requestParams, response);
+    }
+
+    /**
      * Get legend for a query and facet field (colourMode).
      * <p>
      * if "Accept" header is application/json return json otherwise
      *
-     * @param requestParams
      * @param colourMode
      * @param response
      * @throws Exception
      */
-    @RequestMapping(value = {"/webportal/legend", "/mapping/legend"}, method = RequestMethod.GET)
+    @Operation(summary = "Get legend for a query and facet field (colourMode).", tags = "Mapping")
+    @RequestMapping(value = {
+            "/mapping/legend"
+    }, method = RequestMethod.GET, produces = {MediaType.APPLICATION_JSON_VALUE, "text/plain"})
     @ResponseBody
     public List<LegendItem> legend(
-            SpatialSearchRequestParams requestParams,
+            @ParameterObject SpatialSearchRequestParams params,
             @RequestParam(value = "cm", required = false, defaultValue = "") String colourMode,
             @RequestParam(value = "type", required = false, defaultValue = "application/csv") String returnType,
             HttpServletRequest request,
             HttpServletResponse response)
             throws Exception {
+
+        SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(params);
 
         String[] acceptableTypes = new String[]{"application/json", "application/csv"};
 
@@ -423,8 +479,8 @@ public class WMSController extends AbstractSecureController {
             cutpoints = new String[colourModes.length - 1];
             System.arraycopy(colourModes, 1, cutpoints, 0, cutpoints.length);
         }
-        requestParams.setFormattedQuery(null);
-        List<LegendItem> legend = searchDAO.getLegend(requestParams, colourModes[0], cutpoints);
+        dto.setFormattedQuery(null);
+        List<LegendItem> legend = searchDAO.getLegend(dto, colourModes[0], cutpoints);
 
         StringBuilder sb = new StringBuilder();
         if (isCsv) {
@@ -453,22 +509,66 @@ public class WMSController extends AbstractSecureController {
     }
 
     /**
+     * Get legend for a query and facet field (colourMode).
+     * <p>
+     * if "Accept" header is application/json return json otherwise
+     *
+     * @param colourMode
+     * @param response
+     * @throws Exception
+     */
+    @Deprecated
+    @Operation(summary = "Get legend for a query and facet field (colourMode). Deprecated use /mapping/legend", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/webportal/legend"
+    }, method = RequestMethod.GET, produces = {MediaType.APPLICATION_JSON_VALUE, "text/plain"})
+    @ResponseBody
+    public List<LegendItem> legendDeprecated(
+            @ParameterObject SpatialSearchRequestParams params,
+            @RequestParam(value = "cm", required = false, defaultValue = "") String colourMode,
+            @RequestParam(value = "type", required = false, defaultValue = "application/csv") String returnType,
+            HttpServletRequest request,
+            HttpServletResponse response)
+            throws Exception {
+        return legend(params, colourMode, returnType, request, response);
+    }
+
+    /**
      * List data providers for a query.
      *
      * @param requestParams
      * @return
      * @throws Exception
      */
+    @Hidden
+    @RequestMapping(value = {
+            "/mapping/dataProviders"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    public List<DataProviderCountDTO> queryInfo(
+            @ParameterObject SpatialSearchRequestParams requestParams)
+            throws Exception {
+        return searchDAO.getDataProviderList(SpatialSearchRequestDTO.create(requestParams));
+    }
+
+    /**
+     * List data providers for a query.
+     *
+     * @param requestParams
+     * @return
+     * @throws Exception
+     */
+    @Deprecated
     @RequestMapping(value = {
             "/webportal/dataProviders",
             "/mapping/dataProviders.json",
             "/webportal/dataProviders",
-            "/mapping/dataProviders.json" }, method = RequestMethod.GET)
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
-    public List<DataProviderCountDTO> queryInfo(
-            SpatialSearchRequestParams requestParams)
+    public List<DataProviderCountDTO> queryInfoDeprecated(
+            @ParameterObject SpatialSearchRequestParams requestParams)
             throws Exception {
-        return searchDAO.getDataProviderList(requestParams);
+        return queryInfo(requestParams);
     }
 
     /**
@@ -479,9 +579,11 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @RequestMapping(value = {"/webportal/bbox", "/mapping/bbox"}, method = RequestMethod.GET)
+    @Operation(summary = "Get query bounding box as csv containing: min longitude, min latitude, max longitude, max latitude", tags = "Geospatial")
+    @RequestMapping(value = {
+            "/mapping/bbox"}, method = RequestMethod.GET, produces = "text/plain")
     public void boundingBox(
-            SpatialSearchRequestParams requestParams,
+            @ParameterObject SpatialSearchRequestParams requestParams,
             HttpServletResponse response)
             throws Exception {
 
@@ -491,43 +593,81 @@ public class WMSController extends AbstractSecureController {
         double[] bbox = null;
 
         if (bbox == null) {
-            bbox = searchDAO.getBBox(requestParams);
+            bbox = searchDAO.getBBox(SpatialSearchRequestDTO.create(requestParams));
         }
 
         writeBytes(response, (bbox[0] + "," + bbox[1] + "," + bbox[2] + "," + bbox[3]).getBytes(StandardCharsets.UTF_8));
     }
 
     /**
-     * Get query bounding box as JSON array containing:
+     * Get query bounding box as csv containing:
      * min longitude, min latitude, max longitude, max latitude
      *
      * @param requestParams
      * @param response
+     * @throws Exception
+     */
+    @Deprecated
+    @Operation(summary = "Get query bounding box as csv containing: min longitude, min latitude, max longitude, max latitude - Deprecated use /mapping/bbox", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/webportal/bbox"
+       }, method = RequestMethod.GET, produces = "text/plain")
+    public void boundingBoxDeprecated(
+            @ParameterObject SpatialSearchRequestParams requestParams,
+            HttpServletResponse response)
+            throws Exception {
+        boundingBox(requestParams, response);
+    }
+
+
+    /**
+     * Get query bounding box as JSON array containing:
+     * min longitude, min latitude, max longitude, max latitude
+     *
+     * @param response
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {
-            "/webportal/bounds",
-            "/mapping/bounds.json",
-            "/webportal/bounds",
-            "/mapping/bounds.json" }, method = RequestMethod.GET)
+    @Deprecated
+    @Operation(summary = "Deprecated use /mapping/bounds", tags = "Deprecated")
+    @RequestMapping(value = {"/mapping/bounds.json" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public
+    @ResponseBody
+    double[] jsonBoundingBoxDeprecated(
+            @ParameterObject SpatialSearchRequestParams params,
+            HttpServletResponse response)
+            throws Exception {
+        return jsonBoundingBox(params, response);
+    }
+
+    /**
+     * Get query bounding box as JSON array containing:
+     * min longitude, min latitude, max longitude, max latitude
+     *
+     * @param response
+     * @return
+     * @throws Exception
+     */
+    @Operation(summary = "Get query bounding box as JSON", tags = "Mapping")
+    @RequestMapping(value = {"/mapping/bounds" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public
     @ResponseBody
     double[] jsonBoundingBox(
-            SpatialSearchRequestParams requestParams,
+            @ParameterObject SpatialSearchRequestParams params,
             HttpServletResponse response)
             throws Exception {
 
+        SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(params);
         response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
         response.setHeader("ETag", wmsETag.get());
 
         double[] bbox = null;
 
-        String q = requestParams.getQ();
+        String q = dto.getQ();
         //when requestParams only contain a qid, get the bbox from the qidCache
-        if (q.startsWith("qid:") && StringUtils.isEmpty(requestParams.getWkt()) &&
-                (requestParams.getFq().length == 0 ||
-                        (requestParams.getFq().length == 1 && StringUtils.isEmpty(requestParams.getFq()[0])))) {
+        if (q.startsWith("qid:") && StringUtils.isEmpty(dto.getWkt()) &&
+                (dto.getFq().length == 0 ||
+                        (dto.getFq().length == 1 && StringUtils.isEmpty(dto.getFq()[0])))) {
             try {
                 bbox = qidCacheDAO.get(q.substring(4)).getBbox();
             } catch (Exception e) {
@@ -535,7 +675,7 @@ public class WMSController extends AbstractSecureController {
         }
 
         if (bbox == null) {
-            bbox = searchDAO.getBBox(requestParams);
+            bbox = searchDAO.getBBox(dto);
         }
 
         return bbox;
@@ -547,23 +687,27 @@ public class WMSController extends AbstractSecureController {
      * @param requestParams
      * @throws Exception
      */
+    @Operation(summary = "Get query bounding box as JSON", tags = "Deprecated")
+    @Deprecated
     @RequestMapping(value = {
             "/webportal/occurrences*",
             "/mapping/occurrences.json*",
             "/webportal/occurrences*",
-            "/mapping/occurrences.json*" }, method = RequestMethod.GET)
+            "/mapping/occurrences.json*"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public SearchResultDTO occurrences(
-            SpatialSearchRequestParams requestParams,
-            Model model,
-            HttpServletResponse response) throws Exception {
+            @ParameterObject SpatialSearchRequestParams requestParams,
+            Model model) throws Exception {
 
         if (StringUtils.isEmpty(requestParams.getQ())) {
             return new SearchResultDTO();
         }
 
-        //searchUtils.updateSpatial(requestParams);
-        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, false, null);
+        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(
+                SpatialSearchRequestDTO.create(requestParams),
+                false,
+                null);
         model.addAttribute("searchResult", searchResult);
 
         if (logger.isDebugEnabled()) {
@@ -576,27 +720,32 @@ public class WMSController extends AbstractSecureController {
     /**
      * Get occurrences by query as gzipped csv.
      *
-     * @param requestParams
      * @param response
      * @throws Exception
      */
-    @RequestMapping(value = {"/webportal/occurrences.gz", "/mapping/occurrences.gz"}, method = RequestMethod.GET)
+    @SecurityRequirement(name="JWT")
+    @Secured({"ROLE_USER", "ROLE_ADMIN"})
+    @Operation(summary = "Get occurrences by query as gzipped csv.", tags = "Deprecated")
+    @Deprecated
+    @RequestMapping(value = {
+            "/mapping/occurrences.gz"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     public void occurrenceGz(
-            SpatialSearchRequestParams requestParams,
+            @ParameterObject SpatialSearchRequestParams params,
             HttpServletResponse response) {
 
-        response.setContentType("text/plain");
+        response.setContentType("text/plain"); //why ???
 
+        SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(params);
         try {
             ServletOutputStream outStream = response.getOutputStream();
             java.util.zip.GZIPOutputStream gzip = new java.util.zip.GZIPOutputStream(outStream);
 
             // Override page size to return all records with a single request
-            requestParams.setPageSize(-1);
+            dto.setPageSize(-1);
 
             // All records are returned when start == 0 therefore treat the download as finished when start > 0
-            if (requestParams.getStart() == 0) {
-                writeOccurrencesCsvToStream(requestParams, gzip);
+            if (dto.getStart() == 0) {
+                writeOccurrencesCsvToStream(SpatialSearchRequestDTO.create(params), gzip);
             }
 
             gzip.flush();
@@ -606,7 +755,7 @@ public class WMSController extends AbstractSecureController {
         }
     }
 
-    private void writeOccurrencesCsvToStream(SpatialSearchRequestParams requestParams, OutputStream stream) throws Exception {
+    private void writeOccurrencesCsvToStream(SpatialSearchRequestDTO requestParams, OutputStream stream) throws Exception {
         searchDAO.streamingQuery(requestParams, new StreamAsCSV(fieldMappingUtil, stream, requestParams), null);
     }
 
@@ -740,11 +889,13 @@ public class WMSController extends AbstractSecureController {
     }
 
     // add this to the GetCapabilities...
-    @RequestMapping(value = { "/ogc/getMetadata", "/ogc/getMetadata.json" }, method = RequestMethod.GET)
+    @Operation(summary = "Get metadata request", tags = "OGC")
+    @RequestMapping(value = { "/ogc/getMetadata"
+//            , "/ogc/getMetadata.json"
+    }, method = RequestMethod.GET, produces = "text/xml")
     public String getMetadata(
             @RequestParam(value = "LAYER", required = false, defaultValue = "") String layer,
             @RequestParam(value = "q", required = false, defaultValue = "") String query,
-            HttpServletRequest request,
             HttpServletResponse response,
             Model model
     ) throws Exception {
@@ -840,7 +991,7 @@ public class WMSController extends AbstractSecureController {
             }
         }
 
-        SpatialSearchRequestParams searchParams = new SpatialSearchRequestParams();
+        SpatialSearchRequestDTO searchParams = new SpatialSearchRequestDTO();
         searchParams.setQ(newQuery);
         searchParams.setFacets(new String[]{OccurrenceIndex.DATA_RESOURCE_NAME});
         searchParams.setPageSize(0);
@@ -850,7 +1001,11 @@ public class WMSController extends AbstractSecureController {
         return "metadata/mcp";
     }
 
-    @RequestMapping(value = { "/ogc/getFeatureInfo", "/ogc/getFeatureInfo.json" }, method = RequestMethod.GET)
+    @Operation(summary = "Get feature request", tags = "OGC")
+    @RequestMapping(value = {
+            "/ogc/getFeatureInfo"
+//            , "/ogc/getFeatureInfo.json"
+    }, method = RequestMethod.GET, produces="text/html")
     public String getFeatureInfo(
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
             @RequestParam(value = "BBOX", required = true, defaultValue = "0,-90,180,0") String bboxString,
@@ -901,7 +1056,7 @@ public class WMSController extends AbstractSecureController {
         double maxLat = pointType.roundUpToPointType(roundedLatitude + (pointType.getValue() * 2 * (size + 3)));
 
         //do the SOLR query
-        SpatialSearchRequestParams requestParams = new SpatialSearchRequestParams();
+        SpatialSearchRequestDTO requestParams = new SpatialSearchRequestDTO();
 
         String longitudeField = OccurrenceIndex.LONGITUDE;
         String latitudeField = OccurrenceIndex.LATITUDE;
@@ -942,14 +1097,15 @@ public class WMSController extends AbstractSecureController {
         return "metadata/getFeatureInfo";
     }
 
-    @RequestMapping(value = {"/ogc/legendGraphic"}, method = RequestMethod.GET)
+    @Operation(summary = "Get Legend Graphic", tags = "OGC")
+    @RequestMapping(value = {"/ogc/legendGraphic"}, method = RequestMethod.GET, produces = "image/png")
     public void getLegendGraphic(
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
             @RequestParam(value = "STYLE", required = false, defaultValue = "8b0000;opacity=1;size=5") String style,
             @RequestParam(value = "WIDTH", required = false, defaultValue = "30") Integer width,
             @RequestParam(value = "HEIGHT", required = false, defaultValue = "20") Integer height,
             HttpServletRequest request,
-            HttpServletResponse response) throws Exception {
+            HttpServletResponse response) {
 
         try {
             if (StringUtils.trimToNull(env) == null && StringUtils.trimToNull(style) == null) {
@@ -998,7 +1154,6 @@ public class WMSController extends AbstractSecureController {
      * @param filterQueries
      * @param x
      * @param y
-     * @param spatiallyValidOnly
      * @param marineOnly
      * @param terrestrialOnly
      * @param limitToFocus
@@ -1008,13 +1163,16 @@ public class WMSController extends AbstractSecureController {
      * @param model
      * @throws Exception
      */
+    @Operation(summary = "Get Capabilities OGC request", tags = "OGC")
     @RequestMapping(value = {
             "/ogc/ows",
             "/ogc/ows.xml",
             "/ogc/capabilities",
-            "/ogc/capabilities.xml" }, method = RequestMethod.GET)
+            "/ogc/capabilities.xml",
+            "/ogc/getCapabilities"
+    }, method = RequestMethod.GET, produces="text/xml")
     public void getCapabilities(
-            SpatialSearchRequestParams requestParams,
+            @ParameterObject SpatialSearchRequestParams requestParams,
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
             @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs, //default to google mercator
@@ -1032,13 +1190,12 @@ public class WMSController extends AbstractSecureController {
             @RequestParam(value = "fq", required = false) String[] filterQueries,
             @RequestParam(value = "X", required = true, defaultValue = "0") Double x,
             @RequestParam(value = "Y", required = true, defaultValue = "0") Double y,
-            // Deprecated RequestParam
-            @RequestParam(value = "spatiallyValidOnly", required = false, defaultValue = "true") boolean spatiallyValidOnly,
+            @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") int gridDivisionCount,
+            @RequestParam(value = "HQ", required = false) String[] hqs,
             @RequestParam(value = "marineSpecies", required = false, defaultValue = "false") boolean marineOnly,
             @RequestParam(value = "terrestrialSpecies", required = false, defaultValue = "false") boolean terrestrialOnly,
             @RequestParam(value = "limitToFocus", required = false, defaultValue = "false") boolean limitToFocus,
             @RequestParam(value = "useSpeciesGroups", required = false, defaultValue = "false") boolean useSpeciesGroups,
-            @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") int gridDivisionCount,
             HttpServletRequest request,
             HttpServletResponse response,
             Model model)
@@ -1059,7 +1216,7 @@ public class WMSController extends AbstractSecureController {
                     outlinePoints,
                     outlineColour,
                     layers,
-                    null,
+                    hqs,
                     gridDivisionCount,
                     request,
                     response);
@@ -1093,7 +1250,7 @@ public class WMSController extends AbstractSecureController {
         response.setHeader("Content-Transfer-Encoding", "binary");
 
         try {
-            //webservicesRoot
+            // webservices root
             String biocacheServerUrl = request.getSession().getServletContext().getInitParameter("webservicesRoot");
             PrintWriter writer = response.getWriter();
 
@@ -1144,10 +1301,10 @@ public class WMSController extends AbstractSecureController {
                     "        <DCPType>\n" +
                     "          <HTTP>\n" +
                     "            <Get>\n" +
-                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/capabilities?SERVICE=WMS&amp;\"/>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/getCapabilities?SERVICE=WMS&amp;\"/>\n" +
                     "            </Get>\n" +
                     "            <Post>\n" +
-                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/capabilities?SERVICE=WMS&amp;\"/>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/getCapabilities?SERVICE=WMS&amp;\"/>\n" +
                     "            </Post>\n" +
                     "          </HTTP>\n" +
                     "        </DCPType>\n" +
@@ -1231,7 +1388,7 @@ public class WMSController extends AbstractSecureController {
         }
     }
 
-    public String generateStylesForPoints() {
+    private String generateStylesForPoints() {
         //need a better listings of colours
         String[] sizes = new String[]{"5", "10", "2"};
         String[] sizesNames = new String[]{"medium", "large", "small"};
@@ -1261,8 +1418,38 @@ public class WMSController extends AbstractSecureController {
         return sb.toString();
     }
 
+    @Deprecated
+    @Operation(summary = "Web Mapping Service", tags = {"Deprecated"})
+    @GetMapping(value = {
+            "/webportal/wms/reflect",
+            "/webportal/wms/reflect.png",
+    }, produces = "image/png")
+    public void generateWmsTileViaHeatmapDeprecated(
+            @ParameterObject SpatialSearchRequestParams params,
+            @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
+            @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
+            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs, //default to google mercator
+            @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
+            @RequestParam(value = "BBOX", required = true, defaultValue = "") String bboxString,
+            @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
+            @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
+            @RequestParam(value = "CACHE", required = true, defaultValue = "default") String cache,
+            @RequestParam(value = "REQUEST", required = true, defaultValue = "") String requestString,
+            @RequestParam(value = "OUTLINE", required = true, defaultValue = "true") boolean outlinePoints,
+            @RequestParam(value = "OUTLINECOLOUR", required = true, defaultValue = "0x000000") String outlineColour,
+            @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
+            @RequestParam(value = "HQ", required = false) String[] hqs,
+            @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") Integer gridDivisionCount,
+            HttpServletRequest request,
+            HttpServletResponse response)
+            throws Exception {
+        generateWmsTileViaHeatmap(params, cql_filter, env, srs, styles,bboxString, width, height,
+                cache, requestString, outlinePoints, outlineColour, layers, hqs, gridDivisionCount,
+                request, response);
+    }
+
     /**
-     * WMS service for webportal.
+     * WMS services
      *
      * @param cql_filter q value.
      * @param env        ';' delimited field:value pairs.  See Env
@@ -1274,15 +1461,13 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @RequestMapping(value = {
-            "/webportal/wms/reflect",
-            "/webportal/wms/reflect.png",
+    @Operation(summary = "Web Mapping Service", tags = {"WMS", "OGC"})
+    @GetMapping(value = {
             "/ogc/wms/reflect",
-            "/ogc/wms/reflect.png",
             "/mapping/wms/reflect",
-            "/mapping/wms/reflect.png" }, method = RequestMethod.GET)
-    public ModelAndView generateWmsTileViaHeatmap(
-            SpatialSearchRequestParams requestParams,
+    }, produces = "image/png")
+    public void generateWmsTileViaHeatmap(
+            @ParameterObject SpatialSearchRequestParams params,
             @RequestParam(value = "CQL_FILTER", required = false, defaultValue = "") String cql_filter,
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
             @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs, //default to google mercator
@@ -1301,6 +1486,8 @@ public class WMSController extends AbstractSecureController {
             HttpServletResponse response)
             throws Exception {
 
+        SpatialSearchRequestDTO requestParams = SpatialSearchRequestDTO.create(params);
+
         // replace requestParams.q with cql_filter or layers if present
         if (StringUtils.trimToNull(cql_filter) != null) {
             requestParams.setQ(WMSUtils.getQ(cql_filter));
@@ -1311,18 +1498,19 @@ public class WMSController extends AbstractSecureController {
         //for OS Grids, hand over to WMS OS controller
         if (env != null && env.contains("osgrid")) {
             wmsosGridController.generateWmsTile(requestParams, cql_filter, env, srs, styles, bboxString, layers, width, height, outlinePoints, outlineColour, request, response);
-            return null;
+            return;
         }
 
         //Some WMS clients are ignoring sections of the GetCapabilities....
         if ("GetLegendGraphic".equalsIgnoreCase(requestString)) {
             getLegendGraphic(env, styles, 30, 20, request, response);
-            return null;
+            return;
         }
 
         if (StringUtils.isBlank(bboxString)) {
-            return sendWmsError(response, 400, "MissingOrInvalidParameter",
+            sendWmsError(response, 400, "MissingOrInvalidParameter",
                     "Missing valid BBOX parameter");
+            return;
         }
 
         // Used to hide certain values from the layer
@@ -1341,7 +1529,7 @@ public class WMSController extends AbstractSecureController {
             try {
                 tilebbox[i] = Double.parseDouble(splitBBox[i]);
             } catch (Exception e) {
-                return sendWmsError(response, 400, "MissingOrInvalidParameter",
+                sendWmsError(response, 400, "MissingOrInvalidParameter",
                         "Missing valid BBOX parameter");
             }
         }
@@ -1382,7 +1570,7 @@ public class WMSController extends AbstractSecureController {
 
         if (heatmapDTO.layers == null) {
             displayBlankImage(response);
-            return null;
+            return;
         }
 
         // circles from uncertainty distances or requested highlight
@@ -1416,7 +1604,6 @@ public class WMSController extends AbstractSecureController {
         } else {
             displayBlankImage(response);
         }
-        return null;
     }
 
     /**
@@ -1434,7 +1621,7 @@ public class WMSController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    private HeatmapDTO getCirclesHeatmap(WmsEnv vars, double[] bbox, SpatialSearchRequestParams requestParams, int width, int height, float pointWidth) throws Exception {
+    private HeatmapDTO getCirclesHeatmap(WmsEnv vars, double[] bbox, SpatialSearchRequestDTO requestParams, int width, int height, float pointWidth) throws Exception {
         boolean isGrid = vars.colourMode.equals("grid");
 
         List<LegendItem> circlesLegend = new ArrayList();
@@ -1549,7 +1736,6 @@ public class WMSController extends AbstractSecureController {
     /**
      * Method that produces the downloadable map integrated in AVH/OZCAM/Biocache.
      *
-     * @param requestParams
      * @param format
      * @param extents       bounding box in decimal degrees
      * @param bboxString    bounding box in target SRS
@@ -1568,9 +1754,11 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @RequestMapping(value = {"/webportal/wms/image", "/mapping/wms/image"}, method = RequestMethod.GET)
+    @Operation(summary = "Produces a downloadable map", tags = "Mapping")
+    @RequestMapping(value = {
+            "/mapping/wms/image"}, method = RequestMethod.GET, produces="image/png")
     public void generatePublicationMap(
-            SpatialSearchRequestParams requestParams,
+            @ParameterObject SpatialSearchRequestParams params,
             @RequestParam(value = "format", required = false, defaultValue = "jpg") String format,
             @RequestParam(value = "extents", required = false) String extents,
             @RequestParam(value = "bbox", required = false) String bboxString,
@@ -1585,8 +1773,8 @@ public class WMSController extends AbstractSecureController {
             @RequestParam(value = "scale", required = false, defaultValue = "off") String scale,
             @RequestParam(value = "dpi", required = false, defaultValue = "300") Integer dpi,
             @RequestParam(value = "baselayerStyle", required = false, defaultValue = "") String baselayerStyle,
-            @RequestParam(value = "outline", required = true, defaultValue = "false") boolean outlinePoints,
-            @RequestParam(value = "outlineColour", required = true, defaultValue = "#000000") String outlineColour,
+            @RequestParam(value = "outline", defaultValue = "false") boolean outlinePoints,
+            @RequestParam(value = "outlineColour", defaultValue = "#000000") String outlineColour,
             @RequestParam(value = "fileName", required = false) String fileName,
             @RequestParam(value = "baseMap", required = false, defaultValue = "ALA") String baseMap,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
@@ -1644,7 +1832,8 @@ public class WMSController extends AbstractSecureController {
                 + "&WIDTH=" + width + "&HEIGHT=" + height
                 + "&OUTLINE=" + outlinePoints + "&OUTLINECOLOUR=" + outlineColour;
 
-        String serialisedQueryParameters = requestParams.getEncodedParams();
+        SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(params);
+        String serialisedQueryParameters = dto.getEncodedParams();
 
         if (!serialisedQueryParameters.isEmpty()) {
             speciesAddress += "&";
@@ -1721,6 +1910,57 @@ public class WMSController extends AbstractSecureController {
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         }
+    }
+
+    /**
+     * Method that produces the downloadable map integrated in AVH/OZCAM/Biocache.
+     *
+     * @param format
+     * @param extents       bounding box in decimal degrees
+     * @param bboxString    bounding box in target SRS
+     * @param widthMm
+     * @param pointRadiusMm
+     * @param pradiusPx
+     * @param pointColour
+     * @param pointOpacity
+     * @param baselayer
+     * @param scale
+     * @param dpi
+     * @param outlinePoints
+     * @param outlineColour
+     * @param fileName
+     * @param request
+     * @param response
+     * @throws Exception
+     */
+    @Deprecated
+    @Operation(summary = "Produces a downloadable map - Deprecated use /mapping/wms/image", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/webportal/wms/image",
+    }, method = RequestMethod.GET, produces="image/png")
+    public void generatePublicationMapDeprecated(
+            @ParameterObject SpatialSearchRequestParams params,
+            @RequestParam(value = "format", required = false, defaultValue = "jpg") String format,
+            @RequestParam(value = "extents", required = false) String extents,
+            @RequestParam(value = "bbox", required = false) String bboxString,
+            @RequestParam(value = "widthmm", required = false, defaultValue = "60") Double widthMm,
+            @RequestParam(value = "pradiusmm", required = false, defaultValue = "2") Double pointRadiusMm,
+            @RequestParam(value = "pradiuspx", required = false) Integer pradiusPx,
+            @RequestParam(value = "pcolour", required = false, defaultValue = "FF0000") String pointColour,
+            @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
+            @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs,
+            @RequestParam(value = "popacity", required = false, defaultValue = "0.8") Double pointOpacity,
+            @RequestParam(value = "baselayer", required = false, defaultValue = "world") String baselayer,
+            @RequestParam(value = "scale", required = false, defaultValue = "off") String scale,
+            @RequestParam(value = "dpi", required = false, defaultValue = "300") Integer dpi,
+            @RequestParam(value = "baselayerStyle", required = false, defaultValue = "") String baselayerStyle,
+            @RequestParam(value = "outline", defaultValue = "false") boolean outlinePoints,
+            @RequestParam(value = "outlineColour", defaultValue = "#000000") String outlineColour,
+            @RequestParam(value = "fileName", required = false) String fileName,
+            @RequestParam(value = "baseMap", required = false, defaultValue = "ALA") String baseMap,
+            HttpServletRequest request, HttpServletResponse response) throws Exception {
+
+        generatePublicationMap(params, format, extents, bboxString, widthMm, pointRadiusMm, pradiusPx, pointColour, env, srs, pointOpacity, baselayer, scale, dpi, baselayerStyle, outlinePoints, outlineColour, fileName, baseMap, request, response);
     }
 
     private BufferedImage basemapGoogle(int width, int height, double[] extents, String maptype) throws Exception {

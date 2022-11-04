@@ -16,6 +16,16 @@ There are currently two supported versions:
 
 ## Development environment Setup
 
+SOLR and Cassandra are required by Biocache servcie.
+
+We can run those two docker instances
+
+or SSH tunnel in our test servers
+```
+ssh -L 8983:localhost:8983 aws-solr-test-1.ala
+ssh -L 9042:localhost:9042 aws-cass-test-1.ala
+```
+
 see wiki: https://github.com/AtlasOfLivingAustralia/biocache-service/wiki
 
 ## Integration Tests
@@ -24,16 +34,15 @@ Integration testing is supported using docker containers for SOLR and Cassandra.
 To start the required containers, run the following:
 
 ```
-mvn docker:start
+./gradlew composeUp
 ```
 
 To shutdown, run the following:
 ```
-mvn docker:stop
+./gradlew composeDown
 ```
 
 Prerequisites are Docker version 17+. For more details see this [readme](/src/test/docker/README.md).
 
-Tests: please follow the conventions of the Maven Surefire plugin 
-or unit tests and those of the Maven Failsafe plugin for integration tests. To run the integration tests 
-just run the verify phase, e.g.: `mvn clean verify`
+To run the integration tests just run the check task, e.g.: `./gradlew clean check`
+
