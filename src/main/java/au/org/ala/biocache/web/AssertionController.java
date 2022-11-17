@@ -25,6 +25,7 @@ import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
@@ -67,6 +68,7 @@ public class AssertionController extends AbstractSecureController {
      * @return an array of codes
      * @throws Exception
      */
+    @Tag(name="Assertions", description = "Annotations, assertions for data")
     @Operation(summary = "Retrieve an array of the assertion codes in use by the processing system", tags = "Assertions")
     @RequestMapping(value = {
             "/assertions/codes"

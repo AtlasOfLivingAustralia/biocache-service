@@ -36,6 +36,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import net.sf.json.JSONArray;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
@@ -256,7 +257,8 @@ public class OccurrenceController extends AbstractSecureController {
 
     @Secured({"ROLE_ADMIN"})
     @SecurityRequirement(name="JWT")
-    @Operation(summary = "Get list of current downloads", tags = "Monitoring")
+    @Tag(name="Monitoring", description = "Some monitoring info")
+    @Operation(summary = "Get list of current downloads")
     @RequestMapping(value = { "/active/download/stats" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     List<DownloadDetailsDTO> getCurrentDownloads() {
@@ -417,6 +419,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
+    @Tag(name="Download", description = "Specimen & observation data download")
     @Operation(summary = "Download a list of indexed fields", tags = "Download")
     @RequestMapping(value = "index/fields.csv", method = RequestMethod.GET,  produces = {"text/csv", "text/plain"})
     public void getIndexedFields(
@@ -570,6 +573,7 @@ public class OccurrenceController extends AbstractSecureController {
             description="Can be used to retrieve distinct counts in a query. e.g. the distinct number of " +
                     "scientificName values where stateProvince:Queensland"
     )
+    @Tag(name="Occurrence", description = "Specimen & observation data searching")
     @RequestMapping(value = {
             "occurrences/facets"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -824,7 +828,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @SecurityRequirement(name = "JWT")
     @Operation(summary = "Occurrence search",
-               description = "Occurrence search service that supports facets",
+               description = "Occurrence search service that supports facets. \n The full list of fields supported by facets, q, and fq are available here: https://biocache.ala.org.au/fields",
                tags="Occurrence"
     )
     @RequestMapping(value = {

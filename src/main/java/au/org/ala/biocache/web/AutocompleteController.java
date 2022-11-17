@@ -17,6 +17,7 @@ package au.org.ala.biocache.web;
 import au.org.ala.biocache.service.SpeciesLookupService;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -35,6 +36,7 @@ public class AutocompleteController extends AbstractSecureController {
     protected SpeciesLookupService speciesLookupService;
 
     @Operation(summary = "Autocomplete service which filters only lists taxa with occurrence data", tags = "Autocomplete")
+    @Tag(name ="Autocomplete", description = "Services that support autocomplete text boxes")
     @RequestMapping(value = {
             "autocomplete/search" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public

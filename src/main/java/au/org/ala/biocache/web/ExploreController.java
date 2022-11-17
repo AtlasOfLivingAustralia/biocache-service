@@ -21,6 +21,7 @@ import au.org.ala.biocache.util.QueryFormatUtils;
 import com.ctc.wstx.util.URLUtil;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
@@ -145,6 +146,7 @@ public class ExploreController {
      * @throws Exception
      */
     @Operation(summary = "Returns a hierarchical listing of species groups", tags = "Explore")
+    @Tag(name = "Explore", description = "Services for retrieval of Specimens & occurrence data based on species groups")
     @RequestMapping(value = { "/explore/hierarchy/groups"
 //            , "/explore/hierarchy/groups.json*"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -449,6 +451,7 @@ public class ExploreController {
      * @return
      */
     @Operation(summary = "Returns the species that only have occurrences in the supplied WKT.", tags = "Endemism")
+    @Tag(name = "Endemism", description = "Services for reports on endemism for an area")
     @RequestMapping(value = {"/explore/endemic/species"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     List<FieldResultDTO> getSpeciesOnlyInWKT(@ParameterObject SpatialSearchRequestParams requestParams) throws Exception {

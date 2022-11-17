@@ -28,6 +28,7 @@ import io.swagger.annotations.*;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocument;
@@ -226,6 +227,7 @@ public class WMSController extends AbstractSecureController {
 
 
     @Operation(summary = "Create a query ID", tags = "Query ID")
+    @Tag(name = "Query ID", description = "Services for creationa and retrival of id for occurrence search queries")
     @RequestMapping(value = {
             "/qid"
     }, method = RequestMethod.POST)

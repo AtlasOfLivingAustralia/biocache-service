@@ -22,6 +22,7 @@ import au.org.ala.biocache.dto.TaxaRankCountDTO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springdoc.api.annotations.ParameterObject;
@@ -52,6 +53,7 @@ public class BreakdownController {
      * @throws Exception
      */
     @Operation(summary = "Taxonomic breakdown based on a collection", tags = {"Taxonomy"})
+    @Tag(name ="Taxonomy", description = "Suppply breakdown information on occurrence records and taxa")
     @RequestMapping(value = "/breakdown/collections/{uid}", method = RequestMethod.GET)
     @ApiParam(value = "uid", required = true)
     public @ResponseBody
