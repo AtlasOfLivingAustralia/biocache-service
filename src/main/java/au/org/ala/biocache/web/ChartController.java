@@ -93,7 +93,7 @@ public class ChartController extends AbstractSecureController implements Seriali
      * @throws Exception
      */
     @Operation(summary = "Standard charting", tags = "Charts")
-    @Tag(name = "Services for providing charting functionalities for specimens & occurrences")
+    @Tag(name  = "Charts", description = "Services for providing charting functionalities for specimens & occurrences")
     @RequestMapping(value = {
             "/chart"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)

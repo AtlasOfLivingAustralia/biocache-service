@@ -229,7 +229,7 @@ public class WMSController extends AbstractSecureController {
     @Operation(summary = "Create a query ID", tags = "Query ID", description = "Add query details to a cache to reduce the size of the query params that are being passed around. This is particularly useful if you requests are too large for a GET.\n" +
             "\n" +
             "Returns a text identification for the query that has been cached. This identification can be used as part of the value for a search q. ie q=qid:")
-    @Tag(name = "Query ID", description = "Services for creation and retrieval of queries and query ids in a cache occurrence search")
+    @Tag(name = "Query ID", description = "Services for creation and retrieval of queries and query ids in a cache for occurrence search")
     @RequestMapping(value = {
             "/qid"
     }, method = RequestMethod.POST)
