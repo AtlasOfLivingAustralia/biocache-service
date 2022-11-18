@@ -257,7 +257,7 @@ public class OccurrenceController extends AbstractSecureController {
 
     @Secured({"ROLE_ADMIN"})
     @SecurityRequirement(name="JWT")
-    @Tag(name="Monitoring", description = "Some monitoring info")
+    @Tag(name="Monitoring", description = "Admin services for monitoring the application, download stats, and index. Protected APIs require administrative role for access.")
     @Operation(summary = "Get list of current downloads")
     @RequestMapping(value = { "/active/download/stats" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
@@ -597,6 +597,7 @@ public class OccurrenceController extends AbstractSecureController {
         description="Returns a list of image urls for the supplied taxon uuid." +
             "An empty list is returned when no images are available."
     )
+    @Tag(name ="Images", description = "Services for retrieval of images information for taxa")
     @RequestMapping(value = "/images/taxon/{taxonConceptID}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     List<String> getImages(@PathVariable(name="taxonConceptID") String taxonConceptID) throws Exception {
@@ -1380,9 +1381,9 @@ public class OccurrenceController extends AbstractSecureController {
      * @param recordUuid
      * @throws Exception
      */
-    @Operation(summary = "Returns a data structure allowing comparison of verbatim vs interpreted values", tags = "Occurrence")
+    @Operation(description = "Returns a data structure allowing comparison of verbatim vs interpreted values", tags = "Occurrence", summary = "Compare the original record to the processed (interpreted) version of the record")
     @RequestMapping( value = {"/occurrences/compare/{recordUuid}"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    @ApiParam(value = "recordUuid", required = true)
+    @ApiParam(value = "recordUuid", required = true, example = "b9f4dfff-5b8d-4747-afbc-4fdfaec3438c")
     public @ResponseBody
     Object showOccurrence(@PathVariable("recordUuid") String recordUuid, HttpServletResponse response) throws Exception {
 

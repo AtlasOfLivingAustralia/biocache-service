@@ -226,8 +226,10 @@ public class WMSController extends AbstractSecureController {
     }
 
 
-    @Operation(summary = "Create a query ID", tags = "Query ID")
-    @Tag(name = "Query ID", description = "Services for creationa and retrival of id for occurrence search queries")
+    @Operation(summary = "Create a query ID", tags = "Query ID", description = "Add query details to a cache to reduce the size of the query params that are being passed around. This is particularly useful if you requests are too large for a GET.\n" +
+            "\n" +
+            "Returns a text identification for the query that has been cached. This identification can be used as part of the value for a search q. ie q=qid:")
+    @Tag(name = "Query ID", description = "Services for creation and retrieval of queries and query ids in a cache occurrence search")
     @RequestMapping(value = {
             "/qid"
     }, method = RequestMethod.POST)
@@ -318,7 +320,7 @@ public class WMSController extends AbstractSecureController {
     /**
      * Allows the details of a cached query to be viewed.
      */
-    @Operation(summary = "Lookup a query ID", tags = "Query ID")
+    @Operation(summary = "Lookup a query ID", tags = "Query ID", description = "Lookup a cached query based on its query id")
     @RequestMapping(value = {
             "/qid/{queryID}"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -450,6 +452,7 @@ public class WMSController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "Get legend for a query and facet field (colourMode).", tags = "Mapping")
+    @Tag(name = "Mapping", description = "Services for creating maps with WMS services, static heat maps")
     @RequestMapping(value = {
             "/mapping/legend"
     }, method = RequestMethod.GET, produces = {MediaType.APPLICATION_JSON_VALUE, "text/plain"})
@@ -892,6 +895,7 @@ public class WMSController extends AbstractSecureController {
 
     // add this to the GetCapabilities...
     @Operation(summary = "Get metadata request", tags = "OGC")
+    @Tag(name = "OGC", description = "Services for providing OGC compliant mapping functionalities")
     @RequestMapping(value = { "/ogc/getMetadata"
 //            , "/ogc/getMetadata.json"
     }, method = RequestMethod.GET, produces = "text/xml")
@@ -1463,7 +1467,7 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @Operation(summary = "Web Mapping Service", tags = {"WMS", "OGC"})
+    @Operation(summary = "Web Mapping Service", tags = {"WMS", "OGC"}, description = "WMS services for point occurrence data")
     @GetMapping(value = {
             "/ogc/wms/reflect",
             "/mapping/wms/reflect",

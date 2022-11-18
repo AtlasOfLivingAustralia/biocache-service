@@ -301,7 +301,7 @@ public class ExploreController {
      * @return
      * @throws Exception
      */
-    @Operation(summary = "Returns the number of records and distinct species in a particular species group", tags = "Explore")
+    @Operation(summary = "Returns the number of records and distinct species in a particular species group", tags = "Explore", description = "The first count is total number of occurrence, the second is the number of distinct species")
     @RequestMapping(value = { "/explore/counts/group/{group}"
 //            , "/explore/counts/group/{group}.json*"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -362,7 +362,7 @@ public class ExploreController {
      * @return
      * @throws Exception
      */
-    @Operation(summary = "Occurrence search page uses SOLR JSON to display results", tags = "Explore")
+    @Operation(summary = "Occurrence search page uses SOLR JSON to display results", tags = "Explore", description = "The first count is total number of occurrence, the second is the number of distinct species")
     @RequestMapping(value = { "/explore/group/{group}/download"
 //            , "/explore/group/{group}/download.json*"
     } , method = RequestMethod.GET, produces = "application/vnd.ms-excel")

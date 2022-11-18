@@ -68,7 +68,7 @@ public class AssertionController extends AbstractSecureController {
      * @return an array of codes
      * @throws Exception
      */
-    @Tag(name="Assertions", description = "Annotations, assertions for data")
+    @Tag(name="Assertions", description = "Services providing CRUD operations on annotations, assertions for data")
     @Operation(summary = "Retrieve an array of the assertion codes in use by the processing system", tags = "Assertions")
     @RequestMapping(value = {
             "/assertions/codes"

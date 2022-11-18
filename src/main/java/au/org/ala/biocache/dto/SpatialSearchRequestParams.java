@@ -40,7 +40,7 @@ public class SpatialSearchRequestParams {
     protected String q = "*:*";
 
     @Parameter(name="fq", description = "Filter queries. " +
-            "Examples 'fq=stateProvince:Victoria&fq=stateProvince:Queensland")
+            "Examples 'fq=state:Victoria&fq=state:Queensland")
     protected String[] fq = {}; // must not be null
 
     @Parameter(name="qId", description = "Query ID for persisted queries")
