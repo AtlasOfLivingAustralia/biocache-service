@@ -291,10 +291,10 @@ public class WMSOSGridController {
             @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
             @RequestParam(value = "BBOX", required = true, defaultValue = "") String bboxString,
             @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
-            @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
-            @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
-            @RequestParam(value = "OUTLINE", required = true, defaultValue = "true") boolean outlineGrids,
-            @RequestParam(value = "OUTLINECOLOUR", required = true, defaultValue = "0xff000000") String outlineColour,
+            @RequestParam(value = "WIDTH", required = false, defaultValue = "256") Integer width,
+            @RequestParam(value = "HEIGHT", required = false, defaultValue = "256") Integer height,
+            @RequestParam(value = "OUTLINE", required = false, defaultValue = "true") boolean outlineGrids,
+            @RequestParam(value = "OUTLINECOLOUR", required = false, defaultValue = "0xff000000") String outlineColour,
             HttpServletRequest request,
             HttpServletResponse response)
             throws Exception {

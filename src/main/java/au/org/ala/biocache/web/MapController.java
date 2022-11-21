@@ -53,8 +53,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * WMS and static map controller. This controller generates static PNG image files
- * that provide a heatmap of occurrences. 
- * 
+ * that provide a heatmap of occurrences.
+ *
  * TODO: This functionality is currently only supporting
  * overview maps for Australia but could be extended to support other regions.
  *
@@ -113,8 +113,8 @@ public class MapController {
                                @RequestParam(value = "symbol", required = false, defaultValue = "circle") String symbol,
                                @RequestParam(value = "bbox", required = false, defaultValue = "110,-45,157,-9") String bboxString,
                                @RequestParam(value = "type", required = false, defaultValue = "normal") String type,
-                               @RequestParam(value = "outline", required = true, defaultValue = "false") boolean outlinePoints,
-                               @RequestParam(value = "outlineColour", required = true, defaultValue = "0x000000") String outlineColour,
+                               @RequestParam(value = "outline", required = false, defaultValue = "false") boolean outlinePoints,
+                               @RequestParam(value = "outlineColour", required = false, defaultValue = "0x000000") String outlineColour,
                                HttpServletRequest request,
                                HttpServletResponse response)
             throws Exception {
@@ -124,7 +124,7 @@ public class MapController {
 
         String env = "color:" + color + ";size:" + size + ";opacity:1.0";
 
-        wmsController.generateWmsTileViaHeatmap(requestParams, "", env, "EPSG:3857", "", bboxString, width, height, "default", "", outlinePoints, outlineColour, "", null, 16, request, response);
+        wmsController.generateWmsTileViaHeatmap(requestParams, "", env, "EPSG:3857", "", bboxString, width, height, "", outlinePoints, outlineColour, "", null, 16, request, response);
     }
 
     /**
@@ -378,7 +378,7 @@ public class MapController {
             String[] colours,
             Float opacity,
             HttpServletRequest request) throws Exception {
-        
+
         File baseDir = new File(heatmapOutputDir);
         logger.debug("Heatmap output directory is " + heatmapOutputDir);
         String outputHMFile = getOutputFile(request);
@@ -386,7 +386,7 @@ public class MapController {
         PointType pointType = PointType.POINT_001;
 
         double[] points = retrievePoints(requestParams, pointType);
-        
+
         HeatMap hm = new HeatMap();
 
         //heatmap versus points
