@@ -1,12 +1,12 @@
 /**************************************************************************
  *  Copyright (C) 2013 Atlas of Living Australia
  *  All Rights Reserved.
- * 
+ *
  *  The contents of this file are subject to the Mozilla Public
  *  License Version 1.1 (the "License"); you may not use this file
  *  except in compliance with the License. You may obtain a copy of
  *  the License at http://www.mozilla.org/MPL/
- * 
+ *
  *  Software distributed under the License is distributed on an "AS
  *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  *  implied. See the License for the specific language governing
@@ -29,7 +29,7 @@ import java.util.Objects;
 /**
  * Data Transfer Object to represent the request parameters required to search
  * for occurrence records against biocache-service.
- * 
+ *
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
 public class SearchRequestDTO {
@@ -63,7 +63,7 @@ public class SearchRequestDTO {
     /**  Deprecated  - startIndex only used for handling legacy requests which include startIndex instead of start */
     protected  Integer startIndex = 0;
     /*
-     * The limit for the number of facets to return 
+     * The limit for the number of facets to return
      */
     protected Integer flimit = 30;
     /** The sort order in which to return the facets.  Either count or index.  When empty string the default values are used as defined in the Theme based facets */
@@ -93,11 +93,11 @@ public class SearchRequestDTO {
     /**
      * Custom toString method to produce a String to be used as the request parameters
      * for the Biocache Service webservices
-     * 
+     *
      * @return request parameters string
      */
     @Override
-    public String toString() {        
+    public String toString() {
         return toString(false);
     }
 
@@ -125,7 +125,7 @@ public class SearchRequestDTO {
                 req.append("&fq=").append(conditionalEncode(it, encodeParams));
             }
         }
-        req.append("&start=").append(start);
+        if (start != null) req.append("&start=").append(start);
         req.append("&pageSize=").append(pageSize);
         req.append("&sort=").append(sort);
         req.append("&dir=").append(dir);
@@ -187,7 +187,7 @@ public class SearchRequestDTO {
     }
 
     /**
-     * Constructs the params to be returned in the result 
+     * Constructs the params to be returned in the result
      * @return req
      */
     public String getUrlParams(){
@@ -267,7 +267,7 @@ public class SearchRequestDTO {
         QueryFormatUtils.assertNoSensitiveValues(SearchRequestDTO.class, "fq", filterQuery);
         this.fq = filterQuery;
     }
-    
+
     /**
      * Get the value of start
      *
@@ -549,5 +549,5 @@ public class SearchRequestDTO {
         result = 31 * result + Arrays.hashCode(facets);
         return result;
     }
- 
+
 }
