@@ -301,7 +301,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "List available facets with grouping", tags = "i18n")
-    @RequestMapping(value = {"/facets/i18n", "/facets/i18n/{qualifier}"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/facets/i18n", "/facets/i18n/{qualifier}", "/facets/i18n{qualifier:.*}*"}, method = RequestMethod.GET)
     public void writei18nPropertiesFile(@PathVariable(name = "qualifier", required = false) String qualifier,
                                         HttpServletRequest request,
                                         HttpServletResponse response) throws Exception {
