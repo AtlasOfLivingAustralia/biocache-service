@@ -1014,9 +1014,9 @@ public class WMSController extends AbstractSecureController {
     }, method = RequestMethod.GET, produces="text/html")
     public String getFeatureInfo(
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
-            @RequestParam(value = "BBOX", required = true, defaultValue = "0,-90,180,0") String bboxString,
-            @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
-            @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
+            @RequestParam(value = "BBOX", required = false, defaultValue = "0,-90,180,0") String bboxString,
+            @RequestParam(value = "WIDTH", required = false, defaultValue = "256") Integer width,
+            @RequestParam(value = "HEIGHT", required = false, defaultValue = "256") Integer height,
             @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
             @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs,
             @RequestParam(value = "QUERY_LAYERS", required = false, defaultValue = "") String queryLayers,
@@ -1187,15 +1187,14 @@ public class WMSController extends AbstractSecureController {
             @RequestParam(value = "BBOX", required = false, defaultValue = "") String bboxString,
             @RequestParam(value = "WIDTH", required = false, defaultValue = "256") Integer width,
             @RequestParam(value = "HEIGHT", required = false, defaultValue = "256") Integer height,
-            @RequestParam(value = "CACHE", required = false, defaultValue = "default") String cache,
-            @RequestParam(value = "REQUEST", required = false, defaultValue = "") String requestString,
+            @RequestParam(value = "REQUEST", required = false, defaultValue = "GetCapabilities") String requestString,
             @RequestParam(value = "OUTLINE", required = false, defaultValue = "false") boolean outlinePoints,
             @RequestParam(value = "OUTLINECOLOUR", required = false, defaultValue = "0x000000") String outlineColour,
             @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
             @RequestParam(value = "q", required = false, defaultValue = "*:*") String query,
             @RequestParam(value = "fq", required = false) String[] filterQueries,
-            @RequestParam(value = "X", required = true, defaultValue = "0") Double x,
-            @RequestParam(value = "Y", required = true, defaultValue = "0") Double y,
+            @RequestParam(value = "X", required = false, defaultValue = "0") Double x,
+            @RequestParam(value = "Y", required = false, defaultValue = "0") Double y,
             @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") int gridDivisionCount,
             @RequestParam(value = "HQ", required = false) String[] hqs,
             @RequestParam(value = "marineSpecies", required = false, defaultValue = "false") boolean marineOnly,
@@ -1217,7 +1216,6 @@ public class WMSController extends AbstractSecureController {
                     bboxString,
                     width,
                     height,
-                    cache,
                     requestString,
                     outlinePoints,
                     outlineColour,
@@ -1437,12 +1435,11 @@ public class WMSController extends AbstractSecureController {
             @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs, //default to google mercator
             @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
             @RequestParam(value = "BBOX", required = true, defaultValue = "") String bboxString,
-            @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
-            @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
-            @RequestParam(value = "CACHE", required = true, defaultValue = "default") String cache,
-            @RequestParam(value = "REQUEST", required = true, defaultValue = "") String requestString,
-            @RequestParam(value = "OUTLINE", required = true, defaultValue = "true") boolean outlinePoints,
-            @RequestParam(value = "OUTLINECOLOUR", required = true, defaultValue = "0x000000") String outlineColour,
+            @RequestParam(value = "WIDTH", required = false, defaultValue = "256") Integer width,
+            @RequestParam(value = "HEIGHT", required = false, defaultValue = "256") Integer height,
+            @RequestParam(value = "REQUEST", required = false, defaultValue = "GetMap") String requestString,
+            @RequestParam(value = "OUTLINE", required = false, defaultValue = "true") boolean outlinePoints,
+            @RequestParam(value = "OUTLINECOLOUR", required = false, defaultValue = "0x000000") String outlineColour,
             @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
             @RequestParam(value = "HQ", required = false) String[] hqs,
             @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") Integer gridDivisionCount,
@@ -1450,7 +1447,7 @@ public class WMSController extends AbstractSecureController {
             HttpServletResponse response)
             throws Exception {
         generateWmsTileViaHeatmap(params, cql_filter, env, srs, styles,bboxString, width, height,
-                cache, requestString, outlinePoints, outlineColour, layers, hqs, gridDivisionCount,
+                requestString, outlinePoints, outlineColour, layers, hqs, gridDivisionCount,
                 request, response);
     }
 
@@ -1462,8 +1459,6 @@ public class WMSController extends AbstractSecureController {
      * @param bboxString
      * @param width
      * @param height
-     * @param cache      'on' = use cache, 'off' = do not use cache this
-     *                   also removes any related cache data.
      * @param response
      * @throws Exception
      */
@@ -1479,12 +1474,11 @@ public class WMSController extends AbstractSecureController {
             @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs, //default to google mercator
             @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
             @RequestParam(value = "BBOX", required = true, defaultValue = "") String bboxString,
-            @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
-            @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
-            @RequestParam(value = "CACHE", required = true, defaultValue = "default") String cache,
-            @RequestParam(value = "REQUEST", required = true, defaultValue = "") String requestString,
-            @RequestParam(value = "OUTLINE", required = true, defaultValue = "true") boolean outlinePoints,
-            @RequestParam(value = "OUTLINECOLOUR", required = true, defaultValue = "0x000000") String outlineColour,
+            @RequestParam(value = "WIDTH", required = false, defaultValue = "256") Integer width,
+            @RequestParam(value = "HEIGHT", required = false, defaultValue = "256") Integer height,
+            @RequestParam(value = "REQUEST", required = false, defaultValue = "GetMap") String requestString,
+            @RequestParam(value = "OUTLINE", required = false, defaultValue = "true") boolean outlinePoints,
+            @RequestParam(value = "OUTLINECOLOUR", required = false, defaultValue = "0x000000") String outlineColour,
             @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
             @RequestParam(value = "HQ", required = false) String[] hqs,
             @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") Integer gridDivisionCount,
