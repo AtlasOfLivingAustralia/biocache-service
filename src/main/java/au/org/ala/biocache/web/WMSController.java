@@ -350,7 +350,7 @@ public class WMSController extends AbstractSecureController {
      *
      * @throws Exception
      */
-    @Operation(summary = "JSON web service that returns a list of species and record counts for a given location search", tags = "Search")
+    @Operation(summary = "JSON web service that returns a list of species and record counts for a given location search", tags = "Mapping")
     @RequestMapping(value = {
             "/mapping/species"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public
@@ -584,7 +584,7 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @Operation(summary = "Get query bounding box as csv containing: min longitude, min latitude, max longitude, max latitude", tags = "Geospatial")
+    @Operation(summary = "Get query bounding box as csv containing: min longitude, min latitude, max longitude, max latitude", tags = "Mapping")
     @RequestMapping(value = {
             "/mapping/bbox"}, method = RequestMethod.GET, produces = "text/plain")
     public void boundingBox(
@@ -1467,7 +1467,7 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @Operation(summary = "Web Mapping Service", tags = {"WMS", "OGC"}, description = "WMS services for point occurrence data")
+    @Operation(summary = "Web Mapping Service", tags = {"Mapping", "OGC"}, description = "WMS services for point occurrence data")
     @GetMapping(value = {
             "/ogc/wms/reflect",
             "/mapping/wms/reflect",

@@ -286,6 +286,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      */
     @Operation(summary = "List available facets with grouping", tags = "Search")
+    @Tag(name = "Search", description = "Services for retrieval of search facets")
     @RequestMapping(value = {
             "/search/grouped/facets"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -303,6 +304,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "List available facets with grouping", tags = "i18n")
+    @Tag(name = "i18n", description = "Services for retrieval of i18n facets")
     @RequestMapping(value = {"/facets/i18n", "/facets/i18n/{qualifier}"}, method = RequestMethod.GET)
     public void writei18nPropertiesFile(@PathVariable(name = "qualifier", required = false) String qualifier,
                                         HttpServletRequest request,
@@ -617,7 +619,7 @@ public class OccurrenceController extends AbstractSecureController {
         return Collections.EMPTY_LIST;
     }
 
-    @Operation(summary = "Checks to see if the supplied GUID represents an native species", tags = "Taxon",
+    @Operation(summary = "Checks to see if the supplied GUID represents an native species", tags = "Taxonomy",
         description="Checks to see if the supplied GUID represents an native species."
     )
     @RequestMapping(value = {"/native/taxon/{taxonConceptID}"},
@@ -726,7 +728,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @Operation(summary = "Search for records for a specific taxon", tags = "Taxon")
+    @Operation(summary = "Search for records for a specific taxon", tags = "Taxonomy")
     @RequestMapping(value = {"/occurrences/taxon/{taxonConceptID}", "/occurrences/taxa/{taxonConceptID}"},
             method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
