@@ -258,6 +258,7 @@ public class OccurrenceController extends AbstractSecureController {
     @Secured({"ROLE_ADMIN"})
     @SecurityRequirement(name="JWT")
     @Operation(summary = "Get list of current downloads", tags = "Monitoring")
+    @Tag(name="Monitoring", description = "Admin services for monitoring the application, download stats, and index. Protected APIs require administrative role for access.")
     @RequestMapping(value = { "/active/download/stats" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     List<DownloadDetailsDTO> getCurrentDownloads() {
@@ -285,6 +286,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      */
     @Operation(summary = "List available facets with grouping", tags = "Search")
+    @Tag(name="Search", description = "Services for the retrieval of search facets")
     @RequestMapping(value = {
             "/search/grouped/facets"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -572,6 +574,7 @@ public class OccurrenceController extends AbstractSecureController {
             description="Can be used to retrieve distinct counts in a query. e.g. the distinct number of " +
                     "scientificName values where stateProvince:Queensland"
     )
+    @Tag(name="Occurrence", description = "Specimen & observation data searching")
     @RequestMapping(value = {
             "occurrences/facets"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -595,6 +598,7 @@ public class OccurrenceController extends AbstractSecureController {
         description="Returns a list of image urls for the supplied taxon uuid." +
             "An empty list is returned when no images are available."
     )
+    @Tag(name="Images", description = "Services for the retrieval of taxon image data")
     @RequestMapping(value = "/images/taxon/{taxonConceptID}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     List<String> getImages(@PathVariable(name="taxonConceptID") String taxonConceptID) throws Exception {
@@ -614,7 +618,7 @@ public class OccurrenceController extends AbstractSecureController {
         return Collections.EMPTY_LIST;
     }
 
-    @Operation(summary = "Checks to see if the supplied GUID represents an native species", tags = "Taxon",
+    @Operation(summary = "Checks to see if the supplied GUID represents an native species", tags = "Taxonomy",
         description="Checks to see if the supplied GUID represents an native species."
     )
     @RequestMapping(value = {"/native/taxon/{taxonConceptID}"},
@@ -723,7 +727,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @Operation(summary = "Search for records for a specific taxon", tags = "Taxon")
+    @Operation(summary = "Search for records for a specific taxon", tags = "Taxonomy")
     @RequestMapping(value = {"/occurrences/taxon/{taxonConceptID}", "/occurrences/taxa/{taxonConceptID}"},
             method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
