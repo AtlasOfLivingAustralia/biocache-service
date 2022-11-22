@@ -257,8 +257,7 @@ public class OccurrenceController extends AbstractSecureController {
 
     @Secured({"ROLE_ADMIN"})
     @SecurityRequirement(name="JWT")
-    @Tag(name="Monitoring", description = "Admin services for monitoring the application, download stats, and index. Protected APIs require administrative role for access.")
-    @Operation(summary = "Get list of current downloads")
+    @Operation(summary = "Get list of current downloads", tags = "Monitoring")
     @RequestMapping(value = { "/active/download/stats" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     List<DownloadDetailsDTO> getCurrentDownloads() {
@@ -286,7 +285,6 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      */
     @Operation(summary = "List available facets with grouping", tags = "Search")
-    @Tag(name = "Search", description = "Services for retrieval of search facets")
     @RequestMapping(value = {
             "/search/grouped/facets"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -305,7 +303,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @Operation(summary = "List available facets with grouping", tags = "i18n")
     @Tag(name = "i18n", description = "Services for retrieval of i18n facets")
-    @RequestMapping(value = {"/facets/i18n", "/facets/i18n/{qualifier}"}, method = RequestMethod.GET)
+    @RequestMapping(value = {"/facets/i18n", "/facets/i18n/{qualifier}", "/facets/i18n{qualifier:.*}*"}, method = RequestMethod.GET)
     public void writei18nPropertiesFile(@PathVariable(name = "qualifier", required = false) String qualifier,
                                         HttpServletRequest request,
                                         HttpServletResponse response) throws Exception {
@@ -421,7 +419,6 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @Tag(name="Download", description = "Specimen & observation data download")
     @Operation(summary = "Download a list of indexed fields", tags = "Download")
     @RequestMapping(value = "index/fields.csv", method = RequestMethod.GET,  produces = {"text/csv", "text/plain"})
     public void getIndexedFields(
@@ -575,7 +572,6 @@ public class OccurrenceController extends AbstractSecureController {
             description="Can be used to retrieve distinct counts in a query. e.g. the distinct number of " +
                     "scientificName values where stateProvince:Queensland"
     )
-    @Tag(name="Occurrence", description = "Specimen & observation data searching")
     @RequestMapping(value = {
             "occurrences/facets"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -599,7 +595,6 @@ public class OccurrenceController extends AbstractSecureController {
         description="Returns a list of image urls for the supplied taxon uuid." +
             "An empty list is returned when no images are available."
     )
-    @Tag(name ="Images", description = "Services for retrieval of images information for taxa")
     @RequestMapping(value = "/images/taxon/{taxonConceptID}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     List<String> getImages(@PathVariable(name="taxonConceptID") String taxonConceptID) throws Exception {
@@ -619,7 +614,7 @@ public class OccurrenceController extends AbstractSecureController {
         return Collections.EMPTY_LIST;
     }
 
-    @Operation(summary = "Checks to see if the supplied GUID represents an native species", tags = "Taxonomy",
+    @Operation(summary = "Checks to see if the supplied GUID represents an native species", tags = "Taxon",
         description="Checks to see if the supplied GUID represents an native species."
     )
     @RequestMapping(value = {"/native/taxon/{taxonConceptID}"},
@@ -728,7 +723,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @Operation(summary = "Search for records for a specific taxon", tags = "Taxonomy")
+    @Operation(summary = "Search for records for a specific taxon", tags = "Taxon")
     @RequestMapping(value = {"/occurrences/taxon/{taxonConceptID}", "/occurrences/taxa/{taxonConceptID}"},
             method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
@@ -831,7 +826,7 @@ public class OccurrenceController extends AbstractSecureController {
      */
     @SecurityRequirement(name = "JWT")
     @Operation(summary = "Occurrence search",
-               description = "Occurrence search service that supports facets. \n The full list of fields supported by facets, q, and fq are available here: https://biocache.ala.org.au/fields",
+               description = "Occurrence search service that supports facets",
                tags="Occurrence"
     )
     @RequestMapping(value = {
@@ -1383,9 +1378,9 @@ public class OccurrenceController extends AbstractSecureController {
      * @param recordUuid
      * @throws Exception
      */
-    @Operation(description = "Returns a data structure allowing comparison of verbatim vs interpreted values", tags = "Occurrence", summary = "Compare the original record to the processed (interpreted) version of the record")
+    @Operation(summary = "Returns a data structure allowing comparison of verbatim vs interpreted values", tags = "Occurrence")
     @RequestMapping( value = {"/occurrences/compare/{recordUuid}"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    @ApiParam(value = "recordUuid", required = true, example = "b9f4dfff-5b8d-4747-afbc-4fdfaec3438c")
+    @ApiParam(value = "recordUuid", required = true)
     public @ResponseBody
     Object showOccurrence(@PathVariable("recordUuid") String recordUuid, HttpServletResponse response) throws Exception {
 
