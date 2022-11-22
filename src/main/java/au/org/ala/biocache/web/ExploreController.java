@@ -531,8 +531,8 @@ public class ExploreController {
      *
      * @return
      */
-    @Operation(summary = "Download a CSV of the species that only have occurrences in the supplied WKT. Columns: " + ENDEMISM_CSV_HEADER
-            , tags = {"Endemism", "Download"})
+    @Operation(summary = "Download a CSV of the species that only have occurrences in the supplied WKT"
+            , tags = {"Endemism", "Download"}, description = "Download a CSV of the species that only have occurrences in the supplied WKT. Columns: \" + ENDEMISM_CSV_HEADER")
     @RequestMapping(value = "/explore/endemic/species.csv", method = RequestMethod.GET)
     public void getEndemicSpeciesCSV(@ParameterObject SpatialSearchRequestParams requestParams, HttpServletResponse response) throws Exception {
         requestParams.setFacets(new String[]{OccurrenceIndex.NAMES_AND_LSID});
