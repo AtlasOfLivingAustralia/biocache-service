@@ -21,6 +21,7 @@ import au.org.ala.biocache.dto.PointType;
 import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.util.SearchUtils;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.common.SolrDocument;
@@ -64,6 +65,7 @@ public class DuplicationController {
      * @throws Exception
      */
     @Operation(summary = "Retrieves the duplication information for the supplied guid.", tags = "Duplicates")
+    @Tag(name = "Duplicates", description = "Services for retrieval of duplication information on occurrence records")
     @RequestMapping(value = {"/duplicates/{recordUuid}"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     DuplicateRecordDetails getDuplicateStats(@PathVariable("recordUuid") String recordUuid) throws Exception {

@@ -7,6 +7,7 @@ import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.stream.ScatterplotSearch;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -66,6 +67,7 @@ public class ScatterplotController {
     protected IndexDAO indexDao;
 
     @Operation(summary = "Generate a scatterplot", tags = "Scatterplots")
+    @Tag(name = "Scatterplots", description = "Services for the generation of scatterplots for occurrence data")
     @RequestMapping(value = {"/scatterplot"}, method = RequestMethod.GET, produces = "image/png")
     public void scatterplot(@ParameterObject SpatialSearchRequestParams params,
                             @RequestParam(value = "x", required = true) String x,

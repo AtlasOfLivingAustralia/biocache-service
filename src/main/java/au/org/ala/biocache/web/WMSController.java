@@ -28,6 +28,7 @@ import io.swagger.annotations.*;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocument;
@@ -225,7 +226,10 @@ public class WMSController extends AbstractSecureController {
     }
 
 
-    @Operation(summary = "Create a query ID", tags = "Query ID")
+    @Operation(summary = "Create a query ID", tags = "Query ID", description = "Add query details to a cache to reduce the size of the query params that are being passed around. This is particularly useful if you requests are too large for a GET.\n" +
+            "\n" +
+            "Returns a text identification for the query that has been cached. This identification can be used as part of the value for a search q. ie q=qid:")
+    @Tag(name = "Query ID", description = "Services for creation and retrieval of queries and query ids in a cache for occurrence search")
     @RequestMapping(value = {
             "/qid"
     }, method = RequestMethod.POST)
@@ -316,7 +320,7 @@ public class WMSController extends AbstractSecureController {
     /**
      * Allows the details of a cached query to be viewed.
      */
-    @Operation(summary = "Lookup a query ID", tags = "Query ID")
+    @Operation(summary = "Lookup a query ID", tags = "Query ID", description = "Lookup a cached query based on its query id")
     @RequestMapping(value = {
             "/qid/{queryID}"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -346,7 +350,7 @@ public class WMSController extends AbstractSecureController {
      *
      * @throws Exception
      */
-    @Operation(summary = "JSON web service that returns a list of species and record counts for a given location search", tags = "Search")
+    @Operation(summary = "JSON web service that returns a list of species and record counts for a given location search", tags = "Mapping")
     @RequestMapping(value = {
             "/mapping/species"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public
@@ -448,6 +452,7 @@ public class WMSController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "Get legend for a query and facet field (colourMode).", tags = "Mapping")
+    @Tag(name = "Mapping", description = "Services for creating maps with WMS services, static heat maps")
     @RequestMapping(value = {
             "/mapping/legend"
     }, method = RequestMethod.GET, produces = {MediaType.APPLICATION_JSON_VALUE, "text/plain"})
@@ -579,7 +584,7 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @Operation(summary = "Get query bounding box as csv containing: min longitude, min latitude, max longitude, max latitude", tags = "Geospatial")
+    @Operation(summary = "Get query bounding box as csv containing: min longitude, min latitude, max longitude, max latitude", tags = "Mapping")
     @RequestMapping(value = {
             "/mapping/bbox"}, method = RequestMethod.GET, produces = "text/plain")
     public void boundingBox(
@@ -890,6 +895,7 @@ public class WMSController extends AbstractSecureController {
 
     // add this to the GetCapabilities...
     @Operation(summary = "Get metadata request", tags = "OGC")
+    @Tag(name = "OGC", description = "Services for providing OGC compliant mapping functionalities")
     @RequestMapping(value = { "/ogc/getMetadata"
 //            , "/ogc/getMetadata.json"
     }, method = RequestMethod.GET, produces = "text/xml")
@@ -1456,7 +1462,7 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @Operation(summary = "Web Mapping Service", tags = {"WMS", "OGC"})
+    @Operation(summary = "Web Mapping Service", tags = {"Mapping", "OGC"}, description = "WMS services for point occurrence data")
     @GetMapping(value = {
             "/ogc/wms/reflect",
             "/mapping/wms/reflect",

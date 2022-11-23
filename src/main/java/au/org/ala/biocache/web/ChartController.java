@@ -19,6 +19,7 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
@@ -92,6 +93,7 @@ public class ChartController extends AbstractSecureController implements Seriali
      * @throws Exception
      */
     @Operation(summary = "Standard charting", tags = "Charts")
+    @Tag(name  = "Charts", description = "Services for providing charting functionalities for specimens & occurrences")
     @RequestMapping(value = {
             "/chart"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
