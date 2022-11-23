@@ -284,22 +284,6 @@ public class WMSController extends AbstractSecureController {
         }
     }
 
-    /**
-     * Test presence of query params {id} in params store.
-     */
-    @Deprecated
-    @Operation(summary = "Test presence of query params {id} in params store", tags = "Deprecated")
-    @RequestMapping(value = {
-            "/webportal/params/{id}",
-            "/webportal/params/{id}.json",
-            "/mapping/params/{id}",
-            "/mapping/params/{id}.json"}, method = RequestMethod.GET)
-    public
-    @ResponseBody
-    Boolean storeParamsDeprecated(@PathVariable("id") Long id) throws Exception {
-        return qidCacheDAO.get(String.valueOf(id)) != null;
-    }
-
     @Deprecated
     @Operation(summary = "Deprecated  - use /qid", tags = "Deprecated")
     @RequestMapping(value = {
@@ -356,6 +340,16 @@ public class WMSController extends AbstractSecureController {
     public
     @ResponseBody
     List<TaxaCountDTO> listSpecies(@ParameterObject SpatialSearchRequestParams params) throws Exception {
+        return searchDAO.findAllSpecies(SpatialSearchRequestDTO.create(params));
+    }
+
+    @Deprecated
+    @Operation(summary = "JSON web service that returns a list of species and record counts for a given location search", tags = "Mapping")
+    @RequestMapping(value = {
+            "/webportal/species"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public
+    @ResponseBody
+    List<TaxaCountDTO> listSpeciesDeprecated(@ParameterObject SpatialSearchRequestParams params) throws Exception {
         return searchDAO.findAllSpecies(SpatialSearchRequestDTO.create(params));
     }
 
@@ -595,11 +589,7 @@ public class WMSController extends AbstractSecureController {
         response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
         response.setHeader("ETag", wmsETag.get());
 
-        double[] bbox = null;
-
-        if (bbox == null) {
-            bbox = searchDAO.getBBox(SpatialSearchRequestDTO.create(requestParams));
-        }
+        double[] bbox = searchDAO.getBBox(SpatialSearchRequestDTO.create(requestParams));
 
         writeBytes(response, (bbox[0] + "," + bbox[1] + "," + bbox[2] + "," + bbox[3]).getBytes(StandardCharsets.UTF_8));
     }
@@ -622,27 +612,6 @@ public class WMSController extends AbstractSecureController {
             HttpServletResponse response)
             throws Exception {
         boundingBox(requestParams, response);
-    }
-
-
-    /**
-     * Get query bounding box as JSON array containing:
-     * min longitude, min latitude, max longitude, max latitude
-     *
-     * @param response
-     * @return
-     * @throws Exception
-     */
-    @Deprecated
-    @Operation(summary = "Deprecated use /mapping/bounds", tags = "Deprecated")
-    @RequestMapping(value = {"/mapping/bounds.json" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public
-    @ResponseBody
-    double[] jsonBoundingBoxDeprecated(
-            @ParameterObject SpatialSearchRequestParams params,
-            HttpServletResponse response)
-            throws Exception {
-        return jsonBoundingBox(params, response);
     }
 
     /**
@@ -687,6 +656,29 @@ public class WMSController extends AbstractSecureController {
     }
 
     /**
+     * Get query bounding box as JSON array containing:
+     * min longitude, min latitude, max longitude, max latitude
+     *
+     * @param response
+     * @return
+     * @throws Exception
+     */
+    @Deprecated
+    @Operation(summary = "Deprecated use /mapping/bounds", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/mapping/bounds.json",
+            "/webportal/bounds.json",
+            "/webportal/bounds"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public
+    @ResponseBody
+    double[] jsonBoundingBoxDeprecated(
+            @ParameterObject SpatialSearchRequestParams params,
+            HttpServletResponse response)
+            throws Exception {
+        return jsonBoundingBox(params, response);
+    }
+
+    /**
      * Get occurrences by query as JSON.
      *
      * @param requestParams
@@ -695,10 +687,10 @@ public class WMSController extends AbstractSecureController {
     @Operation(summary = "Get query bounding box as JSON", tags = "Deprecated")
     @Deprecated
     @RequestMapping(value = {
-            "/webportal/occurrences*",
-            "/mapping/occurrences.json*",
-            "/webportal/occurrences*",
-            "/mapping/occurrences.json*"
+            "/webportal/occurrences",
+            "/mapping/occurrences.json",
+            "/webportal/occurrences",
+            "/mapping/occurrences.json"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public SearchResultDTO occurrences(
@@ -758,6 +750,15 @@ public class WMSController extends AbstractSecureController {
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         }
+    }
+
+    @Deprecated
+    @RequestMapping(value = {
+            "/webportal/occurrences.gz"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    public void occurrenceGzDeprecated(
+            @ParameterObject SpatialSearchRequestParams params,
+            HttpServletResponse response) {
+        occurrenceGz(params, response);
     }
 
     private void writeOccurrencesCsvToStream(SpatialSearchRequestDTO requestParams, OutputStream stream) throws Exception {
@@ -897,7 +898,6 @@ public class WMSController extends AbstractSecureController {
     @Operation(summary = "Get metadata request", tags = "OGC")
     @Tag(name = "OGC", description = "Services for providing OGC compliant mapping functionalities")
     @RequestMapping(value = { "/ogc/getMetadata"
-//            , "/ogc/getMetadata.json"
     }, method = RequestMethod.GET, produces = "text/xml")
     public String getMetadata(
             @RequestParam(value = "LAYER", required = false, defaultValue = "") String layer,
@@ -1010,7 +1010,6 @@ public class WMSController extends AbstractSecureController {
     @Operation(summary = "Get feature request", tags = "OGC")
     @RequestMapping(value = {
             "/ogc/getFeatureInfo"
-//            , "/ogc/getFeatureInfo.json"
     }, method = RequestMethod.GET, produces="text/html")
     public String getFeatureInfo(
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
@@ -1151,7 +1150,6 @@ public class WMSController extends AbstractSecureController {
      * @param bboxString
      * @param width
      * @param height
-     * @param cache
      * @param requestString
      * @param outlinePoints
      * @param outlineColour
@@ -1426,7 +1424,6 @@ public class WMSController extends AbstractSecureController {
     @Operation(summary = "Web Mapping Service", tags = {"Deprecated"})
     @GetMapping(value = {
             "/webportal/wms/reflect",
-            "/webportal/wms/reflect.png",
     }, produces = "image/png")
     public void generateWmsTileViaHeatmapDeprecated(
             @ParameterObject SpatialSearchRequestParams params,
