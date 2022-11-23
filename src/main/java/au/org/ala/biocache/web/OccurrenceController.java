@@ -36,6 +36,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import net.sf.json.JSONArray;
 import org.ala.client.model.LogEventType;
 import org.ala.client.model.LogEventVO;
@@ -257,6 +258,7 @@ public class OccurrenceController extends AbstractSecureController {
     @Secured({"ROLE_ADMIN"})
     @SecurityRequirement(name="JWT")
     @Operation(summary = "Get list of current downloads", tags = "Monitoring")
+    @Tag(name="Monitoring", description = "Admin services for monitoring the application, download stats, and index. Protected APIs require administrative role for access.")
     @RequestMapping(value = { "/active/download/stats" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     List<DownloadDetailsDTO> getCurrentDownloads() {
@@ -284,6 +286,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      */
     @Operation(summary = "List available facets with grouping", tags = "Search")
+    @Tag(name="Search", description = "Services for the retrieval of search facets")
     @RequestMapping(value = {
             "/search/grouped/facets"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -301,7 +304,8 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "List available facets with grouping", tags = "i18n")
-    @RequestMapping(value = {"/facets/i18n", "/facets/i18n/{qualifier}"}, method = RequestMethod.GET)
+    @Tag(name = "i18n", description = "Services for retrieval of i18n facets")
+    @RequestMapping(value = {"/facets/i18n", "/facets/i18n/{qualifier}", "/facets/i18n{qualifier:.*}*"}, method = RequestMethod.GET)
     public void writei18nPropertiesFile(@PathVariable(name = "qualifier", required = false) String qualifier,
                                         HttpServletRequest request,
                                         HttpServletResponse response) throws Exception {
@@ -570,6 +574,7 @@ public class OccurrenceController extends AbstractSecureController {
             description="Can be used to retrieve distinct counts in a query. e.g. the distinct number of " +
                     "scientificName values where stateProvince:Queensland"
     )
+    @Tag(name="Occurrence", description = "Specimen & observation data searching")
     @RequestMapping(value = {
             "occurrences/facets"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -593,6 +598,7 @@ public class OccurrenceController extends AbstractSecureController {
         description="Returns a list of image urls for the supplied taxon uuid." +
             "An empty list is returned when no images are available."
     )
+    @Tag(name="Images", description = "Services for the retrieval of taxon image data")
     @RequestMapping(value = "/images/taxon/{taxonConceptID}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     List<String> getImages(@PathVariable(name="taxonConceptID") String taxonConceptID) throws Exception {
@@ -612,7 +618,7 @@ public class OccurrenceController extends AbstractSecureController {
         return Collections.EMPTY_LIST;
     }
 
-    @Operation(summary = "Checks to see if the supplied GUID represents an native species", tags = "Taxon",
+    @Operation(summary = "Checks to see if the supplied GUID represents an native species", tags = "Taxonomy",
         description="Checks to see if the supplied GUID represents an native species."
     )
     @RequestMapping(value = {"/native/taxon/{taxonConceptID}"},
@@ -721,7 +727,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @Operation(summary = "Search for records for a specific taxon", tags = "Taxon")
+    @Operation(summary = "Search for records for a specific taxon", tags = "Taxonomy")
     @RequestMapping(value = {"/occurrences/taxon/{taxonConceptID}", "/occurrences/taxa/{taxonConceptID}"},
             method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
@@ -2453,52 +2459,6 @@ public class OccurrenceController extends AbstractSecureController {
             }
             return ml;
         }
-        return null;
-    }
-
-    /**
-     * Perform one pivot facet query.
-     * <p/>
-     * Requires valid apiKey.
-     * <p/>
-     * facets is the pivot facet list
-     */
-    @SecurityRequirement(name="JWT")
-    @Deprecated
-    @Hidden
-    @RequestMapping("occurrence/pivot")
-    public
-    @ResponseBody
-    List<FacetPivotResultDTO> searchPivot(SpatialSearchRequestDTO searchParams,
-                                          HttpServletRequest request,
-                                          HttpServletResponse response) throws Exception {
-        if (request.getUserPrincipal() != null) {
-            return searchDAO.searchPivot(searchParams);
-        }
-
-        response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
-        return null;
-    }
-
-    /**
-     * List all facets available for a query.
-     * <p/>
-     * Requires valid apiKey because it is very slow.
-     */
-    @SecurityRequirement(name="JWT")
-    @Deprecated
-    @RequestMapping("occurrences/facets/available")
-    @Hidden
-    public
-    @ResponseBody
-    List<String> listFacets(SpatialSearchRequestDTO searchParams,
-                            HttpServletRequest request,
-                            HttpServletResponse response) throws Exception {
-        if (request.getUserPrincipal() != null) {
-            return searchDAO.listFacets(searchParams);
-        }
-
-        response.sendError(HttpServletResponse.SC_FORBIDDEN, "An invalid API Key was provided.");
         return null;
     }
 }

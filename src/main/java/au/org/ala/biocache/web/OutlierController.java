@@ -5,6 +5,7 @@ import au.org.ala.biocache.dto.RecordJackKnifeStats;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -25,6 +26,7 @@ public class OutlierController {
      */
 
     @Operation(summary = "Retrieves the environmental outlier details for a record", tags = "Outliers")
+    @Tag(name = "Outliers", description = "Services for reporting on environmental or limital range status of occurrences")
     @RequestMapping(value={"/outlier/record/{recordUuid}", }, method = RequestMethod.GET)
     @ApiParam(value = "recordUuid", required = true)
     public @ResponseBody List<RecordJackKnifeStats> getOutlierForUUid(

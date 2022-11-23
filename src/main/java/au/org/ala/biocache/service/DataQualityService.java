@@ -8,6 +8,7 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -26,6 +27,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.google.common.collect.Sets.newLinkedHashSet;
 import static java.util.stream.Collectors.toList;
@@ -37,6 +39,9 @@ public class DataQualityService {
     public static final String QUALITY_PROFILE_PARAM_NAME = "qualityProfile";
     public static final String DISABLE_QUALITY_FILTER_PARAM_NAME = "disableQualityFilter";
 
+    private final Map<String, Map<String, String>> cache = new ConcurrentHashMap<>();
+    private final Map<String, QualityProfile> cacheProfile = new ConcurrentHashMap<>();
+
     @Inject
     private QualityServiceRpcApi qualityServiceRpcApi;
 
@@ -46,6 +51,12 @@ public class DataQualityService {
     @Value("${dataquality.enabled:false}")
     @VisibleForTesting
     protected boolean dataQualityEnabled;
+
+    @Scheduled(fixedDelay = 43200000)// schedule to run every 12 hours
+    public void clearCache() {
+        cache.clear();
+        cacheProfile.clear();
+    }
 
     /**
      * Get the full name of the profile based on the provided short name
@@ -58,7 +69,11 @@ public class DataQualityService {
             return profileShortName;
         }
 
-        QualityProfile profile = responseValueOrThrow(qualityServiceRpcApi.activeProfile(profileShortName));
+        QualityProfile profile = cacheProfile.get(profileShortName);
+        if (profile == null) {
+            profile = responseValueOrThrow(qualityServiceRpcApi.activeProfile(profileShortName));
+            cacheProfile.put(profileShortName, profile);
+        }
         return profile.getName();
     }
 
@@ -75,8 +90,19 @@ public class DataQualityService {
         if (searchRequestDTO.isDisableAllQualityFilters()) {
             return new LinkedHashMap<>();
         }
+        if (!dataQualityEnabled) {
+            return new LinkedHashMap<>();
+        }
+        if (StringUtils.isBlank(searchRequestDTO.getQualityProfile())) {
+            return new LinkedHashMap<>();
+        }
 
-        Map<String, String> filtersByLabel = getEnabledFiltersByLabel(searchRequestDTO.getQualityProfile());
+        Map<String, String> filtersByLabel = cache.get(searchRequestDTO.getQualityProfile());
+        if (filtersByLabel == null) {
+            filtersByLabel = getEnabledFiltersByLabel(searchRequestDTO.getQualityProfile());
+            cache.put(searchRequestDTO.getQualityProfile(), filtersByLabel);
+        }
+
         filtersByLabel.keySet().removeAll(searchRequestDTO.getDisableQualityFilter());
         return filtersByLabel;
     }

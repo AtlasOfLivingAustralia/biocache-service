@@ -28,6 +28,7 @@ import io.swagger.annotations.*;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocument;
@@ -225,7 +226,10 @@ public class WMSController extends AbstractSecureController {
     }
 
 
-    @Operation(summary = "Create a query ID", tags = "Query ID")
+    @Operation(summary = "Create a query ID", tags = "Query ID", description = "Add query details to a cache to reduce the size of the query params that are being passed around. This is particularly useful if you requests are too large for a GET.\n" +
+            "\n" +
+            "Returns a text identification for the query that has been cached. This identification can be used as part of the value for a search q. ie q=qid:")
+    @Tag(name = "Query ID", description = "Services for creation and retrieval of queries and query ids in a cache for occurrence search")
     @RequestMapping(value = {
             "/qid"
     }, method = RequestMethod.POST)
@@ -280,22 +284,6 @@ public class WMSController extends AbstractSecureController {
         }
     }
 
-    /**
-     * Test presence of query params {id} in params store.
-     */
-    @Deprecated
-    @Operation(summary = "Test presence of query params {id} in params store", tags = "Deprecated")
-    @RequestMapping(value = {
-            "/webportal/params/{id}",
-            "/webportal/params/{id}.json",
-            "/mapping/params/{id}",
-            "/mapping/params/{id}.json"}, method = RequestMethod.GET)
-    public
-    @ResponseBody
-    Boolean storeParamsDeprecated(@PathVariable("id") Long id) throws Exception {
-        return qidCacheDAO.get(String.valueOf(id)) != null;
-    }
-
     @Deprecated
     @Operation(summary = "Deprecated  - use /qid", tags = "Deprecated")
     @RequestMapping(value = {
@@ -316,7 +304,7 @@ public class WMSController extends AbstractSecureController {
     /**
      * Allows the details of a cached query to be viewed.
      */
-    @Operation(summary = "Lookup a query ID", tags = "Query ID")
+    @Operation(summary = "Lookup a query ID", tags = "Query ID", description = "Lookup a cached query based on its query id")
     @RequestMapping(value = {
             "/qid/{queryID}"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -346,12 +334,22 @@ public class WMSController extends AbstractSecureController {
      *
      * @throws Exception
      */
-    @Operation(summary = "JSON web service that returns a list of species and record counts for a given location search", tags = "Search")
+    @Operation(summary = "JSON web service that returns a list of species and record counts for a given location search", tags = "Mapping")
     @RequestMapping(value = {
             "/mapping/species"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public
     @ResponseBody
     List<TaxaCountDTO> listSpecies(@ParameterObject SpatialSearchRequestParams params) throws Exception {
+        return searchDAO.findAllSpecies(SpatialSearchRequestDTO.create(params));
+    }
+
+    @Deprecated
+    @Operation(summary = "JSON web service that returns a list of species and record counts for a given location search", tags = "Mapping")
+    @RequestMapping(value = {
+            "/webportal/species"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public
+    @ResponseBody
+    List<TaxaCountDTO> listSpeciesDeprecated(@ParameterObject SpatialSearchRequestParams params) throws Exception {
         return searchDAO.findAllSpecies(SpatialSearchRequestDTO.create(params));
     }
 
@@ -448,6 +446,7 @@ public class WMSController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "Get legend for a query and facet field (colourMode).", tags = "Mapping")
+    @Tag(name = "Mapping", description = "Services for creating maps with WMS services, static heat maps")
     @RequestMapping(value = {
             "/mapping/legend"
     }, method = RequestMethod.GET, produces = {MediaType.APPLICATION_JSON_VALUE, "text/plain"})
@@ -579,7 +578,7 @@ public class WMSController extends AbstractSecureController {
      * @param response
      * @throws Exception
      */
-    @Operation(summary = "Get query bounding box as csv containing: min longitude, min latitude, max longitude, max latitude", tags = "Geospatial")
+    @Operation(summary = "Get query bounding box as csv containing: min longitude, min latitude, max longitude, max latitude", tags = "Mapping")
     @RequestMapping(value = {
             "/mapping/bbox"}, method = RequestMethod.GET, produces = "text/plain")
     public void boundingBox(
@@ -590,11 +589,7 @@ public class WMSController extends AbstractSecureController {
         response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
         response.setHeader("ETag", wmsETag.get());
 
-        double[] bbox = null;
-
-        if (bbox == null) {
-            bbox = searchDAO.getBBox(SpatialSearchRequestDTO.create(requestParams));
-        }
+        double[] bbox = searchDAO.getBBox(SpatialSearchRequestDTO.create(requestParams));
 
         writeBytes(response, (bbox[0] + "," + bbox[1] + "," + bbox[2] + "," + bbox[3]).getBytes(StandardCharsets.UTF_8));
     }
@@ -617,27 +612,6 @@ public class WMSController extends AbstractSecureController {
             HttpServletResponse response)
             throws Exception {
         boundingBox(requestParams, response);
-    }
-
-
-    /**
-     * Get query bounding box as JSON array containing:
-     * min longitude, min latitude, max longitude, max latitude
-     *
-     * @param response
-     * @return
-     * @throws Exception
-     */
-    @Deprecated
-    @Operation(summary = "Deprecated use /mapping/bounds", tags = "Deprecated")
-    @RequestMapping(value = {"/mapping/bounds.json" }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public
-    @ResponseBody
-    double[] jsonBoundingBoxDeprecated(
-            @ParameterObject SpatialSearchRequestParams params,
-            HttpServletResponse response)
-            throws Exception {
-        return jsonBoundingBox(params, response);
     }
 
     /**
@@ -682,6 +656,29 @@ public class WMSController extends AbstractSecureController {
     }
 
     /**
+     * Get query bounding box as JSON array containing:
+     * min longitude, min latitude, max longitude, max latitude
+     *
+     * @param response
+     * @return
+     * @throws Exception
+     */
+    @Deprecated
+    @Operation(summary = "Deprecated use /mapping/bounds", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/mapping/bounds.json",
+            "/webportal/bounds.json",
+            "/webportal/bounds"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public
+    @ResponseBody
+    double[] jsonBoundingBoxDeprecated(
+            @ParameterObject SpatialSearchRequestParams params,
+            HttpServletResponse response)
+            throws Exception {
+        return jsonBoundingBox(params, response);
+    }
+
+    /**
      * Get occurrences by query as JSON.
      *
      * @param requestParams
@@ -690,10 +687,10 @@ public class WMSController extends AbstractSecureController {
     @Operation(summary = "Get query bounding box as JSON", tags = "Deprecated")
     @Deprecated
     @RequestMapping(value = {
-            "/webportal/occurrences*",
-            "/mapping/occurrences.json*",
-            "/webportal/occurrences*",
-            "/mapping/occurrences.json*"
+            "/webportal/occurrences",
+            "/mapping/occurrences.json",
+            "/webportal/occurrences",
+            "/mapping/occurrences.json"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public SearchResultDTO occurrences(
@@ -753,6 +750,15 @@ public class WMSController extends AbstractSecureController {
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         }
+    }
+
+    @Deprecated
+    @RequestMapping(value = {
+            "/webportal/occurrences.gz"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    public void occurrenceGzDeprecated(
+            @ParameterObject SpatialSearchRequestParams params,
+            HttpServletResponse response) {
+        occurrenceGz(params, response);
     }
 
     private void writeOccurrencesCsvToStream(SpatialSearchRequestDTO requestParams, OutputStream stream) throws Exception {
@@ -890,8 +896,8 @@ public class WMSController extends AbstractSecureController {
 
     // add this to the GetCapabilities...
     @Operation(summary = "Get metadata request", tags = "OGC")
+    @Tag(name = "OGC", description = "Services for providing OGC compliant mapping functionalities")
     @RequestMapping(value = { "/ogc/getMetadata"
-//            , "/ogc/getMetadata.json"
     }, method = RequestMethod.GET, produces = "text/xml")
     public String getMetadata(
             @RequestParam(value = "LAYER", required = false, defaultValue = "") String layer,
@@ -1004,13 +1010,12 @@ public class WMSController extends AbstractSecureController {
     @Operation(summary = "Get feature request", tags = "OGC")
     @RequestMapping(value = {
             "/ogc/getFeatureInfo"
-//            , "/ogc/getFeatureInfo.json"
     }, method = RequestMethod.GET, produces="text/html")
     public String getFeatureInfo(
             @RequestParam(value = "ENV", required = false, defaultValue = "") String env,
-            @RequestParam(value = "BBOX", required = true, defaultValue = "0,-90,180,0") String bboxString,
-            @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
-            @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
+            @RequestParam(value = "BBOX", required = false, defaultValue = "0,-90,180,0") String bboxString,
+            @RequestParam(value = "WIDTH", required = false, defaultValue = "256") Integer width,
+            @RequestParam(value = "HEIGHT", required = false, defaultValue = "256") Integer height,
             @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
             @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs,
             @RequestParam(value = "QUERY_LAYERS", required = false, defaultValue = "") String queryLayers,
@@ -1145,7 +1150,6 @@ public class WMSController extends AbstractSecureController {
      * @param bboxString
      * @param width
      * @param height
-     * @param cache
      * @param requestString
      * @param outlinePoints
      * @param outlineColour
@@ -1181,15 +1185,14 @@ public class WMSController extends AbstractSecureController {
             @RequestParam(value = "BBOX", required = false, defaultValue = "") String bboxString,
             @RequestParam(value = "WIDTH", required = false, defaultValue = "256") Integer width,
             @RequestParam(value = "HEIGHT", required = false, defaultValue = "256") Integer height,
-            @RequestParam(value = "CACHE", required = false, defaultValue = "default") String cache,
-            @RequestParam(value = "REQUEST", required = false, defaultValue = "") String requestString,
+            @RequestParam(value = "REQUEST", required = false, defaultValue = "GetCapabilities") String requestString,
             @RequestParam(value = "OUTLINE", required = false, defaultValue = "false") boolean outlinePoints,
             @RequestParam(value = "OUTLINECOLOUR", required = false, defaultValue = "0x000000") String outlineColour,
             @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
             @RequestParam(value = "q", required = false, defaultValue = "*:*") String query,
             @RequestParam(value = "fq", required = false) String[] filterQueries,
-            @RequestParam(value = "X", required = true, defaultValue = "0") Double x,
-            @RequestParam(value = "Y", required = true, defaultValue = "0") Double y,
+            @RequestParam(value = "X", required = false, defaultValue = "0") Double x,
+            @RequestParam(value = "Y", required = false, defaultValue = "0") Double y,
             @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") int gridDivisionCount,
             @RequestParam(value = "HQ", required = false) String[] hqs,
             @RequestParam(value = "marineSpecies", required = false, defaultValue = "false") boolean marineOnly,
@@ -1211,7 +1214,6 @@ public class WMSController extends AbstractSecureController {
                     bboxString,
                     width,
                     height,
-                    cache,
                     requestString,
                     outlinePoints,
                     outlineColour,
@@ -1422,7 +1424,6 @@ public class WMSController extends AbstractSecureController {
     @Operation(summary = "Web Mapping Service", tags = {"Deprecated"})
     @GetMapping(value = {
             "/webportal/wms/reflect",
-            "/webportal/wms/reflect.png",
     }, produces = "image/png")
     public void generateWmsTileViaHeatmapDeprecated(
             @ParameterObject SpatialSearchRequestParams params,
@@ -1431,12 +1432,11 @@ public class WMSController extends AbstractSecureController {
             @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs, //default to google mercator
             @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
             @RequestParam(value = "BBOX", required = true, defaultValue = "") String bboxString,
-            @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
-            @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
-            @RequestParam(value = "CACHE", required = true, defaultValue = "default") String cache,
-            @RequestParam(value = "REQUEST", required = true, defaultValue = "") String requestString,
-            @RequestParam(value = "OUTLINE", required = true, defaultValue = "true") boolean outlinePoints,
-            @RequestParam(value = "OUTLINECOLOUR", required = true, defaultValue = "0x000000") String outlineColour,
+            @RequestParam(value = "WIDTH", required = false, defaultValue = "256") Integer width,
+            @RequestParam(value = "HEIGHT", required = false, defaultValue = "256") Integer height,
+            @RequestParam(value = "REQUEST", required = false, defaultValue = "GetMap") String requestString,
+            @RequestParam(value = "OUTLINE", required = false, defaultValue = "true") boolean outlinePoints,
+            @RequestParam(value = "OUTLINECOLOUR", required = false, defaultValue = "0x000000") String outlineColour,
             @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
             @RequestParam(value = "HQ", required = false) String[] hqs,
             @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") Integer gridDivisionCount,
@@ -1444,7 +1444,7 @@ public class WMSController extends AbstractSecureController {
             HttpServletResponse response)
             throws Exception {
         generateWmsTileViaHeatmap(params, cql_filter, env, srs, styles,bboxString, width, height,
-                cache, requestString, outlinePoints, outlineColour, layers, hqs, gridDivisionCount,
+                requestString, outlinePoints, outlineColour, layers, hqs, gridDivisionCount,
                 request, response);
     }
 
@@ -1456,12 +1456,10 @@ public class WMSController extends AbstractSecureController {
      * @param bboxString
      * @param width
      * @param height
-     * @param cache      'on' = use cache, 'off' = do not use cache this
-     *                   also removes any related cache data.
      * @param response
      * @throws Exception
      */
-    @Operation(summary = "Web Mapping Service", tags = {"WMS", "OGC"})
+    @Operation(summary = "Web Mapping Service", tags = {"Mapping", "OGC"}, description = "WMS services for point occurrence data")
     @GetMapping(value = {
             "/ogc/wms/reflect",
             "/mapping/wms/reflect",
@@ -1473,12 +1471,11 @@ public class WMSController extends AbstractSecureController {
             @RequestParam(value = "SRS", required = false, defaultValue = "EPSG:3857") String srs, //default to google mercator
             @RequestParam(value = "STYLES", required = false, defaultValue = "") String styles,
             @RequestParam(value = "BBOX", required = true, defaultValue = "") String bboxString,
-            @RequestParam(value = "WIDTH", required = true, defaultValue = "256") Integer width,
-            @RequestParam(value = "HEIGHT", required = true, defaultValue = "256") Integer height,
-            @RequestParam(value = "CACHE", required = true, defaultValue = "default") String cache,
-            @RequestParam(value = "REQUEST", required = true, defaultValue = "") String requestString,
-            @RequestParam(value = "OUTLINE", required = true, defaultValue = "true") boolean outlinePoints,
-            @RequestParam(value = "OUTLINECOLOUR", required = true, defaultValue = "0x000000") String outlineColour,
+            @RequestParam(value = "WIDTH", required = false, defaultValue = "256") Integer width,
+            @RequestParam(value = "HEIGHT", required = false, defaultValue = "256") Integer height,
+            @RequestParam(value = "REQUEST", required = false, defaultValue = "GetMap") String requestString,
+            @RequestParam(value = "OUTLINE", required = false, defaultValue = "true") boolean outlinePoints,
+            @RequestParam(value = "OUTLINECOLOUR", required = false, defaultValue = "0x000000") String outlineColour,
             @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
             @RequestParam(value = "HQ", required = false) String[] hqs,
             @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") Integer gridDivisionCount,

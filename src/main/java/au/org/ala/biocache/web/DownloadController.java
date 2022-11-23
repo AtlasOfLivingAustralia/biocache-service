@@ -26,6 +26,7 @@ import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -114,6 +115,7 @@ public class DownloadController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "Asynchronous occurrence download", tags = "Download")
+    @Tag(name ="Download", description = "Services for downloading occurrences and specimen data")
     @RequestMapping(value = { "occurrences/offline/download"}, method = {RequestMethod.GET, RequestMethod.POST})
     public @ResponseBody Object occurrenceDownload(
             @Valid @ParameterObject DownloadRequestParams requestParams,
