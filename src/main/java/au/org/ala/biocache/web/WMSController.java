@@ -1877,7 +1877,7 @@ public class WMSController extends AbstractSecureController {
 
         //if filename supplied, force a download
         if (fileName != null) {
-            response.setContentType("application/octet-stream");
+            response.setContentType("application/octet-stream;charset=UTF-8");
             response.setHeader("Content-Description", "File Transfer");
             response.setHeader("Content-Disposition", "attachment; filename=" + fileName);
             response.setHeader("Content-Transfer-Encoding", "binary");
