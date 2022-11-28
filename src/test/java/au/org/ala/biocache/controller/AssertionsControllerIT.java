@@ -8,7 +8,8 @@ import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import au.org.ala.biocache.web.AssertionController;
 import au.org.ala.ws.security.AlaWebServiceAuthFilter;
-import au.org.ala.ws.security.profile.AlaUserProfile;
+import au.org.ala.ws.security.profile.AlaApiUserProfile;
+
 import junit.framework.TestCase;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -69,8 +70,8 @@ public class AssertionsControllerIT extends TestCase {
 
     MockMvc mockMvc;
 
-    final static AlaUserProfile TEST_USER =
-            new AlaUserProfile("Tester","test@test.com",null,null, null, null);
+    final static AlaApiUserProfile TEST_USER =
+            new AlaApiUserProfile("Tester","test@test.com",null,null, null, null);
 
     @BeforeClass
     public static void setupBeforeClass() throws Exception {

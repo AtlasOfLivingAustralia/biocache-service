@@ -21,7 +21,7 @@ import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
-import au.org.ala.ws.security.profile.AlaUserProfile;
+import au.org.ala.ws.security.profile.AlaApiUserProfile;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -124,7 +124,7 @@ public class DownloadController extends AbstractSecureController {
             HttpServletResponse response) throws Exception {
 
         DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(requestParams, request);
-        Optional<AlaUserProfile> downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
+        var downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
 
         if (!downloadUser.isPresent()){
             response.sendError(400, "No valid email");
@@ -142,7 +142,7 @@ public class DownloadController extends AbstractSecureController {
     }
 
     private Map<String, Object> download(DownloadRequestDTO requestParams,
-                                         AlaUserProfile alaUser,
+                                         AlaApiUserProfile alaUser,
                                          String ip,
                                          String userAgent,
                                          HttpServletRequest request,

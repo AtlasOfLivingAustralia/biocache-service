@@ -12,7 +12,7 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.doi.CreateDoiResponse;
-import au.org.ala.ws.security.profile.AlaUserProfile;
+import au.org.ala.ws.security.profile.AlaApiUserProfile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.io.FileUtils;
@@ -83,8 +83,8 @@ public class DownloadServiceTest {
     @Autowired
     IndexDAO indexDAO;
 
-    final static AlaUserProfile TEST_USER =
-            new AlaUserProfile("Tester", "test@test.com", null, null, Collections.EMPTY_SET, Collections.EMPTY_MAP);
+    final static AlaApiUserProfile TEST_USER =
+            new AlaApiUserProfile("Tester", "test@test.com", null, null, Collections.EMPTY_SET, Collections.EMPTY_MAP);
 
 
     /**

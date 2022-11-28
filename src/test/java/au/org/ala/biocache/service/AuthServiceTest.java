@@ -1,7 +1,8 @@
 package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dto.DownloadRequestDTO;
-import au.org.ala.ws.security.profile.AlaUserProfile;
+import au.org.ala.ws.security.profile.AlaApiUserProfile;
+
 import com.google.common.collect.Sets;
 import org.junit.Before;
 import org.junit.Test;
@@ -25,8 +26,8 @@ public class AuthServiceTest {
 
     RestTemplate restTemplate;
 
-    final static AlaUserProfile API_KEY_TEST_USER =
-            new AlaUserProfile("Tester", "test@test.com", null, null, Sets.newHashSet("ROLE_LEGACY_APIKEY"), Collections.EMPTY_MAP);
+    final static AlaApiUserProfile API_KEY_TEST_USER =
+            new AlaApiUserProfile("Tester", "test@test.com", null, null, Sets.newHashSet("ROLE_LEGACY_APIKEY"), Collections.EMPTY_MAP);
 
     @Before
     public void setup() {
@@ -39,9 +40,9 @@ public class AuthServiceTest {
     public void authenticatedRequest() {
 
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setUserPrincipal(new AlaUserProfile());
+        request.setUserPrincipal(new AlaApiUserProfile());
 
-        Optional<AlaUserProfile> authenticatedUser = authService.getRecordViewUser(request);
+        var authenticatedUser = authService.getRecordViewUser(request);
 
         assertTrue(authenticatedUser.isPresent());
     }
@@ -50,11 +51,11 @@ public class AuthServiceTest {
     public void authenticateDownload() {
 
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setUserPrincipal(new AlaUserProfile());
+        request.setUserPrincipal(new AlaApiUserProfile());
 
         DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
 
-        Optional<AlaUserProfile> authenticatedUser = authService.getDownloadUser(downloadRequestDTO, request);
+        Optional<AlaApiUserProfile> authenticatedUser = authService.getDownloadUser(downloadRequestDTO, request);
 
         assertTrue(authenticatedUser.isPresent());
     }
@@ -69,7 +70,7 @@ public class AuthServiceTest {
         request.setParameter("email", "test@test.com");
 
         authService.emailOnlyEnabled = false;
-        Optional<AlaUserProfile> authenticatedUser = authService.getDownloadUser(downloadRequestDTO, request);
+        Optional<AlaApiUserProfile> authenticatedUser = authService.getDownloadUser(downloadRequestDTO, request);
 
         assertFalse(authenticatedUser.isPresent());
     }
@@ -93,7 +94,7 @@ public class AuthServiceTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setParameter("email", "test@test.com");
 
-        Optional<AlaUserProfile> authenticatedUser =
+        Optional<AlaApiUserProfile> authenticatedUser =
                 authService.getDownloadUser(downloadRequestDTO, request);
 
         assertTrue(authenticatedUser.isPresent());
@@ -120,7 +121,7 @@ public class AuthServiceTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setParameter("email", "test@test.com");
 
-        Optional<AlaUserProfile> authenticatedUser =
+        Optional<AlaApiUserProfile> authenticatedUser =
                 authService.getDownloadUser(downloadRequestDTO, request);
 
         assertFalse(authenticatedUser.isPresent());
@@ -148,7 +149,7 @@ public class AuthServiceTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setParameter("email", "test@test.com");
 
-        Optional<AlaUserProfile> authenticatedUser =
+        Optional<AlaApiUserProfile> authenticatedUser =
                 authService.getDownloadUser(downloadRequestDTO, request);
 
         assertFalse(authenticatedUser.isPresent());
@@ -166,7 +167,7 @@ public class AuthServiceTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setParameter("email", "test@test.com");
 
-        Optional<AlaUserProfile> authenticatedUser =
+        Optional<AlaApiUserProfile> authenticatedUser =
                 authService.getDownloadUser(downloadRequestDTO, request);
 
         assertFalse(authenticatedUser.isPresent());

@@ -27,7 +27,7 @@ import au.org.ala.biocache.util.thread.DownloadControlThread;
 import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.biocache.writer.RecordWriterException;
 import au.org.ala.doi.CreateDoiResponse;
-import au.org.ala.ws.security.profile.AlaUserProfile;
+import au.org.ala.ws.security.profile.AlaApiUserProfile;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -509,7 +509,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      * @return
      */
     public DownloadDetailsDTO registerDownload(@NotNull DownloadRequestDTO requestParams,
-                                               AlaUserProfile alaUser,
+                                               AlaApiUserProfile alaUser,
                                                String ip,
                                                String userAgent,
                                                DownloadType type) {
@@ -638,7 +638,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         doiDetails.setTitle(biocacheDownloadDoiTitlePrefix + filename);
                         doiDetails.setApplicationUrl(dqFixedSearchUrl);
                         doiDetails.setRequesterId(dd.getAlaUser() == null ? null : dd.getAlaUser().getId());
-                        doiDetails.setRequesterName(dd.getAlaUser() == null ? null : dd.getAlaUser().getFirstName() + " " + dd.getAlaUser().getLastName());
+                        doiDetails.setRequesterName(dd.getAlaUser() == null ? null : dd.getAlaUser().getGivenName() + " " + dd.getAlaUser().getFamilyName());
                         doiDetails.setAuthorisedRoles(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles());
                         doiDetails.setDatasetMetadata(datasetMetadata);
                         doiDetails.setRequestTime(dd.getStartDateString());
@@ -823,7 +823,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
      */
     public void writeQueryToStream(DownloadRequestDTO requestParams,
                                    HttpServletResponse response,
-                                   AlaUserProfile alaUser,
+                                   AlaApiUserProfile alaUser,
                                    String ip,
                                    String userAgent,
                                    OutputStream out,

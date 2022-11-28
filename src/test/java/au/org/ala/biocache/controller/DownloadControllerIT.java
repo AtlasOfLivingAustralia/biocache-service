@@ -6,7 +6,7 @@ import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.web.DownloadController;
-import au.org.ala.ws.security.profile.AlaUserProfile;
+import au.org.ala.ws.security.profile.AlaApiUserProfile;
 import junit.framework.TestCase;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -44,8 +44,8 @@ public class DownloadControllerIT extends TestCase {
         System.setProperty("biocache.config", System.getProperty("user.dir") + "/src/test/resources/biocache-test-config.properties");
     }
 
-    final static AlaUserProfile TEST_USER =
-            new AlaUserProfile("Tester","test@test.com", null, null, Collections.EMPTY_SET,Collections.EMPTY_MAP);
+    final static AlaApiUserProfile TEST_USER =
+            new AlaApiUserProfile("Tester","test@test.com", null, null, Collections.EMPTY_SET,Collections.EMPTY_MAP);
 
     @Autowired
     DownloadController downloadController;
@@ -139,7 +139,7 @@ public class DownloadControllerIT extends TestCase {
     public void downloadTest() throws Exception {
 
         when(authService.getDownloadUser(any(), any()))
-                .thenReturn(Optional.of(new AlaUserProfile("", "test@test.com", null, null, null, null)));
+                .thenReturn(Optional.of(new AlaApiUserProfile("", "test@test.com", null, null, null, null)));
 
         this.mockMvc.perform(get("/occurrences/offline/download")
                         .param("reasonTypeId", "10")
