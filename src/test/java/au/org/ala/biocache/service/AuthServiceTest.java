@@ -42,7 +42,7 @@ public class AuthServiceTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setUserPrincipal(new AlaApiUserProfile());
 
-        var authenticatedUser = authService.getRecordViewUser(request);
+        Optional<AlaApiUserProfile>  authenticatedUser = authService.getRecordViewUser(request);
 
         assertTrue(authenticatedUser.isPresent());
     }

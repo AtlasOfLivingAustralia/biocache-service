@@ -124,9 +124,9 @@ public class DownloadController extends AbstractSecureController {
             HttpServletResponse response) throws Exception {
 
         DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(requestParams, request);
-        var downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
+        Optional<AlaApiUserProfile>  downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
 
-        if (!downloadUser.isPresent()){
+        if (downloadUser.isEmpty()){
             response.sendError(400, "No valid email");
             return null;
         }
