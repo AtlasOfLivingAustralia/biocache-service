@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import static com.google.common.collect.Sets.newLinkedHashSet;
 import static java.util.stream.Collectors.toList;
@@ -103,8 +104,10 @@ public class DataQualityService {
             cache.put(searchRequestDTO.getQualityProfile(), filtersByLabel);
         }
 
-        filtersByLabel.keySet().removeAll(searchRequestDTO.getDisableQualityFilter());
-        return filtersByLabel;
+        return filtersByLabel.entrySet()
+                .stream()
+                .filter((Map.Entry<String, String> entry) -> !searchRequestDTO.getDisableQualityFilter().contains(entry.getKey()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     /**
