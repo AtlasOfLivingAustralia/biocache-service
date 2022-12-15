@@ -43,6 +43,7 @@ group = 'au.org.ala'
 
 version = '3.1.5-SNAPSHOT'
 
+
 boolean inplace = false
 
 configurations {
