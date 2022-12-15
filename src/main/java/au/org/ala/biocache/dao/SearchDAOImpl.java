@@ -88,7 +88,7 @@ public class SearchDAOImpl implements SearchDAO {
 
     public static final String DECADE_FACET_START_DATE = "1850-01-01T00:00:00Z";
     public static final String DECADE_PRE_1850_LABEL = "before";
-    public static final String SOLR_DATE_FORMAT = "yyyy-MM-dd'T'hh:mm:ss'Z'";
+    public static final String SOLR_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'Z'";
 
     /**
      * SOLR client instance

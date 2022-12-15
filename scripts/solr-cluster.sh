@@ -97,11 +97,7 @@ setupSshTunnels() {
 [ $# -ne 2 ] && usage
 
 case $1 in
-    'test-aws')
-        zkNodes=('aws-zoo-test-1.ala', 'aws-zoo-test-2.ala', 'aws-zoo-test-3.ala')
-        solrNodes=('aws-solr-1.ala' 'aws-solr-2.ala' 'aws-solr-3.ala' 'aws-solr-4.ala')
-    ;;
-    'test-nci')
+    'test')
         zkNodes=('nci3-zookeeper-1.ala' 'nci3-zookeeper-2.ala' 'nci3-zookeeper-3.ala')
         solrNodes=('nci3-solr-1.ala' 'nci3-solr-2.ala' 'nci3-solr-3.ala' 'nci3-solr-4.ala')
     ;;
