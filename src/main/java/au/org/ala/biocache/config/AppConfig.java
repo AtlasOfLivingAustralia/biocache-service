@@ -125,7 +125,7 @@ public class AppConfig implements WebMvcConfigurer {
 
     @Bean
     @ConfigurationPropertiesBinding
-    public FqConverter delimitedStringToArrayConverter() {
+    public FqConverter fqConverter() {
         return new FqConverter();
     }
 }
