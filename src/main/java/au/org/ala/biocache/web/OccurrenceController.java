@@ -26,6 +26,7 @@ import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.util.OccurrenceUtils;
 import au.org.ala.biocache.util.QidSizeException;
 import au.org.ala.biocache.util.SearchUtils;
+import au.org.ala.biocache.util.converter.FqField;
 import au.org.ala.ws.security.profile.AlaUserProfile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -1180,7 +1181,7 @@ public class OccurrenceController extends AbstractSecureController {
             method = {RequestMethod.POST, RequestMethod.GET}, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody Map<String, Integer> occurrenceSpeciesCounts(
             @Parameter(description = "taxonConceptIDs, newline separated (by default)") @RequestParam(name="guids") String listOfGuids,
-            @RequestParam(value = "fq", required = false) String[] filterQueries,
+            @FqField @RequestParam(value = "fq", required = false) String[] filterQueries,
             @RequestParam(defaultValue = "\n") String separator,
             HttpServletResponse response
     ) throws Exception {
