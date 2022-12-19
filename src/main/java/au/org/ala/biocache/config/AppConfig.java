@@ -3,6 +3,7 @@ package au.org.ala.biocache.config;
 import au.org.ala.biocache.service.NameMatchSpeciesLookupService;
 import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.service.SpeciesLookupService;
+import au.org.ala.biocache.util.converter.FqConverter;
 import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import au.org.ala.dataquality.client.ApiClient;
 import au.org.ala.names.ws.client.ALANameUsageMatchServiceClient;
@@ -12,6 +13,7 @@ import org.apache.log4j.Logger;
 import org.apache.tomcat.util.scan.StandardJarScanner;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.ConfigurationPropertiesBinding;
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -119,5 +121,11 @@ public class AppConfig implements WebMvcConfigurer {
     @Override
     public void addViewControllers(ViewControllerRegistry registry) {
         registry.addRedirectViewController("/", "/swagger-ui.html");
+    }
+
+    @Bean
+    @ConfigurationPropertiesBinding
+    public FqConverter delimitedStringToArrayConverter() {
+        return new FqConverter();
     }
 }

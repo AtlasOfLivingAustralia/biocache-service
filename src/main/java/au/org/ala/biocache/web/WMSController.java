@@ -20,6 +20,7 @@ import au.org.ala.biocache.dao.TaxonDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.stream.StreamAsCSV;
 import au.org.ala.biocache.util.*;
+import au.org.ala.biocache.util.converter.FqField;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -1190,7 +1191,7 @@ public class WMSController extends AbstractSecureController {
             @RequestParam(value = "OUTLINECOLOUR", required = false, defaultValue = "0x000000") String outlineColour,
             @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
             @RequestParam(value = "q", required = false, defaultValue = "*:*") String query,
-            @RequestParam(value = "fq", required = false) String[] filterQueries,
+            @FqField @RequestParam(value = "fq", required = false) String[] filterQueries,
             @RequestParam(value = "X", required = false, defaultValue = "0") Double x,
             @RequestParam(value = "Y", required = false, defaultValue = "0") Double y,
             @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") int gridDivisionCount,

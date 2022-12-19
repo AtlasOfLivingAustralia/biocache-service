@@ -3,6 +3,7 @@ package au.org.ala.biocache.web;
 import au.org.ala.biocache.dto.DownloadRequestParams;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.dto.TaxaCountDTO;
+import au.org.ala.biocache.util.converter.FqField;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.ui.Model;
@@ -30,7 +31,7 @@ public class DeprecatedController {
     public @ResponseBody
     Map<String, Integer> occurrenceSpeciesCounts(
             @RequestParam(value = "listOfGuids", required = true, defaultValue = "") String listOfGuids,
-            @RequestParam(value = "fq", required = false) String[] filterQueries,
+            @FqField @RequestParam(value = "fq", required = false) String[] filterQueries,
             @RequestParam(defaultValue = "\n") String separator,
             HttpServletResponse response,
             HttpServletRequest request
