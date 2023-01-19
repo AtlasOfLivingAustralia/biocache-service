@@ -15,28 +15,24 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dao.SearchDAO;
-import au.org.ala.biocache.dto.OccurrenceIndex;
-import au.org.ala.biocache.dto.OccurrencePoint;
-import au.org.ala.biocache.dto.PointType;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.heatmap.HeatMap;
 import au.org.ala.biocache.util.ColorUtil;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import com.google.common.base.Strings;
+import io.swagger.v3.oas.annotations.Operation;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
+import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
-
+import org.springframework.web.bind.annotation.*;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
@@ -67,6 +63,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * @Deprecated this should be factored out as its been superceded by functionality in WebportalController.
  */
 @Controller("mapController")
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class MapController {
 
     /** Logger initialisation */
@@ -105,8 +102,9 @@ public class MapController {
      * Deprecated and moved from MapController in case it is still in use somewhere.
      */
     @Deprecated
+    @Operation(summary = "Deprecated path.", tags = {"Deprecated"})
     @RequestMapping(value = "/occurrences/wms", method = RequestMethod.GET)
-    public void pointsWmsImage(SpatialSearchRequestParams requestParams,
+    public void pointsWmsImage(@ParameterObject SpatialSearchRequestParams requestParams,
                                @RequestParam(value = "colourby", required = false, defaultValue = "0") Integer colourby,
                                @RequestParam(value = "width", required = false, defaultValue = "256") Integer width,
                                @RequestParam(value = "height", required = false, defaultValue = "256") Integer height,
@@ -115,8 +113,8 @@ public class MapController {
                                @RequestParam(value = "symbol", required = false, defaultValue = "circle") String symbol,
                                @RequestParam(value = "bbox", required = false, defaultValue = "110,-45,157,-9") String bboxString,
                                @RequestParam(value = "type", required = false, defaultValue = "normal") String type,
-                               @RequestParam(value = "outline", required = true, defaultValue = "false") boolean outlinePoints,
-                               @RequestParam(value = "outlineColour", required = true, defaultValue = "0x000000") String outlineColour,
+                               @RequestParam(value = "outline", required = false, defaultValue = "false") boolean outlinePoints,
+                               @RequestParam(value = "outlineColour", required = false, defaultValue = "0x000000") String outlineColour,
                                HttpServletRequest request,
                                HttpServletResponse response)
             throws Exception {
@@ -126,7 +124,7 @@ public class MapController {
 
         String env = "color:" + color + ";size:" + size + ";opacity:1.0";
 
-        wmsController.generateWmsTileViaHeatmap(requestParams, "", env, "EPSG:3857", "", bboxString, width, height, "default", "", outlinePoints, outlineColour, "", null, 16, request, response);
+        wmsController.generateWmsTileViaHeatmap(requestParams, "", env, "EPSG:3857", "", bboxString, width, height, "", outlinePoints, outlineColour, "", null, 16, request, response);
     }
 
     /**
@@ -140,9 +138,9 @@ public class MapController {
      * @return
      * @throws Exception
      */
-    @RequestMapping(value = {"/occurrences/info", "/occurrences/info.json" }, method = RequestMethod.GET)
-    public String getOccurrencesInformation(SpatialSearchRequestParams requestParams,
-                                            @RequestParam(value = "zoom", required = false, defaultValue = "0") Integer zoomLevel,
+    @Operation(summary = "Occurrence info summary service for JS map popups.", tags = {"Mapping"})
+    @RequestMapping(value = {"/occurrences/info" }, method = RequestMethod.GET, produces = "application/json")
+    public String getOccurrencesInformation(SpatialSearchRequestDTO requestParams,
                                             @RequestParam(value = "callback", required = false) String callback,
                                             Model model,
                                             HttpServletResponse response)
@@ -197,6 +195,8 @@ public class MapController {
      * @param height
      * @param response
      */
+    @Deprecated
+    @Operation(summary = "Point legend service", tags = {"Deprecated"})
     @RequestMapping(value = "/occurrences/legend", method = RequestMethod.GET)
     public void pointLegendImage(@RequestParam(value = "colourby", required = false, defaultValue = "0") Integer colourby,
                                  @RequestParam(value = "width", required = false, defaultValue = "50") Integer width,
@@ -241,9 +241,11 @@ public class MapController {
      *
      * @throws Exception
      */
+    @Deprecated
+    @Operation(summary = "Renders a density map for a species.", tags = {"Deprecated"})
     @RequestMapping(value = {"/density/map", "/occurrences/static"}, method = RequestMethod.GET)
     public @ResponseBody
-    void speciesDensityMap(SpatialSearchRequestParams requestParams,
+    void speciesDensityMap(SpatialSearchRequestDTO requestParams,
                            @RequestParam(value = "forceRefresh", required = false, defaultValue = "false") boolean forceRefresh,
                            @RequestParam(value = "forcePointsDisplay", required = false, defaultValue = "false") boolean forcePointsDisplay,
                            @RequestParam(value = "pointColour", required = false, defaultValue = "0000ff") String pointColour,
@@ -320,8 +322,10 @@ public class MapController {
      *
      * @throws Exception
      */
+    @Deprecated
+    @Operation(summary = "Renders a density map legend for a species.", tags = {"Deprecated"})
     @RequestMapping(value = "/density/legend", method = RequestMethod.GET)
-    public @ResponseBody void speciesDensityLegend(SpatialSearchRequestParams requestParams,
+    public @ResponseBody void speciesDensityLegend(SpatialSearchRequestDTO requestParams,
                                                    @RequestParam(value = "forceRefresh", required = false, defaultValue = "false") boolean forceRefresh,
                                                    @RequestParam(value = "pointHeatMapThreshold", required = false, defaultValue = "500") Integer pointHeatMapThreshold,
                                                    HttpServletRequest request,
@@ -364,9 +368,8 @@ public class MapController {
      * Generate heatmap image (and associated legend if applicable)
      * @param requestParams
      */
-    @Deprecated
     public void generateStaticHeatmapImages(
-            SpatialSearchRequestParams requestParams,
+            SpatialSearchRequestDTO requestParams,
             boolean generateLegend,
             boolean forcePointsDisplay,
             Integer pointHeatMapThreshold,
@@ -431,7 +434,7 @@ public class MapController {
      * @return returns an empty array if none found.
      */
     @Deprecated
-    private double[] retrievePoints(SpatialSearchRequestParams requestParams, PointType pointType) {
+    private double[] retrievePoints(SpatialSearchRequestDTO requestParams, PointType pointType) {
 
         double[] points = new double[0];
         try {

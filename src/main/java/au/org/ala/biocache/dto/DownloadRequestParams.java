@@ -1,403 +1,66 @@
-/* *************************************************************************
- *  Copyright (C) 2011 Atlas of Living Australia
- *  All Rights Reserved.
- *
- *  The contents of this file are subject to the Mozilla Public
- *  License Version 1.1 (the "License"); you may not use this file
- *  except in compliance with the License. You may obtain a copy of
- *  the License at http://www.mozilla.org/MPL/
- *
- *  Software distributed under the License is distributed on an "AS
- *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
- *  implied. See the License for the specific language governing
- *  rights and limitations under the License.
- ***************************************************************************/
-
 package au.org.ala.biocache.dto;
 
-import au.org.ala.biocache.service.DoiService;
-import au.org.ala.biocache.service.DownloadService;
-import au.org.ala.biocache.util.QueryFormatUtils;
-import au.org.ala.biocache.validate.LogType;
-import org.apache.log4j.Logger;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Getter;
+import lombok.Setter;
 
-import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
-/**
- * Data Transfer Object to represent the request parameters required to download
- * the results of a search.
- *
- * @author "Natasha Carter <Natasha.Carter@csiro.au>"
- */
+@Schema(name = "Download parameters")
+@Getter
+@Setter
 public class DownloadRequestParams extends SpatialSearchRequestParams {
-    public final static List<String> validTemplates = Arrays.asList(DownloadService.DEFAULT_SELECTOR, DownloadService.DOI_SELECTOR, DownloadService.CSDM_SELECTOR);
-    /** log4 j logger */
-    private static final Logger logger = Logger.getLogger(SearchRequestParams.class);
 
-    protected boolean emailNotify = true;
-    protected String email = "";
-    protected String reason = "";
-    protected String file = "data";
-    /** CSV list of fields that should be downloaded.  If el or cl will need to map to appropriate column name */
-    protected String fields = "";
-    /** CSV list of extra fields to be added to the download - useful if wish to make use of default list */
-    protected String extra = "";
-    /** the CSV list of issue types to include in the download, defaults to all. Also supports none. */
-    protected String qa="all";
-    /** The CSV separator to use */
-    protected Character sep=',';
-    /** The CSV escape character to use*/
-    protected Character esc='"';
-    /** The header is to use darwin core headers (from messages.properties) */
-    protected Boolean dwcHeaders=false;
-    /** Include all available misc fields. For Cassandra downloads only. */
-    protected Boolean includeMisc = false;
-    
-    @NotNull @LogType(type="reason")//@Range(min=0, max=10)
-    protected Integer reasonTypeId = null;    
-    @LogType(type="source")
-    protected Integer sourceTypeId = null;
-    //The file type for the download file.
+    @Parameter(name="email", description = "The email address to sent the download email once complete.")
+    String email = "";
+
+    @Parameter(name="reason", description = "Reason for download")
+    String reason = "";
+
+    @Parameter(name="file", description = "Download File name")
+    String file = "data";
+
+    @Parameter(name="fields", description = "Fields to download")
+    String fields = "";
+
+    @Parameter(name="extra", description = "CSV list of extra fields to be added to the download")
+    String extra = "";
+
+    @Parameter(name="qa", description = "the CSV list of issue types to include in the download, defaults to all. Also supports none")
+    String qa = "all";
+
+    @Parameter(name="sep", description = "Field delimiter", schema = @Schema(type = "string", allowableValues = {",", "\t"}))
+    Character sep = ',';
+
+    @Parameter(name="esc", description = "Field escape", schema = @Schema(type = "string", defaultValue = "\""))
+    Character esc = '"';
+
+    @Parameter(name="dwcHeaders", description = "Use darwin core headers",  schema = @Schema(type = "boolean", defaultValue = "false"))
+    Boolean dwcHeaders = false;
+
+    @Parameter(name="includeMisc", description = "Include miscellaneous properties",  schema = @Schema(type = "boolean", defaultValue = "false"))
+    Boolean includeMisc = false;
+
+    @Parameter(name="reasonTypeId", description = "Logger reason ID See https://logger.ala.org.au/service/logger/reasons",  schema = @Schema(type = "string", defaultValue = "10"))
+    Integer reasonTypeId = null;
+
+    @Parameter(name="sourceTypeId", description = "Source ID See https://logger.ala.org.au/service/logger/sources",  schema = @Schema(type = "string", defaultValue = "0"))
+    Integer sourceTypeId = null;
+
+    @Parameter(name="fileType", description = "File type. CSV or TSV", schema = @Schema(type = "string", allowableValues = {"csv", "tsv"}))
     @Pattern(regexp="(csv|tsv)")
-    protected String fileType="csv";
+    String fileType = "csv";
 
-    /** URL to layersService to include intersections with layers that are not indexed */
-    protected String layersServiceUrl = "";
-    /** Override header names with a CSV with 'requested field','header' pairs */
-    protected String customHeader = "";
+    @Parameter(name="layersServiceUrl", description = "URL to layersService to include intersections with layers that are not indexed", hidden = true)
+    String layersServiceUrl = "";
 
+    @Parameter(name="customHeader", description = "Override header names with a CSV with 'requested field','header' pairs")
+    String customHeader = "";
 
-    /**
-     * Request to generate a DOI for the download or not. Default false
-     */
-    protected Boolean mintDoi=false;
+    @Parameter(name="mintDoi", description = "Request to generate a DOI for the download or not. Default false")
+    Boolean mintDoi = false;
 
-    /**
-     * The name of display template to be used to show DOI information.
-     */
-    protected String doiDisplayTemplate = DoiService.DISPLAY_TEMPLATE_BIOCACHE;
-    /**
-     * What is the search in the UI that generates this occurrence download.
-     */
-    protected String searchUrl;
-
-    /**
-     * What is the DOI landing page that will be used to display individual DOIs
-     */
-    protected String doiDisplayUrl;
-
-    /**
-     * The name of the hub issuing the download request.
-     * This will be used in e-mails, and zip content
-     */
-    protected String hubName;
-
-    /**
-     * Specify email template to use when informing
-     */
-    protected String emailTemplate = validTemplates.get(0);
-
-    /**
-     * If a DOI is to be minted containing download data, this allows the requesting application to attach
-     * custom metadata to be stored with the DOI as application metadata.
-     */
-    Map<String, String> doiMetadata = new HashMap<String, String>();
-
-    /**
-     * Custom toString method to produce a String to be used as the request parameters
-     * for the Biocache Service webservices
-     *
-     * @return request parameters string
-     */
-    @Override
-    public String toString() {
-        return addParams(super.toString(), false);
-    }
-
-    /**
-     * Produce a URI encoded query string for use in java.util.URI, etc
-     *
-     * @return
-     */
-    public String getEncodedParams() {
-        return addParams(super.getEncodedParams(), true);
-    }
-
-    protected String addParams(String paramString, Boolean encodeParams) {
-        StringBuilder req = new StringBuilder(paramString);
-        // since emailNotify default is "true", only add param if !emailNotify
-        if (!emailNotify) {
-            req.append("&emailNotify=false");
-        }
-        req.append("&email=").append(super.conditionalEncode(email, encodeParams));
-        req.append("&reason=").append(super.conditionalEncode(reason, encodeParams));
-        req.append("&file=").append(super.conditionalEncode(getFile(), encodeParams));
-        req.append("&fields=").append(super.conditionalEncode(fields, encodeParams));
-        req.append("&extra=").append(super.conditionalEncode(extra, encodeParams));
-        if(reasonTypeId != null) {
-            req.append("&reasonTypeId=").append(reasonTypeId);
-        }
-        if(sourceTypeId != null) {
-            req.append("&sourceTypeId=").append(sourceTypeId);
-        } 
-        if(!"csv".equals(fileType)){
-            req.append("&fileType=").append(super.conditionalEncode(fileType, encodeParams));
-        }
-        if(!"all".equals(qa)){
-            req.append("&qa=").append(super.conditionalEncode(qa, encodeParams));
-        }
-        if (dwcHeaders) {
-            req.append("&dwcHeaders=true");
-        }
-        if (includeMisc) {
-            req.append("&includeMisc=true");
-        }
-        
-        return req.toString();
-    }
-
-    public boolean isEmailNotify() {
-        return emailNotify;
-    }
-
-    public void setEmailNotify(boolean emailNotify) {
-        this.emailNotify = emailNotify;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getFile() {
-        // sanitiseFileName can be called multiple times on the same string without changing the string
-        // ... but no requirement to use setFile, so sanitising on each call here also
-        // Given these objects are created using reflection and other methods, best to do it this way
-        return sanitiseFileName(file);
-    }
-
-    public void setFile(String file) {
-        this.file = sanitiseFileName(file);
-    }
-
-    /**
-     * Subset of valid characters to enable surety that it will work across filesystems.
-     * 
-     * @param nextFile The filename to sanitise
-     * @return A sanitised version of the given filename that can be used to avoid filesystem inconsistencies
-     */
-    private static String sanitiseFileName(String nextFile) {
-        return nextFile.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
-	}
-
-	public String getReason() {
-        return reason;
-    }
-
-    public void setReason(String reason) {
-        this.reason = reason;
-    }
-
-    /**
-     * @return the fields
-     */
-    public String getFields() {
-        return fields;
-    }
-
-    /**
-     * @param fields the fields to set
-     */
-    public void setFields(String fields) {
-        QueryFormatUtils.assertNoSensitiveValues(DownloadRequestParams.class, "fields", fields);
-        this.fields = fields;
-    }
-
-    /**
-     * @return the extra
-     */
-    public String getExtra() {
-        return extra;
-    }
-
-    /**
-     * @param extra the extra to set
-     */
-    public void setExtra(String extra) {
-        QueryFormatUtils.assertNoSensitiveValues(DownloadRequestParams.class, "extra", extra);
-        this.extra = extra;
-    }
-
-    /**
-     * @return the reasonTypeId
-     */
-    public Integer getReasonTypeId() {
-        return reasonTypeId;
-    }
-
-    /**
-     * @param reasonTypeId the reasonTypeId to set
-     */
-    public void setReasonTypeId(Integer reasonTypeId) {
-        this.reasonTypeId = reasonTypeId;
-    }
-
-    /**
-     * @return the sourceId
-     */
-    public Integer getSourceTypeId() {
-        return sourceTypeId;
-    }
-
-    /**
-     * @param sourceTypeId the sourceId to set
-     */
-    public void setSourceTypeId(Integer sourceTypeId) {
-        this.sourceTypeId = sourceTypeId;
-    }
-
-    /**
-     * @return the fileType
-     */
-    public String getFileType() {
-        return fileType;
-    }
-
-    public String getEmailTemplate() {
-        return emailTemplate;
-    }
-
-    /**
-     * @param fileType the fileType to set
-     */
-    public void setFileType(String fileType) {
-        this.fileType = fileType;
-    }
-
-    /**
-     * @return the qa
-     */
-    public String getQa() {
-        return qa;
-    }
-
-    /**
-     * @param qa the qa to set
-     */
-    public void setQa(String qa) {
-        this.qa = qa;
-    }
-
-    public Character getEsc() {
-        return esc;
-    }
-
-    public void setEsc(Character esc) {
-        this.esc = esc;
-    }
-
-    public Character getSep() {
-        return sep;
-    }
-
-    public void setSep(Character sep) {
-        this.sep = sep;
-    }
-    
-    public Boolean getDwcHeaders() { 
-        return dwcHeaders;
-    }
-    
-    public void setDwcHeaders(Boolean dwcHeaders) {
-        this.dwcHeaders = dwcHeaders;
-    }
-
-    public Boolean getIncludeMisc() {
-        return includeMisc;
-    }
-
-    public void setIncludeMisc(Boolean includeMisc) {
-        this.includeMisc = includeMisc;
-    }
-
-    public String getLayersServiceUrl() {
-        return layersServiceUrl;
-    }
-
-    public void setLayersServiceUrl(String layersServiceUrl) {
-        this.layersServiceUrl = layersServiceUrl;
-    }
-
-    public String getCustomHeader() {
-        return customHeader;
-    }
-
-    public void setCustomHeader(String customHeader) {
-        this.customHeader = customHeader;
-    }
-
-    public Boolean getMintDoi() {
-        return mintDoi;
-    }
-
-    public void setMintDoi(Boolean mintDoi) {
-        this.mintDoi = mintDoi;
-    }
-
-    public String getSearchUrl() {
-        return searchUrl;
-    }
-
-    public void setSearchUrl(String searchUrl) {
-        this.searchUrl = searchUrl;
-    }
-
-    public String getDoiDisplayUrl() {
-        return doiDisplayUrl;
-    }
-
-    public void setDoiDisplayUrl(String doiDisplayUrl) {
-        this.doiDisplayUrl = doiDisplayUrl;
-    }
-
-    public String getHubName() {
-        return hubName;
-    }
-
-    public void setHubName(String hubName) {
-        this.hubName = hubName;
-    }
-
-    public Map<String, String> getDoiMetadata() {
-        return doiMetadata;
-    }
-
-    public void setDoiMetadata(Map<String, String> doiMetadata) {
-        this.doiMetadata = doiMetadata;
-    }
-
-    public void setEmailTemplate(String emailTemplate) {
-        if( validTemplates.contains(emailTemplate) ) {
-            this.emailTemplate = emailTemplate;
-        } else {
-            this.emailTemplate = validTemplates.get(0);
-            logger.info("Unsupported emailTemplate passed - " + emailTemplate + ".  Using emailTemplate - " + this.emailTemplate);
-        }
-    }
-
-    public String getDoiDisplayTemplate() {
-        return this.doiDisplayTemplate;
-    }
-
-    public void setDoiDisplayTemplate(String doiDisplayTemplate) {
-        this.doiDisplayTemplate = doiDisplayTemplate;
-    }
+    @Parameter(name="emailNotify", description = "Send notification email.")
+    boolean emailNotify = true;
 }

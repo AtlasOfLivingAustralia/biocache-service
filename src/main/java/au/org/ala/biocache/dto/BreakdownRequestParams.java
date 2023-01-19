@@ -1,23 +1,32 @@
 package au.org.ala.biocache.dto;
+
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * 
  * A DTO for the parameters used in the breakdown services.
  * 
  * @author Natasha Carter
- *
  */
+@Schema(name = "Breakdown parameters")
 public class BreakdownRequestParams extends SpatialSearchRequestParams {
-    protected String rank=null;
-    protected String name=null;    
+
+    @Parameter(name="rank", description = "The taxonomic rank to use e.g. 'kingdom'")
+    protected String rank = null;
+    @Parameter(name="name", description = "The name of the root taxon to use e.g. 'Animalia'")
+    protected String name = null;
+    @Parameter(name="max", description = "The max number of child nodes to return")
     protected Integer max = null;
-    protected String level=null;
+    @Parameter(name="level")
+    protected String level = null;
     
     public String toString(){
         StringBuilder req = new StringBuilder(super.toString());
-        if(rank != null) req.append("&rank=").append(rank);
-        if(name != null) req.append("&name=").append(name);
-        if(max != null) req.append("&max=").append(max);
-        if(level != null) req.append("&level=").append(level);
+        if (rank != null) req.append("&rank=").append(rank);
+        if (name != null) req.append("&name=").append(name);
+        if (max != null) req.append("&max=").append(max);
+        if (level != null) req.append("&level=").append(level);
         return req.toString();
     }
     

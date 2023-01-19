@@ -14,9 +14,12 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * A facet for FacetThemes and FacetTheme.
  */
+@Schema(name = "Facet")
 public class FacetDTO {
 
     private String field;

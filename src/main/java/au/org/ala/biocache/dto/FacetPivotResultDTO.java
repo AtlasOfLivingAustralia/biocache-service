@@ -14,12 +14,15 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Group result for a SOLR search
  */
+@Schema(name="FacetPivotResult")
 public class FacetPivotResultDTO {
     /**
      * Name of the value of this pivot

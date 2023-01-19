@@ -18,30 +18,27 @@ import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.common.util.NamedList;
 import org.jetbrains.annotations.NotNull;
+import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
-
+import org.springframework.web.bind.annotation.*;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import javax.inject.Inject;
 import java.io.Serializable;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-/**
- */
 @Controller
-@Api(basePath = "/", value = "/", description = "Charts")
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ChartController extends AbstractSecureController implements Serializable {
     /**
      * Fulltext search DAO
@@ -95,13 +92,14 @@ public class ChartController extends AbstractSecureController implements Seriali
      * @return
      * @throws Exception
      */
-    @ApiOperation(value = "Standard charting",
-            notes = "Generate data for a standard chart",
-            response = FieldStatsItem.class, responseContainer = "List")
-    @RequestMapping(value = { "/chart", "/chart.json" }, method = RequestMethod.GET)
+    @Operation(summary = "Standard charting", tags = "Charts")
+    @Tag(name  = "Charts", description = "Services for providing charting functionalities for specimens & occurrences")
+    @RequestMapping(value = {
+            "/chart"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public
     @ResponseBody
-    Map chart(SpatialSearchRequestParams searchParams,
+    Map chart(@ParameterObject SpatialSearchRequestParams searchParams,
               @RequestParam(value = "x", required = false) String x,
               @RequestParam(value = "xranges", required = false) String xranges,
               @RequestParam(value = "stats", required = false) String stats,
@@ -115,11 +113,36 @@ public class ChartController extends AbstractSecureController implements Seriali
               @RequestParam(value = "xmissing", required = false, defaultValue = "true") Boolean xmissing,
               @RequestParam(value = "fsort", required = false, defaultValue = "index") String fsort
     ) throws Exception {
-        return generateChart(searchParams, x, xranges, stats, statType, series, seriesranges, seriesother, xother, seriesmissing, xmissing, fsort);
+        SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(searchParams);
+        return generateChart(dto, x, xranges, stats, statType, series, seriesranges, seriesother, xother, seriesmissing, xmissing, fsort);
+    }
+
+    @Deprecated
+    @Operation(summary = "Standard charting", tags = "Deprecated")
+    @RequestMapping(value = {
+            "/chart.json"
+    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public
+    @ResponseBody
+    Map chartDeprecated(@ParameterObject SpatialSearchRequestParams searchParams,
+              @RequestParam(value = "x", required = false) String x,
+              @RequestParam(value = "xranges", required = false) String xranges,
+              @RequestParam(value = "stats", required = false) String stats,
+              // default stats value is only for backwards compatibility
+              @RequestParam(value = "statType", required = false, defaultValue = "min,max,mean,missing,stddev,count,sum") String statType,
+              @RequestParam(value = "series", required = false) String series,
+              @RequestParam(value = "seriesranges", required = false) String seriesranges,
+              @RequestParam(value = "seriesother", required = false, defaultValue = "false") Boolean seriesother,
+              @RequestParam(value = "xother", required = false, defaultValue = "true") Boolean xother,
+              @RequestParam(value = "seriesmissing", required = false, defaultValue = "false") Boolean seriesmissing,
+              @RequestParam(value = "xmissing", required = false, defaultValue = "true") Boolean xmissing,
+              @RequestParam(value = "fsort", required = false, defaultValue = "index") String fsort
+    ) throws Exception {
+        return chart(searchParams, x, xranges, stats, statType, series, seriesranges, seriesother, xother, seriesmissing, xmissing, fsort);
     }
 
     @NotNull
-    private Map generateChart(SpatialSearchRequestParams searchParams, String x, String xranges, String stats, String statType, String series, String seriesranges, Boolean seriesother, Boolean xother, Boolean seriesmissing, Boolean xmissing, String fsort) throws Exception {
+    private Map generateChart(SpatialSearchRequestDTO searchParams, String x, String xranges, String stats, String statType, String series, String seriesranges, Boolean seriesother, Boolean xother, Boolean seriesmissing, Boolean xmissing, String fsort) throws Exception {
         x = fieldMappingUtil.translateFieldName(x);
 
         List<String> statTypes = Arrays.asList(statType.split(","));
@@ -336,7 +359,7 @@ public class ChartController extends AbstractSecureController implements Seriali
         }
     }
 
-    private String produceLimitingXRanges(SpatialSearchRequestParams searchParams, String x, String xranges, Boolean xmissing, StringBuilder query, StringBuilder inverse) throws Exception {
+    private String produceLimitingXRanges(SpatialSearchRequestDTO searchParams, String x, String xranges, Boolean xmissing, StringBuilder query, StringBuilder inverse) throws Exception {
         if (xranges == null && x != null) {
             List fqs = makeSeriesFacets(x, searchParams, null, xmissing);
 
@@ -378,7 +401,7 @@ public class ChartController extends AbstractSecureController implements Seriali
         return xranges;
     }
 
-    private List<Map> produceSeriesFqs(SpatialSearchRequestParams searchParams, String x, String series, String seriesranges, Boolean includeMissing, Boolean other) throws Exception {
+    private List<Map> produceSeriesFqs(SpatialSearchRequestDTO searchParams, String x, String series, String seriesranges, Boolean includeMissing, Boolean other) throws Exception {
         List seriesFqs = new ArrayList();
 
         boolean date = isDate(series);
@@ -446,7 +469,7 @@ public class ChartController extends AbstractSecureController implements Seriali
         return field;
     }
 
-    private List getSeriesFacets(String series, SpatialSearchRequestParams searchParams, Integer _maxFacets, Boolean includeMissing) throws Exception {
+    private List getSeriesFacets(String series, SpatialSearchRequestDTO searchParams, Integer _maxFacets, Boolean includeMissing) throws Exception {
         List seriesFqs = new ArrayList();
 
         searchParams.setFacet(true);
@@ -470,7 +493,7 @@ public class ChartController extends AbstractSecureController implements Seriali
         return seriesFqs;
     }
 
-    private List makeSeriesFacets(String series, SpatialSearchRequestParams searchParams, Integer newMax, Boolean includeMissing) throws Exception {
+    private List makeSeriesFacets(String series, SpatialSearchRequestDTO searchParams, Integer newMax, Boolean includeMissing) throws Exception {
         List seriesFqs = new ArrayList();
 
         //for numeric series with > maxFacets, generate buckets
@@ -564,7 +587,7 @@ public class ChartController extends AbstractSecureController implements Seriali
         }
     }
 
-    private void appendFq(SpatialSearchRequestParams searchParams, String fq) {
+    private void appendFq(SpatialSearchRequestDTO searchParams, String fq) {
         String[] seriesqFqs = new String[searchParams.getFq().length + 1];
         if (searchParams.getFq().length > 0)
             System.arraycopy(searchParams.getFq(), 0, seriesqFqs, 0, searchParams.getFq().length);

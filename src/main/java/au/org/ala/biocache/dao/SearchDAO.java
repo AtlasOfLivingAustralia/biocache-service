@@ -47,7 +47,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    List<FieldResultDTO> getSubquerySpeciesOnly(SpatialSearchRequestParams subQuery, SpatialSearchRequestParams parentQuery) throws Exception;
+    List<FieldResultDTO> getSubquerySpeciesOnly(SpatialSearchRequestDTO subQuery, SpatialSearchRequestDTO parentQuery) throws Exception;
 
     /**
      * Find all occurrences for a given (full text) query, latitude, longitude & radius (km). I.e.
@@ -57,7 +57,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestParams requestParams, boolean includeSensitive, Map<String, String[]> extraParams) throws Exception;
+    SearchResultDTO findByFulltextSpatialQuery(SpatialSearchRequestDTO requestParams, boolean includeSensitive, Map<String, String[]> extraParams) throws Exception;
 
     /**
      * Writes the species count in the specified circle to the output stream.
@@ -68,7 +68,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    int writeSpeciesCountByCircleToStream(SpatialSearchRequestParams requestParams, String speciesGroup, ServletOutputStream out) throws Exception;
+    int writeSpeciesCountByCircleToStream(SpatialSearchRequestDTO requestParams, String speciesGroup, ServletOutputStream out) throws Exception;
 
     /**
      * Writes the results of this query to the output stream using the index as a source of the data.
@@ -76,12 +76,11 @@ public interface SearchDAO {
      * @param downloadParams
      * @param out
      * @param uidStats
-     * @param includeSensitive
      * @param parallelQueryExecutor The ExecutorService to manage parallel query executions
      * @return
      * @throws Exception
      */
-    DownloadHeaders writeResultsFromIndexToStream(DownloadRequestParams downloadParams, OutputStream out, ConcurrentMap<String, AtomicInteger> uidStats, boolean includeSensitive, DownloadDetailsDTO dd, boolean checkLimit, ExecutorService parallelQueryExecutor) throws Exception;
+    DownloadHeaders writeResultsFromIndexToStream(DownloadRequestDTO downloadParams, OutputStream out, ConcurrentMap<String, AtomicInteger> uidStats, DownloadDetailsDTO dd, boolean checkLimit, ExecutorService parallelQueryExecutor) throws Exception;
 
     /**
      * Write coordinates out to the supplied stream.
@@ -90,7 +89,7 @@ public interface SearchDAO {
      * @param out
      * @throws Exception
      */
-    void writeCoordinatesToStream(SpatialSearchRequestParams searchParams, OutputStream out) throws Exception;
+    void writeCoordinatesToStream(SpatialSearchRequestDTO searchParams, OutputStream out) throws Exception;
 
     /**
      * Write facet content to supplied output stream
@@ -103,7 +102,7 @@ public interface SearchDAO {
      * @param dd
      * @throws Exception
      */
-    void writeFacetToStream(SpatialSearchRequestParams searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out, DownloadDetailsDTO dd) throws Exception;
+    void writeFacetToStream(SpatialSearchRequestDTO searchParams, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out, DownloadDetailsDTO dd) throws Exception;
 
     /**
      * Write endemic parentQuery.facets()[0] content to supplied output stream that only occur in the subQuery
@@ -117,7 +116,7 @@ public interface SearchDAO {
      * @param out
      * @throws Exception
      */
-    void writeEndemicFacetToStream(SpatialSearchRequestParams subQuery, SpatialSearchRequestParams parentQuery, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out) throws Exception;
+    void writeEndemicFacetToStream(SpatialSearchRequestDTO subQuery, SpatialSearchRequestDTO parentQuery, boolean includeCount, boolean lookupName, boolean includeSynonyms, boolean includeLists, OutputStream out) throws Exception;
 
     /**
      * Retrieve an OccurrencePoint (distinct list of points - lat-long to 4 decimal places) for a given search
@@ -128,7 +127,7 @@ public interface SearchDAO {
      * @throws Exception
      */
     @Deprecated
-    List<OccurrencePoint> getFacetPoints(SpatialSearchRequestParams searchParams, PointType pointType) throws Exception;
+    List<OccurrencePoint> getFacetPoints(SpatialSearchRequestDTO searchParams, PointType pointType) throws Exception;
 
     /**
      * Get a list of occurrence points for a given lat/long and distance (radius)
@@ -139,7 +138,7 @@ public interface SearchDAO {
      * @throws Exception
      */
     @Deprecated
-    List<OccurrencePoint> findRecordsForLocation(SpatialSearchRequestParams requestParams, PointType pointType) throws Exception;
+    List<OccurrencePoint> findRecordsForLocation(SpatialSearchRequestDTO requestParams, PointType pointType) throws Exception;
 
     /**
      * Refresh any caches in use to populate queries.
@@ -153,7 +152,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    Map<String, Integer> getSourcesForQuery(SpatialSearchRequestParams searchParams) throws Exception;
+    Map<String, Integer> getSourcesForQuery(SpatialSearchRequestDTO searchParams) throws Exception;
 
     /**
      * Calculate taxon breakdown.
@@ -162,7 +161,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    TaxaRankCountDTO calculateBreakdown(BreakdownRequestParams queryParams) throws Exception;
+    TaxaRankCountDTO calculateBreakdown(BreakdownRequestDTO queryParams) throws Exception;
 
     /**
      * Returns the occurrence counts based on lft and rgt values for each of the supplied taxa.
@@ -180,7 +179,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    void findAllSpeciesJSON(SpatialSearchRequestParams requestParams, OutputStream outputStream) throws Exception;
+    void findAllSpeciesJSON(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception;
 
     /**
      * Find all species (and counts) for a given query and stream as CSV
@@ -189,7 +188,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    void findAllSpeciesCSV(SpatialSearchRequestParams requestParams, OutputStream outputStream) throws Exception;
+    void findAllSpeciesCSV(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception;
 
     /**
      * Find all occurrences for a given query as SolrDocumentList
@@ -198,7 +197,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    SolrDocumentList findByFulltext(SpatialSearchRequestParams searchParams) throws Exception;
+    SolrDocumentList findByFulltext(SpatialSearchRequestDTO searchParams) throws Exception;
 
     /**
      * Get legend items for a query and specified facet.
@@ -213,7 +212,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facet, String[] cutpoints) throws Exception;
+    List<LegendItem> getLegend(SpatialSearchRequestDTO searchParams, String facet, String[] cutpoints) throws Exception;
 
     /**
      * Get legend items for a query and specified facet.
@@ -232,7 +231,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    List<LegendItem> getLegend(SpatialSearchRequestParams searchParams, String facet, String[] cutpoints, boolean skipI18n) throws Exception;
+    List<LegendItem> getLegend(SpatialSearchRequestDTO searchParams, String facet, String[] cutpoints, boolean skipI18n) throws Exception;
 
     /**
      * Get a data provider list for a query.
@@ -241,7 +240,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    List<DataProviderCountDTO> getDataProviderList(SpatialSearchRequestParams requestParams) throws Exception;
+    List<DataProviderCountDTO> getDataProviderList(SpatialSearchRequestDTO requestParams) throws Exception;
 
     /**
      * Retrieve facet counts for this query
@@ -250,7 +249,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    List<FacetResultDTO> getFacetCounts(SpatialSearchRequestParams searchParams) throws Exception;
+    List<FacetResultDTO> getFacetCounts(SpatialSearchRequestDTO searchParams) throws Exception;
 
     /**
      * Perform grouped facet query.
@@ -264,7 +263,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    QueryResponse searchGroupedFacets(SpatialSearchRequestParams searchRequestParams) throws Exception;
+    QueryResponse searchGroupedFacets(SpatialSearchRequestDTO searchRequestParams) throws Exception;
 
     /**
      * Perform one pivot facet query.
@@ -275,7 +274,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    List<FacetPivotResultDTO> searchPivot(SpatialSearchRequestParams searchParams) throws Exception;
+    List<FacetPivotResultDTO> searchPivot(SpatialSearchRequestDTO searchParams) throws Exception;
 
     /**
      * Return statistics for a numerical field.
@@ -288,7 +287,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    List<FieldStatsItem> searchStat(SpatialSearchRequestParams searchParams, String field, String facet,
+    List<FieldStatsItem> searchStat(SpatialSearchRequestDTO searchParams, String field, String facet,
                                     Collection<String> statType) throws Exception;
 
     /**
@@ -303,7 +302,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    List<LegendItem> getColours(SpatialSearchRequestParams request, String colourMode) throws Exception;
+    List<LegendItem> getColours(SpatialSearchRequestDTO request, String colourMode) throws Exception;
 
     /**
      * Get maxBooleanClauses value from SOLR
@@ -316,7 +315,7 @@ public interface SearchDAO {
      * @param requestParams
      * @return
      */
-    double[] getBBox(SpatialSearchRequestParams requestParams) throws Exception;
+    double[] getBBox(SpatialSearchRequestDTO requestParams) throws Exception;
 
     /**
      * Get estimated number of unique values for a facet.
@@ -326,7 +325,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    long estimateUniqueValues(SpatialSearchRequestParams requestParams, String facet) throws Exception;
+    long estimateUniqueValues(SpatialSearchRequestDTO requestParams, String facet) throws Exception;
 
     /**
      * list facets available to the search query
@@ -334,7 +333,7 @@ public interface SearchDAO {
      * @param searchParams
      * @return
      */
-    List<String> listFacets(SpatialSearchRequestParams searchParams) throws Exception;
+    List<String> listFacets(SpatialSearchRequestDTO searchParams) throws Exception;
 
     /**
      * Query for heatmaps.
@@ -371,7 +370,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    int streamingQuery(SpatialSearchRequestParams request, ProcessInterface procSearch, ProcessInterface procFacet) throws Exception;
+    int streamingQuery(SpatialSearchRequestDTO request, ProcessInterface procSearch, ProcessInterface procFacet) throws Exception;
 
-    SolrQuery initSolrQuery(SpatialSearchRequestParams searchParams, boolean substituteDefaultFacetOrder, Map<String, String[]> extraSolrParams) throws QidMissingException;
+    SolrQuery initSolrQuery(SpatialSearchRequestDTO searchParams, boolean substituteDefaultFacetOrder, Map<String, String[]> extraSolrParams) throws QidMissingException;
 }

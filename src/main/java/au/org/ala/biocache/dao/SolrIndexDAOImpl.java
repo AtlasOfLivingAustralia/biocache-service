@@ -14,6 +14,7 @@ import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.Streams;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -42,7 +43,6 @@ import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.eclipse.jetty.util.ConcurrentHashSet;
-import org.gbif.common.shaded.com.google.common.collect.Streams;
 import org.gbif.dwc.terms.DcTerm;
 import org.gbif.dwc.terms.DwcTerm;
 import org.gbif.dwc.terms.Term;
@@ -561,7 +561,11 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
                     NamedList<Object> schemaFields = (NamedList) ((NamedList) response.getResponse().get("schema")).get("fields");
 
-                    result = Streams.stream(schemaFields.iterator()).map(Map.Entry::getKey).collect(Collectors.toSet());
+                    Iterator<Map.Entry<String, Object>>  iter = schemaFields.iterator();
+                    result = new HashSet<>();
+                    while (iter.hasNext()){
+                        result.add(iter.next().getKey());
+                    }
 
                     if (result != null && result.size() > 0) {
                         this.schemaFields = result;

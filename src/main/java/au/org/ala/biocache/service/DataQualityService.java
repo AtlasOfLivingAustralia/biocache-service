@@ -1,22 +1,21 @@
 package au.org.ala.biocache.service;
 
-import au.org.ala.biocache.dto.SearchRequestParams;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SearchRequestDTO;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import au.org.ala.dataquality.model.QualityProfile;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
-import org.springframework.web.util.UriUtils;
 import retrofit2.Call;
 import retrofit2.HttpException;
 import retrofit2.Response;
 
-import javax.annotation.CheckForNull;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -28,6 +27,8 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import static com.google.common.collect.Sets.newLinkedHashSet;
 import static java.util.stream.Collectors.toList;
@@ -39,6 +40,9 @@ public class DataQualityService {
     public static final String QUALITY_PROFILE_PARAM_NAME = "qualityProfile";
     public static final String DISABLE_QUALITY_FILTER_PARAM_NAME = "disableQualityFilter";
 
+    private final Map<String, Map<String, String>> cache = new ConcurrentHashMap<>();
+    private final Map<String, QualityProfile> cacheProfile = new ConcurrentHashMap<>();
+
     @Inject
     private QualityServiceRpcApi qualityServiceRpcApi;
 
@@ -48,6 +52,12 @@ public class DataQualityService {
     @Value("${dataquality.enabled:false}")
     @VisibleForTesting
     protected boolean dataQualityEnabled;
+
+    @Scheduled(fixedDelay = 43200000)// schedule to run every 12 hours
+    public void clearCache() {
+        cache.clear();
+        cacheProfile.clear();
+    }
 
     /**
      * Get the full name of the profile based on the provided short name
@@ -60,7 +70,11 @@ public class DataQualityService {
             return profileShortName;
         }
 
-        QualityProfile profile = responseValueOrThrow(qualityServiceRpcApi.activeProfile(profileShortName));
+        QualityProfile profile = cacheProfile.get(profileShortName);
+        if (profile == null) {
+            profile = responseValueOrThrow(qualityServiceRpcApi.activeProfile(profileShortName));
+            cacheProfile.put(profileShortName, profile);
+        }
         return profile.getName();
     }
 
@@ -68,19 +82,32 @@ public class DataQualityService {
      * Get all enabled filters by label for the search params.  This method will take into account whether
      * the request explicitly disables quality filters or disables individual filters.
      *
-     * @param searchRequestParams The search request params
+     * @param searchRequestDTO The search request params
      * @return The enabled filters for this request
      * @throws HttpException if an http error code is returned from the service
      * @throws RuntimeException if a network error occurs
      */
-    public Map<String, String> getEnabledFiltersByLabel(SearchRequestParams searchRequestParams) {
-        if (searchRequestParams.isDisableAllQualityFilters()) {
+    public Map<String, String> getEnabledFiltersByLabel(SearchRequestDTO searchRequestDTO) {
+        if (searchRequestDTO.isDisableAllQualityFilters()) {
+            return new LinkedHashMap<>();
+        }
+        if (!dataQualityEnabled) {
+            return new LinkedHashMap<>();
+        }
+        if (StringUtils.isBlank(searchRequestDTO.getQualityProfile())) {
             return new LinkedHashMap<>();
         }
 
-        Map<String, String> filtersByLabel = getEnabledFiltersByLabel(searchRequestParams.getQualityProfile());
-        filtersByLabel.keySet().removeAll(searchRequestParams.getDisableQualityFilter());
-        return filtersByLabel;
+        Map<String, String> filtersByLabel = cache.get(searchRequestDTO.getQualityProfile());
+        if (filtersByLabel == null) {
+            filtersByLabel = getEnabledFiltersByLabel(searchRequestDTO.getQualityProfile());
+            cache.put(searchRequestDTO.getQualityProfile(), filtersByLabel);
+        }
+
+        return filtersByLabel.entrySet()
+                .stream()
+                .filter((Map.Entry<String, String> entry) -> !searchRequestDTO.getDisableQualityFilter().contains(entry.getKey()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     /**
@@ -196,7 +223,7 @@ public class DataQualityService {
      * @param requestParams The params
      * @return The combined fqs
      */
-    public String[] generateCombinedFqs(SpatialSearchRequestParams requestParams) {
+    public String[] generateCombinedFqs(SpatialSearchRequestDTO requestParams) {
         String[] fqs = requestParams.getFq();
         if (fqs == null) {
             fqs = new String[0];

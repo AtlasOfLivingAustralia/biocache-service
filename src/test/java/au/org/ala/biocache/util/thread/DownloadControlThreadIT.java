@@ -4,7 +4,7 @@ import au.org.ala.biocache.dao.JsonPersistentQueueDAOImpl;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
-import au.org.ala.biocache.dto.DownloadRequestParams;
+import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.biocache.dto.FacetThemes;
 import org.junit.After;
 import org.junit.Before;
@@ -347,10 +347,14 @@ public class DownloadControlThreadIT {
         testRunningThread = new Thread(testDownloadControlThread);
         testRunningThread.start();
         for (int i = 0; i < count; i++) {
-            DownloadDetailsDTO nextDownload = new DownloadDetailsDTO("does-not-exist-" + i, "127.0.0.1", "",
+            DownloadDetailsDTO nextDownload = new DownloadDetailsDTO(
+                    new DownloadRequestDTO(),
+                    null,
+                    "127.0.0.1",
+                    "",
                     DownloadType.RECORDS_INDEX);
-            nextDownload.setEmail("test@csiro.au.example");
-            DownloadRequestParams requestParams = new DownloadRequestParams();
+            DownloadRequestDTO requestParams = new DownloadRequestDTO();
+            requestParams.setEmail("test@csiro.au.example");
             requestParams.setFile("my-download-!@#$%^&*()_+{}|:\"\'\\/" + i + ".txt");
             nextDownload.setRequestParams(requestParams);
             persistentQueueDAO.addDownloadToQueue(nextDownload);

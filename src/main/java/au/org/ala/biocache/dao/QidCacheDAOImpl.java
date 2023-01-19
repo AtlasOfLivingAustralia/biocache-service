@@ -15,7 +15,7 @@
 package au.org.ala.biocache.dao;
 
 import au.org.ala.biocache.dto.Qid;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.service.DataQualityService;
 import au.org.ala.biocache.util.QidMissingException;
 import au.org.ala.biocache.util.QidSizeException;
@@ -153,9 +153,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
 
         try {
             updateTriggerCleanSize();
-
-            logger.info("maxCacheSize > " + maxCacheSize);
-            logger.info("minCacheSize > " + minCacheSize);
+            logger.debug("maxCacheSize > " + maxCacheSize + ", minCacheSize > " + minCacheSize);
         } catch (Exception e) {
             logger.error("cannot load qid.properties", e);
         }
@@ -395,7 +393,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
         logger.debug("triggerCleanSize=" + triggerCleanSize + " minCacheSize=" + minCacheSize + " maxCacheSize=" + maxCacheSize);
     }
 
-    public String[] getFq(SpatialSearchRequestParams requestParams) {
+    public String[] getFq(SpatialSearchRequestDTO requestParams) {
         int requestParamsFqLength = requestParams.getFq() != null ? requestParams.getFq().length : 0;
 
         String[] qidFq = null;
@@ -430,7 +428,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
 
     @Cacheable("qidGeneration")
     @Override
-    public String generateQid(SpatialSearchRequestParams requestParams, String bbox, String title, Long maxage, String source) {
+    public String generateQid(SpatialSearchRequestDTO requestParams, String bbox, String title, Long maxage, String source) {
         try {
             //simplify wkt
             String wkt = requestParams.getWkt();
@@ -499,6 +497,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
         synchronized (counterLock) {
             cache.clear();
             cacheSize = 0;
+            dataQualityService.clearCache();
         }
 
     }

@@ -1,12 +1,15 @@
 package au.org.ala.biocache.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(name = "FieldComparison", description = "Bean capturing a property name and its raw and processed values")
 public class Comparison {
+
     private String name;
     private String raw;
     private String processed;
 
-    public Comparison() {
-    }
+    public Comparison() {}
 
     public String getName() {
         return name;

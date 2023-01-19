@@ -15,13 +15,16 @@
 package au.org.ala.biocache.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
  * A DTO bean that represents a single (facet) field result (SOLR)
  *
  * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
  */
+@Schema(name = "FieldResult", description = "Represents a single (facet) field result")
 public class FieldResultDTO implements Comparable<FieldResultDTO>{
+
     String label;
     String i18nCode;
     Long count;

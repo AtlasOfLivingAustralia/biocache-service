@@ -1,5 +1,6 @@
 package au.org.ala.biocache.web;
 
+import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedCaseInsensitiveMap;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -21,6 +22,7 @@ import java.util.Map;
  *
  * @author Marten Deinum
  */
+@Component
 public class CaseInsensitiveRequestFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {

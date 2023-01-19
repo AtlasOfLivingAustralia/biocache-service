@@ -3,22 +3,27 @@ package au.org.ala.biocache.config;
 import au.org.ala.biocache.service.NameMatchSpeciesLookupService;
 import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.service.SpeciesLookupService;
+import au.org.ala.biocache.util.converter.FqConverter;
 import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import au.org.ala.dataquality.client.ApiClient;
 import au.org.ala.names.ws.client.ALANameUsageMatchServiceClient;
 import au.org.ala.ws.ClientConfiguration;
+import org.apache.catalina.Context;
 import org.apache.log4j.Logger;
+import org.apache.tomcat.util.scan.StandardJarScanner;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.CacheManager;
+import org.springframework.boot.context.properties.ConfigurationPropertiesBinding;
+import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
 import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.cache.ehcache.EhCacheCacheManager;
-import org.springframework.cache.ehcache.EhCacheManagerFactoryBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.AbstractMessageSource;
-import org.springframework.core.io.ClassPathResource;
-
+import org.springframework.web.servlet.ViewResolver;
+import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.view.InternalResourceViewResolver;
+import org.springframework.web.servlet.view.JstlView;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.net.URL;
@@ -29,7 +34,7 @@ import java.net.URL;
  */
 @Configuration
 @EnableCaching
-public class AppConfig {
+public class AppConfig implements WebMvcConfigurer {
 
     private final static Logger logger = Logger.getLogger(AppConfig.class);
 
@@ -69,6 +74,17 @@ public class AppConfig {
         return new ALANameUsageMatchServiceClient(clientConfiguration);
     }
 
+    //https://stackoverflow.com/questions/43370840/disable-scanmanifest-of-jar-scan-in-tomcat-embed-in-spring-boot
+    @Bean
+    public TomcatServletWebServerFactory tomcatFactory() {
+        return new TomcatServletWebServerFactory() {
+            @Override
+            protected void postProcessContext(Context context) {
+                ((StandardJarScanner) context.getJarScanner()).setScanManifest(false);
+            }
+        };
+    }
+
     protected SpeciesLookupService getNameMatchSpeciesLookupService() {
         logger.info("Initialising name match species lookup services.");
         NameMatchSpeciesLookupService service = new NameMatchSpeciesLookupService();
@@ -76,8 +92,7 @@ public class AppConfig {
         return service;
     }
 
-    public @Bean(name = "speciesLookupService")
-    SpeciesLookupService speciesLookupServiceBean() {
+    public @Bean(name = "speciesLookupService") SpeciesLookupService speciesLookupServiceBean() {
         logger.info("Initialising species lookup services.");
         return getNameMatchSpeciesLookupService();
     }
@@ -92,5 +107,25 @@ public class AppConfig {
     @Bean
     public QualityServiceRpcApi dataQualityApi(@Qualifier("dataQualityApiClient") ApiClient dataQualityApiClient) {
         return dataQualityApiClient.createService(QualityServiceRpcApi.class);
+    }
+
+    @Bean
+    public ViewResolver internalResourceViewResolver() {
+        InternalResourceViewResolver bean = new InternalResourceViewResolver();
+        bean.setViewClass(JstlView.class);
+        bean.setPrefix("/WEB-INF/jsp/");
+        bean.setSuffix(".jsp");
+        return bean;
+    }
+
+    @Override
+    public void addViewControllers(ViewControllerRegistry registry) {
+        registry.addRedirectViewController("/", "/swagger-ui.html");
+    }
+
+    @Bean
+    @ConfigurationPropertiesBinding
+    public FqConverter fqConverter() {
+        return new FqConverter();
     }
 }

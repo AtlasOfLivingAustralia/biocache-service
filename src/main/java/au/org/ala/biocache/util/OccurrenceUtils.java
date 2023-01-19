@@ -16,7 +16,7 @@ package au.org.ala.biocache.util;
 
 
 import au.org.ala.biocache.dao.SearchDAO;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.slf4j.Logger;
@@ -37,7 +37,7 @@ public class OccurrenceUtils {
     protected SearchDAO searchDAO;
 
     private SolrDocument lookupRecordFromSolr(String uuid) {
-        SpatialSearchRequestParams idRequest = new SpatialSearchRequestParams();
+        SpatialSearchRequestDTO idRequest = new SpatialSearchRequestDTO();
         idRequest.setQ("id:\"" + uuid + "\"");
         idRequest.setFacet(false);
         idRequest.setFl("*");

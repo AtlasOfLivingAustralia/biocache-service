@@ -14,11 +14,14 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * Stores the information about the source of an occurrence
  *
  * @author Natasha
  */
+@Schema(name = "OccurrenceSource", description = "Source of a set of records")
 public class OccurrenceSourceDTO {
     private String name;
     private String uid;
