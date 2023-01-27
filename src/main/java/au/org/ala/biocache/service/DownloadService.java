@@ -638,7 +638,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         doiDetails.setTitle(biocacheDownloadDoiTitlePrefix + filename);
                         doiDetails.setApplicationUrl(dqFixedSearchUrl);
                         doiDetails.setRequesterId(dd.getAlaUser() == null ? null : dd.getAlaUser().getId());
-                        doiDetails.setRequesterName(dd.getAlaUser() == null ? null : dd.getAlaUser().getFirstName() + " " + dd.getAlaUser().getLastName());
+                        doiDetails.setRequesterName(dd.getAlaUser() == null ? null : dd.getAlaUser().getGivenName() + " " + dd.getAlaUser().getFamilyName());
                         doiDetails.setAuthorisedRoles(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles());
                         doiDetails.setDatasetMetadata(datasetMetadata);
                         doiDetails.setRequestTime(dd.getStartDateString());

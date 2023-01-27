@@ -39,6 +39,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.security.Principal;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -83,9 +84,158 @@ public class DownloadServiceTest {
     @Autowired
     IndexDAO indexDAO;
 
-    final static AlaUserProfile TEST_USER =
-            new AlaUserProfile("Tester", "test@test.com", null, null, Collections.EMPTY_SET, Collections.EMPTY_MAP);
+    final static AlaUserProfile TEST_USER = new AlaUserProfile() {
 
+        @Override
+        public String getId() {
+            return null;
+        }
+
+        @Override
+        public void setId(String id) {
+
+        }
+
+        @Override
+        public String getTypedId() {
+            return null;
+        }
+
+        @Override
+        public String getUsername() {
+            return null;
+        }
+
+        @Override
+        public Object getAttribute(String name) {
+            return null;
+        }
+
+        @Override
+        public Map<String, Object> getAttributes() {
+            return null;
+        }
+
+        @Override
+        public boolean containsAttribute(String name) {
+            return false;
+        }
+
+        @Override
+        public void addAttribute(String key, Object value) {
+
+        }
+
+        @Override
+        public void removeAttribute(String key) {
+
+        }
+
+        @Override
+        public void addAuthenticationAttribute(String key, Object value) {
+
+        }
+
+        @Override
+        public void removeAuthenticationAttribute(String key) {
+
+        }
+
+        @Override
+        public void addRole(String role) {
+
+        }
+
+        @Override
+        public void addRoles(Collection<String> roles) {
+
+        }
+
+        @Override
+        public Set<String> getRoles() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public void addPermission(String permission) {
+
+        }
+
+        @Override
+        public void addPermissions(Collection<String> permissions) {
+
+        }
+
+        @Override
+        public Set<String> getPermissions() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public boolean isRemembered() {
+            return false;
+        }
+
+        @Override
+        public void setRemembered(boolean rme) {
+
+        }
+
+        @Override
+        public String getClientName() {
+            return null;
+        }
+
+        @Override
+        public void setClientName(String clientName) {
+
+        }
+
+        @Override
+        public String getLinkedId() {
+            return null;
+        }
+
+        @Override
+        public void setLinkedId(String linkedId) {
+
+        }
+
+        @Override
+        public boolean isExpired() {
+            return false;
+        }
+
+        @Override
+        public Principal asPrincipal() {
+            return null;
+        }
+
+        @Override
+        public String getName() {
+            return null;
+        }
+
+        @Override
+        public String getUserId() {
+            return "Tester";
+        }
+
+        @Override
+        public String getEmail() {
+            return "test@test.com";
+        }
+
+        @Override
+        public String getGivenName() {
+            return null;
+        }
+
+        @Override
+        public String getFamilyName() {
+            return null;
+        }
+    };
 
     /**
      * This latch is used to reliably simulate stalled and successful downloads.

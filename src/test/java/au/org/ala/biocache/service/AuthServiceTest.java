@@ -10,6 +10,7 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.client.RestTemplate;
 
+import java.security.Principal;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,8 +26,159 @@ public class AuthServiceTest {
 
     RestTemplate restTemplate;
 
-    final static AlaUserProfile API_KEY_TEST_USER =
-            new AlaUserProfile("Tester", "test@test.com", null, null, Sets.newHashSet("ROLE_LEGACY_APIKEY"), Collections.EMPTY_MAP);
+    final static AlaUserProfile API_KEY_TEST_USER = new AlaUserProfile() {
+
+        @Override
+        public String getId() {
+            return null;
+        }
+
+        @Override
+        public void setId(String id) {
+
+        }
+
+        @Override
+        public String getTypedId() {
+            return null;
+        }
+
+        @Override
+        public String getUsername() {
+            return null;
+        }
+
+        @Override
+        public Object getAttribute(String name) {
+            return null;
+        }
+
+        @Override
+        public Map<String, Object> getAttributes() {
+            return null;
+        }
+
+        @Override
+        public boolean containsAttribute(String name) {
+            return false;
+        }
+
+        @Override
+        public void addAttribute(String key, Object value) {
+
+        }
+
+        @Override
+        public void removeAttribute(String key) {
+
+        }
+
+        @Override
+        public void addAuthenticationAttribute(String key, Object value) {
+
+        }
+
+        @Override
+        public void removeAuthenticationAttribute(String key) {
+
+        }
+
+        @Override
+        public void addRole(String role) {
+
+        }
+
+        @Override
+        public void addRoles(Collection<String> roles) {
+
+        }
+
+        @Override
+        public Set<String> getRoles() {
+            return Sets.newHashSet("ROLE_LEGACY_APIKEY");
+        }
+
+        @Override
+        public void addPermission(String permission) {
+
+        }
+
+        @Override
+        public void addPermissions(Collection<String> permissions) {
+
+        }
+
+        @Override
+        public Set<String> getPermissions() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public boolean isRemembered() {
+            return false;
+        }
+
+        @Override
+        public void setRemembered(boolean rme) {
+
+        }
+
+        @Override
+        public String getClientName() {
+            return null;
+        }
+
+        @Override
+        public void setClientName(String clientName) {
+
+        }
+
+        @Override
+        public String getLinkedId() {
+            return null;
+        }
+
+        @Override
+        public void setLinkedId(String linkedId) {
+
+        }
+
+        @Override
+        public boolean isExpired() {
+            return false;
+        }
+
+        @Override
+        public Principal asPrincipal() {
+            return null;
+        }
+
+        @Override
+        public String getName() {
+            return null;
+        }
+
+        @Override
+        public String getUserId() {
+            return "Tester";
+        }
+
+        @Override
+        public String getEmail() {
+            return "test@test.com";
+        }
+
+        @Override
+        public String getGivenName() {
+            return null;
+        }
+
+        @Override
+        public String getFamilyName() {
+            return null;
+        }
+    };
+
 
     @Before
     public void setup() {
@@ -39,7 +191,157 @@ public class AuthServiceTest {
     public void authenticatedRequest() {
 
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setUserPrincipal(new AlaUserProfile());
+        request.setUserPrincipal(new AlaUserProfile(){
+            @Override
+            public String getId() {
+                return null;
+            }
+
+            @Override
+            public void setId(String id) {
+
+            }
+
+            @Override
+            public String getTypedId() {
+                return null;
+            }
+
+            @Override
+            public String getUsername() {
+                return null;
+            }
+
+            @Override
+            public Object getAttribute(String name) {
+                return null;
+            }
+
+            @Override
+            public Map<String, Object> getAttributes() {
+                return null;
+            }
+
+            @Override
+            public boolean containsAttribute(String name) {
+                return false;
+            }
+
+            @Override
+            public void addAttribute(String key, Object value) {
+
+            }
+
+            @Override
+            public void removeAttribute(String key) {
+
+            }
+
+            @Override
+            public void addAuthenticationAttribute(String key, Object value) {
+
+            }
+
+            @Override
+            public void removeAuthenticationAttribute(String key) {
+
+            }
+
+            @Override
+            public void addRole(String role) {
+
+            }
+
+            @Override
+            public void addRoles(Collection<String> roles) {
+
+            }
+
+            @Override
+            public Set<String> getRoles() {
+                return null;
+            }
+
+            @Override
+            public void addPermission(String permission) {
+
+            }
+
+            @Override
+            public void addPermissions(Collection<String> permissions) {
+
+            }
+
+            @Override
+            public Set<String> getPermissions() {
+                return null;
+            }
+
+            @Override
+            public boolean isRemembered() {
+                return false;
+            }
+
+            @Override
+            public void setRemembered(boolean rme) {
+
+            }
+
+            @Override
+            public String getClientName() {
+                return null;
+            }
+
+            @Override
+            public void setClientName(String clientName) {
+
+            }
+
+            @Override
+            public String getLinkedId() {
+                return null;
+            }
+
+            @Override
+            public void setLinkedId(String linkedId) {
+
+            }
+
+            @Override
+            public boolean isExpired() {
+                return false;
+            }
+
+            @Override
+            public Principal asPrincipal() {
+                return null;
+            }
+
+            @Override
+            public String getName() {
+                return null;
+            }
+
+            @Override
+            public String getUserId() {
+                return null;
+            }
+
+            @Override
+            public String getEmail() {
+                return null;
+            }
+
+            @Override
+            public String getGivenName() {
+                return null;
+            }
+
+            @Override
+            public String getFamilyName() {
+                return null;
+            }
+        });
 
         Optional<AlaUserProfile> authenticatedUser = authService.getRecordViewUser(request);
 
@@ -50,7 +352,157 @@ public class AuthServiceTest {
     public void authenticateDownload() {
 
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setUserPrincipal(new AlaUserProfile());
+        request.setUserPrincipal(new AlaUserProfile(){
+            @Override
+            public String getId() {
+                return null;
+            }
+
+            @Override
+            public void setId(String id) {
+
+            }
+
+            @Override
+            public String getTypedId() {
+                return null;
+            }
+
+            @Override
+            public String getUsername() {
+                return null;
+            }
+
+            @Override
+            public Object getAttribute(String name) {
+                return null;
+            }
+
+            @Override
+            public Map<String, Object> getAttributes() {
+                return null;
+            }
+
+            @Override
+            public boolean containsAttribute(String name) {
+                return false;
+            }
+
+            @Override
+            public void addAttribute(String key, Object value) {
+
+            }
+
+            @Override
+            public void removeAttribute(String key) {
+
+            }
+
+            @Override
+            public void addAuthenticationAttribute(String key, Object value) {
+
+            }
+
+            @Override
+            public void removeAuthenticationAttribute(String key) {
+
+            }
+
+            @Override
+            public void addRole(String role) {
+
+            }
+
+            @Override
+            public void addRoles(Collection<String> roles) {
+
+            }
+
+            @Override
+            public Set<String> getRoles() {
+                return null;
+            }
+
+            @Override
+            public void addPermission(String permission) {
+
+            }
+
+            @Override
+            public void addPermissions(Collection<String> permissions) {
+
+            }
+
+            @Override
+            public Set<String> getPermissions() {
+                return null;
+            }
+
+            @Override
+            public boolean isRemembered() {
+                return false;
+            }
+
+            @Override
+            public void setRemembered(boolean rme) {
+
+            }
+
+            @Override
+            public String getClientName() {
+                return null;
+            }
+
+            @Override
+            public void setClientName(String clientName) {
+
+            }
+
+            @Override
+            public String getLinkedId() {
+                return null;
+            }
+
+            @Override
+            public void setLinkedId(String linkedId) {
+
+            }
+
+            @Override
+            public boolean isExpired() {
+                return false;
+            }
+
+            @Override
+            public Principal asPrincipal() {
+                return null;
+            }
+
+            @Override
+            public String getName() {
+                return null;
+            }
+
+            @Override
+            public String getUserId() {
+                return null;
+            }
+
+            @Override
+            public String getEmail() {
+                return null;
+            }
+
+            @Override
+            public String getGivenName() {
+                return null;
+            }
+
+            @Override
+            public String getFamilyName() {
+                return null;
+            }
+        });
 
         DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
 
@@ -97,7 +549,7 @@ public class AuthServiceTest {
                 authService.getDownloadUser(downloadRequestDTO, request);
 
         assertTrue(authenticatedUser.isPresent());
-        assertEquals("1234", authenticatedUser.get().getId());
+        assertEquals("1234", authenticatedUser.get().getUserId());
         assertEquals("test@test.com", authenticatedUser.get().getEmail());
     }
 
