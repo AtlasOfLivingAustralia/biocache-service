@@ -278,16 +278,16 @@ public class AuthService {
             return Optional.empty();
         }
 
-        String userId = (String) userDetails.getOrDefault("userid", null);
+        String userId = (String) userDetails.getOrDefault("userId", null);
         boolean activated = (Boolean) userDetails.getOrDefault("activated", false);
         boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
         String firstName = (String) userDetails.getOrDefault("firstName", "");
         String lastName = (String) userDetails.getOrDefault("lastName", "");
         String email = (String) userDetails.getOrDefault("email", "");
 
-        final Set<String> userRoles = Collections.emptySet();
+        Set<String> userRoles = new HashSet<>(Collections.emptySet());
         if (getRoles) {
-            userRoles.addAll(getUserRoles(userIdOrEmail));
+            userRoles.addAll((List) userDetails.getOrDefault("roles", Collections.EMPTY_LIST));
         }
 
         if (email != null && activated && !locked) {
