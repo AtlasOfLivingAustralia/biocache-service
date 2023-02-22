@@ -14,4 +14,5 @@
     <!-- apiKeys cache with a TTL of 5 minutes to ensure keys are expired in a timely manner -->
     <cache name="apiKeys" maxElementsInMemory="100" eternal="false" overflowToDisk="false" timeToLiveSeconds="300" />
     <cache name="rateLimit" maxElementsInMemory="1000" eternal="false" overflowToDisk="false" />
+    <cache name="user-profile" maxElementsInMemory="100" eternal="false" overflowToDisk="false" timeToLiveSeconds="60" />
 </ehcache>

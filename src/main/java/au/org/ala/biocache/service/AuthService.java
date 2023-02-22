@@ -278,21 +278,170 @@ public class AuthService {
             return Optional.empty();
         }
 
-        String userId = (String) userDetails.getOrDefault("userid", null);
+        String userId = (String) userDetails.getOrDefault("userId", null);
         boolean activated = (Boolean) userDetails.getOrDefault("activated", false);
         boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
         String firstName = (String) userDetails.getOrDefault("firstName", "");
         String lastName = (String) userDetails.getOrDefault("lastName", "");
         String email = (String) userDetails.getOrDefault("email", "");
 
-        Set<String> userRoles = Collections.emptySet();
+        Set<String> userRoles = new HashSet<>(Collections.emptySet());
         if (getRoles) {
-            userRoles = getUserRoles(userIdOrEmail);
+            userRoles.addAll((List) userDetails.getOrDefault("roles", Collections.EMPTY_LIST));
         }
 
         if (email != null && activated && !locked) {
             return Optional.of(
-                    new AlaUserProfile(userId, email, firstName, lastName, userRoles, Collections.emptyMap())
+                    new AlaUserProfile() {
+
+                        @Override
+                        public String getUserId() { return userId; }
+
+                        @Override
+                        public String getEmail() {
+                            return email;
+                        }
+
+                        @Override
+                        public String getGivenName() {
+                            return firstName;
+                        }
+
+                        @Override
+                        public String getFamilyName() {
+                            return lastName;
+                        }
+
+                        @Override
+                        public String getName() {
+                            return null;
+                        }
+
+                        @Override
+                        public String getId() {
+                            return null;
+                        }
+
+                        @Override
+                        public void setId(String id) {}
+
+                        @Override
+                        public String getTypedId() {
+                            return null;
+                        }
+
+                        @Override
+                        public String getUsername() {
+                            return email;
+                        }
+
+                        @Override
+                        public Object getAttribute(String name) {
+                            return null;
+                        }
+
+                        @Override
+                        public Map<String, Object> getAttributes() {
+                            return null;
+                        }
+
+                        @Override
+                        public boolean containsAttribute(String name) {
+                            return false;
+                        }
+
+                        @Override
+                        public void addAttribute(String key, Object value) {
+
+                        }
+
+                        @Override
+                        public void removeAttribute(String key) {
+
+                        }
+
+                        @Override
+                        public void addAuthenticationAttribute(String key, Object value) {
+
+                        }
+
+                        @Override
+                        public void removeAuthenticationAttribute(String key) {
+
+                        }
+
+                        @Override
+                        public void addRole(String role) {
+
+                        }
+
+                        @Override
+                        public void addRoles(Collection<String> roles) {
+
+                        }
+
+                        @Override
+                        public Set<String> getRoles() {
+                            return userRoles;
+                        }
+
+                        @Override
+                        public void addPermission(String permission) {
+
+                        }
+
+                        @Override
+                        public void addPermissions(Collection<String> permissions) {
+
+                        }
+
+                        @Override
+                        public Set<String> getPermissions() {
+                            return null;
+                        }
+
+                        @Override
+                        public boolean isRemembered() {
+                            return false;
+                        }
+
+                        @Override
+                        public void setRemembered(boolean rme) {
+
+                        }
+
+                        @Override
+                        public String getClientName() {
+                            return null;
+                        }
+
+                        @Override
+                        public void setClientName(String clientName) {
+
+                        }
+
+                        @Override
+                        public String getLinkedId() {
+                            return null;
+                        }
+
+                        @Override
+                        public void setLinkedId(String linkedId) {
+
+                        }
+
+                        @Override
+                        public boolean isExpired() {
+                            return false;
+                        }
+
+                        @Override
+                        public Principal asPrincipal() {
+                            return null;
+                        }
+                    }
+
+//            new AlaUserProfile(userId, email, firstName, lastName, userRoles, Collections.emptyMap())
             );
         } else {
             log.info("Download request with API key failed " +

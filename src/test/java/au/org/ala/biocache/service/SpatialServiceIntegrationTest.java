@@ -17,6 +17,7 @@ package au.org.ala.biocache.service;
 import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
 
@@ -35,6 +36,7 @@ import org.springframework.test.context.web.WebAppConfiguration;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(locations = {"classpath:springTest.xml"})
 @WebAppConfiguration
+@TestPropertySource(locations = "classpath:biocache-test-config.properties")
 public class SpatialServiceIntegrationTest {
 //
 //	@Autowired

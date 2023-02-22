@@ -125,16 +125,12 @@ dependencies {
 
     if (inplace) {
 
-        implementation project(':ala-ws-security-plugin'), {
-            exclude group: 'org.grails'
-            exclude group: 'org.grails.plugins'
-        }
+        implementation project(':ala-ws-spring-security')
+        implementation project(':ala-ws-security')
+
     } else {
 
-        implementation 'org.grails.plugins:ala-ws-security-plugin:4.3.3-SNAPSHOT', {
-            exclude group: 'org.grails'
-            exclude group: 'org.grails.plugins'
-        }
+        implementation 'au.org.ala:ala-ws-spring-security:4.4.0-SNAPSHOT'
     }
 
     implementation 'org.codehaus.groovy:groovy-all:3.0.11'

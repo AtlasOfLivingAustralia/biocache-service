@@ -7,6 +7,9 @@ rootProject.name = 'biocache-service'
 boolean inplace = false
 
 if (inplace) {
-    include ':ala-ws-security-plugin'
-    project(':ala-ws-security-plugin').projectDir = new File(settingsDir, '../ala-ws-security-plugin')
+    include ':ala-ws-security'
+    project(':ala-ws-security').projectDir = new File(settingsDir, '../ala-ws-security-plugin/ala-ws-security')
+
+    include ':ala-ws-spring-security'
+    project(':ala-ws-spring-security').projectDir = new File(settingsDir, '../ala-ws-security-plugin/ala-ws-spring-security')
 }

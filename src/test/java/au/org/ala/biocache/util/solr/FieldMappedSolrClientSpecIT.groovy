@@ -7,12 +7,14 @@ import org.apache.solr.client.solrj.response.QueryResponse
 import org.junit.BeforeClass
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ContextConfiguration
+import org.springframework.test.context.TestPropertySource
 import org.springframework.test.context.web.WebAppConfiguration
 import spock.lang.Specification
 import spock.lang.Unroll
 
 @WebAppConfiguration
 @ContextConfiguration(locations = 'classpath:springTest.xml')
+@TestPropertySource(locations = "classpath:biocache-test-config.properties")
 class FieldMappedSolrClientSpecIT extends Specification {
 
     static {
