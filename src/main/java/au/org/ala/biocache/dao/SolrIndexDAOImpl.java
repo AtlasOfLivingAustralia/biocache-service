@@ -600,7 +600,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
                             @Override
                             public void run() {
                                 try {
-                                    getIndexFieldDetails(null);
+                                    getIndexFieldDetails();
                                 } catch (Exception e) {
                                     logger.error("Failed to update solrIndexVersion", e);
                                 }
@@ -875,7 +875,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
             synchronized (solrIndexVersionLock) {
                 result = indexFields;
                 if (result.size() == 0 || update) {
-                    result = getIndexFieldDetails(null);
+                    result = getIndexFieldDetails();
                     if (result != null && result.size() > 0) {
                         Map<String, IndexFieldDTO> resultMap = new HashMap<String, IndexFieldDTO>();
                         for (IndexFieldDTO field : result) {

@@ -21,9 +21,10 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
  * Integration tests for occurrence services.
@@ -165,7 +166,9 @@ public class ExploreControllerIT extends TestCase {
 
     @Test
     public void getExploreGroup2() throws Exception {
-        this.mockMvc.perform(get("/explore/group/Birds?q=-*:*&sort=count"))
+        MvcResult result = this.mockMvc.perform(get("/explore/group/Birds?q=-*:*&sort=count")).andReturn();
+
+        mockMvc.perform(asyncDispatch(result))
                 .andExpect(jsonPath("$.length()").value(0));
     }
 

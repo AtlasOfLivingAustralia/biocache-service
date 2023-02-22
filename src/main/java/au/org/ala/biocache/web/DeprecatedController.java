@@ -1,6 +1,7 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dto.DownloadRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.dto.TaxaCountDTO;
 import au.org.ala.biocache.util.converter.FqField;
@@ -101,9 +102,8 @@ public class DeprecatedController {
             "/webportal/species",
             "/webportal/species.json",
             "/mapping/species.json"}, method = RequestMethod.GET)
-    public
-    @ResponseBody
-    List<TaxaCountDTO> listSpecies(SpatialSearchRequestParams requestParams) throws Exception {
-        return wmsController.listSpecies(requestParams);
+    public void listSpecies(@ParameterObject SpatialSearchRequestParams params,
+                          HttpServletResponse response) throws Exception {
+        wmsController.listSpecies(params, response);
     }
 }

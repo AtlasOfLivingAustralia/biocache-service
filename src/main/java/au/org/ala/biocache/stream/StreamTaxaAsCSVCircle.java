@@ -2,6 +2,7 @@ package au.org.ala.biocache.stream;
 
 import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.dao.SearchDAOImpl;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.dto.TaxaCountDTO;
 import au.org.ala.biocache.util.SearchUtils;
@@ -17,7 +18,7 @@ public class StreamTaxaAsCSVCircle extends StreamTaxaCount {
 
     CSVWriter csvWriter;
 
-    public StreamTaxaAsCSVCircle(SearchDAOImpl searchDAO, SearchUtils searchUtils, SpatialSearchRequestParams request, OutputStream outputStream) {
+    public StreamTaxaAsCSVCircle(SearchDAOImpl searchDAO, SearchUtils searchUtils, SpatialSearchRequestDTO request, OutputStream outputStream) {
         super(searchDAO, searchUtils, request, outputStream);
     }
 

@@ -1446,7 +1446,7 @@ public class SearchDAOImpl implements SearchDAO {
         indexDao.streamingQuery(solrQuery, null, procFacet, null);
     }
 
-    protected void getSpeciesCountsCSV(SpatialSearchRequestParams requestParams, OutputStream outputStream) throws Exception {
+    protected void getSpeciesCountsCSV(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
         SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
         solrQuery.setFacetMissing(false);
 
@@ -1454,7 +1454,7 @@ public class SearchDAOImpl implements SearchDAO {
         indexDao.streamingQuery(solrQuery, null, procFacet, null);
     }
 
-    protected void getSpeciesCountsCSVCircle(SpatialSearchRequestParams requestParams, OutputStream outputStream) throws Exception {
+    protected void getSpeciesCountsCSVCircle(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
         SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
         solrQuery.setFacetMissing(false);
 
@@ -1507,7 +1507,7 @@ public class SearchDAOImpl implements SearchDAO {
         searchParams.setPageSize(0);
 
         SolrQuery facetQuery = initSolrQuery(searchParams, false, null);
-        facetQuery.setFields(null);
+        facetQuery.setFields();
 
         List<String> fqList = new ArrayList<String>();
         //only add the FQ's if they are not the default values
@@ -1950,7 +1950,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             int value = 1024;
             boolean ok = false;
-            int step = -1;
+                   int step = -1;
             while (step != 0 || ok == false) {
                 String q = 1 + StringUtils.repeat(" AND 1", value - 1);
                 solrQuery.setQuery(q);
@@ -2115,7 +2115,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         //get facet group counts
         SolrQuery query = initSolrQuery(searchParams, false, null);
-        query.setFields(null);
+        query.setFields();
         //now use the supplied facets to add groups to the query
         query.add("facet.pivot", pivot);
         query.add("facet.pivot.mincount", "1");
@@ -2209,7 +2209,7 @@ public class SearchDAOImpl implements SearchDAO {
         //get facet group counts
         SolrQuery query = initSolrQuery(searchParams, false, null);
         query.setRows(0);
-        query.setFields(null);
+        query.setFields();
 
         //stats parameters
         query.add("stats", "true");

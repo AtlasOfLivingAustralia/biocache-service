@@ -338,24 +338,11 @@ public class WMSController extends AbstractSecureController {
     @Operation(summary = "JSON web service that returns a list of species and record counts for a given location search", tags = "Mapping")
     @RequestMapping(value = {
             "/mapping/species"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public
-    @ResponseBody
-    List<TaxaCountDTO> listSpecies(@ParameterObject SpatialSearchRequestParams params) throws Exception {
+    public void listSpecies(@ParameterObject SpatialSearchRequestParams params,
+                                   HttpServletResponse response) throws Exception {
         response.setContentType("application/json");
 
-        searchDAO.findAllSpeciesJSON(SpatialSearchRequestDTO.create(params)), response.getOutputStream());
-    }
-
-    @Deprecated
-    @Operation(summary = "JSON web service that returns a list of species and record counts for a given location search", tags = "Mapping")
-    @RequestMapping(value = {
-            "/webportal/species"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public void
-    listSpeciesDeprecated(@ParameterObject SpatialSearchRequestParams params,
-                          HttpServletResponse response) throws Exception {
-        response.setContentType("application/json");
-
-        searchDAO.findAllSpeciesJSON(SpatialSearchRequestDTO.create(params)), response.getOutputStream());
+        searchDAO.findAllSpeciesJSON(SpatialSearchRequestDTO.create(params), response.getOutputStream());
     }
 
     /**

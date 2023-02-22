@@ -1,6 +1,7 @@
 package au.org.ala.biocache.stream;
 
 import au.org.ala.biocache.dao.SearchDAOImpl;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.dto.TaxaCountDTO;
 import au.org.ala.biocache.util.SearchUtils;
@@ -25,7 +26,7 @@ public class StreamTaxaCount implements ProcessInterface {
 
     SearchDAOImpl searchDAO;
     SearchUtils searchUtils;
-    SpatialSearchRequestParams request;
+    SpatialSearchRequestDTO request;
     OutputStream outputStream;
     boolean isNamesAndLSID;
     boolean isCommonNameAndLSID;
@@ -33,7 +34,7 @@ public class StreamTaxaCount implements ProcessInterface {
     JsonGenerator jsonGenerator;
 
 
-    public StreamTaxaCount(SearchDAOImpl searchDAO, SearchUtils searchUtils, SpatialSearchRequestParams request, OutputStream outputStream) {
+    public StreamTaxaCount(SearchDAOImpl searchDAO, SearchUtils searchUtils, SpatialSearchRequestDTO request, OutputStream outputStream) {
         this.request = request;
         this.searchDAO = searchDAO;
         this.searchUtils = searchUtils;
