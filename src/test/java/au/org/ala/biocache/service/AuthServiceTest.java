@@ -531,12 +531,12 @@ public class AuthServiceTest {
         // mock the user details lookup
         when(restTemplate.postForObject(any(String.class), any(), any()))
                 .thenReturn(new HashMap<String, Object>() {{
-                    put("userid", "1234");
+                    put("userId", "1234");
                     put("email", "test@test.com");
                     put("activated", true);
                     put("locked", false);
-                    put("first_name", "Test");
-                    put("last_name", "User");
+                    put("firstName", "Test");
+                    put("lastName", "User");
                 }});
 
         DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
@@ -558,12 +558,12 @@ public class AuthServiceTest {
         // mock the user details lookup
         when(restTemplate.postForObject(any(String.class), any(), any()))
                 .thenReturn(new HashMap<String, Object>() {{
-                    put("userid", "1234");
+                    put("userId", "1234");
                     put("email", "test@test.com");
                     put("activated", false);
                     put("locked", false);
-                    put("first_name", "Test");
-                    put("last_name", "User");
+                    put("firstName", "Test");
+                    put("lastName", "User");
                 }});
 
         DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
@@ -586,12 +586,12 @@ public class AuthServiceTest {
         // mock the user details lookup
         when(restTemplate.postForObject(any(String.class), any(), any()))
                 .thenReturn(new HashMap<String, Object>() {{
-                    put("userid", "1234");
+                    put("userId", "1234");
                     put("email", "test@test.com");
-                    put("activated", true);
-                    put("locked", true);
-                    put("first_name", "Test");
-                    put("last_name", "User");
+                    put("activated", false);
+                    put("locked", false);
+                    put("firstName", "Test");
+                    put("lastName", "User");
                 }});
 
         DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();

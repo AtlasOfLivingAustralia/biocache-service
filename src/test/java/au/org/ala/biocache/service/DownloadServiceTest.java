@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package au.org.ala.biocache.service;
 
@@ -34,6 +34,7 @@ import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.context.support.ReloadableResourceBundleMessageSource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
@@ -56,13 +57,14 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 /**
  * Test for {@link DownloadService}
- * 
+ *
  * @author Peter Ansell
  */
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({ "com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*", "org.w3c.*", "javax.net.ssl.*" })
 @PrepareForTest(FileUtils.class)
 @ContextConfiguration(locations = {"classpath:springTest.xml"})
+@TestPropertySource(locations = "classpath:biocache-test-config.properties")
 public class DownloadServiceTest {
 
     @Rule

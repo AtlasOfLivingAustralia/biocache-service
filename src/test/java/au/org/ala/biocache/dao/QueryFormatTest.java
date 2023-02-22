@@ -32,6 +32,7 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.springframework.context.support.ReloadableResourceBundleMessageSource;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Arrays;
@@ -56,6 +57,7 @@ import static org.mockito.Mockito.when;
  */
 @RunWith(MockitoJUnitRunner.class)
 @ContextConfiguration(locations = {"classpath:springTest.xml"})
+@TestPropertySource(locations = "classpath:biocache-test-config.properties")
 public class QueryFormatTest {
 
     @Mock
@@ -186,7 +188,7 @@ public class QueryFormatTest {
      */
     @Test
     public void testQueryFormatting() throws QidMissingException {
-        
+
         for (SearchQueryTester sqt : data()) {
             SpatialSearchRequestDTO ssrp = new SpatialSearchRequestDTO();
             ssrp.setQ(sqt.query);
