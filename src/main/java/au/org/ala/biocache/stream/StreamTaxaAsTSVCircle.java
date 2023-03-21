@@ -3,7 +3,6 @@ package au.org.ala.biocache.stream;
 import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
-import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.dto.TaxaCountDTO;
 import au.org.ala.biocache.util.SearchUtils;
 import org.apache.log4j.Logger;
@@ -12,13 +11,13 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 
-public class StreamTaxaAsCSVCircle extends StreamTaxaCount {
+public class StreamTaxaAsTSVCircle extends StreamTaxaCount {
 
-    private final static Logger logger = Logger.getLogger(StreamTaxaAsCSVCircle.class);
+    private final static Logger logger = Logger.getLogger(StreamTaxaAsTSVCircle.class);
 
     CSVWriter csvWriter;
 
-    public StreamTaxaAsCSVCircle(SearchDAOImpl searchDAO, SearchUtils searchUtils, SpatialSearchRequestDTO request, OutputStream outputStream) {
+    public StreamTaxaAsTSVCircle(SearchDAOImpl searchDAO, SearchUtils searchUtils, SpatialSearchRequestDTO request, OutputStream outputStream) {
         super(searchDAO, searchUtils, request, outputStream);
     }
 
@@ -34,7 +33,7 @@ public class StreamTaxaAsCSVCircle extends StreamTaxaCount {
 
     void initWriter() {
         try {
-            csvWriter = new CSVWriter(new OutputStreamWriter(outputStream));
+            csvWriter = new CSVWriter(new OutputStreamWriter(outputStream), '\t', '"');
         } catch (Exception e) {
             logger.error("cannot init CSV output");
         }

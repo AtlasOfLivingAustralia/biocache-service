@@ -234,12 +234,12 @@ public class QidCacheDAOImpl implements QidCacheDAO {
         if (obj == null) {
             obj = load(key);
 
-            // Remove formatted q/fq when loading from database so that the query is formatted at least once.
-            // This is required to handle stored queries that do not reflect the current legacy field handling.
-            // e.g. queries that contained `lsid:`
-            obj.setDisplayString(null);
-
             if (obj != null) {
+                // Remove formatted q/fq when loading from database so that the query is formatted at least once.
+                // This is required to handle stored queries that do not reflect the current legacy field handling.
+                // e.g. queries that contained `lsid:`
+                obj.setDisplayString(null);
+
                 cache.put(key, obj);
 
                 // remove SOLR escaping of older qid

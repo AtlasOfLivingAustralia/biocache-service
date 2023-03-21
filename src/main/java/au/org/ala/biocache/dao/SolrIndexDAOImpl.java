@@ -1215,10 +1215,11 @@ public class SolrIndexDAOImpl implements IndexDAO {
         }
 
         int limit = query.getFacetLimit() >= 0 ? query.getFacetLimit() : -1;
-        cexpr.append(", bucketSizeLimit=").append(limit);
-
-        if (query.get("facet.offset") != null) {
-            cexpr.append(", offset=").append(query.get("facet.offset"));
+        if (query.get("facet.offset") != null && limit != -1) {
+            //cexpr.append(", offset=").append(query.get("facet.offset"));
+            cexpr.append(", bucketSizeLimit=").append(limit + Integer.parseInt(query.get("facet.offset")));
+        } else {
+            cexpr.append(", bucketSizeLimit=").append(limit);
         }
 
         cexpr.append(")");

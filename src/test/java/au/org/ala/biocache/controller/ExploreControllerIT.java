@@ -168,16 +168,14 @@ public class ExploreControllerIT extends TestCase {
 
     @Test
     public void getExploreGroup2() throws Exception {
-        MvcResult result = this.mockMvc.perform(get("/explore/group/Birds?q=-*:*&sort=count")).andReturn();
-
-        mockMvc.perform(asyncDispatch(result))
+        this.mockMvc.perform(get("/explore/group/Birds?q=-*:*&sort=count"))
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test
     public void getExploreGroup3() throws Exception {
-        this.mockMvc.perform(get("/explore/group/Birds?pageSize=0&start=0&sort=count"))
-                .andExpect(jsonPath("$.length()").value(0));
+        this.mockMvc.perform(get("/explore/group/Birds?pageSize=1&start=0&sort=count"))
+                .andExpect(jsonPath("$.length()").value(1));
     }
 
     @Test

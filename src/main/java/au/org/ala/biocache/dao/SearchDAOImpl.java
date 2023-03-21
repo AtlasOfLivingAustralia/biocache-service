@@ -15,7 +15,6 @@
 package au.org.ala.biocache.dao;
 
 import au.com.bytecode.opencsv.CSVReader;
-import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.stream.*;
@@ -26,7 +25,6 @@ import au.org.ala.biocache.writer.RecordWriterError;
 import au.org.ala.biocache.writer.TSVRecordWriter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateUtils;
@@ -51,9 +49,7 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
-import java.io.BufferedWriter;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -493,7 +489,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
         searchParams.setFlimit(-1);
 
-        getSpeciesCountsCSVCircle(searchParams, out);
+        getSpeciesCountsTSVCircle(searchParams, out);
 
         return 0;
     }
@@ -1454,11 +1450,11 @@ public class SearchDAOImpl implements SearchDAO {
         indexDao.streamingQuery(solrQuery, null, procFacet, null);
     }
 
-    protected void getSpeciesCountsCSVCircle(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
+    protected void getSpeciesCountsTSVCircle(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
         SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
         solrQuery.setFacetMissing(false);
 
-        StreamTaxaAsCSVCircle procFacet = new StreamTaxaAsCSVCircle(this, searchUtils, requestParams, outputStream);
+        StreamTaxaAsTSVCircle procFacet = new StreamTaxaAsTSVCircle(this, searchUtils, requestParams, outputStream);
         indexDao.streamingQuery(solrQuery, null, procFacet, null);
     }
 
