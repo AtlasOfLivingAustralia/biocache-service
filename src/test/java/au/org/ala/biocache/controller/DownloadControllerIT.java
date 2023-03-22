@@ -424,7 +424,7 @@ public class DownloadControllerIT extends TestCase {
 
                     @Override
                     public String getUserId() {
-                        return null;
+                        return "1234";
                     }
 
                     @Override

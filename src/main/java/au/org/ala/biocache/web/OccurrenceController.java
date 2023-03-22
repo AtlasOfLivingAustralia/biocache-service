@@ -1019,7 +1019,7 @@ public class OccurrenceController extends AbstractSecureController {
 
         final File file = new File(filepath);
         final SpeciesLookupService mySpeciesLookupService = this.speciesLookupService;
-        final DownloadDetailsDTO dd = downloadService.registerDownload(dto, downloadUser.get(),
+        final DownloadDetailsDTO dd = new DownloadDetailsDTO(dto, downloadUser.get(),
                 getIPAddress(request), getUserAgent(request), DownloadType.RECORDS_INDEX);
 
         if (file.exists()) {
@@ -1047,7 +1047,7 @@ public class OccurrenceController extends AbstractSecureController {
                                     try (FileOutputStream output = new FileOutputStream(outputFilePath);) {
                                         dto.setQ("taxonConceptID:\"" + lsid + "\"");
                                         ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
-                                        searchDAO.writeResultsFromIndexToStream(dto, new CloseShieldOutputStream(output), uidStats, dd, false, null);
+                                        searchDAO.writeResultsFromIndexToStream(dto, new CloseShieldOutputStream(output), uidStats, dd, false, executor);
                                         output.flush();
                                         try (FileOutputStream citationOutput = new FileOutputStream(citationFilePath);) {
                                             downloadService.getCitations(uidStats, citationOutput, dto.getSep(), dto.getEsc(), null, null);
@@ -1064,8 +1064,6 @@ public class OccurrenceController extends AbstractSecureController {
                         }
                     } catch (Exception e) {
                         logger.error(e.getMessage(), e);
-                    } finally {
-                        downloadService.unregisterDownload(dd);
                     }
                 }
             };

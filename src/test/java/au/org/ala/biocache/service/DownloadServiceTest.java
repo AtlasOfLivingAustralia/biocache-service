@@ -10,7 +10,6 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.util.QueryFormatUtils;
-import au.org.ala.biocache.util.thread.DownloadCreator;
 import au.org.ala.doi.CreateDoiResponse;
 import au.org.ala.ws.security.profile.AlaUserProfile;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -239,6 +238,159 @@ public class DownloadServiceTest {
         }
     };
 
+    final static AlaUserProfile TEST_USER2 = new AlaUserProfile() {
+
+        @Override
+        public String getId() {
+            return null;
+        }
+
+        @Override
+        public void setId(String id) {
+
+        }
+
+        @Override
+        public String getTypedId() {
+            return null;
+        }
+
+        @Override
+        public String getUsername() {
+            return null;
+        }
+
+        @Override
+        public Object getAttribute(String name) {
+            return null;
+        }
+
+        @Override
+        public Map<String, Object> getAttributes() {
+            return null;
+        }
+
+        @Override
+        public boolean containsAttribute(String name) {
+            return false;
+        }
+
+        @Override
+        public void addAttribute(String key, Object value) {
+
+        }
+
+        @Override
+        public void removeAttribute(String key) {
+
+        }
+
+        @Override
+        public void addAuthenticationAttribute(String key, Object value) {
+
+        }
+
+        @Override
+        public void removeAuthenticationAttribute(String key) {
+
+        }
+
+        @Override
+        public void addRole(String role) {
+
+        }
+
+        @Override
+        public void addRoles(Collection<String> roles) {
+
+        }
+
+        @Override
+        public Set<String> getRoles() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public void addPermission(String permission) {
+
+        }
+
+        @Override
+        public void addPermissions(Collection<String> permissions) {
+
+        }
+
+        @Override
+        public Set<String> getPermissions() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public boolean isRemembered() {
+            return false;
+        }
+
+        @Override
+        public void setRemembered(boolean rme) {
+
+        }
+
+        @Override
+        public String getClientName() {
+            return null;
+        }
+
+        @Override
+        public void setClientName(String clientName) {
+
+        }
+
+        @Override
+        public String getLinkedId() {
+            return null;
+        }
+
+        @Override
+        public void setLinkedId(String linkedId) {
+
+        }
+
+        @Override
+        public boolean isExpired() {
+            return false;
+        }
+
+        @Override
+        public Principal asPrincipal() {
+            return null;
+        }
+
+        @Override
+        public String getName() {
+            return null;
+        }
+
+        @Override
+        public String getUserId() {
+            return "Tester2";
+        }
+
+        @Override
+        public String getEmail() {
+            return "test2@test.com";
+        }
+
+        @Override
+        public String getGivenName() {
+            return null;
+        }
+
+        @Override
+        public String getFamilyName() {
+            return null;
+        }
+    };
+
     /**
      * This latch is used to reliably simulate stalled and successful downloads.
      */
@@ -268,34 +420,18 @@ public class DownloadServiceTest {
         testService = new DownloadService() {
             {
                 sensitiveAccessRoles20 = "{}";
-                concurrentDownloadsJSON = "[]";
             }
 
-            protected DownloadCreator getNewDownloadCreator() {
-                return new DownloadCreator() {
+            protected DownloadRunnable getDownloadRunnable(DownloadDetailsDTO dd) {
+                return new DownloadRunnable(dd) {
                     @Override
-                    public Callable<DownloadDetailsDTO> createCallable(final DownloadDetailsDTO nextDownload,
-                            final long executionDelay, final Semaphore capacitySemaphore,
-                            final ExecutorService parallelQueryExecutor) {
-                        return new Callable<DownloadDetailsDTO>() {
-                            @Override
-                            public DownloadDetailsDTO call() throws Exception {
-                                try {
-                                    // Reliably test the sequence by waiting
-                                    // here
-                                    // The latch must be already at 0 before
-                                    // test to avoid a
-                                    // wait here
+                    public void run() {
+                        try {
+                            // each download will take 2500ms
+                            Thread.sleep(2500);
+                        } catch (InterruptedException e) {
 
-
-                                    testLatch.await();
-                                    Thread.sleep(executionDelay + Math.round(Math.random() * executionDelay));
-                                    return nextDownload;
-                                } finally {
-                                    capacitySemaphore.release();
-                                }
-                            }
-                        };
+                        }
                     }
                 };
             }
@@ -315,32 +451,6 @@ public class DownloadServiceTest {
         // Ensure we are not stuck on the countdown latch if it failed to be
         // called in test as expected
         testLatch.countDown();
-        persistentQueueDAO.shutdown();
-    }
-
-    /**
-     * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#afterInitialisation()}.
-     */
-    @Test
-    public final void testAfterInitialisation() throws Exception {
-        final CountDownLatch latch = new CountDownLatch(1);
-        Thread testThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    latch.await();
-                    testService.afterInitialisation();
-                } catch (InterruptedException e) {
-                    fail("Interruption occurred: " + e.getMessage());
-                }
-            }
-        });
-        testThread.start();
-        testService.init();
-
-        latch.countDown();
-        testService.afterInitialisation();
     }
 
     /**
@@ -350,18 +460,6 @@ public class DownloadServiceTest {
     @Test
     public final void testInit() throws Exception {
         testService.init();
-    }
-
-    /**
-     * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#getNewDownloadCreator()}.
-     */
-    @Test
-    public final void testGetNewDownloadCreator() throws Exception {
-        // TODO: This method is overriden to avoid referencing classes that are
-        // not yet setup for testing
-        // Just verifies that the method continues to exist
-        testService.getNewDownloadCreator();
     }
 
     /**
@@ -377,118 +475,86 @@ public class DownloadServiceTest {
 
     /**
      * Test method for
-     * {@link DownloadService#registerDownload(DownloadRequestDTO, au.org.ala.ws.security.profile.AlaUserProfile, String, String, DownloadType)}
+     * {@link DownloadService#add(DownloadDetailsDTO)}
      */
     @Test
-    public final void testRegisterDownload() throws Exception {
+    public final void testAdd() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestDTO(), TEST_USER, "::1", "",
-                DownloadType.RECORDS_INDEX);
-        assertNotNull(registerDownload);
+        testService.add(new DownloadDetailsDTO(new DownloadRequestDTO(), TEST_USER, "::1", "", DownloadType.RECORDS_INDEX));
+        assertEquals(persistentQueueDAO.getAllDownloads().size(), 1);
+        assertEquals(testService.userExecutors.size(), 1);
     }
 
     /**
      * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#unregisterDownload(au.org.ala.biocache.dto.DownloadDetailsDTO)}.
+     * {@link au.org.ala.biocache.service.DownloadService#cancel(DownloadDetailsDTO)}.
      */
     @Test
-    public final void testUnregisterDownload() throws Exception {
+    public final void testCancel() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestDTO(), TEST_USER, "::1", "",
-                DownloadType.RECORDS_INDEX);
-        assertNotNull(registerDownload);
-        Thread.sleep(5000);
-        testService.unregisterDownload(registerDownload);
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(new DownloadRequestDTO(), TEST_USER, "::1", "", DownloadType.RECORDS_INDEX);
+        testService.add(dd);
+
+        // sleep for a little, but not enough that the tasks will finish
+        Thread.sleep(1000);
+
+        assertEquals(persistentQueueDAO.getAllDownloads().size(), 1);
+        assertEquals(testService.userExecutors.size(), 1);
+        testService.cancel(dd);
+        assertEquals(persistentQueueDAO.getAllDownloads().size(), 0);
+        assertEquals(testService.userExecutors.size(), 0);
+    }
+
+    private DownloadRequestDTO getParams(String query){
+        DownloadRequestDTO d = new DownloadRequestDTO();
+        d.setQ(query);
+        d.setFile("Testing");
+        d.setEmail("natasha.carter@csiro.au");
+        return d;
+    }
+
+    /**
+    * Test method for
+    * {@link au.org.ala.biocache.service.DownloadService#cancel(DownloadDetailsDTO)}.
+    */
+    @Test
+    public final void testCancelSingleUser() throws Exception {
+        testService.init();
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(new DownloadRequestDTO(), TEST_USER, "::1", "", DownloadType.RECORDS_INDEX);
+        testService.add(dd);
+        DownloadDetailsDTO dd2 = new DownloadDetailsDTO(getParams("test2"), TEST_USER,"127.0.0.1", "", DownloadType.FACET);
+        testService.add(dd2);
+
+        // sleep for a little, but not enough that the tasks will finish
+        Thread.sleep(1000);
+
+        assertEquals(persistentQueueDAO.getAllDownloads().size(), 2);
+        assertEquals(testService.userExecutors.size(), 1);
+        testService.cancel(dd);
+        assertEquals(persistentQueueDAO.getAllDownloads().size(), 1);
+        assertEquals(testService.userExecutors.size(), 1);
     }
 
     /**
      * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#unregisterDownload(au.org.ala.biocache.dto.DownloadDetailsDTO)}.
+     * {@link au.org.ala.biocache.service.DownloadService#cancel(DownloadDetailsDTO)}.
      */
     @Test
-    public final void testUnregisterDownloadWithoutDownloadLatchWait() throws Exception {
-        testLatch.countDown();
+    public final void testCancelMultipleUser() throws Exception {
         testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestDTO(), TEST_USER, "::1", "",
-                DownloadType.RECORDS_INDEX);
-        assertNotNull(registerDownload);
-        Thread.sleep(5000);
-        testService.unregisterDownload(registerDownload);
-    }
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(new DownloadRequestDTO(), TEST_USER, "::1", "", DownloadType.RECORDS_INDEX);
+        testService.add(dd);
+        DownloadDetailsDTO dd2 = new DownloadDetailsDTO(getParams("test2"), TEST_USER2,"127.0.0.1", "", DownloadType.FACET);
+        testService.add(dd2);
 
-    /**
-     * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#unregisterDownload(au.org.ala.biocache.dto.DownloadDetailsDTO)}.
-     */
-    @Test
-    public final void testUnregisterDownloadMultipleWithDownloadLatchWaitOn() throws Exception {
-        testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestDTO(), TEST_USER, "::1", "",
-                DownloadType.RECORDS_INDEX);
-        assertNotNull(registerDownload);
-        Thread.sleep(5000);
-        testService.unregisterDownload(registerDownload);
-        testService.unregisterDownload(registerDownload);
-    }
+        // sleep for a little, but not enough that the tasks will finish
+        Thread.sleep(1000);
 
-    /**
-     * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#unregisterDownload(au.org.ala.biocache.dto.DownloadDetailsDTO)}.
-     */
-    @Test
-    public final void testUnregisterDownloadMultipleWithDownloadLatchWaitOnNoSleep() throws Exception {
-        testService.init();
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestDTO(), TEST_USER, "::1", "",
-                DownloadType.RECORDS_INDEX);
-        assertNotNull(registerDownload);
-        testService.unregisterDownload(registerDownload);
-        testService.unregisterDownload(registerDownload);
-    }
-
-    /**
-     * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#getCurrentDownloads()}.
-     */
-    @Test
-    public final void testGetCurrentDownloadsWithDownloadLatchWaitOn() throws Exception {
-        testService.init();
-        List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
-        assertEquals(0, emptyDownloads.size());
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestDTO(), TEST_USER, "::1", "",
-                DownloadType.RECORDS_INDEX);
-        assertNotNull(registerDownload);
-        Thread.sleep(5000);
-        List<DownloadDetailsDTO> notEmptyDownloads = testService.getCurrentDownloads();
-        assertNotNull(notEmptyDownloads);
-        // testLatch has not been called, so download should be still in queue
-        assertEquals(1, notEmptyDownloads.size());
-        testService.unregisterDownload(registerDownload);
-        assertEquals(0, emptyDownloads.size());
-    }
-
-    /**
-     * Test method for
-     * {@link au.org.ala.biocache.service.DownloadService#getCurrentDownloads()}.
-     */
-    @Test
-    public final void testGetCurrentDownloadsWithoutDownloadLatchWaitOn() throws Exception {
-        // Not verifying the individual stage transitions in this test, just
-        // verifying the complete workflow, so switching off the control latch
-        testLatch.countDown();
-        testService.init();
-        List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
-        assertEquals(0, emptyDownloads.size());
-        DownloadDetailsDTO registerDownload = testService.registerDownload(new DownloadRequestDTO(), TEST_USER, "::1", "",
-                DownloadType.RECORDS_INDEX);
-        assertNotNull(registerDownload);
-        Thread.sleep(5000);
-        List<DownloadDetailsDTO> notEmptyDownloads = testService.getCurrentDownloads();
-        assertNotNull(notEmptyDownloads);
-        // Can't rely on the download still being in the queue if the latch is
-        // not active, so not testing here
-        // assertEquals(1, notEmptyDownloads.size());
-        testService.unregisterDownload(registerDownload);
-        assertEquals(0, emptyDownloads.size());
+        assertEquals(persistentQueueDAO.getAllDownloads().size(), 2);
+        assertEquals(testService.userExecutors.size(), 2);
+        testService.cancel(dd);
+        assertEquals(persistentQueueDAO.getAllDownloads().size(), 1);
+        assertEquals(testService.userExecutors.size(), 1);
     }
 
     /**
@@ -724,9 +790,8 @@ public class DownloadServiceTest {
         DownloadRequestDTO requestParams = new DownloadRequestDTO();
         requestParams.setDisplayString("[all records]");
 
-        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, null, "::1", "", DownloadType.RECORDS_INDEX);
-        assertNotNull(registerDownload);
-        testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, null, "::1", "", DownloadType.RECORDS_INDEX);
+        testService.add(dd);
         Thread.sleep(5000);
 
         verify(testService.emailService, times(1)).sendEmail(any(), any(), any());
@@ -789,9 +854,8 @@ public class DownloadServiceTest {
 
         when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), any(),  any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
 
-        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, TEST_USER, "::1", "", DownloadType.RECORDS_INDEX);
-        assertNotNull(registerDownload);
-        testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, null, "::1", "", DownloadType.RECORDS_INDEX);
+        testService.add(dd);
         Thread.sleep(5000);
 
         verify(testService.emailService).sendEmail(requestParams.getEmail(), "ALA Occurrence Download Complete - data", "");
@@ -875,9 +939,8 @@ public class DownloadServiceTest {
 
         when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), any(),  any(), anyBoolean(), any())).thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
 
-        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, TEST_USER, "::1", "", DownloadType.RECORDS_INDEX);
-        assertNotNull(registerDownload);
-        testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, null, "::1", "", DownloadType.RECORDS_INDEX);
+        testService.add(dd);
         Thread.sleep(5000);
 
         verify(testService.emailService).sendEmail(
@@ -929,9 +992,8 @@ public class DownloadServiceTest {
         requestParams.setEmailNotify(false);
         requestParams.setDisplayString("[all records]");
 
-        DownloadDetailsDTO registerDownload = testService.registerDownload(requestParams, null, "::1", "", DownloadType.RECORDS_INDEX);
-        assertNotNull(registerDownload);
-        testService.persistentQueueDAO.addDownloadToQueue(registerDownload);
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, null, "::1", "", DownloadType.RECORDS_INDEX);
+        testService.add(dd);
         Thread.sleep(5000);
 
         verify(testService.emailService, times(0)).sendEmail(any(), any(), any());
@@ -957,7 +1019,6 @@ public class DownloadServiceTest {
         DownloadService testService = new DownloadService() {
             {
                 sensitiveAccessRoles20 = "{}";
-                concurrentDownloadsJSON = "[]";
             }
         };
 

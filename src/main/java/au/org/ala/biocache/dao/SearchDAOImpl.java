@@ -314,25 +314,6 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @return An instance of ExecutorService used to concurrently execute multiple solr queries for online downloads.
-     */
-    private ExecutorService getSolrOnlineThreadPoolExecutor() {
-        ExecutorService nextExecutor = solrOnlineExecutor;
-        if (nextExecutor == null) {
-            synchronized (this) {
-                nextExecutor = solrOnlineExecutor;
-                if (nextExecutor == null) {
-                    nextExecutor = solrOnlineExecutor = Executors.newFixedThreadPool(
-                            getMaxSolrOnlineDownloadThreads(),
-                            new ThreadFactoryBuilder().setNameFormat("biocache-solr-online-%d")
-                                    .setPriority(Thread.MIN_PRIORITY).build());
-                }
-            }
-        }
-        return nextExecutor;
-    }
-
-    /**
      * (Endemic)
      * <p>
      * Returns a list of species that are only within a subQuery.
@@ -599,10 +580,6 @@ public class SearchDAOImpl implements SearchDAO {
             throw new Exception("PostConstruct not finished, downloadFields==null");
         }
 
-        if (nextExecutor == null) {
-            nextExecutor = getSolrOnlineThreadPoolExecutor();
-        }
-
         // reset counts when retrying a download
         dd.resetCounts();
 
@@ -615,27 +592,35 @@ public class SearchDAOImpl implements SearchDAO {
         // create writer
         RecordWriter recordWriter = createRecordWriter(downloadParams, downloadHeaders, out);
 
-        // submit download
-        Future future = nextExecutor.submit(prepareDownloadRunner(downloadParams, downloadHeaders, dd, uidStats, recordWriter));
+        // submit download to executor
+        if (nextExecutor != null) {
+            // TODO: remove when deprecated services are removed: /occurrences/download and /occurrences/download/batchFile
+            Future future = nextExecutor.submit(prepareDownloadRunner(downloadParams, downloadHeaders, dd, uidStats, recordWriter));
 
-        // wait for download to finish
-        // Busy wait because we need to be able to respond to an interrupt on any callable
-        // and propagate it to all of the others for this particular query
-        // Because the executor service is shared to prevent too many concurrent threads being run,
-        // this requires a busy wait loop on the main thread to monitor state
-        boolean waitAgain = false;
-        do {
-            waitAgain = false;
-            if (!future.isDone()) {
-                // Wait again even if an interrupt flag is set, as it may have been set partway through the iteration
-                // The calls to future.cancel will occur next time if the interrupt is setup partway through an iteration
-                waitAgain = true;
-            }
+            // wait for download to finish
+            // Busy wait because we need to be able to respond to an interrupt on any callable
+            // and propagate it to all of the others for this particular query
+            // Because the executor service is shared to prevent too many concurrent threads being run,
+            // this requires a busy wait loop on the main thread to monitor state
+            boolean waitAgain = false;
+            do {
+                waitAgain = false;
+                if (!future.isDone()) {
+                    // Wait again even if an interrupt flag is set, as it may have been set partway through the iteration
+                    // The calls to future.cancel will occur next time if the interrupt is setup partway through an iteration
+                    waitAgain = true;
+                }
 
-            if (waitAgain) {
-                Thread.sleep(downloadCheckBusyWaitSleep);
-            }
-        } while (waitAgain);
+                if (waitAgain) {
+                    Thread.sleep(downloadCheckBusyWaitSleep);
+                }
+            } while (waitAgain);
+        } else {
+            // This is already running in an executor
+            prepareDownloadRunner(downloadParams, downloadHeaders, dd, uidStats, recordWriter).call();
+        }
+
+
 
         // close writer
         recordWriter.finalise();
@@ -1851,7 +1836,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see a1u.org.ala.biocache.dao.SearchDAO#findAllSpeciesJSON(SpatialSearchRequestDTO, OutputStream)
+     * @see au.org.ala.biocache.dao.SearchDAO#findAllSpeciesJSON(SpatialSearchRequestDTO, OutputStream)
      */
     @Override
     public void findAllSpeciesJSON(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
