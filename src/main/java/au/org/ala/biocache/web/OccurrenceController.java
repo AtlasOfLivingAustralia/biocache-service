@@ -1193,6 +1193,9 @@ public class OccurrenceController extends AbstractSecureController {
      * 1) JWT - user is retrieved from JWT, supplied email address is ignored...
      * 2) API Key and X-Auth-Id - email address retrieved from CAS/Userdetails - email address is ignored...
      * 3) Email address supplied (Galah) - email address is verified - no sensitive access
+     * 4) Email address supplied and emailOnlyEnabled == false - email is not verified - no sensitive access
+     *
+     * TODO: implement DownloadController.isAuthorisedSystem method before removing this deprecated service
      */
     @Deprecated
     @SecurityRequirement(name = "JWT")

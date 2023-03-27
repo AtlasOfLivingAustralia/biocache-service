@@ -324,7 +324,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     }
 
     private boolean isAuthorisedSystem(DownloadDetailsDTO dd) {
-        // TODO: this is required when the deprecated /occurrence/download is removed. Use JWT scope test.
+        // TODO: this is required when the deprecated /occurrence/download is removed. Use JWT scope to test for permission.
         return false;
     }
 
