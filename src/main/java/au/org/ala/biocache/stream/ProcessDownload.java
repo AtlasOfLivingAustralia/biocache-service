@@ -103,6 +103,10 @@ public class ProcessDownload implements ProcessInterface {
      * @return
      */
     public boolean process(Tuple tuple) {
+        if (downloadDetails.getInterrupt()) {
+            // task cancelled
+            return false;
+        }
 
         boolean finished = false;
 

@@ -1,5 +1,8 @@
 package au.org.ala.biocache.dto;
 
+
+import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.common.base.CaseFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(name = "DownloadStatus")
@@ -7,7 +10,19 @@ public class DownloadStatusDTO {
     DownloadStatus status;
 
     public enum DownloadStatus {
-        RUNNING, IN_QUEUE, SKIPPED, FINISHED, FAILED, UNAVAILABLE, CANCELLED, INVALID_ID
+        RUNNING,
+        IN_QUEUE,
+        SKIPPED,
+        FINISHED,
+        FAILED,
+        UNAVAILABLE,
+        CANCELLED,
+        INVALID_ID;
+
+        @JsonValue
+        public String getName() {
+            return CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, this.name());
+        }
     }
 
     Long totalRecords;

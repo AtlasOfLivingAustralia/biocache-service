@@ -1,12 +1,12 @@
 /**************************************************************************
  *  Copyright (C) 2013 Atlas of Living Australia
  *  All Rights Reserved.
- * 
+ *
  *  The contents of this file are subject to the Mozilla Public
  *  License Version 1.1 (the "License"); you may not use this file
  *  except in compliance with the License. You may obtain a copy of
  *  the License at http://www.mozilla.org/MPL/
- * 
+ *
  *  Software distributed under the License is distributed on an "AS
  *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  *  implied. See the License for the specific language governing
@@ -15,6 +15,7 @@
 package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dto.DownloadRequestDTO;
+import au.org.ala.biocache.util.AlaUnvalidatedProfile;
 import au.org.ala.ws.security.profile.AlaUserProfile;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
@@ -81,7 +82,7 @@ public class AuthService {
             reloadCaches();
         }
     }
-    
+
     public Map<String, String> getMapOfAllUserNamesById() {
         return userNamesById;
     }
@@ -96,9 +97,9 @@ public class AuthService {
 
     /**
      * Returns the display name to be used by a client.
-     * 
+     *
      * Performs a lookup based on the email id and the numeric id.
-     * 
+     *
      * @param value
      * @return
      */
@@ -115,7 +116,7 @@ public class AuthService {
         }
         return displayName;
     }
-    
+
     public String substituteEmailAddress(String raw){
       return raw == null ? raw : raw.replaceAll("\\@\\w+", "@..");
     }
@@ -223,6 +224,7 @@ public class AuthService {
      * 1) Check for JWT / OAuth- user is retrieved from UserPrincipal along with a set of roles, supplied email address is ignored...
      * 2) Legacy API Key and X-Auth-Id - email address retrieved from CAS/Userdetails - email address is ignored...
      * 3) Email address supplied (Galah) - email address is verified - no sensitive access
+     * 4) Email address supplied and emailOnlyEnabled == false - email is not verified - no sensitive access
      */
     public Optional<AlaUserProfile> getDownloadUser(DownloadRequestDTO downloadRequestDTO, HttpServletRequest request) {
 
@@ -243,6 +245,9 @@ public class AuthService {
                 // invalid email
                 logger.info("Email only download request failed - invalid email " + downloadRequestDTO.getEmail());
             }
+        } else if (!emailOnlyEnabled && downloadRequestDTO.getEmail() != null) {
+            // 4) Continue with this unvalidated email
+            return Optional.of(new AlaUnvalidatedProfile(downloadRequestDTO.getEmail()));
         }
 
         return Optional.empty();

@@ -51,6 +51,8 @@ public class DownloadDetailsDTO {
     private final AtomicLong recordsDownloaded = new AtomicLong(0);
     private String processingThreadName = null;
 
+    private AtomicBoolean interrupt = new AtomicBoolean(false);
+
     /**
      * Default constructor necessary for Jackson to create an object from the JSON.
      */
@@ -219,6 +221,14 @@ public class DownloadDetailsDTO {
 
     public void setAlaUser(AlaUserProfile alaUser) {
         this.alaUser = alaUser;
+    }
+
+    public void setInterrupt(Boolean interrupt) {
+        this.interrupt.set(interrupt);
+    }
+
+    public Boolean getInterrupt() {
+        return interrupt.get();
     }
 
     public void resetCounts() {

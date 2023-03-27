@@ -428,187 +428,189 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
             sp.closeEntry();
 
-            // Add the data citation to the download
-            List<String> citationsForReadme = new ArrayList<String>();
+            // continue if the download is not cancelled
+            if (!dd.getInterrupt()) {
+                // Add the data citation to the download
+                List<String> citationsForReadme = new ArrayList<String>();
 
-            Boolean mintDoi = requestParams.getMintDoi();
-            CreateDoiResponse doiResponse = null;
-            String doi = "";
+                Boolean mintDoi = requestParams.getMintDoi();
+                CreateDoiResponse doiResponse = null;
+                String doi = "";
 
-            Map<String, String> enabledQualityFiltersByLabel = dataQualityService.getEnabledFiltersByLabel(requestParams);
-            List<QualityFilterDTO> qualityFilters = getQualityFilterDTOS(enabledQualityFiltersByLabel);
-            final String searchUrl = generateSearchUrl(requestParams, enabledQualityFiltersByLabel);
-            String dqFixedSearchUrl = dataQualityService.convertDataQualityParameters(searchUrl, enabledQualityFiltersByLabel);
+                Map<String, String> enabledQualityFiltersByLabel = dataQualityService.getEnabledFiltersByLabel(requestParams);
+                List<QualityFilterDTO> qualityFilters = getQualityFilterDTOS(enabledQualityFiltersByLabel);
+                final String searchUrl = generateSearchUrl(requestParams, enabledQualityFiltersByLabel);
+                String dqFixedSearchUrl = dataQualityService.convertDataQualityParameters(searchUrl, enabledQualityFiltersByLabel);
 
-            if (citationsEnabled) {
-                List<Map<String, String>> datasetMetadata = null;
-                if (mintDoi) {
-                    datasetMetadata = new ArrayList<>();
-                }
-
-                // add the citations for the supplied uids
-                sp.putNextEntry("citation.csv");
-                try {
-                    getCitations(uidStats, sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme, datasetMetadata);
-                } catch (IOException e) {
-                    logger.error(e.getMessage(), e);
-                }
-                sp.closeEntry();
-
-                if (mintDoi) {
-
-                    // Prepare licence
-                    Set<String> datasetLicences = new TreeSet<>();
-                    for (Map<String, String> dataset : datasetMetadata) {
-                        String licence = dataset.get("licence");
-
-                        if (StringUtils.isNotBlank(licence)) {
-                            datasetLicences.add(licence);
-                        }
+                if (citationsEnabled) {
+                    List<Map<String, String>> datasetMetadata = null;
+                    if (mintDoi) {
+                        datasetMetadata = new ArrayList<>();
                     }
 
-                    List<String> licence = Lists.newArrayList(datasetLicences);
-
+                    // add the citations for the supplied uids
+                    sp.putNextEntry("citation.csv");
                     try {
-                        DownloadDoiDTO doiDetails = new DownloadDoiDTO();
+                        getCitations(uidStats, sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme, datasetMetadata);
+                    } catch (IOException e) {
+                        logger.error(e.getMessage(), e);
+                    }
+                    sp.closeEntry();
 
-                        doiDetails.setTitle(biocacheDownloadDoiTitlePrefix + filename);
-                        doiDetails.setApplicationUrl(dqFixedSearchUrl);
-                        doiDetails.setRequesterId(dd.getAlaUser() == null ? null : getUserId(dd));
-                        doiDetails.setRequesterName(dd.getAlaUser() == null ? null : dd.getAlaUser().getGivenName() + " " + dd.getAlaUser().getFamilyName());
-                        doiDetails.setAuthorisedRoles(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles());
-                        doiDetails.setDatasetMetadata(datasetMetadata);
-                        doiDetails.setRequestTime(dd.getStartDateString());
-                        doiDetails.setRecordCount(dd.getTotalRecords());
-                        doiDetails.setLicence(licence);
-                        doiDetails.setQueryTitle(requestParams.getDisplayString());
-                        doiDetails.setApplicationMetadata(requestParams.getDoiMetadata());
-                        if (StringUtils.isNotBlank(requestParams.getQualityProfile())) {
-                            doiDetails.setDataProfile(dataQualityService.getProfileFullName(requestParams.getQualityProfile()));
+                    if (mintDoi) {
+
+                        // Prepare licence
+                        Set<String> datasetLicences = new TreeSet<>();
+                        for (Map<String, String> dataset : datasetMetadata) {
+                            String licence = dataset.get("licence");
+
+                            if (StringUtils.isNotBlank(licence)) {
+                                datasetLicences.add(licence);
+                            }
                         }
-                        doiDetails.setQualityFilters(qualityFilters);
-                        doiDetails.setDisplayTemplate(requestParams.getDoiDisplayTemplate());
 
-                        doiResponse = doiService.mintDoi(doiDetails);
+                        List<String> licence = Lists.newArrayList(datasetLicences);
 
-                    } catch (Exception e) {
-                        logger.error("DOI minting failed", e);
+                        try {
+                            DownloadDoiDTO doiDetails = new DownloadDoiDTO();
+
+                            doiDetails.setTitle(biocacheDownloadDoiTitlePrefix + filename);
+                            doiDetails.setApplicationUrl(dqFixedSearchUrl);
+                            doiDetails.setRequesterId(dd.getAlaUser() == null ? null : getUserId(dd));
+                            doiDetails.setRequesterName(dd.getAlaUser() == null ? null : dd.getAlaUser().getGivenName() + " " + dd.getAlaUser().getFamilyName());
+                            doiDetails.setAuthorisedRoles(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles());
+                            doiDetails.setDatasetMetadata(datasetMetadata);
+                            doiDetails.setRequestTime(dd.getStartDateString());
+                            doiDetails.setRecordCount(dd.getTotalRecords());
+                            doiDetails.setLicence(licence);
+                            doiDetails.setQueryTitle(requestParams.getDisplayString());
+                            doiDetails.setApplicationMetadata(requestParams.getDoiMetadata());
+                            if (StringUtils.isNotBlank(requestParams.getQualityProfile())) {
+                                doiDetails.setDataProfile(dataQualityService.getProfileFullName(requestParams.getQualityProfile()));
+                            }
+                            doiDetails.setQualityFilters(qualityFilters);
+                            doiDetails.setDisplayTemplate(requestParams.getDoiDisplayTemplate());
+
+                            doiResponse = doiService.mintDoi(doiDetails);
+
+                        } catch (Exception e) {
+                            logger.error("DOI minting failed", e);
+                        }
+                        if (doiResponse != null) {
+                            logger.debug("DOI minted: " + doiResponse.getDoi());
+                            doiResponseList.add(doiResponse);
+                        } else {
+                            logger.error("DOI minting failed for path " + dd.getFileLocation());
+                        }
                     }
-                    if (doiResponse != null) {
-                        logger.debug("DOI minted: " + doiResponse.getDoi());
-                        doiResponseList.add(doiResponse);
+                } else {
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " + uidStats);
+                    }
+                }
+
+                // online downloads will not have a file location or request params set
+                // in dd.
+                if (dd.getRequestParams() == null) {
+                    dd.setRequestParams(requestParams);
+                }
+                if (dd.getFileLocation() == null) {
+                    dd.setFileLocation(dqFixedSearchUrl);
+                }
+
+                if (readmeEnabled) {
+                    // add the Readme for the data field descriptions
+                    sp.putNextEntry("README.html");
+                    String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
+
+                    String readmeFile;
+                    String fileLocation;
+
+                    if (mintDoi && doiResponse != null) {
+                        readmeFile = biocacheDownloadDoiReadmeTemplate;
+                        doi = doiResponse.getDoi();
+                        // TODO: The downloads-plugin has issues with unencoded user queries
+                        // Working around that by hardcoding the official DOI resolution service as the landing page
+                        // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
+                        fileLocation = OFFICIAL_DOI_RESOLVER + doi;
+
                     } else {
-                        logger.error("DOI minting failed for path " + dd.getFileLocation());
+                        readmeFile = biocacheDownloadReadmeTemplate;
+                        fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
                     }
+
+                    String readmeTemplate = "";
+                    if (readmeFile != null && new File(readmeFile).exists()) {
+                        readmeTemplate = FileUtils.readFileToString(new File(readmeFile), StandardCharsets.UTF_8);
+                    }
+
+                    String dataQualityFilters = "";
+                    if (!qualityFilters.isEmpty()) {
+                        dataQualityFilters = getDataQualityFiltersString(qualityFilters);
+                    }
+
+                    String readmeContent = readmeTemplate.replace("[url]", fileLocation)
+                            .replace("[date]", dd.getStartDateString(downloadDateFormat))
+                            .replace("[searchUrl]", dqFixedSearchUrl)
+                            .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
+                            .replace("[dataProviders]", dataProviders)
+                            .replace("[dataQualityFilters]", dataQualityFilters);
+
+                    sp.write(readmeContent.getBytes(StandardCharsets.UTF_8));
+                    sp.write(("For more information about the fields that are being downloaded please consult <a href='"
+                            + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes(StandardCharsets.UTF_8));
+                    sp.closeEntry();
                 }
-            } else {
-                if (logger.isDebugEnabled()) {
-                    logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " + uidStats);
-                }
-            }
-
-            // online downloads will not have a file location or request params set
-            // in dd.
-            if (dd.getRequestParams() == null) {
-                dd.setRequestParams(requestParams);
-            }
-            if (dd.getFileLocation() == null) {
-                dd.setFileLocation(dqFixedSearchUrl);
-            }
-
-            if (readmeEnabled) {
-                // add the Readme for the data field descriptions
-                sp.putNextEntry("README.html");
-                String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
-
-                String readmeFile;
-                String fileLocation;
 
                 if (mintDoi && doiResponse != null) {
-                    readmeFile = biocacheDownloadDoiReadmeTemplate;
-                    doi = doiResponse.getDoi();
-                    // TODO: The downloads-plugin has issues with unencoded user queries
-                    // Working around that by hardcoding the official DOI resolution service as the landing page
-                    // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
-                    fileLocation = OFFICIAL_DOI_RESOLVER + doi;
 
+                    sp.putNextEntry("doi.txt");
+
+                    sp.write((OFFICIAL_DOI_RESOLVER + doiResponse.getDoi()).getBytes(StandardCharsets.UTF_8));
+                    sp.write(CSVWriter.DEFAULT_LINE_END.getBytes(StandardCharsets.UTF_8));
+                    sp.closeEntry();
+                }
+
+                // Add headings file, listing information about the headings
+                if (headingsEnabled) {
+                    // add the citations for the supplied uids
+                    sp.putNextEntry("headings.csv");
+                    try {
+                        getHeadings(downloadHeaders, sp, requestParams, dd.getMiscFields());
+                    } catch (Exception e) {
+                        logger.error(e.getMessage(), e);
+                    }
+                    sp.closeEntry();
                 } else {
-                    readmeFile = biocacheDownloadReadmeTemplate;
-                    fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
-                }
-
-                String readmeTemplate = "";
-                if (readmeFile != null && new File(readmeFile).exists()) {
-                    readmeTemplate = FileUtils.readFileToString(new File(readmeFile), StandardCharsets.UTF_8);
-                }
-
-                String dataQualityFilters = "";
-                if (!qualityFilters.isEmpty()) {
-                    dataQualityFilters = getDataQualityFiltersString(qualityFilters);
-                }
-
-                String readmeContent = readmeTemplate.replace("[url]", fileLocation)
-                        .replace("[date]", dd.getStartDateString(downloadDateFormat))
-                        .replace("[searchUrl]", dqFixedSearchUrl)
-                        .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
-                        .replace("[dataProviders]", dataProviders)
-                        .replace("[dataQualityFilters]", dataQualityFilters);
-
-                sp.write(readmeContent.getBytes(StandardCharsets.UTF_8));
-                sp.write(("For more information about the fields that are being downloaded please consult <a href='"
-                        + dataFieldDescriptionURL + "'>Download Fields</a>.").getBytes(StandardCharsets.UTF_8));
-                sp.closeEntry();
-            }
-
-            if (mintDoi && doiResponse != null) {
-
-                sp.putNextEntry("doi.txt");
-
-                sp.write((OFFICIAL_DOI_RESOLVER + doiResponse.getDoi()).getBytes(StandardCharsets.UTF_8));
-                sp.write(CSVWriter.DEFAULT_LINE_END.getBytes(StandardCharsets.UTF_8));
-                sp.closeEntry();
-            }
-
-            // Add headings file, listing information about the headings
-            if (headingsEnabled) {
-                // add the citations for the supplied uids
-                sp.putNextEntry("headings.csv");
-                try {
-                    getHeadings(downloadHeaders, sp, requestParams, dd.getMiscFields());
-                } catch (Exception e) {
-                    logger.error(e.getMessage(), e);
-                }
-                sp.closeEntry();
-            } else {
-                if (logger.isDebugEnabled()) {
-                    logger.debug("Not adding header. Enabled: " + headingsEnabled + " uids: " + uidStats);
-                }
-            }
-
-            if ((biocacheDownloadAdditionalLocalFiles != null) && !biocacheDownloadAdditionalLocalFiles.isEmpty()) {
-                String[] localFiles = biocacheDownloadAdditionalLocalFiles.split(",");
-                for (String localFile : localFiles) {
-                    File f = new File(localFile);
-                    if (f.exists()) {
-                        sp.putNextEntry(f.getName());
-                        sp.write(IOUtils.toByteArray(new FileInputStream(f)));
-                        sp.closeEntry();
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Not adding header. Enabled: " + headingsEnabled + " uids: " + uidStats);
                     }
                 }
+
+                if ((biocacheDownloadAdditionalLocalFiles != null) && !biocacheDownloadAdditionalLocalFiles.isEmpty()) {
+                    String[] localFiles = biocacheDownloadAdditionalLocalFiles.split(",");
+                    for (String localFile : localFiles) {
+                        File f = new File(localFile);
+                        if (f.exists()) {
+                            sp.putNextEntry(f.getName());
+                            sp.write(IOUtils.toByteArray(new FileInputStream(f)));
+                            sp.closeEntry();
+                        }
+                    }
+                }
+
+                sp.flush();
+
+                // now construct the sourceUrl for the log event
+                String sourceUrl = originalParams.contains("qid:") ? webservicesRoot + "?" + requestParams.toString()
+                        : webservicesRoot + "?" + originalParams;
+
+                // log the stats to ala logger
+                LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
+                        requestParams.getEmail(), requestParams.getReason(), dd.getIpAddress(), dd.getUserAgent(), null, uidStats, sourceUrl);
+
+                loggerService.logEvent(vo);
             }
-
-            sp.flush();
-
-            // now construct the sourceUrl for the log event
-            String sourceUrl = originalParams.contains("qid:") ? webservicesRoot + "?" + requestParams.toString()
-                    : webservicesRoot + "?" + originalParams;
-
-            // log the stats to ala logger
-            LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
-                    requestParams.getEmail(), requestParams.getReason(), dd.getIpAddress(), dd.getUserAgent(), null, uidStats, sourceUrl);
-
-            loggerService.logEvent(vo);
-
         } catch (RecordWriterException e) {
             logger.error(e.getMessage(), e);
         } catch (InterruptedException e) {
@@ -1123,6 +1125,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     public void cancel(DownloadDetailsDTO dd) throws InterruptedException {
 
+        dd.setInterrupt(true);
+
         ThreadPoolExecutor ex = userExecutors.get(getUserId(dd));
         if (ex != null) {
             // remove from persistent queue (disk)
@@ -1141,7 +1145,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 // copy to a new queue and create a new executor
                 if (ex.getQueue().size() == 0) {
                     userExecutors.remove(getUserId(dd));
-                    ex.awaitTermination(-1, TimeUnit.SECONDS);
+                    ex.shutdownNow();
+                    ex.awaitTermination(20, TimeUnit.SECONDS);
                 } else {
                     int maxPoolSize = 1;
 
@@ -1157,6 +1162,13 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     userExecutors.put(getUserId(dd), executor);
                 }
             }
+
+            // finally, remove any output files
+            File outputFile = new File(dd.getFileLocation());
+            if (outputFile.exists()) {
+                outputFile.delete();
+            }
+
         }
     }
 
@@ -1207,116 +1219,115 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         doiResponseList
                 );
 
-                logger.info("Sending email to recipient mintDoi " + mintDoi);
-                if (mintDoi && doiResponseList.size() <= 0) {
-                    //DOI Minting failed
-                    doiFailureMessage = biocacheDownloadDoiFailureMessage;
-                    mintDoi = false; //Prevent any updates
-                }
+                // continue if not cancelled
+                if (!currentDownload.getInterrupt()) {
+                    logger.info("Sending email to recipient mintDoi " + mintDoi);
+                    if (mintDoi && doiResponseList.size() <= 0) {
+                        //DOI Minting failed
+                        doiFailureMessage = biocacheDownloadDoiFailureMessage;
+                        mintDoi = false; //Prevent any updates
+                    }
 
-                logger.info("Sending email to recipient");
-                // now that the download is complete email a link to the
-                // recipient.
-                final String hubName = currentDownload.getRequestParams().getHubName() != null ? currentDownload.getRequestParams().getHubName() : "ALA";
-                String subject = messageSource.getMessage("offlineEmailSubject", null, biocacheDownloadEmailSubject, null)
-                        .replace("[filename]", currentDownload.getRequestParams().getFile())
-                        .replace("[hubName]", hubName);
+                    logger.info("Sending email to recipient");
+                    // now that the download is complete email a link to the
+                    // recipient.
+                    final String hubName = currentDownload.getRequestParams().getHubName() != null ? currentDownload.getRequestParams().getHubName() : "ALA";
+                    String subject = messageSource.getMessage("offlineEmailSubject", null, biocacheDownloadEmailSubject, null)
+                            .replace("[filename]", currentDownload.getRequestParams().getFile())
+                            .replace("[hubName]", hubName);
 
-                logger.info("currentDownload = " + currentDownload);
+                    logger.info("currentDownload = " + currentDownload);
 
-                if (currentDownload != null && currentDownload.getFileLocation() != null) {
+                    if (currentDownload != null && currentDownload.getFileLocation() != null) {
 
-                    logger.info("currentDownload.getFileLocation() = " + currentDownload.getFileLocation());
-                    insertMiscHeader(currentDownload);
+                        logger.info("currentDownload.getFileLocation() = " + currentDownload.getFileLocation());
+                        insertMiscHeader(currentDownload);
 
-                    //ensure new directories and download file have correct permissions
-                    new File(currentDownload.getFileLocation()).setReadable(true, false);
-                    new File(currentDownload.getFileLocation()).getParentFile().setReadable(true, false);
-                    new File(currentDownload.getFileLocation()).getParentFile().getParentFile().setReadable(true, false);
-                    new File(currentDownload.getFileLocation()).getParentFile().setExecutable(true, false);
-                    new File(currentDownload.getFileLocation()).getParentFile().getParentFile().setExecutable(true, false);
+                        //ensure new directories and download file have correct permissions
+                        new File(currentDownload.getFileLocation()).setReadable(true, false);
+                        new File(currentDownload.getFileLocation()).getParentFile().setReadable(true, false);
+                        new File(currentDownload.getFileLocation()).getParentFile().getParentFile().setReadable(true, false);
+                        new File(currentDownload.getFileLocation()).getParentFile().setExecutable(true, false);
+                        new File(currentDownload.getFileLocation()).getParentFile().getParentFile().setExecutable(true, false);
 
-                    String archiveFileLocation = biocacheDownloadUrl + File.separator + URLEncoder.encode(currentDownload.getFileLocation().replace(biocacheDownloadDir + "/", ""), "UTF-8").replace("%2F", "/").replace("+", "%20");
-                    final String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
-                    String doiStr = "";
-                    String emailTemplate;
-                    String emailTemplateFile;
-                    Map<String, String> substitutions = new HashMap<>();
-                    substitutions.put(START_DATE_TIME, currentDownload.getStartDateString(downloadDateFormat));
-                    substitutions.put(QUERY_TITLE, currentDownload.getRequestParams().getDisplayString());
-                    substitutions.put(SEARCH_URL, searchUrl);
-                    substitutions.put(DOI_FAILURE_MESSAGE, doiFailureMessage);
+                        String archiveFileLocation = biocacheDownloadUrl + File.separator + URLEncoder.encode(currentDownload.getFileLocation().replace(biocacheDownloadDir + "/", ""), "UTF-8").replace("%2F", "/").replace("+", "%20");
+                        final String searchUrl = generateSearchUrl(currentDownload.getRequestParams());
+                        String doiStr = "";
+                        String emailTemplate;
+                        String emailTemplateFile;
+                        Map<String, String> substitutions = new HashMap<>();
+                        substitutions.put(START_DATE_TIME, currentDownload.getStartDateString(downloadDateFormat));
+                        substitutions.put(QUERY_TITLE, currentDownload.getRequestParams().getDisplayString());
+                        substitutions.put(SEARCH_URL, searchUrl);
+                        substitutions.put(DOI_FAILURE_MESSAGE, doiFailureMessage);
 
-                    if (mintDoi && doiResponseList != null && !doiResponseList.isEmpty() && doiResponseList.get(0) != null) {
+                        if (mintDoi && doiResponseList != null && !doiResponseList.isEmpty() && doiResponseList.get(0) != null) {
 
-                        CreateDoiResponse doiResponse;
-                        doiResponse = doiResponseList.get(0);
-                        try {
-                            doiService.updateFile(doiResponse.getUuid(), currentDownload.getFileLocation());
-                            doiStr = doiResponse.getDoi();
-                            if (currentDownload.getRequestParams().getEmailTemplate() == DEFAULT_SELECTOR) {
-                                currentDownload.getRequestParams().setEmailTemplate(DOI_SELECTOR);
+                            CreateDoiResponse doiResponse;
+                            doiResponse = doiResponseList.get(0);
+                            try {
+                                doiService.updateFile(doiResponse.getUuid(), currentDownload.getFileLocation());
+                                doiStr = doiResponse.getDoi();
+                                if (currentDownload.getRequestParams().getEmailTemplate() == DEFAULT_SELECTOR) {
+                                    currentDownload.getRequestParams().setEmailTemplate(DOI_SELECTOR);
+                                }
+
+                                // TODO: The downloads-plugin has issues with unencoded user queries
+                                // Working around that by hardcoding the official DOI resolution service as the landing page
+                                // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
+                                substitutions.put(DOWNLOAD_FILE_LOCATION, alaDoiResolver + doiStr);
+                                substitutions.put(OFFICIAL_FILE_LOCATION, OFFICIAL_DOI_RESOLVER + doiStr);
+                                substitutions.put(BCCVL_IMPORT_ID, URLEncoder.encode(doiStr, "UTF-8"));
+                            } catch (Exception ex) {
+                                logger.error("DOI update failed for DOI uuid " + doiResponse.getUuid() +
+                                        " and path " + currentDownload.getFileLocation(), ex);
+                                currentDownload.getRequestParams().setEmailTemplate(DEFAULT_SELECTOR);
+                                substitutions.put(DOWNLOAD_FILE_LOCATION, archiveFileLocation);
                             }
-
-                            // TODO: The downloads-plugin has issues with unencoded user queries
-                            // Working around that by hardcoding the official DOI resolution service as the landing page
-                            // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
-                            substitutions.put(DOWNLOAD_FILE_LOCATION, alaDoiResolver + doiStr);
-                            substitutions.put(OFFICIAL_FILE_LOCATION, OFFICIAL_DOI_RESOLVER + doiStr);
-                            substitutions.put(BCCVL_IMPORT_ID, URLEncoder.encode(doiStr, "UTF-8"));
-                        } catch (Exception ex) {
-                            logger.error("DOI update failed for DOI uuid " + doiResponse.getUuid() +
-                                    " and path " + currentDownload.getFileLocation(), ex);
+                        } else {
                             currentDownload.getRequestParams().setEmailTemplate(DEFAULT_SELECTOR);
                             substitutions.put(DOWNLOAD_FILE_LOCATION, archiveFileLocation);
                         }
-                    } else {
-                        currentDownload.getRequestParams().setEmailTemplate(DEFAULT_SELECTOR);
-                        substitutions.put(DOWNLOAD_FILE_LOCATION, archiveFileLocation);
-                    }
 
-                    logger.info("currentDownload.getRequestParams().isEmailNotify()  = " + currentDownload.getRequestParams().isEmailNotify());
+                        logger.info("currentDownload.getRequestParams().isEmailNotify()  = " + currentDownload.getRequestParams().isEmailNotify());
 
-                    if (currentDownload.getRequestParams().isEmailNotify()) {
+                        if (currentDownload.getRequestParams().isEmailNotify()) {
 
-                        // save the statistics to the download directory
-                        try (FileOutputStream statsStream = FileUtils
-                                .openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()
-                                        + File.separator + "downloadStats.json"))) {
-                            objectMapper.writeValue(statsStream, currentDownload);
+                            // save the statistics to the download directory
+                            try (FileOutputStream statsStream = FileUtils
+                                    .openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()
+                                            + File.separator + "downloadStats.json"))) {
+                                objectMapper.writeValue(statsStream, currentDownload);
+                            }
+
+                            emailTemplateFile = getEmailTemplateFile(currentDownload);
+                            emailTemplate = FileUtils.readFileToString(new File(emailTemplateFile), StandardCharsets.UTF_8);
+                            String emailBody = generateEmailContent(emailTemplate, substitutions);
+
+                            // save the statistics to the download directory
+                            try (FileOutputStream statsStream = FileUtils
+                                    .openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()
+                                            + File.separator + "downloadStats.json"))) {
+                                objectMapper.writeValue(statsStream, currentDownload);
+                            }
+
+                            logger.info("Delay sending the email to allow.....");
+                            if (mintDoi && doiResponseList != null && !doiResponseList.isEmpty() && doiResponseList.get(0) != null) {
+                                // Delay sending the email to allow the DOI to propagate through to upstream DOI providers
+                                logger.info("Delay sending the email to allow....." + doiPropagationDelay);
+                                Thread.sleep(doiPropagationDelay);
+                            }
+
+                            logger.info("Sending email now to  " + currentDownload.getRequestParams().getEmail());
+                            emailService.sendEmail(currentDownload.getRequestParams().getEmail(), subject, emailBody);
+                            logger.info("Email sent to  " + currentDownload.getRequestParams().getEmail());
                         }
-
-                        emailTemplateFile = getEmailTemplateFile(currentDownload);
-                        emailTemplate = FileUtils.readFileToString(new File(emailTemplateFile), StandardCharsets.UTF_8);
-                        String emailBody = generateEmailContent(emailTemplate, substitutions);
-
-                        // save the statistics to the download directory
-                        try (FileOutputStream statsStream = FileUtils
-                                .openOutputStream(new File(new File(currentDownload.getFileLocation()).getParent()
-                                        + File.separator + "downloadStats.json"))) {
-                            objectMapper.writeValue(statsStream, currentDownload);
-                        }
-
-                        logger.info("Delay sending the email to allow.....");
-                        if (mintDoi && doiResponseList != null && !doiResponseList.isEmpty() && doiResponseList.get(0) != null) {
-                            // Delay sending the email to allow the DOI to propagate through to upstream DOI providers
-                            logger.info("Delay sending the email to allow....." + doiPropagationDelay);
-                            Thread.sleep(doiPropagationDelay);
-                        }
-
-                        logger.info("Sending email now to  " + currentDownload.getRequestParams().getEmail());
-                        emailService.sendEmail(currentDownload.getRequestParams().getEmail(), subject, emailBody);
-                        logger.info("Email sent to  " + currentDownload.getRequestParams().getEmail());
                     }
                 }
-
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 //shutting down
                 shuttingDown = true;
-            } catch (CancellationException e) {
-                //download cancelled, do not send an email
-                logger.info("Download cancelled...");
             } catch (Exception e) {
                 logger.error("Error in offline download, sending email. download path: "
                         + currentDownload.getFileLocation(), e);
@@ -1353,9 +1364,14 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             } finally {
                 // in case of server up/down, only remove from queue
                 // after emails are sent
-                if (!shuttingDown && !doRetry) {
+                if (currentDownload.getInterrupt() || (!shuttingDown && !doRetry)) {
                     persistentQueueDAO.remove(currentDownload);
                 }
+            }
+
+            if (currentDownload.getInterrupt()) {
+                // remove output file when cancelled
+                new File(currentDownload.getFileLocation()).delete();
             }
         }
     }

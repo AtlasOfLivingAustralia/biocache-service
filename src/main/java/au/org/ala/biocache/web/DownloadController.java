@@ -35,6 +35,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocumentList;
 import org.springdoc.api.annotations.ParameterObject;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.stereotype.Controller;
@@ -49,9 +50,10 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.security.Principal;
 import java.util.*;
 import com.fasterxml.jackson.annotation.JsonInclude;
+
+import static java.util.stream.Collectors.*;
 
 /**
  * A Controller for downloading records based on queries.  This controller
@@ -82,6 +84,9 @@ public class DownloadController extends AbstractSecureController {
     @Inject
     protected DownloadService downloadService;
 
+    @Value("${auth.legacy.emailonly.downloads.enabled:true}")
+    protected Boolean emailOnlyEnabled = true;
+
     /**
      * Retrieves all the downloads that are on the queue
      * @return
@@ -91,7 +96,7 @@ public class DownloadController extends AbstractSecureController {
     @Secured({"ROLE_ADMIN"})
     @Operation(summary = "Retrieves all the downloads that are on the queue", tags = "Monitoring")
     @RequestMapping(value = {"occurrences/offline/download/stats"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody List getCurrentDownloads() throws Exception {
+    public @ResponseBody Map<String, List<DownloadStatusDTO>> getCurrentDownloads() throws Exception {
         return allOccurrenceDownloadStatus();
     }
 
@@ -173,12 +178,14 @@ public class DownloadController extends AbstractSecureController {
             status.setStatus(DownloadStatusDTO.DownloadStatus.SKIPPED);
             status.setMessage(downloadService.downloadOfflineMsg);
             status.setError("Requested to many records (" + dd.getTotalRecords() + "). The maximum is (" + downloadService.dowloadOfflineMaxSize + ")");
+
+            writeStatusFile(dd.getUniqueId(), status);
         } else {
             downloadService.add(dd);
             status = getQueueStatus(dd);
-        }
 
-        writeStatusFile(dd.getUniqueId(), status);
+            writeStatusFile(dd.getUniqueId(), status);
+        }
 
         return status;
     }
@@ -186,37 +193,31 @@ public class DownloadController extends AbstractSecureController {
     @SecurityRequirement(name="JWT")
     @Secured({"ROLE_ADMIN"})
     @Operation(summary = "List all occurrence downloads", tags = "Monitoring")
-    @RequestMapping(value = {"occurrences/offline/status/admin"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody List<DownloadStatusDTO> allOccurrenceDownloadStatus() throws Exception {
+    @RequestMapping(value = {"occurrences/offline/status/all"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody Map<String, List<DownloadStatusDTO>> allOccurrenceDownloadStatus() {
 
-        List<DownloadStatusDTO> allStatus = new ArrayList<>();
+        //return each queue
+        Map<String, List<DownloadStatusDTO>> downloads = persistentQueueDAO.getAllDownloads().stream()
+                .collect(groupingBy(dd -> dd.getAlaUser().getEmail(), mapping(this::getQueueStatusAdmin, toList())));
 
-        //is it in the queue?
-        List<DownloadDetailsDTO> downloads = persistentQueueDAO.getAllDownloads();
-        for (DownloadDetailsDTO dd : downloads) {
-            allStatus.add(getQueueStatus(dd));
-        }
-
-        return allStatus;
+        return downloads;
     }
 
+    @SecurityRequirement(name="JWT")
     @Secured({"ROLE_USER"})
-    @Operation(summary = "List all occurrence downloads", tags = "Monitoring")
+    @Operation(summary = "List all occurrence downloads by the current user", tags = "Monitoring")
     @RequestMapping(value = {"occurrences/offline/status"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody List<DownloadStatusDTO> allOccurrenceDownloadStatusForUser(HttpServletRequest request) throws Exception {
+    public @ResponseBody Map<String, List<DownloadStatusDTO>> allOccurrenceDownloadStatusForUser(
+            HttpServletRequest request) throws Exception {
 
-        AlaUserProfile alaUserProfile = authService.getRecordViewUser(request).get();
-        List<DownloadStatusDTO> allStatus = new ArrayList<>();
+        Optional<AlaUserProfile> alaUserProfile = authService.getRecordViewUser(request);
 
-        //is it in the queue?
-        List<DownloadDetailsDTO> downloads = persistentQueueDAO.getAllDownloads();
-        for (DownloadDetailsDTO dd : downloads) {
-            if (dd.getAlaUser().getUserId() == alaUserProfile.getUserId()) {
-                allStatus.add(getQueueStatus(dd));
-            }
-        }
+        //return each queue
+        Map<String, List<DownloadStatusDTO>> downloads = persistentQueueDAO.getAllDownloads().stream()
+                .filter(dd -> dd.getAlaUser().getUserId().equals(alaUserProfile.get().getUserId()))
+                .collect(groupingBy(dd -> dd.getAlaUser().getEmail(), mapping(this::getQueueStatus, toList())));
 
-        return allStatus;
+        return downloads;
     }
 
     private void writeStatusFile(String id, DownloadStatusDTO status) throws IOException {
@@ -229,9 +230,7 @@ public class DownloadController extends AbstractSecureController {
     @Operation(summary = "Get the status of download", tags = "Download")
     @RequestMapping(value = { "occurrences/offline/status/{id}"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ApiParam(value = "id", required = true)
-    public @ResponseBody DownloadStatusDTO occurrenceDownloadStatus(@PathVariable("id") String id) throws Exception {
-        DownloadStatusDTO status = new DownloadStatusDTO();
-
+    public @ResponseBody DownloadStatusDTO occurrenceDownloadStatus(@PathVariable("id") String id) {
         //is it in the queue?
         List<DownloadDetailsDTO> downloads = persistentQueueDAO.getAllDownloads();
         for (DownloadDetailsDTO dd : downloads) {
@@ -246,7 +245,15 @@ public class DownloadController extends AbstractSecureController {
         return getOtherStatus(cleanId);
     }
 
+    private DownloadStatusDTO getQueueStatusAdmin(DownloadDetailsDTO dd) {
+        return getQueueStatus(dd, true);
+    }
+
     private DownloadStatusDTO getQueueStatus(DownloadDetailsDTO dd) {
+        return getQueueStatus(dd, false);
+    }
+
+    private DownloadStatusDTO getQueueStatus(DownloadDetailsDTO dd, boolean isAdmin) {
         DownloadStatusDTO status = new DownloadStatusDTO();
 
         if (dd != null) {
@@ -260,7 +267,7 @@ public class DownloadController extends AbstractSecureController {
             }
             status.setTotalRecords(dd.getTotalRecords());
             status.setStatusUrl(downloadService.webservicesRoot + "/occurrences/offline/status/" + id);
-            if (authService.getMapOfEmailToId() != null) {
+            if (isAdmin && authService.getMapOfEmailToId() != null) {
                 status.setUserId(authService.getMapOfEmailToId().get(dd.getRequestParams().getEmail()));
             }
             status.setSearchUrl(downloadService.generateSearchUrl(dd.getRequestParams()));
@@ -305,15 +312,15 @@ public class DownloadController extends AbstractSecureController {
             }
         }
 
-        File file = new File(downloadService.biocacheDownloadDir + File.separator + id + "/status.json");
+        File statusFile = new File(downloadService.biocacheDownloadDir + File.separator + id + "/status.json");
         if (status.getStatus() == null) {
             //check downloads directory for a status file
-            if (file.exists()) {
+            if (statusFile.exists()) {
                 ObjectMapper om = new ObjectMapper();
                 try {
-                    status = om.readValue(file, DownloadStatusDTO.class);
+                    status = om.readValue(statusFile, DownloadStatusDTO.class);
                 } catch (IOException e) {
-                    logger.error("failed to read file: " + file.getPath() + ", " + e.getMessage());
+                    logger.error("failed to read file: " + statusFile.getPath() + ", " + e.getMessage());
                 }
 
                 // the status.json is only used when a download request is 'lost'. Use an appropriate status.
@@ -347,14 +354,14 @@ public class DownloadController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
+    @SecurityRequirement(name="JWT")
     @Secured({"ROLE_USER"})
     @Operation(summary = "Cancel an offline download", tags = "Monitoring")
     @RequestMapping(value = {"occurrences/offline/cancel/{id}"}, method = RequestMethod.GET)
     @ApiParam(value = "id", required = true)
     public @ResponseBody DownloadStatusDTO occurrenceDownloadCancel(
             @PathVariable("id") String id,
-            HttpServletRequest request,
-            HttpServletResponse response) throws Exception {
+            HttpServletRequest request) throws Exception {
 
         DownloadStatusDTO status = new DownloadStatusDTO();
 
@@ -362,17 +369,14 @@ public class DownloadController extends AbstractSecureController {
         List<DownloadDetailsDTO> downloads = persistentQueueDAO.getAllDownloads();
         for (DownloadDetailsDTO dd : downloads) {
             if (id.equals(dd.getUniqueId())) {
-                // 2) Check for JWT / OAuth
-                Principal userPrincipal = request.getUserPrincipal();
-                if (userPrincipal != null && userPrincipal instanceof AlaUserProfile){
-                    AlaUserProfile user = (AlaUserProfile) userPrincipal;
-                    if (dd.getAlaUser().getUserId() == user.getUserId() || user.getRoles().contains("ROLE_ADMIN")) {
-                        downloadService.cancel(dd);
+                AlaUserProfile alaUserProfile = authService.getRecordViewUser(request).get();
 
-                        status.setStatus(DownloadStatusDTO.DownloadStatus.CANCELLED);
+                if (dd.getAlaUser().getUserId().equals(alaUserProfile.getUserId()) || alaUserProfile.getRoles().contains("ROLE_ADMIN")) {
+                    downloadService.cancel(dd);
 
-                        return status;
-                    }
+                    status.setStatus(DownloadStatusDTO.DownloadStatus.CANCELLED);
+
+                    return status;
                 }
             }
         }
