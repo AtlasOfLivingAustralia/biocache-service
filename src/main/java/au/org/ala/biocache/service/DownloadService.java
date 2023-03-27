@@ -1125,41 +1125,22 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     public void cancel(DownloadDetailsDTO dd) throws InterruptedException {
 
+        // signal download to end
         dd.setInterrupt(true);
 
+        // wait a short time for the download to end itself should it be running
+        Thread.sleep(500);
+
+        // get executor for this user
         ThreadPoolExecutor ex = userExecutors.get(getUserId(dd));
         if (ex != null) {
             // remove from persistent queue (disk)
-            boolean wasInPersistentQueue = persistentQueueDAO.remove(dd);
+            persistentQueueDAO.remove(dd);
 
-            boolean removed = false;
+            // remove from executor queue
             for (Runnable r : ex.getQueue()) {
                 if (((DownloadRunnable) r).currentDownload.getUniqueId() == dd.getUniqueId()) {
                     ex.remove(r);
-                    removed = true;
-                }
-            }
-
-            // Shutdown executor and move queue to a new executor if it was not removed from the waiting queue
-            if (!removed && wasInPersistentQueue) {
-                // copy to a new queue and create a new executor
-                if (ex.getQueue().size() == 0) {
-                    userExecutors.remove(getUserId(dd));
-                    ex.shutdownNow();
-                    ex.awaitTermination(20, TimeUnit.SECONDS);
-                } else {
-                    int maxPoolSize = 1;
-
-                    if (isAuthorisedSystem(dd)) {
-                        // authorised systems are permitted a larger number of concurrent requests
-                        maxPoolSize = maxOfflineParallelQueryDownloadThreads;
-                    }
-
-                    ThreadPoolExecutor executor = new ThreadPoolExecutor(1, maxPoolSize, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
-                    for (Runnable r : ex.getQueue()) {
-                        executor.execute(r);
-                    }
-                    userExecutors.put(getUserId(dd), executor);
                 }
             }
 
