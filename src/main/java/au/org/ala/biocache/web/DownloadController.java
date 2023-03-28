@@ -175,7 +175,7 @@ public class DownloadController extends AbstractSecureController {
             FileUtils.forceMkdir(file.getParentFile());
             FileUtils.writeStringToFile(file, "", "UTF-8");
             status.setDownloadUrl(downloadService.biocacheDownloadUrl);
-            status.setStatus(DownloadStatusDTO.DownloadStatus.SKIPPED);
+            status.setStatus(DownloadStatusDTO.DownloadStatus.TOO_LARGE);
             status.setMessage(downloadService.downloadOfflineMsg);
             status.setError("Requested to many records (" + dd.getTotalRecords() + "). The maximum is (" + downloadService.dowloadOfflineMaxSize + ")");
 
@@ -280,8 +280,23 @@ public class DownloadController extends AbstractSecureController {
     private DownloadStatusDTO getOtherStatus(String id) {
         DownloadStatusDTO status = new DownloadStatusDTO();
 
-        // look for output files
+        File statusFile = new File(downloadService.biocacheDownloadDir + File.separator + id + "/status.json");
         if (status.getStatus() == null) {
+            //check downloads directory for a status file
+            if (statusFile.exists()) {
+                ObjectMapper om = new ObjectMapper();
+                try {
+                    status = om.readValue(statusFile, DownloadStatusDTO.class);
+                } catch (IOException e) {
+                    logger.error("failed to read file: " + statusFile.getPath() + ", " + e.getMessage());
+                }
+            }
+        }
+
+        // look for output files
+        if (status.getStatus() == null
+                || status.getStatus() == DownloadStatusDTO.DownloadStatus.RUNNING
+                || status.getStatus() == DownloadStatusDTO.DownloadStatus.IN_QUEUE) {
             File dir = new File(downloadService.biocacheDownloadDir + File.separator + id.replaceAll("-([0-9]*)$", "/$1"));
             if (dir.isDirectory() && dir.exists()) {
                 for (File file : dir.listFiles()) {
@@ -298,45 +313,16 @@ public class DownloadController extends AbstractSecureController {
 
                     // notification for large download
                     if (file.isFile() && "tooLarge".equals(file.getName())) {
-                        status.setStatus(DownloadStatusDTO.DownloadStatus.SKIPPED);
+                        status.setStatus(DownloadStatusDTO.DownloadStatus.TOO_LARGE);
                         status.setMessage(downloadService.downloadOfflineMsg);
                         status.setDownloadUrl(downloadService.dowloadOfflineMaxUrl);
                         status.setError("requested to many records. The upper limit is (" + downloadService.dowloadOfflineMaxSize + ")");
                     }
                 }
-
-                // output directory exists and there is no output file
-                if (status.getStatus() == null) {
-                    status.setStatus(DownloadStatusDTO.DownloadStatus.FAILED);
-                }
             }
         }
 
-        File statusFile = new File(downloadService.biocacheDownloadDir + File.separator + id + "/status.json");
-        if (status.getStatus() == null) {
-            //check downloads directory for a status file
-            if (statusFile.exists()) {
-                ObjectMapper om = new ObjectMapper();
-                try {
-                    status = om.readValue(statusFile, DownloadStatusDTO.class);
-                } catch (IOException e) {
-                    logger.error("failed to read file: " + statusFile.getPath() + ", " + e.getMessage());
-                }
-
-                // the status.json is only used when a download request is 'lost'. Use an appropriate status.
-                status.setStatus(DownloadStatusDTO.DownloadStatus.UNAVAILABLE);
-                status.setMessage("This download is unavailable.");
-            }
-        }
-
-        if (status.getStatus() == null) {
-            status.setStatus(DownloadStatusDTO.DownloadStatus.INVALID_ID);
-        }
-
-        // write final status to a file
-        if (status.getStatus() != DownloadStatusDTO.DownloadStatus.INVALID_ID
-                && status.getStatus() != DownloadStatusDTO.DownloadStatus.IN_QUEUE
-                && status.getStatus() != DownloadStatusDTO.DownloadStatus.UNAVAILABLE) {
+        if (status.getStatus() != null) {
             try {
                 writeStatusFile(id, status);
             } catch (IOException e) {
@@ -363,8 +349,6 @@ public class DownloadController extends AbstractSecureController {
             @PathVariable("id") String id,
             HttpServletRequest request) throws Exception {
 
-        DownloadStatusDTO status = new DownloadStatusDTO();
-
         //is it in the queue?
         List<DownloadDetailsDTO> downloads = persistentQueueDAO.getAllDownloads();
         for (DownloadDetailsDTO dd : downloads) {
@@ -372,9 +356,15 @@ public class DownloadController extends AbstractSecureController {
                 AlaUserProfile alaUserProfile = authService.getRecordViewUser(request).get();
 
                 if (dd.getAlaUser().getUserId().equals(alaUserProfile.getUserId()) || alaUserProfile.getRoles().contains("ROLE_ADMIN")) {
+                    // get current status
+                    DownloadStatusDTO status = getQueueStatus(dd);
+
+                    // cancel download
                     downloadService.cancel(dd);
 
+                    // update status
                     status.setStatus(DownloadStatusDTO.DownloadStatus.CANCELLED);
+                    writeStatusFile(dd.getUniqueId(), status);
 
                     return status;
                 }

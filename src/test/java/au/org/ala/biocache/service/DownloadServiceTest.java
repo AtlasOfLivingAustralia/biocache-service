@@ -496,13 +496,14 @@ public class DownloadServiceTest {
         testService.add(dd);
 
         // sleep for a little, but not enough that the tasks will finish
-        Thread.sleep(1000);
+        Thread.sleep(500);
 
         assertEquals(persistentQueueDAO.getAllDownloads().size(), 1);
         assertEquals(testService.userExecutors.size(), 1);
         testService.cancel(dd);
+        Thread.sleep(500);
         assertEquals(persistentQueueDAO.getAllDownloads().size(), 0);
-        assertEquals(testService.userExecutors.size(), 0);
+        assertEquals(testService.userExecutors.size(), 1);
     }
 
     private DownloadRequestDTO getParams(String query){
@@ -526,11 +527,12 @@ public class DownloadServiceTest {
         testService.add(dd2);
 
         // sleep for a little, but not enough that the tasks will finish
-        Thread.sleep(1000);
+        Thread.sleep(500);
 
         assertEquals(persistentQueueDAO.getAllDownloads().size(), 2);
         assertEquals(testService.userExecutors.size(), 1);
         testService.cancel(dd);
+        Thread.sleep(500);
         assertEquals(persistentQueueDAO.getAllDownloads().size(), 1);
         assertEquals(testService.userExecutors.size(), 1);
     }
@@ -548,13 +550,14 @@ public class DownloadServiceTest {
         testService.add(dd2);
 
         // sleep for a little, but not enough that the tasks will finish
-        Thread.sleep(1000);
+        Thread.sleep(500);
 
         assertEquals(persistentQueueDAO.getAllDownloads().size(), 2);
         assertEquals(testService.userExecutors.size(), 2);
         testService.cancel(dd);
+        Thread.sleep(500);
         assertEquals(persistentQueueDAO.getAllDownloads().size(), 1);
-        assertEquals(testService.userExecutors.size(), 1);
+        assertEquals(testService.userExecutors.size(), 2);
     }
 
     /**

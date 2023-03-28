@@ -12,12 +12,9 @@ public class DownloadStatusDTO {
     public enum DownloadStatus {
         RUNNING,
         IN_QUEUE,
-        SKIPPED,
+        TOO_LARGE,
         FINISHED,
-        FAILED,
-        UNAVAILABLE,
-        CANCELLED,
-        INVALID_ID;
+        CANCELLED;
 
         @JsonValue
         public String getName() {

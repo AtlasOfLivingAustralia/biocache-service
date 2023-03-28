@@ -1139,7 +1139,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
             // remove from executor queue
             for (Runnable r : ex.getQueue()) {
-                if (((DownloadRunnable) r).currentDownload.getUniqueId() == dd.getUniqueId()) {
+                if (((DownloadRunnable) r).currentDownload.getUniqueId().equals(dd.getUniqueId())) {
                     ex.remove(r);
                 }
             }
