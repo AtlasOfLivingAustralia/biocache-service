@@ -24,6 +24,7 @@ import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.ws.security.profile.AlaUserProfile;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -223,7 +224,8 @@ public class DownloadController extends AbstractSecureController {
     private void writeStatusFile(String id, DownloadStatusDTO status) throws IOException {
         File statusDir = new File(downloadService.biocacheDownloadDir + "/" + id.replaceAll("-([0-9]*)$", "/$1"));
         statusDir.mkdirs();
-        String json = net.sf.json.JSONObject.fromObject(status).toString();
+        ObjectWriter ow = new ObjectMapper().writer();
+        String json = ow.writeValueAsString(status);
         FileUtils.writeStringToFile(new File(statusDir.getPath() + "/status.json"), json, "UTF-8");
     }
 
@@ -240,7 +242,6 @@ public class DownloadController extends AbstractSecureController {
         }
 
         String cleanId = id.replaceAll("[^a-z\\-0-9]", "");
-        cleanId = cleanId.replaceAll("-([0-9]*)$", "/$1");
 
         return getOtherStatus(cleanId);
     }
@@ -280,7 +281,7 @@ public class DownloadController extends AbstractSecureController {
     private DownloadStatusDTO getOtherStatus(String id) {
         DownloadStatusDTO status = new DownloadStatusDTO();
 
-        File statusFile = new File(downloadService.biocacheDownloadDir + File.separator + id + "/status.json");
+        File statusFile = new File(downloadService.biocacheDownloadDir + File.separator + id.replaceAll("-([0-9]*)$", "/$1") + "/status.json");
         if (status.getStatus() == null) {
             //check downloads directory for a status file
             if (statusFile.exists()) {
