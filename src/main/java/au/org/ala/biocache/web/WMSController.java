@@ -338,20 +338,11 @@ public class WMSController extends AbstractSecureController {
     @Operation(summary = "JSON web service that returns a list of species and record counts for a given location search", tags = "Mapping")
     @RequestMapping(value = {
             "/mapping/species"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public
-    @ResponseBody
-    List<TaxaCountDTO> listSpecies(@ParameterObject SpatialSearchRequestParams params) throws Exception {
-        return searchDAO.findAllSpecies(SpatialSearchRequestDTO.create(params));
-    }
+    public void listSpecies(@ParameterObject SpatialSearchRequestParams params,
+                                   HttpServletResponse response) throws Exception {
+        response.setContentType("application/json");
 
-    @Deprecated
-    @Operation(summary = "JSON web service that returns a list of species and record counts for a given location search", tags = "Mapping")
-    @RequestMapping(value = {
-            "/webportal/species"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public
-    @ResponseBody
-    List<TaxaCountDTO> listSpeciesDeprecated(@ParameterObject SpatialSearchRequestParams params) throws Exception {
-        return searchDAO.findAllSpecies(SpatialSearchRequestDTO.create(params));
+        searchDAO.findAllSpeciesJSON(SpatialSearchRequestDTO.create(params), response.getOutputStream());
     }
 
     /**
@@ -369,55 +360,9 @@ public class WMSController extends AbstractSecureController {
             HttpServletResponse response) throws Exception {
 
         SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
-        List<TaxaCountDTO> list = searchDAO.findAllSpecies(dto);
+        response.setContentType("application/json");
 
-        //format as csv
-        StringBuilder sb = new StringBuilder();
-        sb.append(SPECIES_LIST_CSV_HEADER);
-        for (TaxaCountDTO d : list) {
-            String family = d.getFamily();
-            String name = d.getName();
-            String commonName = d.getCommonName();
-            String guid = d.getGuid();
-            String rank = d.getRank();
-
-            if (family == null) {
-                family = "";
-            }
-            if (name == null) {
-                name = "";
-            }
-            if (commonName == null) {
-                commonName = "";
-            }
-
-            if (d.getGuid() == null) {
-                //when guid is empty name contains name_lsid value.
-                if (d.getName() != null) {
-                    //parse name
-                    String[] nameLsid = d.getName().split("\\|");
-                    if (nameLsid.length >= 2) {
-                        name = nameLsid[0];
-                        guid = nameLsid[1];
-                        rank = "scientific name";
-
-                        if (nameLsid.length >= 3) {
-                            commonName = nameLsid[2];
-                        }
-                    } else {
-                        name = NULL_NAME;
-                    }
-                }
-            }
-            if (d.getCount() != null && guid != null) {
-                sb.append("\n\"").append(family.replace("\"", "\"\"").trim()).append("\",\"").append(name.replace("\"", "\"\"").trim()).append("\",\"").append(commonName.replace("\"", "\"\"").trim()).append("\",").append(rank).append(",").append(guid).append(",").append(d.getCount());
-            }
-        }
-
-        response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
-        response.setHeader("ETag", wmsETag.get());
-
-        writeBytes(response, sb.toString().getBytes(StandardCharsets.UTF_8));
+        searchDAO.findAllSpeciesCSV(dto, response.getOutputStream());
     }
 
     /**

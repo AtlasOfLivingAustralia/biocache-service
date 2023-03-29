@@ -933,32 +933,15 @@ public class OccurrenceController extends AbstractSecureController {
         Optional<AlaUserProfile> downloadUser = authService.getDownloadUser(dto, request);
 
         if (dto.getFacets().length > 0) {
-            DownloadDetailsDTO dd = downloadService.registerDownload(
-                    dto,
-                    downloadUser.orElse(null),  // anonymous facet downloads are allowed
-                    getIPAddress(request),
-                    getUserAgent(request),
-                    DownloadDetailsDTO.DownloadType.FACET
-            );
             try {
                 String filename = dto.getFile() != null ? dto.getFile() : dto.getFacets()[0];
                 response.setHeader("Cache-Control", "must-revalidate");
                 response.setHeader("Pragma", "must-revalidate");
                 response.setHeader("Content-Disposition", "attachment;filename=" + filename + ".csv");
                 response.setContentType("text/csv");
-                searchDAO.writeFacetToStream(
-                        dto,
-                        includeCount,
-                        lookupName,
-                        includeSynonyms,
-                        includeLists,
-                        response.getOutputStream(),
-                        dd
-                );
+                searchDAO.writeFacetToStream(dto, includeCount, lookupName, includeSynonyms, includeLists, response.getOutputStream(), null);
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
-            } finally {
-                downloadService.unregisterDownload(dd);
             }
         }
     }

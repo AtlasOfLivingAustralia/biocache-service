@@ -126,6 +126,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
+    @Deprecated
     List<OccurrencePoint> getFacetPoints(SpatialSearchRequestDTO searchParams, PointType pointType) throws Exception;
 
     /**
@@ -136,6 +137,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
+    @Deprecated
     List<OccurrencePoint> findRecordsForLocation(SpatialSearchRequestDTO requestParams, PointType pointType) throws Exception;
 
     /**
@@ -171,13 +173,22 @@ public interface SearchDAO {
     Map<String, Integer> getOccurrenceCountsForTaxa(List<String> taxa, String[] filterQueries) throws Exception;
 
     /**
-     * Find all species (and counts) for a given query.
+     * Find all species (and counts) for a given query and stream as JSON
      *
      * @param requestParams
      * @return
      * @throws Exception
      */
-    List<TaxaCountDTO> findAllSpecies(SpatialSearchRequestDTO requestParams) throws Exception;
+    void findAllSpeciesJSON(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception;
+
+    /**
+     * Find all species (and counts) for a given query and stream as CSV
+     *
+     * @param requestParams
+     * @return
+     * @throws Exception
+     */
+    void findAllSpeciesCSV(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception;
 
     /**
      * Find all occurrences for a given query as SolrDocumentList

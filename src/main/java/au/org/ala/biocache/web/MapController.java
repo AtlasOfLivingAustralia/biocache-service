@@ -433,6 +433,7 @@ public class MapController {
      * @param pointType
      * @return returns an empty array if none found.
      */
+    @Deprecated
     private double[] retrievePoints(SpatialSearchRequestDTO requestParams, PointType pointType) {
 
         double[] points = new double[0];
