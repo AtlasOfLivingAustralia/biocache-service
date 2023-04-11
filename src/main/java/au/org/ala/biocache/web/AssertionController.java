@@ -252,6 +252,19 @@ public class AssertionController extends AbstractSecureController {
         return deleteAssertion(recordUuid, assertionUuid, request, response);
     }
 
+    @SecurityRequirement(name="JWT")
+    @Operation(summary = "Removes an assertion from a record", tags = {"Assertions", "Occurrence"})
+    @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/delete"}, method = RequestMethod.DELETE)
+    @ApiParam(value = "recordUuid", required = true)
+    public ResponseEntity deleteAssertionWithParam(
+            @PathVariable(value="recordUuid") String recordUuid,
+            @RequestParam(value="assertionUuid", required=true) String assertionUuid,
+            HttpServletRequest request,
+            HttpServletResponse response) throws Exception {
+
+        return deleteAssertion(recordUuid, assertionUuid, request, response);
+    }
+
     @Deprecated
     @SecurityRequirement(name="JWT")
     @Operation(summary = "Removes an assertion", tags = "Deprecated")
@@ -270,11 +283,11 @@ public class AssertionController extends AbstractSecureController {
      */
     @SecurityRequirement(name="JWT")
     @Operation(summary = "Removes an assertion from a record", tags = {"Assertions", "Occurrence"})
-    @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/delete"}, method = RequestMethod.DELETE)
+    @RequestMapping(value = {"/occurrences/{recordUuid}/assertions/{assertionUuid}"}, method = RequestMethod.DELETE)
     @ApiParam(value = "recordUuid", required = true)
     public ResponseEntity deleteAssertion(
         @PathVariable(value="recordUuid") String recordUuid,
-        @RequestParam(value="assertionUuid", required=true) String assertionUuid,
+        @PathVariable(value="assertionUuid") String assertionUuid,
         HttpServletRequest request,
         HttpServletResponse response) throws Exception {
 
