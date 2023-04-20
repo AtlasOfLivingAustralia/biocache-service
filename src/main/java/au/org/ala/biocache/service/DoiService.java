@@ -16,6 +16,7 @@ package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dto.DownloadDoiDTO;
 import au.org.ala.doi.*;
+import au.org.ala.ws.service.WebService;
 import com.google.common.net.UrlEscapers;
 import okhttp3.*;
 import org.apache.log4j.Logger;
@@ -27,6 +28,7 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -41,6 +43,9 @@ public class DoiService {
     private static final Logger logger = Logger.getLogger(DoiService.class);
     public static final String DISPLAY_TEMPLATE_BIOCACHE = "biocache";
     public static final String DISPLAY_TEMPLATE_CSDM = "csdm";
+
+    @Inject
+    protected WebService webService;
 
     @Value("${doi.service.url:https://devt.ala.org.au/doi-service/api/}")
     private String doiServiceUrl;
@@ -80,7 +85,7 @@ public class DoiService {
                 Request original = chain.request();
 
                 Request request = original.newBuilder()
-                        .header("apiKey", doiServiceApiKey)
+                        .header("Authorization", String.format("Bearer %s", webService.getTokenService().getAuthToken(false)))
                         .method(original.method(), original.body())
                         .build();
 

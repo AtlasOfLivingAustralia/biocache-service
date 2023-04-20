@@ -46,6 +46,8 @@ version = '3.1.6-SNAPSHOT'
 
 boolean inplace = false
 
+def alaSecurityLibsVersion='6.0.0-SNAPSHOT'
+
 configurations {
 
     all*.exclude group: 'ch.qos.logback'
@@ -130,9 +132,10 @@ dependencies {
 
     } else {
 
-        implementation 'au.org.ala:ala-ws-spring-security:4.4.0-SNAPSHOT'
+        implementation "au.org.ala:ala-ws-spring-security:$alaSecurityLibsVersion"
     }
 
+    implementation "org.grails.plugins:ala-ws-plugin:$alaSecurityLibsVersion"
     implementation 'org.codehaus.groovy:groovy-all:3.0.11'
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
