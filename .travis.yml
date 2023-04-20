@@ -11,6 +11,7 @@ branches:
     - /^epic\/.*\/develop$/
     - /^release\/.*$/
     - /^hotfix\/.*$/
+    - /^feature\/.*$/
     - feature/upgrade-of-ala-ws-security-dependency
 before_cache:
   - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
