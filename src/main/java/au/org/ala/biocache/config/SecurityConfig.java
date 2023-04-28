@@ -16,7 +16,7 @@ import org.springframework.security.web.authentication.www.BasicAuthenticationFi
 import javax.inject.Inject;
 
 @Configuration
-@ComponentScan(basePackages = { "au.org.ala.ws.security", "au.ala.org.ws.security" })
+@ComponentScan(basePackages = { "au.org.ala.ws.security" })
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(securedEnabled = true)
 @Order(1)

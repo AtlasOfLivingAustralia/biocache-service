@@ -49,6 +49,7 @@ boolean inplace = false
 configurations {
 
     all*.exclude group: 'ch.qos.logback'
+    all*.exclude group: 'javax.servlet', module: 'servlet-api'
 }
 
 dependencies {
@@ -130,7 +131,7 @@ dependencies {
 
     } else {
 
-        implementation 'au.org.ala:ala-ws-spring-security:4.4.0-SNAPSHOT'
+        implementation 'au.org.ala:ala-ws-spring-security:6.1.0-SNAPSHOT'
     }
 
     implementation 'org.codehaus.groovy:groovy-all:3.0.11'
@@ -153,7 +154,7 @@ dependencies {
     testImplementation 'org.codehaus.groovy:groovy:2.5.14'
     testImplementation 'org.springframework:spring-tx:5.3.9'
 
-    implementation 'javax.servlet:javax.servlet-api:3.1.0'
+    implementation 'javax.servlet:javax.servlet-api:4.0.1'
     implementation 'javax.servlet:jsp-api:2.0'
 
     providedRuntime 'javax.el:javax.el-api:3.0.0'
