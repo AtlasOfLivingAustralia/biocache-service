@@ -10,7 +10,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.MockitoAnnotations;
-import org.pac4j.oidc.credentials.OidcCredentials;
 import org.springframework.http.HttpEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.client.RestTemplate;
@@ -32,15 +31,6 @@ public class AuthServiceTest {
     TokenService tokenService;
 
     RestTemplate restTemplate;
-
-        static class AuthTokenResponseMock {
-        String header;
-        public String toAuthorizationHeader(){return header;}
-
-        public AuthTokenResponseMock(){
-            header = "";
-        }
-    }
 
     final static AlaUserProfile API_KEY_TEST_USER = new AlaUserProfile() {
 
@@ -200,7 +190,7 @@ public class AuthServiceTest {
     public void setup() {
         authService.userDetailsUrl = "http://mocked";
         restTemplate = mock(RestTemplate.class);
-//        tokenService = mock(TokenService.class);
+        tokenService = mock(TokenService.class);
         mocks = MockitoAnnotations.openMocks(this);
     }
 
