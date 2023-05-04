@@ -17,6 +17,7 @@ package au.org.ala.biocache.service;
 import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.biocache.util.AlaUnvalidatedProfile;
 import au.org.ala.ws.security.profile.AlaUserProfile;
+import au.org.ala.ws.tokens.TokenService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
@@ -25,6 +26,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 
 import javax.inject.Inject;
 import jakarta.mail.internet.AddressException;
@@ -70,6 +73,9 @@ public class AuthService {
 
     @Value("${auth.legacy.emailonly.downloads.enabled:true}")
     protected Boolean emailOnlyEnabled = true;
+
+    @Inject
+    private TokenService tokenService;
 
     // Keep a reference to the output Map in case subsequent web service lookups fail
     protected Map<String, String> userNamesById = RestartDataService.get(this, "userNamesById", new TypeReference<HashMap<String, String>>(){}, HashMap.class);
@@ -126,7 +132,10 @@ public class AuthService {
             final String jsonUri = userDetailsUrl + userNamesForIdPath;
             try {
                 logger.debug("authCache requesting: " + jsonUri);
-                Map m = restTemplate.postForObject(jsonUri, null, Map.class);
+                HttpHeaders requestHeaders = new HttpHeaders();
+                requestHeaders.set("Authorization", tokenService.getAuthToken(false).toAuthorizationHeader());
+                HttpEntity<Object> request = new HttpEntity<>(null, requestHeaders);
+                Map m = restTemplate.postForObject(jsonUri, request, Map.class);
                 if (m != null && m.size() > 0) {
                     userNamesById = m;
                 }
@@ -141,7 +150,10 @@ public class AuthService {
             final String jsonUri = userDetailsUrl + userNamesForNumericIdPath;
             try {
                 logger.debug("authCache requesting: " + jsonUri);
-                Map m = restTemplate.postForObject(jsonUri, null, Map.class);
+                HttpHeaders requestHeaders = new HttpHeaders();
+                requestHeaders.set("Authorization", tokenService.getAuthToken(false).toAuthorizationHeader());
+                HttpEntity<Object> request = new HttpEntity<>(null, requestHeaders);
+                Map m = restTemplate.postForObject(jsonUri, request, Map.class);
                 if (m != null && m.size() > 0) {
                     userNamesByNumericIds = m;
                 }
@@ -156,7 +168,10 @@ public class AuthService {
             final String jsonUri = userDetailsUrl + userNamesFullPath;
             try {
                 logger.debug("authCache requesting: " + jsonUri);
-                Map m = restTemplate.postForObject(jsonUri, null, Map.class);
+                HttpHeaders requestHeaders = new HttpHeaders();
+                requestHeaders.set("Authorization", tokenService.getAuthToken(false).toAuthorizationHeader());
+                HttpEntity<Object> request = new HttpEntity<>(null, requestHeaders);
+                Map m = restTemplate.postForObject(jsonUri, request, Map.class);
                 if (m != null && m.size() > 0) {
                     userEmailToId = m;
                 }
@@ -202,7 +217,10 @@ public class AuthService {
         if (StringUtils.isNotBlank(userDetailsUrl)) {
             final String jsonUri = userDetailsUrl + userDetailsPath + "?userName=" + userId;
             logger.info("authCache requesting: " + jsonUri);
-            roles.addAll((List) restTemplate.postForObject(jsonUri, null, Map.class).getOrDefault("roles", Collections.EMPTY_LIST));
+            HttpHeaders requestHeaders = new HttpHeaders();
+            requestHeaders.set("Authorization", tokenService.getAuthToken(false).toAuthorizationHeader());
+            HttpEntity<Object> request = new HttpEntity<>(null, requestHeaders);
+            roles.addAll((List) restTemplate.postForObject(jsonUri, request, Map.class).getOrDefault("roles", Collections.EMPTY_LIST));
         }
         return roles;
     }
@@ -213,7 +231,10 @@ public class AuthService {
         if (StringUtils.isNotBlank(userDetailsUrl)){
             final String jsonUri = userDetailsUrl + userDetailsPath + "?userName=" + userId;
             logger.info("authCache requesting: " + jsonUri);
-            userDetails = (Map) restTemplate.postForObject(jsonUri, null, Map.class);
+            HttpHeaders requestHeaders = new HttpHeaders();
+            requestHeaders.set("Authorization", tokenService.getAuthToken(false).toAuthorizationHeader());
+            HttpEntity<Object> request = new HttpEntity<>(null, requestHeaders);
+            userDetails = (Map) restTemplate.postForObject(jsonUri, request, Map.class);
         }
         return userDetails;
     }

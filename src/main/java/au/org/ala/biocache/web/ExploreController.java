@@ -122,6 +122,8 @@ public class ExploreController {
         radiusToZoomLevelMap.put(50f, 9);
     }
 
+    @Operation(summary = "Returns a hierarchical listing of all species groups", tags = "Explore")
+    @Tag(name = "Explore", description = "Services for retrieval of all species groups")
     @RequestMapping(value = { "/explore/hierarchy"
 //            , "/explore/hierarchy.json"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
