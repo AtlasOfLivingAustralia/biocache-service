@@ -44,6 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(locations = {"classpath:springTest.xml"})
+@PropertySource(value = "classpath:biocache-test-config.properties")
 @WebAppConfiguration
 @TestPropertySource(locations = "classpath:biocache-test-config.properties")
 public class AssertionsControllerIT extends TestCase {
