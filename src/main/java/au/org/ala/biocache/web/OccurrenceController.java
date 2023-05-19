@@ -1019,7 +1019,7 @@ public class OccurrenceController extends AbstractSecureController {
 
         final File file = new File(filepath);
         final SpeciesLookupService mySpeciesLookupService = this.speciesLookupService;
-        final DownloadDetailsDTO dd = downloadService.registerDownload(dto, downloadUser.get(),
+        final DownloadDetailsDTO dd = new DownloadDetailsDTO(dto, downloadUser.get(),
                 getIPAddress(request), getUserAgent(request), DownloadType.RECORDS_INDEX);
 
         if (file.exists()) {
@@ -1047,7 +1047,7 @@ public class OccurrenceController extends AbstractSecureController {
                                     try (FileOutputStream output = new FileOutputStream(outputFilePath);) {
                                         dto.setQ("taxonConceptID:\"" + lsid + "\"");
                                         ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
-                                        searchDAO.writeResultsFromIndexToStream(dto, new CloseShieldOutputStream(output), uidStats, dd, false, null);
+                                        searchDAO.writeResultsFromIndexToStream(dto, new CloseShieldOutputStream(output), uidStats, dd, false, executor);
                                         output.flush();
                                         try (FileOutputStream citationOutput = new FileOutputStream(citationFilePath);) {
                                             downloadService.getCitations(uidStats, citationOutput, dto.getSep(), dto.getEsc(), null, null);
@@ -1064,8 +1064,6 @@ public class OccurrenceController extends AbstractSecureController {
                         }
                     } catch (Exception e) {
                         logger.error(e.getMessage(), e);
-                    } finally {
-                        downloadService.unregisterDownload(dd);
                     }
                 }
             };
@@ -1195,6 +1193,9 @@ public class OccurrenceController extends AbstractSecureController {
      * 1) JWT - user is retrieved from JWT, supplied email address is ignored...
      * 2) API Key and X-Auth-Id - email address retrieved from CAS/Userdetails - email address is ignored...
      * 3) Email address supplied (Galah) - email address is verified - no sensitive access
+     * 4) Email address supplied and emailOnlyEnabled == false - email is not verified - no sensitive access
+     *
+     * TODO: implement DownloadController.isAuthorisedSystem method before removing this deprecated service
      */
     @Deprecated
     @SecurityRequirement(name = "JWT")

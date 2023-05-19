@@ -53,7 +53,7 @@ public class StreamFacet implements ProcessInterface {
         boolean isLsid = request.getFacets()[0].contains("_lsid") || request.getFacets()[0].contains(OccurrenceIndex.TAXON_CONCEPT_ID);
         boolean shouldLookupTaxon = lookupName && (isLsid || isGuid);
         boolean isUid = request.getFacets()[0].contains("_uid") || request.getFacets()[0].endsWith("Uid");
-        boolean shouldLookupAttribution = lookupName && isUid;
+        this.shouldLookupAttribution = lookupName && isUid;
 
         String[] header = new String[]{facetName};
         if (shouldLookupTaxon) {
