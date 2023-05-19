@@ -2,11 +2,15 @@ package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.ws.security.profile.AlaUserProfile;
+import au.org.ala.ws.tokens.TokenService;
 import com.google.common.collect.Sets;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.AccessTokenType;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.client.RestTemplate;
 
@@ -23,6 +27,8 @@ public class AuthServiceTest {
     AuthService authService = new AuthService();
 
     AutoCloseable mocks;
+
+    TokenService tokenService;
 
     RestTemplate restTemplate;
 
@@ -184,6 +190,7 @@ public class AuthServiceTest {
     public void setup() {
         authService.userDetailsUrl = "http://mocked";
         restTemplate = mock(RestTemplate.class);
+        tokenService = mock(TokenService.class);
         mocks = MockitoAnnotations.openMocks(this);
     }
 
@@ -528,8 +535,15 @@ public class AuthServiceTest {
 
     @Test
     public void authValidEmailTestAllAttributes() {
+        // mock getAuthToken
+        when(tokenService.getAuthToken(false)).thenReturn( new AccessToken (AccessTokenType.BEARER) {
+            @Override
+            public String toAuthorizationHeader() {
+                return "someaccesstoken";
+            }
+        });
         // mock the user details lookup
-        when(restTemplate.postForObject(any(String.class), any(), any()))
+        when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), any()))
                 .thenReturn(new HashMap<String, Object>() {{
                     put("userId", "1234");
                     put("email", "test@test.com");
@@ -555,8 +569,15 @@ public class AuthServiceTest {
 
     @Test
     public void offlineDownloadValidEmailTestNoActivated() throws Exception {
+        // mock getAuthToken
+        when(tokenService.getAuthToken(false)).thenReturn( new AccessToken (AccessTokenType.BEARER) {
+            @Override
+            public String toAuthorizationHeader() {
+                return "someaccesstoken";
+            }
+        });
         // mock the user details lookup
-        when(restTemplate.postForObject(any(String.class), any(), any()))
+        when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), any()))
                 .thenReturn(new HashMap<String, Object>() {{
                     put("userId", "1234");
                     put("email", "test@test.com");
@@ -583,8 +604,15 @@ public class AuthServiceTest {
 
     @Test
     public void offlineDownloadValidEmailTestLocked() throws Exception {
+        // mock getAuthToken
+        when(tokenService.getAuthToken(false)).thenReturn( new AccessToken (AccessTokenType.BEARER) {
+            @Override
+            public String toAuthorizationHeader() {
+                return "someaccesstoken";
+            }
+        });
         // mock the user details lookup
-        when(restTemplate.postForObject(any(String.class), any(), any()))
+        when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), any()))
                 .thenReturn(new HashMap<String, Object>() {{
                     put("userId", "1234");
                     put("email", "test@test.com");
@@ -608,8 +636,15 @@ public class AuthServiceTest {
 
     @Test
     public void offlineDownloadInValidUserid() throws Exception {
+        // mock getAuthToken
+        when(tokenService.getAuthToken(false)).thenReturn( new AccessToken (AccessTokenType.BEARER) {
+            @Override
+            public String toAuthorizationHeader() {
+                return "someaccesstoken";
+            }
+        });
         // mock the user details lookup
-        when(restTemplate.postForObject(any(String.class), any(), any()))
+        when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), any()))
                 .thenReturn(new HashMap<String, Object>() {{ }});
 
         DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();

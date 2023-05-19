@@ -407,7 +407,7 @@ public class WMSController extends AbstractSecureController {
 
         SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(params);
 
-        String[] acceptableTypes = new String[]{"application/json", "application/csv"};
+        String[] acceptableTypes = new String[]{"application/json", "application/json; charset=UTF-8", "application/csv"};
 
         String accepts = request.getHeader("Accept");
         //only allow a single format to be supplied in the header otherwise use the default returnType
@@ -445,7 +445,7 @@ public class WMSController extends AbstractSecureController {
         response.setHeader("ETag", wmsETag.get());
 
         //now generate the JSON if necessary
-        if (returnType.equals("application/json")) {
+        if (Arrays.asList(new String[]{"application/json", "application/json; charset=UTF-8"}).contains(returnType)){
             return legend;
         } else {
             writeBytes(response, sb.toString().getBytes(StandardCharsets.UTF_8));
