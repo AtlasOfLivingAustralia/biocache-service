@@ -946,47 +946,6 @@ public class OccurrenceController extends AbstractSecureController {
         }
     }
 
-    /**
-     * Webservice to support bulk downloads for a long list of queries for a single field.
-     * NOTE: triggered on "Download Records" button
-     *
-     * @param response
-     * @param request
-     * @param separator
-     * @return
-     * @throws Exception
-     */
-    @Hidden
-    @Operation(summary = "Webservice to support bulk downloads for a long list of queries for a single field.", tags="Occurrence")
-    @RequestMapping(value = "/occurrences/batchSearch", method = RequestMethod.POST, params = "action=Download")
-    public void batchDownload(
-            @ParameterObject DownloadRequestParams requestParams,
-            @RequestParam(value = "queries", required = true, defaultValue = "") String queries,
-            @RequestParam(value = "field", required = true, defaultValue = "") String field,
-            @RequestParam(value = "separator", defaultValue = "\n") String separator,
-            @RequestParam(value = "title", required = false) String title,
-            HttpServletResponse response,
-            HttpServletRequest request
-            ) throws Exception {
-
-        logger.info("/occurrences/batchSearch with action=Download Records");
-        Long qid = getQidForBatchSearch(queries, field, separator, title);
-
-        DownloadRequestDTO downloadRequestDTO =  DownloadRequestDTO.create(requestParams, request);
-
-        if (qid != null) {
-            if ("*:*".equals(downloadRequestDTO.getQ())) {
-                downloadRequestDTO.setQ("qid:" + qid);
-            } else {
-                downloadRequestDTO.setQ("(" + downloadRequestDTO.getQ() + ") AND qid:" + qid);
-            }
-            String webservicesRoot = request.getSession().getServletContext().getInitParameter("webservicesRoot");
-            response.sendRedirect(webservicesRoot + "/occurrences/download?" + downloadRequestDTO.getEncodedParams());
-        } else {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST);
-        }
-    }
-
     @Hidden
     @Operation(summary = "Webservice to support bulk downloads for a long list of queries for a single field.", tags="Occurrence")
     @RequestMapping(value = "/occurrences/download/batchFile", method = RequestMethod.GET)
@@ -1082,7 +1041,6 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @Hidden
     @Operation(summary = "Given a list of queries for a single field, return an AJAX response with the qid (cached query id).", tags="Occurrence")
     @RequestMapping(value = "/occurrences/batchSearch", method = RequestMethod.POST, params = "action=Search")
     public void batchSearch(
