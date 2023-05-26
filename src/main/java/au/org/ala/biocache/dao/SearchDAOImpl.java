@@ -491,7 +491,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         //don't want any results returned
         solrQuery.setRows(0);
-        solrQuery.setFacetLimit(FACET_PAGE_SIZE);
+        solrQuery.setFacetLimit(searchParams.getFlimit());
 
         if (dd != null) {
             dd.resetCounts();
