@@ -448,7 +448,12 @@ public class QidCacheDAOImpl implements QidCacheDAO {
             //get bbox (also cleans up Q)
             double[] bb = null;
             if (bbox != null && bbox.equals("true")) {
-                bb = searchDAO.getBBox(requestParams);
+                try {
+                    bb = searchDAO.getBBox(requestParams);
+                } catch (Exception e) {
+                    // When there are no occurrences for the query return a usable bounding box
+                    bb = new double []{-180, -90, 180, 90};
+                }
             } else {
                 requestParams.setPageSize(0);
                 requestParams.setFacet(false);
