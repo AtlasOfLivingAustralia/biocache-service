@@ -143,7 +143,7 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * List of fields that are stored, have no DwC class, and must be excluded from downloads when includeMisc=true
      */
-    @Value("${download.excluded.misc.fields:assertions,geohash,label,lat_long,lft,names_and_lsid,nick,null,packedQuad,point-0.0001,point-0.001,point-0.01,point-0.02,point-0.1,point-1,quad,rgt}")
+    @Value("${download.excluded.misc.fields:_root_,geospatialIssues,assertions,geohash,label,lat_long,lft,names_and_lsid,nick,null,packedQuad,point-0.0001,point-0.001,point-0.01,point-0.02,point-0.1,point-1,quad,rgt}")
     protected String downloadExcludedMiscFields;
 
     protected Pattern clpField = Pattern.compile("(,|^)cl.p(,|$)");
