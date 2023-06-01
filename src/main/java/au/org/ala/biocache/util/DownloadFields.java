@@ -17,6 +17,7 @@ package au.org.ala.biocache.util;
 import au.org.ala.biocache.dto.DownloadHeaders;
 import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.biocache.dto.IndexFieldDTO;
+import au.org.ala.biocache.dto.OccurrenceIndex;
 import au.org.ala.biocache.service.LayersService;
 import au.org.ala.biocache.service.ListsService;
 import au.org.ala.biocache.service.RestartDataService;
@@ -25,9 +26,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
 
 import java.util.*;
+import java.util.stream.Collectors;
+
+import static au.org.ala.biocache.dto.OccurrenceIndex.SENSITIVE;
 
 /**
  * Stores the download fields whose fieldNames can be overridden in
@@ -126,7 +131,7 @@ public class DownloadFields {
         }
     }
 
-    public DownloadHeaders newDownloadHeader(DownloadRequestDTO downloadParams) {
+    public DownloadHeaders newDownloadHeader(DownloadRequestDTO downloadParams, List<String> downloadExcludedMiscFields) {
         updateLayerNames();
 
         boolean dwcHeaders = downloadParams.getDwcHeaders();
@@ -141,6 +146,27 @@ public class DownloadFields {
         java.util.List<String> speciesListIds = new java.util.LinkedList<String>();
 
         String[] fieldNames = downloadParams.getFields().split(",");
+
+        if (downloadParams.getIncludeMisc()) {
+            try {
+                // Permitted exportable datatypes only
+                List<String> dataTypes = Arrays.asList(new String [] {"string", "int", "boolean", "float", "long", "double", "date", "SortableText"});
+
+                List<String> miscFieldNames = new ArrayList();
+                // include all fields without a DwC class and not in the excluded list of fields that are included elsewhere
+                for (IndexFieldDTO field : indexFieldMaps.values()) {
+                    if (field.getClasss() == null && field.isStored() && field.isDocvalue() && dataTypes.contains(field.getDataType())
+                            && !downloadExcludedMiscFields.contains(field.getName())) {
+                        miscFieldNames.add(field.getName());
+                    }
+                }
+
+                if (miscFieldNames.size() > 0) {
+                    // append misc field names
+                    fieldNames = (downloadParams.getFields() + "," + miscFieldNames.stream().collect(Collectors.joining(","))).split(",");
+                }
+            } catch (Exception ignored) {}
+        }
 
         for (String fieldName : fieldNames) {
             // legacy name translation
