@@ -659,7 +659,9 @@ public class SearchDAOImpl implements SearchDAO {
                         return !ArrayUtils.contains(sensitiveSOLRHdr, field);
                     }).collect(Collectors.toList()).toArray(new String[0])));
         } else {
-            solrQuery.setFields(downloadHeaders.included);
+            solrQuery.setFields(Arrays.stream(downloadHeaders.included).filter(field -> {
+                return !ArrayUtils.contains(sensitiveSOLRHdr, field);
+            }).collect(Collectors.toList()).toArray(new String[0]));
             queries.add(solrQuery);
         }
 
