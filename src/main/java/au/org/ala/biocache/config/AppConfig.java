@@ -19,6 +19,7 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.AbstractMessageSource;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.servlet.ViewResolver;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -34,6 +35,7 @@ import java.net.URL;
  */
 @Configuration
 @EnableCaching
+@EnableScheduling
 public class AppConfig implements WebMvcConfigurer {
 
     private final static Logger logger = Logger.getLogger(AppConfig.class);
