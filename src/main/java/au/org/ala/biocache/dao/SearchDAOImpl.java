@@ -730,7 +730,8 @@ public class SearchDAOImpl implements SearchDAO {
         dd.resetCounts();
 
         // prepare requested download fields (defaults, substitutions)
-        prepareRequestedFields(downloadParams, !(dd.getAlaUser() == null || dd.getAlaUser().getRoles().isEmpty()));
+        boolean hasSensitiveRecordAccess = downloadService.getSensitiveFq(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles()) != null;
+        prepareRequestedFields(downloadParams, hasSensitiveRecordAccess);
 
         // prepare headers
         DownloadHeaders downloadHeaders = prepareHeaders(downloadParams);
