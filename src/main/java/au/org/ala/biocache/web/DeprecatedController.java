@@ -7,6 +7,7 @@ import au.org.ala.biocache.dto.TaxaCountDTO;
 import au.org.ala.biocache.util.converter.FqField;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springdoc.api.annotations.ParameterObject;
+import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.Map;
 
+@Controller
 public class DeprecatedController {
 
     @Inject
@@ -45,8 +47,7 @@ public class DeprecatedController {
     @Deprecated
     @GetMapping(value = {"/occurrences/download.json*", "/occurrences/index/download*","/occurrences/index/download.json*"})
     public void occurrenceDownload( @ParameterObject DownloadRequestParams requestParams,
-                                              @RequestParam String apiKey,
-                                              @RequestParam Boolean zip,
+                                    @RequestParam(required = false, defaultValue = "true") Boolean zip,
                                               BindingResult result,
                                               Model model,
                                               HttpServletResponse response,
