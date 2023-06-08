@@ -139,8 +139,12 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Value("${download.max.completion.time:300000}")
     protected Long downloadMaxCompletionTime = 300000L;
-    protected static final Integer FACET_PAGE_SIZE = 1000;
-//    protected static final String RANGE_SUFFIX = "_RNG";
+
+    /**
+     * List of fields that are stored, have no DwC class, and must be excluded from downloads when includeMisc=true
+     */
+    @Value("${download.excluded.misc.fields:_root_,geospatialIssues,assertions,geohash,label,lat_long,lft,names_and_lsid,nick,null,packedQuad,point-0.0001,point-0.001,point-0.01,point-0.02,point-0.1,point-1,quad,rgt,aust_conservation,state_conservation,species_group,species_subgroup}")
+    protected String downloadExcludedMiscFields;
 
     protected Pattern clpField = Pattern.compile("(,|^)cl.p(,|$)");
     protected Pattern elpField = Pattern.compile("(,|^)el.p(,|$)");
@@ -584,7 +588,8 @@ public class SearchDAOImpl implements SearchDAO {
         dd.resetCounts();
 
         // prepare requested download fields (defaults, substitutions)
-        prepareRequestedFields(downloadParams, !(dd.getAlaUser() == null || dd.getAlaUser().getRoles().isEmpty()));
+        boolean hasSensitiveRecordAccess = downloadService.getSensitiveFq(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles()) != null;
+        prepareRequestedFields(downloadParams, hasSensitiveRecordAccess);
 
         // prepare headers
         DownloadHeaders downloadHeaders = prepareHeaders(downloadParams);
@@ -768,7 +773,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     private DownloadHeaders prepareHeaders(DownloadRequestDTO downloadParams) {
-        DownloadHeaders downloadHeaders = downloadFields.newDownloadHeader(downloadParams);
+        DownloadHeaders downloadHeaders = downloadFields.newDownloadHeader(downloadParams, Arrays.asList(downloadExcludedMiscFields.split(",")));
 
         // add fields that are required for post-processing
         addPostProcessingFields(downloadParams, downloadHeaders);

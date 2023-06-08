@@ -93,6 +93,8 @@ public class ProcessDownload implements ProcessInterface {
         batch.forEach(row -> recordWriter.write(row));
         batch.clear();
 
+        downloadDetails.setMiscFields(miscFields.toArray(new String[0]));
+
         return true;
     }
 

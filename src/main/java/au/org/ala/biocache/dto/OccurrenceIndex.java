@@ -305,7 +305,14 @@ public class OccurrenceIndex {
             "sensitive_day",
             "sensitive_eventID",
             "sensitive_eventTime",
-            "sensitive_footprintWKT"};
+            "sensitive_footprintWKT",
+            "sensitive_locationRemarks",
+            "sensitive_month",
+            "sensitive_verbatimCoordinates",
+            "sensitive_verbatimEventDate",
+            "sensitive_verbatimLatitude",
+            "sensitive_verbatimLocality",
+            "sensitive_verbatimLongitude"};
     public static final String[] notSensitiveSOLRHdr = {LONGITUDE, LATITUDE, LOCALITY, EVENT_DATE, EVENT_DATE_END, GRID_REFERENCE, COORDINATE_UNCERTAINTY, DAY, EVENT_ID, FOOTPRINT_WKT};
     public static final String CONTAINS_SENSITIVE_PATTERN = StringUtils.join(sensitiveSOLRHdr, "|");
 
