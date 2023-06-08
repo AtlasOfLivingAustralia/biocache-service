@@ -1,12 +1,12 @@
 /**************************************************************************
  *  Copyright (C) 2013 Atlas of Living Australia
  *  All Rights Reserved.
- * 
+ *
  *  The contents of this file are subject to the Mozilla Public
  *  License Version 1.1 (the "License"); you may not use this file
  *  except in compliance with the License. You may obtain a copy of
  *  the License at http://www.mozilla.org/MPL/
- * 
+ *
  *  Software distributed under the License is distributed on an "AS
  *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  *  implied. See the License for the specific language governing
@@ -14,8 +14,13 @@
  ***************************************************************************/
 package au.org.ala.biocache.dao;
 
+import au.com.bytecode.opencsv.CSVReader;
+import au.org.ala.biocache.dto.FieldResultDTO;
 import au.org.ala.biocache.dto.OccurrenceIndex;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.response.FacetField;
@@ -23,9 +28,12 @@ import org.apache.solr.client.solrj.response.QueryResponse;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
+import java.io.StringReader;
 import java.io.Writer;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Component("taxonDao")
