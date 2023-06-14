@@ -109,6 +109,7 @@ public class OccurrenceController extends AbstractSecureController {
     public static final String RAW_FIELD_PREFIX = "raw_";
     public static final String DYNAMIC_PROPERTIES_PREFIX = "dynamicProperties_";
 
+
     /**
      * Fulltext search DAO
      */
@@ -170,6 +171,8 @@ public class OccurrenceController extends AbstractSecureController {
      */
     protected Pattern taxonIDPattern;
 
+    @Value("${solr.fieldlist:*,[child],annotations}")
+    protected String fieldListExpression;
     @Value("${media.url:https://biocache.ala.org.au/biocache-media/}")
     protected String biocacheMediaUrl;
 
@@ -1607,7 +1610,7 @@ public class OccurrenceController extends AbstractSecureController {
         SpatialSearchRequestDTO idRequest = new SpatialSearchRequestDTO();
         idRequest.setQ(OccurrenceIndex.ID + ":\"" + uuid + "\"");
         idRequest.setFacet(false);
-        idRequest.setFl("*");
+        idRequest.setFl(fieldListExpression);
         idRequest.setPageSize(1);
         return idRequest;
     }
@@ -1687,7 +1690,6 @@ public class OccurrenceController extends AbstractSecureController {
 
             addField(sd, rawEvent, "day", "sensitive_day");
             addField(sd, rawEvent, "eventDate", "sensitive_eventDate");
-            addField(sd, rawEvent, "eventDate", "sensitive_eventDate");
             addField(sd, rawEvent, "eventID", "sensitive_eventID");
             addField(sd, rawEvent, "eventTime", "sensitive_eventTime");
             addField(sd, rawEvent, "month", "sensitive_month");
@@ -1697,6 +1699,10 @@ public class OccurrenceController extends AbstractSecureController {
         // add multimedia links
         addImages(sd, map, "imageIDs", "images", includeImageMetadata);
         addSounds(sd, map, "soundIDs", "sounds");
+
+        // add bulk annotations
+        Collection<Object> annotations = sd.getFieldValues("annotations");
+        map.put("referencedPublications", annotations);
 
         return map;
     }

@@ -206,7 +206,7 @@ public class OccurrenceControllerIT extends TestCase {
 
     public final int TEST_INDEX_SIZE = 1005;
     public final int DEFAULT_SEARCH_PAGE_SIZE = 10;
-    public final int INDEXED_FIELD_SIZE = 435;
+    public final int INDEXED_FIELD_SIZE = 451;
 
     @Autowired
     OccurrenceController occurrenceController;

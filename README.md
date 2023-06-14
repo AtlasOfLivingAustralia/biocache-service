@@ -42,6 +42,11 @@ To shutdown, run the following:
 ./gradlew composeDown
 ```
 
+```
+./gradlew bootRun
+```
+
+
 Prerequisites are Docker version 17+. For more details see this [readme](/src/test/docker/README.md).
 
 To run the integration tests just run the check task, e.g.: `./gradlew clean check`
