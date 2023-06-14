@@ -323,7 +323,6 @@
       "altitudeNonNumeric": "ELEVATION_NON_NUMERIC",
       "altitudeOutOfRange": "ELEVATION_UNLIKELY",
       "badlyFormedBasisOfRecord": "BASIS_OF_RECORD_INVALID",
-      "coordinatePrecisionMismatch": "COORDINATE_PRECISION_UNCERTAINTY_MISMATCH",
       "coordinatesCentreOfCountry": "COORDINATES_CENTRE_OF_COUNTRY",
       "coordinatesCentreOfStateProvince": "COORDINATES_CENTRE_OF_STATEPROVINCE",
       "coordinatesOutOfRange": "COORDINATE_OUT_OF_RANGE",

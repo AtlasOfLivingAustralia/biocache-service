@@ -1,7 +1,6 @@
 {
     "badlyFormedBasisOfRecord": "BASIS_OF_RECORD_INVALID",
     "coordinatesOutOfRange": "COORDINATE_OUT_OF_RANGE",
-    "coordinatePrecisionMismatch": "COORDINATE_PRECISION_UNCERTAINTY_MISMATCH",
     "decimalLatLongConverted": "COORDINATE_REPROJECTED",
     "decimalLatLongConversionFailed": "COORDINATE_REPROJECTION_FAILED",
     "coordinatesCentreOfCountry": "COORDINATES_CENTRE_OF_COUNTRY",
