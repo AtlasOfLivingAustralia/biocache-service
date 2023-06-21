@@ -214,6 +214,11 @@ public class SearchUtils {
                 return "Temporary Data resource: " + collectionCache.getTempDataResources().get(uid);
             else
                 return collectionCache.getTempDataResources().get(uid);
+        } else if(uid.startsWith("dr") && collectionCache.getDataResources().containsKey(uid) && fieldName.startsWith("annotation")){
+            if(includeField)
+                return "Publication: " + collectionCache.getDataResources().get(uid);
+            else
+                return collectionCache.getDataResources().get(uid);
         } else if(uid.startsWith("dr") && collectionCache.getDataResources().containsKey(uid)){
             if(includeField)
                 return "Data resource: " + collectionCache.getDataResources().get(uid);
