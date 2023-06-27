@@ -1,12 +1,12 @@
 /**************************************************************************
  *  Copyright (C) 2013 Atlas of Living Australia
  *  All Rights Reserved.
- * 
+ *
  *  The contents of this file are subject to the Mozilla Public
  *  License Version 1.1 (the "License"); you may not use this file
  *  except in compliance with the License. You may obtain a copy of
  *  the License at http://www.mozilla.org/MPL/
- * 
+ *
  *  Software distributed under the License is distributed on an "AS
  *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  *  implied. See the License for the specific language governing
@@ -15,7 +15,9 @@
 package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dto.DownloadRequestDTO;
+import au.org.ala.biocache.util.AlaUnvalidatedProfile;
 import au.org.ala.ws.security.profile.AlaUserProfile;
+import au.org.ala.ws.tokens.TokenService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
@@ -24,6 +26,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 
 import javax.inject.Inject;
 import jakarta.mail.internet.AddressException;
@@ -70,6 +74,9 @@ public class AuthService {
     @Value("${auth.legacy.emailonly.downloads.enabled:true}")
     protected Boolean emailOnlyEnabled = true;
 
+    @Inject
+    private TokenService tokenService;
+
     // Keep a reference to the output Map in case subsequent web service lookups fail
     protected Map<String, String> userNamesById = RestartDataService.get(this, "userNamesById", new TypeReference<HashMap<String, String>>(){}, HashMap.class);
     protected Map<String, String> userNamesByNumericIds = RestartDataService.get(this, "userNamesByNumericIds", new TypeReference<HashMap<String, String>>(){}, HashMap.class);
@@ -81,7 +88,7 @@ public class AuthService {
             reloadCaches();
         }
     }
-    
+
     public Map<String, String> getMapOfAllUserNamesById() {
         return userNamesById;
     }
@@ -96,9 +103,9 @@ public class AuthService {
 
     /**
      * Returns the display name to be used by a client.
-     * 
+     *
      * Performs a lookup based on the email id and the numeric id.
-     * 
+     *
      * @param value
      * @return
      */
@@ -115,7 +122,7 @@ public class AuthService {
         }
         return displayName;
     }
-    
+
     public String substituteEmailAddress(String raw){
       return raw == null ? raw : raw.replaceAll("\\@\\w+", "@..");
     }
@@ -125,7 +132,10 @@ public class AuthService {
             final String jsonUri = userDetailsUrl + userNamesForIdPath;
             try {
                 logger.debug("authCache requesting: " + jsonUri);
-                Map m = restTemplate.postForObject(jsonUri, null, Map.class);
+                HttpHeaders requestHeaders = new HttpHeaders();
+                requestHeaders.set("Authorization", tokenService.getAuthToken(false).toAuthorizationHeader());
+                HttpEntity<Object> request = new HttpEntity<>(null, requestHeaders);
+                Map m = restTemplate.postForObject(jsonUri, request, Map.class);
                 if (m != null && m.size() > 0) {
                     userNamesById = m;
                 }
@@ -140,7 +150,10 @@ public class AuthService {
             final String jsonUri = userDetailsUrl + userNamesForNumericIdPath;
             try {
                 logger.debug("authCache requesting: " + jsonUri);
-                Map m = restTemplate.postForObject(jsonUri, null, Map.class);
+                HttpHeaders requestHeaders = new HttpHeaders();
+                requestHeaders.set("Authorization", tokenService.getAuthToken(false).toAuthorizationHeader());
+                HttpEntity<Object> request = new HttpEntity<>(null, requestHeaders);
+                Map m = restTemplate.postForObject(jsonUri, request, Map.class);
                 if (m != null && m.size() > 0) {
                     userNamesByNumericIds = m;
                 }
@@ -155,7 +168,10 @@ public class AuthService {
             final String jsonUri = userDetailsUrl + userNamesFullPath;
             try {
                 logger.debug("authCache requesting: " + jsonUri);
-                Map m = restTemplate.postForObject(jsonUri, null, Map.class);
+                HttpHeaders requestHeaders = new HttpHeaders();
+                requestHeaders.set("Authorization", tokenService.getAuthToken(false).toAuthorizationHeader());
+                HttpEntity<Object> request = new HttpEntity<>(null, requestHeaders);
+                Map m = restTemplate.postForObject(jsonUri, request, Map.class);
                 if (m != null && m.size() > 0) {
                     userEmailToId = m;
                 }
@@ -201,7 +217,10 @@ public class AuthService {
         if (StringUtils.isNotBlank(userDetailsUrl)) {
             final String jsonUri = userDetailsUrl + userDetailsPath + "?userName=" + userId;
             logger.info("authCache requesting: " + jsonUri);
-            roles.addAll((List) restTemplate.postForObject(jsonUri, null, Map.class).getOrDefault("roles", Collections.EMPTY_LIST));
+            HttpHeaders requestHeaders = new HttpHeaders();
+            requestHeaders.set("Authorization", tokenService.getAuthToken(false).toAuthorizationHeader());
+            HttpEntity<Object> request = new HttpEntity<>(null, requestHeaders);
+            roles.addAll((List) restTemplate.postForObject(jsonUri, request, Map.class).getOrDefault("roles", Collections.EMPTY_LIST));
         }
         return roles;
     }
@@ -212,7 +231,10 @@ public class AuthService {
         if (StringUtils.isNotBlank(userDetailsUrl)){
             final String jsonUri = userDetailsUrl + userDetailsPath + "?userName=" + userId;
             logger.info("authCache requesting: " + jsonUri);
-            userDetails = (Map) restTemplate.postForObject(jsonUri, null, Map.class);
+            HttpHeaders requestHeaders = new HttpHeaders();
+            requestHeaders.set("Authorization", tokenService.getAuthToken(false).toAuthorizationHeader());
+            HttpEntity<Object> request = new HttpEntity<>(null, requestHeaders);
+            userDetails = (Map) restTemplate.postForObject(jsonUri, request, Map.class);
         }
         return userDetails;
     }
@@ -223,6 +245,7 @@ public class AuthService {
      * 1) Check for JWT / OAuth- user is retrieved from UserPrincipal along with a set of roles, supplied email address is ignored...
      * 2) Legacy API Key and X-Auth-Id - email address retrieved from CAS/Userdetails - email address is ignored...
      * 3) Email address supplied (Galah) - email address is verified - no sensitive access
+     * 4) Email address supplied and emailOnlyEnabled == false - email is not verified - no sensitive access
      */
     public Optional<AlaUserProfile> getDownloadUser(DownloadRequestDTO downloadRequestDTO, HttpServletRequest request) {
 
@@ -243,6 +266,9 @@ public class AuthService {
                 // invalid email
                 logger.info("Email only download request failed - invalid email " + downloadRequestDTO.getEmail());
             }
+        } else if (!emailOnlyEnabled && downloadRequestDTO.getEmail() != null) {
+            // 4) Continue with this unvalidated email
+            return Optional.of(new AlaUnvalidatedProfile(downloadRequestDTO.getEmail()));
         }
 
         return Optional.empty();
@@ -278,21 +304,170 @@ public class AuthService {
             return Optional.empty();
         }
 
-        String userId = (String) userDetails.getOrDefault("userid", null);
+        String userId = (String) userDetails.getOrDefault("userId", null);
         boolean activated = (Boolean) userDetails.getOrDefault("activated", false);
         boolean locked = (Boolean) userDetails.getOrDefault("locked", true);
         String firstName = (String) userDetails.getOrDefault("firstName", "");
         String lastName = (String) userDetails.getOrDefault("lastName", "");
         String email = (String) userDetails.getOrDefault("email", "");
 
-        Set<String> userRoles = Collections.emptySet();
+        Set<String> userRoles = new HashSet<>(Collections.emptySet());
         if (getRoles) {
-            userRoles = getUserRoles(userIdOrEmail);
+            userRoles.addAll((List) userDetails.getOrDefault("roles", Collections.EMPTY_LIST));
         }
 
         if (email != null && activated && !locked) {
             return Optional.of(
-                    new AlaUserProfile(userId, email, firstName, lastName, userRoles, Collections.emptyMap())
+                    new AlaUserProfile() {
+
+                        @Override
+                        public String getUserId() { return userId; }
+
+                        @Override
+                        public String getEmail() {
+                            return email;
+                        }
+
+                        @Override
+                        public String getGivenName() {
+                            return firstName;
+                        }
+
+                        @Override
+                        public String getFamilyName() {
+                            return lastName;
+                        }
+
+                        @Override
+                        public String getName() {
+                            return null;
+                        }
+
+                        @Override
+                        public String getId() {
+                            return null;
+                        }
+
+                        @Override
+                        public void setId(String id) {}
+
+                        @Override
+                        public String getTypedId() {
+                            return null;
+                        }
+
+                        @Override
+                        public String getUsername() {
+                            return email;
+                        }
+
+                        @Override
+                        public Object getAttribute(String name) {
+                            return null;
+                        }
+
+                        @Override
+                        public Map<String, Object> getAttributes() {
+                            return null;
+                        }
+
+                        @Override
+                        public boolean containsAttribute(String name) {
+                            return false;
+                        }
+
+                        @Override
+                        public void addAttribute(String key, Object value) {
+
+                        }
+
+                        @Override
+                        public void removeAttribute(String key) {
+
+                        }
+
+                        @Override
+                        public void addAuthenticationAttribute(String key, Object value) {
+
+                        }
+
+                        @Override
+                        public void removeAuthenticationAttribute(String key) {
+
+                        }
+
+                        @Override
+                        public void addRole(String role) {
+
+                        }
+
+                        @Override
+                        public void addRoles(Collection<String> roles) {
+
+                        }
+
+                        @Override
+                        public Set<String> getRoles() {
+                            return userRoles;
+                        }
+
+                        @Override
+                        public void addPermission(String permission) {
+
+                        }
+
+                        @Override
+                        public void addPermissions(Collection<String> permissions) {
+
+                        }
+
+                        @Override
+                        public Set<String> getPermissions() {
+                            return null;
+                        }
+
+                        @Override
+                        public boolean isRemembered() {
+                            return false;
+                        }
+
+                        @Override
+                        public void setRemembered(boolean rme) {
+
+                        }
+
+                        @Override
+                        public String getClientName() {
+                            return null;
+                        }
+
+                        @Override
+                        public void setClientName(String clientName) {
+
+                        }
+
+                        @Override
+                        public String getLinkedId() {
+                            return null;
+                        }
+
+                        @Override
+                        public void setLinkedId(String linkedId) {
+
+                        }
+
+                        @Override
+                        public boolean isExpired() {
+                            return false;
+                        }
+
+                        @Override
+                        public Principal asPrincipal() {
+                            return null;
+                        }
+                    }
+
+//            new AlaUserProfile(userId, email, firstName, lastName, userRoles, Collections.emptyMap())
             );
         } else {
             log.info("Download request with API key failed " +

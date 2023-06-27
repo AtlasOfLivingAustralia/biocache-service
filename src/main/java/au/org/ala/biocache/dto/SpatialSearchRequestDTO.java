@@ -54,6 +54,8 @@ public class SpatialSearchRequestDTO extends SearchRequestDTO {
         if (dto.getStart() == null) {
             if(dto.getStartIndex() != null){
                 dto.setStart(dto.getStartIndex());
+            } else {
+                dto.setStart(0);
             }
         }
         return dto;
@@ -162,8 +164,8 @@ public class SpatialSearchRequestDTO extends SearchRequestDTO {
     }
 
     /**
-     * Get the value of fq.  
-     * 
+     * Get the value of fq.
+     *
      * Adds the gk FQ if necessary...
      *
      * @return the value of fq
@@ -190,5 +192,5 @@ public class SpatialSearchRequestDTO extends SearchRequestDTO {
         result = prime * result + ((radius == null) ? 0 : radius.hashCode());
         result = prime * result + ((wkt == null) ? 0 : wkt.hashCode());
         return result;
-    }      
+    }
 }

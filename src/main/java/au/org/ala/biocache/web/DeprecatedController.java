@@ -1,10 +1,13 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dto.DownloadRequestParams;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.dto.TaxaCountDTO;
+import au.org.ala.biocache.util.converter.FqField;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springdoc.api.annotations.ParameterObject;
+import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +18,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.Map;
 
+@Controller
 public class DeprecatedController {
 
     @Inject
@@ -30,7 +34,7 @@ public class DeprecatedController {
     public @ResponseBody
     Map<String, Integer> occurrenceSpeciesCounts(
             @RequestParam(value = "listOfGuids", required = true, defaultValue = "") String listOfGuids,
-            @RequestParam(value = "fq", required = false) String[] filterQueries,
+            @FqField @RequestParam(value = "fq", required = false) String[] filterQueries,
             @RequestParam(defaultValue = "\n") String separator,
             HttpServletResponse response,
             HttpServletRequest request
@@ -43,8 +47,7 @@ public class DeprecatedController {
     @Deprecated
     @GetMapping(value = {"/occurrences/download.json*", "/occurrences/index/download*","/occurrences/index/download.json*"})
     public void occurrenceDownload( @ParameterObject DownloadRequestParams requestParams,
-                                              @RequestParam String apiKey,
-                                              @RequestParam Boolean zip,
+                                    @RequestParam(required = false, defaultValue = "true") Boolean zip,
                                               BindingResult result,
                                               Model model,
                                               HttpServletResponse response,
@@ -100,9 +103,8 @@ public class DeprecatedController {
             "/webportal/species",
             "/webportal/species.json",
             "/mapping/species.json"}, method = RequestMethod.GET)
-    public
-    @ResponseBody
-    List<TaxaCountDTO> listSpecies(SpatialSearchRequestParams requestParams) throws Exception {
-        return wmsController.listSpecies(requestParams);
+    public void listSpecies(@ParameterObject SpatialSearchRequestParams params,
+                          HttpServletResponse response) throws Exception {
+        wmsController.listSpecies(params, response);
     }
 }

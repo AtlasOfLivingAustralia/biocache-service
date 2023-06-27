@@ -26,6 +26,7 @@ import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.util.OccurrenceUtils;
 import au.org.ala.biocache.util.QidSizeException;
 import au.org.ala.biocache.util.SearchUtils;
+import au.org.ala.biocache.util.converter.FqField;
 import au.org.ala.ws.security.profile.AlaUserProfile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -108,6 +109,7 @@ public class OccurrenceController extends AbstractSecureController {
     public static final String RAW_FIELD_PREFIX = "raw_";
     public static final String DYNAMIC_PROPERTIES_PREFIX = "dynamicProperties_";
 
+
     /**
      * Fulltext search DAO
      */
@@ -169,6 +171,8 @@ public class OccurrenceController extends AbstractSecureController {
      */
     protected Pattern taxonIDPattern;
 
+    @Value("${solr.fieldlist:*,[child],annotations}")
+    protected String fieldListExpression;
     @Value("${media.url:https://biocache.ala.org.au/biocache-media/}")
     protected String biocacheMediaUrl;
 
@@ -932,32 +936,15 @@ public class OccurrenceController extends AbstractSecureController {
         Optional<AlaUserProfile> downloadUser = authService.getDownloadUser(dto, request);
 
         if (dto.getFacets().length > 0) {
-            DownloadDetailsDTO dd = downloadService.registerDownload(
-                    dto,
-                    downloadUser.orElse(null),  // anonymous facet downloads are allowed
-                    getIPAddress(request),
-                    getUserAgent(request),
-                    DownloadDetailsDTO.DownloadType.FACET
-            );
             try {
                 String filename = dto.getFile() != null ? dto.getFile() : dto.getFacets()[0];
                 response.setHeader("Cache-Control", "must-revalidate");
                 response.setHeader("Pragma", "must-revalidate");
                 response.setHeader("Content-Disposition", "attachment;filename=" + filename + ".csv");
                 response.setContentType("text/csv");
-                searchDAO.writeFacetToStream(
-                        dto,
-                        includeCount,
-                        lookupName,
-                        includeSynonyms,
-                        includeLists,
-                        response.getOutputStream(),
-                        dd
-                );
+                searchDAO.writeFacetToStream(dto, includeCount, lookupName, includeSynonyms, includeLists, response.getOutputStream(), null);
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
-            } finally {
-                downloadService.unregisterDownload(dd);
             }
         }
     }
@@ -972,7 +959,6 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @Hidden
     @Operation(summary = "Webservice to support bulk downloads for a long list of queries for a single field.", tags="Occurrence")
     @RequestMapping(value = "/occurrences/batchSearch", method = RequestMethod.POST, params = "action=Download")
     public void batchDownload(
@@ -1035,7 +1021,7 @@ public class OccurrenceController extends AbstractSecureController {
 
         final File file = new File(filepath);
         final SpeciesLookupService mySpeciesLookupService = this.speciesLookupService;
-        final DownloadDetailsDTO dd = downloadService.registerDownload(dto, downloadUser.get(),
+        final DownloadDetailsDTO dd = new DownloadDetailsDTO(dto, downloadUser.get(),
                 getIPAddress(request), getUserAgent(request), DownloadType.RECORDS_INDEX);
 
         if (file.exists()) {
@@ -1063,7 +1049,7 @@ public class OccurrenceController extends AbstractSecureController {
                                     try (FileOutputStream output = new FileOutputStream(outputFilePath);) {
                                         dto.setQ("taxonConceptID:\"" + lsid + "\"");
                                         ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
-                                        searchDAO.writeResultsFromIndexToStream(dto, new CloseShieldOutputStream(output), uidStats, dd, false, null);
+                                        searchDAO.writeResultsFromIndexToStream(dto, new CloseShieldOutputStream(output), uidStats, dd, false, executor);
                                         output.flush();
                                         try (FileOutputStream citationOutput = new FileOutputStream(citationFilePath);) {
                                             downloadService.getCitations(uidStats, citationOutput, dto.getSep(), dto.getEsc(), null, null);
@@ -1080,8 +1066,6 @@ public class OccurrenceController extends AbstractSecureController {
                         }
                     } catch (Exception e) {
                         logger.error(e.getMessage(), e);
-                    } finally {
-                        downloadService.unregisterDownload(dd);
                     }
                 }
             };
@@ -1100,7 +1084,6 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @Hidden
     @Operation(summary = "Given a list of queries for a single field, return an AJAX response with the qid (cached query id).", tags="Occurrence")
     @RequestMapping(value = "/occurrences/batchSearch", method = RequestMethod.POST, params = "action=Search")
     public void batchSearch(
@@ -1180,7 +1163,7 @@ public class OccurrenceController extends AbstractSecureController {
             method = {RequestMethod.POST, RequestMethod.GET}, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody Map<String, Integer> occurrenceSpeciesCounts(
             @Parameter(description = "taxonConceptIDs, newline separated (by default)") @RequestParam(name="guids") String listOfGuids,
-            @RequestParam(value = "fq", required = false) String[] filterQueries,
+            @FqField @RequestParam(value = "fq", required = false) String[] filterQueries,
             @RequestParam(defaultValue = "\n") String separator,
             HttpServletResponse response
     ) throws Exception {
@@ -1211,6 +1194,9 @@ public class OccurrenceController extends AbstractSecureController {
      * 1) JWT - user is retrieved from JWT, supplied email address is ignored...
      * 2) API Key and X-Auth-Id - email address retrieved from CAS/Userdetails - email address is ignored...
      * 3) Email address supplied (Galah) - email address is verified - no sensitive access
+     * 4) Email address supplied and emailOnlyEnabled == false - email is not verified - no sensitive access
+     *
+     * TODO: implement DownloadController.isAuthorisedSystem method before removing this deprecated service
      */
     @Deprecated
     @SecurityRequirement(name = "JWT")
@@ -1624,7 +1610,7 @@ public class OccurrenceController extends AbstractSecureController {
         SpatialSearchRequestDTO idRequest = new SpatialSearchRequestDTO();
         idRequest.setQ(OccurrenceIndex.ID + ":\"" + uuid + "\"");
         idRequest.setFacet(false);
-        idRequest.setFl("*");
+        idRequest.setFl(fieldListExpression);
         idRequest.setPageSize(1);
         return idRequest;
     }
@@ -1704,7 +1690,6 @@ public class OccurrenceController extends AbstractSecureController {
 
             addField(sd, rawEvent, "day", "sensitive_day");
             addField(sd, rawEvent, "eventDate", "sensitive_eventDate");
-            addField(sd, rawEvent, "eventDate", "sensitive_eventDate");
             addField(sd, rawEvent, "eventID", "sensitive_eventID");
             addField(sd, rawEvent, "eventTime", "sensitive_eventTime");
             addField(sd, rawEvent, "month", "sensitive_month");
@@ -1714,6 +1699,10 @@ public class OccurrenceController extends AbstractSecureController {
         // add multimedia links
         addImages(sd, map, "imageIDs", "images", includeImageMetadata);
         addSounds(sd, map, "soundIDs", "sounds");
+
+        // add bulk annotations
+        Collection<Object> annotations = sd.getFieldValues("annotations");
+        map.put("referencedPublications", annotations);
 
         return map;
     }

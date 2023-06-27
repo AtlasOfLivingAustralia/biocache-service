@@ -16,9 +16,12 @@ package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dto.DownloadDoiDTO;
 import au.org.ala.doi.*;
+import au.org.ala.ws.tokens.TokenInterceptor;
+import au.org.ala.ws.tokens.TokenService;
 import com.google.common.net.UrlEscapers;
 import okhttp3.*;
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import retrofit2.Call;
@@ -27,6 +30,7 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,9 +48,6 @@ public class DoiService {
 
     @Value("${doi.service.url:https://devt.ala.org.au/doi-service/api/}")
     private String doiServiceUrl;
-
-    @Value("${doi.service.apiKey:Provide a valid key}")
-    private String doiServiceApiKey;
 
     // By default wait 15 min before hearing any response from the server
     // (Useful for long file uploads)
@@ -68,25 +69,25 @@ public class DoiService {
     @Value("${doi.provider:ALA}")
     private String provider;
 
+//    @Inject
+    @Autowired(required = false)
+    private TokenInterceptor tokenInterceptor;
+
+    @Inject
+    private TokenService tokenService;
+
     private DoiApiService doiApiService;
 
     @PostConstruct
     public void init() {
 
         OkHttpClient.Builder httpClient = new OkHttpClient.Builder();
-        httpClient.addInterceptor(new Interceptor() {
-            @Override
-            public okhttp3.Response intercept(Interceptor.Chain chain) throws IOException {
-                Request original = chain.request();
 
-                Request request = original.newBuilder()
-                        .header("apiKey", doiServiceApiKey)
-                        .method(original.method(), original.body())
-                        .build();
+        if (tokenService != null) {
 
-                return chain.proceed(request);
-            }
-        });
+            httpClient.addInterceptor(new TokenInterceptor(tokenService));
+        }
+
 
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(doiServiceUrl)

@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import au.org.ala.biocache.util.converter.FqField;
 import au.org.ala.biocache.validate.ValidSpatialParams;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -39,6 +40,7 @@ public class SpatialSearchRequestParams {
     @Parameter(name="q", description = "Main search query. Examples 'q=Kangaroo' or 'q=vernacularName:red'")
     protected String q = "*:*";
 
+    @FqField()
     @Parameter(name="fq", description = "Filter queries. " +
             "Examples 'fq=state:Victoria&fq=state:Queensland")
     protected String[] fq = {}; // must not be null

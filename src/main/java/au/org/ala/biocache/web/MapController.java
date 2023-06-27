@@ -241,8 +241,8 @@ public class MapController {
      *
      * @throws Exception
      */
-    @Deprecated
-    @Operation(summary = "Renders a density map for a species.", tags = {"Deprecated"})
+
+    @Operation(summary = "Renders a density map for a species.", tags = {"Mapping"})
     @RequestMapping(value = {"/density/map", "/occurrences/static"}, method = RequestMethod.GET)
     public @ResponseBody
     void speciesDensityMap(SpatialSearchRequestDTO requestParams,
@@ -322,8 +322,7 @@ public class MapController {
      *
      * @throws Exception
      */
-    @Deprecated
-    @Operation(summary = "Renders a density map legend for a species.", tags = {"Deprecated"})
+    @Operation(summary = "Renders a density map legend for a species.", tags = {"Mapping"})
     @RequestMapping(value = "/density/legend", method = RequestMethod.GET)
     public @ResponseBody void speciesDensityLegend(SpatialSearchRequestDTO requestParams,
                                                    @RequestParam(value = "forceRefresh", required = false, defaultValue = "false") boolean forceRefresh,
@@ -433,6 +432,7 @@ public class MapController {
      * @param pointType
      * @return returns an empty array if none found.
      */
+    @Deprecated
     private double[] retrievePoints(SpatialSearchRequestDTO requestParams, PointType pointType) {
 
         double[] points = new double[0];

@@ -18,6 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -29,8 +30,8 @@ import org.springframework.web.context.WebApplicationContext;
 
 import javax.servlet.http.HttpServletResponse;
 
-import java.util.Collections;
-import java.util.Optional;
+import java.security.Principal;
+import java.util.*;
 
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -43,18 +44,169 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(locations = {"classpath:springTest.xml"})
 @WebAppConfiguration
+@TestPropertySource(locations = "classpath:biocache-test-config.properties")
 public class OccurrenceControllerIT extends TestCase {
 
     static {
         System.setProperty("biocache.config", System.getProperty("user.dir") + "/src/test/resources/biocache-test-config.properties");
     }
 
-    final static AlaUserProfile TEST_USER =
-            new AlaUserProfile("Tester", "test@test.com", null, null, Collections.EMPTY_SET, Collections.EMPTY_MAP);
+    final static AlaUserProfile TEST_USER = new AlaUserProfile() {
+
+                @Override
+                public String getId() {
+                    return null;
+                }
+
+                @Override
+                public void setId(String id) {
+
+                }
+
+                @Override
+                public String getTypedId() {
+                    return null;
+                }
+
+                @Override
+                public String getUsername() {
+                    return null;
+                }
+
+                @Override
+                public Object getAttribute(String name) {
+                    return null;
+                }
+
+                @Override
+                public Map<String, Object> getAttributes() {
+                    return null;
+                }
+
+                @Override
+                public boolean containsAttribute(String name) {
+                    return false;
+                }
+
+                @Override
+                public void addAttribute(String key, Object value) {
+
+                }
+
+                @Override
+                public void removeAttribute(String key) {
+
+                }
+
+                @Override
+                public void addAuthenticationAttribute(String key, Object value) {
+
+                }
+
+                @Override
+                public void removeAuthenticationAttribute(String key) {
+
+                }
+
+                @Override
+                public void addRole(String role) {
+
+                }
+
+                @Override
+                public void addRoles(Collection<String> roles) {
+
+                }
+
+                @Override
+                public Set<String> getRoles() {
+                    return Collections.emptySet();
+                }
+
+                @Override
+                public void addPermission(String permission) {
+
+                }
+
+                @Override
+                public void addPermissions(Collection<String> permissions) {
+
+                }
+
+                @Override
+                public Set<String> getPermissions() {
+                    return Collections.emptySet();
+                }
+
+                @Override
+                public boolean isRemembered() {
+                    return false;
+                }
+
+                @Override
+                public void setRemembered(boolean rme) {
+
+                }
+
+                @Override
+                public String getClientName() {
+                    return null;
+                }
+
+                @Override
+                public void setClientName(String clientName) {
+
+                }
+
+                @Override
+                public String getLinkedId() {
+                    return null;
+                }
+
+                @Override
+                public void setLinkedId(String linkedId) {
+
+                }
+
+                @Override
+                public boolean isExpired() {
+                    return false;
+                }
+
+                @Override
+                public Principal asPrincipal() {
+                    return null;
+                }
+
+                @Override
+                public String getName() {
+                    return null;
+                }
+
+                @Override
+                public String getUserId() {
+                    return "Tester";
+                }
+
+                @Override
+                public String getEmail() {
+                    return "test@test.com";
+                }
+
+                @Override
+                public String getGivenName() {
+                    return null;
+                }
+
+                @Override
+                public String getFamilyName() {
+                    return null;
+                }
+            };
 
     public final int TEST_INDEX_SIZE = 1005;
     public final int DEFAULT_SEARCH_PAGE_SIZE = 10;
-    public final int INDEXED_FIELD_SIZE = 435;
+    public final int INDEXED_FIELD_SIZE = 451;
 
     @Autowired
     OccurrenceController occurrenceController;

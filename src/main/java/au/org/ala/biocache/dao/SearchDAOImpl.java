@@ -15,12 +15,9 @@
 package au.org.ala.biocache.dao;
 
 import au.com.bytecode.opencsv.CSVReader;
-import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.service.*;
-import au.org.ala.biocache.stream.EndemicFacet;
-import au.org.ala.biocache.stream.ProcessDownload;
-import au.org.ala.biocache.stream.ProcessInterface;
+import au.org.ala.biocache.stream.*;
 import au.org.ala.biocache.util.*;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import au.org.ala.biocache.writer.CSVRecordWriter;
@@ -28,7 +25,6 @@ import au.org.ala.biocache.writer.RecordWriterError;
 import au.org.ala.biocache.writer.TSVRecordWriter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateUtils;
@@ -54,7 +50,6 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -144,8 +139,12 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Value("${download.max.completion.time:300000}")
     protected Long downloadMaxCompletionTime = 300000L;
-    protected static final Integer FACET_PAGE_SIZE = 1000;
-//    protected static final String RANGE_SUFFIX = "_RNG";
+
+    /**
+     * List of fields that are stored, have no DwC class, and must be excluded from downloads when includeMisc=true
+     */
+    @Value("${download.excluded.misc.fields:_root_,geospatialIssues,assertions,geohash,label,lat_long,lft,names_and_lsid,nick,null,packedQuad,point-0.0001,point-0.001,point-0.01,point-0.02,point-0.1,point-1,quad,rgt,aust_conservation,state_conservation,species_group,species_subgroup}")
+    protected String downloadExcludedMiscFields;
 
     protected Pattern clpField = Pattern.compile("(,|^)cl.p(,|$)");
     protected Pattern elpField = Pattern.compile("(,|^)el.p(,|$)");
@@ -319,25 +318,6 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @return An instance of ExecutorService used to concurrently execute multiple solr queries for online downloads.
-     */
-    private ExecutorService getSolrOnlineThreadPoolExecutor() {
-        ExecutorService nextExecutor = solrOnlineExecutor;
-        if (nextExecutor == null) {
-            synchronized (this) {
-                nextExecutor = solrOnlineExecutor;
-                if (nextExecutor == null) {
-                    nextExecutor = solrOnlineExecutor = Executors.newFixedThreadPool(
-                            getMaxSolrOnlineDownloadThreads(),
-                            new ThreadFactoryBuilder().setNameFormat("biocache-solr-online-%d")
-                                    .setPriority(Thread.MIN_PRIORITY).build());
-                }
-            }
-        }
-        return nextExecutor;
-    }
-
-    /**
      * (Endemic)
      * <p>
      * Returns a list of species that are only within a subQuery.
@@ -493,36 +473,10 @@ public class SearchDAOImpl implements SearchDAO {
             logger.debug("Writing CSV file for species count by circle");
         }
         searchParams.setFlimit(-1);
-        List<TaxaCountDTO> species = getSpeciesCounts(searchParams);
-        if (logger.isDebugEnabled()) {
-            logger.debug("There are " + species.size() + "records being downloaded");
-        }
-        try (CSVWriter csvWriter = new CSVWriter(new OutputStreamWriter(new CloseShieldOutputStream(out), StandardCharsets.UTF_8), '\t', '"');) {
-            csvWriter.writeNext(new String[]{
-                    "Taxon ID",
-                    "Kingdom",
-                    "Family",
-                    "Scientific name",
-                    "Common name",
-                    "Record count"});
-            int count = 0;
-            for (TaxaCountDTO item : species) {
 
-                String[] record = new String[]{
-                        item.getGuid(),
-                        item.getKingdom(),
-                        item.getFamily(),
-                        item.getName(),
-                        item.getCommonName(),
-                        item.getCount().toString()
-                };
+        getSpeciesCountsTSVCircle(searchParams, out);
 
-                csvWriter.writeNext(record);
-                count++;
-            }
-            csvWriter.flush();
-            return count;
-        }
+        return 0;
     }
 
     /**
@@ -541,107 +495,14 @@ public class SearchDAOImpl implements SearchDAO {
 
         //don't want any results returned
         solrQuery.setRows(0);
-        solrQuery.setFacetLimit(FACET_PAGE_SIZE);
-
-        int offset = 0;
-        boolean isGuid = searchParams.getFacets()[0].contains("_guid") ||
-                searchParams.getFacets()[0].endsWith("ID");
-        boolean isLsid = searchParams.getFacets()[0].contains("_lsid") || searchParams.getFacets()[0].contains(OccurrenceIndex.TAXON_CONCEPT_ID);
-        boolean shouldLookupTaxon = lookupName && (isLsid || isGuid);
-        boolean isUid = searchParams.getFacets()[0].contains("_uid") || searchParams.getFacets()[0].endsWith("Uid");
-        boolean shouldLookupAttribution = lookupName && isUid;
+        solrQuery.setFacetLimit(searchParams.getFlimit());
 
         if (dd != null) {
             dd.resetCounts();
         }
 
-        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
-        if (logger.isDebugEnabled()) {
-            logger.debug("Retrieved facet results from server...");
-        }
-        if (qr.getResults().getNumFound() > 0) {
-            FacetField ff = qr.getFacetField(searchParams.getFacets()[0]);
-
-            //write the header line
-            if (ff != null) {
-                String[] header = new String[]{ff.getName()};
-                if (shouldLookupTaxon) {
-                    header = speciesLookupService.getHeaderDetails(fieldMappingUtil.translateFieldName(ff.getName()), includeCount, includeSynonyms);
-                } else if (shouldLookupAttribution) {
-                    header = (String[]) ArrayUtils.addAll(header, new String[]{"name", "count"});
-                } else if (includeCount) {
-                    header = (String[]) ArrayUtils.add(header, "count");
-                }
-                if (includeLists) {
-                    header = (String[]) ArrayUtils.addAll(header, listsService.getTypes().toArray(new String[]{}));
-                }
-
-                CSVRecordWriter writer = new CSVRecordWriter(new CloseShieldOutputStream(out), header);
-                try {
-                    writer.initialise();
-                    boolean addedNullFacet = false;
-
-                    //PAGE through the facets until we reach the end.
-                    //do not continue when null facet is already added and the next facet is only null
-                    while (ff.getValueCount() > 1 || !addedNullFacet || (ff.getValueCount() == 1 && ff.getValues().get(0).getName() != null)) {
-                        //process the "species_guid_ facet by looking up the list of guids
-                        if (shouldLookupTaxon) {
-                            List<String> guids = new ArrayList<String>();
-                            List<Long> counts = new ArrayList<Long>();
-                            if (logger.isDebugEnabled()) {
-                                logger.debug("Downloading " + ff.getValueCount() + " species guids");
-                            }
-                            for (FacetField.Count value : ff.getValues()) {
-                                //only add null facet once
-                                if (value.getName() == null) addedNullFacet = true;
-                                if (value.getCount() == 0 || (value.getName() == null && addedNullFacet)) continue;
-
-                                guids.add(value.getName());
-                                if (includeCount) {
-                                    counts.add(value.getCount());
-                                }
-
-                                //Only want to send a sub set of the list so that the URI is not too long for BIE
-                                if (guids.size() == 30) {
-                                    //now get the list of species from the web service TODO may need to move this code
-                                    //handle null values being returned from the service...
-                                    writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, includeLists, writer);
-                                    guids.clear();
-                                    counts.clear();
-                                }
-                            }
-                            //now write any guids that remain at the end of the looping
-                            writeTaxonDetailsToStream(guids, counts, includeCount, includeSynonyms, includeLists, writer);
-                        } else {
-                            //default processing of facets
-                            for (FacetField.Count value : ff.getValues()) {
-                                //only add null facet once
-                                if (value.getName() == null) addedNullFacet = true;
-                                if (value.getCount() == 0 || (value.getName() == null && addedNullFacet)) continue;
-
-                                String name = value.getName() != null ? value.getName() : "";
-                                if (shouldLookupAttribution) {
-                                    writer.write(includeCount ? new String[]{name, collectionCache.getNameForCode(name), Long.toString(value.getCount())} : new String[]{name});
-                                } else {
-                                    writer.write(includeCount ? new String[]{name, Long.toString(value.getCount())} : new String[]{name});
-                                }
-                            }
-                        }
-                        offset += FACET_PAGE_SIZE;
-                        if (dd != null) {
-                            dd.updateCounts(FACET_PAGE_SIZE);
-                        }
-
-                        //get the next values
-                        solrQuery.set("facet.offset", Integer.toString(offset));
-                        qr = indexDao.runSolrQuery(solrQuery);
-                        ff = qr.getFacetField(searchParams.getFacets()[0]);
-                    }
-                } finally {
-                    writer.finalise();
-                }
-            }
-        }
+        StreamFacet procFacet = new StreamFacet(this, dd, searchParams, lookupName, includeCount, includeSynonyms, includeLists, 0, out);
+        indexDao.streamingQuery(solrQuery, null, procFacet, null);
     }
 
     /**
@@ -670,6 +531,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @param out
      * @throws Exception
      */
+    @Deprecated
     public void writeCoordinatesToStream(SpatialSearchRequestDTO searchParams, OutputStream out) throws Exception {
         SolrQuery solrQuery = initSolrQuery(searchParams, false, null);
 
@@ -722,10 +584,6 @@ public class SearchDAOImpl implements SearchDAO {
             throw new Exception("PostConstruct not finished, downloadFields==null");
         }
 
-        if (nextExecutor == null) {
-            nextExecutor = getSolrOnlineThreadPoolExecutor();
-        }
-
         // reset counts when retrying a download
         dd.resetCounts();
 
@@ -739,27 +597,35 @@ public class SearchDAOImpl implements SearchDAO {
         // create writer
         RecordWriter recordWriter = createRecordWriter(downloadParams, downloadHeaders, out);
 
-        // submit download
-        Future future = nextExecutor.submit(prepareDownloadRunner(downloadParams, downloadHeaders, dd, uidStats, recordWriter));
+        // submit download to executor
+        if (nextExecutor != null) {
+            // TODO: remove when deprecated services are removed: /occurrences/download and /occurrences/download/batchFile
+            Future future = nextExecutor.submit(prepareDownloadRunner(downloadParams, downloadHeaders, dd, uidStats, recordWriter));
 
-        // wait for download to finish
-        // Busy wait because we need to be able to respond to an interrupt on any callable
-        // and propagate it to all of the others for this particular query
-        // Because the executor service is shared to prevent too many concurrent threads being run,
-        // this requires a busy wait loop on the main thread to monitor state
-        boolean waitAgain = false;
-        do {
-            waitAgain = false;
-            if (!future.isDone()) {
-                // Wait again even if an interrupt flag is set, as it may have been set partway through the iteration
-                // The calls to future.cancel will occur next time if the interrupt is setup partway through an iteration
-                waitAgain = true;
-            }
+            // wait for download to finish
+            // Busy wait because we need to be able to respond to an interrupt on any callable
+            // and propagate it to all of the others for this particular query
+            // Because the executor service is shared to prevent too many concurrent threads being run,
+            // this requires a busy wait loop on the main thread to monitor state
+            boolean waitAgain = false;
+            do {
+                waitAgain = false;
+                if (!future.isDone()) {
+                    // Wait again even if an interrupt flag is set, as it may have been set partway through the iteration
+                    // The calls to future.cancel will occur next time if the interrupt is setup partway through an iteration
+                    waitAgain = true;
+                }
 
-            if (waitAgain) {
-                Thread.sleep(downloadCheckBusyWaitSleep);
-            }
-        } while (waitAgain);
+                if (waitAgain) {
+                    Thread.sleep(downloadCheckBusyWaitSleep);
+                }
+            } while (waitAgain);
+        } else {
+            // This is already running in an executor
+            prepareDownloadRunner(downloadParams, downloadHeaders, dd, uidStats, recordWriter).call();
+        }
+
+
 
         // close writer
         recordWriter.finalise();
@@ -907,7 +773,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     private DownloadHeaders prepareHeaders(DownloadRequestDTO downloadParams) {
-        DownloadHeaders downloadHeaders = downloadFields.newDownloadHeader(downloadParams);
+        DownloadHeaders downloadHeaders = downloadFields.newDownloadHeader(downloadParams, Arrays.asList(downloadExcludedMiscFields.split(",")));
 
         // add fields that are required for post-processing
         addPostProcessingFields(downloadParams, downloadHeaders);
@@ -1093,11 +959,13 @@ public class SearchDAOImpl implements SearchDAO {
     /**
      * @see au.org.ala.biocache.dao.SearchDAO#getFacetPoints(SpatialSearchRequestDTO, au.org.ala.biocache.dto.PointType)
      */
+    @Deprecated
     @Override
     public List<OccurrencePoint> getFacetPoints(SpatialSearchRequestDTO searchParams, PointType pointType) throws Exception {
         return getPoints(searchParams, pointType, -1);
     }
 
+    @Deprecated
     private List<OccurrencePoint> getPoints(SpatialSearchRequestDTO searchParams, PointType pointType, int max) throws Exception {
         List<OccurrencePoint> points = new ArrayList<>();
 
@@ -1144,8 +1012,9 @@ public class SearchDAOImpl implements SearchDAO {
 
     /**
      * @see au.org.ala.biocache.dao.SearchDAO#findRecordsForLocation(SpatialSearchRequestDTO, au.org.ala.biocache.dto.PointType)
-     * This is used by explore your area
+     * This is no longer used by explore your area
      */
+    @Deprecated
     @Override
     public List<OccurrencePoint> findRecordsForLocation(SpatialSearchRequestDTO requestParams, PointType pointType) throws Exception {
         return getPoints(requestParams, pointType, MAX_DOWNLOAD_SIZE);
@@ -1557,83 +1426,28 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws SolrServerException
      */
-    protected List<TaxaCountDTO> getSpeciesCounts(SpatialSearchRequestDTO requestParams) throws Exception {
-
-        List<TaxaCountDTO> speciesCounts = new ArrayList<TaxaCountDTO>();
+    protected void getSpeciesCountsJSON(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
         SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
         solrQuery.setFacetMissing(false);
 
-        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
-        if (logger.isDebugEnabled()) {
-            logger.debug("SOLR query: " + solrQuery.getQuery() + "; total hits: " + qr.getResults().getNumFound());
-        }
-        List<FacetField> facets = qr.getFacetFields();
-        java.util.regex.Pattern p = java.util.regex.Pattern.compile("\\|");
+        StreamTaxaCount procFacet = new StreamTaxaCount(this, searchUtils, requestParams, outputStream);
+        indexDao.streamingQuery(solrQuery, null, procFacet, null);
+    }
 
-        if (facets != null && facets.size() > 0) {
-            if (logger.isDebugEnabled()) {
-                logger.debug("Facets: " + facets.size() + "; facet #1: " + facets.get(0).getName());
-            }
-            for (FacetField facet : facets) {
-                List<FacetField.Count> facetEntries = facet.getValues();
-                if ((facetEntries != null) && (facetEntries.size() > 0)) {
+    protected void getSpeciesCountsCSV(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
+        SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
+        solrQuery.setFacetMissing(false);
 
-                    for (FacetField.Count fcount : facetEntries) {
-                        TaxaCountDTO tcDTO = null;
-                        String name = fcount.getName() != null ? fcount.getName() : "";
-                        if (fcount.getFacetField().getName().equals(NAMES_AND_LSID)) {
-                            String[] values = p.split(name, 5);
+        StreamTaxaAsCSV procFacet = new StreamTaxaAsCSV(this, searchUtils, requestParams, outputStream);
+        indexDao.streamingQuery(solrQuery, null, procFacet, null);
+    }
 
-                            if (values.length >= 5) {
-                                if (!"||||".equals(name)) {
-                                    tcDTO = new TaxaCountDTO(values[0], fcount.getCount());
-                                    tcDTO.setGuid(StringUtils.trimToNull(values[1]));
-                                    tcDTO.setCommonName("null".equals(values[2]) ? "" : values[2]);
-                                    tcDTO.setKingdom(values[3]);
-                                    tcDTO.setFamily(values[4]);
-                                    if (StringUtils.isNotEmpty(tcDTO.getGuid()))
-                                        tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
-                                }
-                            } else {
-                                if (logger.isDebugEnabled()) {
-                                    logger.debug("The values length: " + values.length + " :" + name);
-                                }
-                                tcDTO = new TaxaCountDTO(name, fcount.getCount());
-                            }
+    protected void getSpeciesCountsTSVCircle(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
+        SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
+        solrQuery.setFacetMissing(false);
 
-                            if (tcDTO != null && tcDTO.getCount() > 0)
-                                speciesCounts.add(tcDTO);
-                        } else if (fcount.getFacetField().getName().equals(COMMON_NAME_AND_LSID)) {
-                            String[] values = p.split(name, 6);
-
-                            if (values.length >= 5) {
-                                if (!"|||||".equals(name)) {
-                                    tcDTO = new TaxaCountDTO(values[1], fcount.getCount());
-                                    tcDTO.setGuid(StringUtils.trimToNull(values[2]));
-                                    tcDTO.setCommonName("null".equals(values[0]) ? "" : values[0]);
-                                    //cater for the bug of extra vernacular name in the result
-                                    tcDTO.setKingdom(values[values.length - 2]);
-                                    tcDTO.setFamily(values[values.length - 1]);
-                                    if (StringUtils.isNotEmpty(tcDTO.getGuid()))
-                                        tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
-                                }
-                            } else {
-                                if (logger.isDebugEnabled()) {
-                                    logger.debug("The values length: " + values.length + " :" + name);
-                                }
-                                tcDTO = new TaxaCountDTO(name, fcount.getCount());
-                            }
-
-                            if (tcDTO != null && tcDTO.getCount() > 0) {
-                                speciesCounts.add(tcDTO);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return speciesCounts;
+        StreamTaxaAsTSVCircle procFacet = new StreamTaxaAsTSVCircle(this, searchUtils, requestParams, outputStream);
+        indexDao.streamingQuery(solrQuery, null, procFacet, null);
     }
 
     /**
@@ -1681,7 +1495,7 @@ public class SearchDAOImpl implements SearchDAO {
         searchParams.setPageSize(0);
 
         SolrQuery facetQuery = initSolrQuery(searchParams, false, null);
-        facetQuery.setFields(null);
+        facetQuery.setFields();
 
         List<String> fqList = new ArrayList<String>();
         //only add the FQ's if they are not the default values
@@ -2029,15 +1843,27 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
-     * @see au.org.ala.biocache.dao.SearchDAO#findAllSpecies(SpatialSearchRequestDTO)
+     * @see au.org.ala.biocache.dao.SearchDAO#findAllSpeciesJSON(SpatialSearchRequestDTO, OutputStream)
      */
     @Override
-    public List<TaxaCountDTO> findAllSpecies(SpatialSearchRequestDTO requestParams) throws Exception {
+    public void findAllSpeciesJSON(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
         if (requestParams.getFacets() == null || requestParams.getFacets().length != 1) {
             requestParams.setFacets(new String[]{NAMES_AND_LSID});
         }
 
-        return getSpeciesCounts(requestParams);
+        getSpeciesCountsJSON(requestParams, outputStream);
+    }
+
+    /**
+     * @see au.org.ala.biocache.dao.SearchDAO#findAllSpeciesJSON(SpatialSearchRequestDTO, OutputStream)
+     */
+    @Override
+    public void findAllSpeciesCSV(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
+        if (requestParams.getFacets() == null || requestParams.getFacets().length != 1) {
+            requestParams.setFacets(new String[]{NAMES_AND_LSID});
+        }
+
+        getSpeciesCountsCSV(requestParams, outputStream);
     }
 
     /**
@@ -2112,7 +1938,7 @@ public class SearchDAOImpl implements SearchDAO {
 
             int value = 1024;
             boolean ok = false;
-            int step = -1;
+                   int step = -1;
             while (step != 0 || ok == false) {
                 String q = 1 + StringUtils.repeat(" AND 1", value - 1);
                 solrQuery.setQuery(q);
@@ -2277,7 +2103,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         //get facet group counts
         SolrQuery query = initSolrQuery(searchParams, false, null);
-        query.setFields(null);
+        query.setFields();
         //now use the supplied facets to add groups to the query
         query.add("facet.pivot", pivot);
         query.add("facet.pivot.mincount", "1");
@@ -2371,7 +2197,7 @@ public class SearchDAOImpl implements SearchDAO {
         //get facet group counts
         SolrQuery query = initSolrQuery(searchParams, false, null);
         query.setRows(0);
-        query.setFields(null);
+        query.setFields();
 
         //stats parameters
         query.add("stats", "true");
@@ -2502,7 +2328,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
     }
 
-    // TODO: single request to improve performance
+    @Deprecated
     @Override
     public List<String> listFacets(SpatialSearchRequestDTO searchParams) throws Exception {
         searchParams.setFacet(true);
@@ -2555,10 +2381,8 @@ public class SearchDAOImpl implements SearchDAO {
         // fix date line
         while (maxx > 180) {
             maxx -= 360;
-            minx -= 360;
         }
         while (minx < -180) {
-            maxx += 360;
             minx += 360;
         }
 

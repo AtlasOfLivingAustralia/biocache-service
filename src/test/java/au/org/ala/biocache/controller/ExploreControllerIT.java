@@ -14,6 +14,7 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
@@ -21,9 +22,10 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
  * Integration tests for occurrence services.
@@ -31,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(locations = {"classpath:springTest.xml"})
 @WebAppConfiguration
+@TestPropertySource(locations = "classpath:biocache-test-config.properties")
 public class ExploreControllerIT extends TestCase {
 
     static {
@@ -171,8 +174,8 @@ public class ExploreControllerIT extends TestCase {
 
     @Test
     public void getExploreGroup3() throws Exception {
-        this.mockMvc.perform(get("/explore/group/Birds?pageSize=0&start=0&sort=count"))
-                .andExpect(jsonPath("$.length()").value(0));
+        this.mockMvc.perform(get("/explore/group/Birds?pageSize=1&start=0&sort=count"))
+                .andExpect(jsonPath("$.length()").value(1));
     }
 
     @Test

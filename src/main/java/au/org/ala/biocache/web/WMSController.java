@@ -20,6 +20,7 @@ import au.org.ala.biocache.dao.TaxonDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.stream.StreamAsCSV;
 import au.org.ala.biocache.util.*;
+import au.org.ala.biocache.util.converter.FqField;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -337,20 +338,11 @@ public class WMSController extends AbstractSecureController {
     @Operation(summary = "JSON web service that returns a list of species and record counts for a given location search", tags = "Mapping")
     @RequestMapping(value = {
             "/mapping/species"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public
-    @ResponseBody
-    List<TaxaCountDTO> listSpecies(@ParameterObject SpatialSearchRequestParams params) throws Exception {
-        return searchDAO.findAllSpecies(SpatialSearchRequestDTO.create(params));
-    }
+    public void listSpecies(@ParameterObject SpatialSearchRequestParams params,
+                                   HttpServletResponse response) throws Exception {
+        response.setContentType("application/json");
 
-    @Deprecated
-    @Operation(summary = "JSON web service that returns a list of species and record counts for a given location search", tags = "Mapping")
-    @RequestMapping(value = {
-            "/webportal/species"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public
-    @ResponseBody
-    List<TaxaCountDTO> listSpeciesDeprecated(@ParameterObject SpatialSearchRequestParams params) throws Exception {
-        return searchDAO.findAllSpecies(SpatialSearchRequestDTO.create(params));
+        searchDAO.findAllSpeciesJSON(SpatialSearchRequestDTO.create(params), response.getOutputStream());
     }
 
     /**
@@ -368,55 +360,9 @@ public class WMSController extends AbstractSecureController {
             HttpServletResponse response) throws Exception {
 
         SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
-        List<TaxaCountDTO> list = searchDAO.findAllSpecies(dto);
+        response.setContentType("application/json");
 
-        //format as csv
-        StringBuilder sb = new StringBuilder();
-        sb.append(SPECIES_LIST_CSV_HEADER);
-        for (TaxaCountDTO d : list) {
-            String family = d.getFamily();
-            String name = d.getName();
-            String commonName = d.getCommonName();
-            String guid = d.getGuid();
-            String rank = d.getRank();
-
-            if (family == null) {
-                family = "";
-            }
-            if (name == null) {
-                name = "";
-            }
-            if (commonName == null) {
-                commonName = "";
-            }
-
-            if (d.getGuid() == null) {
-                //when guid is empty name contains name_lsid value.
-                if (d.getName() != null) {
-                    //parse name
-                    String[] nameLsid = d.getName().split("\\|");
-                    if (nameLsid.length >= 2) {
-                        name = nameLsid[0];
-                        guid = nameLsid[1];
-                        rank = "scientific name";
-
-                        if (nameLsid.length >= 3) {
-                            commonName = nameLsid[2];
-                        }
-                    } else {
-                        name = NULL_NAME;
-                    }
-                }
-            }
-            if (d.getCount() != null && guid != null) {
-                sb.append("\n\"").append(family.replace("\"", "\"\"").trim()).append("\",\"").append(name.replace("\"", "\"\"").trim()).append("\",\"").append(commonName.replace("\"", "\"\"").trim()).append("\",").append(rank).append(",").append(guid).append(",").append(d.getCount());
-            }
-        }
-
-        response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
-        response.setHeader("ETag", wmsETag.get());
-
-        writeBytes(response, sb.toString().getBytes(StandardCharsets.UTF_8));
+        searchDAO.findAllSpeciesCSV(dto, response.getOutputStream());
     }
 
     /**
@@ -461,7 +407,7 @@ public class WMSController extends AbstractSecureController {
 
         SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(params);
 
-        String[] acceptableTypes = new String[]{"application/json", "application/csv"};
+        String[] acceptableTypes = new String[]{"application/json", "application/json; charset=UTF-8", "application/csv"};
 
         String accepts = request.getHeader("Accept");
         //only allow a single format to be supplied in the header otherwise use the default returnType
@@ -499,7 +445,7 @@ public class WMSController extends AbstractSecureController {
         response.setHeader("ETag", wmsETag.get());
 
         //now generate the JSON if necessary
-        if (returnType.equals("application/json")) {
+        if (Arrays.asList(new String[]{"application/json", "application/json; charset=UTF-8"}).contains(returnType)){
             return legend;
         } else {
             writeBytes(response, sb.toString().getBytes(StandardCharsets.UTF_8));
@@ -1190,7 +1136,7 @@ public class WMSController extends AbstractSecureController {
             @RequestParam(value = "OUTLINECOLOUR", required = false, defaultValue = "0x000000") String outlineColour,
             @RequestParam(value = "LAYERS", required = false, defaultValue = "") String layers,
             @RequestParam(value = "q", required = false, defaultValue = "*:*") String query,
-            @RequestParam(value = "fq", required = false) String[] filterQueries,
+            @FqField @RequestParam(value = "fq", required = false) String[] filterQueries,
             @RequestParam(value = "X", required = false, defaultValue = "0") Double x,
             @RequestParam(value = "Y", required = false, defaultValue = "0") Double y,
             @RequestParam(value = "GRIDDETAIL", required = false, defaultValue = "16") int gridDivisionCount,
@@ -1204,6 +1150,7 @@ public class WMSController extends AbstractSecureController {
             Model model)
             throws Exception {
 
+        String encodedQuery = URLEncoder.encode(query, "UTF-8");
         if ("GetMap".equalsIgnoreCase(requestString)) {
             generateWmsTileViaHeatmap(
                     requestParams,
@@ -1256,16 +1203,18 @@ public class WMSController extends AbstractSecureController {
             String biocacheServerUrl = request.getSession().getServletContext().getInitParameter("webservicesRoot");
             PrintWriter writer = response.getWriter();
 
-            String supportedCodes = "";
+            String supportedCodes = "      <SRS>EPSG:4326</SRS>\n";
             for (String code : CRS.getSupportedCodes("EPSG")) {
-                supportedCodes += "      <SRS>EPSG:" + code + "</SRS>\n";
+                if (!"EPSG:4326".equals(code)) {
+                    supportedCodes += "      <SRS>" + code + "</SRS>\n";
+                }
             }
 
             writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
                     "<!DOCTYPE WMT_MS_Capabilities SYSTEM \"https://spatial.ala.org.au/geoserver/schemas/wms/1.1.1/WMS_MS_Capabilities.dtd\">\n" +
                     "<WMT_MS_Capabilities version=\"1.1.1\" updateSequence=\"28862\">\n" +
                     "  <Service>\n" +
-                    "    <Name>OGC:WMS</Name>\n" +
+                    "    <Name>ALA WMS</Name>\n" +
                     "    <Title>" + organizationName + "(WMS) - Species occurrences</Title>\n" +
                     "    <Abstract>WMS services for species occurrences.</Abstract>\n" +
                     "    <KeywordList>\n" +
@@ -1274,7 +1223,7 @@ public class WMSController extends AbstractSecureController {
                     "      <Keyword>ALA</Keyword>\n" +
                     "      <Keyword>CRIS</Keyword>\n" +
                     "    </KeywordList>\n" +
-                    "    <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + biocacheServerUrl + "/ogc/wms\"/>\n" +
+                    "    <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseUiUrl + "\"/>\n" +
                     "    <ContactInformation>\n" +
                     "      <ContactPersonPrimary>\n" +
                     "        <ContactPerson>ALA Support</ContactPerson>\n" +
@@ -1303,10 +1252,10 @@ public class WMSController extends AbstractSecureController {
                     "        <DCPType>\n" +
                     "          <HTTP>\n" +
                     "            <Get>\n" +
-                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/getCapabilities?SERVICE=WMS&amp;\"/>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;q=" + encodedQuery + "&amp;REQUEST=GetCapabilities&amp;\"/>\n" +
                     "            </Get>\n" +
                     "            <Post>\n" +
-                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/getCapabilities?SERVICE=WMS&amp;\"/>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;q=" + encodedQuery + "&amp;REQUEST=GetCapabilities&amp;\"/>\n" +
                     "            </Post>\n" +
                     "          </HTTP>\n" +
                     "        </DCPType>\n" +
@@ -1316,7 +1265,7 @@ public class WMSController extends AbstractSecureController {
                     "        <DCPType>\n" +
                     "          <HTTP>\n" +
                     "            <Get>\n" +
-                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/wms/reflect?SERVICE=WMS&amp;OUTLINE=TRUE&amp;\"/>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;OUTLINE=TRUE&amp;q=" + encodedQuery + "&amp;REQUEST=getMap&amp;\"/>\n" +
                     "            </Get>\n" +
                     "          </HTTP>\n" +
                     "        </DCPType>\n" +
@@ -1326,10 +1275,10 @@ public class WMSController extends AbstractSecureController {
                     "        <DCPType>\n" +
                     "          <HTTP>\n" +
                     "            <Get>\n" +
-                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/getFeatureInfo\"/>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;q=" + encodedQuery + "&amp;REQUEST=GetFeatureInfo&amp;\"/>\n" +
                     "            </Get>\n" +
                     "            <Post>\n" +
-                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/getFeatureInfo\"/>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;q=" + encodedQuery + "&amp;REQUEST=GetFeatureInfo&amp;\"/>\n" +
                     "            </Post>\n" +
                     "          </HTTP>\n" +
                     "        </DCPType>\n" +
@@ -1341,7 +1290,7 @@ public class WMSController extends AbstractSecureController {
                     "        <DCPType>\n" +
                     "          <HTTP>\n" +
                     "            <Get>\n" +
-                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/legendGraphic\"/>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;q=" + encodedQuery + "&amp;REQUEST=GetLegendGraphic&amp;\"/>\n" +
                     "            </Get>\n" +
                     "          </HTTP>\n" +
                     "        </DCPType>\n" +
@@ -1489,6 +1438,9 @@ public class WMSController extends AbstractSecureController {
         if (StringUtils.trimToNull(cql_filter) != null) {
             requestParams.setQ(WMSUtils.getQ(cql_filter));
         } else if (StringUtils.trimToNull(layers) != null && !"ALA:Occurrences".equalsIgnoreCase(layers)) {
+            if (!"*:*".equals(requestParams.getQ())) {
+                queryFormatUtils.addFqs(new String[]{requestParams.getQ()}, requestParams);
+            }
             requestParams.setQ(WMSUtils.convertLayersParamToQ(layers));
         }
 

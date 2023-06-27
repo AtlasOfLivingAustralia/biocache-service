@@ -45,7 +45,7 @@ public class StreamFacet implements ProcessInterface {
         this.includeLists = includeLists;
         this.missingCount = missingCount;
 
-        String facetName = downloadDetails.getRequestParams().getFacets()[0];
+        String facetName = request.getFacets()[0];
 
         // shouldLookup is valid for 1.0 and 2.0 SOLR schema
         boolean isGuid = request.getFacets()[0].contains("_guid") ||
@@ -53,7 +53,7 @@ public class StreamFacet implements ProcessInterface {
         boolean isLsid = request.getFacets()[0].contains("_lsid") || request.getFacets()[0].contains(OccurrenceIndex.TAXON_CONCEPT_ID);
         boolean shouldLookupTaxon = lookupName && (isLsid || isGuid);
         boolean isUid = request.getFacets()[0].contains("_uid") || request.getFacets()[0].endsWith("Uid");
-        boolean shouldLookupAttribution = lookupName && isUid;
+        this.shouldLookupAttribution = lookupName && isUid;
 
         String[] header = new String[]{facetName};
         if (shouldLookupTaxon) {

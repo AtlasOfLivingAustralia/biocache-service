@@ -69,6 +69,10 @@ public class AssertionCodes {
             ));
         }
         for (OccurrenceIssue issue : issues){
+            // ignore deprecated issues
+            if (issue.isDeprecated()) {
+                continue;
+            }
             ErrorCode.Category c = null;
             if (issue.getSeverity().equals(InterpretationRemarkSeverity.ERROR)){
                 c = ErrorCode.Category.Error;

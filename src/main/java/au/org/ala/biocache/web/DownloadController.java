@@ -19,23 +19,24 @@ import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.biocache.dto.DownloadRequestParams;
+import au.org.ala.biocache.dto.DownloadStatusDTO;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.ws.security.profile.AlaUserProfile;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
-import net.sf.json.JSONArray;
-import net.sf.json.JSONObject;
-import net.sf.json.JsonConfig;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocumentList;
 import org.springdoc.api.annotations.ParameterObject;
-import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.stereotype.Controller;
@@ -52,21 +53,24 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import org.springframework.web.server.ResponseStatusException;
+
+import static java.util.stream.Collectors.*;
 
 /**
  * A Controller for downloading records based on queries.  This controller
  * will provide methods for offline asynchronous downloads of large result sets.
- * <ul> 
+ * <ul>
  * <li> persistent queue to contain the offline downloads. - written to filesystem before emailing to supplied user </li>
  * <li> administering the queue - changing order, removing items from queue </li>
- * </ul> 
+ * </ul>
  * @author Natasha Carter (natasha.carter@csiro.au)
  */
 @Controller
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Slf4j
 public class DownloadController extends AbstractSecureController {
+
+    final private static Logger logger = Logger.getLogger(ScatterplotController.class);
 
     /** Fulltext search DAO */
     @Inject
@@ -81,28 +85,20 @@ public class DownloadController extends AbstractSecureController {
     @Inject
     protected DownloadService downloadService;
 
+    @Value("${auth.legacy.emailonly.downloads.enabled:true}")
+    protected Boolean emailOnlyEnabled = true;
+
     /**
      * Retrieves all the downloads that are on the queue
      * @return
      */
+    @Deprecated
     @SecurityRequirement(name="JWT")
     @Secured({"ROLE_ADMIN"})
     @Operation(summary = "Retrieves all the downloads that are on the queue", tags = "Monitoring")
     @RequestMapping(value = {"occurrences/offline/download/stats"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody List getCurrentDownloads() {
-
-        JsonConfig config = new JsonConfig();
-        config.setJsonPropertyFilter((source, name, value) -> value == null);
-
-        JSONArray ja = JSONArray.fromObject(persistentQueueDAO.getAllDownloads(), config);
-        for (Object jo : ja) {
-            String id = (String) ((net.sf.json.JSONObject) jo).get("uniqueId");
-            // TODO  how can we construct these urls
-            ((net.sf.json.JSONObject) jo).put("cancelURL", downloadService.webservicesRoot + "/occurrences/offline/cancel/" + id + "?apiKey=TO_BE_ADDED");
-//            ((net.sf.json.JSONObject) jo).put("cancelURL", downloadService.webservicesRoot + "/occurrences/offline/cancel/" + id + "?apiKey=" + apiKey);
-
-        }
-        return ja;
+    public @ResponseBody Map<String, List<DownloadStatusDTO>> getCurrentDownloads() throws Exception {
+        return allOccurrenceDownloadStatus();
     }
 
     /**
@@ -117,7 +113,7 @@ public class DownloadController extends AbstractSecureController {
     @Operation(summary = "Asynchronous occurrence download", tags = "Download")
     @Tag(name ="Download", description = "Services for downloading occurrences and specimen data")
     @RequestMapping(value = { "occurrences/offline/download"}, method = {RequestMethod.GET, RequestMethod.POST})
-    public @ResponseBody Object occurrenceDownload(
+    public @ResponseBody DownloadStatusDTO occurrenceDownload(
             @Valid @ParameterObject DownloadRequestParams requestParams,
             @Parameter(description = "Original IP making the request") @RequestParam(value = "ip", required = false) String ip,
             HttpServletRequest request,
@@ -141,7 +137,7 @@ public class DownloadController extends AbstractSecureController {
                 DownloadDetailsDTO.DownloadType.RECORDS_INDEX);
     }
 
-    private Map<String, Object> download(DownloadRequestDTO requestParams,
+    private DownloadStatusDTO download(DownloadRequestDTO requestParams,
                                          AlaUserProfile alaUser,
                                          String ip,
                                          String userAgent,
@@ -166,32 +162,31 @@ public class DownloadController extends AbstractSecureController {
         SolrDocumentList result = searchDAO.findByFulltext(requestParams);
         dd.setTotalRecords(result.getNumFound());
 
-        Map<String, Object> status = new LinkedHashMap<>();
+        DownloadStatusDTO status = new DownloadStatusDTO();
         DownloadDetailsDTO d = persistentQueueDAO.isInQueue(dd);
 
+        status = getQueueStatus(d);
+
         if (d != null) {
-            status.put("message", "Already in queue.");
-            status.put("status", "inQueue");
-            status.put("queueSize", persistentQueueDAO.getTotalDownloads());
-            status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + d.getUniqueId());
+            status.setMessage("Already in queue.");
+            status.setStatus(DownloadStatusDTO.DownloadStatus.IN_QUEUE);
         } else if (dd.getTotalRecords() > downloadService.dowloadOfflineMaxSize) {
             //identify this download as too large
             File file = new File(downloadService.biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getRequestParams().getEmail().getBytes(StandardCharsets.UTF_8)) + File.separator + dd.getStartTime() + File.separator + "tooLarge");
             FileUtils.forceMkdir(file.getParentFile());
             FileUtils.writeStringToFile(file, "", "UTF-8");
-            status.put("downloadUrl", downloadService.biocacheDownloadUrl);
-            status.put("status", "skipped");
-            status.put("message", downloadService.downloadOfflineMsg);
-            status.put("error", "Requested to many records (" + dd.getTotalRecords() + "). The maximum is (" + downloadService.dowloadOfflineMaxSize + ")");
-        } else {
-            persistentQueueDAO.addDownloadToQueue(dd);
-            status.put("status", "inQueue");
-            status.put("queueSize", persistentQueueDAO.getTotalDownloads());
-            status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
-        }
+            status.setDownloadUrl(downloadService.biocacheDownloadUrl);
+            status.setStatus(DownloadStatusDTO.DownloadStatus.TOO_LARGE);
+            status.setMessage(downloadService.downloadOfflineMsg);
+            status.setError("Requested to many records (" + dd.getTotalRecords() + "). The maximum is (" + downloadService.dowloadOfflineMaxSize + ")");
 
-        status.put("searchUrl", downloadService.generateSearchUrl(dd.getRequestParams()));
-        writeStatusFile(dd.getUniqueId(), status);
+            writeStatusFile(dd.getUniqueId(), status);
+        } else {
+            downloadService.add(dd);
+            status = getQueueStatus(dd);
+
+            writeStatusFile(dd.getUniqueId(), status);
+        }
 
         return status;
     }
@@ -199,146 +194,143 @@ public class DownloadController extends AbstractSecureController {
     @SecurityRequirement(name="JWT")
     @Secured({"ROLE_ADMIN"})
     @Operation(summary = "List all occurrence downloads", tags = "Monitoring")
+    @RequestMapping(value = {"occurrences/offline/status/all"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody Map<String, List<DownloadStatusDTO>> allOccurrenceDownloadStatus() {
+
+        //return each queue
+        Map<String, List<DownloadStatusDTO>> downloads = persistentQueueDAO.getAllDownloads().stream()
+                .collect(groupingBy(dd -> dd.getAlaUser().getEmail(), mapping(this::getQueueStatusAdmin, toList())));
+
+        return downloads;
+    }
+
+    @SecurityRequirement(name="JWT")
+    @Secured({"ROLE_USER"})
+    @Operation(summary = "List all occurrence downloads by the current user", tags = "Monitoring")
     @RequestMapping(value = {"occurrences/offline/status"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody Object allOccurrenceDownloadStatus() throws Exception {
+    public @ResponseBody Map<String, List<DownloadStatusDTO>> allOccurrenceDownloadStatusForUser(
+            HttpServletRequest request) throws Exception {
 
-        List<Map<String, Object>> allStatus = new ArrayList<Map<String, Object>>();
+        Optional<AlaUserProfile> alaUserProfile = authService.getRecordViewUser(request);
 
-        Map<String,String> userIdLookup = authService.getMapOfEmailToId();
-        //is it in the queue?
-        List<DownloadDetailsDTO> downloads = persistentQueueDAO.getAllDownloads();
-        for (DownloadDetailsDTO dd : downloads) {
-            Map<String, Object> status = new LinkedHashMap<>();
-            String id = dd.getUniqueId();
-            if (dd.getFileLocation() == null) {
-                status.put("status", "inQueue");
-            } else {
-                status.put("status", "running");
-                status.put("records", dd.getRecordsDownloaded());
-            }
-            status.put("id", id);
-            status.put("totalRecords", dd.getTotalRecords());
-            status.put("downloadParams", dd.getRequestParams());
-            status.put("startDate", dd.getStartDateString());
-            status.put("thread", dd.getProcessingThreadName());
-            if (userIdLookup != null) {
-                status.put("userId", authService.getMapOfEmailToId().get(dd.getRequestParams().getEmail()));
-            }
-            status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + id);
+        //return each queue
+        Map<String, List<DownloadStatusDTO>> downloads = persistentQueueDAO.getAllDownloads().stream()
+                .filter(dd -> dd.getAlaUser().getUserId().equals(alaUserProfile.get().getUserId()))
+                .collect(groupingBy(dd -> dd.getAlaUser().getEmail(), mapping(this::getQueueStatus, toList())));
 
-            setStatusIfEmpty(id, status);
-
-            allStatus.add(status);
-        }
-
-        return allStatus;
+        return downloads;
     }
 
-    private void setStatusIfEmpty(String id, Map<String, Object> status) throws UnsupportedEncodingException {
-        //is it finished?
-        if (!status.containsKey("status")) {
-            int sep = id.lastIndexOf('-');
-            File dir = new File(downloadService.biocacheDownloadDir + File.separator + id.substring(0, sep) + File.separator + id.substring(sep + 1));
-            if (dir.isDirectory() && dir.exists()) {
-                for (File file : dir.listFiles()) {
-                    if (file.isFile() && file.getPath().endsWith(".zip") && file.length() > 0) {
-                        status.put("status", "finished");
-                        status.put("downloadUrl", downloadService.biocacheDownloadUrl + File.separator + URLEncoder.encode(file.getPath().replace(downloadService.biocacheDownloadDir + "/", ""), "UTF-8").replace("%2F", "/").replace("+", "%20"));
-                    }
-                    if (file.isFile() && "tooLarge".equals(file.getName())) {
-                        status.put("status", "skipped");
-                        status.put("message", downloadService.downloadOfflineMsg);
-                        status.put("downloadUrl", downloadService.dowloadOfflineMaxUrl);
-                    }
-                }
-                if (!status.containsKey("status")) {
-                    status.put("status", "failed");
-                }
-            }
-        }
-
-        if (!status.containsKey("status")) {
-            status.put("status", "invalidId");
-        }
-    }
-
-    private void writeStatusFile(String id, Map status) throws IOException {
+    private void writeStatusFile(String id, DownloadStatusDTO status) throws IOException {
         File statusDir = new File(downloadService.biocacheDownloadDir + "/" + id.replaceAll("-([0-9]*)$", "/$1"));
         statusDir.mkdirs();
-        String json = net.sf.json.JSONObject.fromObject(status).toString();
+        ObjectWriter ow = new ObjectMapper().writer();
+        String json = ow.writeValueAsString(status);
         FileUtils.writeStringToFile(new File(statusDir.getPath() + "/status.json"), json, "UTF-8");
     }
 
     @Operation(summary = "Get the status of download", tags = "Download")
     @RequestMapping(value = { "occurrences/offline/status/{id}"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @ApiParam(value = "id", required = true)
-    public @ResponseBody Object occurrenceDownloadStatus(@PathVariable("id") String id) throws Exception {
-
-        Map<String, Object> status = new LinkedHashMap<>();
-
+    public @ResponseBody DownloadStatusDTO occurrenceDownloadStatus(@PathVariable("id") String id) {
         //is it in the queue?
         List<DownloadDetailsDTO> downloads = persistentQueueDAO.getAllDownloads();
         for (DownloadDetailsDTO dd : downloads) {
             if (id.equals(dd.getUniqueId())) {
-                if (dd.getFileLocation() == null) {
-                    status.put("status", "inQueue");
-                } else {
-                    status.put("status", "running");
-                    status.put("records", dd.getRecordsDownloaded());
-                }
-                status.put("totalRecords", dd.getTotalRecords());
-                status.put("statusUrl", downloadService.webservicesRoot + "/occurrences/offline/status/" + id);
-                if (authService.getMapOfEmailToId() != null) {
-                    status.put("userId", authService.getMapOfEmailToId().get(dd.getRequestParams().getEmail()));
-                }
-                break;
+                return getQueueStatus(dd);
             }
         }
 
-        //is it finished?
         String cleanId = id.replaceAll("[^a-z\\-0-9]", "");
-        cleanId = cleanId.replaceAll("-([0-9]*)$", "/$1");
-        if (!status.containsKey("status")) {
-            File dir = new File(downloadService.biocacheDownloadDir + File.separator + cleanId);
+
+        return getOtherStatus(cleanId);
+    }
+
+    private DownloadStatusDTO getQueueStatusAdmin(DownloadDetailsDTO dd) {
+        return getQueueStatus(dd, true);
+    }
+
+    private DownloadStatusDTO getQueueStatus(DownloadDetailsDTO dd) {
+        return getQueueStatus(dd, false);
+    }
+
+    private DownloadStatusDTO getQueueStatus(DownloadDetailsDTO dd, boolean isAdmin) {
+        DownloadStatusDTO status = new DownloadStatusDTO();
+
+        if (dd != null) {
+            String id = dd.getUniqueId();
+            if (dd.getRecordsDownloaded().get() == 0) {
+                status.setStatus(DownloadStatusDTO.DownloadStatus.IN_QUEUE);
+                status.setQueueSize(downloadService.getDownloadsForUserId(dd.getAlaUser().getUserId()).size() );
+            } else {
+                status.setStatus(DownloadStatusDTO.DownloadStatus.RUNNING);
+                status.setRecords(dd.getRecordsDownloaded().longValue());
+            }
+            status.setTotalRecords(dd.getTotalRecords());
+            status.setStatusUrl(downloadService.webservicesRoot + "/occurrences/offline/status/" + id);
+            if (isAdmin && authService.getMapOfEmailToId() != null) {
+                status.setUserId(authService.getMapOfEmailToId().get(dd.getRequestParams().getEmail()));
+            }
+            status.setSearchUrl(downloadService.generateSearchUrl(dd.getRequestParams()));
+            status.setCancelUrl(downloadService.webservicesRoot + "/occurrences/offline/cancel/" + dd.getUniqueId());
+        }
+
+        return status;
+    }
+
+    private DownloadStatusDTO getOtherStatus(String id) {
+        DownloadStatusDTO status = new DownloadStatusDTO();
+
+        File statusFile = new File(downloadService.biocacheDownloadDir + File.separator + id.replaceAll("-([0-9]*)$", "/$1") + "/status.json");
+        if (status.getStatus() == null) {
+            //check downloads directory for a status file
+            if (statusFile.exists()) {
+                ObjectMapper om = new ObjectMapper();
+                try {
+                    status = om.readValue(statusFile, DownloadStatusDTO.class);
+                } catch (IOException e) {
+                    logger.error("failed to read file: " + statusFile.getPath() + ", " + e.getMessage());
+                }
+            }
+        }
+
+        // look for output files
+        if (status.getStatus() == null
+                || status.getStatus() == DownloadStatusDTO.DownloadStatus.RUNNING
+                || status.getStatus() == DownloadStatusDTO.DownloadStatus.IN_QUEUE) {
+            File dir = new File(downloadService.biocacheDownloadDir + File.separator + id.replaceAll("-([0-9]*)$", "/$1"));
             if (dir.isDirectory() && dir.exists()) {
                 for (File file : dir.listFiles()) {
+
+                    // output zip exists
                     if (file.isFile() && file.getPath().endsWith(".zip") && file.length() > 0) {
-                        status.put("status", "finished");
-                        status.put("downloadUrl", downloadService.biocacheDownloadUrl + File.separator + URLEncoder.encode(file.getPath().replace(downloadService.biocacheDownloadDir + "/", ""), "UTF-8").replace("%2F", "/").replace("+", "%20"));
+                        status.setStatus(DownloadStatusDTO.DownloadStatus.FINISHED);
+                        try {
+                            status.setDownloadUrl(downloadService.biocacheDownloadUrl + File.separator + URLEncoder.encode(file.getPath().replace(downloadService.biocacheDownloadDir + "/", ""), "UTF-8").replace("%2F", "/").replace("+", "%20"));
+                        } catch (UnsupportedEncodingException e) {
+                            logger.error("Failed to URLEncode for id:" + id + ", " + e.getMessage());
+                        }
                     }
+
+                    // notification for large download
                     if (file.isFile() && "tooLarge".equals(file.getName())) {
-                        status.put("status", "skipped");
-                        status.put("message", downloadService.downloadOfflineMsg);
-                        status.put("downloadUrl", downloadService.dowloadOfflineMaxUrl);
-                        status.put("error", "requested to many records. The upper limit is (" + downloadService.dowloadOfflineMaxSize + ")");
+                        status.setStatus(DownloadStatusDTO.DownloadStatus.TOO_LARGE);
+                        status.setMessage(downloadService.downloadOfflineMsg);
+                        status.setDownloadUrl(downloadService.dowloadOfflineMaxUrl);
+                        status.setError("requested to many records. The upper limit is (" + downloadService.dowloadOfflineMaxSize + ")");
                     }
                 }
-                if (!status.containsKey("status")) {
-                    status.put("status", "failed");
-                }
-            }
-
-            // write final status to a file
-            if (status.containsKey("status")) {
-                writeStatusFile(cleanId, status);
             }
         }
 
-        if (!status.containsKey("status")) {
-            //check downloads directory for a status file
-            File file = new File(downloadService.biocacheDownloadDir + File.separator + cleanId + "/status.json");
-            if (file.exists()) {
-                status.putAll(JSONObject.fromObject(FileUtils.readFileToString(file, "UTF-8")));
-
-                // the status.json is only used when a download request is 'lost'. Use an appropriate status.
-                status.put("status", "unavailable");
-                status.put("message", "This download is unavailable.");
+        if (status.getStatus() != null) {
+            try {
+                writeStatusFile(id, status);
+            } catch (IOException e) {
+                logger.error("failed to write status file for id=" + id + ", " + e.getMessage());
             }
         }
 
-        if (!status.containsKey("status")) {
-            status.put("status", "invalidId");
-        }
         return status;
     }
 
@@ -350,37 +342,36 @@ public class DownloadController extends AbstractSecureController {
      * @throws Exception
      */
     @SecurityRequirement(name="JWT")
-    @Secured({"ROLE_ADMIN"})
+    @Secured({"ROLE_USER"})
     @Operation(summary = "Cancel an offline download", tags = "Monitoring")
     @RequestMapping(value = {"occurrences/offline/cancel/{id}"}, method = RequestMethod.GET)
     @ApiParam(value = "id", required = true)
-    public @ResponseBody Object occurrenceDownloadCancel(
+    public @ResponseBody DownloadStatusDTO occurrenceDownloadCancel(
             @PathVariable("id") String id,
-            HttpServletRequest request,
-            HttpServletResponse response) throws Exception {
-
-        if (!shouldPerformOperation(request, response)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient authentication credentials provided.");
-        }
-
-        Map<String, Object> status = new LinkedHashMap<>();
+            HttpServletRequest request) throws Exception {
 
         //is it in the queue?
         List<DownloadDetailsDTO> downloads = persistentQueueDAO.getAllDownloads();
         for (DownloadDetailsDTO dd : downloads) {
             if (id.equals(dd.getUniqueId())) {
-                persistentQueueDAO.removeDownloadFromQueue(dd);
-                status.put("cancelled", "true");
-                status.put("status", "notInQueue");
-                break;
+                AlaUserProfile alaUserProfile = authService.getRecordViewUser(request).get();
+
+                if (dd.getAlaUser().getUserId().equals(alaUserProfile.getUserId()) || alaUserProfile.getRoles().contains("ROLE_ADMIN")) {
+                    // get current status
+                    DownloadStatusDTO status = getQueueStatus(dd);
+
+                    // cancel download
+                    downloadService.cancel(dd);
+
+                    // update status
+                    status.setStatus(DownloadStatusDTO.DownloadStatus.CANCELLED);
+                    writeStatusFile(dd.getUniqueId(), status);
+
+                    return status;
+                }
             }
         }
 
-        if (!status.containsKey("status")) {
-            status.put("cancelled", "false");
-            status.put("status", "notInQueue");
-        }
-
-        return status;
+        return null;
     }
 }

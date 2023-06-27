@@ -15,6 +15,7 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.service.SpeciesLookupService;
+import au.org.ala.biocache.util.converter.FqField;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,7 +44,7 @@ public class AutocompleteController extends AbstractSecureController {
     @ResponseBody
     Map search(
             @RequestParam(value = "q") String query,
-            @RequestParam(value = "fq", required = false) String[] filterQuery,
+            @FqField @RequestParam(value = "fq", required = false) String[] filterQuery,
             @RequestParam(value = "pageSize", required = false, defaultValue = "10") Integer max,
             @RequestParam(value = "all", required = false, defaultValue = "false") Boolean includeAll,
             @RequestParam(value = "synonyms", required = false, defaultValue = "true") Boolean searchSynonyms,

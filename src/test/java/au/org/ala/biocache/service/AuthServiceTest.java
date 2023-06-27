@@ -2,14 +2,19 @@ package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dto.DownloadRequestDTO;
 import au.org.ala.ws.security.profile.AlaUserProfile;
+import au.org.ala.ws.tokens.TokenService;
 import com.google.common.collect.Sets;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.AccessTokenType;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.client.RestTemplate;
 
+import java.security.Principal;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -23,15 +28,169 @@ public class AuthServiceTest {
 
     AutoCloseable mocks;
 
+    TokenService tokenService;
+
     RestTemplate restTemplate;
 
-    final static AlaUserProfile API_KEY_TEST_USER =
-            new AlaUserProfile("Tester", "test@test.com", null, null, Sets.newHashSet("ROLE_LEGACY_APIKEY"), Collections.EMPTY_MAP);
+    final static AlaUserProfile API_KEY_TEST_USER = new AlaUserProfile() {
+
+        @Override
+        public String getId() {
+            return null;
+        }
+
+        @Override
+        public void setId(String id) {
+
+        }
+
+        @Override
+        public String getTypedId() {
+            return null;
+        }
+
+        @Override
+        public String getUsername() {
+            return null;
+        }
+
+        @Override
+        public Object getAttribute(String name) {
+            return null;
+        }
+
+        @Override
+        public Map<String, Object> getAttributes() {
+            return null;
+        }
+
+        @Override
+        public boolean containsAttribute(String name) {
+            return false;
+        }
+
+        @Override
+        public void addAttribute(String key, Object value) {
+
+        }
+
+        @Override
+        public void removeAttribute(String key) {
+
+        }
+
+        @Override
+        public void addAuthenticationAttribute(String key, Object value) {
+
+        }
+
+        @Override
+        public void removeAuthenticationAttribute(String key) {
+
+        }
+
+        @Override
+        public void addRole(String role) {
+
+        }
+
+        @Override
+        public void addRoles(Collection<String> roles) {
+
+        }
+
+        @Override
+        public Set<String> getRoles() {
+            return Sets.newHashSet("ROLE_LEGACY_APIKEY");
+        }
+
+        @Override
+        public void addPermission(String permission) {
+
+        }
+
+        @Override
+        public void addPermissions(Collection<String> permissions) {
+
+        }
+
+        @Override
+        public Set<String> getPermissions() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public boolean isRemembered() {
+            return false;
+        }
+
+        @Override
+        public void setRemembered(boolean rme) {
+
+        }
+
+        @Override
+        public String getClientName() {
+            return null;
+        }
+
+        @Override
+        public void setClientName(String clientName) {
+
+        }
+
+        @Override
+        public String getLinkedId() {
+            return null;
+        }
+
+        @Override
+        public void setLinkedId(String linkedId) {
+
+        }
+
+        @Override
+        public boolean isExpired() {
+            return false;
+        }
+
+        @Override
+        public Principal asPrincipal() {
+            return null;
+        }
+
+        @Override
+        public String getName() {
+            return null;
+        }
+
+        @Override
+        public String getUserId() {
+            return "Tester";
+        }
+
+        @Override
+        public String getEmail() {
+            return "test@test.com";
+        }
+
+        @Override
+        public String getGivenName() {
+            return null;
+        }
+
+        @Override
+        public String getFamilyName() {
+            return null;
+        }
+    };
+
 
     @Before
     public void setup() {
         authService.userDetailsUrl = "http://mocked";
         restTemplate = mock(RestTemplate.class);
+        tokenService = mock(TokenService.class);
         mocks = MockitoAnnotations.openMocks(this);
     }
 
@@ -39,7 +198,157 @@ public class AuthServiceTest {
     public void authenticatedRequest() {
 
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setUserPrincipal(new AlaUserProfile());
+        request.setUserPrincipal(new AlaUserProfile(){
+            @Override
+            public String getId() {
+                return null;
+            }
+
+            @Override
+            public void setId(String id) {
+
+            }
+
+            @Override
+            public String getTypedId() {
+                return null;
+            }
+
+            @Override
+            public String getUsername() {
+                return null;
+            }
+
+            @Override
+            public Object getAttribute(String name) {
+                return null;
+            }
+
+            @Override
+            public Map<String, Object> getAttributes() {
+                return null;
+            }
+
+            @Override
+            public boolean containsAttribute(String name) {
+                return false;
+            }
+
+            @Override
+            public void addAttribute(String key, Object value) {
+
+            }
+
+            @Override
+            public void removeAttribute(String key) {
+
+            }
+
+            @Override
+            public void addAuthenticationAttribute(String key, Object value) {
+
+            }
+
+            @Override
+            public void removeAuthenticationAttribute(String key) {
+
+            }
+
+            @Override
+            public void addRole(String role) {
+
+            }
+
+            @Override
+            public void addRoles(Collection<String> roles) {
+
+            }
+
+            @Override
+            public Set<String> getRoles() {
+                return null;
+            }
+
+            @Override
+            public void addPermission(String permission) {
+
+            }
+
+            @Override
+            public void addPermissions(Collection<String> permissions) {
+
+            }
+
+            @Override
+            public Set<String> getPermissions() {
+                return null;
+            }
+
+            @Override
+            public boolean isRemembered() {
+                return false;
+            }
+
+            @Override
+            public void setRemembered(boolean rme) {
+
+            }
+
+            @Override
+            public String getClientName() {
+                return null;
+            }
+
+            @Override
+            public void setClientName(String clientName) {
+
+            }
+
+            @Override
+            public String getLinkedId() {
+                return null;
+            }
+
+            @Override
+            public void setLinkedId(String linkedId) {
+
+            }
+
+            @Override
+            public boolean isExpired() {
+                return false;
+            }
+
+            @Override
+            public Principal asPrincipal() {
+                return null;
+            }
+
+            @Override
+            public String getName() {
+                return null;
+            }
+
+            @Override
+            public String getUserId() {
+                return null;
+            }
+
+            @Override
+            public String getEmail() {
+                return null;
+            }
+
+            @Override
+            public String getGivenName() {
+                return null;
+            }
+
+            @Override
+            public String getFamilyName() {
+                return null;
+            }
+        });
 
         Optional<AlaUserProfile> authenticatedUser = authService.getRecordViewUser(request);
 
@@ -50,7 +359,157 @@ public class AuthServiceTest {
     public void authenticateDownload() {
 
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setUserPrincipal(new AlaUserProfile());
+        request.setUserPrincipal(new AlaUserProfile(){
+            @Override
+            public String getId() {
+                return null;
+            }
+
+            @Override
+            public void setId(String id) {
+
+            }
+
+            @Override
+            public String getTypedId() {
+                return null;
+            }
+
+            @Override
+            public String getUsername() {
+                return null;
+            }
+
+            @Override
+            public Object getAttribute(String name) {
+                return null;
+            }
+
+            @Override
+            public Map<String, Object> getAttributes() {
+                return null;
+            }
+
+            @Override
+            public boolean containsAttribute(String name) {
+                return false;
+            }
+
+            @Override
+            public void addAttribute(String key, Object value) {
+
+            }
+
+            @Override
+            public void removeAttribute(String key) {
+
+            }
+
+            @Override
+            public void addAuthenticationAttribute(String key, Object value) {
+
+            }
+
+            @Override
+            public void removeAuthenticationAttribute(String key) {
+
+            }
+
+            @Override
+            public void addRole(String role) {
+
+            }
+
+            @Override
+            public void addRoles(Collection<String> roles) {
+
+            }
+
+            @Override
+            public Set<String> getRoles() {
+                return null;
+            }
+
+            @Override
+            public void addPermission(String permission) {
+
+            }
+
+            @Override
+            public void addPermissions(Collection<String> permissions) {
+
+            }
+
+            @Override
+            public Set<String> getPermissions() {
+                return null;
+            }
+
+            @Override
+            public boolean isRemembered() {
+                return false;
+            }
+
+            @Override
+            public void setRemembered(boolean rme) {
+
+            }
+
+            @Override
+            public String getClientName() {
+                return null;
+            }
+
+            @Override
+            public void setClientName(String clientName) {
+
+            }
+
+            @Override
+            public String getLinkedId() {
+                return null;
+            }
+
+            @Override
+            public void setLinkedId(String linkedId) {
+
+            }
+
+            @Override
+            public boolean isExpired() {
+                return false;
+            }
+
+            @Override
+            public Principal asPrincipal() {
+                return null;
+            }
+
+            @Override
+            public String getName() {
+                return null;
+            }
+
+            @Override
+            public String getUserId() {
+                return null;
+            }
+
+            @Override
+            public String getEmail() {
+                return null;
+            }
+
+            @Override
+            public String getGivenName() {
+                return null;
+            }
+
+            @Override
+            public String getFamilyName() {
+                return null;
+            }
+        });
 
         DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
 
@@ -76,15 +535,22 @@ public class AuthServiceTest {
 
     @Test
     public void authValidEmailTestAllAttributes() {
+        // mock getAuthToken
+        when(tokenService.getAuthToken(false)).thenReturn( new AccessToken (AccessTokenType.BEARER) {
+            @Override
+            public String toAuthorizationHeader() {
+                return "someaccesstoken";
+            }
+        });
         // mock the user details lookup
-        when(restTemplate.postForObject(any(String.class), any(), any()))
+        when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), any()))
                 .thenReturn(new HashMap<String, Object>() {{
-                    put("userid", "1234");
+                    put("userId", "1234");
                     put("email", "test@test.com");
                     put("activated", true);
                     put("locked", false);
-                    put("first_name", "Test");
-                    put("last_name", "User");
+                    put("firstName", "Test");
+                    put("lastName", "User");
                 }});
 
         DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
@@ -97,21 +563,28 @@ public class AuthServiceTest {
                 authService.getDownloadUser(downloadRequestDTO, request);
 
         assertTrue(authenticatedUser.isPresent());
-        assertEquals("1234", authenticatedUser.get().getId());
+        assertEquals("1234", authenticatedUser.get().getUserId());
         assertEquals("test@test.com", authenticatedUser.get().getEmail());
     }
 
     @Test
     public void offlineDownloadValidEmailTestNoActivated() throws Exception {
+        // mock getAuthToken
+        when(tokenService.getAuthToken(false)).thenReturn( new AccessToken (AccessTokenType.BEARER) {
+            @Override
+            public String toAuthorizationHeader() {
+                return "someaccesstoken";
+            }
+        });
         // mock the user details lookup
-        when(restTemplate.postForObject(any(String.class), any(), any()))
+        when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), any()))
                 .thenReturn(new HashMap<String, Object>() {{
-                    put("userid", "1234");
+                    put("userId", "1234");
                     put("email", "test@test.com");
                     put("activated", false);
                     put("locked", false);
-                    put("first_name", "Test");
-                    put("last_name", "User");
+                    put("firstName", "Test");
+                    put("lastName", "User");
                 }});
 
         DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
@@ -131,15 +604,22 @@ public class AuthServiceTest {
 
     @Test
     public void offlineDownloadValidEmailTestLocked() throws Exception {
+        // mock getAuthToken
+        when(tokenService.getAuthToken(false)).thenReturn( new AccessToken (AccessTokenType.BEARER) {
+            @Override
+            public String toAuthorizationHeader() {
+                return "someaccesstoken";
+            }
+        });
         // mock the user details lookup
-        when(restTemplate.postForObject(any(String.class), any(), any()))
+        when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), any()))
                 .thenReturn(new HashMap<String, Object>() {{
-                    put("userid", "1234");
+                    put("userId", "1234");
                     put("email", "test@test.com");
-                    put("activated", true);
-                    put("locked", true);
-                    put("first_name", "Test");
-                    put("last_name", "User");
+                    put("activated", false);
+                    put("locked", false);
+                    put("firstName", "Test");
+                    put("lastName", "User");
                 }});
 
         DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
@@ -156,8 +636,15 @@ public class AuthServiceTest {
 
     @Test
     public void offlineDownloadInValidUserid() throws Exception {
+        // mock getAuthToken
+        when(tokenService.getAuthToken(false)).thenReturn( new AccessToken (AccessTokenType.BEARER) {
+            @Override
+            public String toAuthorizationHeader() {
+                return "someaccesstoken";
+            }
+        });
         // mock the user details lookup
-        when(restTemplate.postForObject(any(String.class), any(), any()))
+        when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), any()))
                 .thenReturn(new HashMap<String, Object>() {{ }});
 
         DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();

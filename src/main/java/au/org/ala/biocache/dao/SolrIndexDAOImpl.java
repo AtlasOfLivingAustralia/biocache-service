@@ -600,7 +600,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
                             @Override
                             public void run() {
                                 try {
-                                    getIndexFieldDetails(null);
+                                    getIndexFieldDetails();
                                 } catch (Exception e) {
                                     logger.error("Failed to update solrIndexVersion", e);
                                 }
@@ -875,7 +875,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
             synchronized (solrIndexVersionLock) {
                 result = indexFields;
                 if (result.size() == 0 || update) {
-                    result = getIndexFieldDetails(null);
+                    result = getIndexFieldDetails();
                     if (result != null && result.size() > 0) {
                         Map<String, IndexFieldDTO> resultMap = new HashMap<String, IndexFieldDTO>();
                         for (IndexFieldDTO field : result) {
@@ -1211,14 +1211,15 @@ public class SolrIndexDAOImpl implements IndexDAO {
             cexpr.append(", bucketSorts=\"").append(facetName).append(" asc\"");
         } else {
             // default to count sort
-            cexpr.append(", bucketSorts=\"count(*) desc\"");
+            cexpr.append(", bucketSorts=\"count(*) desc\", count(*)");
         }
 
         int limit = query.getFacetLimit() >= 0 ? query.getFacetLimit() : -1;
-        cexpr.append(", bucketSizeLimit=").append(limit);
-
-        if (query.get("facet.offset") != null) {
-            cexpr.append(", offset=").append(query.get("facet.offset"));
+        if (query.get("facet.offset") != null && limit != -1) {
+            //cexpr.append(", offset=").append(query.get("facet.offset"));
+            cexpr.append(", bucketSizeLimit=").append(limit + Integer.parseInt(query.get("facet.offset")));
+        } else {
+            cexpr.append(", bucketSizeLimit=").append(limit);
         }
 
         cexpr.append(")");

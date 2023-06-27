@@ -235,6 +235,11 @@ public class QidCacheDAOImpl implements QidCacheDAO {
             obj = load(key);
 
             if (obj != null) {
+                // Remove formatted q/fq when loading from database so that the query is formatted at least once.
+                // This is required to handle stored queries that do not reflect the current legacy field handling.
+                // e.g. queries that contained `lsid:`
+                obj.setDisplayString(null);
+
                 cache.put(key, obj);
 
                 // remove SOLR escaping of older qid
@@ -443,7 +448,12 @@ public class QidCacheDAOImpl implements QidCacheDAO {
             //get bbox (also cleans up Q)
             double[] bb = null;
             if (bbox != null && bbox.equals("true")) {
-                bb = searchDAO.getBBox(requestParams);
+                try {
+                    bb = searchDAO.getBBox(requestParams);
+                } catch (Exception e) {
+                    // When there are no occurrences for the query return a usable bounding box
+                    bb = new double []{-180, -90, 180, 90};
+                }
             } else {
                 requestParams.setPageSize(0);
                 requestParams.setFacet(false);

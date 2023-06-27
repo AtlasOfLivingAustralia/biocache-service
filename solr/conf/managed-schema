@@ -140,9 +140,13 @@
   </fieldType>
 
   <field name="id" type="string" docValues="true" multiValued="false" indexed="true"/>
+  <field name="_root_" type="string" docValues="true" indexed="true"/>
+  <field name="_nest_parent_" type="string" indexed="true" stored="true"/>
+  <fieldType name="_nest_path_" class="solr.NestPathField" />
+  <field name="_nest_path_" type="_nest_path_" />`
 
   <!-- required for solr optimistic concurrency update -->
-  <field name="_version_" type="long" docValues="true" indexed="false" stored="false"/>
+  <field name="_version_"     type="long"   docValues="true" indexed="false"  stored="false"/>
 
   <!-- required for WMS -->
   <field name="point-0.0001"  type="string" docValues="true" indexed="true" />
@@ -220,8 +224,8 @@
   <field name="countryCode" type="string" docValues="true" indexed="true"/>
   <field name="county" type="string" docValues="true" indexed="true"/>
   <field name="dataGeneralizations" type="string" docValues="true" indexed="true"/>
-  <field name="datasetID" type="string" docValues="true" indexed="true"/>
-  <field name="datasetName" type="string" docValues="true" indexed="true"/>
+  <field name="datasetID" type="string" docValues="true" indexed="true" multiValued="true" />
+  <field name="datasetName" type="string" docValues="true" indexed="true" multiValued="true"/>
   <field name="dateIdentified" type="string" docValues="true" indexed="true"/>
   <field name="datePrecision" type="string" docValues="true" indexed="true"/>
   <field name="day" type="int" docValues="true" indexed="true"/>
@@ -271,8 +275,9 @@
   <field name="identificationQualifier" type="string" docValues="true" indexed="true"/>
   <field name="identificationReferences" type="string" docValues="true" indexed="true"/>
   <field name="identificationRemarks" type="string" docValues="true" indexed="true"/>
+  <field name="identifier" type="string" docValues="true" indexed="true"/>
   <field name="identificationVerificationStatus" type="string" docValues="true" indexed="true"/>
-  <field name="identifiedBy" type="string" docValues="true" indexed="true"/>
+  <field name="identifiedBy" type="string" docValues="true" indexed="true" multiValued="true"/>
   <field name="inCollection" type="string" docValues="true" indexed="true"/>
   <field name="inDataset" type="string" docValues="true" indexed="true"/>
   <field name="inDescribedPlace" type="string" docValues="true" indexed="true"/>
@@ -340,7 +345,7 @@
   <field name="organismScope"  type="string" docValues="true" indexed="true"/>
   <field name="originalNameUsage"  type="string" docValues="true" indexed="true"/>
   <field name="originalNameUsageID"  type="string" docValues="true" indexed="true"/>
-  <field name="otherCatalogNumbers"  type="string" docValues="true" indexed="true"/>
+  <field name="otherCatalogNumbers"  type="string" docValues="true" indexed="true" multiValued="true"/>
   <field name="outlierLayer" type="string" docValues="true" indexed="true" multiValued="true"/>
   <field name="outlierLayerCount" type="int" docValues="true" indexed="true" />
   <field name="ownerInstitutionCode"  type="string" docValues="true" indexed="true"/>
@@ -349,10 +354,11 @@
   <field name="parentNameUsageID"  type="string" docValues="true" indexed="true"/>
   <field name="phylum"  type="string" docValues="true" indexed="true"/>
   <field name="pointRadiusSpatialFit"  type="string" docValues="true" indexed="true"/>
-  <field name="preparations"  type="string" docValues="true" indexed="true"/>
+  <field name="preparations"  type="string" docValues="true" indexed="true" multiValued="true"/>
   <field name="previousIdentifications"  type="string" docValues="true" indexed="true"/>
   <field name="recordNumber"  type="string" docValues="true" indexed="true"/>
   <field name="recordedBy"  type="string" docValues="true" indexed="true" multiValued="true"/>
+  <field name="relativeOrganismQuantity"  type="double" docValues="true" indexed="true"/>
   <field name="references"  type="string" docValues="true" indexed="true"/>
   <field name="relatedResourceID"  type="string" docValues="true" indexed="true"/>
   <field name="relationshipAccordingTo"  type="string" docValues="true" indexed="true"/>
@@ -367,7 +373,7 @@
   <field name="sampleSizeUnit"  type="string" docValues="true" indexed="true"/>
   <field name="sampleSizeValue"  type="string" docValues="true" indexed="true"/>
   <field name="samplingEffort"  type="string" docValues="true" indexed="true"/>
-  <field name="samplingProtocol"  type="string" docValues="true" indexed="true"/>
+  <field name="samplingProtocol"  type="string" docValues="true" indexed="true" multiValued="true"/>
   <field name="scientificName"  type="string" docValues="true" indexed="true"/>
   <field name="scientificNameAuthorship"  type="string" docValues="true" indexed="true"/>
   <field name="scientificNameID"  type="string" docValues="true" indexed="true"/>
@@ -385,7 +391,7 @@
   <field name="taxonomicStatus"  type="string" docValues="true" indexed="true"/>
   <field name="toTaxon"  type="string" docValues="true" indexed="true"/>
   <field name="type"  type="string" docValues="true" indexed="true"/>
-  <field name="typeStatus"  type="string" docValues="true" indexed="true"/>
+  <field name="typeStatus"  type="string" docValues="true" indexed="true" multiValued="true" />
   <field name="verbatimCoordinateSystem"  type="string" docValues="true" indexed="true"/>
   <field name="verbatimCoordinates"  type="string" docValues="true" indexed="true" />
   <field name="verbatimDepth"  type="string" docValues="true" indexed="true"/>
@@ -399,6 +405,10 @@
   <field name="vernacularName"  type="string" docValues="true" indexed="true"/>
   <field name="waterBody"  type="string" docValues="true" indexed="true"/>
   <field name="year"  type="int" docValues="true" indexed="true"/>
+
+  <!-- Bulk annotations -->
+  <field name="annotationsDoi"          type="string"  docValues="true" multiValued="true"  indexed="true" />
+  <field name="annotationsUid"          type="string"  docValues="true" multiValued="true"  indexed="true" />
 
   <!-- Clustering (Duplicate detection) -->
   <field name="isInCluster"              type="boolean" docValues="true" indexed="true"/>
@@ -417,6 +427,12 @@
   <field name="identifiedByID"  type="string" docValues="true" indexed="true" multiValued="true"/>
   <field name="recordedByID"    type="string" docValues="true" indexed="true" multiValued="true"/>
   <field name="typifiedName"    type="string" docValues="true" indexed="true" />
+
+  <!-- event hierarchy fields -->
+  <field name="eventType" type="string" docValues="true" indexed="true" />
+  <field name="eventTypeHierarchy" type="string" docValues="true" indexed="true" multiValued="true" />
+  <field name="eventHierarchy" type="string" docValues="true" indexed="true" multiValued="true" />
+  <field name="surveyID" type="string" docValues="true" indexed="true" />
 
   <!-- TODO recent additions to be validated... -->
   <field name="decade"  type="int" docValues="true" indexed="true" />
@@ -439,6 +455,9 @@
   <field name="kingdomID"  type="string" docValues="true" indexed="true"/>
   <field name="matchType"  type="string" docValues="true" indexed="true"/>
   <field name="nameType"   type="string" docValues="true" indexed="true"/>
+
+  <!-- ALA 'Data Quality' additional fields -->
+  <field name="distanceFromExpertDistribution" type="double" docValues="true" indexed="true"/>
 
   <!-- iNaturalist additions -->
   <field name="nick" type="string" docValues="true" indexed="true"/>
@@ -502,6 +521,10 @@
   <field name="matched_name"           type="string"  multiValued="true" indexed="true" stored="false" />
   <field name="text_recordedBy"        type="textgen" multiValued="true" indexed="true" stored="false" />
   <field name="text_identifiedBy"      type="textgen" multiValued="true" indexed="true" stored="false" />
+  <field name="text_datasetName" type="textgen" multiValued="true" indexed="true" stored="false"/>
+  <field name="text_eventID" type="textgen"  indexed="true" stored="false"/>
+  <field name="text_parentEventID" type="textgen" indexed="true" stored="false"/>
+  <field name="text_fieldNumber" type="textgen" indexed="true" stored="false"/>
 
   <!-- occurrenceDetails needs to be remapped on export -->
   <!-- see https://github.com/AtlasOfLivingAustralia/la-pipelines/issues/236 -->
@@ -683,8 +706,13 @@
   <copyField source="dataProviderName" dest="text"/>
   <copyField source="dataResourceName" dest="text"/>
   <copyField source="dataResourceUid" dest="text"/>
-  <copyField source="eventID" dest="text"/>
+  <copyField source="annotationsDoi" dest="text"/>
+  <copyField source="annotationsUid" dest="text"/>
+  <copyField source="datasetName" dest="text"/>
+  <copyField source="datasetName" dest="text_datasetName"/>
+  <copyField source="eventID" dest="text_eventID"/>
   <copyField source="family" dest="text"/>
+  <copyField source="fieldNumber" dest="text_fieldNumber"/>
   <copyField source="genus" dest="text"/>
   <copyField source="id" dest="text"/>
   <copyField source="institutionCode" dest="text"/>
@@ -694,6 +722,7 @@
   <copyField source="occurrenceID" dest="text"/>
   <copyField source="order" dest="text"/>
   <copyField source="originalNameUsage" dest="text"/>
+  <copyField source="parentEventID" dest="text_parentEventID"/>
   <copyField source="phylum" dest="text"/>
   <copyField source="raw_basisOfRecord" dest="text"/>
   <copyField source="raw_countryConservation" dest="text"/>
@@ -713,6 +742,7 @@
   <copyField source="stateConservation" dest="text"/>
   <copyField source="stateProvince" dest="text"/>
   <copyField source="taxonRemarks" dest="text"/>
+  <copyField source="taxonConceptID" dest="text"/>
   <copyField source="typeStatus" dest="text"/>
   <copyField source="vernacularName" dest="matched_name"/>
   <copyField source="vernacularName" dest="text"/>
