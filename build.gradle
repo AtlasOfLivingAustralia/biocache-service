@@ -40,7 +40,6 @@ repositories {
 }
 
 group = 'au.org.ala'
-
 version = '3.1.7-SNAPSHOT'
 
 
