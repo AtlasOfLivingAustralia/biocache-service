@@ -130,7 +130,7 @@ dependencies {
 
     } else {
 
-        implementation 'au.org.ala:ala-ws-spring-security:6.1.0-SNAPSHOT'
+        implementation 'au.org.ala:ala-ws-spring-security:6.0.4'
     }
 
     implementation 'org.codehaus.groovy:groovy-all:3.0.11'
