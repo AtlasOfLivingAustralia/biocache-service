@@ -2381,10 +2381,8 @@ public class SearchDAOImpl implements SearchDAO {
         // fix date line
         while (maxx > 180) {
             maxx -= 360;
-            minx -= 360;
         }
         while (minx < -180) {
-            maxx += 360;
             minx += 360;
         }
 
