@@ -167,8 +167,9 @@ test {
     }
 }
 
+
 bootWar {
-    enabled = false
+    enabled = true
 }
 
 war {
