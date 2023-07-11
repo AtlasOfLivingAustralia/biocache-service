@@ -9,6 +9,7 @@ import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.io.Tuple;
+import org.bouncycastle.util.Arrays;
 
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -17,6 +18,11 @@ import java.util.List;
 public class StreamFacet implements ProcessInterface {
 
     private final static Logger logger = Logger.getLogger(StreamFacet.class);
+
+    private final static String [] lsidFields = {"taxonConceptID", "kingdomID", "classID", "phylumID", "orderID",
+            "familyID", "genusID", "speciesID", "subspeciesID",
+            "raw_taxonConceptID", "raw_kingdomID", "raw_classID", "raw_phylumID", "raw_orderID",
+            "raw_familyID", "raw_genusID", "raw_speciesID"};
 
     SearchDAOImpl searchDAO;
     DownloadDetailsDTO downloadDetails;
@@ -48,8 +54,14 @@ public class StreamFacet implements ProcessInterface {
         String facetName = request.getFacets()[0];
 
         // shouldLookup is valid for 1.0 and 2.0 SOLR schema
-        boolean isGuid = request.getFacets()[0].contains("_guid") ||
-                request.getFacets()[0].endsWith("ID");
+        boolean isGuid = request.getFacets()[0].contains("_guid");
+        for (String field : lsidFields) {
+            if (field.equals(request.getFacets()[0])) {
+                isGuid = true;
+                break;
+            }
+        }
+
         boolean isLsid = request.getFacets()[0].contains("_lsid") || request.getFacets()[0].contains(OccurrenceIndex.TAXON_CONCEPT_ID);
         boolean shouldLookupTaxon = lookupName && (isLsid || isGuid);
         boolean isUid = request.getFacets()[0].contains("_uid") || request.getFacets()[0].endsWith("Uid");
