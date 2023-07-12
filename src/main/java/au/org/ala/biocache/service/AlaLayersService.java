@@ -102,7 +102,7 @@ public class AlaLayersService implements LayersService {
                         List list = restTemplate.getForObject(spatialUrl, List.class);
                         if (list != null && list.size() > 0) layers = list;
                         for (Map<String, Object> values : layers) {
-                            if ((Boolean) values.get("enabled")) {
+                            if ((Boolean) values.get("enabled") && (Boolean) values.get("indb")) {
                                 tmpMap.put((String) values.get("id"), (String) values.get("desc"));
                             }
                         }
