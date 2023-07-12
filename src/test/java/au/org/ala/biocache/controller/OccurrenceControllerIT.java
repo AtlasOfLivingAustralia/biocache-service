@@ -16,6 +16,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.internal.matchers.GreaterOrEqual;
+import org.mockito.internal.matchers.LessOrEqual;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ContextConfiguration;
@@ -34,6 +35,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.security.Principal;
 import java.util.*;
 
+import static org.hamcrest.Matchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -310,7 +312,7 @@ public class OccurrenceControllerIT extends TestCase {
         this.mockMvc.perform(get("/index/fields")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(new GreaterOrEqual<Integer>(INDEXED_FIELD_SIZE)));
+                .andExpect(jsonPath("$.length()", hasSize(greaterThanOrEqualTo(INDEXED_FIELD_SIZE))));
     }
 
     @Test
