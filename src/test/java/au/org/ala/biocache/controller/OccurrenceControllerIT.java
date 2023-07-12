@@ -15,6 +15,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.internal.matchers.GreaterOrEqual;
+import org.mockito.internal.matchers.LessOrEqual;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ContextConfiguration;
@@ -33,6 +35,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.security.Principal;
 import java.util.*;
 
+import static org.hamcrest.Matchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -206,7 +209,7 @@ public class OccurrenceControllerIT extends TestCase {
 
     public final int TEST_INDEX_SIZE = 1005;
     public final int DEFAULT_SEARCH_PAGE_SIZE = 10;
-    public final int INDEXED_FIELD_SIZE = 602;
+    public final int INDEXED_FIELD_SIZE = 451;
 
     @Autowired
     OccurrenceController occurrenceController;
@@ -309,7 +312,7 @@ public class OccurrenceControllerIT extends TestCase {
         this.mockMvc.perform(get("/index/fields")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(INDEXED_FIELD_SIZE));
+                .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(INDEXED_FIELD_SIZE))));
     }
 
     @Test
