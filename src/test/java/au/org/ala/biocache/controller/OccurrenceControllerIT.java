@@ -312,7 +312,7 @@ public class OccurrenceControllerIT extends TestCase {
         this.mockMvc.perform(get("/index/fields")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()", hasSize(greaterThanOrEqualTo(INDEXED_FIELD_SIZE))));
+                .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(INDEXED_FIELD_SIZE))));
     }
 
     @Test
