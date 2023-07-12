@@ -14,7 +14,6 @@ import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang3.Streams;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -520,6 +519,24 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
         for (String indexFieldToHide: indexFieldsToHide.split(",")) {
             indexFieldMap.remove(indexFieldToHide);
+        }
+
+        // Insert entries for cl* and el* items
+        Map<String, String> layerNameMap = layersService.getLayerNameMap();
+        for (Map.Entry<String, String> item : layerNameMap.entrySet()) {
+            IndexFieldDTO field = new IndexFieldDTO();
+            field.setDocvalue(true);
+            field.setIndexed(true);
+            field.setStored(true);
+            field.setDescription(item.getValue());
+            field.setName(item.getKey());
+            field.setDownloadName(item.getKey());
+            if (item.getKey().startsWith("cl")) {
+                field.setDataType("string");
+            } else {
+                field.setDataType("float");
+            }
+            indexFieldMap.put(item.getKey(), field);
         }
 
         if (fields != null && fields.length > 0) {
