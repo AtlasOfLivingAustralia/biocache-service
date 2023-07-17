@@ -28,10 +28,7 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.*;
 import org.apache.solr.client.solrj.io.SolrClientCache;
 import org.apache.solr.client.solrj.io.Tuple;
-import org.apache.solr.client.solrj.io.stream.AlaCloudSolrStream;
-import org.apache.solr.client.solrj.io.stream.SolrStream;
-import org.apache.solr.client.solrj.io.stream.StreamContext;
-import org.apache.solr.client.solrj.io.stream.TupleStream;
+import org.apache.solr.client.solrj.io.stream.*;
 import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.request.schema.SchemaRequest;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
@@ -1308,6 +1305,6 @@ public class SolrIndexDAOImpl implements IndexDAO {
     }
 
     private String escapeDoubleQuote(String input) {
-        return input.replaceAll("\"", "\\\"");
+        return input.replaceAll("\"", "\\\\\"");
     }
 }
