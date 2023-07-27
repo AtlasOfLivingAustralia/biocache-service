@@ -1,0 +1,7 @@
+# Run with: container-structure-test test --driver tar --image livingatlases/biocache-service:latest --config src/main/docker/container-test.yaml 
+schemaVersion: 2.0.0
+fileExistenceTests:
+- name: 'war'
+  path: '/opt/atlas/biocache/app.war'
+  shouldExist: true
+  permissions: '-rw-rw-r--'
