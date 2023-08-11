@@ -670,8 +670,21 @@ public class SearchDAOImpl implements SearchDAO {
             queries.add(solrQuery);
         }
 
+        // use download request page size if it is not the default value
+        int pageSize;
+        if (dd.getRequestParams().getPageSize() != new SearchRequestDTO().getPageSize()) {
+            pageSize = Math.min(dd.getRequestParams().getPageSize(), downloadService.dowloadOfflinePageMaxSize);
+            checkDownloadLimits = true;
+
+            // when the request is a preview request (pageSize is not the default), disable email notification and doi creation
+            dd.getRequestParams().setMintDoi(false);
+            dd.getRequestParams().setEmailNotify(false);
+        } else {
+            pageSize = downloadService.dowloadOfflineMaxSize
+        }
+
         ProcessDownload procDownload = new ProcessDownload(uidStats, downloadHeaders, recordWriter, dd,
-                checkDownloadLimits, downloadService.dowloadOfflineMaxSize,
+                checkDownloadLimits, pageSize,
                 listsService, layersService);
 
         return new DownloadCallable(queries, indexDao, procDownload);

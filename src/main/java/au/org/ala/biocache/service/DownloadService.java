@@ -266,6 +266,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.offline.max.size:100000000}")
     public Integer dowloadOfflineMaxSize = 100000000;
 
+    /**
+     * When downloading with a pageSize to preview results, limit the size of the page.
+     */
+    @Value("${download.offline.page.maxsize:5}")
+    public Integer dowloadOfflinePageMaxSize = 5;
+
     @Value("${download.offline.msg:Too many records requested. Bulk download files for Lifeforms are available.}")
     public String downloadOfflineMsg = "Too many records requested. Bulk download files for Lifeforms are available.";
 
@@ -609,7 +615,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
                         requestParams.getEmail(), requestParams.getReason(), dd.getIpAddress(), dd.getUserAgent(), null, uidStats, sourceUrl);
 
-                loggerService.logEvent(vo);
+                // when the request is a preview request (pageSize is not the default), disable logger event
+                if (dd.getRequestParams().getPageSize() == new SearchRequestDTO().getPageSize()) {
+                    loggerService.logEvent(vo);
+                }
             }
         } catch (RecordWriterException e) {
             logger.error(e.getMessage(), e);
@@ -1305,6 +1314,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         }
                     }
                 }
+                persistentQueueDAO.remove(currentDownload);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 //shutting down
@@ -1340,8 +1350,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             + currentDownload.getFileLocation(), ex);
                 }
 
-                // If we ever want to retry on failure, enable this
+                // If we ever want to retry on failure, enable doRetry and disable queue.remove
                 //doRetry = true
+                persistentQueueDAO.remove(currentDownload);
             } finally {
                 // in case of server up/down, only remove from queue
                 // after emails are sent
