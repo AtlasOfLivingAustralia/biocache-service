@@ -680,7 +680,7 @@ public class SearchDAOImpl implements SearchDAO {
             dd.getRequestParams().setMintDoi(false);
             dd.getRequestParams().setEmailNotify(false);
         } else {
-            pageSize = downloadService.dowloadOfflineMaxSize
+            pageSize = downloadService.dowloadOfflineMaxSize;
         }
 
         ProcessDownload procDownload = new ProcessDownload(uidStats, downloadHeaders, recordWriter, dd,

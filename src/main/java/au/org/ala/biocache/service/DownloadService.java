@@ -1134,6 +1134,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     public void cancel(DownloadDetailsDTO dd) throws InterruptedException {
 
+        // remove from persistent queue (disk)
+        persistentQueueDAO.remove(dd);
+
         // signal download to end
         dd.setInterrupt(true);
 
@@ -1143,9 +1146,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         // get executor for this user
         ThreadPoolExecutor ex = userExecutors.get(getUserId(dd));
         if (ex != null) {
-            // remove from persistent queue (disk)
-            persistentQueueDAO.remove(dd);
-
             // remove from executor queue
             for (Runnable r : ex.getQueue()) {
                 if (((DownloadRunnable) r).currentDownload.getUniqueId().equals(dd.getUniqueId())) {
