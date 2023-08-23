@@ -16,23 +16,28 @@ package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
-import au.org.ala.biocache.dto.DownloadDetailsDTO;
-import au.org.ala.biocache.dto.DownloadRequestDTO;
-import au.org.ala.biocache.dto.DownloadRequestParams;
-import au.org.ala.biocache.dto.DownloadStatusDTO;
+import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.ws.security.profile.AlaUserProfile;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.Parameters;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.http.entity.ContentType;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocumentList;
 import org.springdoc.api.annotations.ParameterObject;
@@ -40,6 +45,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.StreamUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.inject.Inject;
@@ -111,15 +117,69 @@ public class DownloadController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "Asynchronous occurrence download", tags = "Download")
+    @Parameters(value = {
+            // DownloadRequestParams
+            @Parameter(name="email", description = "The email address to sent the download email once complete.", in = ParameterIn.QUERY, required = true),
+            @Parameter(name="reason", description = "Reason for download.", in = ParameterIn.QUERY),
+            @Parameter(name="file", description = "Download File name.", in = ParameterIn.QUERY),
+            @Parameter(name="fields", description = "Fields to download.", in = ParameterIn.QUERY, required = true),
+            @Parameter(name="extra", description = "CSV list of extra fields to be added to the download.", in = ParameterIn.QUERY),
+            @Parameter(name="qa", description = "the CSV list of issue types to include in the download, defaults to 'all'. Also supports 'none'", in = ParameterIn.QUERY),
+            @Parameter(name="sep", description = "Field delimiter for fileType='csv', defaults to ','", in = ParameterIn.QUERY, schema = @Schema(type = "char", allowableValues = {",", "\t"})),
+            @Parameter(name="esc", description = "Field escape for fileType='csv', defaults to '\"'", schema = @Schema(type = "char", defaultValue = "\""), in = ParameterIn.QUERY),
+            @Parameter(name="dwcHeaders", description = "Use darwin core headers, defaults to false",  schema = @Schema(type = "boolean", defaultValue = "false"), in = ParameterIn.QUERY),
+            @Parameter(name="includeMisc", description = "Include miscellaneous properties, defaults to false",  schema = @Schema(type = "boolean", defaultValue = "false"), in = ParameterIn.QUERY),
+            @Parameter(name="reasonTypeId", description = "Logger reason ID See https://logger.ala.org.au/service/logger/reasons",  required = true, schema = @Schema(type = "string", defaultValue = "10"), in = ParameterIn.QUERY),
+            @Parameter(name="sourceTypeId", description = "Source ID See https://logger.ala.org.au/service/logger/sources",  schema = @Schema(type = "string", defaultValue = "0"), in = ParameterIn.QUERY),
+            @Parameter(name="fileType", description = "File type. CSV or TSV. Defaults to CSV", schema = @Schema(type = "string", allowableValues = {"csv", "tsv"}), in = ParameterIn.QUERY),
+            @Parameter(name="customHeader", description = "Override header names with a CSV with 'requested field','header' pairs", in = ParameterIn.QUERY),
+            @Parameter(name="mintDoi", description = "Request to generate a DOI for the download or not. Default false", schema = @Schema(type = "boolean", defaultValue = "false"), in = ParameterIn.QUERY),
+            @Parameter(name="emailNotify", description = "Send notification email. Default true", schema = @Schema(type = "boolean", defaultValue = "true"), in = ParameterIn.QUERY),
+
+            // SpatialSearchRequestParams (download specific only)
+            @Parameter(name="q", description = "Main search query. Examples 'q=Kangaroo' or 'q=vernacularName:red'", in = ParameterIn.QUERY),
+            @Parameter(name="fq", description = "Filter queries. Examples 'fq=state:Victoria&fq=state:Queensland", array = @ArraySchema(schema = @Schema(type = "string")), in = ParameterIn.QUERY),
+            @Parameter(name="qId", description = "Query ID for persisted queries", in = ParameterIn.QUERY),
+//            @Parameter(name="pageSize", description = "The prefix to limit returned values for previewing results. Use a value < 10, e.g. 5", in = ParameterIn.QUERY),
+            @Parameter(name="qc", description = "The query context to be used for the search. This will be used to generate extra query filters.", in = ParameterIn.QUERY),
+
+            @Parameter(name="qualityProfile", description = "The quality profile to use, null for default", in = ParameterIn.QUERY),
+            @Parameter(name="disableAllQualityFilters", description = "Disable all default filters", in = ParameterIn.QUERY),
+            @Parameter(name="disableQualityFilter", description = "Default filters to disable (currently can only disable on category, so it's a list of disabled category name)", array = @ArraySchema(schema = @Schema(type = "string")), in = ParameterIn.QUERY),
+
+            @Parameter(name="radius", description = "Radius for a spatial search. Use together with lat and lon.", schema = @Schema(type = "float"), in = ParameterIn.QUERY),
+            @Parameter(name="lat", description = "Decimal latitude for the spatial search. Use together with radius and lon.", schema = @Schema(type = "float"), in = ParameterIn.QUERY),
+            @Parameter(name="lon", description = "Decimal longitude for the spatial search. Use together with radius and lat.", schema = @Schema(type = "float"), in = ParameterIn.QUERY),
+
+            @Parameter(name="wkt", description = "Well Known Text for the spatial search. Large WKT will be simplified.", in = ParameterIn.QUERY)
+    } )
+    @RequestBody(
+            description = "parameters in the body as application/x-www-form-urlencoded or a JSON object",
+            content = {
+                    @Content(
+                        mediaType = "application/json"),
+                    @Content(
+                        mediaType = "application/x-www-form-urlencoded")
+            })
     @Tag(name ="Download", description = "Services for downloading occurrences and specimen data")
     @RequestMapping(value = { "occurrences/offline/download"}, method = {RequestMethod.GET, RequestMethod.POST})
     public @ResponseBody DownloadStatusDTO occurrenceDownload(
-            @Valid @ParameterObject DownloadRequestParams requestParams,
+            @Valid @Parameter(hidden = true) DownloadRequestParams requestParams,
             @Parameter(description = "Original IP making the request") @RequestParam(value = "ip", required = false) String ip,
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
 
-        DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(requestParams, request);
+        DownloadRequestDTO downloadRequestDTO;
+        if (request.getContentType() != null && request.getContentType().toLowerCase().contains("application/json")) {
+            ObjectMapper om = new ObjectMapper();
+            om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            String input = StreamUtils.copyToString(request.getInputStream(), StandardCharsets.UTF_8);
+            DownloadRequestParams jsonParams = om.readValue(input, DownloadRequestParams.class);
+
+            downloadRequestDTO = DownloadRequestDTO.create(jsonParams, request);
+        } else {
+            downloadRequestDTO = DownloadRequestDTO.create(requestParams, request);
+        }
         Optional<AlaUserProfile> downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
 
         if (!downloadUser.isPresent()){
