@@ -7,13 +7,12 @@ FROM livingatlases/java-11-base:1.0.0
 ARG APP_ARTIFACT=biocache
 ARG USER=biocache
 ARG WAR_FILE=./build/libs/biocache-service-*.war
-ARG DOCKERIZE_ARGS="-wait tcp://living-atlas-cassandra:9042 -timeout 120s"
 
 # Env variables
 ENV SERVER_PORT="8080"
 ENV WAR_FILE_ENV=${WAR_FILE}
 ENV JAVA_OPTS="-Dserver.port=$SERVER_PORT"
-ENV DOCKERIZE_OPTS=${DOCKERIZE_ARGS}
+ENV DOCKERIZE_OPTS="-wait tcp://la_biocache_cassandra:9042 -timeout 120s"
 
 # Directories and perms
 RUN mkdir -p /data/$APP_ARTIFACT && \
