@@ -754,11 +754,12 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = "/occurrences/taxon/source/**", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     @Deprecated
     public @ResponseBody
-    List<OccurrenceSourceDTO> sourceByTaxon(SpatialSearchRequestDTO requestParams,
+    List<OccurrenceSourceDTO> sourceByTaxon(SpatialSearchRequestParams requestParams,
                                             HttpServletRequest request) throws Exception {
+        SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
         String guid = searchUtils.getGuidFromPath(request);
         requestParams.setQ("taxonConceptID:" + guid);
-        Map<String, Integer> sources = searchDAO.getSourcesForQuery(requestParams);
+        Map<String, Integer> sources = searchDAO.getSourcesForQuery(dto);
         return searchUtils.getSourceInformation(sources);
     }
 
@@ -1278,7 +1279,8 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = {"/occurrences/nearest", "/occurrences/nearest.json" }, method = RequestMethod.GET)
     @Deprecated
     public @ResponseBody
-    Map<String, Object> nearestOccurrence(SpatialSearchRequestDTO requestParams) throws Exception {
+    Map<String, Object> nearestOccurrence(SpatialSearchRequestParams requestParams) throws Exception {
+        SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
 
         logger.debug(String.format("Received lat: %f, lon:%f, radius:%f", requestParams.getLat(),
                 requestParams.getLon(), requestParams.getRadius()));
@@ -1289,7 +1291,7 @@ public class OccurrenceController extends AbstractSecureController {
         requestParams.setDir("asc");
         requestParams.setFacet(false);
 
-        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(requestParams, false, null);
+        SearchResultDTO searchResult = searchDAO.findByFulltextSpatialQuery(dto, false, null);
         List<OccurrenceIndex> ocs = searchResult.getOccurrences();
 
         if (!ocs.isEmpty()) {
@@ -1316,14 +1318,15 @@ public class OccurrenceController extends AbstractSecureController {
     @RequestMapping(value = {
             "/occurrences/coordinates"
     }, method = {RequestMethod.GET, RequestMethod.POST})
-    public void dumpDistinctLatLongs(SpatialSearchRequestDTO requestParams, HttpServletResponse response) throws Exception {
+    public void dumpDistinctLatLongs(SpatialSearchRequestParams requestParams, HttpServletResponse response) throws Exception {
+        SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
         requestParams.setFacets(new String[]{OccurrenceIndex.LAT_LNG});
         requestParams.setFacet(true);
         if (requestParams.getQ().length() < 1)
             requestParams.setQ("*:*");
         try {
             ServletOutputStream out = response.getOutputStream();
-            searchDAO.writeCoordinatesToStream(requestParams, out);
+            searchDAO.writeCoordinatesToStream(dto, out);
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         }
