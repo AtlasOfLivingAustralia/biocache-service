@@ -14,19 +14,25 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import au.org.ala.biocache.dto.SpatialObjectDTO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestOperations;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.io.Reader;
+import java.net.URL;
+import java.net.URLConnection;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -243,5 +249,25 @@ public class AlaLayersService implements LayersService {
     public Reader sample(String[] analysisLayers, double[][] points, Object o) {
         // TODO: for on the fly intersection of layers not indexed
         return null;
+    }
+
+    @Cacheable("spatialObject")
+    @Override
+    public SpatialObjectDTO getObject(String spatialObjectId) {
+        String url = layersServiceUrl + "/object/" + Integer.parseInt(spatialObjectId);
+        return restTemplate.getForObject(url, SpatialObjectDTO.class);
+    }
+
+    @Cacheable("wkt")
+    @Override
+    public String getObjectWkt(String spatialObjectId) {
+        String url = layersServiceUrl + "/shape/wkt/" + Integer.parseInt(spatialObjectId);
+
+        try {
+            URLConnection con = new URL(url).openConnection();
+            return StreamUtils.copyToString(con.getInputStream(), Charset.defaultCharset());
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

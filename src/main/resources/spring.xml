@@ -75,7 +75,7 @@
             </list>
         </property>
     </bean>
-    
+
     <!-- MBean configuration for ehcache -->
     <bean id="mbeanServer" class="org.springframework.jmx.support.MBeanServerFactoryBean">
         <property name="locateExistingServerIfPossible" value="true" />
