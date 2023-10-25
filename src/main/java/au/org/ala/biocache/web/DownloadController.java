@@ -234,7 +234,7 @@ public class DownloadController extends AbstractSecureController {
             //identify this download as too large
             File file = new File(downloadService.biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getRequestParams().getEmail().getBytes(StandardCharsets.UTF_8)) + File.separator + dd.getStartTime() + File.separator + "tooLarge");
             FileUtils.forceMkdir(file.getParentFile());
-            FileUtils.writeStringToFile(file, "", "UTF-8");
+            FileUtils.writeStringToFile(file, requestParams.toString(), "UTF-8");
             status.setDownloadUrl(downloadService.biocacheDownloadUrl);
             status.setStatus(DownloadStatusDTO.DownloadStatus.TOO_LARGE);
             status.setMessage(downloadService.downloadOfflineMsg);
