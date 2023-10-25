@@ -1125,6 +1125,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     public void cancel(DownloadDetailsDTO dd) throws InterruptedException {
 
+        // remove from persistent queue (disk)
+        persistentQueueDAO.remove(dd);
+
         // signal download to end
         dd.setInterrupt(true);
 
@@ -1134,9 +1137,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         // get executor for this user
         ThreadPoolExecutor ex = userExecutors.get(getUserId(dd));
         if (ex != null) {
-            // remove from persistent queue (disk)
-            persistentQueueDAO.remove(dd);
-
             // remove from executor queue
             for (Runnable r : ex.getQueue()) {
                 if (((DownloadRunnable) r).currentDownload.getUniqueId().equals(dd.getUniqueId())) {
@@ -1305,6 +1305,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         }
                     }
                 }
+                persistentQueueDAO.remove(currentDownload);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 //shutting down
@@ -1340,8 +1341,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                             + currentDownload.getFileLocation(), ex);
                 }
 
-                // If we ever want to retry on failure, enable this
+                // If we ever want to retry on failure, enable doRetry and disable queue.remove
                 //doRetry = true
+                persistentQueueDAO.remove(currentDownload);
             } finally {
                 // in case of server up/down, only remove from queue
                 // after emails are sent
