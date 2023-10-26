@@ -71,6 +71,8 @@ public class QueryFormatUtils {
     //Patterns that are used to prepare a SOLR query for execution
     protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|'|-)taxonConceptID:\"?([a-zA-Z0-9/\\.:\\-_]*)\"?");
     protected Pattern speciesListPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|'|-)species_list:\"?(dr[0-9]*)\"?");
+
+    protected Pattern spatialObjectPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|'|-)spatialObject:\"?([0-9]*)\"?");
     protected Pattern urnPattern = Pattern.compile("\\burn:[a-zA-Z0-9\\.:-]*");
     protected Pattern httpPattern = Pattern.compile("http:[a-zA-Z0-9/\\.:\\-_]*");
     protected Pattern uidPattern = Pattern.compile("(?:[\"]*)?((?:[a-z_]*_uid:)|(?:[a-zA-Z]*Uid:))(\\w*)(?:[\"]*)?");
@@ -723,6 +725,68 @@ public class QueryFormatUtils {
     }
 
     /**
+     * Insert spatialObject WKT.
+     *
+     * If the query string contains spatialObject: replace with the equivalent geohash:Intersects(WKT)
+     *
+     * @param current
+     * @return
+     * @throws QidMissingException
+     */
+    private void formatSpatialObject(String [] current) {
+        if (current == null || current.length < 2 || current[1] == null) {
+            return;
+        }
+
+        //if the query string contains spatialObject: replace with the equivalent geohash:Intersects(WKT)
+        StringBuffer sb = new StringBuffer();
+        Matcher m = spatialObjectPattern.matcher(current[1]);
+        int max = getMaxBooleanClauses();
+        HashSet<String> failedObjects = new HashSet<>();
+        while (m.find()) {
+            String spatialObjectId = m.group(2);
+            String prefix = m.group(1);
+            try {
+                String wkt = layersService.getObjectWkt(spatialObjectId);
+
+                if (wkt == null) {
+                    throw new Exception("invalid object id");
+                }
+                String q = prefix + spatialField + ":\"Intersects(" + wkt + ")\"";
+
+                m.appendReplacement(sb, q);
+            } catch (Exception e) {
+                logger.error("failed to get WKT for object: " + spatialObjectId);
+                m.appendReplacement(sb, prefix + "(NOT *:*)");
+                failedObjects.add(spatialObjectId);
+            }
+        }
+        m.appendTail(sb);
+        current[1] = sb.toString();
+
+        sb = new StringBuffer();
+        m = spatialObjectPattern.matcher(current[0]);
+        while (m.find()) {
+            String spatialObjectId = m.group(2);
+            String prefix = m.group(1);
+            if (failedObjects.contains(spatialObjectId)) {
+                m.appendReplacement(sb, prefix + "<span class=\"spatialObject failed\" id='" + HtmlEscapers.htmlEscaper().escape(spatialObjectId) + "'>" + HtmlEscapers.htmlEscaper().escape(spatialObjectId) + " (FAILED)</span>");
+            } else {
+                try {
+                    SpatialObjectDTO obj = layersService.getObject(spatialObjectId);
+                    String name = obj.getName();
+                    m.appendReplacement(sb, prefix + "<span class='spatialObject' id='" + HtmlEscapers.htmlEscaper().escape(spatialObjectId) + "'>" + HtmlEscapers.htmlEscaper().escape(name) + "</span>");
+                } catch (Exception e) {
+                    logger.error("Couldn't get spatial object name for " + spatialObjectId, e);
+                    m.appendReplacement(sb, prefix + "<span class='spatialObject' id='" + HtmlEscapers.htmlEscaper().escape(spatialObjectId) + "'>Species list</span>");
+                }
+            }
+        }
+        m.appendTail(sb);
+        current[0] = sb.toString();
+    }
+
+    /**
      * General formatting for formattedQuery and displayString.
      *
      * Fixes query escaping.
@@ -817,6 +881,8 @@ public class QueryFormatUtils {
         formatUrn(formatted);
         formatHttp(formatted);
         formatTitleMap(formatted);
+
+        formatSpatialObject(formatted);
 
         if (!formatSpatial(formatted)) {
             formatGeneral(formatted, searchParams);

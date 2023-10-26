@@ -5,6 +5,8 @@
     <cache name="legendCache" maxElementsInMemory="2000" eternal="false" overflowToDisk="false"/>
     <cache name="getColours" maxElementsInMemory="2000" eternal="false" overflowToDisk="false"/>
     <cache name="fixWkt" maxElementsInMemory="100" eternal="false" overflowToDisk="false"/>
+    <cache name="spatialObject" maxElementsInMemory="2000" eternal="false" overflowToDisk="false"/>
+    <cache name="wkt" maxElementsInMemory="2000" eternal="false" overflowToDisk="false"/>
     <!-- 30 minuite cache for WMS heatmap SOLR requests -->
     <cache name="heatmapCache" maxElementsInMemory="2000" eternal="false" overflowToDisk="false" timeToLiveSeconds="1800"/>
     <cache name="speciesListItems" maxElementsInMemory="1000" eternal="false" overflowToDisk="false" timeToLiveSeconds="600"/>
