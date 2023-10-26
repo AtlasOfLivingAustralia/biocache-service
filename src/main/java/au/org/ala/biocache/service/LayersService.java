@@ -1,7 +1,7 @@
 /**************************************************************************
  *  Copyright (C) 2013 Atlas of Living Australia
  *  All Rights Reserved.
- * 
+ *
  *  The contents of this file are subject to the Mozilla Public
  *  License Version 1.1 (the "License"); you may not use this file
  *  except in compliance with the License. You may obtain a copy of
@@ -13,6 +13,8 @@
  *  rights and limitations under the License.
  ***************************************************************************/
 package au.org.ala.biocache.service;
+
+import au.org.ala.biocache.dto.SpatialObjectDTO;
 
 import java.io.Reader;
 
@@ -49,4 +51,8 @@ public interface LayersService {
     String getLayersServiceUrl();
 
     Reader sample(String[] analysisLayers, double[][] points, Object o);
+
+    SpatialObjectDTO getObject(String spatialObjectId);
+
+    String getObjectWkt(String spatialObjectId);
 }
