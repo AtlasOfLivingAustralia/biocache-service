@@ -1023,9 +1023,7 @@ public class QueryFormatUtils {
                         }
                     } else {
                         String formattedExtractedValue = formatValue(matchedIndexTerm, extractedValue);
-                        i18nForValue = messageSource.getMessage(fieldMappingUtil.translateFieldName(matchedIndexTerm) + "." + formattedExtractedValue, null, "", null);
-                        if (i18nForValue.length() == 0)
-                            i18nForValue = messageSource.getMessage(formattedExtractedValue, null, formattedExtractedValue, null);
+                        i18nForValue = messageSource.getMessage(fieldMappingUtil.translateFieldName(matchedIndexTerm) + "." + formattedExtractedValue, null, formattedExtractedValue, null);
                     }
 
                     formatted += i18n + text.substring(mr.end(), mr.end() + extractedValue.length() + end).replace(extractedValue, i18nForValue);
