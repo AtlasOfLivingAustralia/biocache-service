@@ -1047,11 +1047,11 @@ public class OccurrenceController extends AbstractSecureController {
                                     }
                                     try (FileOutputStream output = new FileOutputStream(outputFilePath);) {
                                         dto.setQ("taxonConceptID:\"" + lsid + "\"");
-                                        ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
-                                        searchDAO.writeResultsFromIndexToStream(dto, new CloseShieldOutputStream(output), uidStats, dd, false, executor);
+                                        DownloadStats downloadStats = new DownloadStats();
+                                        searchDAO.writeResultsFromIndexToStream(dto, new CloseShieldOutputStream(output), downloadStats, dd, false, executor);
                                         output.flush();
                                         try (FileOutputStream citationOutput = new FileOutputStream(citationFilePath);) {
-                                            downloadService.getCitations(uidStats, citationOutput, dto.getSep(), dto.getEsc(), null, null);
+                                            downloadService.getCitations(downloadStats.getUidStats(), citationOutput, dto.getSep(), dto.getEsc(), null, null);
                                             citationOutput.flush();
                                         }
                                     }

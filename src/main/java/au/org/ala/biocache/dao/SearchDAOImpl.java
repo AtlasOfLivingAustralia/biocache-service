@@ -577,7 +577,7 @@ public class SearchDAOImpl implements SearchDAO {
     @Override
     public DownloadHeaders writeResultsFromIndexToStream(final DownloadRequestDTO downloadParams,
                                                          final OutputStream out,
-                                                         final ConcurrentMap<String, AtomicInteger> uidStats,
+                                                         final DownloadStats downloadStats,
                                                          final DownloadDetailsDTO dd,
                                                          boolean checkLimit,
                                                          ExecutorService nextExecutor) throws Exception {
@@ -602,7 +602,7 @@ public class SearchDAOImpl implements SearchDAO {
         // submit download to executor
         if (nextExecutor != null) {
             // TODO: remove when deprecated services are removed: /occurrences/download and /occurrences/download/batchFile
-            Future future = nextExecutor.submit(prepareDownloadRunner(downloadParams, downloadHeaders, dd, uidStats, recordWriter));
+            Future future = nextExecutor.submit(prepareDownloadRunner(downloadParams, downloadHeaders, dd, downloadStats, recordWriter));
 
             // wait for download to finish
             // Busy wait because we need to be able to respond to an interrupt on any callable
@@ -624,7 +624,7 @@ public class SearchDAOImpl implements SearchDAO {
             } while (waitAgain);
         } else {
             // This is already running in an executor
-            prepareDownloadRunner(downloadParams, downloadHeaders, dd, uidStats, recordWriter).call();
+            prepareDownloadRunner(downloadParams, downloadHeaders, dd, downloadStats, recordWriter).call();
         }
 
 
@@ -646,7 +646,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     private Callable prepareDownloadRunner(DownloadRequestDTO downloadParams, DownloadHeaders downloadHeaders,
-                                           DownloadDetailsDTO dd, ConcurrentMap<String, AtomicInteger> uidStats,
+                                           DownloadDetailsDTO dd, DownloadStats downloadStats,
                                            RecordWriter recordWriter) throws QidMissingException {
         queryFormatUtils.formatSearchQuery(downloadParams);
 
@@ -672,7 +672,7 @@ public class SearchDAOImpl implements SearchDAO {
             queries.add(solrQuery);
         }
 
-        ProcessDownload procDownload = new ProcessDownload(uidStats, downloadHeaders, recordWriter, dd,
+        ProcessDownload procDownload = new ProcessDownload(downloadStats, downloadHeaders, recordWriter, dd,
                 checkDownloadLimits, downloadService.dowloadOfflineMaxSize,
                 listsService, layersService);
 
@@ -829,8 +829,8 @@ public class SearchDAOImpl implements SearchDAO {
             }).collect(Collectors.toList()).toArray(new String[0]);
         }
 
-        // fields required for logger.ala
-        requestFields(downloadHeaders, new String[]{DATA_PROVIDER_UID, INSTITUTION_UID, COLLECTION_UID, DATA_RESOURCE_UID});
+        // fields required for logger.ala and doi minting
+        requestFields(downloadHeaders, new String[]{DATA_PROVIDER_UID, INSTITUTION_UID, COLLECTION_UID, DATA_RESOURCE_UID, LICENSE});
 
         // 'lft' and 'rgt' is mandatory when there are species list fields
         if (downloadHeaders.speciesListIds.length > 0) {

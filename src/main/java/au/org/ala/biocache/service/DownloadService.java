@@ -416,9 +416,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 requestParams.setFacets(new String[]{data_resource_uid});
             }
 
-            final ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
+            final DownloadStats downloadStats = new DownloadStats();
             DownloadHeaders downloadHeaders = searchDAO.writeResultsFromIndexToStream(
-                    requestParams, sp, uidStats, dd, limit, parallelExecutor);
+                    requestParams, sp, downloadStats, dd, limit, parallelExecutor);
 
             sp.closeEntry();
 
@@ -445,7 +445,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     // add the citations for the supplied uids
                     sp.putNextEntry("citation.csv");
                     try {
-                        getCitations(uidStats, sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme, datasetMetadata);
+                        getCitations(downloadStats.getUidStats(), sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme, datasetMetadata);
                     } catch (IOException e) {
                         logger.error(e.getMessage(), e);
                     }
@@ -454,15 +454,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     if (mintDoi) {
 
                         // Prepare licence
-                        Set<String> datasetLicences = new TreeSet<>();
-                        for (Map<String, String> dataset : datasetMetadata) {
-                            String licence = dataset.get("licence");
-
-                            if (StringUtils.isNotBlank(licence)) {
-                                datasetLicences.add(licence);
-                            }
-                        }
-
+                        Set<String> datasetLicences = downloadStats.getLicences();
                         List<String> licence = Lists.newArrayList(datasetLicences);
 
                         try {
@@ -499,7 +491,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     }
                 } else {
                     if (logger.isDebugEnabled()) {
-                        logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " + uidStats);
+                        logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " + downloadStats.getUidStats());
                     }
                 }
 
@@ -577,7 +569,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     sp.closeEntry();
                 } else {
                     if (logger.isDebugEnabled()) {
-                        logger.debug("Not adding header. Enabled: " + headingsEnabled + " uids: " + uidStats);
+                        logger.debug("Not adding header. Enabled: " + headingsEnabled + " uids: " + downloadStats.getUidStats());
                     }
                 }
 
@@ -601,7 +593,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                 // log the stats to ala logger
                 LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
-                        requestParams.getEmail(), requestParams.getReason(), dd.getIpAddress(), dd.getUserAgent(), null, uidStats, sourceUrl);
+                        requestParams.getEmail(), requestParams.getReason(), dd.getIpAddress(), dd.getUserAgent(), null, downloadStats.getUidStats(), sourceUrl);
 
                 loggerService.logEvent(vo);
             }
