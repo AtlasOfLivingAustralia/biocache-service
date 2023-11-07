@@ -27,12 +27,14 @@ public interface LayersService {
 
     /**
      * Retrieve a map of layers
+     *
      * @return
      */
-    java.util.Map<String,String> getLayerNameMap();
+    java.util.Map<String, String> getLayerNameMap();
 
     /**
      * Retrieve a layer name with the supplied code.
+     *
      * @param code
      * @return
      */
@@ -50,7 +52,7 @@ public interface LayersService {
 
     String getLayersServiceUrl();
 
-    Reader sample(String[] analysisLayers, double[][] points, Object o);
+    Reader sample(String url, String[] analysisLayers, double[][] points);
 
     SpatialObjectDTO getObject(String spatialObjectId);
 

@@ -15,24 +15,8 @@
 package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dto.DownloadRequestDTO;
-import au.org.ala.biocache.util.AlaUnvalidatedProfile;
 import au.org.ala.ws.security.profile.AlaUserProfile;
-import au.org.ala.ws.tokens.TokenService;
-import jakarta.mail.internet.AddressException;
-import jakarta.mail.internet.InternetAddress;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
-import org.apache.log4j.Logger;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestOperations;
-
-import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
-import java.security.Principal;
 import java.util.*;
 
 /**
