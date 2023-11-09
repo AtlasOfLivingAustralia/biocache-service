@@ -63,8 +63,6 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import jakarta.mail.internet.AddressException;
-import jakarta.mail.internet.InternetAddress;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -1576,7 +1574,8 @@ public class OccurrenceController extends AbstractSecureController {
                                 changed = true;
                             } else if (key.contains("user_id")) {
                                 //multivalue fields; assertion_user_id
-                                list[i] = authService.getDisplayNameFor(v);
+                                Optional<AlaUserProfile> profile = authService.lookupAuthUser(v);
+                                list[i] = profile.isPresent() ? profile.get().getName() : "";
                                 changed = true;
                             }
                         }
@@ -1594,7 +1593,8 @@ public class OccurrenceController extends AbstractSecureController {
                             || key.contains("collector"))) {
                         sd.setField(key, authService.substituteEmailAddress(value.toString()));
                     } else if (value instanceof String && key.contains("user_id")) {
-                        sd.setField(key, authService.getDisplayNameFor(value.toString()));
+                        Optional<AlaUserProfile> profile = authService.lookupAuthUser(value.toString());
+                        sd.setField(key, profile.isPresent() ? profile.get().getName() : "");
                     }
                 }
             }
@@ -1875,10 +1875,11 @@ public class OccurrenceController extends AbstractSecureController {
 
                     if (qa.getUserId().contains("@")) {
                         String email = qa.getUserId();
-                        String userId = authService.getMapOfEmailToId().get(email);
+                        Optional<AlaUserProfile> profile = authService.lookupAuthUser(email);
+                        String userId = profile.isPresent() ? profile.get().getUserId() : "";
                         userAssertion.put("userId", userId);
                         userAssertion.put("userEmail", authService.substituteEmailAddress(email));
-                        userAssertion.put("userDisplayName", authService.getDisplayNameFor(userId));
+                        userAssertion.put("userDisplayName", profile.isPresent() ? profile.get().getName() : "");
                     }
 
                     return userAssertion;

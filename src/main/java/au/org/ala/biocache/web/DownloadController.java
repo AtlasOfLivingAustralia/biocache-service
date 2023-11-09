@@ -37,10 +37,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.http.entity.ContentType;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocumentList;
-import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.annotation.Secured;
@@ -328,8 +326,11 @@ public class DownloadController extends AbstractSecureController {
             }
             status.setTotalRecords(dd.getTotalRecords());
             status.setStatusUrl(downloadService.webservicesRoot + "/occurrences/offline/status/" + id);
-            if (isAdmin && authService.getMapOfEmailToId() != null) {
-                status.setUserId(authService.getMapOfEmailToId().get(dd.getRequestParams().getEmail()));
+            if (isAdmin) {
+                Optional<AlaUserProfile> profile = authService.lookupAuthUser(dd.getRequestParams().getEmail());
+                if (profile.isPresent()) {
+                    status.setUserId(profile.get().getUserId());
+                }
             }
             status.setSearchUrl(downloadService.generateSearchUrl(dd.getRequestParams()));
             status.setCancelUrl(downloadService.webservicesRoot + "/occurrences/offline/cancel/" + dd.getUniqueId());

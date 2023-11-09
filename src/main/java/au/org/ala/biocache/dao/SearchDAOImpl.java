@@ -23,7 +23,7 @@ import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import au.org.ala.biocache.writer.CSVRecordWriter;
 import au.org.ala.biocache.writer.RecordWriterError;
 import au.org.ala.biocache.writer.TSVRecordWriter;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import au.org.ala.ws.security.profile.AlaUserProfile;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
@@ -42,6 +42,8 @@ import org.apache.solr.common.util.SimpleOrderedMap;
 import org.slf4j.MDC;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.CacheManager;
+//import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
@@ -1577,6 +1579,10 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
 
+    @Inject
+    CacheManager cacheManager;
+
+    @Cacheable("legendCache")
     public List<LegendItem> getLegend(SpatialSearchRequestDTO searchParams, String facetField, String[] cutpoints) throws Exception {
         return getLegend(searchParams, facetField, cutpoints, false);
     }
@@ -2067,7 +2073,8 @@ public class SearchDAOImpl implements SearchDAO {
             //1850-01-01T00:00:00Z
         } else if (searchUtils.getAuthIndexFields().contains(tFacet)) {
             //if the facet field is collector or assertion_user_id we need to perform the substitution
-            return authService.getDisplayNameFor(value);
+            Optional<AlaUserProfile> profile = authService.lookupAuthUser(value);
+            return profile.isPresent() ? profile.get().getName() : value;
         } else {
             if (messageSource != null) {
 

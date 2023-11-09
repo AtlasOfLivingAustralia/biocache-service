@@ -67,7 +67,7 @@ public class QueryFormatTest {
     protected CollectionsCache collectionCache;
 
     @Mock
-    protected AuthService authService;
+    protected AuthServiceImpl authServiceImpl;
 
     @Mock
     protected LayersService layersService;

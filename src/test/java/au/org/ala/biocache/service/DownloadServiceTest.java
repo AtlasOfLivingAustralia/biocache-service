@@ -580,8 +580,6 @@ public class DownloadServiceTest {
         testService.loggerService = mock(LoggerService.class);
         AbstractMessageSource messageSource = mock(AbstractMessageSource.class);
         testService.messageSource = messageSource;
-        AuthService authService = mock(AuthService.class);
-        testService.authService = authService;
 
         testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
 
@@ -634,8 +632,6 @@ public class DownloadServiceTest {
         testService.loggerService = mock(LoggerService.class);
         AbstractMessageSource messageSource = mock(AbstractMessageSource.class);
         testService.messageSource = messageSource;
-        AuthService authService = mock(AuthService.class);
-        testService.authService = authService;
 
         testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
 
@@ -684,13 +680,11 @@ public class DownloadServiceTest {
         DoiService doiService = mock(DoiService.class);
         SearchDAO searchDAO = mock(SearchDAO.class);
         AbstractMessageSource messageSource = mock(AbstractMessageSource.class);
-        AuthService authService = mock(AuthService.class);
 
         testService.doiService = doiService;
         testService.searchDAO = searchDAO;
         testService.loggerService = mock(LoggerService.class);
         testService.messageSource = messageSource;
-        testService.authService = authService;
         testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
 
         // Setup method parameters
@@ -737,8 +731,6 @@ public class DownloadServiceTest {
         testService.loggerService = loggerService;
         AbstractMessageSource messageSource = mock(AbstractMessageSource.class);
         testService.messageSource = messageSource;
-        AuthService authService = mock(AuthService.class);
-        testService.authService = authService;
 
         testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
 
@@ -1037,7 +1029,6 @@ public class DownloadServiceTest {
         AbstractMessageSource messageSource = new ReloadableResourceBundleMessageSource();
         messageSource.setUseCodeAsDefaultMessage(true);
         testService.messageSource = messageSource;
-        testService.authService = mock(AuthService.class);
         EmailService emailService = mock(EmailService.class);
         testService.emailService = emailService;
         testService.dataQualityService = mock(DataQualityService.class);
