@@ -1963,6 +1963,8 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, occurrence, "source", getFieldName);
         addField(sd, occurrence, "userId", getFieldName);  //this is the ALA ID for the user
 
+        addField(sd, occurrence, "type", getFieldName);
+
         //Additional fields for HISPID support
         addField(sd, occurrence, "collectorFieldNumber", getFieldName);  //This value now maps to the correct DWC field http://rs.tdwg.org/dwc/terms/fieldNumber
         addField(sd, occurrence, "cultivated", getFieldName); //http://www.chah.org.au/hispid/terms/cultivatedOccurrence
