@@ -147,6 +147,9 @@ public class OccurrenceController extends AbstractSecureController {
     @Inject
     private AssertionService assertionService;
 
+    @Inject
+    private DataQualityService dataQualityService;
+
     private final String VALIDATION_ERROR = "error/validationError";
 
     @Value("${webservices.root:http://localhost:8080/biocache-service}")
@@ -904,6 +907,8 @@ public class OccurrenceController extends AbstractSecureController {
                 facetConfig, indexDao.getIndexedFields(), facetsMax, facetsDefaultMax, facetDefault);
 
         cacheManager.getCacheNames().forEach((String cacheName) -> cacheManager.getCache(cacheName).clear());
+
+        dataQualityService.clearCache();
 
         regenerateETag();
         return null;

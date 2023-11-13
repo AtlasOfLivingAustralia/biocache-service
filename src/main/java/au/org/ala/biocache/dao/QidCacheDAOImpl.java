@@ -502,8 +502,6 @@ public class QidCacheDAOImpl implements QidCacheDAO {
         synchronized (counterLock) {
             cache.clear();
             cacheSize = 0;
-            dataQualityService.clearCache();
         }
-
     }
 }
