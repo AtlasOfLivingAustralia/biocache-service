@@ -1,7 +1,7 @@
 package au.org.ala.biocache.controller;
 
 import au.org.ala.biocache.dao.SearchDAO;
-import au.org.ala.biocache.service.AuthService;
+import au.org.ala.biocache.service.AuthServiceImpl;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.service.LoggerService;
 import au.org.ala.biocache.util.QueryFormatUtils;
@@ -15,8 +15,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.internal.matchers.GreaterOrEqual;
-import org.mockito.internal.matchers.LessOrEqual;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ContextConfiguration;
@@ -226,7 +224,7 @@ public class OccurrenceControllerIT extends TestCase {
     @Autowired
     WebApplicationContext wac;
 
-    AuthService authService;
+    AuthServiceImpl authServiceImpl;
 
     MockMvc mockMvc;
 
@@ -239,13 +237,13 @@ public class OccurrenceControllerIT extends TestCase {
     public void setup() throws Exception {
         loggerService = mock(LoggerService.class);
         searchDAO = mock(SearchDAO.class);
-        authService = mock(AuthService.class);
+        authServiceImpl = mock(AuthServiceImpl.class);
         Validator validator = mock(Validator.class);
 
         ReflectionTestUtils.setField(occurrenceController, "loggerService", loggerService);
         ReflectionTestUtils.setField(downloadService, "loggerService", loggerService);
         ReflectionTestUtils.setField(occurrenceController, "rateLimitCount", 5);
-        ReflectionTestUtils.setField(occurrenceController, "authService", authService);
+        ReflectionTestUtils.setField(occurrenceController, "authService", authServiceImpl);
         ReflectionTestUtils.setField(occurrenceController, "validator", validator);
 
         when(validator.supports(any())).thenReturn(true);
@@ -350,7 +348,7 @@ public class OccurrenceControllerIT extends TestCase {
     @Test
     public void downloadTest() throws Exception {
 
-        when(authService.getDownloadUser(any(),any())).thenReturn(Optional.of(TEST_USER));
+        when(authServiceImpl.getDownloadUser(any(),any())).thenReturn(Optional.of(TEST_USER));
 
         this.mockMvc.perform(get("/occurrences/download")
                         .header("user-agent", "test User-Agent")
@@ -370,7 +368,7 @@ public class OccurrenceControllerIT extends TestCase {
     @Test
     public void downloadValidEmailTest() throws Exception {
 
-        when(authService.getDownloadUser(any(),any()))
+        when(authServiceImpl.getDownloadUser(any(),any()))
                 .thenReturn(Optional.of(TEST_USER));
 
         this.mockMvc.perform(get("/occurrences/download")

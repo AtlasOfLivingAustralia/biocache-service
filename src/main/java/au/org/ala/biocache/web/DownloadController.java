@@ -20,6 +20,7 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.service.AuthService;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.ws.security.profile.AlaUserProfile;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import io.swagger.annotations.ApiParam;
@@ -28,7 +29,9 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -36,11 +39,11 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrDocumentList;
-import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.StreamUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.inject.Inject;
@@ -148,6 +151,14 @@ public class DownloadController extends AbstractSecureController {
 
             @Parameter(name="wkt", description = "Well Known Text for the spatial search. Large WKT will be simplified.", in = ParameterIn.QUERY)
     } )
+    @RequestBody(
+            description = "parameters in the body as application/x-www-form-urlencoded or a JSON object",
+            content = {
+                    @Content(
+                        mediaType = "application/json"),
+                    @Content(
+                        mediaType = "application/x-www-form-urlencoded")
+            })
     @Tag(name ="Download", description = "Services for downloading occurrences and specimen data")
     @RequestMapping(value = { "occurrences/offline/download"}, method = {RequestMethod.GET, RequestMethod.POST})
     public @ResponseBody DownloadStatusDTO occurrenceDownload(
@@ -156,7 +167,17 @@ public class DownloadController extends AbstractSecureController {
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
 
-        DownloadRequestDTO downloadRequestDTO = DownloadRequestDTO.create(requestParams, request);
+        DownloadRequestDTO downloadRequestDTO;
+        if (request.getContentType() != null && request.getContentType().toLowerCase().contains("application/json")) {
+            ObjectMapper om = new ObjectMapper();
+            om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            String input = StreamUtils.copyToString(request.getInputStream(), StandardCharsets.UTF_8);
+            DownloadRequestParams jsonParams = om.readValue(input, DownloadRequestParams.class);
+
+            downloadRequestDTO = DownloadRequestDTO.create(jsonParams, request);
+        } else {
+            downloadRequestDTO = DownloadRequestDTO.create(requestParams, request);
+        }
         Optional<AlaUserProfile> downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
 
         if (!downloadUser.isPresent()){
@@ -211,7 +232,7 @@ public class DownloadController extends AbstractSecureController {
             //identify this download as too large
             File file = new File(downloadService.biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getRequestParams().getEmail().getBytes(StandardCharsets.UTF_8)) + File.separator + dd.getStartTime() + File.separator + "tooLarge");
             FileUtils.forceMkdir(file.getParentFile());
-            FileUtils.writeStringToFile(file, "", "UTF-8");
+            FileUtils.writeStringToFile(file, requestParams.toString(), "UTF-8");
             status.setDownloadUrl(downloadService.biocacheDownloadUrl);
             status.setStatus(DownloadStatusDTO.DownloadStatus.TOO_LARGE);
             status.setMessage(downloadService.downloadOfflineMsg);
@@ -305,8 +326,11 @@ public class DownloadController extends AbstractSecureController {
             }
             status.setTotalRecords(dd.getTotalRecords());
             status.setStatusUrl(downloadService.webservicesRoot + "/occurrences/offline/status/" + id);
-            if (isAdmin && authService.getMapOfEmailToId() != null) {
-                status.setUserId(authService.getMapOfEmailToId().get(dd.getRequestParams().getEmail()));
+            if (isAdmin) {
+                Optional<AlaUserProfile> profile = authService.lookupAuthUser(dd.getRequestParams().getEmail());
+                if (profile.isPresent()) {
+                    status.setUserId(profile.get().getUserId());
+                }
             }
             status.setSearchUrl(downloadService.generateSearchUrl(dd.getRequestParams()));
             status.setCancelUrl(downloadService.webservicesRoot + "/occurrences/offline/cancel/" + dd.getUniqueId());

@@ -140,11 +140,12 @@ public class MapController {
      */
     @Operation(summary = "Occurrence info summary service for JS map popups.", tags = {"Mapping"})
     @RequestMapping(value = {"/occurrences/info" }, method = RequestMethod.GET, produces = "application/json")
-    public String getOccurrencesInformation(SpatialSearchRequestDTO requestParams,
+    public String getOccurrencesInformation(SpatialSearchRequestParams requestParams,
                                             @RequestParam(value = "callback", required = false) String callback,
                                             Model model,
                                             HttpServletResponse response)
             throws Exception {
+        SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
 
         if (requestParams.getLon() == null) {
             response.sendError(400, "Required Double parameter 'lon' is not present");
@@ -170,7 +171,7 @@ public class MapController {
             response.setContentType("application/json");
         }
 
-        SolrDocumentList sdl = searchDAO.findByFulltext(requestParams);
+        SolrDocumentList sdl = searchDAO.findByFulltext(dto);
         List<OccurrencePoint> points = new ArrayList<OccurrencePoint>();
 
         if (sdl != null) {
@@ -245,7 +246,7 @@ public class MapController {
     @Operation(summary = "Renders a density map for a species.", tags = {"Mapping"})
     @RequestMapping(value = {"/density/map", "/occurrences/static"}, method = RequestMethod.GET)
     public @ResponseBody
-    void speciesDensityMap(SpatialSearchRequestDTO requestParams,
+    void speciesDensityMap(SpatialSearchRequestParams requestParams,
                            @RequestParam(value = "forceRefresh", required = false, defaultValue = "false") boolean forceRefresh,
                            @RequestParam(value = "forcePointsDisplay", required = false, defaultValue = "false") boolean forcePointsDisplay,
                            @RequestParam(value = "pointColour", required = false, defaultValue = "0000ff") String pointColour,
@@ -255,6 +256,8 @@ public class MapController {
                            @RequestParam(value = "opacity", required = false, defaultValue = "1.0") Float opacity,
                            HttpServletRequest request,
                            HttpServletResponse response) throws Exception {
+
+        SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
 
         File outputDir = new File(heatmapOutputDir);
         if (!outputDir.exists()) {
@@ -285,7 +288,7 @@ public class MapController {
         if (!f.isFile() || !f.exists() || forceRefresh) {
             logger.debug("Regenerating heatmap image");
             //If not, generate
-            generateStaticHeatmapImages(requestParams, false, forcePointsDisplay, pointHeatMapThreshold, pointColour, facetValues, facetColours, opacity, request);
+            generateStaticHeatmapImages(dto, false, forcePointsDisplay, pointHeatMapThreshold, pointColour, facetValues, facetColours, opacity, request);
         } else {
             logger.debug("Heatmap file already exists on disk, sending file back to user");
         }
@@ -324,11 +327,13 @@ public class MapController {
      */
     @Operation(summary = "Renders a density map legend for a species.", tags = {"Mapping"})
     @RequestMapping(value = "/density/legend", method = RequestMethod.GET)
-    public @ResponseBody void speciesDensityLegend(SpatialSearchRequestDTO requestParams,
+    public @ResponseBody void speciesDensityLegend(SpatialSearchRequestParams requestParams,
                                                    @RequestParam(value = "forceRefresh", required = false, defaultValue = "false") boolean forceRefresh,
                                                    @RequestParam(value = "pointHeatMapThreshold", required = false, defaultValue = "500") Integer pointHeatMapThreshold,
                                                    HttpServletRequest request,
                                                    HttpServletResponse response) throws Exception {
+
+        SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
 
         File baseDir = new File(heatmapOutputDir);
 
@@ -340,7 +345,7 @@ public class MapController {
         if (!f.isFile() || !f.exists() || forceRefresh) {
             //If not, generate
             logger.debug("regenerating heatmap legend");
-            generateStaticHeatmapImages(requestParams, true, false, pointHeatMapThreshold, "0000ff", null, null, 1.0f, request);
+            generateStaticHeatmapImages(dto, true, false, pointHeatMapThreshold, "0000ff", null, null, 1.0f, request);
         } else {
             logger.debug("legend file already exists on disk, sending file back to user");
         }

@@ -2,7 +2,7 @@ package au.org.ala.biocache.controller;
 
 import au.org.ala.biocache.dao.JsonPersistentQueueDAOImpl;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
-import au.org.ala.biocache.service.AuthService;
+import au.org.ala.biocache.service.AuthServiceImpl;
 import au.org.ala.biocache.service.DownloadService;
 import au.org.ala.biocache.util.SolrUtils;
 import au.org.ala.biocache.web.DownloadController;
@@ -206,7 +206,7 @@ public class DownloadControllerIT extends TestCase {
     DownloadService downloadService;
 
     PersistentQueueDAO persistentQueueDao;
-    AuthService authService;
+    AuthServiceImpl authServiceImpl;
 
     @Autowired
     WebApplicationContext wac;
@@ -239,9 +239,9 @@ public class DownloadControllerIT extends TestCase {
         };
         persistentQueueDao.init();
 
-        authService = mock(AuthService.class);
+        authServiceImpl = mock(AuthServiceImpl.class);
 
-        ReflectionTestUtils.setField(downloadController, "authService", authService);
+        ReflectionTestUtils.setField(downloadController, "authService", authServiceImpl);
         ReflectionTestUtils.setField(downloadController, "persistentQueueDAO", persistentQueueDao);
 
         downloadService.biocacheDownloadDir = testDownloadDir.toAbsolutePath().toString();
@@ -290,7 +290,7 @@ public class DownloadControllerIT extends TestCase {
     @Test
     public void downloadTest() throws Exception {
 
-        when(authService.getDownloadUser(any(), any()))
+        when(authServiceImpl.getDownloadUser(any(), any()))
                 .thenReturn(Optional.of(new AlaUserProfile() {
                     @Override
                     public String getId() {
@@ -452,7 +452,7 @@ public class DownloadControllerIT extends TestCase {
     @Test
     public void downloadInvalidEmailTest() throws Exception {
 
-        when(authService.getDownloadUser(any(), any()))
+        when(authServiceImpl.getDownloadUser(any(), any()))
                 .thenReturn(Optional.empty());
 
         this.mockMvc.perform(get("/occurrences/offline/download")
@@ -460,7 +460,7 @@ public class DownloadControllerIT extends TestCase {
                 .param("email", "test@test.com"))
                 .andExpect(status().is4xxClientError());
 
-        verify(authService).getDownloadUser(any(), any());
+        verify(authServiceImpl).getDownloadUser(any(), any());
     }
 
 

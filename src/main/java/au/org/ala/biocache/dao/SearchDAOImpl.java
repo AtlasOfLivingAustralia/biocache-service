@@ -23,7 +23,7 @@ import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import au.org.ala.biocache.writer.CSVRecordWriter;
 import au.org.ala.biocache.writer.RecordWriterError;
 import au.org.ala.biocache.writer.TSVRecordWriter;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import au.org.ala.ws.security.profile.AlaUserProfile;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
@@ -42,6 +42,8 @@ import org.apache.solr.common.util.SimpleOrderedMap;
 import org.slf4j.MDC;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.CacheManager;
+//import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
@@ -575,7 +577,7 @@ public class SearchDAOImpl implements SearchDAO {
     @Override
     public DownloadHeaders writeResultsFromIndexToStream(final DownloadRequestDTO downloadParams,
                                                          final OutputStream out,
-                                                         final ConcurrentMap<String, AtomicInteger> uidStats,
+                                                         final DownloadStats downloadStats,
                                                          final DownloadDetailsDTO dd,
                                                          boolean checkLimit,
                                                          ExecutorService nextExecutor) throws Exception {
@@ -600,7 +602,7 @@ public class SearchDAOImpl implements SearchDAO {
         // submit download to executor
         if (nextExecutor != null) {
             // TODO: remove when deprecated services are removed: /occurrences/download and /occurrences/download/batchFile
-            Future future = nextExecutor.submit(prepareDownloadRunner(downloadParams, downloadHeaders, dd, uidStats, recordWriter));
+            Future future = nextExecutor.submit(prepareDownloadRunner(downloadParams, downloadHeaders, dd, downloadStats, recordWriter));
 
             // wait for download to finish
             // Busy wait because we need to be able to respond to an interrupt on any callable
@@ -622,7 +624,7 @@ public class SearchDAOImpl implements SearchDAO {
             } while (waitAgain);
         } else {
             // This is already running in an executor
-            prepareDownloadRunner(downloadParams, downloadHeaders, dd, uidStats, recordWriter).call();
+            prepareDownloadRunner(downloadParams, downloadHeaders, dd, downloadStats, recordWriter).call();
         }
 
 
@@ -644,7 +646,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     private Callable prepareDownloadRunner(DownloadRequestDTO downloadParams, DownloadHeaders downloadHeaders,
-                                           DownloadDetailsDTO dd, ConcurrentMap<String, AtomicInteger> uidStats,
+                                           DownloadDetailsDTO dd, DownloadStats downloadStats,
                                            RecordWriter recordWriter) throws QidMissingException {
         queryFormatUtils.formatSearchQuery(downloadParams);
 
@@ -683,7 +685,7 @@ public class SearchDAOImpl implements SearchDAO {
             pageSize = downloadService.dowloadOfflineMaxSize;
         }
 
-        ProcessDownload procDownload = new ProcessDownload(uidStats, downloadHeaders, recordWriter, dd,
+        ProcessDownload procDownload = new ProcessDownload(downloadStats, downloadHeaders, recordWriter, dd,
                 checkDownloadLimits, pageSize,
                 listsService, layersService);
 
@@ -840,8 +842,8 @@ public class SearchDAOImpl implements SearchDAO {
             }).collect(Collectors.toList()).toArray(new String[0]);
         }
 
-        // fields required for logger.ala
-        requestFields(downloadHeaders, new String[]{DATA_PROVIDER_UID, INSTITUTION_UID, COLLECTION_UID, DATA_RESOURCE_UID});
+        // fields required for logger.ala and doi minting
+        requestFields(downloadHeaders, new String[]{DATA_PROVIDER_UID, INSTITUTION_UID, COLLECTION_UID, DATA_RESOURCE_UID, LICENSE});
 
         // 'lft' and 'rgt' is mandatory when there are species list fields
         if (downloadHeaders.speciesListIds.length > 0) {
@@ -1590,6 +1592,10 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
 
+    @Inject
+    CacheManager cacheManager;
+
+    @Cacheable("legendCache")
     public List<LegendItem> getLegend(SpatialSearchRequestDTO searchParams, String facetField, String[] cutpoints) throws Exception {
         return getLegend(searchParams, facetField, cutpoints, false);
     }
@@ -2080,7 +2086,8 @@ public class SearchDAOImpl implements SearchDAO {
             //1850-01-01T00:00:00Z
         } else if (searchUtils.getAuthIndexFields().contains(tFacet)) {
             //if the facet field is collector or assertion_user_id we need to perform the substitution
-            return authService.getDisplayNameFor(value);
+            Optional<AlaUserProfile> profile = authService.lookupAuthUser(value);
+            return profile.isPresent() ? profile.get().getName() : value;
         } else {
             if (messageSource != null) {
 

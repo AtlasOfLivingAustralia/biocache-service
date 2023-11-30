@@ -2,10 +2,7 @@ package au.org.ala.biocache.stream;
 
 import au.com.bytecode.opencsv.CSVReader;
 import au.org.ala.biocache.dao.SearchDAOImpl;
-import au.org.ala.biocache.dto.DownloadDetailsDTO;
-import au.org.ala.biocache.dto.DownloadHeaders;
-import au.org.ala.biocache.dto.Kvp;
-import au.org.ala.biocache.dto.OccurrenceIndex;
+import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.service.LayersService;
 import au.org.ala.biocache.service.ListsService;
 import au.org.ala.biocache.util.RecordWriter;
@@ -15,11 +12,8 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.io.Tuple;
 
-import java.io.IOException;
 import java.io.Reader;
 import java.util.*;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -32,7 +26,7 @@ public class ProcessDownload implements ProcessInterface {
 
     final static int MAX_BATCH_SIZE = 1000;
 
-    ConcurrentMap<String, AtomicInteger> uidStats;
+    DownloadStats downloadStats;
     RecordWriter recordWriter;
     DownloadDetailsDTO downloadDetails;
     boolean checkLimit;
@@ -55,12 +49,12 @@ public class ProcessDownload implements ProcessInterface {
 
     long startTime = 0;
 
-    public ProcessDownload(ConcurrentMap<String, AtomicInteger> uidStats, DownloadHeaders headers,
+    public ProcessDownload(DownloadStats downloadStats, DownloadHeaders headers,
                            RecordWriter recordWriter, DownloadDetailsDTO downloadDetails, boolean checkLimit,
                            long maxDownloadSize,
                            ListsService listsService,
                            LayersService layersService) {
-        this.uidStats = uidStats;
+        this.downloadStats = downloadStats;
         this.headers = headers;
         this.recordWriter = recordWriter;
         this.downloadDetails = downloadDetails;
@@ -87,8 +81,6 @@ public class ProcessDownload implements ProcessInterface {
     public boolean flush() {
         // do analysis layer intersections before writing the batch
         intersectAnalysisLayers();
-
-        downloadDetails.updateCounts(batch.size());
 
         batch.forEach(row -> recordWriter.write(row));
         batch.clear();
@@ -155,10 +147,11 @@ public class ProcessDownload implements ProcessInterface {
             }
 
             //increment the counters....
-            SearchDAOImpl.incrementCount(uidStats, tuple.get(INSTITUTION_UID));
-            SearchDAOImpl.incrementCount(uidStats, tuple.get(COLLECTION_UID));
-            SearchDAOImpl.incrementCount(uidStats, tuple.get(DATA_PROVIDER_UID));
-            SearchDAOImpl.incrementCount(uidStats, tuple.get(DATA_RESOURCE_UID));
+            SearchDAOImpl.incrementCount(downloadStats.getUidStats(), tuple.get(INSTITUTION_UID));
+            SearchDAOImpl.incrementCount(downloadStats.getUidStats(), tuple.get(COLLECTION_UID));
+            SearchDAOImpl.incrementCount(downloadStats.getUidStats(), tuple.get(DATA_PROVIDER_UID));
+            SearchDAOImpl.incrementCount(downloadStats.getUidStats(), tuple.get(DATA_RESOURCE_UID));
+            downloadStats.addLicence((String) tuple.get(LICENSE));
 
             if (headers.analysisIds.length > 0) {
                 // record longitude and latitude for remote analysis layer intersections
@@ -256,25 +249,23 @@ public class ProcessDownload implements ProcessInterface {
                     }
                 }
                 if (i < batch.size()) {
-                    Reader reader = layersService.sample(headers.analysisIds, points, null);
+                    Reader reader = layersService.sample(layersServiceUrl, headers.analysisIds, points);
 
                     CSVReader csv = new CSVReader(reader);
                     intersection = csv.readAll();
                     csv.close();
 
                     for (int j = 0; j < batch.size(); j++) {
-                        if (j > batch.size()) {
-                            //+1 offset for header row in intersection list
-                            String[] sampling = intersection.get(j + 1);
-                            //+2 offset for latitude,longitude columns in sampling array
-                            if (sampling != null && sampling.length == headers.analysisIds.length + 2) {
-                                // suitable space is already available in each batch row String[]
-                                System.arraycopy(sampling, 2, batch.get(j), headers.labels.length, sampling.length - 2);
-                            }
+                        //+1 offset for header row in intersection list
+                        String[] sampling = intersection.get(j + 1);
+                        //+2 offset for latitude,longitude columns in sampling array
+                        if (sampling != null && sampling.length == headers.analysisIds.length + 2) {
+                            // suitable space is already available in each batch row String[]
+                            System.arraycopy(sampling, 2, batch.get(j), headers.labels.length, sampling.length - 2);
                         }
                     }
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {
                 logger.error("Failed to intersect analysis layers", e);
             }
         }
