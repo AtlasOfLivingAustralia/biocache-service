@@ -1310,11 +1310,11 @@ public class WMSController extends AbstractSecureController {
             writer.write(generateStylesForPoints());
 
             if (marineOnly) {
-                filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, OccurrenceIndex.BIOME + ":Marine OR " + OccurrenceIndex.BIOME + ":\"Marine and Non-marine\"");
+                filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, OccurrenceIndex.BIOME + ":MARINE");
             }
 
             if (terrestrialOnly) {
-                filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, OccurrenceIndex.BIOME + ":\"Non-marine\" OR " + OccurrenceIndex.BIOME + ":Limnetic");
+                filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, OccurrenceIndex.BIOME + ":TERRESTRIAL");
             }
 
             if (limitToFocus) {
