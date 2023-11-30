@@ -1483,7 +1483,12 @@ public class WMSController extends AbstractSecureController {
             }
         }
 
-        double[] bbox = reprojectBBox(tilebbox, srs);
+        CRSAuthorityFactory factory = CRS.getAuthorityFactory(true);
+        CoordinateReferenceSystem sourceCRS = factory.createCoordinateReferenceSystem(srs);
+        CoordinateReferenceSystem targetCRS = factory.createCoordinateReferenceSystem("EPSG:4326");
+        CoordinateOperation transformFrom4326 = new DefaultCoordinateOperationFactory().createOperation(targetCRS, sourceCRS);
+
+        double[] bbox = reprojectBBox(tilebbox, srs, transformFrom4326);
 
         boolean isGrid = vars.colourMode.equals("grid");
         if (logger.isDebugEnabled()) {
@@ -1524,11 +1529,6 @@ public class WMSController extends AbstractSecureController {
 
         // circles from uncertainty distances or requested highlight
         HeatmapDTO circlesHeatmap = getCirclesHeatmap(vars, bbox, requestParams, width, height, pointWidth);
-
-        CRSAuthorityFactory factory = CRS.getAuthorityFactory(true);
-        CoordinateReferenceSystem sourceCRS = factory.createCoordinateReferenceSystem(srs);
-        CoordinateReferenceSystem targetCRS = factory.createCoordinateReferenceSystem("EPSG:4326");
-        CoordinateOperation transformFrom4326 = new DefaultCoordinateOperationFactory().createOperation(targetCRS, sourceCRS);
 
         // render PNG...
         ImgObj tile = renderHeatmap(heatmapDTO,
@@ -1628,7 +1628,7 @@ public class WMSController extends AbstractSecureController {
         return null;
     }
 
-    private double[] reprojectBBox(double[] tilebbox, String srs) throws Exception {
+    private double[] reprojectBBox(double[] tilebbox, String srs, CoordinateOperation transformFrom4326) throws Exception {
 
         CRSAuthorityFactory factory = CRS.getAuthorityFactory(true);
         CoordinateReferenceSystem sourceCRS = factory.createCoordinateReferenceSystem(srs);
@@ -1647,6 +1647,19 @@ public class WMSController extends AbstractSecureController {
         bbox[1] = sw4326.getCoordinate()[1];
         bbox[2] = ne4326.getCoordinate()[0];
         bbox[3] = ne4326.getCoordinate()[1];
+
+        // restrict longitude -180 to +180, assuming; minLongitude < maxLongitude and width < 360 degrees
+        if (bbox[0] > 180) {
+            bbox[0] -= 360;
+            bbox[2] -= 360;
+
+            GeneralDirectPosition west = new GeneralDirectPosition(bbox[0], bbox[1]);
+            tilebbox[0] = transformFrom4326.getMathTransform().transform(west, null).getOrdinate(0);
+
+            GeneralDirectPosition east = new GeneralDirectPosition(bbox[2], bbox[3]);
+            tilebbox[2] = transformFrom4326.getMathTransform().transform(east, null).getOrdinate(0);
+        }
+
         return bbox;
     }
 
@@ -2045,7 +2058,7 @@ public class WMSController extends AbstractSecureController {
                             DirectPosition pos1 = transformFrom4326.getMathTransform().transform(coord1, null);
                             DirectPosition pos2 = transformFrom4326.getMathTransform().transform(coord2, null);
                             int px1 = scaleLongitudeForImage(pos1.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
-                            int px2 = scaleLatitudeForImage(pos2.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
+                            int px2 = scaleLongitudeForImage(pos2.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
                             circleWidthInPixels = Math.abs(px1 - px2);
                         }
 
