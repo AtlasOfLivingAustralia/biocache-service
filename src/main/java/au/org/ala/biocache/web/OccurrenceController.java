@@ -604,10 +604,10 @@ public class OccurrenceController extends AbstractSecureController {
             "An empty list is returned when no images are available."
     )
     @Tag(name="Images", description = "Services for the retrieval of taxon image data")
-    @RequestMapping(value = "/images/taxon/{taxonConceptID}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/images/taxon/**", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
-    List<String> getImages(@PathVariable(name="taxonConceptID") String taxonConceptID) throws Exception {
-
+    List<String> getImages(HttpServletRequest request) throws Exception {
+        String taxonConceptID = searchUtils.getGuidFromPath(request);
         SpatialSearchRequestDTO srp = new SpatialSearchRequestDTO();
         srp.setQ("taxonConceptID:" + taxonConceptID);
         srp.setPageSize(0);
@@ -626,12 +626,13 @@ public class OccurrenceController extends AbstractSecureController {
     @Operation(summary = "Checks to see if the supplied GUID represents an native species", tags = "Taxonomy",
         description="Checks to see if the supplied GUID represents an native species."
     )
-    @RequestMapping(value = {"/native/taxon/{taxonConceptID}"},
+    @RequestMapping(value = {"/native/taxon/**"},
             method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     public @ResponseBody
-    NativeDTO isNative(@PathVariable(name="taxonConceptID") String taxonConceptID) throws Exception {
+    NativeDTO isNative(HttpServletRequest request) throws Exception {
+        String taxonConceptID = searchUtils.getGuidFromPath(request);
         //check to see if we have any occurrences on Australia  country:Australia or state != empty
         NativeDTO adto = new NativeDTO();
         if (taxonConceptID != null) {
