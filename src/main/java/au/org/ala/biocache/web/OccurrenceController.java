@@ -844,7 +844,7 @@ public class OccurrenceController extends AbstractSecureController {
 //            "/occurrences/search.json*",
             "/occurrences/search"
 //            "/occurrence/search"
-    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    }, method = {RequestMethod.GET, RequestMethod.POST}, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     SearchResultDTO occurrenceSearch(
                                      @Valid @ParameterObject SpatialSearchRequestParams requestParams,
@@ -927,7 +927,7 @@ public class OccurrenceController extends AbstractSecureController {
             description ="Downloads the complete list of values in the supplied e.g. complete list" +
                     " of distinct scientificNames matching a query"
     )
-    @RequestMapping(value = "/occurrences/facets/download", method = RequestMethod.GET,  produces = {"text/csv", "text/plain"})
+    @RequestMapping(value = "/occurrences/facets/download", method = {RequestMethod.GET, RequestMethod.POST}, produces = {"text/csv", "text/plain"})
     public void downloadFacet(
             @Valid @ParameterObject DownloadRequestParams requestParams,
             @RequestParam(value = "count", required = false, defaultValue = "false") boolean includeCount,
