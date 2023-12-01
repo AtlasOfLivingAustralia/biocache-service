@@ -1639,8 +1639,8 @@ public class OccurrenceController extends AbstractSecureController {
         Set<String> schemaFields = indexDao.getSchemaFields();
 
         Map map = new LinkedHashMap();
-        Map raw = fullRecord(sd, (String fieldName) -> schemaFields.contains(RAW_FIELD_PREFIX + fieldName) ? (RAW_FIELD_PREFIX + fieldName) : fieldName);
-        Map processed = fullRecord(sd, (String fieldName) -> schemaFields.contains(RAW_FIELD_PREFIX + fieldName) ? fieldName : null);
+        Map raw = fullRecord(sd, true, (String fieldName) -> schemaFields.contains(RAW_FIELD_PREFIX + fieldName) ? (RAW_FIELD_PREFIX + fieldName) : fieldName);
+        Map processed = fullRecord(sd, false, (String fieldName) -> schemaFields.contains(RAW_FIELD_PREFIX + fieldName) ? fieldName : null);
 
         // add lastModifiedTime
         addInstant(sd, raw, "lastModifiedTime", "lastLoadDate");
@@ -1766,6 +1766,14 @@ public class OccurrenceController extends AbstractSecureController {
 
     private void addField(SolrDocument sd, Map map, String fieldNameToUser, String fieldName) {
         map.put(fieldNameToUser, sd.getFieldValue(fieldName));
+    }
+
+    private void addAlaField(SolrDocument sd, Map map, String fieldName, boolean isRaw) {
+        if (isRaw) {
+            map.put(fieldName, sd.getFieldValue(RAW_FIELD_PREFIX + fieldName));
+        } else {
+            map.put(fieldName, sd.getFieldValue(fieldName));
+        }
     }
 
     private void addAll(SolrDocument sd, Map map, String fieldName, Function<String, String> getFieldName) {
@@ -1902,7 +1910,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @param getFieldName function to resolve the solr field name from the
      * @return
      */
-    Map fullRecord(SolrDocument sd, Function<String, String> getFieldName) {
+    Map fullRecord(SolrDocument sd, boolean isRaw, Function<String, String> getFieldName) {
         Map fullRecord = new LinkedHashMap();
         fullRecord.put("rowKey", sd.getFieldValue(ID)); // Use the processed ID for compatability
         fullRecord.put("uuid", sd.getFieldValue(ID));
@@ -2028,7 +2036,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, classification, "subgenus", getFieldName);
         addField(sd, classification, "species", getFieldName);
         addField(sd, classification, "specificEpithet", getFieldName);
-        addField(sd, classification, "subspecies", getFieldName);
+        addAlaField(sd, classification, "subspecies", isRaw);
         addField(sd, classification, "infraspecificEpithet", getFieldName);
         addField(sd, classification, "infraspecificMarker", getFieldName);
         addField(sd, classification, "cultivarName", getFieldName); //an addition to darwin core for http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0315
@@ -2065,7 +2073,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, classification, "genusID", getFieldName);
         addField(sd, classification, "subgenusID", getFieldName);
         addField(sd, classification, "speciesID", getFieldName);
-        addField(sd, classification, "subspeciesID", getFieldName);
+        addAlaField(sd, classification, "subspeciesID", isRaw);
 
         addField(sd, classification, "left", getFieldName.apply("lft"));
         addField(sd, classification, "right", getFieldName.apply("rgt"));
