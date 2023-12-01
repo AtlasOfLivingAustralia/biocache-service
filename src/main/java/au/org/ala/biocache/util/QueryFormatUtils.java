@@ -75,7 +75,7 @@ public class QueryFormatUtils {
 
     protected Pattern spatialObjectPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|'|-)spatialObject:\"?([0-9]*)\"?");
     protected Pattern urnPattern = Pattern.compile("\\burn:[a-zA-Z0-9\\.:-]*");
-    protected Pattern httpPattern = Pattern.compile("http:[a-zA-Z0-9/\\.:\\-_]*");
+    protected Pattern httpPattern = Pattern.compile("https?:[a-zA-Z0-9/\\.:\\-_]*");
     protected Pattern uidPattern = Pattern.compile("(?:[\"]*)?((?:[a-z_]*_uid:)|(?:[a-zA-Z]*Uid:))(\\w*)(?:[\"]*)?");
     protected Pattern spatialPattern = Pattern.compile(spatialField + ":\"Intersects\\([a-zA-Z=\\-\\s0-9\\.\\,():]*\\)\\\"");
     protected Pattern qidPattern = QidCacheDAO.qidPattern;//Pattern.compile("qid:[0-9]*");
