@@ -212,6 +212,9 @@ public class OccurrenceController extends AbstractSecureController {
     @Value("${occurrence.log.enabled:true}")
     private boolean occurrenceLogEnabled = true;
 
+    @Value("${page.depth.max:5000}")
+    public Integer pageDepthMax;
+
     private final AtomicReference<String> occurrenceETag = new AtomicReference<>(UUID.randomUUID().toString());
 
     private ExecutorService executor;
@@ -853,6 +856,14 @@ public class OccurrenceController extends AbstractSecureController {
                                      HttpServletRequest request) throws Exception {
 
         SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
+
+        // quietly limit page depth (start + pageSize) to the first pageDepthMax records
+        if (dto.getStart() >= pageDepthMax) {
+            dto.setStart(0);
+            dto.setPageSize(0);
+        } else if (dto.getStart() + dto.getPageSize() >= pageDepthMax) {
+            dto.setPageSize(pageDepthMax - dto.getStart());
+        }
 
             // handle empty param values, e.g. &sort=&dir=
          SearchUtils.setDefaultParams(dto);
