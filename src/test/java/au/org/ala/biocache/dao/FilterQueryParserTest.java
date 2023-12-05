@@ -175,12 +175,12 @@ public class FilterQueryParserTest {
         Facet od = facetMap.get("occurrenceYear");
         assertNotNull(od);
         assertTrue(StringUtils.containsIgnoreCase(od.getValue(), "[1940-01-01T00:00:00Z%20TO%201949-12-31T00:00:00Z]"));
-        assertTrue("got: " + od.getDisplayName(), StringUtils.containsIgnoreCase(od.getDisplayName(), "Date (by decade):[1940-1949]"));
+        assertTrue("got: " + od.getDisplayName(), StringUtils.containsIgnoreCase(od.getDisplayName(), "Date (by year):[1940-1949]"));
 
         od = facetMap.get("occurrence_year");
         assertNotNull(od);
         assertTrue(StringUtils.containsIgnoreCase(od.getValue(), "[1940-01-01T00:00:00Z%20TO%201949-12-31T00:00:00Z]"));
-        assertTrue("got: " + od.getDisplayName(), StringUtils.containsIgnoreCase(od.getDisplayName(), "Date (by decade):[1940-1949]"));
+        assertTrue("got: " + od.getDisplayName(), StringUtils.containsIgnoreCase(od.getDisplayName(), "Date (by year):[1940-1949]"));
 
 
         Facet month = facetMap.get("month");
