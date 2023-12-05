@@ -19,6 +19,7 @@ import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
+import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.stream.OptionalZipOutputStream;
@@ -283,19 +284,32 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         // Simple JSON initialisation, let's follow the default Spring semantics
         sensitiveAccessRolesToSolrFilters20 = (JSONObject) new JSONParser().parse(sensitiveAccessRoles20);
 
-        // Return download requests that were unfinished at shutdown
-        Queue<DownloadDetailsDTO> fromPersistent = persistentQueueDAO.refreshFromPersistent();
-        for (DownloadDetailsDTO dd : fromPersistent) {
-            try {
-                add(dd);
-            } catch (TooManyDownloadRequestsException e) {
-                // ignore
-            } catch (IOException e) {
-                logger.error("failed to add unfinished download to download queue, id: " + dd.getUniqueId() + ", " + e.getMessage());
-            }
-        }
-
         userExecutors = new ConcurrentHashMap<String, ThreadPoolExecutor>();
+
+        // Re-start downloads that did not finish
+        new Thread() {
+            @Override
+            public void run() {
+                try {
+                    // Wait search initialization
+                    searchDAO.isInitialized();
+
+                    // Return download requests that were unfinished at shutdown
+                    Queue<DownloadDetailsDTO> fromPersistent = persistentQueueDAO.refreshFromPersistent();
+                    for (DownloadDetailsDTO dd : fromPersistent) {
+                        try {
+                            add(dd);
+                        } catch (TooManyDownloadRequestsException ignored) {
+                            // ignore
+                        } catch (IOException e) {
+                            logger.error("failed to add unfinished download to download queue, id: " + dd.getUniqueId() + ", " + e.getMessage());
+                        }
+                    }
+                } catch (InterruptedException ignored) {
+
+                }
+            }
+        }.start();
     }
 
     /**

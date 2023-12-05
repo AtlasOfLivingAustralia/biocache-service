@@ -271,6 +271,8 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${solr.collection:biocache1}")
     protected String solrCollection;
 
+    public CountDownLatch countDownLatch = new CountDownLatch(1);
+
     /**
      * Initialise the SOLR server instance
      */
@@ -295,6 +297,14 @@ public class SearchDAOImpl implements SearchDAO {
         getMaxBooleanClauses();
 
         initSensitiveFieldMapping();
+
+        countDownLatch.countDown();
+    }
+
+    @Override
+    public boolean isInitialized() throws InterruptedException {
+        countDownLatch.await();
+        return true;
     }
 
     public void refreshCaches() {
