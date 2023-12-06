@@ -1,1 +1,7 @@
-["ALA_Acarapis_woodi", "urn:lsid:biodiversity.org.au:afd.taxon:257175e9-9fbb-4283-b485-f27ad0e277b9", "NZOR-4-61392", "ALA_Adoxophyes_orana", "urn:lsid:biodiversity.org.au:afd.taxon:3e4a6b90-9e54-465c-b29c-14df08b59e7f", "ALA_Aethina_tumida", "ALA_Agrilus_planipennis"]
+[{"lsid": "ALA_Acarapis_woodi"},
+  {"lsid": "urn:lsid:biodiversity.org.au:afd.taxon:257175e9-9fbb-4283-b485-f27ad0e277b9"},
+  {"lsid": "NZOR-4-61392"},
+  {"lsid": "ALA_Adoxophyes_orana"},
+  {"lsid": "urn:lsid:biodiversity.org.au:afd.taxon:3e4a6b90-9e54-465c-b29c-14df08b59e7f"},
+  {"lsid": "ALA_Aethina_tumida"},
+  {"lsid": "ALA_Agrilus_planipennis"}]

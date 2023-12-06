@@ -30,6 +30,7 @@ import au.org.ala.biocache.util.converter.FqField;
 import au.org.ala.ws.security.profile.AlaUserProfile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.nimbusds.jose.util.ArrayUtils;
 import io.swagger.annotations.*;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
@@ -55,6 +56,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.util.StreamUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
 import org.springframework.validation.Validator;
@@ -946,11 +948,112 @@ public class OccurrenceController extends AbstractSecureController {
                 response.setHeader("Pragma", "must-revalidate");
                 response.setHeader("Content-Disposition", "attachment;filename=" + filename + ".csv");
                 response.setContentType("text/csv");
-                searchDAO.writeFacetToStream(dto, includeCount, lookupName, includeSynonyms, includeLists, response.getOutputStream(), null);
+
+                if (includeLists) {
+                    // expand "Conservation" and "Invasive" columns
+                    File tmp = File.createTempFile("facetsDownload", ".csv");
+
+                    // write to a file
+                    OutputStream os = new FileOutputStream(tmp);
+                    searchDAO.writeFacetToStream(dto, includeCount, lookupName, includeSynonyms, includeLists, os, null);
+                    os.flush();
+                    os.close();
+
+                    // expand columns and write output
+                    writeExpandedListColumns(tmp, response);
+                } else {
+                    searchDAO.writeFacetToStream(dto, includeCount, lookupName, includeSynonyms, includeLists, response.getOutputStream(), null);
+                }
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
             }
         }
+    }
+
+    private void writeExpandedListColumns(File tmp, HttpServletResponse response) throws IOException {
+        // read file
+        CSVReader reader = new CSVReader(new FileReader(tmp));
+        List<String[]> all = reader.readAll();
+        reader.close();
+
+        if (all.size() > 1) {
+            String [] header = all.get(0);
+            int conservationColumn = header.length - 2;
+            int invasiveColumn = header.length - 1;
+
+            Set<String> conservationFields = new HashSet<>();
+            Set<String> invasiveFields = new HashSet<>();
+
+            for (int i=1;i<all.size();i++) {
+                String [] row = all.get(i);
+                if (StringUtils.isNotEmpty(row[invasiveColumn])) {
+                    String [] values = row[invasiveColumn].split("\\|");
+                    for (String v : values) {
+                        invasiveFields.add(v);
+                    }
+                }
+                if (StringUtils.isNotEmpty(row[conservationColumn])) {
+                    // remove trailing value to find list name
+                    String [] values = row[conservationColumn].split("\\|");
+                    for (String v : values) {
+                        conservationFields.add(v.replaceAll(": [^:]*$", ""));
+                    }
+                }
+            }
+
+            if (conservationFields.isEmpty() && invasiveFields.isEmpty()) {
+                // response with the unaltered file
+                StreamUtils.copy(new FileInputStream(tmp), response.getOutputStream());
+            } else {
+                String[] tmpHeader = new String[header.length - 2];
+                System.arraycopy(header, 0, tmpHeader, 0, header.length - 2);
+                String[] newHeader = ArrayUtils.concat(tmpHeader, conservationFields.toArray(new String[0]), invasiveFields.toArray(new String[0]));
+
+                // write file
+                CSVWriter writer = new CSVWriter(new OutputStreamWriter(response.getOutputStream()));
+                writer.writeNext(newHeader);
+
+                String[] newRow = new String[newHeader.length];
+
+                for (int i = 1; i < all.size(); i++) {
+                    String[] row = all.get(i);
+                    System.arraycopy(row, 0, newRow, 0, row.length - 2);
+
+                    if (StringUtils.isNotEmpty(row[invasiveColumn])) {
+                        String[] values = row[invasiveColumn].split("\\|");
+                        for (String v : values) {
+                            // find column
+                            for (int j = header.length - 2; j < newHeader.length; j++) {
+                                if (newHeader[j].equals(v)) {
+                                    newRow[j] = "Y";
+                                }
+                            }
+                        }
+                    }
+
+                    if (StringUtils.isNotEmpty(row[conservationColumn])) {
+                        String[] values = row[conservationColumn].split("\\|");
+                        for (String v : values) {
+                            // column name
+                            String name = v.replaceAll(": [^:]*$", "");
+                            // find column
+                            for (int j = header.length - 2; j < newHeader.length; j++) {
+                                if (newHeader[j].equals(name)) {
+                                    newRow[j] = v.replace(name + ": ", "");
+                                }
+                            }
+                        }
+                    }
+
+                    writer.writeNext(newRow);
+                }
+                writer.flush();
+                writer.close();
+            }
+        }
+
+        // cleanup
+        tmp.delete();
     }
 
     /**

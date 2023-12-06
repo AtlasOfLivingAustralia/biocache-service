@@ -480,11 +480,11 @@ public class QueryFormatUtils {
             String speciesList = m.group(2);
             String prefix = m.group(1);
             try {
-                List<String> lsids = listsService.getListItems(speciesList);
+                List<ListsService.SpeciesListItemDTO> lsids = listsService.getListItems(speciesList, false);
 
                 List<String> strings;
 
-                strings = lsids.stream()
+                strings = lsids.stream().map(t -> t.lsid)
                         .map(searchUtils::getTaxonSearch)
                         .filter(t -> t.length > 1)
                         .map(t -> t[0])

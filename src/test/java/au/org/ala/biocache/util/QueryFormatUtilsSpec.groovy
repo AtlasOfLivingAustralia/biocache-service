@@ -1,6 +1,7 @@
 package au.org.ala.biocache.util
 
 import au.org.ala.biocache.service.ListsService
+import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.common.io.Resources
 import org.apache.solr.client.solrj.util.ClientUtils
@@ -74,8 +75,8 @@ class QueryFormatUtilsSpec extends Specification {
         Resources.getResource("au/org/ala/biocache/util/${uid}_query.txt").getText('UTF-8')
     }
 
-    private static List<String> getTestListItems(String uid) {
-        om.readValue(Resources.getResource("au/org/ala/biocache/util/${uid}_items.json"), ArrayList)
+    private static List<ListsService.SpeciesListItemDTO> getTestListItems(String uid) {
+        om.readValue(Resources.getResource("au/org/ala/biocache/util/${uid}_items.json"), new TypeReference<List<ListsService.SpeciesListItemDTO>>(){})
     }
 
     private static ListsService.SpeciesListSearchDTO.SpeciesListDTO getTestList(String uid) {
