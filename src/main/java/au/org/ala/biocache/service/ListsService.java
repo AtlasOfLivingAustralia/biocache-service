@@ -59,7 +59,6 @@ public class ListsService {
 
     @PostConstruct
     private void init() {
-        refreshCache();
     }
 
     private CountDownLatch wait = new CountDownLatch(1);

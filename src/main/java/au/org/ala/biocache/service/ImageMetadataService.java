@@ -29,7 +29,7 @@ public interface ImageMetadataService {
      * @return a map of occurrenceIds to imageMetadata
      * @throws Exception
      */
-    Map<String, List<Map<String, Object>>> getImageMetadataForOccurrences(List<String> occurrenceIds) throws Exception;
+    Map<String, Map<String, Object>> getImageMetadataForOccurrences(List<String> occurrenceIds) throws Exception;
 
     /**
      * Returns a URL to the image metadata.
