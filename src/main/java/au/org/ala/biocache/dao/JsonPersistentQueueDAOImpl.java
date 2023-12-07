@@ -110,6 +110,9 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
         logger.debug("Removing the download from the queue");
 
         try {
+            // delete it from memory
+            offlineDownloadList.remove(download);
+
             // delete it from the directory
             File f = getFile(download.getStartTime());
             if (f.exists()) {
@@ -117,9 +120,6 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
                     logger.info("Deleting " + f.getAbsolutePath() + " " + f.exists());
                 }
                 FileUtils.deleteQuietly(f);
-
-                // delete it from memory
-                offlineDownloadList.remove(download);
 
                 return true;
             }
