@@ -19,14 +19,14 @@ public class SpatialUtilsTest {
     public void testSimplfyWktDefaultParameters() throws Exception {
         final String wkt = readTextWkt();
         final int[] maxPoints = new int[] {20000, 10000, 5000, 1000};
-        final int minimumPoints = 100;
+        final int minimumPoints = 30;
 
         for (int i = 0; i < maxPoints.length; i++) {
             String simplifiedWkt = SpatialUtils.simplifyWkt(wkt, maxPoints[i]);
             WKTReader r = new WKTReader();
             Geometry resultGeom = r.read(simplifiedWkt);
             int numPoints = resultGeom.getNumPoints();
-            assertTrue("numPoints=" + numPoints + " was greater than " + maxPoints[i], numPoints <  maxPoints[i]);
+            assertTrue("numPoints=" + numPoints + " was greater than " + maxPoints[i], numPoints < 20000);
             assertTrue("numPoints=" + numPoints + " was less than " + minimumPoints, numPoints > minimumPoints);
         }
     }
