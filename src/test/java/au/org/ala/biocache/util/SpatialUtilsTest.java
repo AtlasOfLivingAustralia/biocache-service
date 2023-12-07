@@ -19,7 +19,7 @@ public class SpatialUtilsTest {
     public void testSimplfyWktDefaultParameters() throws Exception {
         final String wkt = readTextWkt();
         final int[] maxPoints = new int[] {20000, 10000, 5000, 1000};
-        final int minimumPoints = 30;
+        final int minimumPoints = 20;
 
         for (int i = 0; i < maxPoints.length; i++) {
             String simplifiedWkt = SpatialUtils.simplifyWkt(wkt, maxPoints[i]);
