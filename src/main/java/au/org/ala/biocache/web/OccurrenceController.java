@@ -63,8 +63,6 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import jakarta.mail.internet.AddressException;
-import jakarta.mail.internet.InternetAddress;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -148,6 +146,9 @@ public class OccurrenceController extends AbstractSecureController {
 
     @Inject
     private AssertionService assertionService;
+
+    @Inject
+    private DataQualityService dataQualityService;
 
     private final String VALIDATION_ERROR = "error/validationError";
 
@@ -907,6 +908,8 @@ public class OccurrenceController extends AbstractSecureController {
 
         cacheManager.getCacheNames().forEach((String cacheName) -> cacheManager.getCache(cacheName).clear());
 
+        dataQualityService.clearCache();
+
         regenerateETag();
         return null;
     }
@@ -1049,11 +1052,11 @@ public class OccurrenceController extends AbstractSecureController {
                                     }
                                     try (FileOutputStream output = new FileOutputStream(outputFilePath);) {
                                         dto.setQ("taxonConceptID:\"" + lsid + "\"");
-                                        ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
-                                        searchDAO.writeResultsFromIndexToStream(dto, new CloseShieldOutputStream(output), uidStats, dd, false, executor);
+                                        DownloadStats downloadStats = new DownloadStats();
+                                        searchDAO.writeResultsFromIndexToStream(dto, new CloseShieldOutputStream(output), downloadStats, dd, false, executor);
                                         output.flush();
                                         try (FileOutputStream citationOutput = new FileOutputStream(citationFilePath);) {
-                                            downloadService.getCitations(uidStats, citationOutput, dto.getSep(), dto.getEsc(), null, null);
+                                            downloadService.getCitations(downloadStats.getUidStats(), citationOutput, dto.getSep(), dto.getEsc(), null, null);
                                             citationOutput.flush();
                                         }
                                     }
@@ -1576,7 +1579,8 @@ public class OccurrenceController extends AbstractSecureController {
                                 changed = true;
                             } else if (key.contains("user_id")) {
                                 //multivalue fields; assertion_user_id
-                                list[i] = authService.getDisplayNameFor(v);
+                                Optional<AlaUserProfile> profile = authService.lookupAuthUser(v);
+                                list[i] = profile.isPresent() ? profile.get().getName() : "";
                                 changed = true;
                             }
                         }
@@ -1594,7 +1598,8 @@ public class OccurrenceController extends AbstractSecureController {
                             || key.contains("collector"))) {
                         sd.setField(key, authService.substituteEmailAddress(value.toString()));
                     } else if (value instanceof String && key.contains("user_id")) {
-                        sd.setField(key, authService.getDisplayNameFor(value.toString()));
+                        Optional<AlaUserProfile> profile = authService.lookupAuthUser(value.toString());
+                        sd.setField(key, profile.isPresent() ? profile.get().getName() : "");
                     }
                 }
             }
@@ -1875,10 +1880,11 @@ public class OccurrenceController extends AbstractSecureController {
 
                     if (qa.getUserId().contains("@")) {
                         String email = qa.getUserId();
-                        String userId = authService.getMapOfEmailToId().get(email);
+                        Optional<AlaUserProfile> profile = authService.lookupAuthUser(email);
+                        String userId = profile.isPresent() ? profile.get().getUserId() : "";
                         userAssertion.put("userId", userId);
                         userAssertion.put("userEmail", authService.substituteEmailAddress(email));
-                        userAssertion.put("userDisplayName", authService.getDisplayNameFor(userId));
+                        userAssertion.put("userDisplayName", profile.isPresent() ? profile.get().getName() : "");
                     }
 
                     return userAssertion;
@@ -1961,6 +1967,8 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, occurrence, "sex", getFieldName);
         addField(sd, occurrence, "source", getFieldName);
         addField(sd, occurrence, "userId", getFieldName);  //this is the ALA ID for the user
+
+        addField(sd, occurrence, "type", getFieldName);
 
         //Additional fields for HISPID support
         addField(sd, occurrence, "collectorFieldNumber", getFieldName);  //This value now maps to the correct DWC field http://rs.tdwg.org/dwc/terms/fieldNumber

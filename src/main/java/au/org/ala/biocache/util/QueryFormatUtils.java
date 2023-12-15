@@ -5,6 +5,7 @@ import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.service.ListsService.SpeciesListSearchDTO;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
+import au.org.ala.ws.security.profile.AlaUserProfile;
 import com.google.common.collect.Iterables;
 import com.google.common.html.HtmlEscapers;
 import org.apache.commons.lang.ArrayUtils;
@@ -1023,9 +1024,7 @@ public class QueryFormatUtils {
                         }
                     } else {
                         String formattedExtractedValue = formatValue(matchedIndexTerm, extractedValue);
-                        i18nForValue = messageSource.getMessage(fieldMappingUtil.translateFieldName(matchedIndexTerm) + "." + formattedExtractedValue, null, "", null);
-                        if (i18nForValue.length() == 0)
-                            i18nForValue = messageSource.getMessage(formattedExtractedValue, null, formattedExtractedValue, null);
+                        i18nForValue = messageSource.getMessage(fieldMappingUtil.translateFieldName(matchedIndexTerm) + "." + formattedExtractedValue, null, formattedExtractedValue, null);
                     }
 
                     formatted += i18n + text.substring(mr.end(), mr.end() + extractedValue.length() + end).replace(extractedValue, i18nForValue);
@@ -1063,14 +1062,16 @@ public class QueryFormatUtils {
         } else if (StringUtils.equals(tfn, month)) {
             fv = searchUtils.substituteMonthNamesForNums(fv);
         } else if (searchUtils.getAuthIndexFields().contains(tfn)) {
-            if (authService.getMapOfAllUserNamesById().containsKey(StringUtils.remove(fv, "\"")))
-                fv = authService.getMapOfAllUserNamesById().get(StringUtils.remove(fv, "\""));
-            else if (authService.getMapOfAllUserNamesByNumericId().containsKey(StringUtils.remove(fv, "\"")))
-                fv = authService.getMapOfAllUserNamesByNumericId().get(StringUtils.remove(fv, "\""));
+            String cfv = StringUtils.remove(fv, "\"");
+            Optional<AlaUserProfile> profile = authService.lookupAuthUser(cfv);
+            if (profile.isPresent()) {
+                fv = profile.get().getName();
+            }
         } else if (StringUtils.contains(fv, "@")) {
-            //fv = StringUtils.substringBefore(fv, "@"); // hide email addresses
-            if (authService.getMapOfAllUserNamesById().containsKey(StringUtils.remove(fv, "\""))) {
-                fv = authService.getMapOfAllUserNamesById().get(StringUtils.remove(fv, "\""));
+            String cfv = StringUtils.remove(fv, "\"");
+            Optional<AlaUserProfile> profile = authService.lookupAuthUser(cfv);
+            if (profile.isPresent()) {
+                fv = profile.get().getName();
             } else {
                 fv = fv.replaceAll("\\@\\w+", "@.."); // hide email addresses
             }

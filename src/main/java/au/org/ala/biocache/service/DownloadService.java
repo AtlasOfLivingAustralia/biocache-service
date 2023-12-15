@@ -35,7 +35,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
-import org.apache.groovy.util.concurrent.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
 import org.apache.log4j.Logger;
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
@@ -52,7 +51,6 @@ import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.core.io.Resource;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestOperations;
 
 import javax.annotation.Nullable;
@@ -116,10 +114,6 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     @Inject
     protected DoiService doiService;
-
-    @Inject
-    protected AuthService authService;
-
     @Inject
     protected DataQualityService dataQualityService;
 
@@ -422,9 +416,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 requestParams.setFacets(new String[]{data_resource_uid});
             }
 
-            final ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
+            final DownloadStats downloadStats = new DownloadStats();
             DownloadHeaders downloadHeaders = searchDAO.writeResultsFromIndexToStream(
-                    requestParams, sp, uidStats, dd, limit, parallelExecutor);
+                    requestParams, sp, downloadStats, dd, limit, parallelExecutor);
 
             sp.closeEntry();
 
@@ -451,7 +445,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     // add the citations for the supplied uids
                     sp.putNextEntry("citation.csv");
                     try {
-                        getCitations(uidStats, sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme, datasetMetadata);
+                        getCitations(downloadStats.getUidStats(), sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme, datasetMetadata);
                     } catch (IOException e) {
                         logger.error(e.getMessage(), e);
                     }
@@ -460,15 +454,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     if (mintDoi) {
 
                         // Prepare licence
-                        Set<String> datasetLicences = new TreeSet<>();
-                        for (Map<String, String> dataset : datasetMetadata) {
-                            String licence = dataset.get("licence");
-
-                            if (StringUtils.isNotBlank(licence)) {
-                                datasetLicences.add(licence);
-                            }
-                        }
-
+                        Set<String> datasetLicences = downloadStats.getLicences();
                         List<String> licence = Lists.newArrayList(datasetLicences);
 
                         try {
@@ -505,7 +491,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     }
                 } else {
                     if (logger.isDebugEnabled()) {
-                        logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " + uidStats);
+                        logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " + downloadStats.getUidStats());
                     }
                 }
 
@@ -583,7 +569,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     sp.closeEntry();
                 } else {
                     if (logger.isDebugEnabled()) {
-                        logger.debug("Not adding header. Enabled: " + headingsEnabled + " uids: " + uidStats);
+                        logger.debug("Not adding header. Enabled: " + headingsEnabled + " uids: " + downloadStats.getUidStats());
                     }
                 }
 
@@ -607,7 +593,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                 // log the stats to ala logger
                 LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
-                        requestParams.getEmail(), requestParams.getReason(), dd.getIpAddress(), dd.getUserAgent(), null, uidStats, sourceUrl);
+                        requestParams.getEmail(), requestParams.getReason(), dd.getIpAddress(), dd.getUserAgent(), null, downloadStats.getUidStats(), sourceUrl);
 
                 loggerService.logEvent(vo);
             }

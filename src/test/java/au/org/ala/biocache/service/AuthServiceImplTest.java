@@ -21,10 +21,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
-public class AuthServiceTest {
+public class AuthServiceImplTest {
 
     @InjectMocks
-    AuthService authService = new AuthService();
+    AuthServiceImpl authServiceImpl = new AuthServiceImpl();
 
     AutoCloseable mocks;
 
@@ -188,7 +188,7 @@ public class AuthServiceTest {
 
     @Before
     public void setup() {
-        authService.userDetailsUrl = "http://mocked";
+        authServiceImpl.userDetailsUrl = "http://mocked";
         restTemplate = mock(RestTemplate.class);
         tokenService = mock(TokenService.class);
         mocks = MockitoAnnotations.openMocks(this);
@@ -350,7 +350,7 @@ public class AuthServiceTest {
             }
         });
 
-        Optional<AlaUserProfile> authenticatedUser = authService.getRecordViewUser(request);
+        Optional<AlaUserProfile> authenticatedUser = authServiceImpl.getRecordViewUser(request);
 
         assertTrue(authenticatedUser.isPresent());
     }
@@ -513,7 +513,7 @@ public class AuthServiceTest {
 
         DownloadRequestDTO downloadRequestDTO = new DownloadRequestDTO();
 
-        Optional<AlaUserProfile> authenticatedUser = authService.getDownloadUser(downloadRequestDTO, request);
+        Optional<AlaUserProfile> authenticatedUser = authServiceImpl.getDownloadUser(downloadRequestDTO, request);
 
         assertTrue(authenticatedUser.isPresent());
     }
@@ -527,8 +527,8 @@ public class AuthServiceTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setParameter("email", "test@test.com");
 
-        authService.emailOnlyEnabled = false;
-        Optional<AlaUserProfile> authenticatedUser = authService.getDownloadUser(downloadRequestDTO, request);
+        authServiceImpl.emailOnlyEnabled = false;
+        Optional<AlaUserProfile> authenticatedUser = authServiceImpl.getDownloadUser(downloadRequestDTO, request);
 
         assertFalse(authenticatedUser.isPresent());
     }
@@ -560,7 +560,7 @@ public class AuthServiceTest {
         request.setParameter("email", "test@test.com");
 
         Optional<AlaUserProfile> authenticatedUser =
-                authService.getDownloadUser(downloadRequestDTO, request);
+                authServiceImpl.getDownloadUser(downloadRequestDTO, request);
 
         assertTrue(authenticatedUser.isPresent());
         assertEquals("1234", authenticatedUser.get().getUserId());
@@ -594,7 +594,7 @@ public class AuthServiceTest {
         request.setParameter("email", "test@test.com");
 
         Optional<AlaUserProfile> authenticatedUser =
-                authService.getDownloadUser(downloadRequestDTO, request);
+                authServiceImpl.getDownloadUser(downloadRequestDTO, request);
 
         assertFalse(authenticatedUser.isPresent());
     }
@@ -629,7 +629,7 @@ public class AuthServiceTest {
         request.setParameter("email", "test@test.com");
 
         Optional<AlaUserProfile> authenticatedUser =
-                authService.getDownloadUser(downloadRequestDTO, request);
+                authServiceImpl.getDownloadUser(downloadRequestDTO, request);
 
         assertFalse(authenticatedUser.isPresent());
     }
@@ -654,7 +654,7 @@ public class AuthServiceTest {
         request.setParameter("email", "test@test.com");
 
         Optional<AlaUserProfile> authenticatedUser =
-                authService.getDownloadUser(downloadRequestDTO, request);
+                authServiceImpl.getDownloadUser(downloadRequestDTO, request);
 
         assertFalse(authenticatedUser.isPresent());
     }

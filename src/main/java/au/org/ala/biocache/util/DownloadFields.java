@@ -33,6 +33,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static au.org.ala.biocache.dto.OccurrenceIndex.SENSITIVE;
+import static au.org.ala.biocache.web.OccurrenceController.RAW_FIELD_PREFIX;
 
 /**
  * Stores the download fields whose fieldNames can be overridden in
@@ -193,7 +194,13 @@ public class DownloadFields {
                 String v = dwcHeaders ? name : layerProperties.getProperty(name, messageSource.getMessage(name, null, name, Locale.getDefault()));
                 String dwc = dwcHeaders ? messageSource.getMessage("dwc." + name, null, "", Locale.getDefault()) : null;
                 String header = dwc != null && dwc.length() > 0 ? dwc : v;
-                labels.add(header);
+
+                // Use prefix on raw fields when dwcHeaders == true
+                if (dwcHeaders && name.startsWith(RAW_FIELD_PREFIX) && !header.startsWith(RAW_FIELD_PREFIX)) {
+                    labels.add(RAW_FIELD_PREFIX + header);
+                } else {
+                    labels.add(header);
+                }
 
                 // keep track of the original field name requested
                 originalName.add(fieldName);

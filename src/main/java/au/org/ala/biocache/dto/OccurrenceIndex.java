@@ -16,7 +16,6 @@ package au.org.ala.biocache.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.swagger.annotations.ApiModelProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateFormatUtils;
@@ -77,6 +76,7 @@ public class OccurrenceIndex {
     final static public String INSTITUTION_UID = "institutionUid";
     final static public String DATA_PROVIDER_UID = "dataProviderUid";
     final static public String DATA_RESOURCE_UID = "dataResourceUid";
+    final static public String LICENSE = "license";
 
     final public static String LOCALITY = "locality";
     final public static String BIOME = "biome";
