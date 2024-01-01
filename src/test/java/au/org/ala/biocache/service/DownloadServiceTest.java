@@ -780,7 +780,7 @@ public class DownloadServiceTest {
         testService.biocacheDownloadReadmeTemplate = "/tmp/readme.txt";
 
         // delete download cache
-        File cache = new File("/data/cache/downloads");
+        File cache = new File("/tmp/cache");
         if (cache.exists()) {
             FileUtils.deleteDirectory(cache);
         }
@@ -987,7 +987,7 @@ public class DownloadServiceTest {
         testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
 
         // delete download cache
-        File cache = new File("/data/cache/downloads");
+        File cache = new File("/tmp/cache");
         if (cache.exists()) {
             FileUtils.deleteDirectory(cache);
         }
