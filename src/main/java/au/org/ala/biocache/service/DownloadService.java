@@ -19,6 +19,7 @@ import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.PersistentQueueDAO;
 import au.org.ala.biocache.dao.SearchDAO;
+import au.org.ala.biocache.dao.SearchDAOImpl;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.stream.OptionalZipOutputStream;
@@ -77,7 +78,8 @@ import static java.util.stream.Collectors.toList;
 @Component("downloadService")
 public class DownloadService implements ApplicationListener<ContextClosedEvent> {
 
-    public static final String OFFICIAL_DOI_RESOLVER = "https://doi.org/";
+    @Value("${official.doi.resolver:https://doi.org}")
+    public String OFFICIAL_DOI_RESOLVER = "https://doi.org";
     public static final String CSDM_SELECTOR = "csdm";
     public static final String DOI_SELECTOR = "doi";
     public static final String DEFAULT_SELECTOR = "default";
@@ -282,19 +284,32 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         // Simple JSON initialisation, let's follow the default Spring semantics
         sensitiveAccessRolesToSolrFilters20 = (JSONObject) new JSONParser().parse(sensitiveAccessRoles20);
 
-        // Return download requests that were unfinished at shutdown
-        Queue<DownloadDetailsDTO> fromPersistent = persistentQueueDAO.refreshFromPersistent();
-        for (DownloadDetailsDTO dd : fromPersistent) {
-            try {
-                add(dd);
-            } catch (TooManyDownloadRequestsException e) {
-                // ignore
-            } catch (IOException e) {
-                logger.error("failed to add unfinished download to download queue, id: " + dd.getUniqueId() + ", " + e.getMessage());
-            }
-        }
-
         userExecutors = new ConcurrentHashMap<String, ThreadPoolExecutor>();
+
+        // Re-start downloads that did not finish
+        new Thread() {
+            @Override
+            public void run() {
+                try {
+                    // Wait search initialization
+                    searchDAO.isInitialized();
+
+                    // Return download requests that were unfinished at shutdown
+                    Queue<DownloadDetailsDTO> fromPersistent = persistentQueueDAO.refreshFromPersistent();
+                    for (DownloadDetailsDTO dd : fromPersistent) {
+                        try {
+                            add(dd);
+                        } catch (TooManyDownloadRequestsException ignored) {
+                            // ignore
+                        } catch (IOException e) {
+                            logger.error("failed to add unfinished download to download queue, id: " + dd.getUniqueId() + ", " + e.getMessage());
+                        }
+                    }
+                } catch (InterruptedException ignored) {
+
+                }
+            }
+        }.start();
     }
 
     /**
@@ -518,7 +533,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         // TODO: The downloads-plugin has issues with unencoded user queries
                         // Working around that by hardcoding the official DOI resolution service as the landing page
                         // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
-                        fileLocation = OFFICIAL_DOI_RESOLVER + doi;
+                        fileLocation = OFFICIAL_DOI_RESOLVER + '/' + doi;
 
                     } else {
                         readmeFile = biocacheDownloadReadmeTemplate;
@@ -552,7 +567,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
                     sp.putNextEntry("doi.txt");
 
-                    sp.write((OFFICIAL_DOI_RESOLVER + doiResponse.getDoi()).getBytes(StandardCharsets.UTF_8));
+                    sp.write((OFFICIAL_DOI_RESOLVER + '/' + doiResponse.getDoi()).getBytes(StandardCharsets.UTF_8));
                     sp.write(CSVWriter.DEFAULT_LINE_END.getBytes(StandardCharsets.UTF_8));
                     sp.closeEntry();
                 }
@@ -1243,7 +1258,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                 // Working around that by hardcoding the official DOI resolution service as the landing page
                                 // https://github.com/AtlasOfLivingAustralia/biocache-service/issues/311
                                 substitutions.put(DOWNLOAD_FILE_LOCATION, alaDoiResolver + doiStr);
-                                substitutions.put(OFFICIAL_FILE_LOCATION, OFFICIAL_DOI_RESOLVER + doiStr);
+                                substitutions.put(OFFICIAL_FILE_LOCATION, OFFICIAL_DOI_RESOLVER + '/' + doiStr);
                                 substitutions.put(BCCVL_IMPORT_ID, URLEncoder.encode(doiStr, "UTF-8"));
                             } catch (Exception ex) {
                                 logger.error("DOI update failed for DOI uuid " + doiResponse.getUuid() +

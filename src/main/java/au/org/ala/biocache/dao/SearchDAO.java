@@ -373,4 +373,6 @@ public interface SearchDAO {
     int streamingQuery(SpatialSearchRequestDTO request, ProcessInterface procSearch, ProcessInterface procFacet) throws Exception;
 
     SolrQuery initSolrQuery(SpatialSearchRequestDTO searchParams, boolean substituteDefaultFacetOrder, Map<String, String[]> extraSolrParams) throws QidMissingException;
+
+    boolean isInitialized() throws InterruptedException;
 }

@@ -212,6 +212,9 @@ public class OccurrenceController extends AbstractSecureController {
     @Value("${occurrence.log.enabled:true}")
     private boolean occurrenceLogEnabled = true;
 
+    @Value("${page.depth.max:5000}")
+    public Integer pageDepthMax;
+
     private final AtomicReference<String> occurrenceETag = new AtomicReference<>(UUID.randomUUID().toString());
 
     private ExecutorService executor;
@@ -604,10 +607,10 @@ public class OccurrenceController extends AbstractSecureController {
             "An empty list is returned when no images are available."
     )
     @Tag(name="Images", description = "Services for the retrieval of taxon image data")
-    @RequestMapping(value = "/images/taxon/{taxonConceptID}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/images/taxon/**", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
-    List<String> getImages(@PathVariable(name="taxonConceptID") String taxonConceptID) throws Exception {
-
+    List<String> getImages(HttpServletRequest request) throws Exception {
+        String taxonConceptID = searchUtils.getGuidFromPath(request);
         SpatialSearchRequestDTO srp = new SpatialSearchRequestDTO();
         srp.setQ("taxonConceptID:" + taxonConceptID);
         srp.setPageSize(0);
@@ -626,12 +629,13 @@ public class OccurrenceController extends AbstractSecureController {
     @Operation(summary = "Checks to see if the supplied GUID represents an native species", tags = "Taxonomy",
         description="Checks to see if the supplied GUID represents an native species."
     )
-    @RequestMapping(value = {"/native/taxon/{taxonConceptID}"},
+    @RequestMapping(value = {"/native/taxon/**"},
             method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     public @ResponseBody
-    NativeDTO isNative(@PathVariable(name="taxonConceptID") String taxonConceptID) throws Exception {
+    NativeDTO isNative(HttpServletRequest request) throws Exception {
+        String taxonConceptID = searchUtils.getGuidFromPath(request);
         //check to see if we have any occurrences on Australia  country:Australia or state != empty
         NativeDTO adto = new NativeDTO();
         if (taxonConceptID != null) {
@@ -843,7 +847,7 @@ public class OccurrenceController extends AbstractSecureController {
 //            "/occurrences/search.json*",
             "/occurrences/search"
 //            "/occurrence/search"
-    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    }, method = {RequestMethod.GET, RequestMethod.POST}, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     SearchResultDTO occurrenceSearch(
                                      @Valid @ParameterObject SpatialSearchRequestParams requestParams,
@@ -852,6 +856,14 @@ public class OccurrenceController extends AbstractSecureController {
                                      HttpServletRequest request) throws Exception {
 
         SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
+
+        // quietly limit page depth (start + pageSize) to the first pageDepthMax records
+        if (dto.getStart() >= pageDepthMax) {
+            dto.setStart(0);
+            dto.setPageSize(0);
+        } else if (dto.getStart() + dto.getPageSize() >= pageDepthMax) {
+            dto.setPageSize(pageDepthMax - dto.getStart());
+        }
 
             // handle empty param values, e.g. &sort=&dir=
          SearchUtils.setDefaultParams(dto);
@@ -926,7 +938,7 @@ public class OccurrenceController extends AbstractSecureController {
             description ="Downloads the complete list of values in the supplied e.g. complete list" +
                     " of distinct scientificNames matching a query"
     )
-    @RequestMapping(value = "/occurrences/facets/download", method = RequestMethod.GET,  produces = {"text/csv", "text/plain"})
+    @RequestMapping(value = "/occurrences/facets/download", method = {RequestMethod.GET, RequestMethod.POST}, produces = {"text/csv", "text/plain"})
     public void downloadFacet(
             @Valid @ParameterObject DownloadRequestParams requestParams,
             @RequestParam(value = "count", required = false, defaultValue = "false") boolean includeCount,
@@ -1638,8 +1650,8 @@ public class OccurrenceController extends AbstractSecureController {
         Set<String> schemaFields = indexDao.getSchemaFields();
 
         Map map = new LinkedHashMap();
-        Map raw = fullRecord(sd, (String fieldName) -> schemaFields.contains(RAW_FIELD_PREFIX + fieldName) ? (RAW_FIELD_PREFIX + fieldName) : fieldName);
-        Map processed = fullRecord(sd, (String fieldName) -> schemaFields.contains(RAW_FIELD_PREFIX + fieldName) ? fieldName : null);
+        Map raw = fullRecord(sd, true, (String fieldName) -> schemaFields.contains(RAW_FIELD_PREFIX + fieldName) ? (RAW_FIELD_PREFIX + fieldName) : fieldName);
+        Map processed = fullRecord(sd, false, (String fieldName) -> schemaFields.contains(RAW_FIELD_PREFIX + fieldName) ? fieldName : null);
 
         // add lastModifiedTime
         addInstant(sd, raw, "lastModifiedTime", "lastLoadDate");
@@ -1765,6 +1777,14 @@ public class OccurrenceController extends AbstractSecureController {
 
     private void addField(SolrDocument sd, Map map, String fieldNameToUser, String fieldName) {
         map.put(fieldNameToUser, sd.getFieldValue(fieldName));
+    }
+
+    private void addAlaField(SolrDocument sd, Map map, String fieldName, boolean isRaw) {
+        if (isRaw) {
+            map.put(fieldName, sd.getFieldValue(RAW_FIELD_PREFIX + fieldName));
+        } else {
+            map.put(fieldName, sd.getFieldValue(fieldName));
+        }
     }
 
     private void addAll(SolrDocument sd, Map map, String fieldName, Function<String, String> getFieldName) {
@@ -1901,7 +1921,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @param getFieldName function to resolve the solr field name from the
      * @return
      */
-    Map fullRecord(SolrDocument sd, Function<String, String> getFieldName) {
+    Map fullRecord(SolrDocument sd, boolean isRaw, Function<String, String> getFieldName) {
         Map fullRecord = new LinkedHashMap();
         fullRecord.put("rowKey", sd.getFieldValue(ID)); // Use the processed ID for compatability
         fullRecord.put("uuid", sd.getFieldValue(ID));
@@ -2027,7 +2047,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, classification, "subgenus", getFieldName);
         addField(sd, classification, "species", getFieldName);
         addField(sd, classification, "specificEpithet", getFieldName);
-        addField(sd, classification, "subspecies", getFieldName);
+        addAlaField(sd, classification, "subspecies", isRaw);
         addField(sd, classification, "infraspecificEpithet", getFieldName);
         addField(sd, classification, "infraspecificMarker", getFieldName);
         addField(sd, classification, "cultivarName", getFieldName); //an addition to darwin core for http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0315
@@ -2064,7 +2084,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, classification, "genusID", getFieldName);
         addField(sd, classification, "subgenusID", getFieldName);
         addField(sd, classification, "speciesID", getFieldName);
-        addField(sd, classification, "subspeciesID", getFieldName);
+        addAlaField(sd, classification, "subspeciesID", isRaw);
 
         addField(sd, classification, "left", getFieldName.apply("lft"));
         addField(sd, classification, "right", getFieldName.apply("rgt"));

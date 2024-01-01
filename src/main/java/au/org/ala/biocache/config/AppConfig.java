@@ -20,6 +20,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.security.web.firewall.HttpFirewall;
+import org.springframework.security.web.firewall.StrictHttpFirewall;
 import org.springframework.web.servlet.ViewResolver;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -129,5 +131,13 @@ public class AppConfig implements WebMvcConfigurer {
     @ConfigurationPropertiesBinding
     public FqConverter fqConverter() {
         return new FqConverter();
+    }
+
+    @Bean
+    public HttpFirewall configureFirewall() {
+        // Permit LSID path variables like https://biodiversity.org.au/afd/taxa/55213c39-1809-442e-b5fb-03fb99e8d97a
+        StrictHttpFirewall strictHttpFirewall = new StrictHttpFirewall();
+        strictHttpFirewall.setAllowUrlEncodedDoubleSlash(true);
+        return strictHttpFirewall;
     }
 }

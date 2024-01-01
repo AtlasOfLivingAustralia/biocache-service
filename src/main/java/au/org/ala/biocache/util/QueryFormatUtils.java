@@ -75,14 +75,14 @@ public class QueryFormatUtils {
 
     protected Pattern spatialObjectPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|'|-)spatialObject:\"?([0-9]*)\"?");
     protected Pattern urnPattern = Pattern.compile("\\burn:[a-zA-Z0-9\\.:-]*");
-    protected Pattern httpPattern = Pattern.compile("http:[a-zA-Z0-9/\\.:\\-_]*");
+    protected Pattern httpPattern = Pattern.compile("https?:[a-zA-Z0-9/\\.:\\-_]*");
     protected Pattern uidPattern = Pattern.compile("(?:[\"]*)?((?:[a-z_]*_uid:)|(?:[a-zA-Z]*Uid:))(\\w*)(?:[\"]*)?");
     protected Pattern spatialPattern = Pattern.compile(spatialField + ":\"Intersects\\([a-zA-Z=\\-\\s0-9\\.\\,():]*\\)\\\"");
     protected Pattern qidPattern = QidCacheDAO.qidPattern;//Pattern.compile("qid:[0-9]*");
     protected Pattern termPattern = Pattern.compile("([a-zA-z_]+?):((\".*?\")|(\\\\ |[^: \\)\\(])+)"); // matches foo:bar, foo:"bar bash" & foo:bar\ bash
     protected Pattern indexFieldPatternMatcher = java.util.regex.Pattern.compile("<span.*?</span>|(\\b|-)[\\w*\\(]{1,}:");
     protected Pattern layersPattern = Pattern.compile("(^|\\b)(el|cl)[0-9abc]+:");
-    protected Pattern taxaPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')taxa:\"?([\\w\\s\\(\\)\\.:\\-_]*)\"?");
+    protected Pattern taxaPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|')taxa:\"?([^\"]+)\"?");
 
     private int maxBooleanClauses = 1024;
 
@@ -151,9 +151,9 @@ public class QueryFormatUtils {
                             addFormattedFq(new String[]{formatted[1]}, searchParams);
                         }
 
-                        //add to activeFacetMap fqs that are not inserted by a qid, and the q of qids in fqs.
+                        //add to activeFacetMap fqs
                         //do not add spatial fields
-                        if (originalFqs != null && i < originalFqs.length && !formatted[1].contains(spatialField + ":")) {
+                        if (!formatted[1].contains(spatialField + ":")) {
                             Facet facet = new Facet();
                             facet.setDisplayName(formatted[0]);
                             String[] fv = fq.split(":");
