@@ -92,8 +92,8 @@ public class ListsService {
 
                         if ((threatened != null && threatened.size() > 0) ||
                                 (invasive != null && invasive.size() > 0)) {
-                            map.put("Conservation", getItemsMap(threatened));
-                            map.put("Invasive", getItemsMap(invasive));
+                            map.put("Conservation", getItemsMap(threatened, true));
+                            map.put("Invasive", getItemsMap(invasive, false));
 
                             data = map;
                         }
@@ -108,20 +108,29 @@ public class ListsService {
         }
     }
 
-    private Map<String, Set<String>> getItemsMap(Map speciesLists) throws Exception {
+    private Map<String, Set<String>> getItemsMap(Map speciesLists, boolean conservationList) throws Exception {
         List ja = (List) speciesLists.get("lists");
         Map<String, Set<String>> map = new HashMap();
         for (int i = 0; i < ja.size(); i++) {
             String name = ((Map) ja.get(i)).get("listName").toString();
             String dr = ((Map) ja.get(i)).get("dataResourceUid").toString();
-            List<String> items = getListItems(dr);
-            for (String item : items) {
-                Set<String> existing = map.get(item);
+            List<SpeciesListItemDTO> items = getListItems(dr, conservationList);
+            for (SpeciesListItemDTO item : items) {
+                Set<String> existing = map.get(item.lsid);
                 if (existing == null) {
                     existing = new HashSet<String>();
                 }
-                existing.add(name);
-                map.put(item, existing);
+                // get status value
+                String status = "";
+                if (item.kvpValues != null) {
+                    for (KvpDTO m : item.kvpValues) {
+                        if (m.key != null) {
+                            status = ": " + m.value;
+                        }
+                    }
+                }
+                existing.add(name + status);
+                map.put(item.lsid, existing);
             }
         }
 
@@ -129,22 +138,22 @@ public class ListsService {
     }
 
     @Cacheable("speciesListItems")
-    public List<String> getListItems(String dataResourceUid) throws Exception {
-        List<String> list = new ArrayList();
+    public List<SpeciesListItemDTO> getListItems(String dataResourceUid, Boolean includeKvp) throws Exception {
+        List<SpeciesListItemDTO> list = new ArrayList();
 
         boolean hasAnotherPage = true;
         int max = 400; // response size can be limited by the gateway
         int offset = 0;
 
         while (hasAnotherPage) {
-            List<SpeciesListItemDTO> speciesListItems = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesListItems/" + dataResourceUid + "?max=" + max + "&offset=" + offset), SpeciesListItemsDTO.class);
+            List<SpeciesListItemDTO> speciesListItems = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesListItems/" + dataResourceUid + "?max=" + max + "&offset=" + offset + "&includeKVP=" + includeKvp), SpeciesListItemsDTO.class);
 
             offset += max;
             hasAnotherPage = speciesListItems.size() == max;
 
             for (SpeciesListItemDTO s : speciesListItems) {
                 if (s.lsid != null) {
-                    list.add(s.lsid);
+                    list.add(s);
                 }
             }
         }
