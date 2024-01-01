@@ -9,6 +9,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.util.ClientUtils;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.support.AbstractMessageSource;
 
 import javax.inject.Inject;
@@ -50,6 +51,7 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
     private String[] synonymHeader;
     private String[] countSynonymHeader;
 
+    @Cacheable("namematching")
     @Override
     public String getGuidForName(String name) {
         String lsid = null;
@@ -62,11 +64,13 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
         return lsid;
     }
 
+    @Cacheable("namematching")
     @Override
     public String getAcceptedNameForGuid(String guid) {
         return nameUsageMatchService.getName(guid, true);
     }
 
+    @Cacheable("namematching")
     @Override
     public List<String[]> getSpeciesDetails(List<String> guids, List<Long> counts, boolean includeCounts, boolean includeSynonyms, boolean includeLists) {
         List<String[]> results = new ArrayList<String[]>(guids.size());
@@ -206,6 +210,7 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
         countSynonymHeader = (String[]) ArrayUtils.add(synonymHeader,messageSource.getMessage("species.count", null,"Number of Records", null));
     }
 
+    @Cacheable("namematching")
     @Override
     public List<String> getGuidsForTaxa(List<String> taxaQueries) {
         return nameUsageMatchService.getGuidsForTaxa(taxaQueries);
@@ -214,7 +219,8 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
     public void setMessageSource(AbstractMessageSource messageSource) {
         this.messageSource = messageSource;
     }
-    
+
+    @Override
     public Map search(String query, String[] filterQuery, int max, boolean includeSynonyms, boolean includeAll, boolean includeCounts) {
 
         // TODO: better method of dealing with records with 0 occurrences being removed.
@@ -312,10 +318,10 @@ public class NameMatchSpeciesLookupService implements SpeciesLookupService {
 
         String guid = (String) m.get("lsid");
         formatted.put("guid", guid);
-        
+
         //all results resolve to accepted lsids
         formatted.put("linkIdentifier", guid);
-        
+
         formatted.put("name", m.get("name"));
         formatted.put("idxType", "TAXON");
         formatted.put("score", m.get("score"));
