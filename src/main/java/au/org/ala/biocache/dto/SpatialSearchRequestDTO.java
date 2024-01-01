@@ -19,6 +19,8 @@ import org.apache.commons.lang.ArrayUtils;
 import org.springframework.beans.BeanUtils;
 
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.function.Predicate;
 
 /**
  * Data Transfer Object to represent the request parameters required to perform
@@ -58,6 +60,12 @@ public class SpatialSearchRequestDTO extends SearchRequestDTO {
                 dto.setStart(0);
             }
         }
+
+        // Remove duplicate fq, remove duplicated q
+        if (dto.fq != null && dto.fq.length > 0) {
+            dto.fq = Arrays.stream(dto.fq).filter(Predicate.not(dto.q::equals)).distinct().toArray(String[]::new);
+        }
+
         return dto;
     }
 
