@@ -888,15 +888,27 @@ public class OccurrenceController extends AbstractSecureController {
              //use the image service API & grab the list of IDs
              List<String> occurrenceIDs = new ArrayList<String>();
              for (OccurrenceIndex oi : srtdto.getOccurrences()) {
-                 occurrenceIDs.add(oi.getUuid());
+                 if (oi.getImages() != null) {
+                     occurrenceIDs.addAll(Arrays.asList(oi.getImages()));
+                 }
              }
 
-             Map<String, List<Map<String, Object>>> imageMap = imageMetadataService.getImageMetadataForOccurrences(occurrenceIDs);
+             Map<String, Map<String, Object>> imageMap = imageMetadataService.getImageMetadataForOccurrences(occurrenceIDs);
 
              for (OccurrenceIndex oi : srtdto.getOccurrences()) {
-                 //lookup metadata
-                 List<Map<String, Object>> imageMetadata = imageMap.get(oi.getUuid());
-                 oi.setImageMetadata(imageMetadata);
+                 if (oi.getImages() != null) {
+                     for (int i = 0; i < oi.getImages().length; i++) {
+                         Map<String, Object> imageMetadata = imageMap.get(oi.getImages()[i]);
+                         if (oi != null) {
+                             List<Map<String, Object>> md = oi.getImageMetadata();
+                             if (md == null) {
+                                 md = new ArrayList<>();
+                             }
+                             md.add(imageMetadata);
+                             oi.setImageMetadata(md);
+                         }
+                     }
+                 }
              }
          }
          return srtdto;
@@ -2551,10 +2563,13 @@ public class OccurrenceController extends AbstractSecureController {
 
             if (lookupImageMetadata) {
                 try {
-                    List<Map<String, Object>> list = imageMetadataService.getImageMetadataForOccurrences(Arrays.asList(new String[]{uuid})).get(uuid);
+                    Map<String, Map<String, Object>> list = imageMetadataService.getImageMetadataForOccurrences(imageIDs);
                     if (list != null) {
-                        for (Map m : list) {
-                            metadata.put(String.valueOf(m.get("imageId")), m);
+                        for (String imageId : imageIDs) {
+                            Map<String, Object> md = list.get(imageId);
+                            if (md != null) {
+                                metadata.put(imageId, md);
+                            }
                         }
                     }
                 } catch (Exception e) {
