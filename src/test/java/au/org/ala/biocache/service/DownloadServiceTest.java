@@ -36,6 +36,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -778,6 +779,12 @@ public class DownloadServiceTest {
         testService.biocacheDownloadEmailTemplate = "/tmp/download-email.html";
         testService.biocacheDownloadReadmeTemplate = "/tmp/readme.txt";
 
+        // delete download cache
+        File cache = new File("/data/cache/downloads");
+        if (cache.exists()) {
+            FileUtils.deleteDirectory(cache);
+        }
+
         testService.init();
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
@@ -978,6 +985,12 @@ public class DownloadServiceTest {
         testService.biocacheDownloadUrl = "http://dev.ala.org.au/biocache-download";
         testService.biocacheDownloadEmailTemplate = "/tmp/download-email.html";
         testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
+
+        // delete download cache
+        File cache = new File("/data/cache/downloads");
+        if (cache.exists()) {
+            FileUtils.deleteDirectory(cache);
+        }
 
         testService.init();
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();

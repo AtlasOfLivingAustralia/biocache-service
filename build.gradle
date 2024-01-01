@@ -40,7 +40,7 @@ repositories {
 }
 
 group = 'au.org.ala'
-version = '3.2.3-SNAPSHOT'
+version = '3.4.0-SNAPSHOT'
 
 
 boolean inplace = false
@@ -78,7 +78,7 @@ dependencies {
     implementation 'org.geotools:gt-opengis:26.0'
     implementation 'org.geotools:gt-referencing:26.0'
     implementation 'org.geotools:gt-epsg-wkt:26.0'
-    implementation 'au.org.ala.names:ala-namematching-client:1.4'
+    implementation 'au.org.ala.names:ala-namematching-client:1.8.1'
     implementation 'com.googlecode.json-simple:json-simple:1.1.1'
     implementation 'au.org.ala:ala-logger:1.4.1'
     implementation 'au.org.ala:ala-common-ui:1.0'
