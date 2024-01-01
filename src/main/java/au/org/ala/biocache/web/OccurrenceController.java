@@ -28,6 +28,7 @@ import au.org.ala.biocache.util.QidSizeException;
 import au.org.ala.biocache.util.SearchUtils;
 import au.org.ala.biocache.util.converter.FqField;
 import au.org.ala.ws.security.profile.AlaUserProfile;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.nimbusds.jose.util.ArrayUtils;
@@ -151,6 +152,9 @@ public class OccurrenceController extends AbstractSecureController {
 
     @Inject
     private DataQualityService dataQualityService;
+
+    @Inject
+    protected QidCacheDAO qidCacheDAO;
 
     private final String VALIDATION_ERROR = "error/validationError";
 
@@ -859,6 +863,9 @@ public class OccurrenceController extends AbstractSecureController {
 
         SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
 
+        //simplify wkt
+        dto.setWkt(qidCacheDAO.fixWkt(dto.getWkt()));
+
         // quietly limit page depth (start + pageSize) to the first pageDepthMax records
         if (dto.getStart() >= pageDepthMax) {
             dto.setStart(0);
@@ -960,10 +967,13 @@ public class OccurrenceController extends AbstractSecureController {
             @RequestParam(value = "synonym", required = false, defaultValue = "false") boolean includeSynonyms,
             @RequestParam(value = "lists", required = false, defaultValue = "false") boolean includeLists,
             HttpServletRequest request,
-            HttpServletResponse response){
+            HttpServletResponse response) throws Exception {
 
         DownloadRequestDTO dto = DownloadRequestDTO.create(requestParams, request);
         Optional<AlaUserProfile> downloadUser = authService.getDownloadUser(dto, request);
+
+        //simplify wkt
+        dto.setWkt(qidCacheDAO.fixWkt(dto.getWkt()));
 
         if (dto.getFacets().length > 0) {
             try {
@@ -1106,6 +1116,9 @@ public class OccurrenceController extends AbstractSecureController {
         Long qid = getQidForBatchSearch(queries, field, separator, title);
 
         DownloadRequestDTO downloadRequestDTO =  DownloadRequestDTO.create(requestParams, request);
+
+        //simplify wkt
+        downloadRequestDTO.setWkt(qidCacheDAO.fixWkt(downloadRequestDTO.getWkt()));
 
         if (qid != null) {
             if ("*:*".equals(downloadRequestDTO.getQ())) {
@@ -1450,6 +1463,10 @@ public class OccurrenceController extends AbstractSecureController {
     }, method = {RequestMethod.GET, RequestMethod.POST})
     public void dumpDistinctLatLongs(SpatialSearchRequestParams requestParams, HttpServletResponse response) throws Exception {
         SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
+
+        //simplify wkt
+        dto.setWkt(qidCacheDAO.fixWkt(dto.getWkt()));
+
         requestParams.setFacets(new String[]{OccurrenceIndex.LAT_LNG});
         requestParams.setFacet(true);
         if (requestParams.getQ().length() < 1)

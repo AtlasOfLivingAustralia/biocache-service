@@ -21,6 +21,7 @@ import au.org.ala.biocache.util.QidMissingException;
 import au.org.ala.biocache.util.QidSizeException;
 import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.SpatialUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
@@ -69,24 +70,6 @@ public class QidCacheDAOImpl implements QidCacheDAO {
      */
     @Value("${qid.wkt.maxPoints:5000}")
     private int maxWktPoints;
-
-    /**
-     * The simplification factor used to iteratively reduce WKT complexity to reduce index query time for qids between the initial and maximum precisions
-     */
-    @Value("${qid.wkt.simplification.factor:2.0}")
-    private double wktSimplificationFactor;
-
-    /**
-     * The initial distance precision value to attempt when reducing WKT complexity to reduce index query time for qids.
-     */
-    @Value("${qid.wkt.simplification.initialprecision:0.0001}")
-    private double wktSimplificationInitialPrecision;
-
-    /**
-     * The maximum distance precision value before giving up on iteratively reducing WKT complexity to reduce index query time for qids.
-     */
-    @Value("${qid.wkt.simplification.maxprecision:10.0}")
-    private double wktSimplificationMaxPrecision;
 
     @Inject
     private DataQualityService dataQualityService;
@@ -431,19 +414,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
     public String generateQid(SpatialSearchRequestDTO requestParams, String bbox, String title, Long maxage, String source) {
         try {
             //simplify wkt
-            String wkt = requestParams.getWkt();
-            if (wkt != null && wkt.length() > 0) {
-                //TODO: Is this too slow? Do not want to send large WKT to SOLR.
-                wkt = fixWkt(wkt);
-
-                if (wkt == null) {
-                    //wkt too large and simplification failed, do not produce qid
-                    return null;
-                }
-
-                //set wkt
-                requestParams.setWkt(wkt);
-            }
+            requestParams.setWkt(fixWkt(requestParams.getWkt()));
 
             //get bbox (also cleans up Q)
             double[] bb = null;
@@ -479,8 +450,12 @@ public class QidCacheDAOImpl implements QidCacheDAO {
     }
 
     @Cacheable("fixWkt")
-    public String fixWkt(String wkt) {
-        return SpatialUtils.simplifyWkt(wkt, maxWktPoints, wktSimplificationFactor, wktSimplificationInitialPrecision, wktSimplificationMaxPrecision);
+    @Override
+    public String fixWkt(String wkt) throws Exception {
+        if (StringUtils.isNotEmpty(wkt)) {
+            return SpatialUtils.simplifyWkt(wkt, maxWktPoints);
+        }
+        return wkt;
     }
 
     /**

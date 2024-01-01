@@ -15,6 +15,7 @@
 package au.org.ala.biocache.web;
 
 import au.org.ala.biocache.dao.PersistentQueueDAO;
+import au.org.ala.biocache.dao.QidCacheDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.service.AuthService;
@@ -91,6 +92,9 @@ public class DownloadController extends AbstractSecureController {
 
     @Value("${auth.legacy.emailonly.downloads.enabled:true}")
     protected Boolean emailOnlyEnabled = true;
+
+    @Inject
+    protected QidCacheDAO qidCacheDAO;
 
     /**
      * Retrieves all the downloads that are on the queue
@@ -179,6 +183,9 @@ public class DownloadController extends AbstractSecureController {
             downloadRequestDTO = DownloadRequestDTO.create(requestParams, request);
         }
         Optional<AlaUserProfile> downloadUser = authService.getDownloadUser(downloadRequestDTO, request);
+
+        //simplify wkt
+        downloadRequestDTO.setWkt(qidCacheDAO.fixWkt(downloadRequestDTO.getWkt()));
 
         if (!downloadUser.isPresent()){
             response.sendError(400, "No valid email");
