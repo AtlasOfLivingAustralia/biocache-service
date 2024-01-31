@@ -22,6 +22,8 @@ plugins {
     id 'jacoco'
     id 'com.github.kt3k.coveralls' version '2.12.0'
 //    id "com.github.nbaztec.coveralls-jacoco" version "1.2.15"
+    id "io.swagger.core.v3.swagger-gradle-plugin" version "2.1.13"
+    id "org.springdoc.openapi-gradle-plugin" version "1.8.0"
 }
 
 repositories {
@@ -223,6 +225,20 @@ dockerCompose {
 
 test {
     finalizedBy 'jacocoTestReport' // report is always generated after tests run
+}
+
+resolve {
+//    classpath = sourceSets.main.runtimeClasspath
+//    resourcePackages = [ 'au.org.ala.biocache.web' ]
+////    outputDir = file('openapi')
+//    outputPath = 'openapi'
+
+//    outputFileName = 'PetStoreAPI'
+    outputFormat = 'JSON'
+    prettyPrint = 'TRUE'
+    classpath = sourceSets.main.runtimeClasspath
+    resourcePackages = [ 'au.org.ala' ]
+    outputDir = file('openapi')
 }
 
 jacocoTestReport {
