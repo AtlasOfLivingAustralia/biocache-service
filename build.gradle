@@ -227,6 +227,7 @@ processResources {
 
 dockerCompose {
     useComposeFiles.add("src/test/resources/docker-compose.yaml")
+    environment.put 'DOCKER_HOST', '127.0.0.1'
     isRequiredBy(tasks.test)
 }
 
