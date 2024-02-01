@@ -184,10 +184,13 @@ tasks.withType(JavaCompile) {
 
 gitProperties {
     extProperty = 'gitProps'
+    failOnNoGitDirectory = false
 }
 
 processResources {
+
     dependsOn('generateGitProperties')
+
     filesMatching('**/runtimeEnvironment.properties') {
         expand(
                 build: [ timestamp: Instant.now() ],
@@ -196,25 +199,29 @@ processResources {
                 java: [ version: org.gradle.internal.jvm.Jvm.current() ],
         )
     }
-    filesMatching('**/buildInfo.properties') {
-        expand(
-                git: [
-                        commit: [
-                                time: project.ext.gitProps['git.commit.time'],
-                                id: project.ext.gitProps['git.commit.id'],
-                                shortId: project.ext.gitProps['git.commit.id.abbrev']
-                        ],
-                        branch: project.ext.gitProps['git.branch'],
-                        closest: [
-                                tag: [
-                                        name: project.ext.gitProps['git.closest.tag.name'],
-                                        commit: [
-                                                count: project.ext.gitProps['git.closest.tag.commit.count']
-                                        ]
-                                ]
-                        ]
-                ]
-        )
+
+    if (!System.env.CODEBUILD_SOURCE_VERSION) {
+
+        filesMatching('**/buildInfo.properties') {
+            expand(
+                    git: [
+                            commit : [
+                                    time   : project.ext.gitProps['git.commit.time'],
+                                    id     : project.ext.gitProps['git.commit.id'],
+                                    shortId: project.ext.gitProps['git.commit.id.abbrev']
+                            ],
+                            branch : project.ext.gitProps['git.branch'],
+                            closest: [
+                                    tag: [
+                                            name  : project.ext.gitProps['git.closest.tag.name'],
+                                            commit: [
+                                                    count: project.ext.gitProps['git.closest.tag.commit.count']
+                                            ]
+                                    ]
+                            ]
+                    ]
+            )
+        }
     }
 }
 
