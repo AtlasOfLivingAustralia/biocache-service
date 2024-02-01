@@ -7,15 +7,15 @@ services:
             SOLR_PORT: 8983
             SOLR_HOST: localhost
         ports:
-            - 9983:9983
-            - 8983:8983
+            - 127.0.0.1:9983:9983
+            - 127.0.0.1:8983:8983
     cassandra3:
         image: cassandra:3.11.10
         environment:
             MAX_HEAP_SIZE: 128M
             HEAP_NEWSIZE: 24M
         ports:
-            - 9042:9042
+            - 127.0.0.1:9042:9042
 #            - 9160:9160
 #            - 7199:7199
     ala-nameservice:
