@@ -184,7 +184,7 @@ tasks.withType(JavaCompile) {
 
 gitProperties {
     extProperty = 'gitProps'
-    failOnNoGitDirectory = false
+//    failOnNoGitDirectory = false
 }
 
 processResources {
@@ -200,7 +200,7 @@ processResources {
         )
     }
 
-    if (!System.env.CODEBUILD_SOURCE_VERSION) {
+//    if (!System.env.CODEBUILD_SOURCE_VERSION) {
 
         filesMatching('**/buildInfo.properties') {
             expand(
@@ -222,7 +222,7 @@ processResources {
                     ]
             )
         }
-    }
+//    }
 }
 
 dockerCompose {
