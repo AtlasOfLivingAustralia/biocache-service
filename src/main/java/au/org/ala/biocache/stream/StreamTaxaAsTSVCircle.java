@@ -18,7 +18,7 @@ public class StreamTaxaAsTSVCircle extends StreamTaxaCount {
     CSVWriter csvWriter;
 
     public StreamTaxaAsTSVCircle(SearchDAOImpl searchDAO, SearchUtils searchUtils, SpatialSearchRequestDTO request, OutputStream outputStream) {
-        super(searchDAO, searchUtils, request, outputStream);
+        super(searchDAO, searchUtils, request, false, outputStream);
     }
 
     public boolean flush() {

@@ -339,10 +339,11 @@ public class WMSController extends AbstractSecureController {
     @RequestMapping(value = {
             "/mapping/species"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public void listSpecies(@ParameterObject SpatialSearchRequestParams params,
+                            @RequestParam(value = "includeRank", required = false, defaultValue = "true") boolean includeRank,
                                    HttpServletResponse response) throws Exception {
         response.setContentType("application/json");
 
-        searchDAO.findAllSpeciesJSON(SpatialSearchRequestDTO.create(params), response.getOutputStream());
+        searchDAO.findAllSpeciesJSON(SpatialSearchRequestDTO.create(params), includeRank, response.getOutputStream());
     }
 
     /**
@@ -357,12 +358,13 @@ public class WMSController extends AbstractSecureController {
     }, method = RequestMethod.GET, produces = {"text/csv", "text/plain"})
     public void listSpeciesCsv(
             @ParameterObject SpatialSearchRequestParams requestParams,
+            @RequestParam(value = "includeRank", required = false, defaultValue = "true")  Boolean includeRank,
             HttpServletResponse response) throws Exception {
 
         SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
         response.setContentType("application/json");
 
-        searchDAO.findAllSpeciesCSV(dto, response.getOutputStream());
+        searchDAO.findAllSpeciesCSV(dto, includeRank, response.getOutputStream());
     }
 
     /**
@@ -378,8 +380,9 @@ public class WMSController extends AbstractSecureController {
     }, method = RequestMethod.GET, produces = {"text/csv", "text/plain"})
     public void listSpeciesCsvDeprecated(
             @ParameterObject SpatialSearchRequestParams requestParams,
+            @RequestParam(value = "includeRank", required = false, defaultValue = "true") boolean includeRank,
             HttpServletResponse response) throws Exception {
-        listSpeciesCsv(requestParams, response);
+        listSpeciesCsv(requestParams, includeRank, response);
     }
 
     /**

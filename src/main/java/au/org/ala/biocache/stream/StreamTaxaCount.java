@@ -30,12 +30,13 @@ public class StreamTaxaCount implements ProcessInterface {
     OutputStream outputStream;
     boolean isNamesAndLSID;
     boolean isCommonNameAndLSID;
+    boolean includeRank;
     Pattern pattern = java.util.regex.Pattern.compile("\\|");
     JsonGenerator jsonGenerator;
     int recordCount = 0;
 
 
-    public StreamTaxaCount(SearchDAOImpl searchDAO, SearchUtils searchUtils, SpatialSearchRequestDTO request, OutputStream outputStream) {
+    public StreamTaxaCount(SearchDAOImpl searchDAO, SearchUtils searchUtils, SpatialSearchRequestDTO request, Boolean includeRank, OutputStream outputStream) {
         this.request = request;
         this.searchDAO = searchDAO;
         this.searchUtils = searchUtils;
@@ -43,6 +44,7 @@ public class StreamTaxaCount implements ProcessInterface {
 
         isNamesAndLSID = NAMES_AND_LSID.equals(request.getFacets()[0]);
         isCommonNameAndLSID = COMMON_NAME_AND_LSID.equals(request.getFacets()[0]);
+        this.includeRank = includeRank;
 
         initWriter();
     }
@@ -72,7 +74,7 @@ public class StreamTaxaCount implements ProcessInterface {
                             tcDTO.setCommonName("null".equals(values[2]) ? "" : values[2]);
                             tcDTO.setKingdom(values[3]);
                             tcDTO.setFamily(values[4]);
-                            if (StringUtils.isNotEmpty(tcDTO.getGuid()))
+                            if (includeRank && StringUtils.isNotEmpty(tcDTO.getGuid()))
                                 tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
                         }
                     } else {
@@ -95,7 +97,7 @@ public class StreamTaxaCount implements ProcessInterface {
                             //cater for the bug of extra vernacular name in the result
                             tcDTO.setKingdom(values[values.length - 2]);
                             tcDTO.setFamily(values[values.length - 1]);
-                            if (StringUtils.isNotEmpty(tcDTO.getGuid()))
+                            if (includeRank && StringUtils.isNotEmpty(tcDTO.getGuid()))
                                 tcDTO.setRank(searchUtils.getTaxonSearch(tcDTO.getGuid())[1].split(":")[0]);
                         }
                     } else {
