@@ -2266,7 +2266,12 @@ public class SearchDAOImpl implements SearchDAO {
 
         SimpleOrderedMap facets = SearchUtils.getMap(qr.getResponse(), "facets");
 
-        return new double[]{toDouble(facets.get("x1")), toDouble(facets.get("y1")), toDouble(facets.get("x2")), toDouble(facets.get("y2"))};
+        try {
+            return new double[]{toDouble(facets.get("x1")), toDouble(facets.get("y1")), toDouble(facets.get("x2")), toDouble(facets.get("y2"))};
+        } catch (Exception ignored) {
+            // Might be a query without one of decimalLongitude or decimalLatitude, e.g. no records found
+            return new double[]{0, 0, 0, 0};
+        }
     }
 
     /**
