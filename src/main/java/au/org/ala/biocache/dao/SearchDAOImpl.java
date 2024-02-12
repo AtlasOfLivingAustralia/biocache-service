@@ -2575,4 +2575,45 @@ public class SearchDAOImpl implements SearchDAO {
     public int streamingQuery(SpatialSearchRequestDTO request, ProcessInterface procSearch, ProcessInterface procFacet) throws Exception {
         return indexDao.streamingQuery(initSolrQuery(request, true, null), procSearch, procFacet, null);
     }
+
+    /**
+     * @see au.org.ala.biocache.dao.SearchDAO#getFacetPointsShort(au.org.ala.biocache.dto.SpatialSearchRequestDTO, String, Double, Double, Double, Double)
+     */
+    @Override
+    public FacetField getFacetPointsShort(SpatialSearchRequestDTO searchParams, String pointType, Double minx, Double miny, Double maxx, Double maxy) throws Exception {
+
+        // limit miny maxy to -90 90
+        if (miny < -90) miny = -90.0;
+        if (maxy > 90) maxy = 90.0;
+
+        // fix date line
+        while (maxx > 180) {
+            maxx = 180.0;
+        }
+        while (minx < -180) {
+            minx = -180.0;
+        }
+
+        SolrQuery solrQuery = new SolrQuery();
+        solrQuery.setRequestHandler("standard");
+        solrQuery.setQuery(searchParams.getFormattedQuery());
+        solrQuery.setFilterQueries(searchParams.getFormattedFq());
+        solrQuery.addFilterQuery("decimalLongitude:[" + minx + " TO " + maxx + "]");
+        solrQuery.addFilterQuery("decimalLatitude:[" + miny + " TO " + maxy + "]");
+        solrQuery.setRows(0);
+        solrQuery.setFacet(true);
+        solrQuery.addFacetField(pointType);
+        solrQuery.setFacetMinCount(1);
+        solrQuery.setFacetLimit(searchParams.getFlimit());
+
+        QueryResponse qr = query(solrQuery); // can throw exception
+
+        List<FacetField> facets = qr.getFacetFields();
+
+        // return first facet, there should only be 1
+        if (facets != null && !facets.isEmpty()) {
+            return facets.get(0);
+        }
+        return null;
+    }
 }
