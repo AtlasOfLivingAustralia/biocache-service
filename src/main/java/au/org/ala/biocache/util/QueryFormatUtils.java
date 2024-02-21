@@ -71,7 +71,7 @@ public class QueryFormatUtils {
 
     //Patterns that are used to prepare a SOLR query for execution
     protected Pattern lsidPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|'|-)taxonConceptID:\"?([a-zA-Z0-9/\\.:\\-_]*)\"?");
-    protected Pattern speciesListPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|'|-)species_list:\"?(dr[0-9]*)\"?");
+    protected Pattern speciesListPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|'|-)species_list:\"?([0-9a-z]*)\"?");
 
     protected Pattern spatialObjectPattern = Pattern.compile("(^|\\s|\"|\\(|\\[|'|-)spatialObject:\"?([0-9]*)\"?");
     protected Pattern urnPattern = Pattern.compile("\\burn:[a-zA-Z0-9\\.:-]*");

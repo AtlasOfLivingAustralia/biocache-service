@@ -55,6 +55,9 @@ public class ListsService {
     @Value("${list.tool.url:https://lists.ala.org.au}")
     private String speciesListUrl;
 
+    @Value("${list.tool.useListWs:false}")
+    private Boolean useListWs;
+
     private Map<String, Map<String, Set<String>>> data = RestartDataService.get(this, "data", new TypeReference<HashMap<String, Map<String, Set<String>>>>(){}, HashMap.class);
 
     @PostConstruct
@@ -86,8 +89,15 @@ public class ListsService {
                     try {
                         HashMap map = new HashMap();
 
-                        Map threatened = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/?isThreatened=eq:true&isAuthoritative=eq:true"), Map.class);
-                        Map invasive = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/?isInvasive=eq:true&isAuthoritative=eq:true"), Map.class);
+                        Map threatened;
+                        Map invasive;
+                        if (useListWs) {
+                            threatened = restTemplate.getForObject(new URI(speciesListUrl + "/speciesList/?isThreatened=true&isAuthoritative=true&pageSize=1000"), Map.class);
+                            invasive = restTemplate.getForObject(new URI(speciesListUrl + "/speciesList/?isInvasive=true&isAuthoritative=true&pageSize=1000"), Map.class);
+                        } else {
+                            threatened = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/?isThreatened=eq:true&isAuthoritative=eq:true"), Map.class);
+                            invasive = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/?isInvasive=eq:true&isAuthoritative=eq:true"), Map.class);
+                        }
 
                         if ((threatened != null && threatened.size() > 0) ||
                                 (invasive != null && invasive.size() > 0)) {
@@ -111,8 +121,15 @@ public class ListsService {
         List ja = (List) speciesLists.get("lists");
         Map<String, Set<String>> map = new HashMap();
         for (int i = 0; i < ja.size(); i++) {
-            String name = ((Map) ja.get(i)).get("listName").toString();
-            String dr = ((Map) ja.get(i)).get("dataResourceUid").toString();
+            String name;
+            String dr;
+            if (useListWs) {
+                name = ((Map) ja.get(i)).get("title").toString();
+                dr = ((Map) ja.get(i)).get("id").toString();
+            } else {
+                name = ((Map) ja.get(i)).get("listName").toString();
+                dr = ((Map) ja.get(i)).get("dataResourceUid").toString();
+            }
             List<SpeciesListItemDTO> items = getListItems(dr, conservationList);
             for (SpeciesListItemDTO item : items) {
                 Set<String> existing = map.get(item.lsid);
@@ -143,9 +160,17 @@ public class ListsService {
         boolean hasAnotherPage = true;
         int max = 400; // response size can be limited by the gateway
         int offset = 0;
+        int page = 1;
 
         while (hasAnotherPage) {
-            List<SpeciesListItemDTO> speciesListItems = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesListItems/" + dataResourceUid + "?max=" + max + "&offset=" + offset + "&includeKVP=" + includeKvp), SpeciesListItemsDTO.class);
+            List<SpeciesListItemDTO> speciesListItems;
+            if (useListWs) {
+                speciesListItems = restTemplate.getForObject(new URI(speciesListUrl + "/speciesListItems/" + dataResourceUid + "?pageSize=" + max + "&page=" + page), SpeciesListItemsDTO.class);
+                page++;
+                legacyFormatSpeciesListItems(speciesListItems);
+            } else {
+                speciesListItems = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesListItems/" + dataResourceUid + "?max=" + max + "&offset=" + offset + "&includeKVP=" + includeKvp), SpeciesListItemsDTO.class);
+            }
 
             offset += max;
             hasAnotherPage = speciesListItems.size() == max;
@@ -175,10 +200,18 @@ public class ListsService {
         boolean hasAnotherPage = true;
         int max = 400;  // response size can be limited by api gateway
         int offset = 0;
+        int page = 1;
 
         try {
             while (hasAnotherPage) {
-                SpeciesListItemsDTO speciesListItems = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesListItems/" + dataResourceUid + "?includeKVP=true&max=" + max + "&offset=" + offset), SpeciesListItemsDTO.class);
+                SpeciesListItemsDTO speciesListItems;
+                if (useListWs) {
+                    speciesListItems = restTemplate.getForObject(new URI(speciesListUrl + "/speciesListItems/" + dataResourceUid + "?pageSize=" + max + "&page=" + page), SpeciesListItemsDTO.class);
+                    page++;
+                    legacyFormatSpeciesListItems(speciesListItems);
+                } else {
+                    speciesListItems = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesListItems/" + dataResourceUid + "?includeKVP=true&max=" + max + "&offset=" + offset), SpeciesListItemsDTO.class);
+                }
 
                 offset += max;
                 hasAnotherPage = speciesListItems.size() == max;
@@ -238,7 +271,16 @@ public class ListsService {
     @Cacheable("speciesListItems")
     public SpeciesListDTO getListInfo(String dr) throws URISyntaxException {
 
-        SpeciesListDTO speciesList = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/" + dr), SpeciesListDTO.class);
+        SpeciesListDTO speciesList;
+        if (useListWs) {
+            speciesList = restTemplate.getForObject(new URI(speciesListUrl + "/speciesList/" + dr), SpeciesListDTO.class);
+            if (speciesList != null) {
+                speciesList.dataResourceUid = speciesList.id;
+                speciesList.listName = speciesList.title;
+            }
+        } else {
+            speciesList = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesList/" + dr), SpeciesListDTO.class);
+        }
 
         return speciesList;
     }
@@ -346,6 +388,10 @@ public class ListsService {
         }
 
         public static class SpeciesListDTO {
+            // species-list fields
+            public String id;
+            public String title;
+
             public String dataResourceUid;
             public String listName;
             public String listType;
@@ -366,22 +412,47 @@ public class ListsService {
     }
 
     public static class SpeciesListItemDTO {
-        public long id;
+        public String id;
         public String name;
         public String commonName;
         public String scientificName;
         public String lsid;
         public String dataResourceUid;
         public List<KvpDTO> kvpValues;
+        public List<KvpDTO> properties;
+        public ClassificationDTO classification;
 
         public static class KvpDTO {
             public String key;
             public String value;
         }
+
+        public static class ClassificationDTO {
+            public String taxonConceptID;
+        }
     }
 
     public static class SpeciesListItemsDTO extends ArrayList<SpeciesListItemDTO> {
 
+    }
+
+    /**
+     * Make SpeciesListItemsDTO modified for species-lists compatible with existing code
+     *
+     * @param speciesListItems
+     */
+    private void legacyFormatSpeciesListItems(List<SpeciesListItemDTO> speciesListItems) {
+        if (speciesListItems == null || !useListWs) {
+            return;
+        }
+
+        for (SpeciesListItemDTO item : speciesListItems) {
+            if (item.classification != null) {
+                item.lsid = item.classification.taxonConceptID;
+            }
+
+            item.kvpValues = item.properties;
+        }
     }
 }
 
