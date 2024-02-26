@@ -327,7 +327,7 @@ public class DownloadController extends AbstractSecureController {
             status.setTotalRecords(dd.getTotalRecords());
             status.setStatusUrl(downloadService.webservicesRoot + "/occurrences/offline/status/" + id);
             if (isAdmin) {
-                Optional<AlaUserProfile> profile = authService.lookupAuthUser(dd.getRequestParams().getEmail());
+                Optional<AlaUserProfile> profile = authService.lookupAuthUser(dd.getRequestParams().getEmail(), false);
                 if (profile.isPresent()) {
                     status.setUserId(profile.get().getUserId());
                 }
