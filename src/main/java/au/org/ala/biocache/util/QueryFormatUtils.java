@@ -1063,13 +1063,13 @@ public class QueryFormatUtils {
             fv = searchUtils.substituteMonthNamesForNums(fv);
         } else if (searchUtils.getAuthIndexFields().contains(tfn)) {
             String cfv = StringUtils.remove(fv, "\"");
-            Optional<AlaUserProfile> profile = authService.lookupAuthUser(cfv);
+            Optional<AlaUserProfile> profile = authService.lookupAuthUser(cfv, false);
             if (profile.isPresent()) {
                 fv = profile.get().getName();
             }
         } else if (StringUtils.contains(fv, "@")) {
             String cfv = StringUtils.remove(fv, "\"");
-            Optional<AlaUserProfile> profile = authService.lookupAuthUser(cfv);
+            Optional<AlaUserProfile> profile = authService.lookupAuthUser(cfv, false);
             if (profile.isPresent()) {
                 fv = profile.get().getName();
             } else {
