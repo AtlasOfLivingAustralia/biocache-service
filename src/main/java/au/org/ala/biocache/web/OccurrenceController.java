@@ -1723,7 +1723,7 @@ public class OccurrenceController extends AbstractSecureController {
                                 changed = true;
                             } else if (key.contains("user_id")) {
                                 //multivalue fields; assertion_user_id
-                                Optional<AlaUserProfile> profile = authService.lookupAuthUser(v);
+                                Optional<AlaUserProfile> profile = authService.lookupAuthUser(v, false);
                                 list[i] = profile.isPresent() ? profile.get().getName() : "";
                                 changed = true;
                             }
@@ -1742,7 +1742,7 @@ public class OccurrenceController extends AbstractSecureController {
                             || key.contains("collector"))) {
                         sd.setField(key, authService.substituteEmailAddress(value.toString()));
                     } else if (value instanceof String && key.contains("user_id")) {
-                        Optional<AlaUserProfile> profile = authService.lookupAuthUser(value.toString());
+                        Optional<AlaUserProfile> profile = authService.lookupAuthUser(value.toString(), false);
                         sd.setField(key, profile.isPresent() ? profile.get().getName() : "");
                     }
                 }
@@ -2032,7 +2032,7 @@ public class OccurrenceController extends AbstractSecureController {
 
                     if (qa.getUserId().contains("@")) {
                         String email = qa.getUserId();
-                        Optional<AlaUserProfile> profile = authService.lookupAuthUser(email);
+                        Optional<AlaUserProfile> profile = authService.lookupAuthUser(email, false);
                         String userId = profile.isPresent() ? profile.get().getUserId() : "";
                         userAssertion.put("userId", userId);
                         userAssertion.put("userEmail", authService.substituteEmailAddress(email));

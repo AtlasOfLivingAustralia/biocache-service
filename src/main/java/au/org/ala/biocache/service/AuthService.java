@@ -58,5 +58,5 @@ public interface AuthService {
      * @param userIdOrEmail
      * @return
      */
-    Optional<AlaUserProfile> lookupAuthUser(String userIdOrEmail);
+    Optional<AlaUserProfile> lookupAuthUser(String userIdOrEmail, boolean getRoles);
 }

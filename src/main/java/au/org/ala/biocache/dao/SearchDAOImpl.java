@@ -2053,7 +2053,7 @@ public class SearchDAOImpl implements SearchDAO {
             return searchUtils.getUidDisplayString(tFacet, tValue, false);
         } else if (searchUtils.getAuthIndexFields().contains(tFacet)) {
             //if the facet field is collector or assertion_user_id we need to perform the substitution
-            Optional<AlaUserProfile> profile = authService.lookupAuthUser(value);
+            Optional<AlaUserProfile> profile = authService.lookupAuthUser(value, false);
             return profile.isPresent() ? profile.get().getName() : value;
         } else {
             if (messageSource != null) {
