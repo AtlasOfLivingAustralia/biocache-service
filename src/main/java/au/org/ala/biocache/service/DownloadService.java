@@ -822,8 +822,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 String[] headerOutput = downloadHeaders.joinedHeader();
 
                 if (fieldsRequested != null && headerOutput != null) {
-                    // ignore first fieldsRequested and headerOutput record
-                    for (int i = 1; i < fieldsRequested.length && i < headerOutput.length; i++) {
+                    for (int i = 0; i < fieldsRequested.length && i < headerOutput.length; i++) {
 
                         // find indexedField by download name
                         IndexFieldDTO ifdto = null;
