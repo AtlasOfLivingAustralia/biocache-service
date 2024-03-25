@@ -19,6 +19,7 @@ import au.org.ala.biocache.service.ListsService.SpeciesListItemDTO.KvpDTO;
 import au.org.ala.biocache.service.ListsService.SpeciesListSearchDTO.SpeciesListDTO;
 import au.org.ala.biocache.util.SearchUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
+import groovyjarjarantlr4.v4.misc.OrderedHashMap;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
@@ -176,6 +177,8 @@ public class ListsService {
         int max = 400;  // response size can be limited by api gateway
         int offset = 0;
 
+        Map<String, Integer> kvpKeys = new OrderedHashMap<>();
+
         try {
             while (hasAnotherPage) {
                 SpeciesListItemsDTO speciesListItems = restTemplate.getForObject(new URI(speciesListUrl + "/ws/speciesListItems/" + dataResourceUid + "?includeKVP=true&max=" + max + "&offset=" + offset), SpeciesListItemsDTO.class);
@@ -188,12 +191,23 @@ public class ListsService {
                         // ignore species list item when there are no lft rgt values for the LSID
                         String fq = searchUtils.getTaxonSearch(item.lsid)[0];
                         if (fq.startsWith("lft:[")) {
-                            List<String> keys = new ArrayList<>();
-                            List<String> values = new ArrayList<>();
+                            List<String> keys = new ArrayList<>(kvpKeys.size());
+                            List<String> values = new ArrayList<>(kvpKeys.size());
 
                             for (KvpDTO kvp : item.kvpValues) {
-                                keys.add(kvp.key);
-                                values.add(kvp.value);
+                                int pos = kvpKeys.getOrDefault(kvp.key, kvpKeys.size());
+                                if (pos == kvpKeys.size()) {
+                                    kvpKeys.put(kvp.key, pos);
+                                }
+
+                                // padding. keys and length is updated before return
+                                while (keys.size() <= pos) {
+                                    keys.add("");
+                                    values.add("");
+                                }
+
+                                keys.set(pos, kvp.key);
+                                values.set(pos, kvp.value);
                             }
 
                             long lft = Long.parseLong(fq.replaceAll("(.*\\[| TO.*)", ""));
@@ -212,6 +226,20 @@ public class ListsService {
 
         if (list.size() > 0) {
             list.sort(Kvp.KvpComparator);
+
+            // kvp array padding and key standardisation
+            for (Kvp kvp : list) {
+                // padding
+                while (kvp.keys.size() < kvpKeys.size()) {
+                    kvp.keys.add("");
+                    kvp.values.add("");
+                }
+
+                // standardise key
+                for (Map.Entry<String, Integer> entity : kvpKeys.entrySet()) {
+                    kvp.keys.set(entity.getValue(), entity.getKey());
+                }
+            }
             return list;
         } else {
             return null;
@@ -307,7 +335,7 @@ public class ListsService {
 
         if (kvps != null && kvps.size() > idx) {
             Kvp kvp = find(kvps, lftrgt);
-            if (kvp != null) {
+            if (kvp != null && idx < kvp.values.size()) {
                 value = kvp.values.get(idx);
             }
         }

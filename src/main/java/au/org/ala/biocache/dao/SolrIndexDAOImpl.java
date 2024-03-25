@@ -1116,6 +1116,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
     @Override
     public int streamingQuery(SolrQuery query, ProcessInterface procSearch, ProcessInterface procFacet, SolrQuery endemicFacetSuperset) throws SolrServerException {
         int tupleCount = 0;
+        boolean finished = false;
         try {
             if (logger.isDebugEnabled()) {
                 logger.debug("SOLR query:" + query.toString());
@@ -1125,9 +1126,9 @@ public class SolrIndexDAOImpl implements IndexDAO {
             if (procSearch != null && query.getRows() != 0) {
                 try (TupleStream solrStream = openStream(buildSearchExpr(query));) {
                     Tuple tuple;
-                    while (!(tuple = solrStream.read()).EOF && (tupleCount < query.getRows() || query.getRows() < 0)) {
+                    while (!(tuple = solrStream.read()).EOF && (tupleCount < query.getRows() || query.getRows() < 0) && !finished) {
                         tupleCount++;
-                        procSearch.process(tuple);
+                        finished = procSearch.process(tuple);
                     }
                     procSearch.flush();
                 }
