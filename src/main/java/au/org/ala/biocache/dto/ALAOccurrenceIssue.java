@@ -213,7 +213,7 @@ public enum ALAOccurrenceIssue implements InterpretationRemark {
                             DwcTerm.genus,
                             DwcTerm.scientificName,
                             DwcTerm.scientificNameAuthorship,
-                            GbifTerm.genericName,
+                            DwcTerm.genericName,
                             DwcTerm.specificEpithet,
                             DwcTerm.infraspecificEpithet,
                             DwcTerm.taxonRank,

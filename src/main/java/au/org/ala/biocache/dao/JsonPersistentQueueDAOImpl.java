@@ -16,8 +16,11 @@ package au.org.ala.biocache.dao;
 
 import au.org.ala.biocache.dto.DownloadDetailsDTO;
 import au.org.ala.biocache.dto.DownloadRequestDTO;
+import au.org.ala.biocache.util.AlaUserProfileDeserializer;
+import au.org.ala.ws.security.profile.AlaUserProfile;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,6 +61,11 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
     @Override
     public void init() {
         jsonMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+        // add deserializer for AlaUserProfile
+        SimpleModule module = new SimpleModule();
+        module.addDeserializer(AlaUserProfile.class, new AlaUserProfileDeserializer());
+        jsonMapper.registerModule(module);
 
         File file = new File(cacheDirectory);
         try {
@@ -102,6 +110,9 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
         logger.debug("Removing the download from the queue");
 
         try {
+            // delete it from memory
+            offlineDownloadList.remove(download);
+
             // delete it from the directory
             File f = getFile(download.getStartTime());
             if (f.exists()) {
@@ -109,9 +120,6 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
                     logger.info("Deleting " + f.getAbsolutePath() + " " + f.exists());
                 }
                 FileUtils.deleteQuietly(f);
-
-                // delete it from memory
-                offlineDownloadList.remove(download);
 
                 return true;
             }

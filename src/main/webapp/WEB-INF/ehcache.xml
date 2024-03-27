@@ -6,6 +6,7 @@
     <cache name="getColours" maxElementsInMemory="2000" eternal="false" overflowToDisk="false"/>
     <cache name="fixWkt" maxElementsInMemory="100" eternal="false" overflowToDisk="false"/>
     <cache name="spatialObject" maxElementsInMemory="2000" eternal="false" overflowToDisk="false"/>
+    <cache name="namematching" maxElementsInMemory="100000" eternal="false" overflowToDisk="false"/>
     <cache name="wkt" maxElementsInMemory="2000" eternal="false" overflowToDisk="false"/>
     <!-- 1 day cache for user id to name to email -->
     <cache name="lookupAuthUser" maxElementsInMemory="5000" eternal="false" overflowToDisk="false" timeToLiveSeconds="86400" />

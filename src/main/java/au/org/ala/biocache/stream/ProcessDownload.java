@@ -159,7 +159,14 @@ public class ProcessDownload implements ProcessInterface {
                 batch.add(Arrays.copyOf(values, values.length));
 
                 if (batch.size() == MAX_BATCH_SIZE) {
-                    flush();
+                    try {
+                        flush();
+                    } catch (Exception ignored) {
+
+                    }
+
+                    // Clear the batch. May be required when flush() throws an exception.
+                    batch.clear();
                 }
             } else {
                 // batching is not required where there are no analysis layers

@@ -1,7 +1,7 @@
 /**************************************************************************
  *  Copyright (C) 2013 Atlas of Living Australia
  *  All Rights Reserved.
- * 
+ *
  *  The contents of this file are subject to the Mozilla Public
  *  License Version 1.1 (the "License"); you may not use this file
  *  except in compliance with the License. You may obtain a copy of
@@ -14,9 +14,13 @@
  ***************************************************************************/
 package au.org.ala.biocache.web;
 
+import au.com.bytecode.opencsv.CSVWriter;
 import au.org.ala.biocache.dto.*;
 import au.org.ala.biocache.service.AssertionService;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
+import com.fasterxml.jackson.core.JsonEncoding;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.Api;
@@ -24,9 +28,12 @@ import io.swagger.annotations.ApiParam;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.Parameters;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.http.entity.ContentType;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.support.AbstractMessageSource;
@@ -41,6 +48,7 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -70,15 +78,51 @@ public class AssertionController extends AbstractSecureController {
      */
     @Tag(name="Assertions", description = "Services providing CRUD operations on annotations, assertions for data")
     @Operation(summary = "Retrieve an array of the assertion codes in use by the processing system", tags = "Assertions")
+    @Parameters(
+            @Parameter(name="accept", description = "Return contentType; 'application/json' (default) or 'text/plain'", in = ParameterIn.HEADER)
+    )
     @RequestMapping(value = {
             "/assertions/codes"
 //            , "/assertions/codes.json", "/assertions/codes/"
-    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody
-    Collection<AssertionCode> showCodes(
-            @RequestParam(value="deprecated", required=false, defaultValue="false") Boolean isDeprecated
+    }, method = RequestMethod.GET, produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_PLAIN_VALUE})
+    public void showCodes(
+            @RequestParam(value="deprecated", required=false, defaultValue="false") Boolean isDeprecated,
+            HttpServletRequest request,
+            HttpServletResponse response
     ) throws Exception {
-        return applyi18n(AssertionCodes.getAll(), isDeprecated, true);
+        Collection<AssertionCode> result = applyi18n(AssertionCodes.getAll(), isDeprecated, true);
+
+        String accept = request.getHeader("Accept");
+        if (accept == null) {
+            accept = "";
+        }
+        if (accept.startsWith(MediaType.TEXT_PLAIN_VALUE)) {
+            response.setContentType(MediaType.TEXT_PLAIN_VALUE);
+
+            // Return a CSV compatible with biocache-hub's dataQualityChecksUrl
+            CSVWriter writer = new CSVWriter(new OutputStreamWriter(response.getOutputStream()));
+            writer.writeNext(new String[] { "Code", "Name", "", "Description", "Wiki","","","","","","","","","","empty" });
+
+            for (AssertionCode ac : result) {
+                writer.writeNext(new String[]{
+                        ac.getCode().toString(),
+                        ac.getName(),
+                        "",
+                        messageSource.getMessage("desc." + ac.getName(), null, messageSource.getMessage(ac.getName(), null, ac.getName(), Locale.getDefault()), Locale.getDefault()),
+                        "Wiki","","","","","","","","","","empty"
+                });
+            }
+            writer.flush();
+            writer.close();
+        } else {
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            JsonFactory jsonFactory = new JsonFactory();
+            JsonGenerator jsonGenerator = jsonFactory.createGenerator(response.getOutputStream(), JsonEncoding.UTF8);
+            jsonGenerator.setCodec(new ObjectMapper());
+            jsonGenerator.writeObject(result);
+            jsonGenerator.flush();
+            jsonGenerator.close();
+        }
     }
 
     @Operation(summary = "Retrieve an array of the assertion codes in use by users", tags = "Assertions")
@@ -93,7 +137,7 @@ public class AssertionController extends AbstractSecureController {
 
     /**
      * Add assertion.
-     * 
+     *
      * @param recordUuid
      * @param request
      * @param response
@@ -230,10 +274,10 @@ public class AssertionController extends AbstractSecureController {
 
     /**
      * Removes an assertion
-     * 
+     *
      * This version of the method can handle the situation where we use rowKeys as Uuids. Thus
      * URL style rowKeys can be correctly supported.
-     * 
+     *
      * @param recordUuid
      * @param assertionUuid
      * @param request

@@ -28,8 +28,10 @@ import au.org.ala.biocache.util.QidSizeException;
 import au.org.ala.biocache.util.SearchUtils;
 import au.org.ala.biocache.util.converter.FqField;
 import au.org.ala.ws.security.profile.AlaUserProfile;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.nimbusds.jose.util.ArrayUtils;
 import io.swagger.annotations.*;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
@@ -55,6 +57,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.util.StreamUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
 import org.springframework.validation.Validator;
@@ -150,6 +153,9 @@ public class OccurrenceController extends AbstractSecureController {
     @Inject
     private DataQualityService dataQualityService;
 
+    @Inject
+    protected QidCacheDAO qidCacheDAO;
+
     private final String VALIDATION_ERROR = "error/validationError";
 
     @Value("${webservices.root:http://localhost:8080/biocache-service}")
@@ -211,6 +217,9 @@ public class OccurrenceController extends AbstractSecureController {
 
     @Value("${occurrence.log.enabled:true}")
     private boolean occurrenceLogEnabled = true;
+
+    @Value("${page.depth.max:5000}")
+    public Integer pageDepthMax;
 
     private final AtomicReference<String> occurrenceETag = new AtomicReference<>(UUID.randomUUID().toString());
 
@@ -604,10 +613,10 @@ public class OccurrenceController extends AbstractSecureController {
             "An empty list is returned when no images are available."
     )
     @Tag(name="Images", description = "Services for the retrieval of taxon image data")
-    @RequestMapping(value = "/images/taxon/{taxonConceptID}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/images/taxon/**", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
-    List<String> getImages(@PathVariable(name="taxonConceptID") String taxonConceptID) throws Exception {
-
+    List<String> getImages(HttpServletRequest request) throws Exception {
+        String taxonConceptID = searchUtils.getGuidFromPath(request);
         SpatialSearchRequestDTO srp = new SpatialSearchRequestDTO();
         srp.setQ("taxonConceptID:" + taxonConceptID);
         srp.setPageSize(0);
@@ -626,12 +635,13 @@ public class OccurrenceController extends AbstractSecureController {
     @Operation(summary = "Checks to see if the supplied GUID represents an native species", tags = "Taxonomy",
         description="Checks to see if the supplied GUID represents an native species."
     )
-    @RequestMapping(value = {"/native/taxon/{taxonConceptID}"},
+    @RequestMapping(value = {"/native/taxon/**"},
             method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     public @ResponseBody
-    NativeDTO isNative(@PathVariable(name="taxonConceptID") String taxonConceptID) throws Exception {
+    NativeDTO isNative(HttpServletRequest request) throws Exception {
+        String taxonConceptID = searchUtils.getGuidFromPath(request);
         //check to see if we have any occurrences on Australia  country:Australia or state != empty
         NativeDTO adto = new NativeDTO();
         if (taxonConceptID != null) {
@@ -843,7 +853,7 @@ public class OccurrenceController extends AbstractSecureController {
 //            "/occurrences/search.json*",
             "/occurrences/search"
 //            "/occurrence/search"
-    }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    }, method = {RequestMethod.GET, RequestMethod.POST}, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
     SearchResultDTO occurrenceSearch(
                                      @Valid @ParameterObject SpatialSearchRequestParams requestParams,
@@ -852,6 +862,17 @@ public class OccurrenceController extends AbstractSecureController {
                                      HttpServletRequest request) throws Exception {
 
         SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
+
+        //simplify wkt
+        dto.setWkt(qidCacheDAO.fixWkt(dto.getWkt()));
+
+        // quietly limit page depth (start + pageSize) to the first pageDepthMax records
+        if (dto.getStart() >= pageDepthMax) {
+            dto.setStart(0);
+            dto.setPageSize(0);
+        } else if (dto.getStart() + dto.getPageSize() >= pageDepthMax) {
+            dto.setPageSize(pageDepthMax - dto.getStart());
+        }
 
             // handle empty param values, e.g. &sort=&dir=
          SearchUtils.setDefaultParams(dto);
@@ -874,15 +895,27 @@ public class OccurrenceController extends AbstractSecureController {
              //use the image service API & grab the list of IDs
              List<String> occurrenceIDs = new ArrayList<String>();
              for (OccurrenceIndex oi : srtdto.getOccurrences()) {
-                 occurrenceIDs.add(oi.getUuid());
+                 if (oi.getImages() != null) {
+                     occurrenceIDs.addAll(Arrays.asList(oi.getImages()));
+                 }
              }
 
-             Map<String, List<Map<String, Object>>> imageMap = imageMetadataService.getImageMetadataForOccurrences(occurrenceIDs);
+             Map<String, Map<String, Object>> imageMap = imageMetadataService.getImageMetadataForOccurrences(occurrenceIDs);
 
              for (OccurrenceIndex oi : srtdto.getOccurrences()) {
-                 //lookup metadata
-                 List<Map<String, Object>> imageMetadata = imageMap.get(oi.getUuid());
-                 oi.setImageMetadata(imageMetadata);
+                 if (oi.getImages() != null) {
+                     for (int i = 0; i < oi.getImages().length; i++) {
+                         Map<String, Object> imageMetadata = imageMap.get(oi.getImages()[i]);
+                         if (oi != null) {
+                             List<Map<String, Object>> md = oi.getImageMetadata();
+                             if (md == null) {
+                                 md = new ArrayList<>();
+                             }
+                             md.add(imageMetadata);
+                             oi.setImageMetadata(md);
+                         }
+                     }
+                 }
              }
          }
          return srtdto;
@@ -926,7 +959,7 @@ public class OccurrenceController extends AbstractSecureController {
             description ="Downloads the complete list of values in the supplied e.g. complete list" +
                     " of distinct scientificNames matching a query"
     )
-    @RequestMapping(value = "/occurrences/facets/download", method = RequestMethod.GET,  produces = {"text/csv", "text/plain"})
+    @RequestMapping(value = "/occurrences/facets/download", method = {RequestMethod.GET, RequestMethod.POST}, produces = {"text/csv", "text/plain"})
     public void downloadFacet(
             @Valid @ParameterObject DownloadRequestParams requestParams,
             @RequestParam(value = "count", required = false, defaultValue = "false") boolean includeCount,
@@ -934,10 +967,13 @@ public class OccurrenceController extends AbstractSecureController {
             @RequestParam(value = "synonym", required = false, defaultValue = "false") boolean includeSynonyms,
             @RequestParam(value = "lists", required = false, defaultValue = "false") boolean includeLists,
             HttpServletRequest request,
-            HttpServletResponse response){
+            HttpServletResponse response) throws Exception {
 
         DownloadRequestDTO dto = DownloadRequestDTO.create(requestParams, request);
         Optional<AlaUserProfile> downloadUser = authService.getDownloadUser(dto, request);
+
+        //simplify wkt
+        dto.setWkt(qidCacheDAO.fixWkt(dto.getWkt()));
 
         if (dto.getFacets().length > 0) {
             try {
@@ -946,11 +982,112 @@ public class OccurrenceController extends AbstractSecureController {
                 response.setHeader("Pragma", "must-revalidate");
                 response.setHeader("Content-Disposition", "attachment;filename=" + filename + ".csv");
                 response.setContentType("text/csv");
-                searchDAO.writeFacetToStream(dto, includeCount, lookupName, includeSynonyms, includeLists, response.getOutputStream(), null);
+
+                if (includeLists) {
+                    // expand "Conservation" and "Invasive" columns
+                    File tmp = File.createTempFile("facetsDownload", ".csv");
+
+                    // write to a file
+                    OutputStream os = new FileOutputStream(tmp);
+                    searchDAO.writeFacetToStream(dto, includeCount, lookupName, includeSynonyms, includeLists, os, null);
+                    os.flush();
+                    os.close();
+
+                    // expand columns and write output
+                    writeExpandedListColumns(tmp, response);
+                } else {
+                    searchDAO.writeFacetToStream(dto, includeCount, lookupName, includeSynonyms, includeLists, response.getOutputStream(), null);
+                }
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
             }
         }
+    }
+
+    private void writeExpandedListColumns(File tmp, HttpServletResponse response) throws IOException {
+        // read file
+        CSVReader reader = new CSVReader(new FileReader(tmp));
+        List<String[]> all = reader.readAll();
+        reader.close();
+
+        if (all.size() > 1) {
+            String [] header = all.get(0);
+            int conservationColumn = header.length - 2;
+            int invasiveColumn = header.length - 1;
+
+            Set<String> conservationFields = new HashSet<>();
+            Set<String> invasiveFields = new HashSet<>();
+
+            for (int i=1;i<all.size();i++) {
+                String [] row = all.get(i);
+                if (StringUtils.isNotEmpty(row[invasiveColumn])) {
+                    String [] values = row[invasiveColumn].split("\\|");
+                    for (String v : values) {
+                        invasiveFields.add(v);
+                    }
+                }
+                if (StringUtils.isNotEmpty(row[conservationColumn])) {
+                    // remove trailing value to find list name
+                    String [] values = row[conservationColumn].split("\\|");
+                    for (String v : values) {
+                        conservationFields.add(v.replaceAll(": [^:]*$", ""));
+                    }
+                }
+            }
+
+            if (conservationFields.isEmpty() && invasiveFields.isEmpty()) {
+                // response with the unaltered file
+                StreamUtils.copy(new FileInputStream(tmp), response.getOutputStream());
+            } else {
+                String[] tmpHeader = new String[header.length - 2];
+                System.arraycopy(header, 0, tmpHeader, 0, header.length - 2);
+                String[] newHeader = ArrayUtils.concat(tmpHeader, conservationFields.toArray(new String[0]), invasiveFields.toArray(new String[0]));
+
+                // write file
+                CSVWriter writer = new CSVWriter(new OutputStreamWriter(response.getOutputStream()));
+                writer.writeNext(newHeader);
+
+                String[] newRow = new String[newHeader.length];
+
+                for (int i = 1; i < all.size(); i++) {
+                    String[] row = all.get(i);
+                    System.arraycopy(row, 0, newRow, 0, row.length - 2);
+
+                    if (StringUtils.isNotEmpty(row[invasiveColumn])) {
+                        String[] values = row[invasiveColumn].split("\\|");
+                        for (String v : values) {
+                            // find column
+                            for (int j = header.length - 2; j < newHeader.length; j++) {
+                                if (newHeader[j].equals(v)) {
+                                    newRow[j] = "Y";
+                                }
+                            }
+                        }
+                    }
+
+                    if (StringUtils.isNotEmpty(row[conservationColumn])) {
+                        String[] values = row[conservationColumn].split("\\|");
+                        for (String v : values) {
+                            // column name
+                            String name = v.replaceAll(": [^:]*$", "");
+                            // find column
+                            for (int j = header.length - 2; j < newHeader.length; j++) {
+                                if (newHeader[j].equals(name)) {
+                                    newRow[j] = v.replace(name + ": ", "");
+                                }
+                            }
+                        }
+                    }
+
+                    writer.writeNext(newRow);
+                }
+                writer.flush();
+                writer.close();
+            }
+        }
+
+        // cleanup
+        tmp.delete();
     }
 
     /**
@@ -979,6 +1116,9 @@ public class OccurrenceController extends AbstractSecureController {
         Long qid = getQidForBatchSearch(queries, field, separator, title);
 
         DownloadRequestDTO downloadRequestDTO =  DownloadRequestDTO.create(requestParams, request);
+
+        //simplify wkt
+        downloadRequestDTO.setWkt(qidCacheDAO.fixWkt(downloadRequestDTO.getWkt()));
 
         if (qid != null) {
             if ("*:*".equals(downloadRequestDTO.getQ())) {
@@ -1323,6 +1463,10 @@ public class OccurrenceController extends AbstractSecureController {
     }, method = {RequestMethod.GET, RequestMethod.POST})
     public void dumpDistinctLatLongs(SpatialSearchRequestParams requestParams, HttpServletResponse response) throws Exception {
         SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
+
+        //simplify wkt
+        dto.setWkt(qidCacheDAO.fixWkt(dto.getWkt()));
+
         requestParams.setFacets(new String[]{OccurrenceIndex.LAT_LNG});
         requestParams.setFacet(true);
         if (requestParams.getQ().length() < 1)
@@ -1638,8 +1782,8 @@ public class OccurrenceController extends AbstractSecureController {
         Set<String> schemaFields = indexDao.getSchemaFields();
 
         Map map = new LinkedHashMap();
-        Map raw = fullRecord(sd, (String fieldName) -> schemaFields.contains(RAW_FIELD_PREFIX + fieldName) ? (RAW_FIELD_PREFIX + fieldName) : fieldName);
-        Map processed = fullRecord(sd, (String fieldName) -> schemaFields.contains(RAW_FIELD_PREFIX + fieldName) ? fieldName : null);
+        Map raw = fullRecord(sd, true, (String fieldName) -> schemaFields.contains(RAW_FIELD_PREFIX + fieldName) ? (RAW_FIELD_PREFIX + fieldName) : fieldName);
+        Map processed = fullRecord(sd, false, (String fieldName) -> schemaFields.contains(RAW_FIELD_PREFIX + fieldName) ? fieldName : null);
 
         // add lastModifiedTime
         addInstant(sd, raw, "lastModifiedTime", "lastLoadDate");
@@ -1765,6 +1909,14 @@ public class OccurrenceController extends AbstractSecureController {
 
     private void addField(SolrDocument sd, Map map, String fieldNameToUser, String fieldName) {
         map.put(fieldNameToUser, sd.getFieldValue(fieldName));
+    }
+
+    private void addAlaField(SolrDocument sd, Map map, String fieldName, boolean isRaw) {
+        if (isRaw) {
+            map.put(fieldName, sd.getFieldValue(RAW_FIELD_PREFIX + fieldName));
+        } else {
+            map.put(fieldName, sd.getFieldValue(fieldName));
+        }
     }
 
     private void addAll(SolrDocument sd, Map map, String fieldName, Function<String, String> getFieldName) {
@@ -1901,7 +2053,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @param getFieldName function to resolve the solr field name from the
      * @return
      */
-    Map fullRecord(SolrDocument sd, Function<String, String> getFieldName) {
+    Map fullRecord(SolrDocument sd, boolean isRaw, Function<String, String> getFieldName) {
         Map fullRecord = new LinkedHashMap();
         fullRecord.put("rowKey", sd.getFieldValue(ID)); // Use the processed ID for compatability
         fullRecord.put("uuid", sd.getFieldValue(ID));
@@ -2027,7 +2179,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, classification, "subgenus", getFieldName);
         addField(sd, classification, "species", getFieldName);
         addField(sd, classification, "specificEpithet", getFieldName);
-        addField(sd, classification, "subspecies", getFieldName);
+        addAlaField(sd, classification, "subspecies", isRaw);
         addField(sd, classification, "infraspecificEpithet", getFieldName);
         addField(sd, classification, "infraspecificMarker", getFieldName);
         addField(sd, classification, "cultivarName", getFieldName); //an addition to darwin core for http://wiki.tdwg.org/twiki/bin/view/ABCD/AbcdConcept0315
@@ -2064,7 +2216,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, classification, "genusID", getFieldName);
         addField(sd, classification, "subgenusID", getFieldName);
         addField(sd, classification, "speciesID", getFieldName);
-        addField(sd, classification, "subspeciesID", getFieldName);
+        addAlaField(sd, classification, "subspeciesID", isRaw);
 
         addField(sd, classification, "left", getFieldName.apply("lft"));
         addField(sd, classification, "right", getFieldName.apply("rgt"));
@@ -2428,10 +2580,13 @@ public class OccurrenceController extends AbstractSecureController {
 
             if (lookupImageMetadata) {
                 try {
-                    List<Map<String, Object>> list = imageMetadataService.getImageMetadataForOccurrences(Arrays.asList(new String[]{uuid})).get(uuid);
+                    Map<String, Map<String, Object>> list = imageMetadataService.getImageMetadataForOccurrences(imageIDs);
                     if (list != null) {
-                        for (Map m : list) {
-                            metadata.put(String.valueOf(m.get("imageId")), m);
+                        for (String imageId : imageIDs) {
+                            Map<String, Object> md = list.get(imageId);
+                            if (md != null) {
+                                metadata.put(imageId, md);
+                            }
                         }
                     }
                 } catch (Exception e) {

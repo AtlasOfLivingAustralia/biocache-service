@@ -271,6 +271,8 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${solr.collection:biocache1}")
     protected String solrCollection;
 
+    public CountDownLatch countDownLatch = new CountDownLatch(1);
+
     /**
      * Initialise the SOLR server instance
      */
@@ -295,6 +297,14 @@ public class SearchDAOImpl implements SearchDAO {
         getMaxBooleanClauses();
 
         initSensitiveFieldMapping();
+
+        countDownLatch.countDown();
+    }
+
+    @Override
+    public boolean isInitialized() throws InterruptedException {
+        countDownLatch.await();
+        return true;
     }
 
     public void refreshCaches() {
@@ -1321,16 +1331,6 @@ public class SearchDAOImpl implements SearchDAO {
         }
     }
 
-    protected void initDecadeBasedFacet(SolrQuery solrQuery, String field) {
-        //Solr 6.x don't use facet.date but facet.range instead
-        solrQuery.add("facet.range", field);
-        solrQuery.add("facet.range.start", DECADE_FACET_START_DATE); // facet date range starts from 1850
-        solrQuery.add("facet.range.end", "NOW/DAY"); // facet date range ends for current date (gap period)
-        solrQuery.add("facet.range.gap", "+10YEAR"); // gap interval of 10 years
-        solrQuery.add("facet.range.other", DECADE_PRE_1850_LABEL); // include counts before the facet start date ("before" label)
-        solrQuery.add("facet.range.include", "lower"); // counts will be included for dates on the starting date but not ending date
-    }
-
     /**
      * Helper method to create SolrQuery object and add facet settings
      *
@@ -1338,8 +1338,6 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public SolrQuery initSolrQuery(SpatialSearchRequestDTO searchParams, boolean substituteDefaultFacetOrder, Map<String, String[]> extraSolrParams) throws QidMissingException {
         queryFormatUtils.formatSearchQuery(searchParams);
-
-        String occurrenceDate = OccurrenceIndex.OCCURRENCE_DATE;
 
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setQuery(searchParams.getFormattedQuery());
@@ -1358,11 +1356,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFacet(searchParams.getFacet());
         if (searchParams.getFacet()) {
             for (String facet : searchParams.getFacets()) {
-                if (facet.equals(DECADE_FACET_NAME) || facet.equals("date")) {
-                    String fname = facet.equals(DECADE_FACET_NAME) ? OCCURRENCE_YEAR_INDEX_FIELD : occurrenceDate;
-                    initDecadeBasedFacet(solrQuery, fname);
-                    rangeAdded = true; // the initDecadeBasedFacet adds a range
-                } else if (facet.equals("uncertainty")) {
+                if (facet.equals("uncertainty")) {
                     Map<String, String> rangeMap = rangeBasedFacets.getRangeMap("uncertainty");
                     for (String range : rangeMap.keySet()) {
                         solrQuery.add("facet.query", range);
@@ -2022,22 +2016,22 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      */
     String getFormattedFqQuery(String facet, String value) {
-        if (facet.equals(OCCURRENCE_YEAR_INDEX_FIELD)) {
-
-            if (value.equals(DECADE_PRE_1850_LABEL)) {
-                return facet + ":" + "[* TO " + DECADE_FACET_START_DATE + "]";
-            } else {
-                SimpleDateFormat sdf = new SimpleDateFormat(SOLR_DATE_FORMAT);
-                try {
-                    Date date = sdf.parse(value);
-                    Date endDate = DateUtils.addYears(date, 10);
-                    endDate = DateUtils.addMilliseconds(endDate, -1);
-                    return facet + ":" + "[" + value + " TO " + sdf.format(endDate) + "]";
-                } catch (ParseException e) {
-                    //do nothing
-                }
-            }
-        }
+//        if (facet.equals(DECADE_FACET_NAME)) {
+//
+//            if (value.equals(DECADE_PRE_1850_LABEL)) {
+//                return facet + ":" + "[* TO " + DECADE_FACET_START_DATE + "]";
+//            } else {
+//                SimpleDateFormat sdf = new SimpleDateFormat(SOLR_DATE_FORMAT);
+//                try {
+//                    Date date = sdf.parse(value);
+//                    Date endDate = DateUtils.addYears(date, 10);
+//                    endDate = DateUtils.addMilliseconds(endDate, -1);
+//                    return facet + ":" + "[" + value + " TO " + sdf.format(endDate) + "]";
+//                } catch (ParseException e) {
+//                    //do nothing
+//                }
+//            }
+//        }
 
         return facet + ":\"" + value.replace("\"", "\\\"") + "\"";
     }
@@ -2057,20 +2051,6 @@ public class SearchDAOImpl implements SearchDAO {
 
         if (facet.endsWith("_uid") || facet.endsWith("Uid")) {
             return searchUtils.getUidDisplayString(tFacet, tValue, false);
-        } else if (OccurrenceIndex.OCCURRENCE_YEAR_INDEX_FIELD.equals(facet) && value != null) {
-            try {
-                if (DECADE_PRE_1850_LABEL.equals(value)) {
-                    return messageSource.getMessage("decade.pre.start", null, "pre 1850", null); // "pre 1850";
-                }
-                SimpleDateFormat sdf = new SimpleDateFormat(SOLR_DATE_FORMAT);
-                Date date = sdf.parse(value);
-                SimpleDateFormat df = new SimpleDateFormat("yyyy");
-                String year = df.format(date);
-                return year + "-" + (Integer.parseInt(year) + 9);
-            } catch (ParseException pe) {
-                return facet;
-            }
-            //1850-01-01T00:00:00Z
         } else if (searchUtils.getAuthIndexFields().contains(tFacet)) {
             //if the facet field is collector or assertion_user_id we need to perform the substitution
             Optional<AlaUserProfile> profile = authService.lookupAuthUser(value, false);

@@ -172,7 +172,7 @@ public class QueryFormatTest {
                 new SearchQueryTester("text:water species_group:Animals","text:water speciesGroup:Animals","text:water Lifeform:Animals", true),
                 new SearchQueryTester("urn:lsid:biodiversity.org.au:afd.taxon:a7b69905-7163-4017-a2a2-e92ce5dffb84","urn\\:lsid\\:biodiversity.org.au\\:afd.taxon\\:a7b69905\\-7163\\-4017\\-a2a2\\-e92ce5dffb84","urn:lsid:biodiversity.org.au:afd.taxon:a7b69905-7163-4017-a2a2-e92ce5dffb84", true),
                 new SearchQueryTester("species_guid:urn:lsid:biodiversity.org.au:apni.taxon:254666","speciesID:urn\\:lsid\\:biodiversity.org.au\\:apni.taxon\\:254666","Species:species scientific name", true),
-                new SearchQueryTester("occurrence_year:[1990-01-01T12:00:00Z TO *]","occurrenceYear:[1990-01-01T12:00:00Z TO *]","Date (by decade):[1990-*]", true),
+                new SearchQueryTester("occurrence_year:[1990-01-01T12:00:00Z TO *]","occurrenceYear:[1990-01-01T12:00:00Z TO *]","Date (by year):[1990-*]", true),
 //                new SearchQueryTester("matched_name:\"kangurus lanosus\"", "taxon_name:\"kangurus\\ lanosus\"","Scientific name:\"kangurus lanosus\"", true),
 //                new SearchQueryTester("matched_name_children:\"kangurus lanosus\"", "lft:[", "found", false),
 //                new SearchQueryTester("(matched_name_children:Mammalia OR matched_name_children:whales)", "lft:[", "class:", false),

@@ -54,23 +54,22 @@ public class AlaImageMetadataService implements ImageMetadataService {
     }
 
     @Override
-    public Map<String, List<Map<String, Object>>> getImageMetadataForOccurrences(List<String> occurrenceIDs) throws Exception {
+    public Map<String, Map<String, Object>> getImageMetadataForOccurrences(List<String> imageIDs) throws Exception {
 
-        if (StringUtils.isBlank(imageServiceUrl) || occurrenceIDs == null || occurrenceIDs.isEmpty()){
-            return new HashMap<String, List<Map<String, Object>>>();
+        if (StringUtils.isBlank(imageServiceUrl) || imageIDs == null || imageIDs.isEmpty()){
+            return new HashMap<String, Map<String, Object>>();
         }
 
-        logger.debug("Retrieving the image metadata for " + occurrenceIDs.size() + " records");
+        logger.debug("Retrieving the image metadata for " + imageIDs.size() + " records");
         Map<String, Object> payload = new HashMap<String, Object>();
-        payload.put("key", "occurrenceid");
-        payload.put("values", occurrenceIDs);
+        payload.put("imageIds", imageIDs);
 
 
         HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
 
         try (CloseableHttpClient httpClient = httpClientBuilder.build()) {
 
-            HttpPost post = new HttpPost(imageServiceUrl + "/ws/findImagesByMetadata");
+            HttpPost post = new HttpPost(imageServiceUrl + "/ws/getImageInfoForIdList");
 
             ObjectMapper om = new ObjectMapper();
             post.setEntity(new StringEntity(om.writeValueAsString(payload), ContentType.APPLICATION_JSON));
@@ -83,7 +82,7 @@ public class AlaImageMetadataService implements ImageMetadataService {
                     String jsonResponseString = EntityUtils.toString(httpResponse.getEntity());
 
                     Map<String, Object> jsonResponse = om.readValue(jsonResponseString, Map.class);
-                    Map<String, List<Map<String, Object>>> imageMetadata = (Map<String, List<Map<String, Object>>>) jsonResponse.get("images");
+                    Map<String, Map<String, Object>> imageMetadata = (Map<String, Map<String, Object>>) jsonResponse.get("results");
                     logger.debug("Obtained image metadata for " + imageMetadata.size() + " records");
                     return imageMetadata;
                 }
