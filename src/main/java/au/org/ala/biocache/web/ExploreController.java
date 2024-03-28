@@ -411,6 +411,7 @@ public class ExploreController {
             @ParameterObject SpatialSearchRequestParams params,
             @PathVariable(value = "group") String group,
             @RequestParam(value = "common", required = false, defaultValue = "false") boolean common,
+            @RequestParam(value = "includeRank", required = false, defaultValue = "true") boolean includeRank,
             HttpServletResponse response) throws Exception {
 
         SpatialSearchRequestDTO requestParams = SpatialSearchRequestDTO.create(params);
@@ -427,7 +428,7 @@ public class ExploreController {
 
         response.setContentType("application/json");
 
-        searchDao.findAllSpeciesJSON(requestParams, response.getOutputStream());
+        searchDao.findAllSpeciesJSON(requestParams, includeRank, response.getOutputStream());
     }
 
     /**

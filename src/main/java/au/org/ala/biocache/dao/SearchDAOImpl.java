@@ -1422,19 +1422,19 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws SolrServerException
      */
-    protected void getSpeciesCountsJSON(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
+    protected void getSpeciesCountsJSON(SpatialSearchRequestDTO requestParams, Boolean includeRank, OutputStream outputStream) throws Exception {
         SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
         solrQuery.setFacetMissing(false);
 
-        StreamTaxaCount procFacet = new StreamTaxaCount(this, searchUtils, requestParams, outputStream);
+        StreamTaxaCount procFacet = new StreamTaxaCount(this, searchUtils, requestParams, includeRank, outputStream);
         indexDao.streamingQuery(solrQuery, null, procFacet, null);
     }
 
-    protected void getSpeciesCountsCSV(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
+    protected void getSpeciesCountsCSV(SpatialSearchRequestDTO requestParams, Boolean includeRank, OutputStream outputStream) throws Exception {
         SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
         solrQuery.setFacetMissing(false);
 
-        StreamTaxaAsCSV procFacet = new StreamTaxaAsCSV(this, searchUtils, requestParams, outputStream);
+        StreamTaxaAsCSV procFacet = new StreamTaxaAsCSV(this, searchUtils, requestParams, includeRank, outputStream);
         indexDao.streamingQuery(solrQuery, null, procFacet, null);
     }
 
@@ -1846,24 +1846,24 @@ public class SearchDAOImpl implements SearchDAO {
      * @see au.org.ala.biocache.dao.SearchDAO#findAllSpeciesJSON(SpatialSearchRequestDTO, OutputStream)
      */
     @Override
-    public void findAllSpeciesJSON(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
+    public void findAllSpeciesJSON(SpatialSearchRequestDTO requestParams, Boolean includeRank, OutputStream outputStream) throws Exception {
         if (requestParams.getFacets() == null || requestParams.getFacets().length != 1) {
             requestParams.setFacets(new String[]{NAMES_AND_LSID});
         }
 
-        getSpeciesCountsJSON(requestParams, outputStream);
+        getSpeciesCountsJSON(requestParams, includeRank, outputStream);
     }
 
     /**
      * @see au.org.ala.biocache.dao.SearchDAO#findAllSpeciesJSON(SpatialSearchRequestDTO, OutputStream)
      */
     @Override
-    public void findAllSpeciesCSV(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
+    public void findAllSpeciesCSV(SpatialSearchRequestDTO requestParams, Boolean includeRank, OutputStream outputStream) throws Exception {
         if (requestParams.getFacets() == null || requestParams.getFacets().length != 1) {
             requestParams.setFacets(new String[]{NAMES_AND_LSID});
         }
 
-        getSpeciesCountsCSV(requestParams, outputStream);
+        getSpeciesCountsCSV(requestParams, includeRank, outputStream);
     }
 
     /**
