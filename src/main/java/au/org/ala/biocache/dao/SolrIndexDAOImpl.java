@@ -1180,17 +1180,17 @@ public class SolrIndexDAOImpl implements IndexDAO {
                 }
             }
         }
-        String[] fl = new String[]{"id"};
         if (StringUtils.isNotEmpty(query.getFields())) {
             solrParams.set("fl", StringUtils.join(fieldMappingUtil.translateFieldArray(query.getFields().split(",")), ","));
         } else {
             solrParams.set("fl", "id");
         }
 
-        if (StringUtils.isEmpty(query.getSortField()) || !ArrayUtils.contains(fl, query.getSortField().split(" ")[0])) {
-            solrParams.set("sort", solrParams.get("fl").split(",")[0] + " asc");
+        // The sort field does not need to be present in the field list.
+        if (StringUtils.isEmpty(query.getSortField())) {
+            solrParams.set("sort", "id asc");
         } else {
-            solrParams.set("sort", "index asc");
+            solrParams.set("sort", query.getSortField());
         }
 
         String qt = "/export";
