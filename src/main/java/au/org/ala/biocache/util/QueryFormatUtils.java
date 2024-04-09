@@ -151,9 +151,9 @@ public class QueryFormatUtils {
                             addFormattedFq(new String[]{formatted[1]}, searchParams);
                         }
 
-                        //add to activeFacetMap fqs
+                        //add to activeFacetMap fqs that are not inserted by a qid, and the q of qids in fqs.
                         //do not add spatial fields
-                        if (!formatted[1].contains(spatialField + ":")) {
+                        if (originalFqs != null && i < originalFqs.length && !formatted[1].contains(spatialField + ":")) {
                             Facet facet = new Facet();
                             facet.setDisplayName(formatted[0]);
                             String[] fv = fq.split(":");
@@ -1063,13 +1063,13 @@ public class QueryFormatUtils {
             fv = searchUtils.substituteMonthNamesForNums(fv);
         } else if (searchUtils.getAuthIndexFields().contains(tfn)) {
             String cfv = StringUtils.remove(fv, "\"");
-            Optional<AlaUserProfile> profile = authService.lookupAuthUser(cfv);
+            Optional<AlaUserProfile> profile = authService.lookupAuthUser(cfv, false);
             if (profile.isPresent()) {
                 fv = profile.get().getName();
             }
         } else if (StringUtils.contains(fv, "@")) {
             String cfv = StringUtils.remove(fv, "\"");
-            Optional<AlaUserProfile> profile = authService.lookupAuthUser(cfv);
+            Optional<AlaUserProfile> profile = authService.lookupAuthUser(cfv, false);
             if (profile.isPresent()) {
                 fv = profile.get().getName();
             } else {

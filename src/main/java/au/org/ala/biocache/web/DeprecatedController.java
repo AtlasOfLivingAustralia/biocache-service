@@ -104,7 +104,8 @@ public class DeprecatedController {
             "/webportal/species.json",
             "/mapping/species.json"}, method = RequestMethod.GET)
     public void listSpecies(@ParameterObject SpatialSearchRequestParams params,
+                            @RequestParam(value = "includeRank", required = false, defaultValue = "true") boolean includeRank,
                           HttpServletResponse response) throws Exception {
-        wmsController.listSpecies(params, response);
+        wmsController.listSpecies(params, includeRank, response);
     }
 }

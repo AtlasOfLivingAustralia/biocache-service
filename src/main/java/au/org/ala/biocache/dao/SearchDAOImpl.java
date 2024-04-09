@@ -1422,19 +1422,19 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws SolrServerException
      */
-    protected void getSpeciesCountsJSON(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
+    protected void getSpeciesCountsJSON(SpatialSearchRequestDTO requestParams, Boolean includeRank, OutputStream outputStream) throws Exception {
         SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
         solrQuery.setFacetMissing(false);
 
-        StreamTaxaCount procFacet = new StreamTaxaCount(this, searchUtils, requestParams, outputStream);
+        StreamTaxaCount procFacet = new StreamTaxaCount(this, searchUtils, requestParams, includeRank, outputStream);
         indexDao.streamingQuery(solrQuery, null, procFacet, null);
     }
 
-    protected void getSpeciesCountsCSV(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
+    protected void getSpeciesCountsCSV(SpatialSearchRequestDTO requestParams, Boolean includeRank, OutputStream outputStream) throws Exception {
         SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
         solrQuery.setFacetMissing(false);
 
-        StreamTaxaAsCSV procFacet = new StreamTaxaAsCSV(this, searchUtils, requestParams, outputStream);
+        StreamTaxaAsCSV procFacet = new StreamTaxaAsCSV(this, searchUtils, requestParams, includeRank, outputStream);
         indexDao.streamingQuery(solrQuery, null, procFacet, null);
     }
 
@@ -1846,24 +1846,24 @@ public class SearchDAOImpl implements SearchDAO {
      * @see au.org.ala.biocache.dao.SearchDAO#findAllSpeciesJSON(SpatialSearchRequestDTO, OutputStream)
      */
     @Override
-    public void findAllSpeciesJSON(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
+    public void findAllSpeciesJSON(SpatialSearchRequestDTO requestParams, Boolean includeRank, OutputStream outputStream) throws Exception {
         if (requestParams.getFacets() == null || requestParams.getFacets().length != 1) {
             requestParams.setFacets(new String[]{NAMES_AND_LSID});
         }
 
-        getSpeciesCountsJSON(requestParams, outputStream);
+        getSpeciesCountsJSON(requestParams, includeRank, outputStream);
     }
 
     /**
      * @see au.org.ala.biocache.dao.SearchDAO#findAllSpeciesJSON(SpatialSearchRequestDTO, OutputStream)
      */
     @Override
-    public void findAllSpeciesCSV(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
+    public void findAllSpeciesCSV(SpatialSearchRequestDTO requestParams, Boolean includeRank, OutputStream outputStream) throws Exception {
         if (requestParams.getFacets() == null || requestParams.getFacets().length != 1) {
             requestParams.setFacets(new String[]{NAMES_AND_LSID});
         }
 
-        getSpeciesCountsCSV(requestParams, outputStream);
+        getSpeciesCountsCSV(requestParams, includeRank, outputStream);
     }
 
     /**
@@ -2053,7 +2053,7 @@ public class SearchDAOImpl implements SearchDAO {
             return searchUtils.getUidDisplayString(tFacet, tValue, false);
         } else if (searchUtils.getAuthIndexFields().contains(tFacet)) {
             //if the facet field is collector or assertion_user_id we need to perform the substitution
-            Optional<AlaUserProfile> profile = authService.lookupAuthUser(value);
+            Optional<AlaUserProfile> profile = authService.lookupAuthUser(value, false);
             return profile.isPresent() ? profile.get().getName() : value;
         } else {
             if (messageSource != null) {
@@ -2266,7 +2266,12 @@ public class SearchDAOImpl implements SearchDAO {
 
         SimpleOrderedMap facets = SearchUtils.getMap(qr.getResponse(), "facets");
 
-        return new double[]{toDouble(facets.get("x1")), toDouble(facets.get("y1")), toDouble(facets.get("x2")), toDouble(facets.get("y2"))};
+        try {
+            return new double[]{toDouble(facets.get("x1")), toDouble(facets.get("y1")), toDouble(facets.get("x2")), toDouble(facets.get("y2"))};
+        } catch (Exception ignored) {
+            // Might be a query without one of decimalLongitude or decimalLatitude, e.g. no records found
+            return new double[]{0, 0, 0, 0};
+        }
     }
 
     /**

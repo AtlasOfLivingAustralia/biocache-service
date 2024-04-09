@@ -178,7 +178,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    void findAllSpeciesJSON(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception;
+    void findAllSpeciesJSON(SpatialSearchRequestDTO requestParams, Boolean includeRank, OutputStream outputStream) throws Exception;
 
     /**
      * Find all species (and counts) for a given query and stream as CSV
@@ -187,7 +187,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    void findAllSpeciesCSV(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception;
+    void findAllSpeciesCSV(SpatialSearchRequestDTO requestParams, Boolean includeRank,OutputStream outputStream) throws Exception;
 
     /**
      * Find all occurrences for a given query as SolrDocumentList

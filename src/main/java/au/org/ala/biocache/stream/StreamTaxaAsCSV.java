@@ -20,8 +20,8 @@ public class StreamTaxaAsCSV extends StreamTaxaCount {
 
     CSVWriter csvWriter;
 
-    public StreamTaxaAsCSV(SearchDAOImpl searchDAO, SearchUtils searchUtils, SpatialSearchRequestDTO request, OutputStream outputStream) {
-        super(searchDAO, searchUtils, request, outputStream);
+    public StreamTaxaAsCSV(SearchDAOImpl searchDAO, SearchUtils searchUtils, SpatialSearchRequestDTO request, Boolean includeRank, OutputStream outputStream) {
+        super(searchDAO, searchUtils, request, includeRank, outputStream);
     }
 
     public boolean flush() {
