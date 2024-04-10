@@ -21,6 +21,7 @@ import au.org.ala.biocache.util.QidMissingException;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 
 import javax.servlet.ServletOutputStream;
@@ -386,4 +387,5 @@ public interface SearchDAO {
      */
     FacetField getFacetPointsShort(SpatialSearchRequestDTO searchParams, String pointType, Double minx, Double miny, Double maxx, Double maxy) throws Exception;
 
+    SolrDocument getOcc(String recordUuid);
 }

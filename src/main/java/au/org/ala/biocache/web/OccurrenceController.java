@@ -28,7 +28,6 @@ import au.org.ala.biocache.util.QidSizeException;
 import au.org.ala.biocache.util.SearchUtils;
 import au.org.ala.biocache.util.converter.FqField;
 import au.org.ala.ws.security.profile.AlaUserProfile;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.nimbusds.jose.util.ArrayUtils;
@@ -120,6 +119,11 @@ public class OccurrenceController extends AbstractSecureController {
     @Inject
     protected IndexDAO indexDao;
 
+    @Inject
+    protected SpeciesCountsService speciesCountsService;
+    @Inject
+    protected SpeciesImageService speciesImageService;
+
     /**
      * Data Resource DAO
      */
@@ -134,6 +138,8 @@ public class OccurrenceController extends AbstractSecureController {
     protected OccurrenceUtils occurrenceUtils;
     @Inject
     protected DownloadService downloadService;
+    @Inject
+    protected SensitiveService sensitiveService;
     @Inject
     protected LoggerService loggerService;
     @Inject
@@ -934,6 +940,8 @@ public class OccurrenceController extends AbstractSecureController {
     public @ResponseBody
     String refreshCache() throws Exception {
         searchDAO.refreshCaches();
+        speciesCountsService.resetCache();
+        speciesImageService.resetCache();
 
         //update FacetThemes static values
         new FacetThemes(
@@ -1680,7 +1688,7 @@ public class OccurrenceController extends AbstractSecureController {
             sdl = searchDAO.findByFulltext(idRequest);
         } else {
             // do queries with sensitive filters....if no records returned, do without sensitive filters
-            String sensitiveFq = downloadService.getSensitiveFq(authenticatedUser.get().getRoles());
+            String sensitiveFq = sensitiveService.getSensitiveFq(authenticatedUser.get().getRoles());
             if (StringUtils.isNotEmpty(sensitiveFq)){
                 SpatialSearchRequestDTO idRequest = createRecirdQuery(uuid);
                 idRequest.setFq(new String[]{sensitiveFq});
