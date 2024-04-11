@@ -1023,14 +1023,14 @@ public class OccurrenceController extends AbstractSecureController {
                 if (StringUtils.isNotEmpty(row[invasiveColumn])) {
                     String [] values = row[invasiveColumn].split("\\|");
                     for (String v : values) {
-                        invasiveFields.add(v);
+                        invasiveFields.add(v.trim());
                     }
                 }
                 if (StringUtils.isNotEmpty(row[conservationColumn])) {
                     // remove trailing value to find list name
-                    String [] values = row[conservationColumn].split("\\|");
+                    String[] values = row[conservationColumn].split("\\|");
                     for (String v : values) {
-                        conservationFields.add(v.replaceAll(": [^:]*$", ""));
+                        conservationFields.add(v.replaceAll(": [^:]*$", "").trim());
                     }
                 }
             }
@@ -1052,13 +1052,16 @@ public class OccurrenceController extends AbstractSecureController {
                 for (int i = 1; i < all.size(); i++) {
                     String[] row = all.get(i);
                     System.arraycopy(row, 0, newRow, 0, row.length - 2);
+                    for (int j = row.length - 2; j < newRow.length; j++) {
+                        newRow[j] = "";
+                    }
 
                     if (StringUtils.isNotEmpty(row[invasiveColumn])) {
                         String[] values = row[invasiveColumn].split("\\|");
                         for (String v : values) {
                             // find column
                             for (int j = header.length - 2; j < newHeader.length; j++) {
-                                if (newHeader[j].equals(v)) {
+                                if (newHeader[j].equals(v.trim())) {
                                     newRow[j] = "Y";
                                 }
                             }
@@ -1069,11 +1072,11 @@ public class OccurrenceController extends AbstractSecureController {
                         String[] values = row[conservationColumn].split("\\|");
                         for (String v : values) {
                             // column name
-                            String name = v.replaceAll(": [^:]*$", "");
+                            String name = v.replaceAll(": [^:]*$", "").trim();
                             // find column
                             for (int j = header.length - 2; j < newHeader.length; j++) {
                                 if (newHeader[j].equals(name)) {
-                                    newRow[j] = v.replace(name + ": ", "");
+                                    newRow[j] = v.replace(name + ": ", "").trim();
                                 }
                             }
                         }
