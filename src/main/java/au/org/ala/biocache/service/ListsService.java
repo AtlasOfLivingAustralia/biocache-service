@@ -123,7 +123,7 @@ public class ListsService {
                 String status = "";
                 if (item.kvpValues != null) {
                     for (KvpDTO m : item.kvpValues) {
-                        if (m.key != null) {
+                        if (m.key != null && "status".equalsIgnoreCase(m.key)) {
                             status = ": " + m.value;
                         }
                     }
