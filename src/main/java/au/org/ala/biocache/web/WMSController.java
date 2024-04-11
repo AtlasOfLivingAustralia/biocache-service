@@ -671,7 +671,7 @@ public class WMSController extends AbstractSecureController {
      * @throws Exception
      */
     @SecurityRequirement(name="JWT")
-    @Secured({"ROLE_USER", "ROLE_ADMIN"})
+    @Secured({"ROLE_USER", "ROLE_ADMIN", "ala/internal"})
     @Operation(summary = "Get occurrences by query as gzipped csv.", tags = "Deprecated")
     @Deprecated
     @RequestMapping(value = {

@@ -22,6 +22,7 @@ import au.org.ala.biocache.dto.SpeciesImagesDTO;
 import au.org.ala.biocache.util.SearchUtils;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.util.SimpleOrderedMap;
@@ -31,10 +32,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * cache of lft with the first found image info; data_resource_uid, image_url and number found.
@@ -81,27 +79,26 @@ public class SpeciesImageService {
                 params.setFl(OccurrenceIndex.DATA_RESOURCE_UID + "," + OccurrenceIndex.IMAGE_URL);
                 params.setQ(OccurrenceIndex.IMAGE_URL + ":*");
 
-                QueryResponse qr = searchDAO.searchGroupedFacets(params);
+                String [] requiredFqsArray = new String[0];
+                if (StringUtils.isNotEmpty(requiredFqs)) {
+                    requiredFqsArray = requiredFqs.split(",");
+                    params.setFq(requiredFqsArray);
+                }
 
+                String [] preferredFqsArray = new String[0];
+                if (StringUtils.isNotEmpty(preferredFqs)) {
+                    preferredFqsArray = preferredFqs.split(",");
+                }
+
+                // fill map with reverse priority search so lower priority entries are overridden by higher priorities
                 Map<Long, SpeciesImageDTO> map = new HashMap();
-                
-                for (SimpleOrderedMap item : SearchUtils.getList(qr.getResponse(), "facets", OccurrenceIndex.LFT, "buckets")) {
-                    String dataResourceUid = (String) SearchUtils.getVal(item, OccurrenceIndex.DATA_RESOURCE_UID, "buckets", 0, 0);
-                    String imageUrl = (String) SearchUtils.getVal(item, OccurrenceIndex.IMAGE_URL, "buckets", 0, 0);
-                    SpeciesImageDTO image = new SpeciesImageDTO(dataResourceUid, imageUrl);
-                    if (item.getVal(1) instanceof Integer) {
-                        image.setCount(((Integer) item.getVal(1)).longValue());
-                    } else if (item.getVal(1) instanceof Long){
-                        image.setCount((Long) item.getVal(1));
-                    }
-                    try {
-                        if (item.getVal(0) instanceof Integer) {
-                            map.put(((Integer) item.getVal(0)).longValue(), image);
-                        } else if(item.getVal(0) instanceof Long) {
-                            map.put((Long) item.getVal(0), image);
-                        }
-                    } catch (Exception e) {
-                    }
+                fillMap(map, params); // request with no preferredFq
+
+                String [] fqs = Arrays.copyOf(requiredFqsArray, requiredFqsArray.length + 1);
+                for (int i = preferredFqsArray.length - 1; i >= 0; i--) {
+                    fqs[fqs.length - 1] = preferredFqsArray[i];
+                    params.setFq(fqs);
+                    fillMap(map, params);
                 }
 
                 //sort keys
@@ -135,6 +132,28 @@ public class SpeciesImageService {
         }
     }
 
+    private void fillMap(Map<Long, SpeciesImageDTO> map, SpatialSearchRequestDTO params) throws Exception {
+        QueryResponse qr = searchDAO.searchGroupedFacets(params);
+        for (SimpleOrderedMap item : SearchUtils.getList(qr.getResponse(), "facets", OccurrenceIndex.LFT, "buckets")) {
+            String dataResourceUid = (String) SearchUtils.getVal(item, OccurrenceIndex.DATA_RESOURCE_UID, "buckets", 0, 0);
+            String imageUrl = (String) SearchUtils.getVal(item, OccurrenceIndex.IMAGE_URL, "buckets", 0, 0);
+            SpeciesImageDTO image = new SpeciesImageDTO(dataResourceUid, imageUrl);
+            if (item.getVal(1) instanceof Integer) {
+                image.setCount(((Integer) item.getVal(1)).longValue());
+            } else if (item.getVal(1) instanceof Long){
+                image.setCount((Long) item.getVal(1));
+            }
+            try {
+                if (item.getVal(0) instanceof Integer) {
+                    map.put(((Integer) item.getVal(0)).longValue(), image);
+                } else if(item.getVal(0) instanceof Long) {
+                    map.put((Long) item.getVal(0), image);
+                }
+            } catch (Exception e) {
+            }
+        }
+    }
+
     @EventListener(ApplicationReadyEvent.class)
     public void init() {
         resetCache();
@@ -145,6 +164,14 @@ public class SpeciesImageService {
      */
     @Value("${autocomplete.species.images.enabled:true}")
     private Boolean enabled;
+
+    // images.preferredFilters=data_resource_uid:dr660 OR data_resource_uid:dr413,-record_type:PreservedSpecimen
+    @Value("${images.preferredFqs:}")
+    private String preferredFqs;
+
+    // images.requiredFilters=spatiallyValid:true,-user_assertions:50001,-user_assertions:50005
+    @Value("${images.requiredFqs:}")
+    private String requiredFqs;
 
     /**
      * retrieve left + count + index version

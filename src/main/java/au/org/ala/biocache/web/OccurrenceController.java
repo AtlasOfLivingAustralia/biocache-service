@@ -276,7 +276,7 @@ public class OccurrenceController extends AbstractSecureController {
         return map;
     }
 
-    @Secured({"ROLE_ADMIN"})
+    @Secured({"ROLE_ADMIN", "ala/internal"})
     @SecurityRequirement(name = "JWT")
     @Operation(summary = "Get list of current downloads", tags = "Monitoring")
     @Tag(name = "Monitoring", description = "Admin services for monitoring the application, download stats, and index. Protected APIs require administrative role for access.")
@@ -525,7 +525,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @Secured({"ROLE_ADMIN"})
+    @Secured({"ROLE_ADMIN", "ala/internal"})
     @SecurityRequirement(name = "JWT")
     @Operation(summary = "Show index version information", tags = "Monitoring")
     @RequestMapping(value = {"index/version"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -549,7 +549,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @Secured({"ROLE_ADMIN"})
+    @Secured({"ROLE_ADMIN", "ala/internal"})
     @SecurityRequirement(name = "JWT")
     @Operation(summary = "Show configured max boolean clauses", tags = "Monitoring")
     @RequestMapping(value = {
@@ -562,8 +562,7 @@ public class OccurrenceController extends AbstractSecureController {
         return map;
     }
 
-
-    @Secured({"ala/internal"})
+    @Secured({"ROLE_ADMIN", "ala/internal"})
     @SecurityRequirement(name = "JWT")
     @Operation(summary = "Export of lft,image", tags = "Monitoring")
     @RequestMapping(value = {"index/speciesImages"}, method = RequestMethod.GET)
@@ -571,6 +570,7 @@ public class OccurrenceController extends AbstractSecureController {
         return speciesImageService.getSpeciesImages();
     }
 
+    @Secured({"ROLE_ADMIN", "ala/internal"})
     @SecurityRequirement(name = "JWT")
     @Operation(summary = "Export of lft,count", tags = "Monitoring")
     @RequestMapping(value = {"index/speciesOccurrences"}, method = RequestMethod.GET)
@@ -578,7 +578,7 @@ public class OccurrenceController extends AbstractSecureController {
         return speciesCountsService.getCounts(null);
     }
 
-    @Secured({"ROLE_ADMIN"})
+    @Secured({"ROLE_ADMIN", "ala/internal"})
     @SecurityRequirement(name = "JWT", scopes = {"ROLE_ADMIN"})
     @Operation(summary = "Show configuration", tags = "Monitoring",
             description = " Public service that reports limits and other useful config for clients."
@@ -951,7 +951,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @Secured({"ROLE_ADMIN"})
+    @Secured({"ROLE_ADMIN", "ala/internal"})
     @SecurityRequirement(name = "JWT")
     @Operation(summary = "Refresh caches", tags = "Monitoring")
     @RequestMapping(value = {"/cache/refresh"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
