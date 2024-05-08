@@ -150,22 +150,15 @@ public class UserPropertiesController extends AbstractSecureController {
         // JWT check only
         String validAlaId = null;
         Principal userPrincipal = request.getUserPrincipal();
-        logger.error("jwtEnabled:" + jwtEnabled);
-        logger.error("UP1: " + (userPrincipal != null) + " user:" + (userPrincipal instanceof AlaUserProfile) +
-                " m2m:" + (userPrincipal instanceof AlaM2MUserProfile) + " alaId:" + alaId);
         if (userPrincipal != null) {
-            logger.error("UP2");
             if (userPrincipal instanceof AlaUserProfile && alaId != null && alaId.equals(((AlaUserProfile) userPrincipal).getUserId())) {
-                logger.error("UP3");
                 // only the user can get their own properties
                 validAlaId = alaId;
             } else if (userPrincipal instanceof AlaM2MUserProfile && ((AlaM2MUserProfile) userPrincipal).getRoles().contains(m2mScope)) {
-                logger.error("UP4");
                 // only M2M with scope users/read (consistent with userdetails) are permitted to get user properties
                 validAlaId = alaId;
             }
         }
-        logger.error("UP5: validid:" + validAlaId);
 
         if (validAlaId == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authorized to access this resource");
