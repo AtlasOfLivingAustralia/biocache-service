@@ -123,6 +123,11 @@ public class OccurrenceController extends AbstractSecureController {
     @Inject
     protected IndexDAO indexDao;
 
+    @Inject
+    protected SpeciesCountsService speciesCountsService;
+    @Inject
+    protected SpeciesImageService speciesImageService;
+
     /**
      * Data Resource DAO
      */
@@ -132,15 +137,13 @@ public class OccurrenceController extends AbstractSecureController {
     @Inject
     protected SpeciesLookupService speciesLookupService;
     @Inject
-    protected SpeciesCountsService speciesCountsService;
-    @Inject
-    protected SpeciesImageService speciesImageService;
-    @Inject
     protected AuthService authService;
     @Inject
     protected OccurrenceUtils occurrenceUtils;
     @Inject
     protected DownloadService downloadService;
+    @Inject
+    protected SensitiveService sensitiveService;
     @Inject
     protected LoggerService loggerService;
     @Inject
@@ -958,6 +961,8 @@ public class OccurrenceController extends AbstractSecureController {
     public @ResponseBody
     String refreshCache() throws Exception {
         searchDAO.refreshCaches();
+        speciesCountsService.resetCache();
+        speciesImageService.resetCache();
 
         //update FacetThemes static values
         new FacetThemes(
@@ -1707,8 +1712,8 @@ public class OccurrenceController extends AbstractSecureController {
             sdl = searchDAO.findByFulltext(idRequest);
         } else {
             // do queries with sensitive filters....if no records returned, do without sensitive filters
-            String sensitiveFq = downloadService.getSensitiveFq(authenticatedUser.get().getRoles());
-            if (StringUtils.isNotEmpty(sensitiveFq)) {
+            String sensitiveFq = sensitiveService.getSensitiveFq(authenticatedUser.get().getRoles());
+            if (StringUtils.isNotEmpty(sensitiveFq)){
                 SpatialSearchRequestDTO idRequest = createRecirdQuery(uuid);
                 idRequest.setFq(new String[]{sensitiveFq});
                 sdl = searchDAO.findByFulltext(idRequest);

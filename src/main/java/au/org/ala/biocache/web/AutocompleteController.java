@@ -14,7 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.web;
 
-import au.org.ala.biocache.service.SpeciesLookupService;
+import au.org.ala.biocache.service.SpeciesSearchService;
 import au.org.ala.biocache.util.converter.FqField;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,7 +34,7 @@ import java.util.Map;
 public class AutocompleteController extends AbstractSecureController {
 
     @Inject
-    protected SpeciesLookupService speciesLookupService;
+    protected SpeciesSearchService speciesSearchService;
 
     @Operation(summary = "Autocomplete service which filters only lists taxa with occurrence data", tags = "Autocomplete")
     @Tag(name ="Autocomplete", description = "Services that support autocomplete text boxes")
@@ -49,6 +49,6 @@ public class AutocompleteController extends AbstractSecureController {
             @RequestParam(value = "all", required = false, defaultValue = "false") Boolean includeAll,
             @RequestParam(value = "synonyms", required = false, defaultValue = "true") Boolean searchSynonyms,
             @RequestParam(value = "counts", required = false, defaultValue = "true") Boolean counts) throws Exception {
-        return speciesLookupService.search(query, filterQuery, max, searchSynonyms, includeAll, counts);
+        return speciesSearchService.search(query, filterQuery, max, searchSynonyms, includeAll, counts);
     }
 }
