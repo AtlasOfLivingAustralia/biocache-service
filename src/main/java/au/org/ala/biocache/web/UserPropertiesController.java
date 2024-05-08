@@ -142,10 +142,6 @@ public class UserPropertiesController extends AbstractSecureController {
         }
     }
 
-    @Value("${security.jwt.enabled}")
-    private Boolean jwtEnabled;
-
-
     private String getValidUser(String alaId, HttpServletRequest request, String m2mScope) {
         // JWT check only
         String validAlaId = null;
