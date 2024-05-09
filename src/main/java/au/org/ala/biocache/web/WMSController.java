@@ -59,6 +59,7 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.awt.*;
+import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -2472,42 +2473,47 @@ public class WMSController extends AbstractSecureController {
                         imgObj.g.setPaint(colour);
 
                         // the grid has an x+1, y+1 offset.
-                        int yoffset = (i - 1) % 2 == 0 ? 0 : (int) (hexCellHeight / 2.0);
+                        double yoffset = (i - 1) % 2 == 0 ? 0 : (hexCellHeight / 2.0);
 
                         yoffset -= globalYOffset;
 
                         // get coordinates.
-                        int x1 = (int)Math.floor(xOverlap + (i - 1) * hexCellWidth);
-                        int y1 = (int)Math.floor(((j - 1) * hexCellHeight) + yoffset);
+                        double x1 = xOverlap + (i - 1) * hexCellWidth;
+                        double y1 = ((j - 1) * hexCellHeight) + yoffset;
 
-                        int x2 = (int)Math.floor((i) * hexCellWidth);
-                        int y2 = y1;
+                        double x2 = (i) * hexCellWidth;
+                        double y2 = y1;
 
-                        int x3 = (int)Math.floor(xOverlap + i * hexCellWidth);
-                        int y3 = (int)(((i - 1) % 2 == 0 ? y1 + (int)Math.floor(hexCellHeight / 2.0) : (int) Math.floor((j) * hexCellHeight - globalYOffset)) );
+                        double x3 = xOverlap + i * hexCellWidth;
+                        double y3 = ((i - 1) % 2 == 0 ?
+                                hexCellHeight / 2.0 + (j - 1) * hexCellHeight + yoffset :
+                                j * hexCellHeight - globalYOffset);
 
-                        int x4 = x2;
-                        int y4 = (int)Math.floor((j * hexCellHeight) + yoffset);
+                        double x4 = x2;
+                        double y4 = (j * hexCellHeight) + yoffset;
 
-                        int x5 = x1;
-                        int y5 = y4;
+                        double x5 = x1;
+                        double y5 = y4;
 
-                        int x6 = (int)Math.floor((i - 1) * hexCellWidth);
-                        int y6 = y3;
+                        double x6 = (i - 1) * hexCellWidth;
+                        double y6 = y3;
 
-                        int [] y = new int [] { y1, y2, y3, y4, y5, y6 };
+                        // Decided to use a Path2D.Float, with +/- 0.1 to coords, to hide aliased edges.
+                        // It also means coordinates do not need to be rounded.
+                        Path2D path = new Path2D.Float();
+                        path.moveTo(x1 - 0.2, y1 - 0.3);
+                        path.lineTo(x2 + 0.2, y2 - 0.3);
+                        path.lineTo(x3 + 0.2, y3);
+                        path.lineTo(x4 + 0.2, y4 + 0.3);
+                        path.lineTo(x5 - 0.2, y5 + 0.3);
+                        path.lineTo(x6 - 0.2, y6);
+                        path.closePath();
+
+                        imgObj.g.fill(path);
 
                         if (outlinePoints) {
-                            int [] xOutline = new int [] { x1, x2, x3, x4, x5, x6 };
-
-                            imgObj.g.fillPolygon(xOutline, y, 6);
-
                             imgObj.g.setPaint(oColour);
-                            imgObj.g.drawPolygon(xOutline, y, 6);
-                        } else {
-                            int [] xFill = new int [] { x1, x2, x3, x4, x5, x6 };
-
-                            imgObj.g.fillPolygon(xFill, y, 6);
+                            imgObj.g.draw(path);
                         }
                     }
                 }
