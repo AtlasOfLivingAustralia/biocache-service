@@ -15,7 +15,6 @@ import org.springframework.context.annotation.PropertySource;
 @SpringBootApplication
 @ImportResource("classpath:spring.xml")
 @ComponentScan( { "au.org.ala.biocache.*" , "au.org.ala.ws.config" })
-@PropertySource(value="file:///data/biocache/config/biocache-config.properties", ignoreResourceNotFound=true)
 public class Application extends SpringBootServletInitializer {
 
     @Override
