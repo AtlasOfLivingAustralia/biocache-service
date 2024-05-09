@@ -8,11 +8,9 @@ import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.stream.ProcessInterface;
 import au.org.ala.biocache.util.DwCTerms;
 import au.org.ala.biocache.util.DwcTermDetails;
-import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.solr.FieldMappedSolrClient;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
-import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.client.config.RequestConfig;
@@ -117,9 +115,6 @@ public class SolrIndexDAOImpl implements IndexDAO {
     protected String indexFieldsToHide;
 
     protected Pattern layersPattern = Pattern.compile("(el|cl)[0-9abc]+");
-
-    @Inject
-    protected QueryFormatUtils queryFormatUtils;
 
     @Value("${dwc.url:http://rs.tdwg.org/dwc/terms/}")
     protected String dwcUrl = "http://rs.tdwg.org/dwc/terms/";

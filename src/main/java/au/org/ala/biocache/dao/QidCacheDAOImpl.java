@@ -19,7 +19,6 @@ import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.service.DataQualityService;
 import au.org.ala.biocache.util.QidMissingException;
 import au.org.ala.biocache.util.QidSizeException;
-import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.SpatialUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -74,9 +73,6 @@ public class QidCacheDAOImpl implements QidCacheDAO {
     @Inject
     private DataQualityService dataQualityService;
 
-    @Inject
-    protected QueryFormatUtils queryFormatUtils;
-
     /**
      * in memory store of params
      */
@@ -97,9 +93,6 @@ public class QidCacheDAOImpl implements QidCacheDAO {
      * thread for cache size limitation
      */
     private Thread cacheCleaner;
-
-    @Inject
-    private SearchDAO searchDAO;
 
     @Inject
     private StoreDAO storeDao;
@@ -411,25 +404,14 @@ public class QidCacheDAOImpl implements QidCacheDAO {
 
     @Cacheable("qidGeneration")
     @Override
-    public String generateQid(SpatialSearchRequestDTO requestParams, String bbox, String title, Long maxage, String source) {
+    public String generateQid(SpatialSearchRequestDTO requestParams, double[] bbox, String title, Long maxage, String source) {
         try {
             //simplify wkt
             requestParams.setWkt(fixWkt(requestParams.getWkt()));
 
-            //get bbox (also cleans up Q)
-            double[] bb = null;
-            if (bbox != null && bbox.equals("true")) {
-                try {
-                    bb = searchDAO.getBBox(requestParams);
-                } catch (Exception e) {
-                    // When there are no occurrences for the query return a usable bounding box
-                    bb = new double []{-180, -90, 180, 90};
-                }
-            } else {
+            if (bbox == null) {
                 requestParams.setPageSize(0);
                 requestParams.setFacet(false);
-                //get a formatted Q
-                queryFormatUtils.formatSearchQuery(requestParams);
             }
 
             //store the title if necessary
@@ -440,7 +422,7 @@ public class QidCacheDAOImpl implements QidCacheDAO {
             if (fqs.length == 0 || (fqs.length == 1 && fqs[0].length() == 0)) {
                 fqs = null;
             }
-            String qid = put(requestParams.getQ(), title, requestParams.getWkt(), bb, fqs, maxage, source);
+            String qid = put(requestParams.getQ(), title, requestParams.getWkt(), bbox, fqs, maxage, source);
 
             return qid;
         } catch (Exception e) {

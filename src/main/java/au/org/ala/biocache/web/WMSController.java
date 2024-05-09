@@ -274,7 +274,20 @@ public class WMSController extends AbstractSecureController {
             requestParams.setRadius(null);
         }
 
-        String qid = qidCacheDAO.generateQid(requestParams, bbox, title, maxage, source);
+        //get a formatted Q before generating Qid
+        queryFormatUtils.formatSearchQuery(requestParams);
+
+        double[] bb = null;
+        if (bbox != null && bbox.equalsIgnoreCase("true")) {
+            try {
+                bb = searchDAO.getBBox(requestParams);
+            } catch (Exception e) {
+                // When there are no occurrences for the query return a usable bounding box
+                bb = new double []{-180, -90, 180, 90};
+            }
+        }
+
+        String qid = qidCacheDAO.generateQid(requestParams, bb, title, maxage, source);
         if (qid == null) {
             if (StringUtils.isEmpty(requestParams.getWkt())) {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unable to generate QID for query");

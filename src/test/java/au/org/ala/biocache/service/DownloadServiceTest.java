@@ -417,9 +417,6 @@ public class DownloadServiceTest {
         testLatch = new CountDownLatch(1);
 
         testService = new DownloadService() {
-            {
-                sensitiveAccessRoles20 = "{}";
-            }
 
             protected DownloadRunnable getDownloadRunnable(DownloadDetailsDTO dd) {
                 return new DownloadRunnable(dd) {
@@ -1044,9 +1041,6 @@ public class DownloadServiceTest {
         }
 
         DownloadService testService = new DownloadService() {
-            {
-                sensitiveAccessRoles20 = "{}";
-            }
         };
 
         testService.downloadQualityFiltersTemplate = new ClassPathResource("download-email-quality-filter-snippet.html");

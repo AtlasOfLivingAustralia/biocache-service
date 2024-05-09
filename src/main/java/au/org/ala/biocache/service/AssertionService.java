@@ -4,7 +4,6 @@ import au.org.ala.biocache.dao.IndexDAO;
 import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dao.StoreDAO;
 import au.org.ala.biocache.dto.*;
-import au.org.ala.biocache.util.OccurrenceUtils;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import org.apache.commons.lang.StringUtils;
@@ -33,8 +32,6 @@ public class AssertionService {
     private static final Logger logger = LoggerFactory.getLogger(AssertionService.class);
 
     @Inject
-    private OccurrenceUtils occurrenceUtils;
-    @Inject
     private StoreDAO store;
     @Inject
     private SearchDAO searchDAO;
@@ -43,7 +40,7 @@ public class AssertionService {
 
     SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
     private final Pattern uuidPattern = Pattern.compile("^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$");
-    
+
     // max 1 indexAll thread can run at same time
     ThreadPoolExecutor executorService = new ThreadPoolExecutor(1, 1, 0, MILLISECONDS,
             new SynchronousQueue<>(),
@@ -82,7 +79,7 @@ public class AssertionService {
                 + userAssertionStatus + ", assertionUuid: " + assertionUuid + ", relatedRecordId: " + relatedRecordId
                 + ", relatedRecordReason: " + relatedRecordReason);
 
-        SolrDocument sd = occurrenceUtils.getOcc(recordUuid);
+        SolrDocument sd = searchDAO.getOcc(recordUuid);
         // only when record uuid is valid
         if (sd != null) {
             QualityAssertion qa = new QualityAssertion();
@@ -120,7 +117,7 @@ public class AssertionService {
 
 
     public boolean deleteAssertion(String recordUuid, String assertionUuid) throws IOException {
-        SolrDocument sd = occurrenceUtils.getOcc(recordUuid);
+        SolrDocument sd = searchDAO.getOcc(recordUuid);
         // only when record uuid is valid
         if (sd != null) {
             UserAssertions userAssertions = store.get(UserAssertions.class, recordUuid).orElse(new UserAssertions());
@@ -158,7 +155,7 @@ public class AssertionService {
     }
 
     public boolean bulkAddAssertions(String recordUuid, UserAssertions userAssertions) throws IOException {
-        SolrDocument sd = occurrenceUtils.getOcc(recordUuid);
+        SolrDocument sd = searchDAO.getOcc(recordUuid);
         // only when record uuid is valid
         if (sd != null) {
             UserAssertions existingAssertions = store.get(UserAssertions.class, recordUuid).orElse(new UserAssertions());
@@ -308,7 +305,7 @@ public class AssertionService {
 
         List<QualityAssertion> assertionsWithValidDate =
                 userAssertions.stream().filter(qa -> validDate(qa.getCreated())).collect(Collectors.toList());
-				
+
         if (!assertionsWithValidDate.isEmpty()) {
             assertionsWithValidDate.sort((qa1, qa2) -> {
                 try {

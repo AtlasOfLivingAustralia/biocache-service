@@ -27,7 +27,6 @@ import au.org.ala.ws.security.profile.AlaUserProfile;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -43,7 +42,6 @@ import org.slf4j.MDC;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
-//import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
@@ -56,8 +54,6 @@ import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
@@ -186,18 +182,11 @@ public class SearchDAOImpl implements SearchDAO {
 
     @Inject
     protected RangeBasedFacets rangeBasedFacets;
-
-    @Inject
-    protected SpeciesCountsService speciesCountsService;
-
-    @Inject
-    protected SpeciesImageService speciesImageService;
-
     @Inject
     public ListsService listsService;
 
     @Inject
-    protected DownloadService downloadService;
+    protected SensitiveService sensitiveService;
 
     @Value("${media.store.local:true}")
     protected Boolean usingLocalMediaRepo = true;
@@ -226,6 +215,9 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Value("${wms.legendMaxItems:30}")
     private int wmslegendMaxItems;
+
+    @Value("${download.offline.max.size:100000000}")
+    public Integer dowloadOfflineMaxSize = 100000000;
 
     /**
      * thread pool for faceted solr queries
@@ -322,8 +314,6 @@ public class SearchDAOImpl implements SearchDAO {
         } catch (Exception e) {
             logger.error("Unable to refresh cache.", e);
         }
-        speciesImageService.resetCache();
-        speciesCountsService.resetCache();
 
         listsService.refreshCache();
         layersService.refreshCache();
@@ -600,7 +590,7 @@ public class SearchDAOImpl implements SearchDAO {
         dd.resetCounts();
 
         // prepare requested download fields (defaults, substitutions)
-        boolean hasSensitiveRecordAccess = downloadService.getSensitiveFq(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles()) != null;
+        boolean hasSensitiveRecordAccess = sensitiveService.getSensitiveFq(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles()) != null;
         prepareRequestedFields(downloadParams, hasSensitiveRecordAccess);
 
         // prepare headers
@@ -665,7 +655,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFilterQueries(downloadParams.getFormattedFq());
         solrQuery.setRows(-1);
         solrQuery.setStart(0);
-        String sensitiveFq = downloadService.getSensitiveFq(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles());
+        String sensitiveFq = sensitiveService.getSensitiveFq(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles());
         // Split into sensitive and non-sensitive queries when
         // - not including all sensitive values
         // - there is a sensitive fq
@@ -683,7 +673,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
 
         ProcessDownload procDownload = new ProcessDownload(downloadStats, downloadHeaders, recordWriter, dd,
-                checkDownloadLimits, downloadService.dowloadOfflineMaxSize,
+                checkDownloadLimits, dowloadOfflineMaxSize,
                 listsService, layersService);
 
         return new DownloadCallable(queries, indexDao, procDownload);
@@ -2620,5 +2610,20 @@ public class SearchDAOImpl implements SearchDAO {
             return facets.get(0);
         }
         return null;
+    }
+
+    public SolrDocument getOcc(String recordUuid) {
+        SpatialSearchRequestDTO idRequest = new SpatialSearchRequestDTO();
+        idRequest.setQ("id:\"" + recordUuid + "\"");
+        idRequest.setFacet(false);
+        idRequest.setFl("*");
+        idRequest.setPageSize(1);
+        SolrDocumentList list = null;
+        try {
+            list = findByFulltext(idRequest);
+        } catch (Exception ignored) {
+            logger.debug("Failed to find occurrence with id " + recordUuid);
+        }
+        return (list != null && list.size() > 0) ? list.get(0) : null;
     }
 }
