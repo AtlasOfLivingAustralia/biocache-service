@@ -876,6 +876,7 @@ public class SearchDAOImpl implements SearchDAO {
                     }
                 }
                 if (sb.length() > 0 && matcher.end() < fields.length()) sb.append(",");
+                if (sb.length() == 0) sb.append(","); //otherwise pattern eats commas on either side e.g. "speciesGroups_p,el_p,cl20," becomes "speciesGroups_pcl20,"
                 fields = matcher.replaceFirst(sb.toString());
             }
 

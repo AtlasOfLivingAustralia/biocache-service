@@ -23,7 +23,7 @@ cache:
     - $HOME/.gradle/caches/
     - $HOME/.gradle/wrapper/
 before_install:
-  - export TZ=Australia/Canberra
+  - export TZ=Europe/London
 after_success:
   - '[ "${TRAVIS_PULL_REQUEST}" = "false" ] && ./gradlew clean'
   - ./gradlew publish
@@ -33,5 +33,5 @@ after_success:
 env:
   global:
     - JAVA_TOOL_OPTIONS=-Dhttps.protocols=TLSv1.2
-    - secure: Cz3CJDjuIm52LplBphLsQwNv055US4oxG51PgpJE6IYdta8KJxv04QwK+ytgb3eDNA6ec7XpGPuCaMnDXhpTTdMiluN0ATZY4dEkCIVTnHWGW0Fr0ydlwutkYx/kFUYIJwu9FueEPJYMYgPZ2LTxa6rrUATJ2U13N7R2ul3A5kQ=
-    - secure: fLDJXNgi3H8PkGkquJZ3UdsdD1f99cJhbwFCv2PcaIaMyh29Y40EHIlCOmcfdYNEFa4kfOib2vj0e6u8VWDhSzJc+FzOPUU1bi7VzkWAWlQo8jPoq61VBELa+Gq/PayBvsZCN2lqE3Rb92NbyN9D/4rsRWRkKan/MZ/2KZGlK8U=
+    - secure: K8UWqHdiZVClcbvW7A6krVNMaNIGTRCVU2LGN8FKf9IwSsqVcgrgirTd2eSbr6wCta7haTV5WqM4UwleYZLHiIy0mfC3kghJ7Wy+j33YM4sYsBpgphuwIm/whnln3Td3UxBuDRTU/WDv7o2I3+g12XBZmxO7gQxNyGvBkh+R+HG0Wm7OsANtDPBZR4G3cqbkvOq3HSi3898b/tAy30XQJYTa9Ay05MwNnWxp/FKT7yrDXhw/F7GT2GYDHkEWmcxCpgOUbzSiIH8/fTu+bomMXdTJ9DEe4UBr4+fG6YfxABUImVmgyFzuRkcwNM50uEg4I7bAV5vPOznEbXqx1sVDjuhVcal8J6wvjjBxNpE/Ld019u2wKc8aCnZBi4+Y/ySZB0f8zCqlUtL91BtFXASMcywENW3aOgdhVGny0fpbaT4ON3XBLk4I7v3QvZc1qtgOVYjrsUwdqJemRhgyjVOfbRIoPAUh60UtCTl5wHRqNmdU3/n3tv84bvZ9crQem3I4Rf6l+vw6x/4pRN8Fd1EzLtE5b3N/ABeC94WmMM3SCy74BQmbnHnxNHY7sS+wqH2WbymRChxHHmpnM6fRu8D+iPq0GrnZogmOmACm/F+zu5OdHwMVg52vbnhMGKt8jfsL9gu2PvNhmJTUrxqunNntsXSDEfHXcSL34rWL/1P/27o=
+    - secure: NxgBUMPPJ6bqnEPS9fW4f503E+nLVu4kRaWs/hHVu/feWnr6u3Uzh6/JhRxvcyZtwu1uzk1Dz5vZQ0WEudGb341L8lC2ruPnoYnvJQ86T9B+9K5mA6Yc6vi+13jcTsS5sRCaO23041Nll80P47lhXKGpNLfZE2FaO1iMDK/LtGo8INLa9qnbr0F1q5tNK2y/vWK5U9kNdI4U1t2BQr6cOCzMRstkikus2xuk/7QixRs+MPvRvbEv9Bmde6iCzmKntsgUjqcTLIWFYHzIU2Xt8aG3vZP6pNJzOakxTXywl/AuQOHsciuyJ7DcRuHYQFucTDPjey0EPOC9tmCAxMNibzqBegFxQAG4lhByhgQWWrPHzeShrH1C+oymUsvIrKvLS8FSqJY38X5uumgEUaDuNhgOFw7CzLPV96I2mgjKksOj6ehIMYkuKiOqpzFtOZH6+EgwAjcjt1jN1fk6dpXCx8tavFSKyVB4Jm4NI5VphLEm6FX8AGtoouwOVUBLpK1xS3a/nFigie4AapDrjWLXTItWr43xx/GTiOvuyVktZGF2XJAJiBnxeUT0lz6uX/KNVwd81GRXXQP3C3Bjryhz5CU+gIfT7Y/SVW7pf+Ddlk+pLPNkPsszSloA1stAM5E/ZA6fn7xXS8RysiYqUuNKdBGyC8/1PYUERHJuf8Vo3Bk=

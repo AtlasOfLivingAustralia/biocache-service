@@ -170,7 +170,8 @@ public class ChartController extends AbstractSecureController implements Seriali
 
             List data = new ArrayList();
 
-            if (xranges == null && stats == null) {
+            //horrible HACK for year and decade graphs
+            if (xranges == null && stats == null || x.equalsIgnoreCase("year") || x.equalsIgnoreCase("occurrence_decade_i")) {
                 //1. occurrence bar/pie/line chart of field
                 searchParams.setFacet(true);
                 searchParams.setFlimit(maxStringFacets);

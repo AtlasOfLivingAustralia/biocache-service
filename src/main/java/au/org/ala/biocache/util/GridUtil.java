@@ -48,6 +48,7 @@ public class GridUtil {
     // deal with the 2k OS grid ref separately
     Pattern osGridRefNoEastingNorthing = Pattern.compile("([A-Z]{2})");
     Pattern osGridRefRegex1Number = Pattern.compile("([A-Z]{2})\\s*([0-9]+)$");
+    Pattern osGridRef50kRegex =Pattern.compile("([A-Z]{2})\\s*([NW|NE|SW|SE]{2})");
     Pattern osGridRef2kRegex = Pattern.compile("([A-Z]{2})\\s*([0-9]+)\\s*([0-9]+)\\s*([A-Z]{1})");
     Pattern osGridRefRegex = Pattern.compile("([A-Z]{2})\\s*([0-9]+)\\s*([0-9]+)$");
     Pattern osGridRefWithQuadRegex =
@@ -63,6 +64,7 @@ public class GridUtil {
     static Pattern irishGridRefNoEastingNorthing =
             Pattern.compile("(I?[" + irishGridlettersFlattened + "]{1})");
     static Pattern irishGridRefRegex1Number = Pattern.compile("(I?[A-Z]{1})\\s*([0-9]+)$");
+    static Pattern irishGridRef50kRegex = Pattern.compile("([A-Z]{1})\\s*([NW|NE|SW|SE]{2})$");
     static Pattern irishGridRef2kRegex =
             Pattern.compile("(I?[A-Z]{1})\\s*([0-9]+)\\s*([0-9]+)\\s*([A-Z]{1})");
     static Pattern irishGridRefRegex = Pattern.compile("(I?[A-Z]{1})\\s*([0-9]+)\\s*([0-9]+)$");
@@ -128,7 +130,7 @@ public class GridUtil {
      * @param noOfSecondaryAlphaChars
      * @return
      */
-    static Integer getCoordinateUncertaintyFromGridRef(
+    static Integer getGridSizeFromGridRef(
             Integer noOfNumericalDigits, Integer noOfSecondaryAlphaChars) {
         Integer accuracy = null;
         switch (noOfNumericalDigits) {
@@ -182,6 +184,7 @@ public class GridUtil {
             String[] gridRefSeq =
                     new String[]{
                             gridRefs.getOrDefault("grid_ref_100000", ""),
+                            gridRefs.getOrDefault("grid_ref_50000", ""),
                             gridRefs.getOrDefault("grid_ref_10000", ""),
                             gridRefs.getOrDefault("grid_ref_2000", ""),
                             gridRefs.getOrDefault("grid_ref_1000", ""),
@@ -190,6 +193,8 @@ public class GridUtil {
 
             if (uncertainty > 10000) {
                 ref = getBestValue(gridRefSeq, 0);
+            } else if (uncertainty <= 50000 && uncertainty > 10000) {
+                getBestValue(gridRefSeq, 1);
             } else if (uncertainty <= 10000 && uncertainty > 2000) {
                 ref = getBestValue(gridRefSeq, 1);
             } else if (uncertainty <= 2000 && uncertainty > 1000) {
@@ -244,7 +249,7 @@ public class GridUtil {
 
         GridRef gr = gridReferenceToEastingNorthing(gridRef);
 
-        int gridSize = gr.getCoordinateUncertainty();
+        int gridSize = gr.getGridSize();
         map.put("grid_ref_100000", gr.gridLetters);
 
         if (gridRef.length() > 2) {
@@ -252,36 +257,57 @@ public class GridUtil {
             String eastingAsStr = padWithZeros(String.valueOf(gr.getEasting() % 100000), 5);
             String northingAsStr = padWithZeros(String.valueOf(gr.getNorthing() % 100000), 5);
 
-            // add grid references for 10km, and 1km
+            //add grid reference for 50km
             if (eastingAsStr.length() >= 2 && northingAsStr.length() >= 2) {
-                map.put(
-                        "grid_ref_10000",
-                        gr.gridLetters + eastingAsStr.substring(0, 1) + northingAsStr.substring(0, 1));
-            }
-            if (eastingAsStr.length() >= 3 && northingAsStr.length() >= 3) {
-                int eastingWithin10km = Integer.parseInt(eastingAsStr.substring(1, 2));
-                int northingWithin10km = Integer.parseInt(northingAsStr.substring(1, 2));
-                int tetrad = tetradLetters[(eastingWithin10km / 2) * 5 + (northingWithin10km / 2)];
-
-                if (gridSize != -1 && gridSize <= 2000) {
-                    map.put(
-                            "grid_ref_2000",
-                            gr.gridLetters
-                                    + eastingAsStr.substring(0, 1)
-                                    + northingAsStr.substring(0, 1)
-                                    + tetrad);
+                var quad = "";
+                if (Integer.parseInt(eastingAsStr.substring(0, 1)) < 5) { //W
+                    if (Integer.parseInt(northingAsStr.substring(0, 1)) < 5) { //S
+                        quad = "SW";
+                    } else { //N
+                        quad = "NW";
+                    }
+                } else { //E
+                    if (Integer.parseInt(northingAsStr.substring(0, 1)) < 5) { //S
+                        quad = "SE";
+                    } else { //N
+                        quad = "NE";
+                    }
                 }
-                if (gridSize != -1 && gridSize <= 1000) {
-                    map.put(
-                            "grid_ref_1000",
-                            gr.gridLetters + eastingAsStr.substring(0, 2) + northingAsStr.substring(0, 2));
-                }
+                map.put("grid_ref_50000", gr.getGridLetters() + quad);
             }
 
-            if (gridSize != -1 && gridSize <= 100 && eastingAsStr.length() > 3) {
-                map.put(
-                        "grid_ref_100",
-                        gr.gridLetters + eastingAsStr.substring(0, 3) + northingAsStr.substring(0, 3));
+            if (gridSize < 50000) {
+                // add grid references for 10km, and 1km
+                if (eastingAsStr.length() >= 2 && northingAsStr.length() >= 2) {
+                    map.put(
+                            "grid_ref_10000",
+                            gr.gridLetters + eastingAsStr.substring(0, 1) + northingAsStr.substring(0, 1));
+                }
+                if (eastingAsStr.length() >= 3 && northingAsStr.length() >= 3) {
+                    int eastingWithin10km = Integer.parseInt(eastingAsStr.substring(1, 2));
+                    int northingWithin10km = Integer.parseInt(northingAsStr.substring(1, 2));
+                    int tetrad = tetradLetters[(eastingWithin10km / 2) * 5 + (northingWithin10km / 2)];
+
+                    if (gridSize != -1 && gridSize <= 2000) {
+                        map.put(
+                                "grid_ref_2000",
+                                gr.gridLetters
+                                        + eastingAsStr.substring(0, 1)
+                                        + northingAsStr.substring(0, 1)
+                                        + tetrad);
+                    }
+                    if (gridSize != -1 && gridSize <= 1000) {
+                        map.put(
+                                "grid_ref_1000",
+                                gr.gridLetters + eastingAsStr.substring(0, 2) + northingAsStr.substring(0, 2));
+                    }
+                }
+
+                if (gridSize != -1 && gridSize <= 100 && eastingAsStr.length() > 3) {
+                    map.put(
+                            "grid_ref_100",
+                            gr.gridLetters + eastingAsStr.substring(0, 3) + northingAsStr.substring(0, 3));
+                }
             }
         }
 
@@ -320,7 +346,7 @@ public class GridUtil {
         String northing;
         String twoKRef = "";
         String quadRef = "";
-        Integer coordinateUncertainty;
+        Integer gridSize;
 
         Matcher matcher1 = irishGridRefRegex1Number.matcher(gridRef);
         Matcher matcher2 = irishGridRefRegex.matcher(gridRef);
@@ -333,30 +359,30 @@ public class GridUtil {
             String gridDigits = matcher1.group(2);
             easting = gridDigits.substring(0, gridDigits.length() / 2);
             northing = gridDigits.substring(gridDigits.length() / 2);
-            coordinateUncertainty = getCoordinateUncertaintyFromGridRef(gridDigits.length(), 0);
+            gridSize = getGridSizeFromGridRef(gridDigits.length(), 0);
         } else if (matcher2.matches()) {
             gridletters = matcher2.group(1);
             easting = matcher2.group(2);
             northing = matcher2.group(3);
             twoKRef = matcher2.group(4);
-            coordinateUncertainty = getCoordinateUncertaintyFromGridRef(easting.length() * 2, 0);
+            gridSize = getGridSizeFromGridRef(easting.length() * 2, 0);
         } else if (matcher3.matches()) {
             gridletters = matcher3.group(1);
             easting = matcher3.group(2);
             northing = matcher3.group(3);
             twoKRef = matcher3.group(4);
-            coordinateUncertainty = getCoordinateUncertaintyFromGridRef(easting.length() * 2, 1);
+            gridSize = getGridSizeFromGridRef(easting.length() * 2, 1);
         } else if (matcher4.matches()) {
             gridletters = matcher4.group(1);
             easting = matcher4.group(2);
             northing = matcher4.group(3);
             quadRef = matcher4.group(4);
-            coordinateUncertainty = getCoordinateUncertaintyFromGridRef(easting.length() * 2, 2);
+            gridSize = getGridSizeFromGridRef(easting.length() * 2, 2);
         } else if (matcher5.matches()) {
             gridletters = matcher5.group(1);
             easting = "0";
             northing = "0";
-            coordinateUncertainty = getCoordinateUncertaintyFromGridRef(0, 0);
+            gridSize = getGridSizeFromGridRef(0, 0);
         } else {
             return null;
         }
@@ -386,6 +412,10 @@ public class GridUtil {
             else if (easting.length() == 2) cellSize = 200;
             else if (easting.length() == 3) cellSize = 20;
             else if (easting.length() == 4) cellSize = 2;
+
+            if (gridSize == 50000) { //50km grids only
+                cellSize = 50000;
+            }
 
             // Dealing with 5 character grid references = 2km grids
             // http://www.kmbrc.org.uk/recording/help/gridrefhelp.php?page=6
@@ -426,17 +456,17 @@ public class GridUtil {
         }
 
         /** end of C & P ** */
-        int coordinateUncertaintyOrZero = coordinateUncertainty == null ? 0 : coordinateUncertainty;
+        int gridSizeOrZero = gridSize == null ? 0 : gridSize;
 
         return new GridRef(
                 gridletters,
                 e,
                 n,
-                coordinateUncertaintyOrZero,
+                gridSizeOrZero,
                 e,
                 n,
-                e + coordinateUncertaintyOrZero,
-                n + coordinateUncertaintyOrZero,
+                e + gridSizeOrZero,
+                n + gridSizeOrZero,
                 IRISH_CRS);
     }
 
@@ -456,6 +486,7 @@ public class GridUtil {
 
         // deal with the 2k OS grid ref separately
         Pattern osGridRefNoEastingNorthing = Pattern.compile("([A-Z]{2})");
+        Pattern osGridRef50kRegex = Pattern.compile("([A-Z]{2})\\s*([NW|NE|SW|SE]{2})$");
         Pattern osGridRefRegex1Number = Pattern.compile("([A-Z]{2})\\s*([0-9]+)$");
         Pattern osGridRef2kRegex = Pattern.compile("([A-Z]{2})\\s*([0-9]+)\\s*([0-9]+)\\s*([A-Z]{1})");
         Pattern osGridRefRegex = Pattern.compile("([A-Z]{2})\\s*([0-9]+)\\s*([0-9]+)$");
@@ -468,7 +499,7 @@ public class GridUtil {
         String northing;
         String twoKRef = null;
         String quadRef = null;
-        Integer coordinateUncertainty;
+        Integer gridSize;
 
         Matcher matcher1 = osGridRefRegex1Number.matcher(gridRef);
         Matcher matcher2 = osGridRefRegex.matcher(gridRef);
@@ -478,7 +509,7 @@ public class GridUtil {
         if (matcher1.matches()) {
             String gridDigits = matcher1.group(2);
 
-            coordinateUncertainty = getCoordinateUncertaintyFromGridRef(gridDigits.length(), 0);
+            gridSize = getGridSizeFromGridRef(gridDigits.length(), 0);
             gridletters = matcher1.group(1);
             easting = gridDigits.substring(0, gridDigits.length() / 2);
             northing = gridDigits.substring(gridDigits.length() / 2);
@@ -486,24 +517,24 @@ public class GridUtil {
             gridletters = matcher2.group(1);
             easting = matcher2.group(2);
             northing = matcher2.group(3);
-            coordinateUncertainty = getCoordinateUncertaintyFromGridRef(easting.length() * 2, 0);
+            gridSize = getGridSizeFromGridRef(easting.length() * 2, 0);
         } else if (matcher3.matches()) {
             gridletters = matcher3.group(1);
             easting = matcher3.group(2);
             northing = matcher3.group(3);
             twoKRef = matcher3.group(4);
-            coordinateUncertainty = getCoordinateUncertaintyFromGridRef(easting.length() * 2, 1);
+            gridSize = getGridSizeFromGridRef(easting.length() * 2, 1);
         } else if (matcher4.matches()) {
             gridletters = matcher4.group(1);
             easting = matcher4.group(2);
             northing = matcher4.group(3);
             quadRef = matcher4.group(4);
-            coordinateUncertainty = getCoordinateUncertaintyFromGridRef(easting.length() * 2, 2);
+            gridSize = getGridSizeFromGridRef(easting.length() * 2, 2);
         } else if (matcher5.matches()) {
             gridletters = matcher5.group(1);
             easting = "0";
             northing = "0";
-            coordinateUncertainty = getCoordinateUncertaintyFromGridRef(0, 0);
+            gridSize = getGridSizeFromGridRef(0, 0);
         } else {
             return null;
         }
@@ -576,6 +607,10 @@ public class GridUtil {
             else if (easting.length() == 3) cellSize = 50;
             else if (easting.length() == 4) cellSize = 5;
 
+            if (gridSize == 50000) { //50km grids only
+                cellSize = 50000;
+            }
+
             if (cellSize > 0) {
                 if ("NW".equals(quadRef)) {
 
@@ -596,19 +631,25 @@ public class GridUtil {
             }
         }
 
-        int coordinateUncertaintyOrZero = coordinateUncertainty == null ? 0 : coordinateUncertainty;
+        int gridSizeOrZero = gridSize == null ? 0 : gridSize;
 
         return new GridRef(
                 gridletters,
                 e,
                 n,
-                coordinateUncertainty,
+                gridSize,
                 e,
                 n,
-                e + coordinateUncertaintyOrZero,
-                n + coordinateUncertaintyOrZero,
+                e + gridSizeOrZero,
+                n + gridSizeOrZero,
                 OSGB_CRS);
     }
+
+
+
+
+
+
 
     /**
      * Process supplied grid references. This currently only recognises UK OS grid references but
@@ -627,8 +668,8 @@ public class GridUtil {
 
         // move coordinates to the centroid of the grid
         double reposition = 0;
-        if (gr.getCoordinateUncertainty() == null && gr.getCoordinateUncertainty() > 0) {
-            reposition = gr.getCoordinateUncertainty() / 2;
+        if (gr.getGridSize() == null && gr.getGridSize() > 0) {
+            reposition = gr.getGridSize() / 2;
         }
 
         double[] coords =
@@ -646,8 +687,8 @@ public class GridUtil {
 
         if (coords != null) {
             String uncertaintyToUse = null;
-            if (gr.getCoordinateUncertainty() != null) {
-                gr.getCoordinateUncertainty().toString();
+            if (gr.getGridSize() != null) {
+                gr.getGridSize().toString();
             }
             result =
                     new GISPoint(
@@ -690,6 +731,9 @@ public class GridUtil {
         return getCrsEpsgCodesMap().getOrDefault(crs.toUpperCase(), null);
     }
 
+
+
+
     /**
      * Converts a easting northing to a decimal latitude/longitude.
      *
@@ -699,7 +743,7 @@ public class GridUtil {
      * @param zone
      * @param assertions
      * @return 3-tuple reprojectedLatitude, reprojectedLongitude, WGS84_EPSG_Code
-     */
+     *///TODO_BIOCACHE_STORE was used by biocache store
     GISPoint processNorthingEastingZone(
             String verbatimSRS,
             String easting,
@@ -772,4 +816,282 @@ public class GridUtil {
             return null;
         }
     }
+    //Below is original code from the GridUtil class that was used by biocache store. TODO_BIOCACHE_STORE
+//
+//    //proportion of grid size a point is allowed to vary (in x or y dimensions) from the true centre and still be considered central (to deal with rounding errors)
+//    public static double CENTROID_FRACTION = 0.1;
+//
+//
+//    Integer getGridSizeInMeters(String gridRef) { //TODO_BIOCACHE_STORE was used by biocache store
+//        GridRef grid = gridReferenceToEastingNorthing(gridRef);
+//        if (grid == null) {
+//            logger.info("Invalid grid reference: " + gridRef);
+//            return null;
+//        }
+//        return grid.getGridSize();
+//    }
+//
+//
+//
+//    boolean isCentroid(Double decimalLongitude, Double decimalLatitude, String gridRef) {
+//        GridRef gr = gridReferenceToEastingNorthing(gridRef);
+//        if (gr == null){
+//            return false;
+//        }
+//
+//        double reposition = (gr.getGridSize()!=null  && !gr.getGridSize().equals("")) ?
+//                (gr.getGridSize()) / 2 : 0;
+//
+//
+//        double[] coordsCentroid = GISUtil.reprojectCoordinatesToWGS84(gr.getEasting() + reposition, gr.getNorthing() + reposition, gr.getDatum(), 5);
+//        double[] coordsCorner = GISUtil.reprojectCoordinatesToWGS84((double)gr.getEasting(), (double)gr.getNorthing(), gr.getDatum(), 5);
+//        double gridCentroidLatitude = coordsCentroid[0];
+//        double devLatitude = Math.abs(decimalLatitude - coordsCentroid[0]);
+//        double devLongitude = Math.abs(decimalLongitude - coordsCentroid[1]);
+//        double gridSizeLatitude = Math.abs(coordsCentroid[0] - coordsCorner[0]) * 2.0;
+//        double gridSizeLongitude = Math.abs(coordsCentroid[1] - coordsCorner[1]) * 2.0;
+//        if ((devLatitude > CENTROID_FRACTION * gridSizeLatitude) ||
+//                (devLongitude > CENTROID_FRACTION * gridSizeLongitude)) {
+//            return false;
+//        } else {
+//            return true;
+//        }
+//
+//
+//
+//    }
+//
+//    public String getGridAsTextWithAnnotation(String gridReference) {
+//        String text = "";
+//        if (gridReference != null && !gridReference.isEmpty()) {
+//            // Assuming GridUtil.osGridReferenceToEastingNorthing returns an Optional
+//            GridRef result = GridUtil.osGridReferenceToEastingNorthing(gridReference);
+//            if(result != null) {
+//                text = "OSGB Grid Reference " + gridReference;
+//            } else {
+//                text = "OSI Grid Reference " + gridReference;
+//            }
+//        }
+//        return text;
+//    }
+//
+//    // get grid WKT from a grid reference
+//    String getGridWKT(String gridReference) {
+//        if (gridReference == null || gridReference.isEmpty()) {
+//            gridReference = "";
+//        }
+//        var poly_grid = "";
+//        if (gridReference != "") {
+//            GridRef gr = GridUtil.gridReferenceToEastingNorthing(gridReference);
+//            if (gr == null){
+//                logger.info("Invalid grid reference: " + gridReference);
+//                return null;
+//            }
+//
+//
+//            double[][] bbox = new double[2][2];
+//            bbox[0] = GISUtil.reprojectCoordinatesToWGS84((double)gr.getMinEasting(), (double)gr.getMinNorthing(), gr.getDatum(), 5);
+//            bbox[1] = GISUtil.reprojectCoordinatesToWGS84((double)gr.getMaxEasting(), (double)gr.getMaxNorthing(), gr.getDatum(), 5);
+//            double minLatitude = bbox[0][0];
+//            double minLongitude = bbox[0][1];
+//            double maxLatitude = bbox[1][0];
+//            double maxLongitude = bbox[1][1];
+//
+//            //for WKT, need to give points in lon-lat order, not lat-lon
+//            poly_grid = "POLYGON((" + minLongitude + " " + minLatitude + "," +
+//                    minLongitude + " " + maxLatitude + "," +
+//                    maxLongitude + " " + maxLatitude + "," +
+//                    maxLongitude + " " + minLatitude + "," +
+//                    minLongitude + " " + minLatitude + "))";
+//
+//        }
+//
+//        return poly_grid;
+//    }
+//
+//    /**
+//     * Convert a WGS84 lat/lon coordinate to either OSGB (ordnance survey GB) or Irish OS grid reference using coordinateUncertaintyInMeters to define grid cell size
+//     *
+//     * Note: does not handle 2000m uncertainty
+//     *
+//     *  http://www.carabus.co.uk/ll_ngr.html
+//     *
+//     * @param lat latitude
+//     * @param lon longitude
+//     * @param coordinateUncertaintyInMeters
+//     * @param geodeticDatum geodeticDatum (if empty assume WGS84)
+//     * @return gridRef
+//     */
+//    String  latLonToOsGrid(double lat, double lon, double coordinateUncertaintyInMeters, String geodeticDatum, String gridType, int knownGridSize) {
+//        String datum = lookupEpsgCode(geodeticDatum);
+//
+//        double N = 0.0;
+//        double E = 0.0;
+//
+//        if (!(datum.equals("") || datum.equals("EPSG:27700") || datum.equals("EPSG:4326"))) {
+//            return null;
+//        } else {
+//            if (datum.equals("EPSG:27700")) {
+//                //in OSGB36
+////                val northingsEastings = GridRefGISUtil.coordinatesOSGB36toNorthingEasting(lat, lon, 4)
+////                val (northings, eastings) = northingsEastings.get
+////                N = northings.toDouble
+////                E = eastings.toDouble
+//                double[] northingsEastings = GridRefGISUtil.coordinatesOSGB36toNorthingEasting(lat, lon, 4);
+//                N = northingsEastings[0];
+//                E = northingsEastings[1];
+//            } else { //assume WGS84
+//                double[] reprojectedNorthingsEastings;
+//
+//                switch (gridType) {
+//                    case "OSGB":
+//                        reprojectedNorthingsEastings = GridRefGISUtil.reprojectCoordinatesWGS84ToOSGB36(lat, lon, 4);
+//                        break;
+//                    case "Irish":
+//                        reprojectedNorthingsEastings = GridRefGISUtil.reprojectCoordinatesWGS84ToOSNI(lat, lon, 4);
+//                        break;
+//                    default:
+//                        reprojectedNorthingsEastings = GridRefGISUtil.reprojectCoordinatesWGS84ToOSGB36(lat, lon, 4);
+//                }
+//
+//                N = reprojectedNorthingsEastings[0];
+//                E = reprojectedNorthingsEastings[1];
+//            }
+//        }
+//
+//        int gridSize = (knownGridSize >= 0) ?
+//                gridSizeRoundedUp(knownGridSize)
+//                :
+//                calculateGridSize(coordinateUncertaintyInMeters);
+//
+//
+//
+//        int digits = calculateNumOfGridRefDigits(gridSize);
+//
+//        if (gridSize == 2000) {
+//            //FIXME: sort out getOSGridFromNorthingEasting to handle 2km, 50km grids properly
+//            String onekmGrid = getOSGridFromNorthingEasting(Math.round(N), Math.round(E), 4, gridType);
+//            //now convert 1km grid to containing 2km grid
+//            if (onekmGrid != null) {
+//                return convertReferenceToResolution(onekmGrid, "2000");
+//            } else {
+//                return null;
+//            }
+//        } else if (gridSize == 50000) {
+//            //FIXME: sort out getOSGridFromNorthingEasting to handle 2km, 50km grids properly
+//            String tenkmGrid = getOSGridFromNorthingEasting(Math.round(N), Math.round(E), 2, gridType);
+//            //now convert 10km grid to containing 50km grid
+//            if (tenkmGrid != null) {
+//                return convertReferenceToResolution(tenkmGrid, "50000");
+//            } else {
+//                return null;
+//            }
+//        } else {
+//            return getOSGridFromNorthingEasting(Math.round(N), Math.round(E), digits, gridType);
+//        }
+//
+//    }
+//
+//    private static int calculateGridSize(double coordinateUncertaintyInMeters) {
+//        // Implement based on Scala logic
+//        return gridSizeRoundedUp(coordinateUncertaintyInMeters * Math.sqrt(2.0) - 0.001);
+//    }
+//
+//    private static int calculateNumOfGridRefDigits(int gridSize) {
+//        switch (gridSize) {
+//            case 1:
+//                return 10;
+//            case 10:
+//                return 8;
+//            case 100:
+//                return 6;
+//            case 1000:
+//                return 4;
+//            case 2000:
+//                return 3;
+//            case 10000:
+//                return 2;
+//            default:
+//                return 0;
+//        }
+//    }
+//
+//    private static int gridSizeRoundedUp(double gridSize) {
+//        int[] limits = new int[]{1, 10, 100, 1000, 2000, 10000, 100000};
+//        double gridSizeWhole = Math.ceil(gridSize);
+//
+//        for (int limit : limits) {
+//            if (gridSizeWhole <= limit) {
+//                return limit;
+//            }
+//        }
+//
+//        return 100000;
+//    }
+//
+//    /**
+//     *
+//     * @param n : north
+//     * @param e : east
+//     * @param digits : digits
+//     * @param gridType : gridType (Irish or OSGB)
+//     * @return
+//     */
+//    public static String getOSGridFromNorthingEasting(double n, double e, int digits, String gridType) {
+//        if ((digits % 2 != 0) || digits > 16) {
+//            return null;
+//        } else {
+//            double e100k = Math.floor(e / 100000);
+//            double n100k = Math.floor(n / 100000);
+//
+//            if (e100k < 0 || e100k > 6 || n100k < 0 || n100k > 12) {
+//                return null;
+//            }
+//
+//            // translate those into numeric equivalents of the grid letters// translate those into numeric equivalents of the grid letters
+//            double l1 = (19 - n100k) - (19 - n100k) % 5 + Math.floor((e100k + 10) / 5);
+//            double l2 = (19 - n100k) * 5 % 25 + e100k % 5;
+//
+//            if (l1 > 7) l1 += 1;
+//            if (l2 > 7) l2 += 1;
+//
+//            char letter1 = (char) ('A' + l1);
+//            char letter2 = (char) ('A' + l2);
+//            String letterPair = "" + letter1 + letter2;
+//            String letterPairLastOnly = "" + letter2;
+//
+//            double eMod = Math.floor((e % 100000) / Math.pow(10, 5 - digits / 2));
+//            double nMod = Math.floor((n % 100000) / Math.pow(10, 5 - digits / 2));
+//
+//            String eModStr = padWithZeros(String.valueOf((int)eMod), digits / 2);
+//            String nModStr = padWithZeros(String.valueOf((int)nMod), digits / 2);
+//
+//            switch (gridType) {
+//                case "Irish":
+//                    return letterPairLastOnly + eModStr + nModStr;
+//                case "OSGB":
+//                default:
+//                    return letterPair + eModStr + nModStr;
+//            }
+//        }
+//    }
+//
+//    private static String padWithZeros(String str, int length) {
+//        while (str.length() < length) {
+//            str = "0" + str;
+//        }
+//        return str;
+//    }
+//
+//
+//
+//    /**
+//     * Helper function to calculate coordinate uncertainty for a given grid size
+//     *
+//     * @param gridSize
+//     * @return
+//     */
+//    String gridToCoordinateUncertaintyString(Integer gridSize ) {
+//        return String.format("%.1f", gridSize / Math.sqrt(2.0));
+//    }
 }
