@@ -9,18 +9,18 @@ public class GridRef {
     String gridLetters;
     Integer easting;
     Integer northing;
-    Integer coordinateUncertainty = -1;
+    Integer gridSize;
     Integer minEasting;
     Integer minNorthing;
     Integer maxEasting;
     Integer maxNorthing;
     String datum;
 
-    public GridRef(String gridletters, int easting, int northing, int coordinateUncertainty, int minEasting, int minNorthing, int maxEasting, int maxNorthing, String datum) {
+    public GridRef(String gridletters, int easting, int northing, int gridSize, int minEasting, int minNorthing, int maxEasting, int maxNorthing, String datum) {
         this.gridLetters = gridletters;
         this.easting = easting;
         this.northing = northing;
-        this.coordinateUncertainty = coordinateUncertainty;
+        this.gridSize = gridSize;
         this.minEasting = minEasting;
         this.minNorthing = minNorthing;
         this.maxEasting = maxEasting;
@@ -52,12 +52,12 @@ public class GridRef {
         this.northing = northing;
     }
 
-    public Integer getCoordinateUncertainty() {
-        return coordinateUncertainty;
+    public Integer getGridSize() {
+        return gridSize;
     }
 
-    public void setCoordinateUncertainty(Integer coordinateUncertainty) {
-        this.coordinateUncertainty = coordinateUncertainty;
+    public void setGridSize(Integer gridSize) {
+        this.gridSize = gridSize;
     }
 
     public Integer getMinEasting() {

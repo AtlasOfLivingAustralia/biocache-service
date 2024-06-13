@@ -120,7 +120,7 @@ public class SearchRequestDTO {
         StringBuilder req = new StringBuilder();
         boolean isFacet = this.getFacet() == null ? true : this.getFacet();
         req.append("q=").append(conditionalEncode(q, encodeParams));
-        if (fq.length > 0) {
+        if (fq!=null && fq.length > 0) {
             for (String it : fq) {
                 req.append("&fq=").append(conditionalEncode(it, encodeParams));
             }
