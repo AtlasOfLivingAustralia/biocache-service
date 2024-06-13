@@ -184,6 +184,10 @@ public class OccurrenceIndex {
     String image;
     @Field("imageIDs")  @Schema(description="Array of identifiers for images")
     String[] images;
+    @Field("soundIDs")  @Schema(description="Array of identifiers for sounds")
+    String[] sounds;
+    @Field("videoIDs")  @Schema(description="Array of identifiers for videos")
+    String[] videos;
     @Field("spatiallyValid") @Schema(description="Set to false if certain geospatial issues have been identified")
     Boolean spatiallyValid;
     @Field("recordedBy") @Schema(description="http://rs.tdwg.org/dwc/terms/recordedBy")
@@ -848,6 +852,22 @@ public class OccurrenceIndex {
 
     public void setImages(String[] images) {
         this.images = images;
+    }
+
+    public String[] getVideos() {
+        return videos;
+    }
+
+    public void setVideos(String[] videos) {
+        this.videos = videos;
+    }
+
+    public String[] getSounds() {
+        return sounds;
+    }
+
+    public void setSounds(String[] sounds) {
+        this.sounds = sounds;
     }
 
     public String getGeospatialKosher() {

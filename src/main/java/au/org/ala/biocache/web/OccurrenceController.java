@@ -925,6 +925,12 @@ public class OccurrenceController extends AbstractSecureController {
                 if (oi.getImages() != null) {
                     occurrenceIDs.addAll(Arrays.asList(oi.getImages()));
                 }
+                if (oi.getVideos() != null) {
+                    occurrenceIDs.addAll(Arrays.asList(oi.getVideos()));
+                }
+                if (oi.getSounds() != null) {
+                    occurrenceIDs.addAll(Arrays.asList(oi.getSounds()));
+                }
             }
 
             Map<String, Map<String, Object>> imageMap = imageMetadataService.getImageMetadataForOccurrences(occurrenceIDs);
