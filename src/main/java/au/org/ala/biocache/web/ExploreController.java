@@ -342,7 +342,7 @@ public class ExploreController {
     private void addFacetFilterToQuery(SpatialSearchRequestDTO requestParams, String facetName, String facetValue) {
 
         if (!facetValue.equals("ALL_SPECIES")) {
-            queryFormatUtils.addFqs(new String [] {facetName + ":" + facetValue}, requestParams);
+            queryFormatUtils.addFqs(new String [] {facetName + ":\"" + facetValue + "\""}, requestParams);
         }
 
         queryFormatUtils.addFqs(new String [] {OccurrenceIndex.TAXON_RANK_ID + ":[" + 7000 + " TO *]"}, requestParams);
