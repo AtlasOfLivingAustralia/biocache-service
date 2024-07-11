@@ -2119,6 +2119,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, occurrence, "disposition", getFieldName);
 //        addField(sd, occurrence, "dynamicProperties", getFieldName);
         addField(sd, occurrence, "establishmentMeans", getFieldName);
+        addField(sd, occurrence, "#8", getFieldName);
         addField(sd, occurrence, "fieldNotes", getFieldName);
         addField(sd, occurrence, "fieldNumber", getFieldName);
         addField(sd, occurrence, "individualCount", getFieldName);
