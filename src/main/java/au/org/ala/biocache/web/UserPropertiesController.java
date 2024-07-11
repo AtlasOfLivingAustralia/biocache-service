@@ -22,6 +22,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang3.StringUtils;
@@ -67,14 +71,22 @@ public class UserPropertiesController extends AbstractSecureController {
             @Parameter(name = "name", description = "The name of the property to get", in = ParameterIn.QUERY, required = false),
             @Parameter(name = "accept", description = "Must be application/json", in = ParameterIn.HEADER, required = true)
     })
+    @ApiResponse(
+            responseCode = "200",
+            description = "User properties. Values are type String.",
+            content = @Content(
+                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = Map.class),
+                    examples = @ExampleObject(value = "{ \"name\": \"value\" }"))
+    )
     @SecurityRequirement(name = "JWT")
     @RequestMapping(
             value = {"/user/property"},
             method = RequestMethod.GET,
-            produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_PLAIN_VALUE})
+            produces = {MediaType.APPLICATION_JSON_VALUE})
     public @ResponseBody Object get(
             @RequestParam(value = "alaId") String alaId,
-            @RequestParam(value = "name") String name,
+            @RequestParam(value = "name", required = false) String name,
             HttpServletRequest request
     ) throws Exception {
         String validAlaId = getValidUser(alaId, request, "users/read");
@@ -83,7 +95,7 @@ public class UserPropertiesController extends AbstractSecureController {
 
         if (prop != null && prop.getProperties() != null) {
             if (name != null) {
-                return prop.getProperties().get(name);
+                return mapOfProperty(name, prop.getProperties().get(name));
             } else {
                 return prop.getProperties();
             }
@@ -94,21 +106,29 @@ public class UserPropertiesController extends AbstractSecureController {
 
     @Tag(name = "User Properties", description = "User saved properties")
     @Operation(
-            summary = "Retrieve a property",
+            summary = "Save a property",
             tags = "User Properties",
             description = "Saves a property value for a user. Required scopes: 'users/write' or User JWT.")
     @Parameters(value = {
             @Parameter(name = "alaId", description = "The user's ALA ID", in = ParameterIn.QUERY, required = true),
-            @Parameter(name = "name", description = "The name of the property to get", in = ParameterIn.QUERY, required = true),
-            @Parameter(name = "value", description = "The value of the property to set.", in = ParameterIn.QUERY, required = false),
+            @Parameter(name = "name", description = "The name of the property to set", in = ParameterIn.QUERY, required = true),
+            @Parameter(name = "value", description = "The value as a String", in = ParameterIn.QUERY, required = true),
             @Parameter(name = "accept", description = "Must be application/json", in = ParameterIn.HEADER, required = true)
     })
+    @ApiResponse(
+            responseCode = "200",
+            description = "The saved property. Values are type String.",
+            content = @Content(
+                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = Map.class),
+                    examples = @ExampleObject(value = "{ \"name\": \"value\" }"))
+    )
     @SecurityRequirement(name = "JWT")
     @RequestMapping(
             value = {"/user/property"},
             method = RequestMethod.POST,
             produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_PLAIN_VALUE})
-    public @ResponseBody String save(
+    public @ResponseBody Object save(
             @RequestParam(value = "alaId") String alaId,
             @RequestParam(value = "name") String name,
             @RequestParam(value = "value") String value,
@@ -136,7 +156,7 @@ public class UserPropertiesController extends AbstractSecureController {
         storeDao.put(validAlaId, prop);
 
         if (prop.getProperties() != null) {
-            return prop.getProperties().get(name);
+            return mapOfProperty(name, prop.getProperties().get(name));
         } else {
             return null;
         }
@@ -161,5 +181,11 @@ public class UserPropertiesController extends AbstractSecureController {
         }
 
         return validAlaId;
+    }
+
+    private Map mapOfProperty(String name, String value) {
+        Map<String, String> map = new HashMap<>();
+        map.put(name, value);
+        return map;
     }
 }
