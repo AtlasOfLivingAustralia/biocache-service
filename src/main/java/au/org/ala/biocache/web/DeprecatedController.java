@@ -45,7 +45,7 @@ public class DeprecatedController {
 
     @Operation( tags = "Deprecated")
     @Deprecated
-    @GetMapping(value = {"/occurrences/download.json*", "/occurrences/index/download*","/occurrences/index/download.json*"})
+    @GetMapping(value = {"/occurrences/download.json", "/occurrences/index/download","/occurrences/index/download.json"})
     public void occurrenceDownload( @ParameterObject DownloadRequestParams requestParams,
                                     @RequestParam(required = false, defaultValue = "true") Boolean zip,
                                               BindingResult result,
@@ -62,7 +62,7 @@ public class DeprecatedController {
      * @return
      */
     @Operation(summary = "Deprecated path - Comparison of verbatim and interpreted record fields", tags = "Deprecated")
-    @RequestMapping(value = { "/occurrence/compare.json*" }, method = RequestMethod.GET)
+    @RequestMapping(value = { "/occurrence/compare.json" }, method = RequestMethod.GET)
     public @ResponseBody
     Object compareOccurrenceVersions(@RequestParam(value = "uuid", required = true) String uuid,
                                      HttpServletResponse response) throws Exception {

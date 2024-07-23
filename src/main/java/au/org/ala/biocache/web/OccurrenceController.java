@@ -853,7 +853,7 @@ public class OccurrenceController extends AbstractSecureController {
             tags = "Deprecated"
     )
     @RequestMapping(value = {
-            "/occurrences/search.json*",
+            "/occurrences/search.json",
             "/occurrence/search"
     }, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody
