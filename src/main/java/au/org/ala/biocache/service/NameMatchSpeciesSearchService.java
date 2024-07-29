@@ -166,7 +166,8 @@ public class NameMatchSpeciesSearchService implements SpeciesSearchService {
         //TODO: ?
         formatted.put("hasChildren", false);
 
-        formatted.put("rank", m.get("rank").toString().toLowerCase());
+        String rank = (String) m.get("rank");
+        formatted.put("rank", (rank != null ? rank : "").toLowerCase());
         formatted.put("rankId", m.get("rankId"));
         formatted.put("rawRank", m.get("rank"));
 
