@@ -226,7 +226,7 @@ public class OccurrenceIndex {
     String references;
     @Field("rights") @Schema(description = "http://purl.org/dc/elements/1.1/rights")
     String rights;
-    //@Field("grid_ref")
+    @Field("gridReference")
     String gridReference;
     @Schema(description="Metadata for the images associated with this occurrence")
     List<Map<String, Object>> imageMetadata;
