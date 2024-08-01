@@ -75,7 +75,7 @@ import static java.util.stream.Collectors.toList;
  *
  * @author Natasha Carter (natasha.carter@csiro.au)
  */
-@Component("downloadService")
+//@Component("downloadService")
 public class DownloadService implements ApplicationListener<ContextClosedEvent> {
 
     @Value("${official.doi.resolver:https://doi.org}")
@@ -1078,6 +1078,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
         }
 
         return sensitiveFq;
+    }
+    public String getSensitiveFq(String userId) {
+        throw new UnsupportedOperationException("This method is not supported in this class");
     }
 
     public String getEmailTemplateFile(DownloadDetailsDTO currentDownload) {

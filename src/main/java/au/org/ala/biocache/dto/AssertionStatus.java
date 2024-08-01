@@ -16,4 +16,5 @@ public class AssertionStatus {
     static final public Integer QA_CORRECTED = 50003;  //the record has been corrected by data custodian - the update may or may not be visible yet
     static final public Integer QA_NONE = 50004;     //status of a record with no user assertions ??
     static final public Integer QA_UNCONFIRMED = 50005;//open issue
+    static final public Integer QA_TODELETE = 500006;   //known bad, to delete
 }

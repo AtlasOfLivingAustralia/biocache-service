@@ -70,7 +70,7 @@ import static java.util.stream.Collectors.*;
  * </ul>
  * @author Natasha Carter (natasha.carter@csiro.au)
  */
-@Controller
+//@Controller
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Slf4j
 public class DownloadController extends AbstractSecureController {

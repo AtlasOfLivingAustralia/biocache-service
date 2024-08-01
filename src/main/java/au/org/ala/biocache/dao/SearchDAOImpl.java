@@ -75,7 +75,7 @@ import static au.org.ala.biocache.dto.OccurrenceIndex.*;
  * @see au.org.ala.biocache.dao.SearchDAO
  */
 
-@Component("searchDao")
+//@Component("searchDao")
 public class SearchDAOImpl implements SearchDAO {
 
     /**
@@ -600,7 +600,7 @@ public class SearchDAOImpl implements SearchDAO {
         dd.resetCounts();
 
         // prepare requested download fields (defaults, substitutions)
-        boolean hasSensitiveRecordAccess = downloadService.getSensitiveFq(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles()) != null;
+        boolean hasSensitiveRecordAccess = downloadService.getSensitiveFq(dd.getAlaUser() == null ? null : dd.getAlaUser().getUserId()) != null;
         prepareRequestedFields(downloadParams, hasSensitiveRecordAccess);
 
         // prepare headers
@@ -665,7 +665,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFilterQueries(downloadParams.getFormattedFq());
         solrQuery.setRows(-1);
         solrQuery.setStart(0);
-        String sensitiveFq = downloadService.getSensitiveFq(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles());
+        String sensitiveFq = downloadService.getSensitiveFq(dd.getAlaUser() == null ? null : dd.getAlaUser().getUserId());
         // Split into sensitive and non-sensitive queries when
         // - not including all sensitive values
         // - there is a sensitive fq
