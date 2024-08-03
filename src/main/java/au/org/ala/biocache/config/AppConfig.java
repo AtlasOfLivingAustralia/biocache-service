@@ -1,8 +1,6 @@
 package au.org.ala.biocache.config;
 
-import au.org.ala.biocache.service.NameMatchSpeciesLookupService;
-import au.org.ala.biocache.service.RestartDataService;
-import au.org.ala.biocache.service.SpeciesLookupService;
+import au.org.ala.biocache.service.*;
 import au.org.ala.biocache.util.converter.FqConverter;
 import au.org.ala.dataquality.api.QualityServiceRpcApi;
 import au.org.ala.dataquality.client.ApiClient;
@@ -99,6 +97,17 @@ public class AppConfig implements WebMvcConfigurer {
     public @Bean(name = "speciesLookupService") SpeciesLookupService speciesLookupServiceBean() {
         logger.info("Initialising species lookup services.");
         return getNameMatchSpeciesLookupService();
+    }
+
+    protected SpeciesSearchService getNameMatchSpeciesSearchService() {
+        logger.info("Initialising name match species lookup services.");
+        NameMatchSpeciesSearchService service = new NameMatchSpeciesSearchService();
+        return service;
+    }
+
+    public @Bean(name = "speciesSearchService") SpeciesSearchService speciesSearchServiceBean() {
+        logger.info("Initialising species lookup services.");
+        return getNameMatchSpeciesSearchService();
     }
 
     @Bean("dataQualityApiClient")

@@ -24,6 +24,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.context.support.GenericApplicationContext;
@@ -416,9 +417,6 @@ public class DownloadServiceTest {
         testLatch = new CountDownLatch(1);
 
         testService = new DownloadService() {
-            {
-                sensitiveAccessRoles20 = "{}";
-            }
 
             protected DownloadRunnable getDownloadRunnable(DownloadDetailsDTO dd) {
                 return new DownloadRunnable(dd) {
@@ -449,6 +447,8 @@ public class DownloadServiceTest {
         // Ensure we are not stuck on the countdown latch if it failed to be
         // called in test as expected
         testLatch.countDown();
+
+        FileUtils.deleteDirectory(testCacheDir.toFile());
     }
 
     /**
@@ -458,6 +458,7 @@ public class DownloadServiceTest {
     @Test
     public final void testInit() throws Exception {
         testService.init();
+        Thread.sleep(500);
     }
 
     /**
@@ -467,6 +468,7 @@ public class DownloadServiceTest {
     @Test
     public final void testOnApplicationEvent() throws Exception {
         testService.init();
+        Thread.sleep(500);
         // Check that this method completes reliably
         testService.onApplicationEvent(new ContextClosedEvent(new GenericApplicationContext()));
     }
@@ -478,6 +480,7 @@ public class DownloadServiceTest {
     @Test
     public final void testAdd() throws Exception {
         testService.init();
+        Thread.sleep(500);
         testService.add(new DownloadDetailsDTO(new DownloadRequestDTO(), TEST_USER, "::1", "", DownloadType.RECORDS_INDEX));
         assertEquals(persistentQueueDAO.getAllDownloads().size(), 1);
         assertEquals(testService.userExecutors.size(), 1);
@@ -490,6 +493,7 @@ public class DownloadServiceTest {
     @Test
     public final void testCancel() throws Exception {
         testService.init();
+        Thread.sleep(500);
         DownloadDetailsDTO dd = new DownloadDetailsDTO(new DownloadRequestDTO(), TEST_USER, "::1", "", DownloadType.RECORDS_INDEX);
         testService.add(dd);
 
@@ -519,6 +523,7 @@ public class DownloadServiceTest {
     @Test
     public final void testCancelSingleUser() throws Exception {
         testService.init();
+        Thread.sleep(500);
         DownloadDetailsDTO dd = new DownloadDetailsDTO(new DownloadRequestDTO(), TEST_USER, "::1", "", DownloadType.RECORDS_INDEX);
         testService.add(dd);
         DownloadDetailsDTO dd2 = new DownloadDetailsDTO(getParams("test2"), TEST_USER,"127.0.0.1", "", DownloadType.FACET);
@@ -542,6 +547,7 @@ public class DownloadServiceTest {
     @Test
     public final void testCancelMultipleUser() throws Exception {
         testService.init();
+        Thread.sleep(500);
         DownloadDetailsDTO dd = new DownloadDetailsDTO(new DownloadRequestDTO(), TEST_USER, "::1", "", DownloadType.RECORDS_INDEX);
         testService.add(dd);
         DownloadDetailsDTO dd2 = new DownloadDetailsDTO(getParams("test2"), TEST_USER2,"127.0.0.1", "", DownloadType.FACET);
@@ -569,6 +575,7 @@ public class DownloadServiceTest {
         // Initialisation - if we don't do this the tests will not run.
         testLatch.countDown();
         testService.init();
+        Thread.sleep(500);
 
         // Setup mocks and stubs - could be in setup but I don't want to interfere with the other tests.
         DoiService doiService = mock(DoiService.class);
@@ -621,6 +628,7 @@ public class DownloadServiceTest {
         // Initialisation - if we don't do this the tests will not run.
         testLatch.countDown();
         testService.init();
+        Thread.sleep(500);
 
         // Setup mocks and stubs - could be in setup but I don't want to interfere with the other tests.
         DoiService doiService = mock(DoiService.class);
@@ -673,6 +681,7 @@ public class DownloadServiceTest {
         // Initialisation - if we don't do this the tests will not run.
         testLatch.countDown();
         testService.init();
+        Thread.sleep(500);
 
         // Setup mocks and stubs - could be in setup but I don't want to interfere with the other tests.
         DoiService doiService = mock(DoiService.class);
@@ -719,6 +728,7 @@ public class DownloadServiceTest {
         // Initialisation - if we don't do this the tests will not run.
         testLatch.countDown();
         testService.init();
+        Thread.sleep(500);
 
         // Setup mocks and stubs - could be in setup but I don't want to interfere with the other tests.
         DoiService doiService = mock(DoiService.class);
@@ -758,7 +768,6 @@ public class DownloadServiceTest {
     }
 
     @Test
-    @Ignore // One of the other tests puts something into the download.cache.dir so it ends up doing 2 downloads. Unsure how to fix.
     public final void testOfflineDownload() throws Exception {
 
         testService = createDownloadServiceForOfflineTest();
@@ -777,13 +786,8 @@ public class DownloadServiceTest {
         testService.biocacheDownloadEmailTemplate = "/tmp/download-email.html";
         testService.biocacheDownloadReadmeTemplate = "/tmp/readme.txt";
 
-        // delete download cache
-        File cache = new File("/tmp/cache");
-        if (cache.exists()) {
-            FileUtils.deleteDirectory(cache);
-        }
-
         testService.init();
+        Thread.sleep(500);
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
 
@@ -798,7 +802,6 @@ public class DownloadServiceTest {
     }
 
     @Test
-    @Ignore // Fails in travis, works locally
     public final void testOfflineDownloadWithQualityFiltersAndDoi() throws Exception {
 
         testService = createDownloadServiceForOfflineTest();
@@ -818,6 +821,7 @@ public class DownloadServiceTest {
 
 
         testService.init();
+        Thread.sleep(500);
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
 
@@ -902,6 +906,7 @@ public class DownloadServiceTest {
         testService.biocacheDownloadDoiReadmeTemplate = "/tmp/readme.txt";
 
         testService.init();
+        Thread.sleep(500);
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
 
@@ -972,7 +977,6 @@ public class DownloadServiceTest {
     }
 
     @Test
-    @Ignore // One of the other tests puts something into the download.cache.dir so it ends up doing 2 downloads. Unsure how to fix.
     public final void testOfflineDownloadNoEmailNotify() throws Exception {
 
         testService = createDownloadServiceForOfflineTest();
@@ -993,6 +997,7 @@ public class DownloadServiceTest {
         }
 
         testService.init();
+        Thread.sleep(500);
         List<DownloadDetailsDTO> emptyDownloads = testService.getCurrentDownloads();
         assertEquals(0, emptyDownloads.size());
 
@@ -1024,10 +1029,18 @@ public class DownloadServiceTest {
     }
 
     private DownloadService createDownloadServiceForOfflineTest() {
-        DownloadService testService = new DownloadService() {
-            {
-                sensitiveAccessRoles20 = "{}";
+        // empty cached download directory, in case it is messing up tests
+        try {
+            File dir = new File(testCacheDir.toAbsolutePath().toString());
+            if (dir.exists() && dir.isDirectory()) {
+                for (File f : dir.listFiles()) {
+                    f.delete();
+                }
             }
+        } catch (Exception ignored) {
+        }
+
+        DownloadService testService = new DownloadService() {
         };
 
         testService.downloadQualityFiltersTemplate = new ClassPathResource("download-email-quality-filter-snippet.html");

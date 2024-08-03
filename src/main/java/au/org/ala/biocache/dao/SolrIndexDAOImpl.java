@@ -8,11 +8,9 @@ import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.stream.ProcessInterface;
 import au.org.ala.biocache.util.DwCTerms;
 import au.org.ala.biocache.util.DwcTermDetails;
-import au.org.ala.biocache.util.QueryFormatUtils;
 import au.org.ala.biocache.util.solr.FieldMappedSolrClient;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
-import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.client.config.RequestConfig;
@@ -117,9 +115,6 @@ public class SolrIndexDAOImpl implements IndexDAO {
     protected String indexFieldsToHide;
 
     protected Pattern layersPattern = Pattern.compile("(el|cl)[0-9abc]+");
-
-    @Inject
-    protected QueryFormatUtils queryFormatUtils;
 
     @Value("${dwc.url:http://rs.tdwg.org/dwc/terms/}")
     protected String dwcUrl = "http://rs.tdwg.org/dwc/terms/";
@@ -1180,17 +1175,17 @@ public class SolrIndexDAOImpl implements IndexDAO {
                 }
             }
         }
-        String[] fl = new String[]{"id"};
         if (StringUtils.isNotEmpty(query.getFields())) {
             solrParams.set("fl", StringUtils.join(fieldMappingUtil.translateFieldArray(query.getFields().split(",")), ","));
         } else {
             solrParams.set("fl", "id");
         }
 
-        if (StringUtils.isEmpty(query.getSortField()) || !ArrayUtils.contains(fl, query.getSortField().split(" ")[0])) {
-            solrParams.set("sort", solrParams.get("fl").split(",")[0] + " asc");
+        // The sort field does not need to be present in the field list.
+        if (StringUtils.isEmpty(query.getSortField())) {
+            solrParams.set("sort", "id asc");
         } else {
-            solrParams.set("sort", "index asc");
+            solrParams.set("sort", query.getSortField());
         }
 
         String qt = "/export";

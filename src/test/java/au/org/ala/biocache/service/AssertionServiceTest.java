@@ -1,12 +1,12 @@
 package au.org.ala.biocache.service;
 
 import au.org.ala.biocache.dao.IndexDAO;
+import au.org.ala.biocache.dao.SearchDAO;
 import au.org.ala.biocache.dao.StoreDAO;
 import au.org.ala.biocache.dto.AssertionStatus;
 import au.org.ala.biocache.dto.FacetThemes;
 import au.org.ala.biocache.dto.QualityAssertion;
 import au.org.ala.biocache.dto.UserAssertions;
-import au.org.ala.biocache.util.OccurrenceUtils;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrDocument;
 import org.junit.After;
@@ -24,7 +24,7 @@ import static org.mockito.Mockito.when;
 public class AssertionServiceTest {
 
     @Mock
-    OccurrenceUtils occurrenceUtils;
+    SearchDAO searchDao;
     @Mock
     StoreDAO store;
     @Mock
@@ -73,7 +73,7 @@ public class AssertionServiceTest {
     @Test
     public void testAddAssertion_record_not_found() throws Exception {
         // test when record is not found
-        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(null);
+        when(searchDao.getOcc(Mockito.any())).thenReturn(null);
         Optional<QualityAssertion> qualityAssertion = assertionService.addAssertion("", "", "", "", "", "", "", "", "");
         assert(!qualityAssertion.isPresent());
     }
@@ -82,7 +82,7 @@ public class AssertionServiceTest {
     public void testAddAssertion_existing_empty_add_1_assertion() throws Exception {
         // test when record is found
         SolrDocument sd = new SolrDocument();
-        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+        when(searchDao.getOcc(Mockito.any())).thenReturn(sd);
         when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(getMockAssertions(0, 0)));
 
         ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
@@ -113,7 +113,7 @@ public class AssertionServiceTest {
     public void testAddAssertion_existing_1_add_1_assertion_different_type_coexist() throws Exception {
         // test when record is found
         SolrDocument sd = new SolrDocument();
-        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+        when(searchDao.getOcc(Mockito.any())).thenReturn(sd);
         when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(getMockAssertions(1, 0)));
 
         ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
@@ -148,7 +148,7 @@ public class AssertionServiceTest {
     public void testAddAssertion_existing_1_add_1_assertion_same_type_overwrite() throws Exception {
         // test when record is found
         SolrDocument sd = new SolrDocument();
-        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+        when(searchDao.getOcc(Mockito.any())).thenReturn(sd);
         when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(getMockAssertions(1, 0)));
 
         ArgumentCaptor<String> myUuid = ArgumentCaptor.forClass(String.class);
@@ -180,7 +180,7 @@ public class AssertionServiceTest {
     public void testAddAssertion_existing_1_add_1_verification_50001() throws Exception {
         // test when record is found
         SolrDocument sd = new SolrDocument();
-        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+        when(searchDao.getOcc(Mockito.any())).thenReturn(sd);
 
         UserAssertions existingAssertions = new UserAssertions();
         QualityAssertion qa = new QualityAssertion();
@@ -224,7 +224,7 @@ public class AssertionServiceTest {
     public void testAddAssertion_existing_1_add_1_verification_50002() throws Exception {
         // test when record is found
         SolrDocument sd = new SolrDocument();
-        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+        when(searchDao.getOcc(Mockito.any())).thenReturn(sd);
 
         UserAssertions existingAssertions = new UserAssertions();
         QualityAssertion qa = new QualityAssertion();
@@ -269,7 +269,7 @@ public class AssertionServiceTest {
     public void testAddAssertion_existing_1_assertion_1_verification_add_1_verification_overwrite() throws Exception {
         // test when record is found
         SolrDocument sd = new SolrDocument();
-        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+        when(searchDao.getOcc(Mockito.any())).thenReturn(sd);
         UserAssertions existingAssertions = getMockAssertions(1, 1);
         when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(existingAssertions));
 
@@ -305,7 +305,7 @@ public class AssertionServiceTest {
     @Test
     public void testDeleteAssertion_record_not_found() throws IOException {
         // test when record is not found
-        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(null);
+        when(searchDao.getOcc(Mockito.any())).thenReturn(null);
         assert(!assertionService.deleteAssertion("recordUuid", "assertionUuid"));
     }
 
@@ -313,7 +313,7 @@ public class AssertionServiceTest {
     public void testDeleteAssertion_no_existing_assertion_delete_not_found() throws IOException, SolrServerException {
         // test when record is found
         SolrDocument sd = new SolrDocument();
-        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+        when(searchDao.getOcc(Mockito.any())).thenReturn(sd);
         // existing assertions empty so no deletion done
         when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(getMockAssertions(0, 0)));
         assert(!assertionService.deleteAssertion("recordUuid", "assertionUuid"));
@@ -325,7 +325,7 @@ public class AssertionServiceTest {
     @Test
     public void testDeleteAssertion_existing_1_and_delete_not_found() throws IOException, SolrServerException {
         SolrDocument sd = new SolrDocument();
-        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+        when(searchDao.getOcc(Mockito.any())).thenReturn(sd);
         when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(getMockAssertions(1, 0)));
 
         assert(!assertionService.deleteAssertion("recordUuid", "invalid_assertionUuid"));
@@ -336,7 +336,7 @@ public class AssertionServiceTest {
     @Test
     public void testDeleteAssertion_existing_1_and_delete_found() throws IOException, SolrServerException {
         SolrDocument sd = new SolrDocument();
-        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+        when(searchDao.getOcc(Mockito.any())).thenReturn(sd);
         UserAssertions userAssertions = getMockAssertions(1, 0);
 
         when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(userAssertions));
@@ -392,12 +392,12 @@ public class AssertionServiceTest {
     @Test
     public void testBulkAdd() throws Exception {
         // test when record is not found
-        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(null);
+        when(searchDao.getOcc(Mockito.any())).thenReturn(null);
         assert(!assertionService.bulkAddAssertions("recordUuid", new UserAssertions()));
 
         // test add succeed
         SolrDocument sd = new SolrDocument();
-        when(occurrenceUtils.getOcc(Mockito.any())).thenReturn(sd);
+        when(searchDao.getOcc(Mockito.any())).thenReturn(sd);
 
         UserAssertions existingAssertions = new UserAssertions();
         QualityAssertion qa1 = new QualityAssertion();

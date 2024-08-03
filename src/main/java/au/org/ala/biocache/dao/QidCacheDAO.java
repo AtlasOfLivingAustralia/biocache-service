@@ -73,7 +73,7 @@ public interface QidCacheDAO {
 
     String[] getFq(SpatialSearchRequestDTO requestParams);
 
-    String generateQid(SpatialSearchRequestDTO requestParams, String bbox, String title, Long maxage, String source);
+    String generateQid(SpatialSearchRequestDTO requestParams, double[] bbox, String title, Long maxage, String source);
 
     String fixWkt(String wkt) throws Exception;
 

@@ -52,7 +52,7 @@ public class TaxonDAOImpl implements TaxonDAO {
         List<FacetField.Count> speciesGroups = extractFacet(q, fq, OccurrenceIndex.SPECIES_GROUP);
         for(FacetField.Count spg: speciesGroups){
             if (spg.getName() != null) {
-                List<FacetField.Count> orders = extractFacet(q, (String[]) ArrayUtils.add(fq, OccurrenceIndex.SPECIES_GROUP + ":" + spg.getName()), OccurrenceIndex.ORDER);
+                List<FacetField.Count> orders = extractFacet(q, (String[]) ArrayUtils.add(fq, OccurrenceIndex.SPECIES_GROUP + ":\"" + spg.getName() + "\""), OccurrenceIndex.ORDER);
                 for (FacetField.Count o : orders) {
                     if (o.getName() != null) {
                         outputNestedMappableLayerStart(OccurrenceIndex.ORDER, o.getName(), writer);
@@ -60,11 +60,11 @@ public class TaxonDAOImpl implements TaxonDAO {
                         for (FacetField.Count f : families) {
                             if (f.getName() != null) {
                                 outputNestedMappableLayerStart(OccurrenceIndex.FAMILY, f.getName(), writer);
-                                List<FacetField.Count> genera = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{OccurrenceIndex.FAMILY + ":" + f.getName(), OccurrenceIndex.SPECIES_GROUP + ":" + spg.getName()}), OccurrenceIndex.GENUS);
+                                List<FacetField.Count> genera = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{OccurrenceIndex.FAMILY + ":" + f.getName(), OccurrenceIndex.SPECIES_GROUP + ":\"" + spg.getName() + "\""}), OccurrenceIndex.GENUS);
                                 for (FacetField.Count g : genera) {
                                     if (g.getName() != null) {
                                         outputNestedMappableLayerStart(OccurrenceIndex.GENUS, g.getName(), writer);
-                                        List<FacetField.Count> species = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{OccurrenceIndex.GENUS + ":" + g.getName(), OccurrenceIndex.SPECIES_GROUP + ":" + spg.getName(), OccurrenceIndex.FAMILY + ":" + f.getName()}), OccurrenceIndex.SPECIES);
+                                        List<FacetField.Count> species = extractFacet(q, (String[]) ArrayUtils.addAll(fq, new String[]{OccurrenceIndex.GENUS + ":" + g.getName(), OccurrenceIndex.SPECIES_GROUP + ":\"" + spg.getName() + "\"", OccurrenceIndex.FAMILY + ":" + f.getName()}), OccurrenceIndex.SPECIES);
                                         for (FacetField.Count s : species) {
                                             if (s.getName() != null) {
                                                 outputLayer(metadataUrl, OccurrenceIndex.SPECIES, s.getName(), writer);

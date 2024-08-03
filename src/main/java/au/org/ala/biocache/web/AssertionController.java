@@ -470,7 +470,7 @@ public class AssertionController extends AbstractSecureController {
     }
 
     @SecurityRequirement(name="JWT")
-    @Secured({"ROLE_ADMIN"})
+    @Secured({"ROLE_ADMIN", "ala/internal"})
     @Operation(summary = "Synchronise assertions into the index", tags = "Monitoring")
     @RequestMapping(value = {"/sync"}, method = RequestMethod.GET)
     public @ResponseBody Boolean indexAll(HttpServletRequest request,

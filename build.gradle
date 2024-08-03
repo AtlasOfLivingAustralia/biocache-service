@@ -8,7 +8,7 @@ import java.time.Instant
 //        mavenCentral()
 //    }
 //    dependencies {
-//        classpath 'org.springframework.boot:spring-boot-gradle-plugin:2.5.7'
+//        classpath 'org.springframework.boot:spring-boot-gradle-plugin:2.7.0'
 //    }
 //}
 
@@ -40,7 +40,7 @@ repositories {
 }
 
 group = 'au.org.ala'
-version = '3.4.1'
+version = '3.5.0-SNAPSHOT'
 
 
 boolean inplace = false
@@ -55,15 +55,15 @@ dependencies {
 
     compileOnly 'org.projectlombok:lombok:1.18.24'
     annotationProcessor 'org.projectlombok:lombok:1.18.24'
-    developmentOnly 'org.springframework.boot:spring-boot-devtools:2.5.7'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools:2.7.0'
 
-//    implementation 'org.springframework.boot:spring-boot-starter-parent:2.5.7'
+//    implementation 'org.springframework.boot:spring-boot-starter-parent:2.7.0'
 
-    implementation 'org.springframework.boot:spring-boot-starter-web:2.5.7'
+    implementation 'org.springframework.boot:spring-boot-starter-web:2.7.0'
     implementation 'org.apache.tomcat.embed:tomcat-embed-jasper:9.0.55'
-    implementation 'org.springframework.boot:spring-boot-starter-cache:2.5.7'
-    implementation 'org.springframework.boot:spring-boot-starter-actuator:2.5.7'
-    implementation 'org.springframework.boot:spring-boot-starter-validation:2.5.7'
+    implementation 'org.springframework.boot:spring-boot-starter-cache:2.7.0'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator:2.7.0'
+    implementation 'org.springframework.boot:spring-boot-starter-validation:2.7.0'
     implementation 'org.springframework:spring-oxm:5.3.13'
 
     implementation 'org.ehcache:ehcache:3.8.1'
@@ -94,16 +94,16 @@ dependencies {
     implementation 'taglibs:standard:1.1.2'
     implementation 'com.jayway.jsonpath:json-path:2.4.0'
     implementation 'com.sun.mail:jakarta.mail:2.0.1'
-    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client:2.5.7'
-    implementation 'org.springframework.boot:spring-boot-starter-security:2.5.7'
-    implementation 'org.springframework.boot:spring-boot-devtools:2.5.7'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client:2.7.0'
+    implementation 'org.springframework.boot:spring-boot-starter-security:2.7.0'
+    implementation 'org.springframework.boot:spring-boot-devtools:2.7.0'
     implementation 'commons-collections:commons-collections:3.2.2'
     implementation 'io.reactivex.rxjava3:rxjava:3.0.6'
     implementation 'opensymphony:sitemesh:2.4.2'
     implementation 'com.thoughtworks.xstream:xstream:1.4.18'
-    implementation 'org.slf4j:slf4j-api:1.7.24'
-    implementation 'org.slf4j:jul-to-slf4j:1.7.24'
-    implementation 'org.slf4j:slf4j-log4j12:1.7.24'
+    implementation 'org.slf4j:slf4j-api:1.7.36'
+    implementation 'org.slf4j:jul-to-slf4j:1.7.36'
+    implementation 'org.slf4j:slf4j-log4j12:1.7.36'
     implementation 'org.apache.velocity:velocity:1.5'
     implementation 'org.json:json:20210307'
     implementation 'atg.taglib.json:json-taglib:0.4.1'
@@ -122,7 +122,7 @@ dependencies {
     implementation 'org.gbif:dwc-api:1.47'
     implementation 'org.apache.commons:commons-compress:1.21'
     implementation 'com.google.code.findbugs:jsr305:3.0.2'
-    implementation 'org.springframework.boot:spring-boot-autoconfigure:2.5.7'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure:2.7.0'
 
     if (inplace) {
 
@@ -131,7 +131,7 @@ dependencies {
 
     } else {
 
-        implementation 'au.org.ala:ala-ws-spring-security:6.2.0'
+        implementation 'au.org.ala:ala-ws-spring-security:6.3.0-SNAPSHOT'
     }
 
     implementation 'org.codehaus.groovy:groovy-all:3.0.11'
@@ -149,7 +149,7 @@ dependencies {
     testImplementation 'net.bytebuddy:byte-buddy:1.10.13'
     testImplementation 'org.hamcrest:hamcrest:2.1'
     testImplementation 'org.hamcrest:hamcrest-library:2.1'
-    testImplementation 'org.springframework.security:spring-security-test:5.6.0'
+    testImplementation 'org.springframework.security:spring-security-test:5.7.1'
     testImplementation 'com.squareup.retrofit2:retrofit-mock:2.6.2'
     testImplementation 'org.codehaus.groovy:groovy:2.5.14'
     testImplementation 'org.springframework:spring-tx:5.3.9'

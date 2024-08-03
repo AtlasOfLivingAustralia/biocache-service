@@ -133,7 +133,7 @@ public class BreakdownController {
     }
 
     @Operation(summary = "A breakdown based on taxon rank", tags = {"Taxonomy"})
-	@RequestMapping(value= {"/breakdown", "/breakdown.json*"}, method = RequestMethod.GET)
+	@RequestMapping(value= {"/breakdown", "/breakdown.json"}, method = RequestMethod.GET)
 	public @ResponseBody TaxaRankCountDTO breakdownByQuery(@ParameterObject BreakdownRequestParams breakdownParams, HttpServletResponse response) throws Exception {
 
 	    if (StringUtils.isNotEmpty(breakdownParams.getQ())){
@@ -163,7 +163,7 @@ public class BreakdownController {
 	        sb.append(source).append(":").append(u);
 	    }
 	    sb.append(")");
-	    
+
 	    requestParams.setQ(sb.toString());
 	    return breakdownByQuery(requestParams, response);
 	}

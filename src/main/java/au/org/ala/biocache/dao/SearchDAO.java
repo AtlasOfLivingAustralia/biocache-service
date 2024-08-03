@@ -19,7 +19,9 @@ import au.org.ala.biocache.stream.ProcessInterface;
 import au.org.ala.biocache.util.LegendItem;
 import au.org.ala.biocache.util.QidMissingException;
 import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 
 import javax.servlet.ServletOutputStream;
@@ -27,9 +29,7 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * DAO for searching occurrence records held in the biocache.
@@ -179,7 +179,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    void findAllSpeciesJSON(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception;
+    void findAllSpeciesJSON(SpatialSearchRequestDTO requestParams, Boolean includeRank, OutputStream outputStream) throws Exception;
 
     /**
      * Find all species (and counts) for a given query and stream as CSV
@@ -188,7 +188,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    void findAllSpeciesCSV(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception;
+    void findAllSpeciesCSV(SpatialSearchRequestDTO requestParams, Boolean includeRank,OutputStream outputStream) throws Exception;
 
     /**
      * Find all occurrences for a given query as SolrDocumentList
@@ -375,4 +375,17 @@ public interface SearchDAO {
     SolrQuery initSolrQuery(SpatialSearchRequestDTO searchParams, boolean substituteDefaultFacetOrder, Map<String, String[]> extraSolrParams) throws QidMissingException;
 
     boolean isInitialized() throws InterruptedException;
+
+    /**
+     * Retrieve an OccurrencePoint (distinct list of points - lat-long to 4 decimal places) for a given search
+     * without convertion to List of OccurrencePoint
+     *
+     * @param searchParams
+     * @param pointType
+     * @return
+     * @throws Exception
+     */
+    FacetField getFacetPointsShort(SpatialSearchRequestDTO searchParams, String pointType, Double minx, Double miny, Double maxx, Double maxy) throws Exception;
+
+    SolrDocument getOcc(String recordUuid);
 }

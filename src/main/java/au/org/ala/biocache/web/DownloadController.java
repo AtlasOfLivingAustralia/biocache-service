@@ -102,7 +102,7 @@ public class DownloadController extends AbstractSecureController {
      */
     @Deprecated
     @SecurityRequirement(name="JWT")
-    @Secured({"ROLE_ADMIN"})
+    @Secured({"ROLE_ADMIN", "ala/internal"})
     @Operation(summary = "Retrieves all the downloads that are on the queue", tags = "Monitoring")
     @RequestMapping(value = {"occurrences/offline/download/stats"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody Map<String, List<DownloadStatusDTO>> getCurrentDownloads() throws Exception {
@@ -257,7 +257,7 @@ public class DownloadController extends AbstractSecureController {
     }
 
     @SecurityRequirement(name="JWT")
-    @Secured({"ROLE_ADMIN"})
+    @Secured({"ROLE_ADMIN", "ala/internal"})
     @Operation(summary = "List all occurrence downloads", tags = "Monitoring")
     @RequestMapping(value = {"occurrences/offline/status/all"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody Map<String, List<DownloadStatusDTO>> allOccurrenceDownloadStatus() {
@@ -270,7 +270,7 @@ public class DownloadController extends AbstractSecureController {
     }
 
     @SecurityRequirement(name="JWT")
-    @Secured({"ROLE_USER"})
+    @Secured({"ROLE_USER", "ala/internal"})
     @Operation(summary = "List all occurrence downloads by the current user", tags = "Monitoring")
     @RequestMapping(value = {"occurrences/offline/status"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody Map<String, List<DownloadStatusDTO>> allOccurrenceDownloadStatusForUser(
@@ -410,7 +410,7 @@ public class DownloadController extends AbstractSecureController {
      * @throws Exception
      */
     @SecurityRequirement(name="JWT")
-    @Secured({"ROLE_USER"})
+    @Secured({"ROLE_USER", "ala/internal"})
     @Operation(summary = "Cancel an offline download", tags = "Monitoring")
     @RequestMapping(value = {"occurrences/offline/cancel/{id}"}, method = RequestMethod.GET)
     @ApiParam(value = "id", required = true)

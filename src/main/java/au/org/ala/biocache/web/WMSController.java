@@ -32,6 +32,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
+import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.geotools.geometry.GeneralDirectPosition;
@@ -58,6 +59,7 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.awt.*;
+import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -272,7 +274,20 @@ public class WMSController extends AbstractSecureController {
             requestParams.setRadius(null);
         }
 
-        String qid = qidCacheDAO.generateQid(requestParams, bbox, title, maxage, source);
+        //get a formatted Q before generating Qid
+        queryFormatUtils.formatSearchQuery(requestParams);
+
+        double[] bb = null;
+        if (bbox != null && bbox.equalsIgnoreCase("true")) {
+            try {
+                bb = searchDAO.getBBox(requestParams);
+            } catch (Exception e) {
+                // When there are no occurrences for the query return a usable bounding box
+                bb = new double []{-180, -90, 180, 90};
+            }
+        }
+
+        String qid = qidCacheDAO.generateQid(requestParams, bb, title, maxage, source);
         if (qid == null) {
             if (StringUtils.isEmpty(requestParams.getWkt())) {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unable to generate QID for query");
@@ -339,10 +354,11 @@ public class WMSController extends AbstractSecureController {
     @RequestMapping(value = {
             "/mapping/species"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public void listSpecies(@ParameterObject SpatialSearchRequestParams params,
+                            @RequestParam(value = "includeRank", required = false, defaultValue = "true") boolean includeRank,
                                    HttpServletResponse response) throws Exception {
         response.setContentType("application/json");
 
-        searchDAO.findAllSpeciesJSON(SpatialSearchRequestDTO.create(params), response.getOutputStream());
+        searchDAO.findAllSpeciesJSON(SpatialSearchRequestDTO.create(params), includeRank, response.getOutputStream());
     }
 
     /**
@@ -357,12 +373,13 @@ public class WMSController extends AbstractSecureController {
     }, method = RequestMethod.GET, produces = {"text/csv", "text/plain"})
     public void listSpeciesCsv(
             @ParameterObject SpatialSearchRequestParams requestParams,
+            @RequestParam(value = "includeRank", required = false, defaultValue = "true")  Boolean includeRank,
             HttpServletResponse response) throws Exception {
 
         SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(requestParams);
         response.setContentType("application/json");
 
-        searchDAO.findAllSpeciesCSV(dto, response.getOutputStream());
+        searchDAO.findAllSpeciesCSV(dto, includeRank, response.getOutputStream());
     }
 
     /**
@@ -378,8 +395,9 @@ public class WMSController extends AbstractSecureController {
     }, method = RequestMethod.GET, produces = {"text/csv", "text/plain"})
     public void listSpeciesCsvDeprecated(
             @ParameterObject SpatialSearchRequestParams requestParams,
+            @RequestParam(value = "includeRank", required = false, defaultValue = "true") boolean includeRank,
             HttpServletResponse response) throws Exception {
-        listSpeciesCsv(requestParams, response);
+        listSpeciesCsv(requestParams, includeRank, response);
     }
 
     /**
@@ -667,7 +685,7 @@ public class WMSController extends AbstractSecureController {
      * @throws Exception
      */
     @SecurityRequirement(name="JWT")
-    @Secured({"ROLE_USER", "ROLE_ADMIN"})
+    @Secured({"ROLE_USER", "ROLE_ADMIN", "ala/internal"})
     @Operation(summary = "Get occurrences by query as gzipped csv.", tags = "Deprecated")
     @Deprecated
     @RequestMapping(value = {
@@ -725,11 +743,11 @@ public class WMSController extends AbstractSecureController {
     }
 
     int scaleLatitudeForImage(double lat, double top, double bottom, int pixelHeight) {
-        return (int) (((lat - top) / (bottom - top)) * pixelHeight);
+        return (int) Math.floor(((lat - top) / (bottom - top)) * pixelHeight);
     }
 
     int scaleLongitudeForImage(double lng, double left, double right, int pixelWidth) {
-        return (int) (((lng - left) / (right - left)) * pixelWidth);
+        return (int) Math.floor(((lng - left) / (right - left)) * pixelWidth);
     }
 
     double convertMetersToLng(double meters) {
@@ -1500,46 +1518,56 @@ public class WMSController extends AbstractSecureController {
         // format the query -  this will deal with radius / wkt
         queryFormatUtils.formatSearchQuery(requestParams, true);
 
-        //retrieve legend
-        List<LegendItem> legend = searchDAO.getColours(requestParams, vars.colourMode);
+        ImgObj tile = null;
 
-        // Increase size of area requested to incude occurrences around the edge that overlap with the target area when drawn.
-        double bWidth = ((bbox[2] - bbox[0]) / (double) width) * (Math.max(wmsMaxPointWidth, pointWidth) + additionalBuffer);
-        double bHeight = ((bbox[3] - bbox[1]) / (double) height) * (Math.max(wmsMaxPointWidth, pointWidth) + additionalBuffer);
+        // Hex cell rendering requires accurate coordinates.
+        // The binning by the heatmap SOLR service is difficult to align.
+        // Using the old point_* facet method for hex cell rendering
+        if ("hexbin".equalsIgnoreCase(vars.colourMode)) {
+            tile = hexGridImg(requestParams, vars, width, height, outlinePoints, outlineColour, tilebbox, bbox, transformFrom4326);
+        } else {
+            //retrieve legend
+            List<LegendItem> legend = searchDAO.getColours(requestParams, vars.colourMode);
 
-        HeatmapDTO heatmapDTO = searchDAO.getHeatMap(requestParams.getFormattedQuery(), requestParams.getFormattedFq(), bbox[0] - bWidth, bbox[1] - bHeight, bbox[2] + bWidth, bbox[3] + bHeight, legend, isGrid ? (int) Math.ceil(width / (double) gridDivisionCount) : 1);
-        heatmapDTO.setTileExtents(bbox);
+            // Increase size of area requested to include occurrences around the edge that overlap with the target area when drawn.
+            double bWidth = isGrid ? 0 : ((bbox[2] - bbox[0]) / (double) width) * (Math.max(wmsMaxPointWidth, pointWidth) + additionalBuffer);
+            double bHeight = isGrid ? 0 : ((bbox[3] - bbox[1]) / (double) height) * (Math.max(wmsMaxPointWidth, pointWidth) + additionalBuffer);
 
-        // getHeatMap is cached. The process to trigger hiddenFacets is:
-        // 1. map all facets
-        // 2. nominate facets to hide
-        // As the heatmapDTO is cached no additional SOLR requests are required when only adding hiddenFacets (HQ)
-        if (hiddenFacets != null) {
-            for (Integer hf : hiddenFacets) {
-                if (hf < heatmapDTO.layers.size()) {
-                    heatmapDTO.layers.set(hf, null);
+            // faster method
+            HeatmapDTO heatmapDTO = searchDAO.getHeatMap(requestParams.getFormattedQuery(), requestParams.getFormattedFq(), bbox[0] - bWidth, bbox[1] - bHeight, bbox[2] + bWidth, bbox[3] + bHeight, legend, isGrid ? (int) Math.ceil(width / (double) gridDivisionCount) : 1);
+            heatmapDTO.setTileExtents(bbox);
+
+            // getHeatMap is cached. The process to trigger hiddenFacets is:
+            // 1. map all facets
+            // 2. nominate facets to hide
+            // As the heatmapDTO is cached no additional SOLR requests are required when only adding hiddenFacets (HQ)
+            if (hiddenFacets != null) {
+                for (Integer hf : hiddenFacets) {
+                    if (hf < heatmapDTO.layers.size()) {
+                        heatmapDTO.layers.set(hf, null);
+                    }
                 }
             }
+
+            if (heatmapDTO.layers == null) {
+                displayBlankImage(response);
+                return;
+            }
+
+            // circles from uncertainty distances or requested highlight
+            HeatmapDTO circlesHeatmap = getCirclesHeatmap(vars, bbox, requestParams, width, height, pointWidth);
+
+            // render PNG...
+            tile = renderHeatmap(heatmapDTO,
+                    vars,
+                    (int) pointWidth,
+                    outlinePoints,
+                    outlineColour,
+                    width,
+                    height, transformFrom4326, tilebbox,
+                    circlesHeatmap
+            );
         }
-
-        if (heatmapDTO.layers == null) {
-            displayBlankImage(response);
-            return;
-        }
-
-        // circles from uncertainty distances or requested highlight
-        HeatmapDTO circlesHeatmap = getCirclesHeatmap(vars, bbox, requestParams, width, height, pointWidth);
-
-        // render PNG...
-        ImgObj tile = renderHeatmap(heatmapDTO,
-                vars,
-                (int) pointWidth,
-                outlinePoints,
-                outlineColour,
-                width,
-                height, transformFrom4326, tilebbox,
-                circlesHeatmap
-        );
 
         if (tile != null && tile.g != null) {
             tile.g.dispose();
@@ -2241,5 +2269,257 @@ public class WMSController extends AbstractSecureController {
                 }
             }
         }
+    }
+
+    /**
+     * The concept of a hexagonal grid used:
+     * - Hexagonal grid cells have a flat top.
+     * - For an image tile, there are an even number of columns. i.e. a flat topped hexagonal grid is aligned to the
+     * left hand side of an image tile and the right hand side.
+     * - Each hexagonal grid cell is made up of a left side triangle, middle rectangle, right side triangle.
+     * - The hexagonal grid is staggered when moving left to right; half a grid cell height UP, LEVEL, UP, LEVEL, etc.
+     * - WMS map tile requests are for square tiles (in pixels), so only vertical tiles need alignment. This is done
+     * with respect to the pixel space of the tile requested. The top of hexagonal grid cells is at the top of the tile
+     * where the pixel space is 0, e.g. EPSG:3857 is 0 on the y-axis at the equator.
+     * - Everything is converted to pixel space before putting into hexbins.
+     *
+     * For the purpose of putting a pixel into a hexbin, the process used:
+     * - The right side triangle is ignored.
+     * - The left side triangle is treated as a rectangle. This means that it overlaps the adjacent hexbins (at this stage).
+     * - This leaves a rectangular grid that the pixel is added into.
+     * - Determine if this column is half a grid cell height UP or not (LEVEL).
+     * - If the pixel is in the middle rectangle, return this hexbin position.
+     * - If the pixel is in the area of the left side triangle, continue.
+     * - Find the pixel position relative to the left side's triangle vertex.
+     * - Calculate the angle from the left side triangle vertex.
+     * - If the point is to the right of the lines drawn from the vertex of the left side triangle, return this hexbin position.
+     * - If the point is to the left of the lines drawn from the vertex of the left side triangle, continue
+     * - If the point is closer to the top than the bottom of this grid cell, and this column is UP, move down (y+1)
+     * - If the point is closer to the bottom, and this column is LEVEL, move up (y-1)
+     * - Move left (x-1) and return this hexbin position
+     *
+     * @param px
+     * @param py
+     * @param hexCellWidth
+     * @param hexCellHeight
+     * @param xOverlap
+     * @param globalYOffset
+     * @return
+     */
+    private int [] gridCellCoords(int px, int py, double hexCellWidth, double hexCellHeight, double xOverlap, double globalYOffset) {
+        int x1 = (int) Math.floor(px / hexCellWidth);
+
+        // xpos relative to the cell
+        double xpos = (px - x1 * hexCellWidth);
+
+        // is it in an odd column? if so, a y offset is required for the following operations
+        double yoffset = (x1 % 2 == 0) ? 0.0 : hexCellHeight / 2.0;
+
+        // is it in the top half of the cell?
+        int y1 = (int) Math.floor((py - yoffset + globalYOffset) / hexCellHeight);
+
+        // ypos relative to the cell
+        double ypos = ((py - yoffset + globalYOffset) - y1 * hexCellHeight);
+
+        // is it in the area of overlap?
+        boolean inOverlap = xpos < xOverlap;
+
+        if (inOverlap) {
+            // determine if it is above or below the angled side
+            double angle = Math.atan((hexCellHeight / 2.0 - ypos) / xpos);
+
+            // move to the left when in the left cell and above the angled line
+            if ((Double.isNaN(angle) && ypos < hexCellHeight / 2.0) || angle <= -1 * Math.PI / 3.0) {
+                x1 = x1 - 1;
+                if (yoffset > 0) {
+                    y1 = y1 + 1;
+                }
+            }
+
+            // move to the left when in the left cell and below the angled line
+            if ((Double.isNaN(angle) && ypos > hexCellHeight / 2.0) || angle > Math.PI / 3.0) {
+                x1 = x1 - 1;
+                if (yoffset == 0) {
+                    y1 = y1 - 1;
+                }
+            }
+        }
+
+        return new int[] {x1, y1};
+    }
+
+    private ImgObj hexGridImg(SpatialSearchRequestDTO requestParams,
+                             WmsEnv vars, int tileWidthInPx, int tileHeightInPx, boolean outlinePoints, String outlineColour,
+                             double[] tilebbox, double [] bbox, CoordinateOperation transformFrom4326) throws Exception {
+
+        // Zoom is how zoomed in. 1 = zoomed in, 9 = zoomed out. Limit size from 2 to 9, i.e. zoom is 11 to 3
+        int sz = Math.min(Math.max(vars.size, 1), 9);
+        int gridZoom = Math.max(12 - sz, 3);
+
+        double hexCellWidth = tileWidthInPx / (2.0 * gridZoom);
+
+        if (hexCellWidth < 10) {
+            gridZoom = (int) (tileWidthInPx / 10);
+            hexCellWidth = tileWidthInPx / (2.0 * gridZoom);
+        }
+        double hexCellHeight = 1.1547005 * hexCellWidth;
+
+        double bWidth = ((bbox[2] - bbox[0]) / (double) tileWidthInPx) * hexCellWidth;
+        double bHeight = ((bbox[3] - bbox[1]) / (double) tileHeightInPx) * hexCellHeight;
+
+        double degreesPerPixel = Math.min((bbox[2] - bbox[0]) / (double) tileWidthInPx, (bbox[3] - bbox[1]) / (double) tileHeightInPx);
+
+        //resolution should be a value < 1
+        PointType pointType = getPointTypeForDegreesPerPixel(degreesPerPixel);
+
+        requestParams.setFlimit(-1);
+        FacetField facetField = searchDAO.getFacetPointsShort(requestParams, pointType.getLabel(), bbox[0] - bWidth, bbox[1] - bHeight, bbox[2] + bWidth, bbox[3] + bHeight);
+        FacetField dateLineFacetField = null;
+
+        // add dateline crossing part
+        double dateLineOffset = 0;
+        if (bbox[0] - bWidth < -180) {
+            dateLineFacetField = searchDAO.getFacetPointsShort(requestParams, pointType.getLabel(), 360 + bbox[0] - bWidth, bbox[1] - bHeight, 180.0, bbox[3] + bHeight);
+            dateLineOffset = -360.0;
+        } else if (bbox[2] + bWidth > 180) {
+            dateLineFacetField = searchDAO.getFacetPointsShort(requestParams, pointType.getLabel(), -180.0, bbox[1] - bHeight, bbox[2] + bWidth - 360, bbox[3] + bHeight);
+            dateLineOffset = 360.0;
+        }
+
+        ImgObj imgObj = null;
+
+        double xOverlap = hexCellWidth / (1.0 + Math.sin(Math.PI / 2.0) / Math.sin(Math.PI / 6.0));
+        int gridWidth = gridZoom * 2;
+
+        int gridHeight = (int) Math.ceil(tileHeightInPx / hexCellHeight);
+
+        // pixel position of -90 latitude in relation to the current WMS tile.
+        double globalYOffset = 0;
+        int pixelYOrigin = (int) Math.round((((tilebbox[3]) / (tilebbox[1] - tilebbox[3])) * tileHeightInPx));
+        int cellsAbove = (int) Math.floor(pixelYOrigin / hexCellHeight);
+        globalYOffset = (pixelYOrigin - cellsAbove * hexCellHeight);
+
+        int [][] hexgrid = null;
+        if (gridZoom > 0) {
+            hexgrid = new int[gridWidth + 1 + 2][gridHeight + 1 + 2];
+
+            for (int i = 0; i < hexgrid.length; i++) {
+                Arrays.fill(hexgrid[i], 0);
+            }
+        }
+
+        Color oColour = Color.decode(outlineColour);
+
+        imgObj = ImgObj.create((int) (tileWidthInPx), (int) (tileHeightInPx));
+
+        FacetField [] facetFields = new FacetField[] { facetField, dateLineFacetField };
+        for (FacetField ff : facetFields) {
+            if (ff == null) {
+                continue;
+            }
+            boolean dateLine = (ff == dateLineFacetField);
+
+            for (FacetField.Count s : ff.getValues()) {
+                String v = s.getName();
+                if (v != null) {
+                    int p = v.indexOf(',');
+                    float lng = Float.parseFloat(v.substring(p + 1));
+                    float lat = Float.parseFloat(v.substring(0, p));
+                    int count = (int) s.getCount();
+
+                    // dateline adjust
+                    if (dateLine) {
+                        lng += dateLineOffset;
+                    }
+
+                    // make coordinates to match target SRS
+                    GeneralDirectPosition sourceCoords = new GeneralDirectPosition(lng, lat);
+                    DirectPosition targetCoords = transformFrom4326.getMathTransform().transform(sourceCoords, null);
+                    int px = scaleLongitudeForImage(targetCoords.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
+                    int py = scaleLatitudeForImage(targetCoords.getOrdinate(1), tilebbox[3], tilebbox[1], (int) tileHeightInPx);
+
+                    int[] coordsI = gridCellCoords(px, py, hexCellWidth, hexCellHeight, xOverlap, globalYOffset);
+
+                    int ix = coordsI[0];
+                    int iy = coordsI[1];
+                    if (ix >= -1 && ix < hexgrid.length - 1 && iy >= -1 && iy < hexgrid[0].length - 1) {
+                        hexgrid[ix + 1][iy + 1] += count;
+                    }
+                }
+            }
+        }
+
+        // colour is wrapped in hexColour,occurrenceCount,hexColour,occurrenceCount,hexColor
+        int [] colourSteps = vars.ramp;
+        Color [] colourRamp = vars.rampColours;
+
+        if (hexgrid != null) {
+            // render the hex grid
+            for (int i=0;i<hexgrid.length;i++) {
+                for (int j=0;j<hexgrid[i].length;j++) {
+                    int value = hexgrid[i][j];
+                    if (value > 0) {
+                        Color colour = new Color((((500 - (value > 500 ? 500 : value)) / 2) << 8) | (vars.alpha << 24) | 0x00FF0000, true);
+
+                        if (colourSteps != null) {
+                            int c = 0;
+                            for (c=0;c<colourSteps.length && colourSteps[c] < value;c++) {
+                                // increment c in the for statement;
+                            }
+                            colour = colourRamp[c];
+                        }
+
+                        // draw this hex grid
+                        imgObj.g.setPaint(colour);
+
+                        // the grid has an x+1, y+1 offset.
+                        double yoffset = (i - 1) % 2 == 0 ? 0 : (hexCellHeight / 2.0);
+
+                        yoffset -= globalYOffset;
+
+                        // get coordinates.
+                        double x1 = xOverlap + (i - 1) * hexCellWidth;
+                        double y1 = ((j - 1) * hexCellHeight) + yoffset;
+
+                        double x2 = (i) * hexCellWidth;
+                        double y2 = y1;
+
+                        double x3 = xOverlap + i * hexCellWidth;
+                        double y3 = ((i - 1) % 2 == 0 ?
+                                hexCellHeight / 2.0 + (j - 1) * hexCellHeight + yoffset :
+                                j * hexCellHeight - globalYOffset);
+
+                        double x4 = x2;
+                        double y4 = (j * hexCellHeight) + yoffset;
+
+                        double x5 = x1;
+                        double y5 = y4;
+
+                        double x6 = (i - 1) * hexCellWidth;
+                        double y6 = y3;
+
+                        // Decided to use a Path2D.Float, with +/- 0.1 to coords, to hide aliased edges.
+                        // It also means coordinates do not need to be rounded.
+                        Path2D path = new Path2D.Float();
+                        path.moveTo(x1 - 0.2, y1 - 0.3);
+                        path.lineTo(x2 + 0.2, y2 - 0.3);
+                        path.lineTo(x3 + 0.2, y3);
+                        path.lineTo(x4 + 0.2, y4 + 0.3);
+                        path.lineTo(x5 - 0.2, y5 + 0.3);
+                        path.lineTo(x6 - 0.2, y6);
+                        path.closePath();
+
+                        imgObj.g.fill(path);
+
+                        if (outlinePoints) {
+                            imgObj.g.setPaint(oColour);
+                            imgObj.g.draw(path);
+                        }
+                    }
+                }
+            }
+        }
+
+        return imgObj;
     }
 }

@@ -4,6 +4,7 @@ import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
+import java.awt.*;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 
@@ -12,6 +13,8 @@ public class WmsEnv {
     private final static Logger logger = Logger.getLogger(WmsEnv.class);
     public int red, green, blue, alpha, size, colour;
     public boolean uncertainty, gridlabels;
+    public int [] ramp = null;
+    public Color [] rampColours = null;
     public String colourMode, highlight, gridres;
 
     /**
@@ -26,7 +29,8 @@ public class WmsEnv {
             logger.error(e.getMessage(), e);
         }
 
-        red = green = blue = alpha = 0;
+        red = green = blue = 0;
+        alpha = 255;
         size = 4;
         uncertainty = false;
         highlight = null;
@@ -43,12 +47,30 @@ public class WmsEnv {
                 String[] pair = s.split(":");
                 pair[1] = s.substring(s.indexOf(":") + 1);
                 if (pair[0].equals("color")) {
-                    while (pair[1].length() < 6) {
-                        pair[1] = "0" + pair[1];
+                    if (pair[1].contains(",")) {
+                        // determine colour ramp and cut points. colour,cut,colour,cut,colour
+                        try {
+                            String[] parts = pair[1].split(",");
+                            ramp = new int[(parts.length - 1) / 2];
+                            rampColours = new Color[(parts.length - 1) / 2 + 1];
+                            for (int i = 0; i + 1 < parts.length; i+=2) {
+                                ramp[i/2] = Integer.parseInt(parts[i+1]);
+                                rampColours[i/2] = hexToRGBA(parts[i]);
+                            }
+                            rampColours[rampColours.length - 1] = hexToRGBA(parts[parts.length - 1]);
+                        } catch (Exception ignored) {
+                            // use the default when poorly constructed colour ramp exists
+                            ramp = null;
+                            rampColours = null;
+                        }
+                    } else {
+                        while (pair[1].length() < 6) {
+                            pair[1] = "0" + pair[1];
+                        }
+                        red = Integer.parseInt(pair[1].substring(0, 2), 16);
+                        green = Integer.parseInt(pair[1].substring(2, 4), 16);
+                        blue = Integer.parseInt(pair[1].substring(4), 16);
                     }
-                    red = Integer.parseInt(pair[1].substring(0, 2), 16);
-                    green = Integer.parseInt(pair[1].substring(2, 4), 16);
-                    blue = Integer.parseInt(pair[1].substring(4), 16);
                 } else if (pair[0].equals("size")) {
                     size = Integer.parseInt(pair[1]);
                 } else if (pair[0].equals("opacity")) {
@@ -80,5 +102,21 @@ public class WmsEnv {
 
         colour = (red << 16) | (green << 8) | blue;
         colour = colour | (alpha << 24);
+    }
+
+    public static Color hexToRGBA(String hex) {
+        int r,g,b,a = 255;
+        if (hex.length() == 6) {
+            r = Integer.parseInt(hex.substring(0, 2), 16);
+            g = Integer.parseInt(hex.substring(2, 4), 16);
+            b = Integer.parseInt(hex.substring(4), 16);
+        } else {
+            a = Integer.parseInt(hex.substring(0, 2), 16);
+            r = Integer.parseInt(hex.substring(2, 4), 16);
+            g = Integer.parseInt(hex.substring(4, 6), 16);
+            b = Integer.parseInt(hex.substring(6), 16);
+        }
+
+        return new Color(r, g, b, a);
     }
 }

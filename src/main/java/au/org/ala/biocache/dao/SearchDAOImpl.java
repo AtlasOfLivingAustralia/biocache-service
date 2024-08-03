@@ -27,7 +27,6 @@ import au.org.ala.ws.security.profile.AlaUserProfile;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -43,7 +42,6 @@ import org.slf4j.MDC;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
-//import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
@@ -56,8 +54,6 @@ import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
@@ -186,18 +182,11 @@ public class SearchDAOImpl implements SearchDAO {
 
     @Inject
     protected RangeBasedFacets rangeBasedFacets;
-
-    @Inject
-    protected SpeciesCountsService speciesCountsService;
-
-    @Inject
-    protected SpeciesImageService speciesImageService;
-
     @Inject
     public ListsService listsService;
 
     @Inject
-    protected DownloadService downloadService;
+    protected SensitiveService sensitiveService;
 
     @Value("${media.store.local:true}")
     protected Boolean usingLocalMediaRepo = true;
@@ -226,6 +215,9 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Value("${wms.legendMaxItems:30}")
     private int wmslegendMaxItems;
+
+    @Value("${download.offline.max.size:100000000}")
+    public Integer dowloadOfflineMaxSize = 100000000;
 
     /**
      * thread pool for faceted solr queries
@@ -322,8 +314,6 @@ public class SearchDAOImpl implements SearchDAO {
         } catch (Exception e) {
             logger.error("Unable to refresh cache.", e);
         }
-        speciesImageService.resetCache();
-        speciesCountsService.resetCache();
 
         listsService.refreshCache();
         layersService.refreshCache();
@@ -600,7 +590,7 @@ public class SearchDAOImpl implements SearchDAO {
         dd.resetCounts();
 
         // prepare requested download fields (defaults, substitutions)
-        boolean hasSensitiveRecordAccess = downloadService.getSensitiveFq(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles()) != null;
+        boolean hasSensitiveRecordAccess = sensitiveService.getSensitiveFq(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles()) != null;
         prepareRequestedFields(downloadParams, hasSensitiveRecordAccess);
 
         // prepare headers
@@ -665,7 +655,7 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setFilterQueries(downloadParams.getFormattedFq());
         solrQuery.setRows(-1);
         solrQuery.setStart(0);
-        String sensitiveFq = downloadService.getSensitiveFq(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles());
+        String sensitiveFq = sensitiveService.getSensitiveFq(dd.getAlaUser() == null ? Collections.emptySet() : dd.getAlaUser().getRoles());
         // Split into sensitive and non-sensitive queries when
         // - not including all sensitive values
         // - there is a sensitive fq
@@ -683,7 +673,7 @@ public class SearchDAOImpl implements SearchDAO {
         }
 
         ProcessDownload procDownload = new ProcessDownload(downloadStats, downloadHeaders, recordWriter, dd,
-                checkDownloadLimits, downloadService.dowloadOfflineMaxSize,
+                checkDownloadLimits, dowloadOfflineMaxSize,
                 listsService, layersService);
 
         return new DownloadCallable(queries, indexDao, procDownload);
@@ -1422,19 +1412,19 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws SolrServerException
      */
-    protected void getSpeciesCountsJSON(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
+    protected void getSpeciesCountsJSON(SpatialSearchRequestDTO requestParams, Boolean includeRank, OutputStream outputStream) throws Exception {
         SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
         solrQuery.setFacetMissing(false);
 
-        StreamTaxaCount procFacet = new StreamTaxaCount(this, searchUtils, requestParams, outputStream);
+        StreamTaxaCount procFacet = new StreamTaxaCount(this, searchUtils, requestParams, includeRank, outputStream);
         indexDao.streamingQuery(solrQuery, null, procFacet, null);
     }
 
-    protected void getSpeciesCountsCSV(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
+    protected void getSpeciesCountsCSV(SpatialSearchRequestDTO requestParams, Boolean includeRank, OutputStream outputStream) throws Exception {
         SolrQuery solrQuery = initSolrQuery(requestParams, false, null);
         solrQuery.setFacetMissing(false);
 
-        StreamTaxaAsCSV procFacet = new StreamTaxaAsCSV(this, searchUtils, requestParams, outputStream);
+        StreamTaxaAsCSV procFacet = new StreamTaxaAsCSV(this, searchUtils, requestParams, includeRank, outputStream);
         indexDao.streamingQuery(solrQuery, null, procFacet, null);
     }
 
@@ -1846,24 +1836,24 @@ public class SearchDAOImpl implements SearchDAO {
      * @see au.org.ala.biocache.dao.SearchDAO#findAllSpeciesJSON(SpatialSearchRequestDTO, OutputStream)
      */
     @Override
-    public void findAllSpeciesJSON(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
+    public void findAllSpeciesJSON(SpatialSearchRequestDTO requestParams, Boolean includeRank, OutputStream outputStream) throws Exception {
         if (requestParams.getFacets() == null || requestParams.getFacets().length != 1) {
             requestParams.setFacets(new String[]{NAMES_AND_LSID});
         }
 
-        getSpeciesCountsJSON(requestParams, outputStream);
+        getSpeciesCountsJSON(requestParams, includeRank, outputStream);
     }
 
     /**
      * @see au.org.ala.biocache.dao.SearchDAO#findAllSpeciesJSON(SpatialSearchRequestDTO, OutputStream)
      */
     @Override
-    public void findAllSpeciesCSV(SpatialSearchRequestDTO requestParams, OutputStream outputStream) throws Exception {
+    public void findAllSpeciesCSV(SpatialSearchRequestDTO requestParams, Boolean includeRank, OutputStream outputStream) throws Exception {
         if (requestParams.getFacets() == null || requestParams.getFacets().length != 1) {
             requestParams.setFacets(new String[]{NAMES_AND_LSID});
         }
 
-        getSpeciesCountsCSV(requestParams, outputStream);
+        getSpeciesCountsCSV(requestParams, includeRank, outputStream);
     }
 
     /**
@@ -2266,7 +2256,12 @@ public class SearchDAOImpl implements SearchDAO {
 
         SimpleOrderedMap facets = SearchUtils.getMap(qr.getResponse(), "facets");
 
-        return new double[]{toDouble(facets.get("x1")), toDouble(facets.get("y1")), toDouble(facets.get("x2")), toDouble(facets.get("y2"))};
+        try {
+            return new double[]{toDouble(facets.get("x1")), toDouble(facets.get("y1")), toDouble(facets.get("x2")), toDouble(facets.get("y2"))};
+        } catch (Exception ignored) {
+            // Might be a query without one of decimalLongitude or decimalLatitude, e.g. no records found
+            return new double[]{0, 0, 0, 0};
+        }
     }
 
     /**
@@ -2574,5 +2569,61 @@ public class SearchDAOImpl implements SearchDAO {
     @Override
     public int streamingQuery(SpatialSearchRequestDTO request, ProcessInterface procSearch, ProcessInterface procFacet) throws Exception {
         return indexDao.streamingQuery(initSolrQuery(request, true, null), procSearch, procFacet, null);
+    }
+
+    /**
+     * @see au.org.ala.biocache.dao.SearchDAO#getFacetPointsShort(au.org.ala.biocache.dto.SpatialSearchRequestDTO, String, Double, Double, Double, Double)
+     */
+    @Override
+    public FacetField getFacetPointsShort(SpatialSearchRequestDTO searchParams, String pointType, Double minx, Double miny, Double maxx, Double maxy) throws Exception {
+
+        // limit miny maxy to -90 90
+        if (miny < -90) miny = -90.0;
+        if (maxy > 90) maxy = 90.0;
+
+        // fix date line
+        while (maxx > 180) {
+            maxx = 180.0;
+        }
+        while (minx < -180) {
+            minx = -180.0;
+        }
+
+        SolrQuery solrQuery = new SolrQuery();
+        solrQuery.setRequestHandler("standard");
+        solrQuery.setQuery(searchParams.getFormattedQuery());
+        solrQuery.setFilterQueries(searchParams.getFormattedFq());
+        solrQuery.addFilterQuery("decimalLongitude:[" + minx + " TO " + maxx + "]");
+        solrQuery.addFilterQuery("decimalLatitude:[" + miny + " TO " + maxy + "]");
+        solrQuery.setRows(0);
+        solrQuery.setFacet(true);
+        solrQuery.addFacetField(pointType);
+        solrQuery.setFacetMinCount(1);
+        solrQuery.setFacetLimit(searchParams.getFlimit());
+
+        QueryResponse qr = query(solrQuery); // can throw exception
+
+        List<FacetField> facets = qr.getFacetFields();
+
+        // return first facet, there should only be 1
+        if (facets != null && !facets.isEmpty()) {
+            return facets.get(0);
+        }
+        return null;
+    }
+
+    public SolrDocument getOcc(String recordUuid) {
+        SpatialSearchRequestDTO idRequest = new SpatialSearchRequestDTO();
+        idRequest.setQ("id:\"" + recordUuid + "\"");
+        idRequest.setFacet(false);
+        idRequest.setFl("*");
+        idRequest.setPageSize(1);
+        SolrDocumentList list = null;
+        try {
+            list = findByFulltext(idRequest);
+        } catch (Exception ignored) {
+            logger.debug("Failed to find occurrence with id " + recordUuid);
+        }
+        return (list != null && list.size() > 0) ? list.get(0) : null;
     }
 }
