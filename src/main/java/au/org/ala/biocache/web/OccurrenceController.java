@@ -1674,7 +1674,8 @@ public class OccurrenceController extends AbstractSecureController {
         SolrDocumentList sdl = null;
         Boolean includeSensitive = false;
 
-        if (!authenticatedUser.isPresent() || authenticatedUser.get().getRoles().isEmpty()){
+        //TODO NBN For now, don't show sensitive details on the occurrence page
+        if (true || !authenticatedUser.isPresent() /*|| authenticatedUser.get().getRoles().isEmpty()*/){
             // no authentication
             SpatialSearchRequestDTO idRequest = createRecirdQuery(uuid);
             sdl = searchDAO.findByFulltext(idRequest);
