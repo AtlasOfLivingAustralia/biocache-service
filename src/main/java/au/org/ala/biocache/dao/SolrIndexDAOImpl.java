@@ -1175,17 +1175,39 @@ public class SolrIndexDAOImpl implements IndexDAO {
                 }
             }
         }
+
         if (StringUtils.isNotEmpty(query.getFields())) {
             solrParams.set("fl", StringUtils.join(fieldMappingUtil.translateFieldArray(query.getFields().split(",")), ","));
         } else {
             solrParams.set("fl", "id");
         }
 
-        // The sort field does not need to be present in the field list.
-        if (StringUtils.isEmpty(query.getSortField())) {
-            solrParams.set("sort", "id asc");
-        } else {
+        // The sort field is required, sometimes. Testing suggests that this depends on the solrClient class.
+        // 1. use the query specified sort, without checking if it is in the list of fields
+        // 2. use the first non-multivalue field
+        // 3. use "id asc" and append "id" to the fl if it is missing
+        //
+        // Handle the error for some solrClient classes when the default query sort is "score asc" by excluding it
+        if (StringUtils.isNotEmpty(query.getSortField()) && !"score asc".equals(query.getSortField())) {
             solrParams.set("sort", query.getSortField());
+        } else {
+            String [] fl = solrParams.get("fl").split(",");
+            String nonMultivalueField = null;
+            for (String field : fl) {
+                IndexFieldDTO f = indexFieldMap.get(field);
+                if (f != null && !f.isMultivalue()) {
+                    nonMultivalueField = f.getName();
+                    break;
+                }
+            }
+            if (nonMultivalueField != null) {
+                solrParams.set("sort", nonMultivalueField + " asc");
+            } else {
+                solrParams.set("sort", "id asc");
+
+                // append "id" to field list
+                solrParams.set("fl", solrParams.get("fl") + ",id");
+            }
         }
 
         String qt = "/export";
