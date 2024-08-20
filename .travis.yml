@@ -12,6 +12,7 @@ branches:
     - /^release\/.*$/
     - /^hotfix\/.*$/
     - /^feature\/.*$/
+    - master-nbn.3.4.0
 before_cache:
   - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
   - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
