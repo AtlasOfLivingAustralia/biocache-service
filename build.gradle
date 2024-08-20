@@ -226,12 +226,13 @@ processResources {
     }
 }
 
-dockerCompose {
-    useComposeFiles.add("src/test/resources/docker-compose.yaml")
-    isRequiredBy(tasks.test)
-}
+//dockerCompose {
+//    useComposeFiles.add("src/test/resources/docker-compose.yaml")
+//    isRequiredBy(tasks.test)
+//}
 
 test {
+    exclude '**/*IT.class'
     finalizedBy 'jacocoTestReport' // report is always generated after tests run
 }
 

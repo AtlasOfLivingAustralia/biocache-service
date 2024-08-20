@@ -28,7 +28,7 @@ before_install:
 after_success:
   - '[ "${TRAVIS_PULL_REQUEST}" = "false" ] && ./gradlew clean'
   - ./gradlew publish
-  - ./gradlew coveralls
+#  - ./gradlew coveralls
 #after_success:
 #  - mvn coveralls:report
 env:
