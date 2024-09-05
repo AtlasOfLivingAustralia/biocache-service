@@ -1,6 +1,34 @@
 import json
 import re
 
+header_map = {
+    "uuid": "uuid",
+    "rowkey": "rowkey",  # This was not in the initial list, but we assume it's mapped from "rowkey"
+    "referencerowkey": "referenceRowKey",
+    "name": "name",
+    "code": "code",
+    "relateduuid": "relatedUuid",
+    "qastatus": "qaStatus",
+    "comment": "comment",
+    "value": "value",
+    "userid": "userId",
+    "useremail": "userEmail",
+    "userdisplayname": "userDisplayName",
+    "userrole": "userRole",
+    "userentityuid": "userEntityUid",
+    "userentityname": "userEntityName",
+    "created": "created",
+    "snapshot": "snapshot",
+    "problemasserted": "problemAsserted"
+}
+
+
+def normalise_header(header):
+    if header in header_map:
+        return header_map[header]
+    else:
+        return header
+
 def normaluid(uuid):
     return re.search("^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$", uuid) != None
     #return ("|" not in uuid) and (not uuid.startswith("dr"))
@@ -50,7 +78,7 @@ def convert(csvFilePath, jsonFilePath):
             if linenum == 0:
                 linenum = linenum + 1
                 for idx in range(0, len(contents)):
-                    columns[idx] = contents[idx]
+                    columns[idx] = normalise_header(contents[idx])
             else:
                 if len(contents) >= len(columns):
                     oneline = {}
