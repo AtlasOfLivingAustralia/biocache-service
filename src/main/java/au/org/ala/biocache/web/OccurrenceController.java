@@ -872,7 +872,7 @@ public class OccurrenceController extends AbstractSecureController {
      * @throws Exception
      */
     @Operation(summary = "Occurrence search",
-            description = "Occurrence search service that supports facets. Please note that results are capped at the first 5,000 records, and no additional records will be returned, regardless of the start or pageSize parameters. If you need more data, consider using the download API instead.",
+            description = "Occurrence search service that supports facets. Please note that results are capped at the first 5,000 records, and no additional records will be returned, regardless of the start or pageSize parameters. To access more than 5,000 records, consider using the download API instead.",
             tags = "Occurrence"
     )
     @RequestMapping(value = {
