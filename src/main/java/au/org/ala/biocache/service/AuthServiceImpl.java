@@ -50,7 +50,7 @@ import java.util.*;
  * Date: 21/11/12
  * Time: 10:38 AM
  */
-@Component("authService")
+//@Component("authService")
 @Slf4j
 public class AuthServiceImpl implements AuthService {
 
