@@ -2128,6 +2128,7 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, occurrence, "institutionID", getFieldName);
         addField(sd, occurrence, "language", getFieldName);
         addField(sd, occurrence, "lifeStage", getFieldName);
+        addField(sd, occurrence, "materialSampleID", getFieldName);
         addField(sd, occurrence, "modified", getFieldName);
         addField(sd, occurrence, "occurrenceAttributes", getFieldName);
         addField(sd, occurrence, "occurrenceDetails", getFieldName);
