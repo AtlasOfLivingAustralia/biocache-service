@@ -56,7 +56,7 @@ import java.util.stream.Collectors;
 /**
  * This controller provides web services for assertion creation/deletion.
  */
-@RestController
+//@RestController
 public class AssertionController extends AbstractSecureController {
 
     private final static Logger logger = Logger.getLogger(AssertionController.class);
