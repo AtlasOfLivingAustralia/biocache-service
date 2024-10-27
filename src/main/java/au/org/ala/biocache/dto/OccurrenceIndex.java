@@ -228,6 +228,8 @@ public class OccurrenceIndex {
     String rights;
     @Field("gridReference")
     String gridReference;
+    @Field("publicResolutionInMeters")
+    Integer publicResolutionInMeters;
     @Schema(description="Metadata for the images associated with this occurrence")
     List<Map<String, Object>> imageMetadata;
     @Schema(description="URL for the first image associated with this record")
@@ -1108,6 +1110,14 @@ public class OccurrenceIndex {
 
     public void setGridReference(String gridReference) {
         this.gridReference = gridReference;
+    }
+
+    public Integer getPublicResolutionInMeters() {
+        return publicResolutionInMeters;
+    }
+
+    public void setPublicResolutionInMeters(Integer publicResolutionInMeters) {
+        this.publicResolutionInMeters = publicResolutionInMeters;
     }
 
     public Map<String, Object> getMiscDateProperties() {
