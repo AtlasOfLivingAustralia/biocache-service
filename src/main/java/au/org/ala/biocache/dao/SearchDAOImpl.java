@@ -1105,7 +1105,9 @@ public class SearchDAOImpl implements SearchDAO {
             for (Map.Entry<String, List<PivotField>> entry : facetPivot) {
                 FacetField pivotFacet = new FacetField(entry.getKey());
                 for (PivotField pivot : entry.getValue()) {
-                    pivotFacet.add(pivot.getValue().toString(), pivot.getCount());
+                    if (pivot.getValue() != null) {
+                        pivotFacet.add(pivot.getValue().toString(), pivot.getCount());
+                    }
                 }
                 facets.add(pivotFacet);
             }
