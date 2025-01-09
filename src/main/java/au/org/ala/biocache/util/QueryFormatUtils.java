@@ -23,6 +23,7 @@ import java.util.*;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static au.org.ala.biocache.dto.OccurrenceIndex.CONTAINS_SENSITIVE_PATTERN;
 import static java.util.stream.Collectors.joining;
@@ -218,10 +219,17 @@ public class QueryFormatUtils {
         List<String> facetList = new ArrayList<String>();
         List<String> facetPivotList = new ArrayList<String>();
         List<String> fqList = new ArrayList<String>();
+        List<String> exList = new ArrayList<String>();
 
+        // Get a list of excluded fields
+        List<String> excludedFields = Arrays.stream(searchParams.getFacets())
+                .filter(f -> searchParams.getFq() != null && Arrays.stream(searchParams.getFq()).anyMatch(fq -> fq.contains(f)))
+                .collect(Collectors.toList());
+
+        // Add the excluded fields to the facetPivotList || facetList
         for (String f : searchParams.getFacets()) {
-            if (searchParams.getFq() != null && Arrays.stream(searchParams.getFq()).anyMatch(fq -> fq.contains(f) && !fq.contains("*"))) {
-                String prefix = "{!ex=" + f + "}";
+            if (excludedFields.contains(f)) {
+                String prefix = "{!ex=" + String.join(",", excludedFields) + "}";
                 facetPivotList.add(prefix + f);
             } else {
                 facetList.add(f);
@@ -231,7 +239,7 @@ public class QueryFormatUtils {
         if (searchParams.getFq() != null) {
             for (String fq : searchParams.getFq()) {
                 String fqField = org.apache.commons.lang3.StringUtils.substringBefore(fq, ":");
-                if (Arrays.asList(searchParams.getFacets()).contains(fqField) && !fq.contains("*")) {
+                if (Arrays.asList(searchParams.getFacets()).contains(fqField)) {
                     String prefix = "{!tag=" + fqField + "}";
                     fqList.add(prefix + fq);
                 } else {
