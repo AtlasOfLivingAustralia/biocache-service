@@ -1097,6 +1097,20 @@ public class SearchDAOImpl implements SearchDAO {
         SolrDocumentList sdl = qr.getResults();
         // Iterator it = qr.getResults().iterator() // Use for download
         List<FacetField> facets = qr.getFacetFields();
+        NamedList<List<PivotField>> facetPivot = qr.getFacetPivot();
+
+        // Add the (fake) facet pivot fields to the facets, as a workaround for tagging/excluding bug in solrj
+        // @see au.org.ala.biocache.util.QueryFormatUtils.applyFilterTagging comment for more details
+        if (params.getIncludeUnfilteredFacetValues() && facetPivot != null) {
+            for (Map.Entry<String, List<PivotField>> entry : facetPivot) {
+                FacetField pivotFacet = new FacetField(entry.getKey());
+                for (PivotField pivot : entry.getValue()) {
+                    pivotFacet.add(pivot.getValue().toString(), pivot.getCount());
+                }
+                facets.add(pivotFacet);
+            }
+        }
+
         List<FacetField> facetDates = qr.getFacetDates();
         Map<String, Integer> facetQueries = qr.getFacetQuery();
         if (facetDates != null) {
@@ -1363,6 +1377,10 @@ public class SearchDAOImpl implements SearchDAO {
                     }
 
                 }
+            }
+
+            for (String facet : searchParams.getFacetPivots()) {
+                solrQuery.addFacetPivotField(facet);
             }
 
             solrQuery.setFacetMinCount(1);

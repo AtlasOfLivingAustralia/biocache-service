@@ -139,6 +139,11 @@ public class QueryFormatUtils {
             //reset formattedFq in case of searchParams reuse
             searchParams.setFormattedFq(null);
 
+            // Apply filter tagging and excluding filters if flag is set
+            if (searchParams.getIncludeUnfilteredFacetValues()) {
+                applyFilterTagging(searchParams);
+            }
+
             //format fqs for facets that need ranges substituted
             if (searchParams.getFq() != null) {
                 for (int i = 0; i < searchParams.getFq().length; i++) {
@@ -184,14 +189,60 @@ public class QueryFormatUtils {
 
             //add spatial query term for wkt or lat/lon/radius parameters. DisplayString is already added by formatGeneral
             String spatialQuery = buildSpatialQueryString(searchParams);
+
             if (StringUtils.isNotEmpty(spatialQuery)) {
                 addFormattedFq(new String[] { spatialQuery }, searchParams);
             }
+
             updateQualityProfileContext(searchParams);
         }
 
         updateQueryContext(searchParams);
         return fqMaps;
+    }
+
+    /**
+     * Apply facet tagging and filter exclusions to the search request.
+     *
+     * Note: due to bug/feature in SOLRJ, the filtered facets are added to
+     * the facet pivot list instead of the facet list, otherwise SOLRJ will
+     * ignore the facets with counts greater than totalRecords count, when generating
+     * the facetResults.
+     *
+     * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
+     * @date 2025-01-09
+     *
+     * @param searchParams
+     */
+    private void applyFilterTagging(SpatialSearchRequestDTO searchParams) {
+        List<String> facetList = new ArrayList<String>();
+        List<String> facetPivotList = new ArrayList<String>();
+        List<String> fqList = new ArrayList<String>();
+
+        for (String f : searchParams.getFacets()) {
+            if (searchParams.getFq() != null && Arrays.stream(searchParams.getFq()).anyMatch(fq -> fq.contains(f) && !fq.contains("*"))) {
+                String prefix = "{!ex=" + f + "}";
+                facetPivotList.add(prefix + f);
+            } else {
+                facetList.add(f);
+            }
+        }
+
+        if (searchParams.getFq() != null) {
+            for (String fq : searchParams.getFq()) {
+                String fqField = org.apache.commons.lang3.StringUtils.substringBefore(fq, ":");
+                if (Arrays.asList(searchParams.getFacets()).contains(fqField) && !fq.contains("*")) {
+                    String prefix = "{!tag=" + fqField + "}";
+                    fqList.add(prefix + fq);
+                } else {
+                    fqList.add(fq);
+                }
+            }
+        }
+
+        searchParams.setFacetPivots(facetPivotList.toArray(new String[0]));
+        searchParams.setFacets(facetList.toArray(new String[0]));
+        searchParams.setFq(fqList.toArray(new String[0]));
     }
 
     /**
@@ -248,6 +299,7 @@ public class QueryFormatUtils {
             }
         }
     }
+
     private void addFormattedFq(String [] fqs, SearchRequestDTO searchParams) {
         if (fqs != null && searchParams != null) {
             String[] currentFqs = searchParams.getFormattedFq();

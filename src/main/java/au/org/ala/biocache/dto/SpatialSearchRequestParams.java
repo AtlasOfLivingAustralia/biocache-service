@@ -85,6 +85,9 @@ public class SpatialSearchRequestParams {
     @Parameter(name="includeMultivalues", description = "Include multi values")
     protected Boolean includeMultivalues = false;
 
+//    @Parameter(name="includeUnfilteredFacetValues", description = "Include facet values for all available options, when filtering on the same field")
+    protected Boolean includeUnfilteredFacetValues = false;
+
     @Parameter(name="qc", description = "The query context to be used for the search. " +
             "This will be used to generate extra query filters.")
     protected String qc = "";
