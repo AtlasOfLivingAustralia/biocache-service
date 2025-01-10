@@ -251,7 +251,7 @@ public class QueryFormatUtils {
         }
 
         // Update the searchParams with the new facetPivotList, facetList, and fqList
-        searchParams.setFacetPivots(facetPivotList.toArray(new String[0]));
+        searchParams.setPivotFacets(facetPivotList.toArray(new String[0]));
         searchParams.setFacets(facetList.toArray(new String[0]));
         searchParams.setFq(fqList.toArray(new String[0]));
     }

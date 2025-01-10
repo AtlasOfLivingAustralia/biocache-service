@@ -55,7 +55,7 @@ public class SearchRequestDTO {
      * Initialised with the default facets to use
      */
     protected String[] facets =  new String[0]; //FacetThemes.getAllFacetsLimited();
-    protected String[] facetPivots =  new String[0];
+    protected String[] pivotFacets =  new String[0];
     protected Integer facetsMax = 30; //FacetThemes.getFacetsMax();
     /** To disable facets */
     protected Boolean facet = true; //FacetThemes.getFacetDefault();
@@ -395,11 +395,11 @@ public class SearchRequestDTO {
         this.facets = list.toArray(new String[0]);
     }
 
-    public String[] getFacetPivots() {
-        return facetPivots;
+    public String[] getPivotFacets() {
+        return pivotFacets;
     }
 
-    public void setFacetPivots(String[] facets) {
+    public void setPivotFacets(String[] facets) {
         QueryFormatUtils.assertNoSensitiveValues(SearchRequestDTO.class, "facets", facets);
 
         if (facets != null && facets.length == 1 && facets[0].contains(",")) facets = facets[0].split(",");
@@ -414,7 +414,7 @@ public class SearchRequestDTO {
                 }
             }
         }
-        this.facetPivots = list.toArray(new String[0]);
+        this.pivotFacets = list.toArray(new String[0]);
     }
 
     public Integer getFlimit() {

@@ -1381,7 +1381,7 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             }
 
-            for (String facet : searchParams.getFacetPivots()) {
+            for (String facet : searchParams.getPivotFacets()) {
                 solrQuery.addFacetPivotField(facet);
             }
 
