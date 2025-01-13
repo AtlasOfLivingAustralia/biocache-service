@@ -1,6 +1,13 @@
 package au.org.ala.biocache.util
 
+import au.org.ala.biocache.dao.QidCacheDAO
+import au.org.ala.biocache.dto.Qid
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO
+import au.org.ala.biocache.service.AuthService
+import au.org.ala.biocache.service.DataQualityService
+import au.org.ala.biocache.service.LayersService
 import au.org.ala.biocache.service.ListsService
+import au.org.ala.biocache.util.solr.FieldMappingUtil
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.common.io.Resources
@@ -14,11 +21,22 @@ class QueryFormatUtilsSpec extends Specification {
 
     def listsService = Stub(ListsService)
     def searchUtils = Stub(SearchUtils)
+    def layersService = Stub(LayersService)
+    def qidCacheDao = Stub(QidCacheDAO)
+    def dataQualityService = Stub(DataQualityService)
+    def authService = Stub(AuthService)
+    def fieldMappingUtil = Stub(FieldMappingUtil)
 
     def setup() {
-
         queryFormatUtils.listsService = listsService
         queryFormatUtils.searchUtils = searchUtils
+        queryFormatUtils.layersService = layersService
+        queryFormatUtils.qidCacheDao = qidCacheDao
+        queryFormatUtils.dataQualityService = dataQualityService
+        queryFormatUtils.fieldMappingUtil = Mock(FieldMappingUtil) {
+            translateQueryFields(_) >> { String query -> return query }
+        }
+        queryFormatUtils.authService = authService
     }
 
 
@@ -67,6 +85,103 @@ class QueryFormatUtilsSpec extends Specification {
         'species_list:dr123'  | 'species_list:dr123'   || '<span class="species_list failed" id=\'dr123\'>dr123 (FAILED)</span>' | '(NOT *:*)'
         'species_list:dr123 species_list:dr456' | 'species_list:dr123 species_list:dr456'   || '<span class="species_list failed" id=\'dr123\'>dr123 (FAILED)</span> <span class="species_list failed" id=\'dr456\'>dr456 (FAILED)</span>' | '(NOT *:*) (NOT *:*)'
         '<span>before</span> species_list:dr123 <span>between</span> species_list:dr456 <span>after</span>' | 'field:before species_list:dr123 field:between species_list:dr456 field:after'   || '<span>before</span> <span class="species_list failed" id=\'dr123\'>dr123 (FAILED)</span> <span>between</span> <span class="species_list failed" id=\'dr456\'>dr456 (FAILED)</span> <span>after</span>' | 'field:before (NOT *:*) field:between (NOT *:*) field:after'
+    }
+
+    def "test formatSearchQuery with empty query"() {
+        given:
+        SpatialSearchRequestDTO searchParams = new SpatialSearchRequestDTO()
+        searchParams.setQ("")
+        searchParams.setFq(new String[0])
+
+        when:
+        def result = queryFormatUtils.formatSearchQuery(searchParams, false)
+
+        then:
+        result[0].isEmpty()
+        result[1].isEmpty()
+        searchParams.getFormattedQuery() == ""
+        searchParams.getDisplayString() == ""
+    }
+
+    def "test formatSearchQuery with simple query"() {
+        given:
+        SpatialSearchRequestDTO searchParams = new SpatialSearchRequestDTO()
+        searchParams.setQ("taxon_name:Test")
+        searchParams.setFq(new String[0])
+
+        when:
+        def result = queryFormatUtils.formatSearchQuery(searchParams, false)
+
+        then:
+        result[0].isEmpty()
+        result[1].isEmpty()
+        searchParams.getFormattedQuery() == "taxon_name:Test"
+        searchParams.getDisplayString() == "taxon_name:Test"
+    }
+
+    def "test formatSearchQuery with qid"() {
+        given:
+        SpatialSearchRequestDTO searchParams = new SpatialSearchRequestDTO()
+        searchParams.setQ("qid:123")
+        searchParams.setFq(new String[0])
+        qidCacheDao.get(_) >> new Qid(q: "taxon_name:Test", fqs: new String[0])
+
+        when:
+        def result = queryFormatUtils.formatSearchQuery(searchParams, false)
+
+        then:
+        result[0].isEmpty()
+        result[1].isEmpty()
+        searchParams.getFormattedQuery() == "taxon_name:Test"
+        searchParams.getDisplayString() == "taxon_name:Test"
+    }
+
+    def "test formatSearchQuery with facets"() {
+        given:
+        SpatialSearchRequestDTO searchParams = new SpatialSearchRequestDTO()
+        searchParams.setQ("taxon_name:Test")
+        searchParams.setFacet(true)
+        searchParams.setIncludeUnfilteredFacetValues(false)
+        searchParams.setFq(new String[]{"month:1", "year:2020"})
+        searchParams.setFacets(new String[]{"month", "year", "eventDate"})
+
+        when:
+        def result = queryFormatUtils.formatSearchQuery(searchParams, false)
+
+        then:
+        result[0].size() == 2
+        result[1].size() == 2
+        searchParams.getFormattedQuery() == "taxon_name:Test"
+        searchParams.getFormattedFq() == new String[]{"month:1", "year:2020"}
+        searchParams.getFq() == new String[]{"month:1", "year:2020"}
+        searchParams.getDisplayString() == "taxon_name:Test"
+        searchParams.getFacets() == new String[]{"month", "year", "eventDate"}
+        searchParams.getPivotFacets() == new String[]{}
+    }
+
+
+
+    def "test formatSearchQuery with tagging and excluded facets"() {
+        given:
+        SpatialSearchRequestDTO searchParams = new SpatialSearchRequestDTO()
+        searchParams.setQ("taxon_name:Test")
+        searchParams.setFacet(true)
+        searchParams.setIncludeUnfilteredFacetValues(true)
+        searchParams.setFq(new String[]{"month:1", "year:2020"})
+        searchParams.setFacets(new String[]{"month", "year", "eventDate"})
+
+        when:
+        def result = queryFormatUtils.formatSearchQuery(searchParams, false)
+
+        then:
+        result[0].size() == 2
+        result[1].size() == 2
+        searchParams.getFormattedQuery() == "taxon_name:Test"
+        searchParams.getDisplayString() == "taxon_name:Test"
+        searchParams.getFormattedFq() == new String[]{"{!tag=month}month:1", "{!tag=year}year:2020"}
+        searchParams.getFq() == new String[]{"month:1", "year:2020"}
+        searchParams.getFacets() == new String[]{"eventDate"}
+        searchParams.getPivotFacets() == new String[]{"{!ex=month,year}month", "{!ex=month,year}year"}
     }
 
     private static ObjectMapper om = new ObjectMapper()
