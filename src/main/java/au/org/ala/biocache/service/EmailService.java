@@ -20,6 +20,7 @@ import java.util.Properties;
 import javax.annotation.PostConstruct;
 
 import jakarta.mail.Transport;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -45,11 +46,18 @@ public class EmailService {
     private String host;
     @Value("${mail.smtp.port:25}")
     private String port;
+    @Value("${mail.smtp.starttls.enable:false}")
+    private boolean starttls;
+    @Value("${mail.smtp.username:}")
+    private String username;
+    @Value("${mail.smtp.password:}")
+    private String password;
 
     @PostConstruct
     protected void init(){        
         properties.put("mail.smtp.host", host);        
         properties.put("mail.smtp.port", port);
+        properties.put("mail.smtp.starttls.enable", starttls);
     }
     
     /**
@@ -62,7 +70,7 @@ public class EmailService {
      * @param sender
      */
     public void sendEmail(String recipient, String copy, String subject, String content, String sender){
-        
+
         logger.debug("Send email to : " + recipient);
 //        logger.debug("Body: " + content);
         Session session = Session.getDefaultInstance(properties);
@@ -78,7 +86,11 @@ public class EmailService {
             }
             message.setSubject(subject);
             message.setContent(content, "text/html" );
-            Transport.send(message);
+            if (StringUtils.isNotBlank(username)) {
+                Transport.send(message, username, password);
+            } else {
+                Transport.send(message);
+            }
         } catch (Exception e){
             logger.error("Unable to send email to " + recipient + ".\n"+content, e);
         }
@@ -147,5 +159,47 @@ public class EmailService {
      */
     public void setSender(String sender) {
         this.sender = sender;
+    }
+
+    /**
+     * @return the starttls flag
+     */
+    public boolean getStarttls() {
+        return starttls;
+    }
+
+    /**
+     * @param starttls the starttls flag to set
+     */
+    public void setStarttls(boolean starttls) {
+        this.starttls = starttls;
+    }
+
+    /**
+     * @return the username
+     */
+    public String getUsername() {
+        return username;
+    }
+
+    /**
+     * @param username the username to set
+     */
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    /**
+     * @return the password
+     */
+    public String getPassword() {
+        return password;
+    }
+
+    /**
+     * @param password the password to set
+     */
+    public void setPassword(String password) {
+        this.password = password;
     }
 }
