@@ -871,9 +871,8 @@ public class OccurrenceController extends AbstractSecureController {
      * @return
      * @throws Exception
      */
-    @SecurityRequirement(name = "JWT")
     @Operation(summary = "Occurrence search",
-            description = "Occurrence search service that supports facets",
+            description = "Occurrence search service that supports facets. Please note that results are limited to a maximum of 5,000 records, though this limit may vary. No additional records will be returned beyond this cap, regardless of the start or pageSize parameters. To retrieve more than the specified limit, consider using the download API instead.",
             tags = "Occurrence"
     )
     @RequestMapping(value = {
