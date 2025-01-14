@@ -91,6 +91,14 @@ public class QueryFormatUtils {
     int solrCircleSegments = 18;
 
     /**
+     * When facet tagging/excluding is enabled, this flag determines whether to combine
+     * multiple excluded facet fields into each facet {!ex} tag.
+     * @see au.org.ala.biocache.util.QueryFormatUtils#applyFilterTagging(au.org.ala.biocache.dto.SpatialSearchRequestDTO)
+     */
+    @Value("${facets.combineExcludedFields:false}")
+    boolean combineExcludedFacetFields = false;
+
+    /**
      * This is appended to the query displayString when SpatialSearchRequestParams.wkt is used.
      */
     @Value("${wkt.display.string: - within user defined polygon}")
@@ -230,7 +238,7 @@ public class QueryFormatUtils {
         // Add the excluded fields to the facetPivotList || facetList
         for (String f : searchParams.getFacets()) {
             if (excludedFields.contains(f)) {
-                String prefix = "{!ex=" + String.join(",", excludedFields) + "}";
+                String prefix = combineExcludedFacetFields ? "{!ex=" + String.join(",", excludedFields) + "}" : "{!ex=" + f + "}";
                 facetPivotList.add(prefix + f);
             } else {
                 facetList.add(f);
