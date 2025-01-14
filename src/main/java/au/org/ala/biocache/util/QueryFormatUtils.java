@@ -23,6 +23,7 @@ import java.util.*;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static au.org.ala.biocache.dto.OccurrenceIndex.CONTAINS_SENSITIVE_PATTERN;
 import static java.util.stream.Collectors.joining;
@@ -90,6 +91,14 @@ public class QueryFormatUtils {
     int solrCircleSegments = 18;
 
     /**
+     * When facet tagging/excluding is enabled, this flag determines whether to combine
+     * multiple excluded facet fields into each facet {!ex} tag.
+     * @see au.org.ala.biocache.util.QueryFormatUtils#applyFilterTagging(au.org.ala.biocache.dto.SpatialSearchRequestDTO)
+     */
+    @Value("${facets.combineExcludedFields:false}")
+    boolean combineExcludedFacetFields = false;
+
+    /**
      * This is appended to the query displayString when SpatialSearchRequestParams.wkt is used.
      */
     @Value("${wkt.display.string: - within user defined polygon}")
@@ -130,7 +139,7 @@ public class QueryFormatUtils {
 
         //Only format the query if it doesn't already supply a formattedQuery.
         if (forceQueryFormat || StringUtils.isEmpty(searchParams.getFormattedQuery())) {
-            String [] originalFqs = searchParams.getFq();
+            String[] originalFqs = Arrays.copyOf(searchParams.getFq(), searchParams.getFq().length); // copy by value
 
             String [] formatted = formatQueryTerm(searchParams.getQ(), searchParams);
             searchParams.setDisplayString(formatted[0]);
@@ -139,13 +148,20 @@ public class QueryFormatUtils {
             //reset formattedFq in case of searchParams reuse
             searchParams.setFormattedFq(null);
 
+            // Apply filter tagging and excluding filters if flag is set
+            if (searchParams.getIncludeUnfilteredFacetValues()) {
+                applyFilterTagging(searchParams);
+            }
+
             //format fqs for facets that need ranges substituted
             if (searchParams.getFq() != null) {
                 for (int i = 0; i < searchParams.getFq().length; i++) {
                     String fq = searchParams.getFq()[i];
+                    String fqOriginal = originalFqs[i]; // not altered by `applyFilterTagging()`
 
-                    if (fq != null && fq.length() > 0) {
+                    if (fq != null && !fq.isEmpty()) {
                         formatted = formatQueryTerm(fq, searchParams);
+                        String[] formattedOriginal = formatQueryTerm(fqOriginal, searchParams);
 
                         if (StringUtils.isNotEmpty(formatted[1])) {
                             addFormattedFq(new String[]{formatted[1]}, searchParams);
@@ -155,21 +171,21 @@ public class QueryFormatUtils {
                         //do not add spatial fields
                         if (originalFqs != null && i < originalFqs.length && !formatted[1].contains(spatialField + ":")) {
                             Facet facet = new Facet();
-                            facet.setDisplayName(formatted[0]);
-                            String[] fv = fq.split(":");
+                            facet.setDisplayName(formattedOriginal[0]);
+                            String[] fv = fqOriginal.split(":");
                             if (fv.length >= 2) {
                                 facet.setName(fv[0]);
-                                facet.setValue(fq.substring(fv[0].length() + 1));
+                                facet.setValue(fqOriginal.substring(fv[0].length() + 1));
                             }
                             activeFacetMap.put(facet.getName(), facet);
 
                             // activeFacetMap is based on the assumption that each fq is on different filter so its a [StringKey: Facet] structure
                             // but actually different fqs can use same filter key for example &fq=-month:'11'&fq=-month='12' so we added a new map
                             // activeFacetObj which is [StringKey: List<Facet>]
-                            String fqKey = parseFQ(fq);
+                            String fqKey = parseFQ(fqOriginal);
                             if (fqKey != null) {
-                                Facet fct = new Facet(fqKey, formatted[0]); // display name is the formatted name, for example '11' to 'November'
-                                fct.setValue(fq); // value in activeFacetMap is the part with key replaced by '', but here is the original fq because front end will need it
+                                Facet fct = new Facet(fqKey, formattedOriginal[0]); // display name is the formatted name, for example '11' to 'November'
+                                fct.setValue(fqOriginal); // value in activeFacetMap is the part with key replaced by '', but here is the original fq because front end will need it
                                 List<Facet> valList = activeFacetObj.getOrDefault(fqKey, new ArrayList<>());
                                 valList.add(fct);
                                 activeFacetObj.put(fqKey, valList);
@@ -184,14 +200,68 @@ public class QueryFormatUtils {
 
             //add spatial query term for wkt or lat/lon/radius parameters. DisplayString is already added by formatGeneral
             String spatialQuery = buildSpatialQueryString(searchParams);
+
             if (StringUtils.isNotEmpty(spatialQuery)) {
                 addFormattedFq(new String[] { spatialQuery }, searchParams);
             }
+
             updateQualityProfileContext(searchParams);
         }
 
         updateQueryContext(searchParams);
         return fqMaps;
+    }
+
+    /**
+     * Apply facet tagging and filter exclusions to the search request.
+     *
+     * Note: due to bug/feature in SOLRJ, the excluded facets are added to
+     * the facet pivot list instead of the facet list, otherwise SOLRJ will
+     * ignore the facets with counts greater than totalRecords count, when generating
+     * the facetResults.
+     *
+     * @author "Nick dos Remedios <Nick.dosRemedios@csiro.au>"
+     * @date 2025-01-09
+     *
+     * @param searchParams
+     */
+    private void applyFilterTagging(SpatialSearchRequestDTO searchParams) {
+        List<String> facetList = new ArrayList<String>();
+        List<String> facetPivotList = new ArrayList<String>();
+        List<String> fqList = new ArrayList<String>();
+
+        // Get a list of excluded fields
+        List<String> excludedFields = Arrays.stream(searchParams.getFacets())
+                .filter(f -> searchParams.getFq() != null && Arrays.stream(searchParams.getFq()).anyMatch(fq -> fq.contains(f)))
+                .collect(Collectors.toList());
+
+        // Add the excluded fields to the facetPivotList || facetList
+        for (String f : searchParams.getFacets()) {
+            if (excludedFields.contains(f)) {
+                String prefix = combineExcludedFacetFields ? "{!ex=" + String.join(",", excludedFields) + "}" : "{!ex=" + f + "}";
+                facetPivotList.add(prefix + f);
+            } else {
+                facetList.add(f);
+            }
+        }
+
+        // Add the tag syntax to the fqList, if the fq is a facet
+        if (searchParams.getFq() != null) {
+            for (String fq : searchParams.getFq()) {
+                String fqField = org.apache.commons.lang3.StringUtils.substringBefore(fq, ":");
+                if (Arrays.asList(searchParams.getFacets()).contains(fqField)) {
+                    String prefix = "{!tag=" + fqField + "}";
+                    fqList.add(prefix + fq);
+                } else {
+                    fqList.add(fq);
+                }
+            }
+        }
+
+        // Update the searchParams with the new facetPivotList, facetList, and fqList
+        searchParams.setPivotFacets(facetPivotList.toArray(new String[0]));
+        searchParams.setFacets(facetList.toArray(new String[0]));
+        searchParams.setFq(fqList.toArray(new String[0]));
     }
 
     /**
@@ -248,6 +318,7 @@ public class QueryFormatUtils {
             }
         }
     }
+
     private void addFormattedFq(String [] fqs, SearchRequestDTO searchParams) {
         if (fqs != null && searchParams != null) {
             String[] currentFqs = searchParams.getFormattedFq();

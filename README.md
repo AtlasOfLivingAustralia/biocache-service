@@ -5,7 +5,7 @@ Master branch [![Build Status](https://travis-ci.com/AtlasOfLivingAustralia/bioc
 
 Occurrence &amp; mapping webservices.
 
-Theses services are documented here https://api.ala.org.au/apps/biocache
+These services are documented here https://api.ala.org.au/apps/biocache
 
 ## Versions
 
