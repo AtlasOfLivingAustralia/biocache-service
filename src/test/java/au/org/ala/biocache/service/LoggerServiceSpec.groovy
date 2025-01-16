@@ -8,15 +8,23 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.client.RestOperations
 import spock.lang.Specification
 
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+
 class LoggerServiceSpec extends Specification {
 
     void 'async log event'() {
 
         setup:
+        def latch = new CountDownLatch(1)
         LoggerRestService loggerService = new LoggerRestService()
         loggerService.enabled = false
         loggerService.restTemplate = Mock(RestOperations)
 
+        loggerService.testCompletionCallback = {
+            println "logEvent has completed"
+            latch.countDown()
+        }
         loggerService.init()
 
         LogEventVO logEvent = new LogEventVO()
@@ -25,10 +33,10 @@ class LoggerServiceSpec extends Specification {
 
         when:
         loggerService.logEvent(logEvent)
-        Thread.sleep(5000)
+        latch.await(30, TimeUnit.SECONDS)  // Wait with timeout
 
         then:
-        1 * loggerService.restTemplate.postForEntity(_, new HttpEntity<>(logEvent, headers), Void) >> { new ResponseEntity<Void>(HttpStatus.OK) }
+        1 * loggerService.restTemplate.postForEntity(_, new HttpEntity<>(logEvent, headers), Void) >> { new ResponseEntity(HttpStatus.OK) }
 
         cleanup:
         loggerService.destroy()

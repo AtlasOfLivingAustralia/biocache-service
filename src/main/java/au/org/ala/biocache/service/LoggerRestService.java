@@ -18,6 +18,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.reactivex.rxjava3.subscribers.DisposableSubscriber;
+import lombok.Getter;
+import lombok.Setter;
 import org.ala.client.model.LogEventVO;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
@@ -78,7 +80,13 @@ public class LoggerRestService implements LoggerService {
     private BlockingQueue<LogEventVO> eventQueue;
 
     @Inject
+    @Getter
+    @Setter
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
+
+    @Getter
+    @Setter
+    private Runnable testCompletionCallback = null;
 
     @Override    
     public List<Map<String,Object>> getReasons() {
@@ -117,7 +125,11 @@ public class LoggerRestService implements LoggerService {
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-        } finally {}
+        } finally {
+            if (testCompletionCallback != null) {
+                testCompletionCallback.run();
+            }
+        }
     }
 
     public void logEventSync(LogEventVO logEvent) {
