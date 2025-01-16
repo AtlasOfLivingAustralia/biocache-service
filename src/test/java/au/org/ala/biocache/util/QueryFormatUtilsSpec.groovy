@@ -25,7 +25,6 @@ class QueryFormatUtilsSpec extends Specification {
     def qidCacheDao = Stub(QidCacheDAO)
     def dataQualityService = Stub(DataQualityService)
     def authService = Stub(AuthService)
-    def fieldMappingUtil = Stub(FieldMappingUtil)
 
     def setup() {
         queryFormatUtils.listsService = listsService
@@ -34,18 +33,17 @@ class QueryFormatUtilsSpec extends Specification {
         queryFormatUtils.qidCacheDao = qidCacheDao
         queryFormatUtils.dataQualityService = dataQualityService
         queryFormatUtils.fieldMappingUtil = Mock(FieldMappingUtil) {
-            translateQueryFields(_) >> { String query -> return query }
+            translateQueryFields(_ as String) >> { String query -> return query }
         }
         queryFormatUtils.authService = authService
     }
 
-
     def "test spatial_list: handling"(String currentDisplay, String currentQuery, String resultDisplay, String resultQuery) {
         setup:
         queryFormatUtils.maxBooleanClauses = 12
-        listsService.getListItems(_) >> { String id -> getTestListItems(id) }
-        listsService.getListInfo(_) >> { String id -> getTestList(id) }
-        searchUtils.getTaxonSearch(_) >> { String lsid -> [ "taxon_concept_lsid:${ClientUtils.escapeQueryChars(lsid)}", "taxon_concept_lsid:$lsid"] as String[] }
+        listsService.getListItems(_ as String, _ as Boolean) >> { String id, Boolean b -> getTestListItems(id) }
+        listsService.getListInfo(_ as String) >> { String id -> getTestList(id) }
+        searchUtils.getTaxonSearch(_ as String) >> { String lsid -> [ "taxon_concept_lsid:${ClientUtils.escapeQueryChars(lsid)}", "taxon_concept_lsid:$lsid"] as String[] }
 
         when:
         def current = [currentDisplay, currentQuery] as String[]
@@ -69,8 +67,8 @@ class QueryFormatUtilsSpec extends Specification {
 
     def "test spatial_list: error handling"(String currentDisplay, String currentQuery, String resultDisplay, String resultQuery) {
         setup:
-        listsService.getListItems(_) >> { String id -> throw new RestClientException("Boom") }
-        listsService.getListInfo(_) >> { String id -> throw new RestClientException("Boom") }
+        listsService.getListItems(_ as String, _ as Boolean) >> { String id, Boolean _ -> throw new RestClientException("Boom") }
+        listsService.getListInfo(_ as String) >> { String id -> throw new RestClientException("Boom") }
 
         when:
         def current = [currentDisplay, currentQuery] as String[]
@@ -106,7 +104,7 @@ class QueryFormatUtilsSpec extends Specification {
     def "test formatSearchQuery with simple query"() {
         given:
         SpatialSearchRequestDTO searchParams = new SpatialSearchRequestDTO()
-        searchParams.setQ("taxon_name:Test")
+        searchParams.setQ("scientificName:Test")
         searchParams.setFq(new String[0])
 
         when:
@@ -115,8 +113,8 @@ class QueryFormatUtilsSpec extends Specification {
         then:
         result[0].isEmpty()
         result[1].isEmpty()
-        searchParams.getFormattedQuery() == "taxon_name:Test"
-        searchParams.getDisplayString() == "taxon_name:Test"
+        searchParams.getFormattedQuery() == "scientificName:Test"
+        searchParams.getDisplayString() == "scientificName:Test"
     }
 
     def "test formatSearchQuery with qid"() {
@@ -124,7 +122,7 @@ class QueryFormatUtilsSpec extends Specification {
         SpatialSearchRequestDTO searchParams = new SpatialSearchRequestDTO()
         searchParams.setQ("qid:123")
         searchParams.setFq(new String[0])
-        qidCacheDao.get(_) >> new Qid(q: "taxon_name:Test", fqs: new String[0])
+        qidCacheDao.get(_) >> new Qid(q: "scientificName:Test", fqs: new String[0])
 
         when:
         def result = queryFormatUtils.formatSearchQuery(searchParams, false)
@@ -132,14 +130,14 @@ class QueryFormatUtilsSpec extends Specification {
         then:
         result[0].isEmpty()
         result[1].isEmpty()
-        searchParams.getFormattedQuery() == "taxon_name:Test"
-        searchParams.getDisplayString() == "taxon_name:Test"
+        searchParams.getFormattedQuery() == "scientificName:Test"
+        searchParams.getDisplayString() == "scientificName:Test"
     }
 
     def "test formatSearchQuery with facets"() {
         given:
         SpatialSearchRequestDTO searchParams = new SpatialSearchRequestDTO()
-        searchParams.setQ("taxon_name:Test")
+        searchParams.setQ("scientificName:Test")
         searchParams.setFacet(true)
         searchParams.setIncludeUnfilteredFacetValues(false)
         searchParams.setFq(new String[]{"month:1", "year:2020"})
@@ -151,10 +149,10 @@ class QueryFormatUtilsSpec extends Specification {
         then:
         result[0].size() == 2
         result[1].size() == 2
-        searchParams.getFormattedQuery() == "taxon_name:Test"
+        searchParams.getFormattedQuery() == "scientificName:Test"
         searchParams.getFormattedFq() == new String[]{"month:1", "year:2020"}
         searchParams.getFq() == new String[]{"month:1", "year:2020"}
-        searchParams.getDisplayString() == "taxon_name:Test"
+        searchParams.getDisplayString() == "scientificName:Test"
         searchParams.getFacets() == new String[]{"month", "year", "eventDate"}
         searchParams.getPivotFacets() == new String[]{}
     }
@@ -164,7 +162,7 @@ class QueryFormatUtilsSpec extends Specification {
     def "test formatSearchQuery with tagging and excluded facets"() {
         given:
         SpatialSearchRequestDTO searchParams = new SpatialSearchRequestDTO()
-        searchParams.setQ("taxon_name:Test")
+        searchParams.setQ("scientificName:Test")
         searchParams.setFacet(true)
         searchParams.setIncludeUnfilteredFacetValues(true)
         searchParams.setFq(new String[]{"month:1", "year:2020"})
@@ -176,12 +174,12 @@ class QueryFormatUtilsSpec extends Specification {
         then:
         result[0].size() == 2
         result[1].size() == 2
-        searchParams.getFormattedQuery() == "taxon_name:Test"
-        searchParams.getDisplayString() == "taxon_name:Test"
+        searchParams.getFormattedQuery() == "scientificName:Test"
+        searchParams.getDisplayString() == "scientificName:Test"
         searchParams.getFormattedFq() == new String[]{"{!tag=month}month:1", "{!tag=year}year:2020"}
         searchParams.getFq() == new String[]{"month:1", "year:2020"}
         searchParams.getFacets() == new String[]{"eventDate"}
-        searchParams.getPivotFacets() == new String[]{"{!ex=month,year}month", "{!ex=month,year}year"}
+        searchParams.getPivotFacets() == new String[]{"{!ex=month}month", "{!ex=year}year"}
     }
 
     private static ObjectMapper om = new ObjectMapper()
@@ -191,7 +189,9 @@ class QueryFormatUtilsSpec extends Specification {
     }
 
     private static List<ListsService.SpeciesListItemDTO> getTestListItems(String uid) {
-        om.readValue(Resources.getResource("au/org/ala/biocache/util/${uid}_items.json"), new TypeReference<List<ListsService.SpeciesListItemDTO>>(){})
+        List <ListsService.SpeciesListItemDTO> items = om.readValue(Resources.getResource("au/org/ala/biocache/util/${uid}_items.json"), new TypeReference<List<ListsService.SpeciesListItemDTO>>(){})
+        println "Mocked getListItems called with uid: ${uid}, returning: ${items}"
+        return items
     }
 
     private static ListsService.SpeciesListSearchDTO.SpeciesListDTO getTestList(String uid) {
