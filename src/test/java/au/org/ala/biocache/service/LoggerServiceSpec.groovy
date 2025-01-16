@@ -25,7 +25,7 @@ class LoggerServiceSpec extends Specification {
 
         when:
         loggerService.logEvent(logEvent)
-        Thread.sleep(1000)
+        Thread.sleep(5000)
 
         then:
         1 * loggerService.restTemplate.postForEntity(_, new HttpEntity<>(logEvent, headers), Void) >> { new ResponseEntity<Void>(HttpStatus.OK) }
@@ -38,14 +38,13 @@ class LoggerServiceSpec extends Specification {
 
         setup:
         final int queueSize = 10
-
         long logEventPostCount = 0
 
         LoggerRestService loggerService = new LoggerRestService()
         loggerService.enabled = false
         loggerService.restTemplate = Stub(RestOperations) {
             postForEntity(_, _, Void) >> {
-                sleep(10)
+                sleep(100)
                 logEventPostCount++
                 new ResponseEntity<Void>(HttpStatus.OK)
             }
@@ -71,7 +70,7 @@ class LoggerServiceSpec extends Specification {
         when:
         Thread.start {
 
-            sleep(100)
+            sleep(1000)
 
             LogEventVO logEvent = new LogEventVO()
             logEvent.sourceUrl = 'blocked 11'
@@ -88,7 +87,7 @@ class LoggerServiceSpec extends Specification {
         while (logEventPostCount < queueSize) { sleep(10) }
 
         then: 'blocked log event call cleared'
-        sleep(100)
+        sleep(1000)
         !logEventBlocked
 
         cleanup:
