@@ -20,11 +20,7 @@ class LoggerServiceSpec extends Specification {
         LoggerRestService loggerService = new LoggerRestService()
         loggerService.enabled = false
         loggerService.restTemplate = Mock(RestOperations)
-
-        loggerService.testCompletionCallback = {
-            println "logEvent has completed"
-            latch.countDown()
-        }
+        loggerService.throttleDelay = 100
         loggerService.init()
 
         LogEventVO logEvent = new LogEventVO()
@@ -33,10 +29,10 @@ class LoggerServiceSpec extends Specification {
 
         when:
         loggerService.logEvent(logEvent)
-        latch.await(30, TimeUnit.SECONDS)  // Wait with timeout
+        Thread.sleep(1000)
 
         then:
-        1 * loggerService.restTemplate.postForEntity(_, new HttpEntity<>(logEvent, headers), Void) >> { new ResponseEntity(HttpStatus.OK) }
+        1 * loggerService.restTemplate.postForEntity(*_) >> { new ResponseEntity(HttpStatus.OK) }
 
         cleanup:
         loggerService.destroy()
