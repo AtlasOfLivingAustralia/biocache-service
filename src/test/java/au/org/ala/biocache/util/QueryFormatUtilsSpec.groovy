@@ -189,9 +189,8 @@ class QueryFormatUtilsSpec extends Specification {
     }
 
     private static List<ListsService.SpeciesListItemDTO> getTestListItems(String uid) {
-        List <ListsService.SpeciesListItemDTO> items = om.readValue(Resources.getResource("au/org/ala/biocache/util/${uid}_items.json"), new TypeReference<List<ListsService.SpeciesListItemDTO>>(){})
-        println "Mocked getListItems called with uid: ${uid}, returning: ${items}"
-        return items
+        om.readValue(Resources.getResource("au/org/ala/biocache/util/${uid}_items.json"), new TypeReference<List<ListsService.SpeciesListItemDTO>>() {
+        })
     }
 
     private static ListsService.SpeciesListSearchDTO.SpeciesListDTO getTestList(String uid) {
