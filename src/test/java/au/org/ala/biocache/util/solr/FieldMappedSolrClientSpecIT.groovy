@@ -24,11 +24,10 @@ class FieldMappedSolrClientSpecIT extends Specification {
     @Autowired
     IndexDAO indexDAO
 
-    @BeforeClass
-    def setupBeforeClass() {
-        SolrUtils.setupIndex();
+    def setupSpec() {
+        SolrUtils.setupIndex()
+        SolrUtils.loadTestData()
     }
-
 
     @Unroll
     def 'query: #desc'() {
