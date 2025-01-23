@@ -158,7 +158,7 @@ public class QueryFormatUtils {
             if (searchParams.getFq() != null) {
                 for (int i = 0; i < searchParams.getFq().length; i++) {
                     String fq = searchParams.getFq()[i];
-                    String fqOriginal = (originalFqs.length > i) ? originalFqs[i] : null; // not altered by `applyFilterTagging()`
+                    String fqOriginal = originalFqs[i]; // not altered by `applyFilterTagging()`
 
                     if (fq != null && !fq.isEmpty()) {
                         formatted = formatQueryTerm(fq, searchParams);
