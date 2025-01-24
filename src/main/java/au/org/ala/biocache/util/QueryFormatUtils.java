@@ -136,10 +136,11 @@ public class QueryFormatUtils {
         Map<String, Facet> activeFacetMap = new HashMap();
         Map<String, List<Facet>> activeFacetObj = new HashMap<>();
         Map[] fqMaps = {activeFacetMap, activeFacetObj};
+        Boolean isIncludeUnfilteredFacetValues = searchParams.getIncludeUnfilteredFacetValues();
 
         //Only format the query if it doesn't already supply a formattedQuery.
         if (forceQueryFormat || StringUtils.isEmpty(searchParams.getFormattedQuery())) {
-            String[] originalFqs = Arrays.copyOf(searchParams.getFq(), searchParams.getFq().length); // copy by value
+            String[] originalFqs = searchParams.getFq();
 
             String [] formatted = formatQueryTerm(searchParams.getQ(), searchParams);
             searchParams.setDisplayString(formatted[0]);
@@ -149,7 +150,7 @@ public class QueryFormatUtils {
             searchParams.setFormattedFq(null);
 
             // Apply filter tagging and excluding filters if flag is set
-            if (searchParams.getIncludeUnfilteredFacetValues()) {
+            if (isIncludeUnfilteredFacetValues) {
                 applyFilterTagging(searchParams);
             }
 
@@ -157,7 +158,7 @@ public class QueryFormatUtils {
             if (searchParams.getFq() != null) {
                 for (int i = 0; i < searchParams.getFq().length; i++) {
                     String fq = searchParams.getFq()[i];
-                    String fqOriginal = originalFqs[i]; // not altered by `applyFilterTagging()`
+                    String fqOriginal = (originalFqs.length > i) ? originalFqs[i] : fq; // not altered by `applyFilterTagging()`
 
                     if (fq != null && !fq.isEmpty()) {
                         formatted = formatQueryTerm(fq, searchParams);
@@ -167,11 +168,11 @@ public class QueryFormatUtils {
                             addFormattedFq(new String[]{formatted[1]}, searchParams);
                         }
 
-                        //add to activeFacetMap fqs that are not inserted by a qid, and the q of qids in fqs.
-                        //do not add spatial fields
-                        if (originalFqs != null && i < originalFqs.length && !formatted[1].contains(spatialField + ":")) {
+                        // add to activeFacetMap fqs that are not inserted by a qid, and the q of qids in fqs.
+                        // do not add spatial fields
+                        if (originalFqs != null && originalFqs.length > i && !formatted[1].contains(spatialField + ":")) {
                             Facet facet = new Facet();
-                            facet.setDisplayName(formattedOriginal[0]);
+                            facet.setDisplayName(isIncludeUnfilteredFacetValues ? formattedOriginal[0] : formatted[0]);
                             String[] fv = fqOriginal.split(":");
                             if (fv.length >= 2) {
                                 facet.setName(fv[0]);
@@ -184,7 +185,8 @@ public class QueryFormatUtils {
                             // activeFacetObj which is [StringKey: List<Facet>]
                             String fqKey = parseFQ(fqOriginal);
                             if (fqKey != null) {
-                                Facet fct = new Facet(fqKey, formattedOriginal[0]); // display name is the formatted name, for example '11' to 'November'
+                                String formattedFacet = (isIncludeUnfilteredFacetValues) ? formattedOriginal[0] : formatted[0];
+                                Facet fct = new Facet(fqKey, formattedFacet); // display name is the formatted name, for example '11' to 'November'
                                 fct.setValue(fqOriginal); // value in activeFacetMap is the part with key replaced by '', but here is the original fq because front end will need it
                                 List<Facet> valList = activeFacetObj.getOrDefault(fqKey, new ArrayList<>());
                                 valList.add(fct);

@@ -134,6 +134,25 @@ class QueryFormatUtilsSpec extends Specification {
         searchParams.getDisplayString() == "scientificName:Test"
     }
 
+    def "test formatSearchQuery with qid fq"() {
+        given:
+        SpatialSearchRequestDTO searchParams = new SpatialSearchRequestDTO()
+        searchParams.setQ("*:*")
+        searchParams.setFq(new String[]{"qid:123456"})
+        qidCacheDao.get(_) >> new Qid(q: "scientificName:TestTaxon", fqs: new String[0])
+        searchParams.setFacet(true)
+        when:
+        def result = queryFormatUtils.formatSearchQuery(searchParams, false)
+
+        then:
+        result[0].size() == 1
+        result[1].size() == 1
+        searchParams.getFormattedQuery() == "*:*"
+        searchParams.getDisplayString() == "[all records]"
+        searchParams.getFq() == new String[]{"qid:123456"}
+        searchParams.getFormattedFq() == new String[]{"scientificName:TestTaxon"}
+    }
+
     def "test formatSearchQuery with facets"() {
         given:
         SpatialSearchRequestDTO searchParams = new SpatialSearchRequestDTO()
@@ -156,8 +175,6 @@ class QueryFormatUtilsSpec extends Specification {
         searchParams.getFacets() == new String[]{"month", "year", "eventDate"}
         searchParams.getPivotFacets() == new String[]{}
     }
-
-
 
     def "test formatSearchQuery with tagging and excluded facets"() {
         given:
