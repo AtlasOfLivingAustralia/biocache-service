@@ -35,9 +35,6 @@ class QueryFormatUtilsSpec extends Specification {
         queryFormatUtils.fieldMappingUtil = Mock(FieldMappingUtil) {
             translateQueryFields(_ as String) >> { String query -> return query }
         }
-        queryFormatUtils.qidCacheDao = Mock(QidCacheDAO) {
-            get(_ as String) >> { String qid -> new Qid(q: "scientificName:TestTaxon", fqs: new String[0]) }
-        }
         queryFormatUtils.authService = authService
     }
 
@@ -137,6 +134,25 @@ class QueryFormatUtilsSpec extends Specification {
         searchParams.getDisplayString() == "scientificName:Test"
     }
 
+    def "test formatSearchQuery with qid fq"() {
+        given:
+        SpatialSearchRequestDTO searchParams = new SpatialSearchRequestDTO()
+        searchParams.setQ("*:*")
+        searchParams.setFq(new String[]{"qid:123456"})
+        qidCacheDao.get(_) >> new Qid(q: "scientificName:TestTaxon", fqs: new String[0])
+        searchParams.setFacet(true)
+        when:
+        def result = queryFormatUtils.formatSearchQuery(searchParams, false)
+
+        then:
+        result[0].size() == 1
+        result[1].size() == 1
+        searchParams.getFormattedQuery() == "*:*"
+        searchParams.getDisplayString() == "[all records]"
+        searchParams.getFq() == new String[]{"qid:123456"}
+        searchParams.getFormattedFq() == new String[]{"scientificName:TestTaxon"}
+    }
+
     def "test formatSearchQuery with facets"() {
         given:
         SpatialSearchRequestDTO searchParams = new SpatialSearchRequestDTO()
@@ -181,39 +197,6 @@ class QueryFormatUtilsSpec extends Specification {
         searchParams.getFq() == new String[]{"month:1", "year:2020"}
         searchParams.getFacets() == new String[]{"eventDate"}
         searchParams.getPivotFacets() == new String[]{"{!ex=month}month", "{!ex=year}year"}
-    }
-
-    def "test formatSearchQuery with qid query"() {
-        given:
-        SpatialSearchRequestDTO searchParams = new SpatialSearchRequestDTO()
-        searchParams.setQ("qid:123456")
-        searchParams.setFacet(true)
-        when:
-        def result = queryFormatUtils.formatSearchQuery(searchParams, false)
-
-        then:
-        result[0].size() == 0
-        result[1].size() == 0
-        searchParams.getFormattedQuery() == "scientificName:TestTaxon"
-        searchParams.getDisplayString() == "scientificName:TestTaxon"
-    }
-
-    def "test formatSearchQuery with qid fq"() {
-        given:
-        SpatialSearchRequestDTO searchParams = new SpatialSearchRequestDTO()
-        searchParams.setQ("*:*")
-        searchParams.setFq(new String[]{"qid:123456"})
-        searchParams.setFacet(true)
-        when:
-        def result = queryFormatUtils.formatSearchQuery(searchParams, false)
-
-        then:
-        result[0].size() == 1
-        result[1].size() == 1
-        searchParams.getFormattedQuery() == "*:*"
-        searchParams.getDisplayString() == "[all records]"
-        searchParams.getFq() == new String[]{"qid:123456"}
-        searchParams.getFormattedFq() == new String[]{"scientificName:TestTaxon"}
     }
 
     private static ObjectMapper om = new ObjectMapper()
