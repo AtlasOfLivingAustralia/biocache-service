@@ -92,6 +92,12 @@ public class SolrIndexDAOImpl implements IndexDAO {
     );
 
     /*
+     * The field types to exclude from the index/fields JSON
+     */
+    @Value("${index.fields.skipFieldTypes:location,geohash,quad,packedQuad}")
+    private final List<String> skipFieldTypes = new ArrayList<>();
+
+    /*
      * This structure holds field properties
      * Values in the list are:
      * String fieldType, Boolean multiValued, Boolean docValues, Boolean indexed, Boolean stored
@@ -671,10 +677,11 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
             f.setName(fieldName);
 
-            if (fieldType != null) {
-                f.setDataType(fieldType);
+            if ((fieldType != null && skipFieldTypes.contains(fieldType)) || fieldName.startsWith("_")) {
+                // Skip fields we don't want to expose
+                return null;
             } else {
-                f.setDataType("string");
+                f.setDataType(Objects.requireNonNullElse(fieldType, "string"));
             }
 
             if (distinctCount != null) {
