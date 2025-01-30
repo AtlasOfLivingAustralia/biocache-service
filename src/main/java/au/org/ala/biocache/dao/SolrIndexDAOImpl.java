@@ -685,7 +685,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
                 // Skip fields we don't want to expose
                 return null;
             } else if (fieldType != null) {
-                f.setDataType("date");
+                f.setDataType(fieldType);
             } else {
                 f.setDataType("string");
             }
