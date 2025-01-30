@@ -681,7 +681,7 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
             f.setName(fieldName);
 
-            if ((fieldType != null && skipFieldTypes.contains(fieldType) || fieldName.startsWith("_"))) {
+            if ((fieldType != null && skipFieldTypes.contains(fieldType)) || fieldName.startsWith("_")) {
                 // Skip fields we don't want to expose
                 return null;
             } else if (fieldType != null) {
