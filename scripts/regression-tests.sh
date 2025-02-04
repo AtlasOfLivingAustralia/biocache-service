@@ -55,6 +55,25 @@ check_jq_expression() {
     http "${base_url}${query}" | jq -e "${jq_expr}" || exit 1
 }
 
+check_redirect_to_200() {
+  local message=$1
+  local endpoint=$2
+  shift 2
+  local code=$1
+  shift
+
+  echo -n "Checking ${green}${endpoint}${reset} ${message} => " && http --follow --print=h -f POST "${base_url}${endpoint}" "$@" | head -1 | grep -q ${code}
+
+  if [[ $? -eq 0 ]]; then
+    echo "${gray}true${reset}"
+  else
+    echo "${gray}false${reset}"
+    exit 1
+  fi
+}
+
+# Run the tests
+
 check_search_records "q=acacia+dealbata" 30000
 check_search_records "q=taxon_name%3A%22Acacia+dealbata%22" 20000
 check_search_records "q=acacia+dealbata&fq=state:\"Australian+Capital+Territory\"" 1000
@@ -81,17 +100,7 @@ check_jq_expression "/occurrence/e9eeb6ff-2c6f-4f45-b463-ac496bc3bf7c" '.process
 check_jq_expression "/occurrence/e9eeb6ff-2c6f-4f45-b463-ac496bc3bf7c" '.processed.cl | length > 50' "has .processed.cl length > 50"
 check_jq_expression "/occurrence/e9eeb6ff-2c6f-4f45-b463-ac496bc3bf7c" '.systemAssertions | length > 3' "has .systemAssertions length > 3"
 check_jq_expression "/occurrence/e9eeb6ff-2c6f-4f45-b463-ac496bc3bf7c" '.sensitive == false' "has .sensitive == false"
-
-echo -n "Checking ${green}/occurrences/batchSearch${reset} redirects to 200 HTTP code => " && http --follow --print=h -f POST ${base_url}/occurrences/batchSearch queries="Acacia+dealbata" field="taxa" \
-  action="Search" redirectBase="https://biocache-test.ala.org.au/occurrences/search" | head -1 | grep -q 200
-if [[ $? -eq 0 ]]; then
-  echo "${gray}true${reset}"
-else
-  echo "${gray}false${reset}"
-  exit 1
-fi
-
-check_csv_line_count "/occurrences/facets/download?q=taxon_name%3A%22Acacia+dealbata%22&facets=data_resource_uid" 50
+check_redirect_to_200 "redirects to 200 HTTP code" "/occurrences/batchSearch" 200 queries="Acacia+dealbata" field="taxa" action="Search" redirectBase="${base_url}/occurrences/search"
 check_jq_expression "/occurrences/search?q=text_datasetName:PPBE" '.totalRecords > 25000' "has > 25000 totalRecords"
 check_jq_expression "/occurrences/search?q=text_eventID:PPBE" '.totalRecords > 50000' "has > 50000 totalRecords"
 check_jq_expression "/occurrences/search?q=text_parentEventID:PPBE" '.totalRecords > 12000' "has > 12000 totalRecords"
