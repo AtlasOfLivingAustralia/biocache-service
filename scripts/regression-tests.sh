@@ -6,6 +6,11 @@
 #
 # Usage: ./regression-tests.sh
 #
+# Requirements:
+# - httpie (https://httpie.io/)
+# - jq (https://stedolan.github.io/jq/)
+# - wc (should be available on most Unix-like systems)
+#
 # Note: does not perform the offline download (step 1.o), as it requires an email address
 
 # Colour vars
