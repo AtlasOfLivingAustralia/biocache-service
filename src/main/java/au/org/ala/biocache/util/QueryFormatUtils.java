@@ -979,7 +979,7 @@ public class QueryFormatUtils {
 
         // Queries containing OR, AND or Intersects( must already be correctly escaped for SOLR
         // Note: if escaping is required, extract expressions from nested () [] "" for escaping with formatString.
-        if (isQuery && text.contains(" OR ") || text.contains(" AND ") || text.contains("Intersects(")) return text;
+        if (isQuery && (text.contains(" OR ") || text.contains(" AND ") || text.contains("Intersects("))) return text;
 
         try {
             String formatted = "";
@@ -1036,13 +1036,11 @@ public class QueryFormatUtils {
                             extractedValue = extractedValue.substring(0, extractedValue.indexOf(" OR "));
                         }
 
-                        // search for term in the extractedValue and clip
-                        // NOTE: the if the quoted term value contains content that looks like a term "name" then it will be
-                        //       treated as a new term.
-                        Matcher termMatcher = termPattern.matcher(extractedValue);
-                        if (termMatcher.find()) {
-                            extractedValue = extractedValue.substring(0, termMatcher.start());
-                        }
+                        // Note: Removed some code that was intended to remove characters from the beginning of the
+                        //       extractedValue that were not part of the term's value. This was causing issues with
+                        //       quoted values that contained colons. On review, no use case was found for the need
+                        //       to remove and discard characters from the beginning of the extractedValue. The entire
+                        //       QueryFormatUtils should contain an actual parser instead of this legacy code.
 
                         // below code fragment extracts the filter value and try to format for solr query or get display value
                         // &fq = taxon_name:""Cyclophora"+lechriostropha"
