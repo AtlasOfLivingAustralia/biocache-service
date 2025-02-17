@@ -1036,11 +1036,14 @@ public class QueryFormatUtils {
                             extractedValue = extractedValue.substring(0, extractedValue.indexOf(" OR "));
                         }
 
-                        // Note: Removed some code that was intended to remove characters from the beginning of the
-                        //       extractedValue that were not part of the term's value. This was causing issues with
-                        //       quoted values that contained colons. On review, no use case was found for the need
-                        //       to remove and discard characters from the beginning of the extractedValue. The entire
-                        //       QueryFormatUtils should contain an actual parser instead of this legacy code.
+                        // search for term in the extractedValue and clip, this will be after the second unescaped ".
+                        // Note that it already confirmed that the first character is an unescaped double quote.
+                        for (int i = 1; i < extractedValue.length(); i++) {
+                            if (extractedValue.charAt(i) == '"' && extractedValue.charAt(i - 1) != '\\') {
+                                extractedValue = extractedValue.substring(0, i);
+                                break;
+                            }
+                        }
 
                         // below code fragment extracts the filter value and try to format for solr query or get display value
                         // &fq = taxon_name:""Cyclophora"+lechriostropha"
