@@ -115,6 +115,28 @@ public class AssertionService {
         return Optional.empty();
     }
 
+    public boolean editAssertion(
+            String recordUuid,
+            String assertionId,
+            String comment
+    ) throws IOException {
+        logger.debug("Editing assertion to: " + recordUuid + ", assertionId: " + assertionId + ", comment: " + comment);
+
+        SolrDocument sd = searchDAO.getOcc(recordUuid);
+        // only when record uuid is valid
+        if (sd != null) {
+            UserAssertions userAssertions = store.get(UserAssertions.class, recordUuid).orElse(new UserAssertions());
+            // if there's any change made
+            if (userAssertions.updateComment(assertionId, comment)) {
+                // Update assertions
+                updateUserAssertions(recordUuid, userAssertions);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 
     public boolean deleteAssertion(String recordUuid, String assertionUuid) throws IOException {
         SolrDocument sd = searchDAO.getOcc(recordUuid);

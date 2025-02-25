@@ -32,6 +32,7 @@ import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.entity.ContentType;
 import org.apache.log4j.Logger;
@@ -156,10 +157,11 @@ public class AssertionController extends AbstractSecureController {
             @RequestParam(value = "assertionUuid", required = false) String assertionUuid,
             @RequestParam(value = "relatedRecordId", required = false) String relatedRecordId,
             @RequestParam(value = "relatedRecordReason", required = false) String relatedRecordReason,
+            @RequestParam(value = "updateId", required = false) String updateId,
             HttpServletRequest request,
             HttpServletResponse response) throws Exception {
 
-        return addAssertion(recordUuid, code, userId, userDisplayName, comment, userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason, request, response);
+        return addAssertion(recordUuid, code, userId, userDisplayName, comment, userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason, updateId, request, response);
     }
 
     /**
@@ -243,6 +245,7 @@ public class AssertionController extends AbstractSecureController {
        @RequestParam(value = "assertionUuid", required = false) String assertionUuid,
        @RequestParam(value = "relatedRecordId", required = false) String relatedRecordId,
        @RequestParam(value = "relatedRecordReason", required = false) String relatedRecordReason,
+       @RequestParam(value = "updateId", required = false) String updateId,
        HttpServletRequest request,
        HttpServletResponse response) throws Exception {
 
@@ -251,17 +254,26 @@ public class AssertionController extends AbstractSecureController {
         }
 
         try {
-            Optional<QualityAssertion> qa = assertionService.addAssertion(
-                    recordUuid, code, comment, userId, userDisplayName,
-                    userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason
-            );
-            if (qa.isPresent()) {
+            // if the updateId is provided then we are editing an existing assertion
+            if (StringUtils.isEmpty(updateId)) {
+                // add the assertion
+                Optional<QualityAssertion> qa = assertionService.addAssertion(
+                        recordUuid, code, comment, userId, userDisplayName,
+                        userAssertionStatus, assertionUuid, relatedRecordId, relatedRecordReason
+                );
+                if (qa.isPresent()) {
 
-                String server = request.getSession().getServletContext().getInitParameter("serverName");
-                return ResponseEntity
-                        .created(new URI(server + "/occurrences/" + recordUuid + "/assertions/" + qa.get().getUuid()))
-                        .contentLength(0)
-                        .build();
+                    String server = request.getSession().getServletContext().getInitParameter("serverName");
+                    return ResponseEntity
+                            .created(new URI(server + "/occurrences/" + recordUuid + "/assertions/" + qa.get().getUuid()))
+                            .contentLength(0)
+                            .build();
+                }
+            } else {
+                // update the assertion
+                if (assertionService.editAssertion(recordUuid, updateId, comment)) {
+                    return ResponseEntity.ok().contentLength(0).build();
+                }
             }
 
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
