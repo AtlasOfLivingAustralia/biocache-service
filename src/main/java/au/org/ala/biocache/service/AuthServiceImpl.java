@@ -91,8 +91,8 @@ public class AuthServiceImpl implements AuthService {
                 requestHeaders.set("Authorization", tokenService.getAuthToken(false).toAuthorizationHeader());
                 HttpEntity<Object> request = new HttpEntity<>(null, requestHeaders);
                 userDetails = (Map) restTemplate.postForObject(jsonUri, request, Map.class);
-            } catch (Exception ignored) {
-
+            } catch (Exception e) {
+                logger.error("Failed to get user details: " + e.getMessage());
             }
         }
         return userDetails;
