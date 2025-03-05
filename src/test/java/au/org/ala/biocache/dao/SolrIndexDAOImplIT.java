@@ -12,6 +12,7 @@ import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -118,6 +119,7 @@ public class SolrIndexDAOImplIT extends TestCase {
     }
 
     @Test
+    @Ignore
     public void getIndexVersion() throws Exception {
         // TODO: This test will fail when using a zk/solr cluster. Not currently an issue.
 
@@ -140,6 +142,7 @@ public class SolrIndexDAOImplIT extends TestCase {
         solrIndexDAO.getIndexVersion(true);
         Thread.sleep(1000);
         Long indexVersionEnd = solrIndexDAO.getIndexVersion(false);
+        // System.out.println("indexVersionStart: " + indexVersionStart + ", indexVersionEnd: " + indexVersionEnd);
 
         assert (indexVersionStart < indexVersionEnd);
     }

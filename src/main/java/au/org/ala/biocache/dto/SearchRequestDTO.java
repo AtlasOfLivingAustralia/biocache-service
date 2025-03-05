@@ -55,6 +55,7 @@ public class SearchRequestDTO {
      * Initialised with the default facets to use
      */
     protected String[] facets =  new String[0]; //FacetThemes.getAllFacetsLimited();
+    protected String[] pivotFacets =  new String[0];
     protected Integer facetsMax = 30; //FacetThemes.getFacetsMax();
     /** To disable facets */
     protected Boolean facet = true; //FacetThemes.getFacetDefault();
@@ -78,6 +79,11 @@ public class SearchRequestDTO {
     private String displayString;
 
     protected Boolean includeMultivalues = false;
+    /** Flag to activate filter/tagging: facet results will include values and counts for
+     * unfiltered fields - see SOLR "tagging and excluding filters".
+     * See https://solr.apache.org/guide/8_4/faceting.html#tagging-and-excluding-filters
+     */
+    protected Boolean includeUnfilteredFacetValues = false;
 
     /**  The query context to be used for the search.  This will be used to generate extra query filters based on the search technology */
     protected String qc = "";
@@ -389,6 +395,28 @@ public class SearchRequestDTO {
         this.facets = list.toArray(new String[0]);
     }
 
+    public String[] getPivotFacets() {
+        return pivotFacets;
+    }
+
+    public void setPivotFacets(String[] facets) {
+        QueryFormatUtils.assertNoSensitiveValues(SearchRequestDTO.class, "facets", facets);
+
+        if (facets != null && facets.length == 1 && facets[0].contains(",")) facets = facets[0].split(",");
+
+        //remove empty facets
+        List<String> list = new ArrayList<String>();
+        if (facets != null) {
+            for (String f : facets) {
+                //limit facets terms
+                if (StringUtils.isNotEmpty(f) && list.size() < facetsMax) {
+                    list.add(f);
+                }
+            }
+        }
+        this.pivotFacets = list.toArray(new String[0]);
+    }
+
     public Integer getFlimit() {
         return flimit;
     }
@@ -480,6 +508,14 @@ public class SearchRequestDTO {
 
     public void setIncludeMultivalues(Boolean includeMultivalues) {
         this.includeMultivalues = includeMultivalues;
+    }
+
+    public Boolean getIncludeUnfilteredFacetValues() {
+        return includeUnfilteredFacetValues;
+    }
+
+    public void setIncludeUnfilteredFacetValues(Boolean includeUnfilteredFacetValues) {
+        this.includeUnfilteredFacetValues = includeUnfilteredFacetValues;
     }
 
     public String[] getFormattedFq() {
