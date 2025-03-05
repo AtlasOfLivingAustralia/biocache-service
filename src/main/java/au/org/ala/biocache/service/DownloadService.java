@@ -249,6 +249,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     @Value("${download.csdm.email.template:}")
     protected String biocacheDownloadCSDMEmailTemplate;
 
+    @Value("${download.log.enabled:true}")
+    protected Boolean downloadLogEnabled = true;
+
     ConcurrentHashMap<String, ThreadPoolExecutor> userExecutors;
 
     @PostConstruct
@@ -577,10 +580,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         : webservicesRoot + "?" + originalParams;
 
                 // log the stats to ala logger
-                LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
-                        requestParams.getEmail(), requestParams.getReason(), dd.getIpAddress(), dd.getUserAgent(), null, downloadStats.getUidStats(), sourceUrl);
+                if (downloadLogEnabled) {
+                    LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
+                            requestParams.getEmail(), requestParams.getReason(), dd.getIpAddress(), dd.getUserAgent(), null, downloadStats.getUidStats(), sourceUrl);
 
-                loggerService.logEvent(vo);
+                    loggerService.logEvent(vo);
+                }
             }
         } catch (RecordWriterException e) {
             logger.error(e.getMessage(), e);
