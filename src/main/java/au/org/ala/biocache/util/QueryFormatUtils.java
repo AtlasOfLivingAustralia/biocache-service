@@ -979,7 +979,7 @@ public class QueryFormatUtils {
 
         // Queries containing OR, AND or Intersects( must already be correctly escaped for SOLR
         // Note: if escaping is required, extract expressions from nested () [] "" for escaping with formatString.
-        if (isQuery && text.contains(" OR ") || text.contains(" AND ") || text.contains("Intersects(")) return text;
+        if (isQuery && (text.contains(" OR ") || text.contains(" AND ") || text.contains("Intersects("))) return text;
 
         try {
             String formatted = "";
@@ -1036,12 +1036,13 @@ public class QueryFormatUtils {
                             extractedValue = extractedValue.substring(0, extractedValue.indexOf(" OR "));
                         }
 
-                        // search for term in the extractedValue and clip
-                        // NOTE: the if the quoted term value contains content that looks like a term "name" then it will be
-                        //       treated as a new term.
-                        Matcher termMatcher = termPattern.matcher(extractedValue);
-                        if (termMatcher.find()) {
-                            extractedValue = extractedValue.substring(0, termMatcher.start());
+                        // search for term in the extractedValue and clip, this will be after the second unescaped ".
+                        // Note that it already confirmed that the first character is an unescaped double quote.
+                        for (int i = 1; i < extractedValue.length(); i++) {
+                            if (extractedValue.charAt(i) == '"' && extractedValue.charAt(i - 1) != '\\') {
+                                extractedValue = extractedValue.substring(0, i);
+                                break;
+                            }
                         }
 
                         // below code fragment extracts the filter value and try to format for solr query or get display value

@@ -33,7 +33,6 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.*;
 
-//TODO: update hubs, then remove fqs[0].substring(0, fqs[0].indexOf(':'))
 @RunWith(MockitoJUnitRunner.class)
 public class FilterQueryParserTest {
 
