@@ -178,7 +178,11 @@ public class QueryFormatUtils {
                                 facet.setName(fv[0]);
                                 facet.setValue(fqOriginal.substring(fv[0].length() + 1));
                             }
-                            activeFacetMap.put(facet.getName(), facet);
+                            if (facet.getName() != null)  {
+                                activeFacetMap.put(facet.getName(), facet);
+                            } else {
+                                logger.error("Unable to parse facet name from fq, ignoring: " + fq);
+                            }
 
                             // activeFacetMap is based on the assumption that each fq is on different filter so its a [StringKey: Facet] structure
                             // but actually different fqs can use same filter key for example &fq=-month:'11'&fq=-month='12' so we added a new map
