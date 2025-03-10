@@ -171,14 +171,16 @@ public class QueryFormatUtils {
                         // add to activeFacetMap fqs that are not inserted by a qid, and the q of qids in fqs.
                         // do not add spatial fields
                         if (originalFqs != null && originalFqs.length > i && !formatted[1].contains(spatialField + ":")) {
-                            Facet facet = new Facet();
-                            facet.setDisplayName(isIncludeUnfilteredFacetValues ? formattedOriginal[0] : formatted[0]);
                             String[] fv = fqOriginal.split(":");
                             if (fv.length >= 2) {
+                                Facet facet = new Facet();
                                 facet.setName(fv[0]);
+                                facet.setDisplayName(isIncludeUnfilteredFacetValues ? formattedOriginal[0] : formatted[0]);
                                 facet.setValue(fqOriginal.substring(fv[0].length() + 1));
+                                activeFacetMap.put(facet.getName(), facet);
+                            } else {
+                                logger.error("Unable to parse facet name from fq, ignoring: " + fq);
                             }
-                            activeFacetMap.put(facet.getName(), facet);
 
                             // activeFacetMap is based on the assumption that each fq is on different filter so its a [StringKey: Facet] structure
                             // but actually different fqs can use same filter key for example &fq=-month:'11'&fq=-month='12' so we added a new map
