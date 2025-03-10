@@ -171,14 +171,12 @@ public class QueryFormatUtils {
                         // add to activeFacetMap fqs that are not inserted by a qid, and the q of qids in fqs.
                         // do not add spatial fields
                         if (originalFqs != null && originalFqs.length > i && !formatted[1].contains(spatialField + ":")) {
-                            Facet facet = new Facet();
-                            facet.setDisplayName(isIncludeUnfilteredFacetValues ? formattedOriginal[0] : formatted[0]);
                             String[] fv = fqOriginal.split(":");
                             if (fv.length >= 2) {
+                                Facet facet = new Facet();
                                 facet.setName(fv[0]);
+                                facet.setDisplayName(isIncludeUnfilteredFacetValues ? formattedOriginal[0] : formatted[0]);
                                 facet.setValue(fqOriginal.substring(fv[0].length() + 1));
-                            }
-                            if (facet.getName() != null)  {
                                 activeFacetMap.put(facet.getName(), facet);
                             } else {
                                 logger.error("Unable to parse facet name from fq, ignoring: " + fq);
