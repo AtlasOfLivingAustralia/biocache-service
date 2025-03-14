@@ -14,6 +14,7 @@
  ***************************************************************************/
 package au.org.ala.biocache.dto;
 
+import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -23,10 +24,8 @@ import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.beans.Field;
 import org.codehaus.jackson.map.ObjectMapper;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A DTO representing an result from the search indexes.
@@ -287,6 +286,23 @@ public class OccurrenceIndex {
     @Deprecated @Field("*_dt") @Schema(deprecated = true)
     Map<String, Object> miscDateProperties;
 
+    // This is a catch all for any other properties that are not explicitly defined but may be requested
+    @Field("*")
+    Map<String, Object> otherProperties;
+
+    // This is a list of all SOLR field mappings that are allocated to a specific field.
+    public static final Set<String> ANNOTATED_FIELDS;
+
+    static {
+        ANNOTATED_FIELDS = Collections.newSetFromMap(new ConcurrentHashMap<>());
+        for (java.lang.reflect.Field field : OccurrenceIndex.class.getDeclaredFields()) {
+            Field annotation = field.getAnnotation(Field.class);
+            if (annotation != null && !annotation.value().contains("*")) { // exclude wildcard fields
+                ANNOTATED_FIELDS.add(annotation.value());
+            }
+        }
+    }
+
     //sensitive fields and their non-sensitive replacements
     public static final String EVENT_DATE = "eventDate";
     public static final String EVENT_DATE_END = "eventDateEnd";
@@ -318,7 +334,7 @@ public class OccurrenceIndex {
             "sensitive_verbatimLocality",
             "sensitive_verbatimLongitude"};
     public static final String[] notSensitiveSOLRHdr = {LONGITUDE, LATITUDE, LOCALITY, EVENT_DATE, EVENT_DATE_END, GRID_REFERENCE, COORDINATE_UNCERTAINTY, DAY, EVENT_ID, FOOTPRINT_WKT};
-    public static final String CONTAINS_SENSITIVE_PATTERN = StringUtils.join(sensitiveSOLRHdr, "|");
+    public static final String CONTAINS_SENSITIVE_PATTERN = ".*(" + StringUtils.join(sensitiveSOLRHdr, "|") + ").*";
 
     public static final String NAMES_AND_LSID = "names_and_lsid";
     public static final String COMMON_NAME_AND_LSID = "common_name_and_lsid";
@@ -1241,4 +1257,28 @@ public class OccurrenceIndex {
     public void setReferences(String references) {
         this.references = references;
     }
+
+    public Map<String, Object> getOtherProperties() {
+        // Filter out select keys; not in ANNOTATED_FIELDS, are not sensitive fields (refer to
+        // OccurrenceIndex.sensitiveSOLRHdr) and are not wild card fields (ending with _s, _i, _d, _dt)
+        // Note: this cannot be done in the setter
+        if (otherProperties != null) {
+            otherProperties.entrySet().removeIf(entry ->
+                    ANNOTATED_FIELDS.contains(entry.getKey()) ||
+                            entry.getKey().startsWith("sensitive_") ||
+                            entry.getKey().endsWith("_s") ||
+                            entry.getKey().endsWith("_i") ||
+                            entry.getKey().endsWith("_d") ||
+                            entry.getKey().endsWith("_dt"));
+
+            return otherProperties.isEmpty() ? null : otherProperties;
+        }
+
+        return null;
+    }
+
+    public void setOtherProperties(Map<String, Object> otherProperties) {
+        this.otherProperties = otherProperties;
+    }
+
 }
