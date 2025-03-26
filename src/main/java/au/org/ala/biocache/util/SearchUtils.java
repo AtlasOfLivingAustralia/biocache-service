@@ -23,6 +23,8 @@ import org.springframework.web.servlet.HandlerMapping;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import java.net.URLDecoder;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -540,10 +542,29 @@ public class SearchUtils {
         return authIndexFields;
     }
 
+    // Pipelines removes offset values and treats as local date time
+    private static final Pattern UTC_ISO_DATE_PATTERN = Pattern.compile(
+            "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    );
+
+    // Thread-safe DateFormat via ThreadLocal
+    private static final ThreadLocal<SimpleDateFormat> SIMPLE_DATE_FORMAT = ThreadLocal.withInitial(() -> {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return sdf;
+    });
+
     public static String formatValue(Object value) {
         if (value instanceof Date) {
             return value == null ? "" : org.apache.commons.lang.time.DateFormatUtils.format((Date) value, "yyyy-MM-dd");
-        } else {
+        } else if (value instanceof String && value != null && UTC_ISO_DATE_PATTERN.matcher((String) value).matches()) {
+            try {
+                Date date = SIMPLE_DATE_FORMAT.get().parse((String) value);
+                return org.apache.commons.lang.time.DateFormatUtils.format(date, "yyyy-MM-dd");
+            } catch (ParseException e) {
+                return value.toString(); // Return original string if parsing fails
+            }
+        }  else {
             return value == null ? "" : value.toString();
         }
     }
