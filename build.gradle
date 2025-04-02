@@ -157,9 +157,6 @@ dependencies {
 
     implementation 'javax.servlet:javax.servlet-api:4.0.1'
     implementation 'javax.servlet:jsp-api:2.0'
-
-    providedRuntime 'javax.el:javax.el-api:3.0.0'
-    providedRuntime 'org.glassfish:javax.el:3.0.0'
 }
 
 sourceSets {
@@ -187,6 +184,15 @@ bootWar {
 
 war {
     archiveClassifier = ''
+}
+
+springBoot {
+    mainClass = 'au.org.ala.biocache.config.Application'
+}
+
+bootJar {
+    enabled = true
+    archiveClassifier = 'exec'
 }
 
 tasks.withType(JavaCompile) {
@@ -263,9 +269,7 @@ publishing {
     }
     publications {
         mavenJava(MavenPublication) {
-//            from components.java
-//            artifact sourcesJar
-//            artifact javadocJar
+            artifact bootJar
 
             pom {
                 name = 'Biocache Service'

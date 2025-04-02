@@ -6,7 +6,7 @@ import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.dto.SpatialSearchRequestParams;
 import au.org.ala.biocache.dto.TaxaCountDTO;
 import au.org.ala.biocache.util.SearchUtils;
-import org.apache.log4j.Logger;;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.io.OutputStream;
