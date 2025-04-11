@@ -747,7 +747,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
         }
 
-        downloadParams.setFields(String.join(",", fieldsWithSensitive));
+        downloadParams.setFields(String.join(",", fieldsWithSensitive), true);
     }
 
     /**
