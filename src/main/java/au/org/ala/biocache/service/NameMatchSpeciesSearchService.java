@@ -51,7 +51,7 @@ public class NameMatchSpeciesSearchService implements SpeciesSearchService {
             @Override
             public int compare(Map o1, Map o2) {
                 //exact match is above everything, hopefully
-                int sort = new Double(
+                int sort = Double.valueOf(
                             (
                                 (Double) o2.get("score") * (10000 - (Integer) o2.get("rankId"))
                             )

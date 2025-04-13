@@ -747,7 +747,7 @@ public class SearchDAOImpl implements SearchDAO {
             }
         }
 
-        downloadParams.setFields(String.join(",", fieldsWithSensitive));
+        downloadParams.setFields(String.join(",", fieldsWithSensitive), true);
     }
 
     /**
@@ -1482,7 +1482,7 @@ public class SearchDAOImpl implements SearchDAO {
             if (facet.getValues() != null) {
                 for (FacetField.Count ffc : facet.getValues()) {
                     if (ffc.getCount() > 0) {
-                        uidStats.put(ffc.getName() != null ? ffc.getName() : "", new Integer((int) ffc.getCount()));
+                        uidStats.put(ffc.getName() != null ? ffc.getName() : "", Integer.valueOf((int) ffc.getCount()));
                     }
                 }
             }

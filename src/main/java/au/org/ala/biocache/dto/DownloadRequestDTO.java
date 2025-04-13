@@ -62,9 +62,9 @@ public class DownloadRequestDTO extends SpatialSearchRequestDTO {
     protected Boolean dwcHeaders = false;
     /** Include all available misc fields. For Cassandra downloads only. */
     protected Boolean includeMisc = false;
-    
+
     @NotNull @LogType(type="reason")//@Range(min=0, max=10)
-    protected Integer reasonTypeId = null;    
+    protected Integer reasonTypeId = null;
     @LogType(type="source")
     protected Integer sourceTypeId = null;
     //The file type for the download file.
@@ -163,7 +163,7 @@ public class DownloadRequestDTO extends SpatialSearchRequestDTO {
         }
         if (sourceTypeId != null) {
             req.append("&sourceTypeId=").append(sourceTypeId);
-        } 
+        }
         if (!"csv".equals(fileType)){
             req.append("&fileType=").append(super.conditionalEncode(fileType, encodeParams));
         }
@@ -176,7 +176,7 @@ public class DownloadRequestDTO extends SpatialSearchRequestDTO {
         if (includeMisc) {
             req.append("&includeMisc=true");
         }
-        
+
         return req.toString();
     }
 
@@ -209,7 +209,7 @@ public class DownloadRequestDTO extends SpatialSearchRequestDTO {
 
     /**
      * Subset of valid characters to enable surety that it will work across filesystems.
-     * 
+     *
      * @param nextFile The filename to sanitise
      * @return A sanitised version of the given filename that can be used to avoid filesystem inconsistencies
      */
@@ -238,6 +238,14 @@ public class DownloadRequestDTO extends SpatialSearchRequestDTO {
     public void setFields(String fields) {
         QueryFormatUtils.assertNoSensitiveValues(DownloadRequestDTO.class, "fields", fields);
         this.fields = fields;
+    }
+
+    public void setFields(String fields, boolean permitSensitive) {
+        if (permitSensitive) {
+            this.fields = fields;
+        } else {
+            setFields(fields);
+        }
     }
 
     /**
@@ -330,11 +338,11 @@ public class DownloadRequestDTO extends SpatialSearchRequestDTO {
     public void setSep(Character sep) {
         this.sep = sep;
     }
-    
-    public Boolean getDwcHeaders() { 
+
+    public Boolean getDwcHeaders() {
         return dwcHeaders;
     }
-    
+
     public void setDwcHeaders(Boolean dwcHeaders) {
         this.dwcHeaders = dwcHeaders;
     }

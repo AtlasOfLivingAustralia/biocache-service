@@ -41,7 +41,7 @@ repositories {
 }
 
 group = 'au.org.ala'
-version = '3.7.0-SNAPSHOT'
+version = '4.0.0-SNAPSHOT'
 
 boolean inplace = false
 
@@ -179,10 +179,18 @@ test {
         events "passed", "skipped", "failed"
         exceptionFormat "full"
     }
+    jvmArgs += [
+        '--add-opens', 'java.base/java.io=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.math=ALL-UNNAMED',
+        '--add-opens', 'java.base/sun.nio.fs=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.nio.file=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.util.concurrent=ALL-UNNAMED'
+    ]
 }
 
 bootWar {
-    enabled = false
+    enabled = true
+    classifier = 'exec'
 }
 
 war {
@@ -263,9 +271,7 @@ publishing {
     }
     publications {
         mavenJava(MavenPublication) {
-//            from components.java
-//            artifact sourcesJar
-//            artifact javadocJar
+            artifact bootWar
 
             pom {
                 name = 'Biocache Service'

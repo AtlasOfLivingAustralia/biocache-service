@@ -446,7 +446,9 @@ public class DownloadServiceTest {
     public void tearDown() throws Exception {
         // Ensure we are not stuck on the countdown latch if it failed to be
         // called in test as expected
-        testLatch.countDown();
+        if (testLatch != null) {
+            testLatch.countDown();
+        }
 
         FileUtils.deleteDirectory(testCacheDir.toFile());
     }

@@ -30,6 +30,7 @@ import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.response.FacetField;
@@ -45,7 +46,10 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.CoordinateOperation;
 import org.opengis.referencing.operation.TransformException;
 import org.springdoc.api.annotations.ParameterObject;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.stereotype.Controller;
@@ -53,6 +57,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 
+import javax.annotation.PostConstruct;
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import javax.servlet.ServletOutputStream;
@@ -61,10 +66,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.awt.*;
 import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -111,7 +113,7 @@ public class WMSController extends AbstractSecureController {
     /**
      * Load a smaller 256x256 png than java.image produces
      */
-    final static byte[] blankImageBytes;
+    static byte[] blankImageBytes;
 
     @Value("${webservices.root:https://biocache-ws.ala.org.au/ws}")
     protected String  baseWsUrl;
@@ -213,21 +215,24 @@ public class WMSController extends AbstractSecureController {
     @Inject
     protected WMSOSGridController wmsosGridController;
 
-    static {
+    @Autowired
+    private ResourceLoader resourceLoader;
+
+    @PostConstruct
+    public void init() throws Exception {
         // cache blank image bytes
-        byte[] b = null;
-        try (RandomAccessFile raf = new RandomAccessFile(WMSController.class.getResource("/blank.png").getFile(), "r");) {
-            b = new byte[(int) raf.length()];
-            raf.read(b);
-        } catch (Exception e) {
-            logger.error("Unable to open blank image file", e);
+        Resource resource = resourceLoader.getResource("classpath:/blank.png");
+        if (!resource.exists()) {
+            throw new IOException("Resource not found: classpath:/blank.png");
         }
-        blankImageBytes = b;
+        try (InputStream is = resource.getInputStream()) {
+            ByteArrayInputStream bais = new ByteArrayInputStream(IOUtils.toByteArray(is));
+            blankImageBytes = bais.readAllBytes();
+        }
 
         // configure geotools to use x/y order for SRS operations
         System.setProperty("org.geotools.referencing.forceXY", "true");
     }
-
 
     @Operation(summary = "Create a query ID", tags = "Query ID", description = "Add query details to a cache to reduce the size of the query params that are being passed around. This is particularly useful if you requests are too large for a GET.\n" +
             "\n" +
