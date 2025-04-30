@@ -41,7 +41,7 @@ repositories {
 }
 
 group = 'au.org.ala'
-version = '4.0.0-SNAPSHOT'
+version = '3.7.0'
 
 boolean inplace = false
 
