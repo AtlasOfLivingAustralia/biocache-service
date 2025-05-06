@@ -191,18 +191,18 @@ public class GridUtil {
                             gridRefs.getOrDefault("grid_ref_100", "")
                     };
 
-            if (uncertainty > 10000) {
+            if (uncertainty > 50000) {
                 ref = getBestValue(gridRefSeq, 0);
             } else if (uncertainty <= 50000 && uncertainty > 10000) {
                 getBestValue(gridRefSeq, 1);
             } else if (uncertainty <= 10000 && uncertainty > 2000) {
-                ref = getBestValue(gridRefSeq, 1);
-            } else if (uncertainty <= 2000 && uncertainty > 1000) {
                 ref = getBestValue(gridRefSeq, 2);
-            } else if (uncertainty <= 1000 && uncertainty > 100) {
+            } else if (uncertainty <= 2000 && uncertainty > 1000) {
                 ref = getBestValue(gridRefSeq, 3);
-            } else if (uncertainty < 100) {
+            } else if (uncertainty <= 1000 && uncertainty > 100) {
                 ref = getBestValue(gridRefSeq, 4);
+            } else if (uncertainty <= 100) {
+                ref = getBestValue(gridRefSeq, 5);
             }
         } catch (Exception e) {
             logger.error(
@@ -237,7 +237,7 @@ public class GridUtil {
 
     /**
      * Takes a grid reference and returns a map of grid references at different resolutions. Map will
-     * look like: grid_ref_100000 -> "NO" grid_ref_10000 -> "NO11" grid_ref_1000 -> "NO1212"
+     * look like: grid_ref_100000 -> "NO" grid_ref_50000 -> "NOSW" grid_ref_10000 -> "NO11" grid_ref_1000 -> "NO1212"
      * grid_ref_100 -> "NO123123"
      *
      * @param gridRef
@@ -353,6 +353,7 @@ public class GridUtil {
         Matcher matcher3 = irishGridRef2kRegex.matcher(gridRef);
         Matcher matcher4 = irishGridRefWithQuadRegex.matcher(gridRef);
         Matcher matcher5 = irishGridRefNoEastingNorthing.matcher(gridRef);
+        Matcher matcher6 = irishGridRef50kRegex.matcher(gridRef);
 
         if (matcher1.matches()) {
             gridletters = matcher1.group(1);
@@ -383,6 +384,12 @@ public class GridUtil {
             easting = "0";
             northing = "0";
             gridSize = getGridSizeFromGridRef(0, 0);
+        } else if (matcher6.matches()) {
+            gridletters = matcher6.group(1);
+            easting = "0";
+            northing = "0";
+            quadRef = matcher6.group(2);
+            gridSize = getGridSizeFromGridRef(0, 2);
         } else {
             return null;
         }
@@ -413,9 +420,7 @@ public class GridUtil {
             else if (easting.length() == 3) cellSize = 20;
             else if (easting.length() == 4) cellSize = 2;
 
-            if (gridSize == 50000) { //50km grids only
-                cellSize = 50000;
-            }
+
 
             // Dealing with 5 character grid references = 2km grids
             // http://www.kmbrc.org.uk/recording/help/gridrefhelp.php?page=6
@@ -436,19 +441,23 @@ public class GridUtil {
             else if (easting.length() == 3) cellSize = 50;
             else if (easting.length() == 4) cellSize = 5;
 
+            if (gridSize == 50000) { //50km grids only
+                cellSize = 50000;
+            }
+
             if (cellSize > 0) {
-                if ("NW".equals(twoKRef)) {
-                    e = e + (cellSize / 2);
-                    n = n + (cellSize + cellSize / 2);
-                } else if ("NE".equals(twoKRef)) {
-                    e = e + (cellSize + cellSize / 2);
-                    n = n + (cellSize + cellSize / 2);
-                } else if ("SW".equals(twoKRef)) {
-                    e = e + (cellSize / 2);
-                    n = n + (cellSize / 2);
-                } else if ("SE".equals(twoKRef)) {
-                    e = e + (cellSize + cellSize / 2);
-                    n = n + (cellSize / 2);
+                if ("NW".equals(quadRef)) {
+                    e = e; //+ (cellSize / 2);
+                    n = n + (cellSize);// + cellSize / 2);
+                } else if ("NE".equals(quadRef)) {
+                    e = e + (cellSize);// + cellSize / 2);
+                    n = n + (cellSize);// + cellSize / 2);
+                } else if ("SW".equals(quadRef)) {
+                    e = e;// + (cellSize / 2);
+                    n = n;// + (cellSize / 2);
+                } else if ("SE".equals(quadRef)) {
+                    e = e + (cellSize);// + cellSize / 2);
+                    n = n;// + (cellSize);// / 2);
                 } else {
                     return null;
                 }
@@ -506,6 +515,7 @@ public class GridUtil {
         Matcher matcher3 = osGridRef2kRegex.matcher(gridRef);
         Matcher matcher4 = osGridRefWithQuadRegex.matcher(gridRef);
         Matcher matcher5 = osGridRefNoEastingNorthing.matcher(gridRef);
+        Matcher matcher6 = osGridRef50kRegex.matcher(gridRef);
         if (matcher1.matches()) {
             String gridDigits = matcher1.group(2);
 
@@ -535,6 +545,12 @@ public class GridUtil {
             easting = "0";
             northing = "0";
             gridSize = getGridSizeFromGridRef(0, 0);
+        } else if (matcher6.matches()) {
+            gridletters = matcher6.group(1);
+            easting = "0";
+            northing = "0";
+            quadRef = matcher6.group(2);
+            gridSize = getGridSizeFromGridRef(0, 2);
         } else {
             return null;
         }
@@ -614,17 +630,17 @@ public class GridUtil {
             if (cellSize > 0) {
                 if ("NW".equals(quadRef)) {
 
-                    e = e + (cellSize / 2);
-                    n = n + (cellSize + cellSize / 2);
+                    e = e;// + (cellSize / 2);
+                    n = n + (cellSize);// + cellSize / 2);
                 } else if ("NE".equals(quadRef)) {
-                    e = e + (cellSize + cellSize / 2);
-                    n = n + (cellSize + cellSize / 2);
+                    e = e + (cellSize);// + cellSize / 2);
+                    n = n + (cellSize);// + cellSize / 2);
                 } else if ("SW".equals(quadRef)) {
-                    e = e + (cellSize / 2);
-                    n = n + (cellSize / 2);
+                    e = e;// + (cellSize / 2);
+                    n = n;// + (cellSize / 2);
                 } else if ("SE".equals(quadRef)) {
-                    e = e + (cellSize + cellSize / 2);
-                    n = n + (cellSize / 2);
+                    e = e + (cellSize);// + cellSize / 2);
+                    n = n ;//+ (cellSize / 2);
                 } else {
                     return null;
                 }
@@ -674,21 +690,21 @@ public class GridUtil {
 
         double[] coords =
                 GISUtil.reprojectCoordinatesToWGS84(
-                        gr.getEasting() + reposition, gr.getNorthing() + reposition, gr.getDatum(), 5);
+                        gr.getEasting() + reposition, gr.getNorthing() + reposition, gr.getDatum(), 6);
 
         // reproject min/max lat/lng
         double[][] bbox =
                 new double[][]{
                         GISUtil.reprojectCoordinatesToWGS84(
-                                gr.getMinEasting().doubleValue(), gr.getMinNorthing().doubleValue(), gr.datum, 5),
+                                gr.getMinEasting().doubleValue(), gr.getMinNorthing().doubleValue(), gr.datum, 6),
                         GISUtil.reprojectCoordinatesToWGS84(
-                                gr.getMaxEasting().doubleValue(), gr.getMaxNorthing().doubleValue(), gr.datum, 5)
+                                gr.getMaxEasting().doubleValue(), gr.getMaxNorthing().doubleValue(), gr.datum, 6)
                 };
 
         if (coords != null) {
             String uncertaintyToUse = null;
             if (gr.getGridSize() != null) {
-                gr.getGridSize().toString();
+                uncertaintyToUse = String.format("%.1f", gr.getGridSize() / Math.sqrt(2.0));
             }
             result =
                     new GISPoint(

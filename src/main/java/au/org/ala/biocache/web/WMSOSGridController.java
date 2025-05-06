@@ -523,6 +523,7 @@ public class WMSOSGridController {
             wmsImg.g.dispose();
             try {
                 ServletOutputStream outStream = response.getOutputStream();
+                response.setContentType("image/png");
                 ImageIO.write(wmsImg.img, "png", outStream);
                 outStream.flush();
                 outStream.close();
