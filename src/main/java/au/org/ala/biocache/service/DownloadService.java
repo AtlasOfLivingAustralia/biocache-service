@@ -815,8 +815,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 Set<IndexFieldDTO> indexedFields = indexDao.getIndexedFields();
 
                 // header
-                writer.writeNext(new String[]{"Column name", "Requested field", "DwC Name", "Field name",
-                        "Field description", "Download field name", "Download field description", "More information"});
+                writer.writeNext(new String[]{"Column name", "Requested field", "DwC Name", /**"Field name",
+                        "Field description", "Download field name", "Download field description",**/ "More information"});
 
                 String[] fieldsRequested = downloadHeaders.joinOriginalIncluded();
                 String[] headerOutput = downloadHeaders.joinedHeader();
@@ -848,10 +848,10 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                         if (ifdto != null && StringUtils.isNotEmpty(headerOutput[i])) {
                             writer.writeNext(new String[]{headerOutput[i], fieldsRequested[i],
                                     ifdto.getDwcTerm() != null ? ifdto.getDwcTerm() : "",
-                                    ifdto.getName() != null ? ifdto.getName() : "",
-                                    ifdto.getDescription() != null ? ifdto.getDescription() : "",
-                                    ifdto.getDownloadName() != null ? ifdto.getDownloadName() : "",
-                                    ifdto.getDownloadDescription() != null ? ifdto.getDownloadDescription() : "",
+//                                    ifdto.getName() != null ? ifdto.getName() : "",
+//                                    ifdto.getDescription() != null ? ifdto.getDescription() : "",
+//                                    ifdto.getDownloadName() != null ? ifdto.getDownloadName() : "",
+//                                    ifdto.getDownloadDescription() != null ? ifdto.getDownloadDescription() : "",
                                     ifdto.getInfo() != null ? ifdto.getInfo() : ""});
                         } else if (StringUtils.isNotEmpty(headerOutput[i])) {
                             // others, e.g. species lists and analysis layers that do not appear in the fieldsRequested
