@@ -31,6 +31,14 @@ repositories {
     }
 
     maven {
+        url = uri('https://repository.gbif.org/repository/uk-nbn-releases/')
+    }
+
+    maven {
+        url = uri('https://repository.gbif.org/repository/uk-nbn-snapshots/')
+    }
+
+    maven {
         url = uri('https://oss.sonatype.org/content/repositories/snapshots')
     }
 
