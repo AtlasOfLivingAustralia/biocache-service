@@ -1,14 +1,13 @@
 <!DOCTYPE log4j:configuration  SYSTEM "log4j.dtd">
 <log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/" debug="true">
-    <appender name="CONSOLE" class="org.apache.log4j.ConsoleAppender">
-    <param name="Threshold" value="DEBUG"/>
-    <layout class="org.apache.log4j.PatternLayout">
-    <param name="ConversionPattern" value="%d %-5p: [%c{1}] - %m%n"/>
-    </layout>
-    <filter class="org.apache.log4j.varia.LevelMatchFilter">
-    <param name="LevelToMatch" value="REMOTE#org.ala.client.appender.RestLevel" />
-    <param name="AcceptOnMatch" value="false"/>
-    </filter>
+    <appender name="FILE" class="org.apache.log4j.RollingFileAppender">
+        <param name="File" value="/data/biocache/logs/biocache-service.log"/>
+        <param name="Append" value="true"/>
+        <param name="Threshold" value="INFO"/>
+        <param name="MaxFileSize" value="200MB"/>
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%d [%t] %p %4c  (%F:%L) - %m%n"/>
+        </layout>
     </appender>
     <!--<appender name="FILE" class="org.apache.log4j.RollingFileAppender">-->
         <!--<param name="File" value="${catalina.base}/logs/biocache-service.log"/>-->
@@ -35,15 +34,15 @@
         <!--<param name="Blocking" value="false" />-->
         <!--<appender-ref ref="ALA_LOGGER" />-->
     <!--</appender>-->
-    <category name="org.ala.biocache">
-        <priority value="DEBUG"/>
-    </category>
-    <category name="au.org.ala.biocache">
-        <priority value="DEBUG"/>
-    </category>
-    <category name="au.org.ala">
-        <priority value="DEBUG"/>
-    </category>
+<!--    <category name="org.ala.biocache">-->
+<!--        <priority value="DEBUG"/>-->
+<!--    </category>-->
+<!--    <category name="au.org.ala.biocache">-->
+<!--        <priority value="DEBUG"/>-->
+<!--    </category>-->
+<!--    <category name="au.org.ala">-->
+<!--        <priority value="DEBUG"/>-->
+<!--    </category>-->
     <category name="org.scale7">
         <priority value="ERROR"/>
     </category>
@@ -90,9 +89,7 @@
         <priority value="ERROR"/>
     </category>
     <root>
-        <priority value="DEBUG"/>
-         <appender-ref ref="CONSOLE"/>
-        <!--<appender-ref ref="FILE"/>-->
-        <!--<appender-ref ref="ASYNC" />-->
+        <priority value="WARN"/>
+         <appender-ref ref="FILE"/>
     </root>
 </log4j:configuration>
