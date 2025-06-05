@@ -243,6 +243,55 @@ public class OccurrenceIndex {
     @Schema(description="All URLs for the images associated with this record")
     String[] imageUrls;
 
+    //START - NBN Added
+    @Field("vitality") @Schema(description="http://rs.tdwg.org/dwc/terms/vitality")
+    String vitality;
+    @Field("lifeStage") @Schema(description="http://rs.tdwg.org/dwc/iri/lifeStage")
+    String[] lifeStage; // now Oct-19 multivalued
+    @Field("locationID") @Schema(description="http://rs.tdwg.org/dwc/terms/locationID")
+    String locationId;
+    @Field("taxonID") @Schema(description="http://rs.tdwg.org/dwc/terms/taxonID")
+    String raw_taxonId;
+    @Field("samplingProtocol") @Schema(description="http://rs.tdwg.org/dwc/iri/samplingProtocol")
+    String[] raw_samplingProtocol;
+
+    public String getVitality() {
+        return vitality;
+    }
+
+    public void setVitality(String vitality) {
+        this.vitality = vitality;
+    }
+
+    public String[] getLifeStage() { return lifeStage; } //multivalued
+
+    public void setLifeStage(String[] lifeStage) { this.lifeStage = lifeStage; }
+
+    public String getLocationId() {
+        return locationId;
+    }
+
+    public void setLocationId(String locationId) {
+        this.locationId = locationId;
+    }
+
+    public String getRaw_taxonId() {
+        return raw_taxonId;
+    }
+
+    public void setRaw_taxonId(String raw_taxonId) {
+        this.raw_taxonId = raw_taxonId;
+    }
+
+    public String[] getRaw_samplingProtocol() {
+        return raw_samplingProtocol;
+    }
+
+    public void setRaw_samplingProtocol(String[] raw_samplingProtocol) {
+        this.raw_samplingProtocol = raw_samplingProtocol;
+    }
+    //END - NBN Added
+
     // DEPRECATED FIELDS - located here to appear at the bottom of API listings
 //    @Deprecated @Field("occurrenceYear")
     Date occurrenceYear;
