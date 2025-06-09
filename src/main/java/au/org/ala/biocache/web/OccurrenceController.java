@@ -2354,6 +2354,8 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, event, "startYear", getFieldName);
         addField(sd, event, "endYear", getFieldName);
         addField(sd, event, "datePrecision", getFieldName);
+        addField(sd, event, "sampleSizeValue", getFieldName);
+        addField(sd, event, "sampleSizeUnit", getFieldName);
 
         // au.org.ala.biocache.model.Attribution
         Map attribution = new HashMap();
