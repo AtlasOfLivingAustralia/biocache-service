@@ -1814,7 +1814,10 @@ public class OccurrenceController extends AbstractSecureController {
             occurrence.put("outlierForLayers", outlierLayer);
         }
 
-        raw.put("miscProperties", extractMiscProperties(sd));
+        if (raw.get("miscProperties") == null) {
+            raw.put("miscProperties", new HashMap<>());
+        }
+        ((Map<String, Object>)raw.get("miscProperties")).putAll(extractMiscProperties(sd));
 
         map.put("raw", raw);
         map.put("processed", processed);
