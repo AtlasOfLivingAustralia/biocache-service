@@ -1151,6 +1151,15 @@ public class WMSController extends AbstractSecureController {
             throws Exception {
 
         String encodedQuery = URLEncoder.encode(query, "UTF-8");
+        String encodedFilterQueries = "";
+        if (filterQueries != null && filterQueries.length > 0) {
+            StringBuilder fqBuilder = new StringBuilder();
+            for (int i = 0; i < filterQueries.length; i++) {
+                fqBuilder.append("&amp;fq="+URLEncoder.encode(filterQueries[i], "UTF-8"));
+            }
+            encodedFilterQueries = fqBuilder.toString();
+        }
+
         if ("GetMap".equalsIgnoreCase(requestString)) {
             generateWmsTileViaHeatmap(
                     requestParams,
@@ -1205,8 +1214,8 @@ public class WMSController extends AbstractSecureController {
 
             String supportedCodes = "      <SRS>EPSG:4326</SRS>\n";
             for (String code : CRS.getSupportedCodes("EPSG")) {
-                if (!"EPSG:4326".equals(code)) {
-                    supportedCodes += "      <SRS>" + code + "</SRS>\n";
+                if (!"4326".equals(code)) {
+                    supportedCodes += "      <SRS>EPSG:" + code + "</SRS>\n";
                 }
             }
 
@@ -1252,10 +1261,10 @@ public class WMSController extends AbstractSecureController {
                     "        <DCPType>\n" +
                     "          <HTTP>\n" +
                     "            <Get>\n" +
-                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;q=" + encodedQuery + "&amp;REQUEST=GetCapabilities&amp;\"/>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;q=" + encodedQuery + encodedFilterQueries + "&amp;REQUEST=GetCapabilities&amp;\"/>\n" +
                     "            </Get>\n" +
                     "            <Post>\n" +
-                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;q=" + encodedQuery + "&amp;REQUEST=GetCapabilities&amp;\"/>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;q=" + encodedQuery + encodedFilterQueries + "&amp;REQUEST=GetCapabilities&amp;\"/>\n" +
                     "            </Post>\n" +
                     "          </HTTP>\n" +
                     "        </DCPType>\n" +
@@ -1265,7 +1274,7 @@ public class WMSController extends AbstractSecureController {
                     "        <DCPType>\n" +
                     "          <HTTP>\n" +
                     "            <Get>\n" +
-                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;OUTLINE=TRUE&amp;q=" + encodedQuery + "&amp;REQUEST=getMap&amp;\"/>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;OUTLINE=TRUE&amp;q=" + encodedQuery + encodedFilterQueries + "&amp;REQUEST=getMap&amp;\"/>\n" +
                     "            </Get>\n" +
                     "          </HTTP>\n" +
                     "        </DCPType>\n" +
@@ -1275,10 +1284,10 @@ public class WMSController extends AbstractSecureController {
                     "        <DCPType>\n" +
                     "          <HTTP>\n" +
                     "            <Get>\n" +
-                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;q=" + encodedQuery + "&amp;REQUEST=GetFeatureInfo&amp;\"/>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;q=" + encodedQuery + encodedFilterQueries + "&amp;REQUEST=GetFeatureInfo&amp;\"/>\n" +
                     "            </Get>\n" +
                     "            <Post>\n" +
-                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;q=" + encodedQuery + "&amp;REQUEST=GetFeatureInfo&amp;\"/>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;q=" + encodedQuery + encodedFilterQueries + "&amp;REQUEST=GetFeatureInfo&amp;\"/>\n" +
                     "            </Post>\n" +
                     "          </HTTP>\n" +
                     "        </DCPType>\n" +
@@ -1290,7 +1299,7 @@ public class WMSController extends AbstractSecureController {
                     "        <DCPType>\n" +
                     "          <HTTP>\n" +
                     "            <Get>\n" +
-                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;q=" + encodedQuery + "&amp;REQUEST=GetLegendGraphic&amp;\"/>\n" +
+                    "              <OnlineResource xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:type=\"simple\" xlink:href=\"" + baseWsUrl + "/ogc/ows?SERVICE=WMS&amp;q=" + encodedQuery + encodedFilterQueries + "&amp;REQUEST=GetLegendGraphic&amp;\"/>\n" +
                     "            </Get>\n" +
                     "          </HTTP>\n" +
                     "        </DCPType>\n" +
@@ -1322,14 +1331,20 @@ public class WMSController extends AbstractSecureController {
             }
 
             query = searchUtils.convertRankAndName(query);
+
+            requestParams.setFq(filterQueries);
+
+            SpatialSearchRequestDTO requestDTO = SpatialSearchRequestDTO.create(requestParams);
+            queryFormatUtils.formatSearchQuery(requestDTO, true);
+
             if (logger.isDebugEnabled()) {
-                logger.debug("GetCapabilities query in use: " + query);
+                logger.debug("GetCapabilities query in use: " + requestDTO.getFormattedQuery());
             }
 
             if (useSpeciesGroups) {
-                taxonDAO.extractBySpeciesGroups(baseWsUrl + "/ogc/getMetadata", query, filterQueries, writer);
+                taxonDAO.extractBySpeciesGroups(baseWsUrl + "/ogc/getMetadata", requestDTO.getFormattedQuery(), requestDTO.getFormattedFq(), writer);
             } else {
-                taxonDAO.extractHierarchy(baseWsUrl + "/ogc/getMetadata", query, filterQueries, writer);
+                taxonDAO.extractHierarchy(baseWsUrl + "/ogc/getMetadata", requestDTO.getFormattedQuery(), requestDTO.getFormattedFq(), writer);
             }
 
             writer.write("</Layer></Capability></WMT_MS_Capabilities>\n");
