@@ -49,6 +49,7 @@ configurations {
 
     all*.exclude group: 'ch.qos.logback'
     all*.exclude group: 'javax.servlet', module: 'servlet-api'
+    all*.exclude group: 'log4j', module: 'log4j'
 }
 
 dependencies {
@@ -80,8 +81,11 @@ dependencies {
     implementation 'org.geotools:gt-epsg-wkt:26.0'
     implementation 'au.org.ala.names:ala-namematching-client:1.8.1'
     implementation 'com.googlecode.json-simple:json-simple:1.1.1'
+
     implementation 'au.org.ala:ala-logger:1.4.1'
     implementation 'au.org.ala:ala-common-ui:1.0'
+    implementation 'ch.qos.reload4j:reload4j:1.2.26'
+
     implementation 'net.sf.opencsv:opencsv:2.3'
     implementation 'net.sf.ehcache:ehcache:2.10.9.2'
     implementation 'org.apache.httpcomponents:httpcore:4.4.14'
