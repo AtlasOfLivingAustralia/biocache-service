@@ -1681,7 +1681,7 @@ public class OccurrenceController extends AbstractSecureController {
             sdl = searchDAO.findByFulltext(idRequest);
         } else {
             // do queries with sensitive filters....if no records returned, do without sensitive filters
-            String sensitiveFq = downloadService.getSensitiveFq(authenticatedUser.get().getUserId());
+            String sensitiveFq = downloadService.getSensitiveFq(authenticatedUser.get());
             if (StringUtils.isNotEmpty(sensitiveFq)){
                 SpatialSearchRequestDTO idRequest = createRecirdQuery(uuid);
                 idRequest.setFq(new String[]{sensitiveFq});

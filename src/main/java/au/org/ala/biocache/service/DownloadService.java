@@ -1079,7 +1079,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
         return sensitiveFq;
     }
-    public String getSensitiveFq(String userId) {
+    public String getSensitiveFq(AlaUserProfile user) {
         throw new UnsupportedOperationException("This method is not supported in this class");
     }
 
