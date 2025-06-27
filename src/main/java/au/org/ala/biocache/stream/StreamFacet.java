@@ -91,11 +91,11 @@ public class StreamFacet implements ProcessInterface {
     public boolean process(Tuple tuple) {
         String name = null;
         Long count = 0L;
-        for (Object value : tuple.getMap().values()) {
-            if (value instanceof String) {
-                name = (String) value;
+        for (Object o : tuple.getMap().values()) {
+            if (o instanceof Long) {
+                count = (Long) o;
             } else {
-                count = (Long) value;
+                name = String.valueOf(o);
             }
         }
 
