@@ -1330,7 +1330,7 @@ public class WMSController extends AbstractSecureController {
                 filterQueries = org.apache.commons.lang3.ArrayUtils.add(filterQueries, limitToFocusValue20);
             }
 
-            query = searchUtils.convertRankAndName(query);
+            //query = searchUtils.convertRankAndName(query);
 
             requestParams.setFq(filterQueries);
 
