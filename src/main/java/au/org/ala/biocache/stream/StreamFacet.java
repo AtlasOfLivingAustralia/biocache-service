@@ -98,6 +98,14 @@ public class StreamFacet implements ProcessInterface {
                 count = (Long) value;
             }
         }
+        //NBN fix until ALA correct this method (month and year are now int in the index, so for month
+        //and year facets the code above, which expects the name (month) to be a String, does not work.
+        //https://nbnatlas.atlassian.net/browse/PT-97
+        if (tuple.getFields().containsKey("month") || tuple.getFields().containsKey("year")){
+            count = tuple.getLong("count(*)");
+            name = tuple.getFields().containsKey("month") ? tuple.getString("month") : tuple.getString("year");
+        }
+        //END NBN fix
 
         try {
             //process the "species_guid_ facet by looking up the list of guids
