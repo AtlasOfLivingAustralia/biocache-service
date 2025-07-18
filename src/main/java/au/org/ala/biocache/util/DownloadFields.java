@@ -199,7 +199,7 @@ public class DownloadFields {
                 if (dwcHeaders && name.startsWith(RAW_FIELD_PREFIX) && !header.startsWith(RAW_FIELD_PREFIX)) {
                     labels.add(RAW_FIELD_PREFIX + header);
                 } else {
-                    labels.add(header);
+                    labels.add(messageSource.getMessage("download.header."+header, null, header, Locale.getDefault()));
                 }
 
                 // keep track of the original field name requested
