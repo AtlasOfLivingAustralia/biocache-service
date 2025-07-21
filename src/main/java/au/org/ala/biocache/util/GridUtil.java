@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,14 +35,14 @@ public class GridUtil {
      */
     private static final Logger logger = Logger.getLogger(SearchDAOImpl.class);
 
-    static Cache<String, GISPoint> lru =
+    static Cache<String,Optional<GISPoint>> lru =
             CacheBuilder.newBuilder()
                     .maximumSize(100000)
                     .build(
-                            new CacheLoader<String, GISPoint>() {
+                            new CacheLoader<String, Optional<GISPoint>>() {
                                 @Override
-                                public GISPoint load(String s) throws Exception {
-                                    return null;
+                                public Optional<GISPoint> load(String key) {
+                                    return Optional.empty();
                                 }
                             });
 
@@ -675,13 +676,14 @@ public class GridUtil {
      */
     public static GISPoint processGridReference(String gridReference) {
 
-        GISPoint cachedObject = lru.getIfPresent(gridReference);
-        if (cachedObject != null) return cachedObject;
+        Optional<GISPoint> cachedObject = lru.getIfPresent(gridReference);
+        if (cachedObject != null) return cachedObject.orElse(null);
 
         GISPoint result = null;
 
         GridRef gr = GridUtil.gridReferenceToEastingNorthing(gridReference);
 
+        if (gr != null) {
         // move coordinates to the centroid of the grid
         double reposition = 0;
         if (gr.getGridSize() == null && gr.getGridSize() > 0) {
@@ -721,8 +723,9 @@ public class GridUtil {
         } else {
             result = null;
         }
+        }
 
-        lru.put(gridReference, result);
+        lru.put(gridReference, Optional.ofNullable(result));
 
         return result;
     }
