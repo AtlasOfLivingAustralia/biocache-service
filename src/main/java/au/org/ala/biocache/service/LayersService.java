@@ -33,6 +33,14 @@ public interface LayersService {
     java.util.Map<String, String> getLayerNameMap();
 
     /**
+     * Retrieve a map of layers
+     *
+     * @return
+     */
+    java.util.Map<String, String> getLayerNameMapNoWait();
+
+
+    /**
      * Retrieve a layer name with the supplied code.
      *
      * @param code

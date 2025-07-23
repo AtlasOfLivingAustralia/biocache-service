@@ -14,6 +14,8 @@
  ***************************************************************************/
 package au.org.ala.biocache.service;
 
+import au.org.ala.biocache.dao.SearchDAO;
+import au.org.ala.biocache.dao.SolrIndexDAOImpl;
 import au.org.ala.biocache.dto.SpatialObjectDTO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang3.StringUtils;
@@ -21,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -88,6 +91,9 @@ public class AlaLayersService implements LayersService {
     @Inject
     private RestOperations restTemplate; // NB MappingJacksonHttpMessageConverter() injected by Spring
 
+    @Inject
+    private ApplicationContext applicationContext;
+
     private CountDownLatch wait = new CountDownLatch(1);
 
     @Override
@@ -96,6 +102,11 @@ public class AlaLayersService implements LayersService {
             wait.await();
         } catch (InterruptedException e) {
         }
+        return idToNameMap;
+    }
+
+    @Override
+    public Map<String, String> getLayerNameMapNoWait() {
         return idToNameMap;
     }
 
@@ -145,6 +156,32 @@ public class AlaLayersService implements LayersService {
                     }
 
                     wait.countDown();
+
+                    // update indexed fields now that there is a valid layer map
+                    int maxRetries = 30; // maximum number of retries
+                    int attempt = 0;
+                    while (attempt < maxRetries) {
+                        try {
+                            SolrIndexDAOImpl searchDao = (SolrIndexDAOImpl) applicationContext.getBean(SearchDAO.class);
+                            searchDao.getIndexedFields(true);
+                            break; // success, exit loop
+                        } catch (Exception e) {
+                            attempt++;
+                            if (attempt >= maxRetries) {
+                                logger.warn("Failed to get update indexed fields after layers loaded, retrying in 0.5s", e);
+                            } else {
+                                try {
+                                    Thread.sleep(500); // wait before retrying
+                                } catch (InterruptedException ignored) {
+                                }
+                            }
+                        }
+                    }
+                    if (attempt >= maxRetries) {
+                        logger.error("Failed to update indexed fields after layers loaded, giving up");
+                    } else {
+                        logger.info("Successfully updated indexed fields after layers loaded");
+                    }
                 }
             }.start();
         } else {
