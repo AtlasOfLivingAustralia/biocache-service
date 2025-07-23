@@ -129,7 +129,7 @@ public class AlaUserProfileDeserializer extends StdDeserializer<AlaUserProfile> 
 
             @Override
             public Set<String> getRoles() {
-                return null;
+                return roles;
             }
 
             @Override
