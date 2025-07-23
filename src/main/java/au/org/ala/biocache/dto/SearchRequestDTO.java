@@ -20,6 +20,7 @@ import org.apache.commons.httpclient.URIException;
 import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,6 +37,9 @@ public class SearchRequestDTO {
 
     /** log4 j logger */
     private static final Logger logger = Logger.getLogger(SearchRequestDTO.class);
+
+    @Value("${download.max:500000}")
+    public static final int MAX_PAGE_SIZE = 500000;
 
     /** Only used to store the formattedQuery to be passed around in biocache-service**/
 
@@ -317,7 +321,7 @@ public class SearchRequestDTO {
      * @param pageSize new value of pageSize
      */
     public void setPageSize(Integer pageSize) {
-        this.pageSize = pageSize;
+       this.pageSize = pageSize > MAX_PAGE_SIZE ? MAX_PAGE_SIZE : pageSize;
     }
 
     /**
