@@ -61,6 +61,7 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
     @Override
     public void init() {
         jsonMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        jsonMapper.setSerializationInclusion(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL);
 
         // add deserializer for AlaUserProfile
         SimpleModule module = new SimpleModule();
@@ -73,8 +74,6 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
         } catch (IOException e) {
             logger.error("Unable to construct cache directory with correct permissions.", e);
         }
-
-        refreshFromPersistent();
     }
     /**
      * Returns a file object that represents the a persisted download on the queue
@@ -162,6 +161,10 @@ public class JsonPersistentQueueDAOImpl implements PersistentQueueDAO {
                 if (f.isFile()) {
                     try {
                         DownloadDetailsDTO dd = jsonMapper.readValue(f, DownloadDetailsDTO.class);
+
+                        // repair user profile attributes
+                        Map raw = jsonMapper.readValue(f, Map.class);
+
                         // Ensure that previously partially downloaded files get their downloads
                         // reattempted by making them available for download again and removing
                         // any partial files that already exist for it
