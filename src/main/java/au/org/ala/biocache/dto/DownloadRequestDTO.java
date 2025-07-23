@@ -68,8 +68,10 @@ public class DownloadRequestDTO extends SpatialSearchRequestDTO {
     @LogType(type="source")
     protected Integer sourceTypeId = null;
     //The file type for the download file.
-    @Pattern(regexp="(csv|tsv)")
+    @Pattern(regexp="(csv|tsv|map)")
     protected String fileType = "csv";
+
+    protected String mapLayoutParams = "";
 
     /** URL to layersService to include intersections with layers that are not indexed */
     protected String layersServiceUrl = "";
@@ -418,5 +420,13 @@ public class DownloadRequestDTO extends SpatialSearchRequestDTO {
 
     public void setDoiDisplayTemplate(String doiDisplayTemplate) {
         this.doiDisplayTemplate = doiDisplayTemplate;
+    }
+
+    public String getMapLayoutParams() {
+        return mapLayoutParams;
+    }
+
+    public void setMapLayoutParams(String mapLayoutParams) {
+        this.mapLayoutParams = mapLayoutParams;
     }
 }

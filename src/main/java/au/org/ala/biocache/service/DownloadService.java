@@ -25,6 +25,7 @@ import au.org.ala.biocache.dto.DownloadDetailsDTO.DownloadType;
 import au.org.ala.biocache.stream.OptionalZipOutputStream;
 import au.org.ala.biocache.util.AlaFileUtils;
 import au.org.ala.biocache.util.TooManyDownloadRequestsException;
+import au.org.ala.biocache.web.WMSController;
 import au.org.ala.biocache.writer.RecordWriterException;
 import au.org.ala.doi.CreateDoiResponse;
 import au.org.ala.ws.security.profile.AlaUserProfile;
@@ -32,10 +33,12 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import org.ala.client.model.LogEventVO;
 import org.apache.commons.httpclient.HttpException;
+import org.apache.http.NameValuePair;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
+import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.log4j.Logger;
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
@@ -56,17 +59,24 @@ import org.springframework.web.client.RestOperations;
 
 import javax.annotation.Nullable;
 import javax.annotation.PostConstruct;
+import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletResponse;
+import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.*;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
+import static org.apache.commons.io.FilenameUtils.removeExtension;
 
 /**
  * Services to perform the downloads.
@@ -411,6 +421,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                                    ExecutorService parallelExecutor,
                                    List<CreateDoiResponse> doiResponseList)
             throws Exception {
+        if (dd.getRequestParams().getFileType().equals("map")) {
+            nbnWriteMapDownloadToStream(dd, out, zip);
+            return;
+        }
+
         DownloadRequestDTO requestParams = dd.getRequestParams();
         String filename = dd.getRequestParams().getFile();
         String originalParams = dd.getRequestParams().toString();
@@ -1361,5 +1376,231 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 new File(currentDownload.getFileLocation()).delete();
             }
         }
+    }
+
+
+    // ------------------------------------ NBN added methods ------------------------------------
+
+    @Inject
+    protected WMSController wmsController; //obvs bad but needed to access the map generator which is in the wmsController
+
+    /**
+     * Asynchronous
+     *
+     * Writes the supplied download to the supplied output stream. It will
+     * include all the appropriate citations etc.
+     *
+     * @param dd
+     * @param out
+     * @throws Exception
+     */
+    private void nbnWriteMapDownloadToStream(DownloadDetailsDTO dd,
+                                         OutputStream out,
+                                         boolean zip)
+            throws Exception {
+        DownloadRequestDTO requestParams = dd.getRequestParams();
+        String filename = dd.getRequestParams().getFile();
+        String originalParams = dd.getRequestParams().toString();
+
+
+        // Use a zip output stream to include the data and citation together in
+        // the download.
+        try (OptionalZipOutputStream sp = new OptionalZipOutputStream(
+                zip ? OptionalZipOutputStream.Type.zipped : OptionalZipOutputStream.Type.unzipped, new CloseShieldOutputStream(out), maxMB);) {
+
+
+            //1. add citations to the download
+            Map<String, Integer> sources = searchDAO.getSourcesForQuery(dd.getRequestParams());
+            ConcurrentMap<String, AtomicInteger> uidStats = new ConcurrentHashMap<>();
+            for (Map.Entry<String, Integer> entry : sources.entrySet()) {
+                uidStats.put(entry.getKey(), new AtomicInteger(entry.getValue()));
+            }
+
+            List<String> citationsForReadme = new ArrayList<String>();
+
+            if (citationsEnabled) {
+                // Add the data citation to the download
+
+
+                // add the citations for the supplied uids
+                sp.putNextEntry("citation.csv");
+                try {
+
+
+                    getCitations(uidStats, sp, requestParams.getSep(), requestParams.getEsc(), citationsForReadme, null);
+                } catch (IOException e) {
+                    logger.error(e.getMessage(), e);
+                }
+                sp.closeEntry();
+
+            } else {
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Not adding citation. Enabled: " + citationsEnabled + " uids: " + uidStats);
+                }
+            }
+
+            //2. add the map to the download
+            nbnAddMapImageToDownload(dd, requestParams, sp, filename);
+
+            //3. add the readme to the download
+            if (readmeEnabled) {
+                // add the Readme for the data field descriptions
+                sp.putNextEntry("README.html");
+                String dataProviders = "<ul><li>" + StringUtils.join(citationsForReadme, "</li><li>") + "</li></ul>";
+
+                String readmeFile;
+                String fileLocation;
+
+                readmeFile = biocacheDownloadReadmeTemplate;
+                fileLocation = dd.getFileLocation().replace(biocacheDownloadDir, biocacheDownloadUrl);
+
+                String readmeTemplate = "";
+                if (readmeFile != null && new File(readmeFile).exists()) {
+                    readmeTemplate = FileUtils.readFileToString(new File(readmeFile), StandardCharsets.UTF_8);
+                }
+
+                String dataQualityFilters = "";
+                Map<String, String> enabledQualityFiltersByLabel = dataQualityService.getEnabledFiltersByLabel(requestParams);
+                List<QualityFilterDTO> qualityFilters = getQualityFilterDTOS(enabledQualityFiltersByLabel);
+                final String searchUrl = generateSearchUrl(requestParams, enabledQualityFiltersByLabel);
+                String dqFixedSearchUrl = dataQualityService.convertDataQualityParameters(searchUrl, enabledQualityFiltersByLabel);
+                if (!qualityFilters.isEmpty()) {
+                    dataQualityFilters = getDataQualityFiltersString(qualityFilters);
+                }
+
+                String readmeContent = readmeTemplate.replace("[url]", fileLocation)
+                        .replace("[date]", dd.getStartDateString(downloadDateFormat))
+                        .replace("[searchUrl]", dqFixedSearchUrl)
+                        .replace("[queryTitle]", dd.getRequestParams().getDisplayString())
+                        .replace("[dataProviders]", dataProviders)
+                        .replace("[dataQualityFilters]", dataQualityFilters);
+
+                sp.write(readmeContent.getBytes(StandardCharsets.UTF_8));
+
+                sp.closeEntry();
+            }
+
+
+            sp.flush();
+
+            //4. log the download event
+
+            // now construct the sourceUrl for the log event
+            String sourceUrl = originalParams.contains("qid:") ? webservicesRoot + "?" + requestParams.toString()
+                    : webservicesRoot + "?" + originalParams;
+
+            // log the stats to ala logger
+            LogEventVO vo = new LogEventVO(1002, requestParams.getReasonTypeId(), requestParams.getSourceTypeId(),
+                    requestParams.getEmail(), requestParams.getReason(), dd.getIpAddress(), dd.getUserAgent(), null, uidStats, sourceUrl);
+
+            loggerService.logEvent(vo);
+
+        } catch (RecordWriterException e) {
+            logger.error(e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            // sApplication may be shutting down, do not delete the download file
+            throw e;
+        }
+    }
+
+
+    private void nbnAddMapImageToDownload(DownloadDetailsDTO dd, DownloadRequestDTO requestParams, OptionalZipOutputStream sp, String filename) throws Exception{
+        try {
+            String mapParams = requestParams.getMapLayoutParams();
+            List<NameValuePair> listParams = URLEncodedUtils.parse(new URI("http://ignore.com?" + mapParams), "UTF-8");
+            Map<String, String> mappedParams = listParams.stream().collect(
+                    Collectors.toMap(NameValuePair::getName, NameValuePair::getValue));
+            String pathWithoutExtension = removeExtension(dd.getFileLocation());
+            String mapImgSourcePath =  pathWithoutExtension + "." + mappedParams.get("format");
+            File file = new File(mapImgSourcePath);
+            FileInputStream fis = new FileInputStream(file);
+            String mapImgPath =  filename + "." + mappedParams.get("format");
+            sp.putNextEntry(mapImgPath);
+            byte[] bytes = new byte[1024];
+            int length;
+            while ((length = fis.read(bytes)) >= 0) {
+                sp.write(bytes, 0, length);
+            }
+            fis.close();
+            file.delete(); //tidy up original map image file
+        } catch (IOException e) {
+            logger.error(e.getMessage(), e);
+        }
+        sp.closeEntry();
+    }
+
+    public boolean nbnCreateMapImage(DownloadRequestDTO requestParams,
+                                     javax.servlet.http.HttpServletRequest request, DownloadDetailsDTO dd) {
+
+        String mapParams = requestParams.getMapLayoutParams();
+
+
+        List<org.apache.http.NameValuePair> listParams = null;
+        try {
+            listParams = URLEncodedUtils.parse(new URI("http://ignore.com?" + mapParams), "UTF-8");
+        } catch (URISyntaxException e) {
+            logger.error(e.getMessage(), e);
+            return false;
+        }
+        Map<String, String> mappedParams = listParams.stream().collect(
+                Collectors.toMap(NameValuePair::getName, NameValuePair::getValue));
+
+        SpatialSearchRequestParams spatialParams = new SpatialSearchRequestParams();
+        if (mappedParams.containsKey("wkt")) spatialParams.setWkt(mappedParams.get("wkt"));
+        if (mappedParams.containsKey("lat")) spatialParams.setLat(Float.parseFloat(mappedParams.get("lat")));
+        if (mappedParams.containsKey("lon")) spatialParams.setLon(Float.parseFloat(mappedParams.get("lon")));
+        if (mappedParams.containsKey("radius")) spatialParams.setRadius(Float.parseFloat(mappedParams.get("radius")));
+
+        String extents = mappedParams.get("extents");
+        String format = mappedParams.get("format");
+        Double widthmm = (mappedParams.get("widthmm") == null? 60.0 : Double.parseDouble(mappedParams.get("widthmm")));
+        Double pradiusmm = (mappedParams.get("pradiusmm") == null? 2.0 : Double.parseDouble(mappedParams.get("pradiusmm")));
+        Integer pradiuspx = (mappedParams.get("pradiuspx") == null? null : Integer.parseInt(mappedParams.get("pradiuspx")));
+        String pcolour = (mappedParams.get("pcolour") == null? "FF0000" : mappedParams.get("pcolour"));
+        String env = (mappedParams.get("env") == null? "" : mappedParams.get("env"));
+        String srs = (mappedParams.get("srs") == null? "EPSG:3857" : mappedParams.get("srs"));
+        Double popacity = (mappedParams.get("popacity") == null? 0.8 : Double.parseDouble(mappedParams.get("popacity")));
+        String baselayer = (mappedParams.get("baselayer") == null? "world" : mappedParams.get("baselayer"));
+        String scale = (mappedParams.get("scale") == null? " off" : mappedParams.get("scale"));
+        Integer dpi = (mappedParams.get("dpi") == null? 300 : Integer.parseInt(mappedParams.get("dpi")));
+        String baselayerStyle = (mappedParams.get("baselayerStyle") == null? "" : mappedParams.get("baselayerStyle"));
+        String outline = (mappedParams.get("outline") == null? "false" : mappedParams.get("outline"));
+        String outlineColour = (mappedParams.get("outlineColour") == null? "#000000" : mappedParams.get("outlineColour"));
+        String fileName = requestParams.getFile() + '.' + mappedParams.get("format");
+        String baseMap = (mappedParams.get("baseMap") == null? "ALA" : mappedParams.get("baseMap"));
+//        String q = request.getParameter("q");
+//        String[] fqs = request.getParameterValues("fq");
+        spatialParams.setFq(request.getParameterValues("fq"));
+        spatialParams.setQ(request.getParameter("q"));
+        String bboxString = mappedParams.get("bbox");
+
+        BufferedImage img = null;
+        try {
+            img = wmsController.generatePublicationMapImage(spatialParams, extents, bboxString, widthmm,pradiusmm,pradiuspx,pcolour,env,srs,popacity,baselayer,scale,dpi,baselayerStyle,Boolean.parseBoolean(outline),outlineColour,baseMap);
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            return false;
+        }
+        try {
+            //save img to file
+            int[] heightWidth = wmsController.getExtentsWidthHeight(bboxString, srs, extents, widthmm, dpi);
+            File fileMap = new File(biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getRequestParams().getEmail().getBytes(StandardCharsets.UTF_8)) + File.separator + dd.getStartTime() + File.separator + fileName);
+
+            if (format.equalsIgnoreCase("png")) {
+                ImageIO.write(img, format, fileMap);
+            } else {
+                //handle jpeg + BufferedImage.TYPE_INT_ARGB
+                BufferedImage img2;
+                Graphics2D c2;
+                (c2 = (Graphics2D) (img2 = new BufferedImage(heightWidth[1], heightWidth[0], BufferedImage.TYPE_INT_RGB)).getGraphics()).drawImage(img, 0, 0, Color.WHITE, null);
+                c2.dispose();
+                ImageIO.write(img2, format, fileMap);
+            }
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            return false;
+        }
+        return true;
     }
 }

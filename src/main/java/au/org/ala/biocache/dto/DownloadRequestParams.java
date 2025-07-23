@@ -49,8 +49,10 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
     Integer sourceTypeId = null;
 
     @Parameter(name="fileType", description = "File type. CSV or TSV", schema = @Schema(type = "string", allowableValues = {"csv", "tsv"}))
-    @Pattern(regexp="(csv|tsv)")
+    @Pattern(regexp="(csv|tsv|map)")
     String fileType = "csv";
+
+    protected String mapLayoutParams = "";
 
     @Parameter(name="layersServiceUrl", description = "URL to layersService to include intersections with layers that are not indexed", hidden = true)
     String layersServiceUrl = "";
@@ -63,4 +65,12 @@ public class DownloadRequestParams extends SpatialSearchRequestParams {
 
     @Parameter(name="emailNotify", description = "Send notification email.")
     boolean emailNotify = true;
+
+    public String getMapLayoutParams() {
+        return mapLayoutParams;
+    }
+
+    public void setMapLayoutParams(String mapLayoutParams) {
+        this.mapLayoutParams = mapLayoutParams;
+    }
 }

@@ -235,6 +235,24 @@ public class DownloadController extends AbstractSecureController {
         if (d != null) {
             status.setMessage("Already in queue.");
             status.setStatus(DownloadStatusDTO.DownloadStatus.IN_QUEUE);
+        } else if (requestParams.getFileType().equalsIgnoreCase("map")) {
+            File file = new File(downloadService.biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getRequestParams().getEmail().getBytes(StandardCharsets.UTF_8)) + File.separator + dd.getStartTime() + File.separator + "map");
+            FileUtils.forceMkdir(file.getParentFile());
+            status.setStatus(DownloadStatusDTO.DownloadStatus.RUNNING);
+            status.setMessage("Map");
+            boolean imgOk = downloadService.nbnCreateMapImage(requestParams, request, dd);
+            if (!imgOk) {
+                status.setDownloadUrl(downloadService.biocacheDownloadUrl);
+                status.setStatus(DownloadStatusDTO.DownloadStatus.CANCELLED);
+                status.setMessage("Failed to create map image.");
+                status.setError("Failed to create map image.");
+            } else {
+
+                //hook into normal download process to generate citations.csv and readme.html files and zip everything.
+                downloadService.add(dd);
+                status.setStatus(DownloadStatusDTO.DownloadStatus.IN_QUEUE);
+                status.setStatusUrl(downloadService.webservicesRoot + "/occurrences/offline/status/" + dd.getUniqueId());
+            }
         } else if (dd.getTotalRecords() > downloadService.dowloadOfflineMaxSize) {
             //identify this download as too large
             File file = new File(downloadService.biocacheDownloadDir + File.separator + UUID.nameUUIDFromBytes(dd.getRequestParams().getEmail().getBytes(StandardCharsets.UTF_8)) + File.separator + dd.getStartTime() + File.separator + "tooLarge");

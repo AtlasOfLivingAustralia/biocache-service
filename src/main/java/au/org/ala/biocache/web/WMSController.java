@@ -1761,6 +1761,192 @@ public class WMSController extends AbstractSecureController {
             return;
         }
 
+        //BEGIN EXTRACTED CODE
+        // The code below has been extracted into generatePublicationMapImage so that the map image can be
+        // generated elsewhere, specifically in map download handled by DownloadController
+//        // convert extents from EPSG:4326 into target SRS
+//        CRSAuthorityFactory factory = CRS.getAuthorityFactory(true);
+//        CoordinateReferenceSystem sourceCRS = factory.createCoordinateReferenceSystem(srs);
+//        CoordinateReferenceSystem targetCRS = factory.createCoordinateReferenceSystem("EPSG:4326");
+//        CoordinateOperation transformTo4326 = new DefaultCoordinateOperationFactory().createOperation(sourceCRS, targetCRS);
+//        CoordinateOperation transformFrom4326 = new DefaultCoordinateOperationFactory().createOperation(targetCRS, sourceCRS);
+//        double[] bbox4326 = new double[4];     // extents in EPSG:4326
+//        double[] bboxSRS = new double[4];      //extents in target SRS
+//        if (bboxString != null) {
+//            transformBBox(transformTo4326, bboxString, bboxSRS, bbox4326);
+//        } else {
+//            transformBBox(transformFrom4326, extents, bbox4326, bboxSRS);
+//            bboxString = bboxSRS[0] + "," + bboxSRS[1] + "," + bboxSRS[2] + "," + bboxSRS[3];
+//        }
+//
+//        int width = (int) ((dpi / 25.4) * widthMm);
+//        int height = (int) Math.round(width * ((bboxSRS[3] - bboxSRS[1]) / (bboxSRS[2] - bboxSRS[0])));
+//
+//        if (height * width > MAX_IMAGE_PIXEL_COUNT) {
+//            String errorMessage = "Image size in pixels " + width + "x" + height + " exceeds " + MAX_IMAGE_PIXEL_COUNT + " pixels.  Make the image smaller";
+//            response.sendError(response.SC_NOT_ACCEPTABLE, errorMessage);
+//            throw new Exception(errorMessage);
+//        }
+//
+//        int pointSize = -1;
+//        if (pradiusPx != null) {
+//            pointSize = (int) pradiusPx;
+//        } else {
+//            pointSize = (int) ((dpi / 25.4) * pointRadiusMm);
+//        }
+//
+//        String rendering = "ENV=color%3A" + pointColour + "%3Bname%3Acircle%3Bsize%3A" + pointSize
+//                + "%3Bopacity%3A" + pointOpacity;
+//        if (StringUtils.isNotEmpty(env)) {
+//            rendering = "ENV=" + env;
+//        }
+//
+//        //"https://biocache-ws.ala.org.au/ws/webportal/wms/reflect?
+//        //q=macropus&ENV=color%3Aff0000%3Bname%3Acircle%3Bsize%3A3%3Bopacity%3A1
+//        //&BBOX=12523443.0512,-2504688.2032,15028131.5936,0.33920000120997&WIDTH=256&HEIGHT=256");
+//        String speciesAddress = baseWsUrl
+//                + "/ogc/wms/reflect?"
+//                + rendering
+//                + "&SRS=" + srs
+//                + "&BBOX=" + bboxString
+//                + "&WIDTH=" + width + "&HEIGHT=" + height
+//                + "&OUTLINE=" + outlinePoints + "&OUTLINECOLOUR=" + outlineColour;
+//
+//        SpatialSearchRequestDTO dto = SpatialSearchRequestDTO.create(params);
+//        String serialisedQueryParameters = dto.getEncodedParams();
+//
+//        if (!serialisedQueryParameters.isEmpty()) {
+//            speciesAddress += "&";
+//        }
+//
+//        // add query parameters
+//        speciesAddress += serialisedQueryParameters;
+//
+//        URL speciesURL = new URL(speciesAddress);
+//        BufferedImage speciesImage = ImageIO.read(speciesURL);
+//
+//        //"https://spatial.ala.org.au/geoserver/wms/reflect?
+//        //LAYERS=ALA%3Aworld&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&STYLES=
+//        //&FORMAT=image%2Fjpeg&SRS=EPSG%3A900913&BBOX=12523443.0512,-1252343.932,13775787.3224,0.33920000004582&WIDTH=256&HEIGHT=256"
+//        String layout = "";
+//        if (!scale.equals("off")) {
+//            layout += "layout:scale";
+//        }
+//        String basemapAddress = geoserverUrl + "/wms/reflect?"
+//                + "LAYERS=ALA%3A" + baselayer
+//                + "&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&STYLES=" + baselayerStyle
+//                + "&FORMAT=image%2Fpng&SRS=" + srs     //specify the mercator projection
+//                + "&BBOX=" + bboxString
+//                + "&WIDTH=" + width + "&HEIGHT=" + height + "&OUTLINE=" + outlinePoints
+//                + "&format_options=dpi:" + dpi + ";" + layout;
+//
+//        BufferedImage basemapImage;
+//
+//        if ("roadmap".equalsIgnoreCase(baseMap) || "satellite".equalsIgnoreCase(baseMap) ||
+//                "hybrid".equalsIgnoreCase(baseMap) || "terrain".equalsIgnoreCase(baseMap)) {
+//            basemapImage = basemapGoogle(width, height, bboxSRS, baseMap);
+//        } else {
+//            basemapImage = ImageIO.read(new URL(basemapAddress));
+//        }
+//
+//        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+//        Graphics2D combined = (Graphics2D) img.getGraphics();
+//
+//        combined.drawImage(basemapImage, 0, 0, Color.WHITE, null);
+//        //combined.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, pointOpacity.floatValue()));
+//        combined.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+//        combined.drawImage(speciesImage, null, 0, 0);
+//        combined.dispose();
+        //END EXTRACTED CODE
+
+        //NBN This replaces the extracted code above
+        BufferedImage img;
+        try {
+            img = generatePublicationMapImage(params,
+                    extents,
+                    bboxString,
+                    widthMm,
+                    pointRadiusMm,
+                    pradiusPx,
+                    pointColour,
+                    env,
+                    srs,
+                    pointOpacity,
+                    baselayer,
+                    scale,
+                    dpi,
+                    baselayerStyle,
+                    outlinePoints,
+                    outlineColour,
+                    baseMap
+            );
+        } catch (Exception ex) {
+            response.sendError(406, ex.getMessage());
+            return;
+        }
+        //End NBN
+
+        //if filename supplied, force a download
+        if (fileName != null) {
+            response.setContentType("application/octet-stream;charset=UTF-8");
+            response.setHeader("Content-Description", "File Transfer");
+            response.setHeader("Content-Disposition", "attachment; filename=" + fileName);
+            response.setHeader("Content-Transfer-Encoding", "binary");
+        } else if (format.equalsIgnoreCase("png")) {
+            response.setContentType("image/png");
+        } else {
+            response.setContentType("image/jpeg");
+        }
+        response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
+        response.setHeader("ETag", wmsETag.get());
+
+        try {
+            if (format.equalsIgnoreCase("png")) {
+                OutputStream os = response.getOutputStream();
+                ImageIO.write(img, format, os);
+                os.close();
+            } else {
+                //NBN ADDED (need to calculate width and height)
+                int[] heightWidth = getExtentsWidthHeight(bboxString, srs, extents, widthMm, dpi);
+                int height = heightWidth[0];
+                int width = heightWidth[1];
+                //END NBN ADDED
+
+                //handle jpeg + BufferedImage.TYPE_INT_ARGB
+                BufferedImage img2;
+                Graphics2D c2;
+                (c2 = (Graphics2D) (img2 = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)).getGraphics()).drawImage(img, 0, 0, Color.WHITE, null);
+                c2.dispose();
+                OutputStream os = response.getOutputStream();
+                ImageIO.write(img2, format, os);
+                os.close();
+            }
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        }
+    }
+
+
+    //NBN ADDED
+    public BufferedImage generatePublicationMapImage(
+            SpatialSearchRequestParams params,
+            String extents,
+            String bboxString,
+            Double widthMm,
+            Double pointRadiusMm,
+            Integer pradiusPx,
+            String pointColour,
+            String env,
+            String srs,
+            Double pointOpacity,
+            String baselayer,
+            String scale,
+            Integer dpi,
+            String baselayerStyle,
+            boolean outlinePoints,
+            String outlineColour,
+            String baseMap
+    ) throws Exception {
         // convert extents from EPSG:4326 into target SRS
         CRSAuthorityFactory factory = CRS.getAuthorityFactory(true);
         CoordinateReferenceSystem sourceCRS = factory.createCoordinateReferenceSystem(srs);
@@ -1781,7 +1967,7 @@ public class WMSController extends AbstractSecureController {
 
         if (height * width > MAX_IMAGE_PIXEL_COUNT) {
             String errorMessage = "Image size in pixels " + width + "x" + height + " exceeds " + MAX_IMAGE_PIXEL_COUNT + " pixels.  Make the image smaller";
-            response.sendError(response.SC_NOT_ACCEPTABLE, errorMessage);
+//            response.sendError(response.SC_NOT_ACCEPTABLE, errorMessage);
             throw new Exception(errorMessage);
         }
 
@@ -1854,40 +2040,39 @@ public class WMSController extends AbstractSecureController {
         combined.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
         combined.drawImage(speciesImage, null, 0, 0);
         combined.dispose();
-
-        //if filename supplied, force a download
-        if (fileName != null) {
-            response.setContentType("application/octet-stream;charset=UTF-8");
-            response.setHeader("Content-Description", "File Transfer");
-            response.setHeader("Content-Disposition", "attachment; filename=" + fileName);
-            response.setHeader("Content-Transfer-Encoding", "binary");
-        } else if (format.equalsIgnoreCase("png")) {
-            response.setContentType("image/png");
-        } else {
-            response.setContentType("image/jpeg");
-        }
-        response.setHeader("Cache-Control", wmsCacheControlHeaderPublicOrPrivate + ", max-age=" + wmsCacheControlHeaderMaxAge);
-        response.setHeader("ETag", wmsETag.get());
-
-        try {
-            if (format.equalsIgnoreCase("png")) {
-                OutputStream os = response.getOutputStream();
-                ImageIO.write(img, format, os);
-                os.close();
-            } else {
-                //handle jpeg + BufferedImage.TYPE_INT_ARGB
-                BufferedImage img2;
-                Graphics2D c2;
-                (c2 = (Graphics2D) (img2 = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)).getGraphics()).drawImage(img, 0, 0, Color.WHITE, null);
-                c2.dispose();
-                OutputStream os = response.getOutputStream();
-                ImageIO.write(img2, format, os);
-                os.close();
-            }
-        } catch (Exception e) {
-            logger.error(e.getMessage(), e);
-        }
+        return img;
     }
+
+    public int[] getExtentsWidthHeight(String bboxString,
+                                       String srs,
+                                       String extents,
+                                       Double widthMm,
+                                       Integer dpi) throws Exception {
+        // convert extents from EPSG:4326 into target SRS
+        CRSAuthorityFactory factory = CRS.getAuthorityFactory(true);
+        CoordinateReferenceSystem sourceCRS = factory.createCoordinateReferenceSystem(srs);
+        CoordinateReferenceSystem targetCRS = factory.createCoordinateReferenceSystem("EPSG:4326");
+        CoordinateOperation transformTo4326 = new DefaultCoordinateOperationFactory().createOperation(sourceCRS, targetCRS);
+        CoordinateOperation transformFrom4326 = new DefaultCoordinateOperationFactory().createOperation(targetCRS, sourceCRS);
+        double[] bbox4326 = new double[4];     // extents in EPSG:4326
+        double[] bboxSRS = new double[4];      //extents in target SRS
+        if (bboxString != null) {
+            transformBBox(transformTo4326, bboxString, bboxSRS, bbox4326);
+        } else {
+            transformBBox(transformFrom4326, extents, bbox4326, bboxSRS);
+            bboxString = bboxSRS[0] + "," + bboxSRS[1] + "," + bboxSRS[2] + "," + bboxSRS[3];
+        }
+
+        int[] heightWidth = new int[2];
+        heightWidth[1] = (int) ((dpi / 25.4) * widthMm);
+        heightWidth[0] = (int) Math.round(heightWidth[1] * ((bboxSRS[3] - bboxSRS[1]) / (bboxSRS[2] - bboxSRS[0])));
+
+        return heightWidth;
+
+
+    }
+
+    //END NBN ADDED
 
     /**
      * Method that produces the downloadable map integrated in AVH/OZCAM/Biocache.
