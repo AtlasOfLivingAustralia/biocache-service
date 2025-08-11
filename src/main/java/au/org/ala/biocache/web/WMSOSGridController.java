@@ -392,10 +392,10 @@ public class WMSOSGridController {
             } else if(boundingBoxSizeInKm > 156 && boundingBoxSizeInKm < 1000 ){
                 facets = new String[]{"grid_ref_10000", "grid_ref_50000"};
                 buff = 0.75;
-            } else if(boundingBoxSizeInKm > 39 && boundingBoxSizeInKm <= 156 ){
+            } else if(boundingBoxSizeInKm > 19 && boundingBoxSizeInKm <= 156 ){
                 facets = new String[]{"grid_ref_10000"};
                 buff = 0.75;
-            } else if (boundingBoxSizeInKm >= 19 && boundingBoxSizeInKm <= 39) {
+            } else if (boundingBoxSizeInKm >= 9 && boundingBoxSizeInKm <= 19) {
                 buff = 0.5;
                 facets = new String[]{"grid_ref_1000", "grid_ref_10000"};
             } else {
