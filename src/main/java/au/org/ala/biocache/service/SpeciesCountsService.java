@@ -21,8 +21,11 @@ import org.apache.commons.collections.map.LRUMap;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -62,6 +65,15 @@ public class SpeciesCountsService {
     @Value("${autocomplete.species.counts.enabled:true}")
     private Boolean enabled;
 
+    /**
+     * Counts seed queries for getCounts(String[] filterQuery).
+     *
+     * Format is seed1;seed2 (no spaces) where seeds are a list of comma delimited q/fq parameters.
+     */
+    @Value("${species.counts.cache.seeds:*:*}")
+    private String countsSeedQueries;
+    private List<String[]> countsSeeds;
+
     //left and left counts by q, fq, qc
     final Object cacheLock = new Object();
     LRUMap cache = new LRUMap();
@@ -71,6 +83,31 @@ public class SpeciesCountsService {
     final Object updatingLock = new Object();
     Map<Integer, Boolean> updatingList = new ConcurrentHashMap<Integer, Boolean>();
 
+
+    @PostConstruct
+    public void init() {
+        if (!enabled) return;
+
+        //parse seeds
+        countsSeeds = new ArrayList<String[]>();
+        if (StringUtils.isNotEmpty(countsSeedQueries)) {
+            String[] seeds = countsSeedQueries.split(";");
+            for (String s : seeds) {
+                String[] parts = s.split(",");
+                if (parts.length > 0) {
+                    countsSeeds.add(parts);
+                }
+            }
+        }
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void cacheSeeds() {
+        //initialise cache with seeds only after app is ready
+        for (String[] seed : countsSeeds) {
+            getCounts(seed);
+        }
+    }
     /**
      * retrieve left + count + index version
      *
@@ -111,7 +148,8 @@ public class SpeciesCountsService {
 
         //refresh if cache missing and not refreshed recently (cacheMinAge)
         long indexVersion = indexDao.getIndexVersion(false);
-        if (counts == null || (cacheMinAge + counts.getAge() < System.currentTimeMillis() && indexVersion != counts.getIndexVersion())) {
+        boolean expired = counts != null && (cacheMinAge + counts.getAge() < System.currentTimeMillis() || indexVersion != counts.getIndexVersion());
+        if (counts == null || expired) {
             //old counts that need one update scheduled
             synchronized (updatingLock) {
                 Boolean updating = updatingList.get(hashCode);
@@ -119,11 +157,18 @@ public class SpeciesCountsService {
                 if (updating == null) {
                     updatingList.put(hashCode, true);
 
-                    if (asyncUpdates){
+                    // return immediately if we have counts to return and update in the background
+                    if (counts != null || asyncUpdates){
+                        // reduce the number of instances where this runs concurrently for the same hashCode
+                        if (counts != null) {
+                            counts.setIndexVersion(indexVersion);
+                            counts.setAge(System.currentTimeMillis());
+                        }
+
                         Thread updateThread = new UpdateThread(this, hashCode, params);
                         updateThread.start();
                     } else {
-                        //run synchronously...
+                        //run synchronously if none available and not asyncUpdates=true
                         UpdateThread updateThread = new UpdateThread(this, hashCode, params);
                         updateThread.update();
                         counts = (SpeciesCountDTO) cache.get(hashCode);
