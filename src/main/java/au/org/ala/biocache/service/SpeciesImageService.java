@@ -127,6 +127,7 @@ public class SpeciesImageService {
 
                 logger.debug("time to refresh SpeciesImageService: " + (System.currentTimeMillis() - startTime) + "ms");
             } catch (Exception e) {
+                updatingCache = false;
                 logger.error(e.getMessage(), e);
             }
         }
