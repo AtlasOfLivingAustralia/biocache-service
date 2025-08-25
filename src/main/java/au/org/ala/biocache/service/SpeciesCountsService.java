@@ -160,8 +160,10 @@ public class SpeciesCountsService {
                     // return immediately if we have counts to return and update in the background
                     if (counts != null || asyncUpdates){
                         // reduce the number of instances where this runs concurrently for the same hashCode
-                        counts.setIndexVersion(indexVersion);
-                        counts.setAge(System.currentTimeMillis());
+                        if (counts != null) {
+                            counts.setIndexVersion(indexVersion);
+                            counts.setAge(System.currentTimeMillis());
+                        }
 
                         Thread updateThread = new UpdateThread(this, hashCode, params);
                         updateThread.start();
