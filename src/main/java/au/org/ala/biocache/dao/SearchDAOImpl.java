@@ -1621,9 +1621,12 @@ public class SearchDAOImpl implements SearchDAO {
             }
         }
 
+        //NBN We want year (and decade) to be ordered by count (so that we can have a facet limit of 30,
+        //ie, year and decade to be treamted the same as the other facets. Hence added false below
+        //see https://nbnatlas.atlassian.net/browse/ATLASDEV-2334
         // Always use fsort=count unless facet is year or decade (integer values stored as strings).
         // Month sorting (asc) is done later (string value of month number stored without '0' padding).
-        if (YEAR.equals(facetField) || DECADE_FACET_NAME.equals(facetField)) {
+        if (false && YEAR.equals(facetField) || DECADE_FACET_NAME.equals(facetField)) {
             solrQuery.setFacetSort("index");
 
             // legends containing year and decade are not limited by `wmslegendMaxItems`
@@ -1708,7 +1711,7 @@ public class SearchDAOImpl implements SearchDAO {
                         return Integer.parseInt(o1.getFacetValue()) > Integer.parseInt(o2.getFacetValue()) ? 1 : -1;
                     }
                 });
-            } else if (facetField.equals(YEAR) || facetField.equals(DECADE_FACET_NAME)) {
+            } else if (false && facetField.equals(YEAR) || facetField.equals(DECADE_FACET_NAME)) {
                 // sort descending year or decade
                 java.util.Collections.sort(legend, new Comparator<LegendItem>() {
                     @Override
