@@ -2365,6 +2365,48 @@ public class SearchDAOImpl implements SearchDAO {
             Double maxx,
             Double maxy,
             List<LegendItem> legend,
+            int gridSizeInPixels,
+            List<Integer> hiddenFacets)
+            throws Exception
+    {
+
+        HeatmapDTO cachedHeatMap = this.getHeatMap(
+                query,
+                filterQueries,
+                minx,
+                miny,
+                maxx,
+                maxy,
+                legend,
+                gridSizeInPixels);
+
+        HeatmapDTO copiedHeatMap = cachedHeatMap.copy();
+
+        // getHeatMap is cached. The process to trigger hiddenFacets is:
+        // 1. map all facets
+        // 2. nominate facets to hide
+        // As the heatmapDTO is cached no additional SOLR requests are required when only adding hiddenFacets (HQ)
+        if (hiddenFacets != null) {
+            for (Integer hf : hiddenFacets) {
+                if (hf < copiedHeatMap.layers.size()) {
+                    copiedHeatMap.layers.set(hf, null);
+                }
+            }
+        }
+        
+        return  copiedHeatMap;
+    }
+
+    @Override
+    @Cacheable("heatmapCache")
+    public HeatmapDTO getHeatMap(
+            String query,
+            String[] filterQueries,
+            Double minx,
+            Double miny,
+            Double maxx,
+            Double maxy,
+            List<LegendItem> legend,
             int gridSizeInPixels)
             throws Exception {
 
