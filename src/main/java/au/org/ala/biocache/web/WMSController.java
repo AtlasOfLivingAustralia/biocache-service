@@ -1524,12 +1524,18 @@ public class WMSController extends AbstractSecureController {
         double bWidth = ((bbox[2] - bbox[0]) / (double) width) * (Math.max(wmsMaxPointWidth, pointWidth) + additionalBuffer);
         double bHeight = ((bbox[3] - bbox[1]) / (double) height) * (Math.max(wmsMaxPointWidth, pointWidth) + additionalBuffer);
 
-        //we need to ensure these are sorted to provide a stable cache key
-        List<Integer> hiddenFacetsSorted = hiddenFacets.stream()
-                .sorted()
-                .collect(Collectors.toList());
+        HeatmapDTO heatmapDTO;
+        if(hiddenFacets.isEmpty()){
+            heatmapDTO = searchDAO.getHeatMap(requestParams.getFormattedQuery(), requestParams.getFormattedFq(), bbox[0] - bWidth, bbox[1] - bHeight, bbox[2] + bWidth, bbox[3] + bHeight, legend, isGrid ? (int) Math.ceil(width / (double) gridDivisionCount) : 1);
+        } else {
+            //we need to ensure these are sorted to provide a stable cache key
+            List<Integer> hiddenFacetsSorted = hiddenFacets.stream()
+                    .sorted()
+                    .collect(Collectors.toList());
 
-        HeatmapDTO heatmapDTO = searchDAO.getHeatMap(requestParams.getFormattedQuery(), requestParams.getFormattedFq(), bbox[0] - bWidth, bbox[1] - bHeight, bbox[2] + bWidth, bbox[3] + bHeight, legend, isGrid ? (int) Math.ceil(width / (double) gridDivisionCount) : 1, hiddenFacetsSorted);
+            heatmapDTO = searchDAO.getHeatMap(requestParams.getFormattedQuery(), requestParams.getFormattedFq(), bbox[0] - bWidth, bbox[1] - bHeight, bbox[2] + bWidth, bbox[3] + bHeight, legend, isGrid ? (int) Math.ceil(width / (double) gridDivisionCount) : 1, hiddenFacetsSorted);
+        }
+
         heatmapDTO.setTileExtents(bbox);
 
         if (heatmapDTO.layers == null) {
