@@ -48,7 +48,7 @@ repositories {
 }
 
 group = 'au.org.ala'
-version = '3.4.0-NBN-0.0.2'
+version = '3.4.0-NBN-0.0.3'
 
 
 boolean inplace = false

@@ -1910,7 +1910,7 @@ public class SearchDAOImpl implements SearchDAO {
         for (String facet : facetQueries.keySet()) {
             //add all the counts based on the query value that was substituted
             String lsid = lftToGuid.get(facet);
-            Integer count = facetQueries.get(facet);
+            Integer count = facetQueries.getOrDefault(facet,0);
             if (lsid != null && count != null)
                 counts.put(lsid, count);
         }
