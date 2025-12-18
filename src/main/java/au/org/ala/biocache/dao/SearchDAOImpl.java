@@ -1882,7 +1882,6 @@ public class SearchDAOImpl implements SearchDAO {
      * @throws Exception
      */
     public Map<String, Integer> getOccurrenceCountsForTaxa(List<String> taxa, String[] filterQueries) throws Exception {
-        logger.debug("getOccurrenceCountsForTaxa called");
         SolrQuery solrQuery = new SolrQuery();
         emptyFacetRequest(solrQuery, taxa.size(), 0, false);
 
@@ -1901,7 +1900,6 @@ public class SearchDAOImpl implements SearchDAO {
             }
             sb.append(values[0]);
             lftToGuid.put(values[0], lsid);
-            logger.debug("getOccurrenceCountsForTaxa Adding to lftToGuid : key values[0]: " + values[0]+" value lsid: "+lsid);
             //add the query part as a facet
             solrQuery.add("facet.query", values[0]);
         }
@@ -1912,8 +1910,7 @@ public class SearchDAOImpl implements SearchDAO {
         for (String facet : facetQueries.keySet()) {
             //add all the counts based on the query value that was substituted
             String lsid = lftToGuid.get(facet);
-            Integer count = facetQueries.getOrDefault(facet,0);
-            logger.debug("getOccurrenceCountsForTaxa facet: "+facet+" count: "+count+" lsid: "+lsid);
+            Integer count = facetQueries.get(facet);
             if (lsid != null && count != null)
                 counts.put(lsid, count);
         }
