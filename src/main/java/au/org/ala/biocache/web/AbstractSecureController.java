@@ -146,9 +146,9 @@ public class AbstractSecureController {
 
                 // remove any access times that are older then the rate limit window
                 Instant windowStart = Instant.now().minusSeconds(rateLimitWindowSeconds);
-                for (Instant oldestAccessTime = accessTimes.getFirst();
+                for (Instant oldestAccessTime = accessTimes.peekFirst();
                      oldestAccessTime != null && oldestAccessTime.isBefore(windowStart);
-                     oldestAccessTime = accessTimes.getFirst()) {
+                     oldestAccessTime = accessTimes.peekFirst()) {
                     accessTimes.removeFirst();
                 }
             }
