@@ -3,6 +3,7 @@ package au.org.ala.biocache.dto;
 import au.org.ala.biocache.util.LegendItem;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Schema(name = "HeatMap")
@@ -10,7 +11,7 @@ public class HeatmapDTO {
 
     public final Integer gridLevel;
     // each element of the list is a single grid layer
-    public final List<List<List<Integer>>> layers;
+    public List<List<List<Integer>>> layers;
     public final List<LegendItem> legend;
     public final int gridSizeInPixels;
     public final Integer rows;
@@ -63,5 +64,41 @@ public class HeatmapDTO {
         tileMiny = bbox[1];
         tileMaxx = bbox[2];
         tileMaxy = bbox[3];
+    }
+
+    public HeatmapDTO shallowClone() {
+        List<List<List<Integer>>> layersCopy = null;
+        if (layers != null) {
+            layersCopy = new ArrayList<>();
+            for (List<List<Integer>> layer : layers) {
+                layersCopy.add(layer);
+            }
+        }
+
+        List<LegendItem> legendCopy = null;
+        if (legend != null) {
+            legendCopy = new ArrayList<>();
+            for (LegendItem item : legend) {
+                legendCopy.add(item);
+            }
+        }
+
+        HeatmapDTO clone = new HeatmapDTO(
+            gridLevel,
+            layersCopy,
+            legendCopy,
+            gridSizeInPixels,
+            rows,
+            columns,
+            minx,
+            miny,
+            maxx,
+            maxy
+        );
+        clone.tileMinx = tileMinx;
+        clone.tileMiny = tileMiny;
+        clone.tileMaxx = tileMaxx;
+        clone.tileMaxy = tileMaxy;
+        return clone;
     }
 }
