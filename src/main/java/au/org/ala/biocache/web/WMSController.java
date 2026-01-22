@@ -1540,6 +1540,7 @@ public class WMSController extends AbstractSecureController {
 
             // faster method
             HeatmapDTO heatmapDTO = searchDAO.getHeatMap(requestParams.getFormattedQuery(), requestParams.getFormattedFq(), bbox[0] - bWidth, bbox[1] - bHeight, bbox[2] + bWidth, bbox[3] + bHeight, legend, isGrid ? (int) Math.ceil(width / (double) gridDivisionCount) : 1);
+            heatmapDTO = heatmapDTO.shallowClone();
             heatmapDTO.setTileExtents(bbox);
 
             // getHeatMap is cached. The process to trigger hiddenFacets is:
@@ -1654,6 +1655,7 @@ public class WMSController extends AbstractSecureController {
             double bufferHeight = Math.max(buffer, hHeight);
 
             HeatmapDTO circlesHeatmap = searchDAO.getHeatMap(requestParams.getFormattedQuery(), requestParams.getFormattedFq(), bbox[0] - bufferWidth, bbox[1] - bufferHeight, bbox[2] + bufferWidth, bbox[3] + bufferHeight, circlesLegend, 1);
+            circlesHeatmap = circlesHeatmap.shallowClone();
             circlesHeatmap.setTileExtents(bbox);
             return circlesHeatmap;
         }
