@@ -134,6 +134,7 @@ public class AppConfig implements WebMvcConfigurer {
     @Override
     public void addViewControllers(ViewControllerRegistry registry) {
         registry.addRedirectViewController("/", "/swagger-ui.html");
+        registry.addRedirectViewController("/swagger-ui/buildInfo", "/buildInfo");
     }
 
     @Bean
