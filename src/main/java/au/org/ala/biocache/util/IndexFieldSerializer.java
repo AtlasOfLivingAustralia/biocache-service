@@ -48,6 +48,9 @@ public class IndexFieldSerializer extends JsonSerializer<IndexFieldDTO> {
                 }
                 jsonGenerator.writeEndArray();
             }
+            if (indexFieldDTO.getSensitiveField() != null) {
+                jsonGenerator.writeStringField("sensitiveField", indexFieldDTO.getSensitiveField());
+            }
         }
 
         jsonGenerator.writeEndObject();
