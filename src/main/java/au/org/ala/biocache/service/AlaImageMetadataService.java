@@ -96,8 +96,9 @@ public class AlaImageMetadataService implements ImageMetadataService {
                     logger.debug("Obtained image metadata for " + imageMetadata.size() + " records");
                     return imageMetadata;
                 }
-            }  catch (InterruptedIOException ignored) {
+            }  catch (InterruptedIOException e) {
                 // Handles SocketTimeoutException, ConnectTimeoutException, and ConnectionPoolTimeoutException
+                logger.warn("Timeout requesting image metadata (refer to media.store.timeout.ms): " + e.getMessage());
             } catch (Exception e) {
                 logger.error("Error occurred while requesting image metadata: " + e.getMessage());
             }
