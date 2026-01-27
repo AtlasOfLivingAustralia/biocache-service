@@ -1033,6 +1033,11 @@ public class SearchDAOImpl implements SearchDAO {
             }
             trDTO.setTaxa(fDTOs);
         }
+        if (trDTO == null && qr.getFacetFields() != null && qr.getFacetFields().size() > 0) {
+            trDTO = new TaxaRankCountDTO(qr.getFacetFields().get(0).getName());
+        } else if (trDTO == null) {
+            trDTO = new TaxaRankCountDTO(""); // empty facet
+        }
         return trDTO;
     }
 
