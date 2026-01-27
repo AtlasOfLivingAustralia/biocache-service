@@ -17,6 +17,7 @@ package au.org.ala.biocache.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ContentType;
@@ -27,6 +28,7 @@ import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.io.InterruptedIOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +45,9 @@ public class AlaImageMetadataService implements ImageMetadataService {
 
     @Value("${media.store.url:http://images-dev.ala.org.au}")
     protected String imageServiceUrl;
+
+    @Value("${media.store.timeout.ms:10000}")
+    protected int imageServiceTimeout;
 
     @Override
     public String getUrlFor(String imageId){
@@ -64,8 +69,13 @@ public class AlaImageMetadataService implements ImageMetadataService {
         Map<String, Object> payload = new HashMap<String, Object>();
         payload.put("imageIds", imageIDs);
 
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setConnectTimeout(imageServiceTimeout)
+                .setConnectionRequestTimeout(imageServiceTimeout)
+                .setSocketTimeout(imageServiceTimeout)
+                .build();
 
-        HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+        HttpClientBuilder httpClientBuilder = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
 
         try (CloseableHttpClient httpClient = httpClientBuilder.build()) {
 
@@ -86,7 +96,13 @@ public class AlaImageMetadataService implements ImageMetadataService {
                     logger.debug("Obtained image metadata for " + imageMetadata.size() + " records");
                     return imageMetadata;
                 }
+            }  catch (InterruptedIOException ignored) {
+                // Handles SocketTimeoutException, ConnectTimeoutException, and ConnectionPoolTimeoutException
+            } catch (Exception e) {
+                logger.error("Error occurred while requesting image metadata: " + e.getMessage());
             }
+        } catch (Exception e) {
+            logger.error("Error occurred while creating HTTP client for image metadata service: " + e.getMessage());
         }
 
         return new HashMap<>();

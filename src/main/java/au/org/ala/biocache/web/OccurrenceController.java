@@ -938,7 +938,7 @@ public class OccurrenceController extends AbstractSecureController {
                 if (oi.getImages() != null) {
                     for (int i = 0; i < oi.getImages().length; i++) {
                         Map<String, Object> imageMetadata = imageMap.get(oi.getImages()[i]);
-                        if (oi != null) {
+                        if (imageMetadata != null) {
                             List<Map<String, Object>> md = oi.getImageMetadata();
                             if (md == null) {
                                 md = new ArrayList<>();
