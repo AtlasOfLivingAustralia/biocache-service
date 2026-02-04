@@ -91,6 +91,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     private static final String UNIQUE_ID = "[uniqueId]";
     private static final String MY_DOWNLOADS_URL = "[myDownloadsUrl]";
     private static final String HUB_NAME = "[hubName]";
+    private static final String FILENAME = "[filename]";
 
     protected static final Logger logger = Logger.getLogger(DownloadService.class);
 
@@ -189,6 +190,9 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
     @Value("${download.additional.local.files:}")
     protected String biocacheDownloadAdditionalLocalFiles;
+
+    @Value("${download.email.error.template:}")
+    protected String biocacheDownloadErrorEmailTemplate;
 
     /**
      * A delay (in milliseconds) between minting the DOI, and sending emails containing
@@ -1043,7 +1047,7 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
     }
 
     public String getFailEmailBodyTemplate(DownloadDetailsDTO currentDownload) {
-        String emailTemplate;
+        String emailTemplate = null;
         switch (currentDownload.getRequestParams().getEmailTemplate()) {
             case CSDM_SELECTOR:
                 emailTemplate = messageSource.getMessage("offlineFailEmailBodyCSDM", null, "", null);
@@ -1051,7 +1055,16 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
             case DOI_SELECTOR:
             case DEFAULT_SELECTOR:
             default:
-                emailTemplate = messageSource.getMessage("offlineFailEmailBody", null, "", null);
+                if (!StringUtils.isEmpty(biocacheDownloadErrorEmailTemplate)) {
+                    try {
+                        emailTemplate = FileUtils.readFileToString(new File(biocacheDownloadErrorEmailTemplate), StandardCharsets.UTF_8);
+                    } catch (IOException e) {
+                        logger.error("Failed to read offline download error email template file: " + biocacheDownloadErrorEmailTemplate, e);
+                    }
+                }
+                if (emailTemplate == null) {
+                    emailTemplate = messageSource.getMessage("offlineFailEmailBody", null, "", null);
+                }
                 break;
         }
 
@@ -1159,8 +1172,8 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                     // recipient.
                     final String hubName = currentDownload.getRequestParams().getHubName() != null ? currentDownload.getRequestParams().getHubName() : "ALA";
                     String subject = messageSource.getMessage("offlineEmailSubject", null, biocacheDownloadEmailSubject, null)
-                            .replace("[filename]", currentDownload.getRequestParams().getFile())
-                            .replace("[hubName]", hubName);
+                            .replace(FILENAME, currentDownload.getRequestParams().getFile())
+                            .replace(HUB_NAME, hubName);
 
                     logger.info("currentDownload = " + currentDownload);
 
@@ -1259,31 +1272,37 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
                 logger.error("Error in offline download, sending email. download path: "
                         + currentDownload.getFileLocation(), e);
 
-                try {
-                    final String hubName = currentDownload.getRequestParams().getHubName() != null ? currentDownload.getRequestParams().getHubName() : "ALA";
-                    String subject = messageSource.getMessage("offlineEmailSubjectError", null, biocacheDownloadEmailSubjectError, null)
-                            .replace("[filename]", currentDownload.getRequestParams().getFile())
-                            .replace("[hubName]", hubName);
+                // email error only if emailNotify is true
+                if (currentDownload.getRequestParams().isEmailNotify()) {
+                    try {
+                        final String hubName = currentDownload.getRequestParams().getHubName() != null ? currentDownload.getRequestParams().getHubName() : "ALA";
+                        String subject = messageSource.getMessage("offlineEmailSubjectError", null, biocacheDownloadEmailSubjectError, null)
+                                .replace(FILENAME, currentDownload.getRequestParams().getFile())
+                                .replace(HUB_NAME, hubName);
 
-                    String copyTo = supportEmailEnabled ? supportEmail : null;
+                        String copyTo = supportEmailEnabled ? supportEmail : null;
 
-                    Map<String, String> substitutions = new HashMap<>();
-                    substitutions.put(SEARCH_URL, generateSearchUrl(currentDownload.getRequestParams()));
-                    substitutions.put(SUPPORT, support);
-                    substitutions.put(UNIQUE_ID, currentDownload.getUniqueId());
-                    substitutions.put(MY_DOWNLOADS_URL, myDownloadsUrl);
-                    substitutions.put(HUB_NAME, hubName);
-                    substitutions.put(DOWNLOAD_FILE_LOCATION, currentDownload.getFileLocation().replace(biocacheDownloadDir,
-                            biocacheDownloadUrl));
+                        Map<String, String> substitutions = new HashMap<>();
+                        substitutions.put(SEARCH_URL, generateSearchUrl(currentDownload.getRequestParams()));
+                        substitutions.put(SUPPORT, support);
+                        substitutions.put(UNIQUE_ID, currentDownload.getUniqueId());
+                        substitutions.put(MY_DOWNLOADS_URL, myDownloadsUrl);
+                        substitutions.put(HUB_NAME, hubName);
+                        substitutions.put(DOWNLOAD_FILE_LOCATION, currentDownload.getFileLocation().replace(biocacheDownloadDir,
+                                biocacheDownloadUrl));
+                        substitutions.put(START_DATE_TIME, currentDownload.getStartDateString(downloadDateFormat));
+                        substitutions.put(QUERY_TITLE, currentDownload.getRequestParams().getDisplayString());
+                        substitutions.put(FILENAME, currentDownload.getRequestParams().getFile());
 
-                    String emailTemplate = getFailEmailBodyTemplate(currentDownload);
-                    String emailBody = generateEmailContent(emailTemplate, substitutions);
-                    // email error to user and support (configurable)
-                    emailService.sendEmail(currentDownload.getRequestParams().getEmail(), copyTo, subject, emailBody);
+                        String emailTemplate = getFailEmailBodyTemplate(currentDownload);
+                        String emailBody = generateEmailContent(emailTemplate, substitutions);
+                        // email error to user and support (configurable)
+                        emailService.sendEmail(currentDownload.getRequestParams().getEmail(), copyTo, subject, emailBody);
 
-                } catch (Exception ex) {
-                    logger.error("Error sending error message to download email. "
-                            + currentDownload.getFileLocation(), ex);
+                    } catch (Exception ex) {
+                        logger.error("Error sending error message to download email. "
+                                + currentDownload.getFileLocation(), ex);
+                    }
                 }
 
                 // If we ever want to retry on failure, enable doRetry and disable queue.remove
