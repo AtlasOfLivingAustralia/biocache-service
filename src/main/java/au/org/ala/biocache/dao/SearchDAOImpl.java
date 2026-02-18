@@ -2319,7 +2319,7 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     @Override
-    @Cacheable("heatmapCache")
+    @Cacheable(value = "heatmapCache", keyGenerator = "dataRoleCacheKeyGenerator")
     public HeatmapDTO getHeatMap(
             String query,
             String[] filterQueries,
