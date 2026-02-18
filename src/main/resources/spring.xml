@@ -95,6 +95,7 @@
     <bean id="ehCacheManager" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">
         <property name="configLocation"  value="/WEB-INF/ehcache.xml"/>
         <property name="shared" value="true" />
+        <property name="cacheManagerName" value="${spring.application.name}-cachemanager"/>
     </bean>
 
     <bean id="cacheManager" class="org.springframework.cache.ehcache.EhCacheCacheManager">
