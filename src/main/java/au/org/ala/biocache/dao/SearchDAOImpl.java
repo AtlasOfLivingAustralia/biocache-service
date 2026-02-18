@@ -216,6 +216,23 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${wms.legendMaxItems:30}")
     private int wmslegendMaxItems;
 
+    /**
+     * Maximum allowed value for the flimit (facet limit) parameter in user
+     * requests.
+     * Set to -1 to disable the limit. When enabled, requests exceeding this value
+     * will receive a 400 Bad Request response.
+     */
+    @Value("${flimit.max:-1}")
+    private int flimitMax;
+
+    /**
+     * Maximum allowed value for the pageSize parameter in user requests.
+     * Set to -1 to disable the limit. When enabled, requests exceeding this value
+     * will receive a 400 Bad Request response.
+     */
+    @Value("${pageSize.max:-1}")
+    private int pageSizeMax;
+
     @Value("${download.offline.max.size:100000000}")
     public Integer dowloadOfflineMaxSize = 100000000;
 
@@ -1295,6 +1312,32 @@ public class SearchDAOImpl implements SearchDAO {
     }
 
     /**
+     * Cap flimit at a max if configured and log warning when flimit requested exceeds max
+     * @param flimit the request facet limit
+     * @return The capped flimit
+     */
+    private int capFlimit(int flimit) {
+        if (flimitMax >= 0 && (flimit < 0 || flimit > flimitMax)) {
+            logger.warn("Requested facet limit exceeds maximum " + flimit + ", capping at " + flimitMax);
+            return flimitMax;
+        }
+        return flimit;
+    }
+
+    /**
+     * Cap pageSize at a max if configured and log warning when pageSize requested exceeds max
+     * @param pageSize the requested page size
+     * @return The capped flimit
+     */
+    private int capPageSize(int pageSize) {
+        if (pageSizeMax >= 0 && (pageSize < 0 || pageSize > pageSizeMax)) {
+            logger.warn("Requested page size exceeds maximum " + pageSize + ", capping at " + pageSizeMax);
+            return pageSizeMax;
+        }
+        return pageSize;
+    }
+
+    /**
      * Helper method to create SolrQuery object and add facet settings
      *
      * @return solrQuery the SolrQuery
@@ -1343,17 +1386,21 @@ public class SearchDAOImpl implements SearchDAO {
             }
 
             solrQuery.setFacetMinCount(1);
-            solrQuery.setFacetLimit(searchParams.getFlimit());
-            //include this so that the default fsort is still obeyed.
+            solrQuery.setFacetLimit(capFlimit(searchParams.getFlimit()));
+            // include this so that the default fsort is still obeyed.
             String fsort = StringUtils.isEmpty(searchParams.getFsort()) ? "count" : searchParams.getFsort();
             solrQuery.setFacetSort(fsort);
             if (searchParams.getFoffset() > 0)
                 solrQuery.add("facet.offset", Integer.toString(searchParams.getFoffset()));
             if (StringUtils.isNotEmpty(searchParams.getFprefix()))
                 solrQuery.add("facet.prefix", searchParams.getFprefix());
+            if (StringUtils.isNotEmpty(searchParams.getFcontains())) {
+                solrQuery.add("facet.contains", searchParams.getFcontains());
+                solrQuery.add("facet.contains.ignoreCase", "true");
+            }
         }
 
-        solrQuery.setRows(searchParams.getPageSize());
+        solrQuery.setRows(capPageSize(searchParams.getPageSize()));
         solrQuery.setStart(searchParams.getStart());
         if (StringUtils.isNotEmpty(searchParams.getDir()) && StringUtils.isNotEmpty(searchParams.getSort())) {
             solrQuery.setSort(searchParams.getSort(), SolrQuery.ORDER.valueOf(searchParams.getDir()));
