@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 /*
  Generate a dynamic cache-key based on the users data roles,
  as result queries can differ base on user permissions when rbac is enabled.
+ warning: Does not use the method name (Just like Spring default), so should not be used for a "shared cache"
  */
 
 @Component("dataRoleCacheKeyGenerator")
