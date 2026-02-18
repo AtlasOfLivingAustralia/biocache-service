@@ -1,6 +1,9 @@
 package au.org.ala.biocache.dao;
 
+import au.org.ala.biocache.dto.FacetResultDTO;
 import au.org.ala.biocache.dto.FieldResultDTO;
+import au.org.ala.biocache.dto.SearchResultDTO;
+import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
 import au.org.ala.biocache.stream.EndemicFacet;
 import au.org.ala.biocache.stream.ProcessInterface;
 import au.org.ala.biocache.util.QueryFormatUtils;
@@ -20,6 +23,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,6 +45,9 @@ public class SolrIndexDAOImplIT extends TestCase {
 
     @Autowired
     SolrIndexDAOImpl solrIndexDAO;
+
+    @Autowired
+    SearchDAOImpl searchDAO;
 
     @Autowired
     QueryFormatUtils queryFormatUtils;
@@ -188,6 +195,156 @@ public class SolrIndexDAOImplIT extends TestCase {
         assertEquals(null, initialValue);
         assertEquals(true, trueValue);
         assertEquals(false, falseValue);
+    }
+
+    @Test
+    public void flimitMaxCapsResults() throws Exception {
+        // Set flimitMax to 5 so that facet requests are capped
+        ReflectionTestUtils.setField(searchDAO, "flimitMax", 5);
+        try {
+            SpatialSearchRequestDTO params = new SpatialSearchRequestDTO();
+            params.setQ("*:*");
+            params.setFacet(true);
+            params.setFacets(new String[]{"year"});
+            params.setFlimit(100);
+            params.setPageSize(0);
+
+            SearchResultDTO result = searchDAO.findByFulltextSpatialQuery(params, false, null);
+
+            assertNotNull(result.getFacetResults());
+            assertFalse(result.getFacetResults().isEmpty());
+            FacetResultDTO yearFacet = result.getFacetResults().get(0);
+            assertTrue(
+                    "Facet result size should be capped at flimitMax=5, but got " + yearFacet.getFieldResult().size(),
+                    yearFacet.getFieldResult().size() <= 5
+            );
+        } finally {
+            // Restore default (disabled)
+            ReflectionTestUtils.setField(searchDAO, "flimitMax", -1);
+        }
+    }
+
+    @Test
+    public void flimitMaxDisabledReturnsRequestedAmount() throws Exception {
+        // With flimitMax=-1 (disabled), the full requested flimit should be returned
+        ReflectionTestUtils.setField(searchDAO, "flimitMax", -1);
+
+        SpatialSearchRequestDTO params = new SpatialSearchRequestDTO();
+        params.setQ("*:*");
+        params.setFacet(true);
+        params.setFacets(new String[]{"year"});
+        params.setFlimit(50);
+        params.setPageSize(0);
+
+        SearchResultDTO result = searchDAO.findByFulltextSpatialQuery(params, false, null);
+
+        assertNotNull(result.getFacetResults());
+        assertFalse(result.getFacetResults().isEmpty());
+        FacetResultDTO yearFacet = result.getFacetResults().get(0);
+        // The test index has many years; with no cap, all 50 (or fewer if index has fewer) should come back
+        assertTrue(
+                "Expected up to 50 facet values without a cap, but got " + yearFacet.getFieldResult().size(),
+                yearFacet.getFieldResult().size() > 5
+        );
+    }
+
+    @Test
+    public void pageSizeMaxCapsResults() throws Exception {
+        // Set pageSizeMax to 5 so that row requests are capped
+        ReflectionTestUtils.setField(searchDAO, "pageSizeMax", 5);
+        try {
+            SpatialSearchRequestDTO params = new SpatialSearchRequestDTO();
+            params.setQ("*:*");
+            params.setFacet(false);
+            params.setPageSize(1000);
+
+            SearchResultDTO result = searchDAO.findByFulltextSpatialQuery(params, false, null);
+
+            assertTrue(
+                    "Result count should be capped at pageSizeMax=5, but got " + result.getOccurrences().size(),
+                    result.getOccurrences().size() <= 5
+            );
+        } finally {
+            // Restore default (disabled)
+            ReflectionTestUtils.setField(searchDAO, "pageSizeMax", -1);
+        }
+    }
+
+    @Test
+    public void pageSizeMaxDisabledReturnsRequestedAmount() throws Exception {
+        // With pageSizeMax=-1 (disabled), the full requested pageSize should be honoured
+        ReflectionTestUtils.setField(searchDAO, "pageSizeMax", -1);
+
+        SpatialSearchRequestDTO params = new SpatialSearchRequestDTO();
+        params.setQ("*:*");
+        params.setFacet(false);
+        params.setPageSize(50);
+
+        SearchResultDTO result = searchDAO.findByFulltextSpatialQuery(params, false, null);
+
+        assertTrue(
+                "Expected 50 results without a cap, but got " + result.getOccurrences().size(),
+                result.getOccurrences().size() > 5
+        );
+    }
+
+    @Test
+    public void fcontainsFiltersToMatchingFacetValues() throws Exception {
+        // kingdom has values "Animalia" (981 records) and "Plantae" (5 records).
+        // fcontains="alia" should return only the "Animalia" facet value.
+        SpatialSearchRequestDTO params = new SpatialSearchRequestDTO();
+        params.setQ("*:*");
+        params.setFacet(true);
+        params.setFacets(new String[]{"kingdom"});
+        params.setFlimit(100);
+        params.setFcontains("alia");
+        params.setPageSize(0);
+
+        SearchResultDTO result = searchDAO.findByFulltextSpatialQuery(params, false, null);
+
+        assertNotNull(result.getFacetResults());
+        assertFalse("Expected facet results for kingdom field", result.getFacetResults().isEmpty());
+        FacetResultDTO facet = result.getFacetResults().get(0);
+        assertNotNull(facet.getFieldResult());
+        assertFalse("Expected at least one kingdom value containing 'alia'", facet.getFieldResult().isEmpty());
+        for (FieldResultDTO fieldResult : facet.getFieldResult()) {
+            assertTrue(
+                    "Facet value '" + fieldResult.getFieldValue() + "' should contain 'alia'",
+                    fieldResult.getFieldValue().toLowerCase().contains("alia")
+            );
+        }
+    }
+
+    @Test
+    public void fcontainsEmptyReturnsAllFacetValues() throws Exception {
+        // kingdom has "Animalia" and "Plantae". With fcontains="alia" only "Animalia" is returned;
+        // with fcontains="" (disabled) both values are returned.
+        SpatialSearchRequestDTO paramsWithFilter = new SpatialSearchRequestDTO();
+        paramsWithFilter.setQ("*:*");
+        paramsWithFilter.setFacet(true);
+        paramsWithFilter.setFacets(new String[]{"kingdom"});
+        paramsWithFilter.setFlimit(100);
+        paramsWithFilter.setFcontains("alia");
+        paramsWithFilter.setPageSize(0);
+
+        SpatialSearchRequestDTO paramsNoFilter = new SpatialSearchRequestDTO();
+        paramsNoFilter.setQ("*:*");
+        paramsNoFilter.setFacet(true);
+        paramsNoFilter.setFacets(new String[]{"kingdom"});
+        paramsNoFilter.setFlimit(100);
+        paramsNoFilter.setFcontains("");
+        paramsNoFilter.setPageSize(0);
+
+        SearchResultDTO filteredResult = searchDAO.findByFulltextSpatialQuery(paramsWithFilter, false, null);
+        SearchResultDTO unfilteredResult = searchDAO.findByFulltextSpatialQuery(paramsNoFilter, false, null);
+
+        int filteredCount = filteredResult.getFacetResults().get(0).getFieldResult().size();
+        int unfilteredCount = unfilteredResult.getFacetResults().get(0).getFieldResult().size();
+
+        assertTrue(
+                "Unfiltered facet results (" + unfilteredCount + ") should be greater than filtered results (" + filteredCount + ")",
+                unfilteredCount > filteredCount
+        );
     }
 
     @Test
