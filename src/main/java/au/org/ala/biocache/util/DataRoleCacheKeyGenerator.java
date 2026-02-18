@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 @Component("dataRoleCacheKeyGenerator")
 public class DataRoleCacheKeyGenerator implements KeyGenerator {
 
-    @Value("${rbac.enabled}")
+    @Value("${rbac.enabled:false}")
     private boolean rbacEnabled;
 
     @Value("${rbac.rolePrefix:}")
