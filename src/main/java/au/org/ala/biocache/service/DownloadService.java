@@ -1145,9 +1145,11 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
             // Ensure the Thread creating the download is running in the correct security-context
             var user = currentDownload.getAlaUser();
-            var authorities = user.getRoles().stream().map(SimpleGrantedAuthority::new).collect(toList());
-            var auth = new PreAuthenticatedAuthenticationToken(user, List.of(), authorities);
-            SecurityContextHolder.getContext().setAuthentication(auth);
+            if (user != null) {
+                var authorities = user.getRoles().stream().map(SimpleGrantedAuthority::new).collect(toList());
+                var auth = new PreAuthenticatedAuthenticationToken(user, List.of(), authorities);
+                SecurityContextHolder.getContext().setAuthentication(auth);
+            }
 
             try (FileOutputStream fos = FileUtils.openOutputStream(new File(currentDownload.getFileLocation()));) {
                 List<CreateDoiResponse> doiResponseList = null;

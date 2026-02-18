@@ -1014,6 +1014,163 @@ public class DownloadServiceTest {
         verify(testService.emailService, times(0)).sendEmail(any(), any(), any());
     }
 
+    /**
+     * Test that when an offline download is performed with an authenticated user with roles,
+     * the user context (including roles) is properly propagated to the search layer.
+     */
+    @Test
+    public final void testOfflineDownloadUserContextPropagation() throws Exception {
+
+        testService = createDownloadServiceForOfflineTest();
+
+        mockStatic(FileUtils.class);
+        given(FileUtils.readFileToString(any(), eq(StandardCharsets.UTF_8))).willReturn("");
+        given(FileUtils.openOutputStream(any())).willCallRealMethod();
+        given(FileUtils.openOutputStream(any(), anyBoolean())).willCallRealMethod();
+
+        // Capture the DownloadDetailsDTO passed to searchDAO to verify user context
+        ArgumentCaptor<DownloadDetailsDTO> ddCaptor = ArgumentCaptor.forClass(DownloadDetailsDTO.class);
+        when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), any(), ddCaptor.capture(), anyBoolean(), any()))
+                .thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
+        when(testService.dataQualityService.convertDataQualityParameters(any(), any())).thenAnswer(returnsFirstArg());
+
+        testService.support = "support@ala.org.au";
+        testService.myDownloadsUrl = "https://dev.ala.org.au/myDownloads";
+        testService.biocacheDownloadUrl = "http://dev.ala.org.au/biocache-download";
+        testService.biocacheDownloadEmailTemplate = "/tmp/download-email.html";
+        testService.biocacheDownloadReadmeTemplate = "/tmp/readme.txt";
+
+        testService.init();
+        Thread.sleep(500);
+
+        DownloadRequestDTO requestParams = new DownloadRequestDTO();
+        requestParams.setDisplayString("[all records]");
+
+        // Create a user with specific roles for RBAC
+        AlaUserProfile userWithRoles = createTestUserWithRoles("TestUserWithRoles", "testuser@example.org",
+                new HashSet<>(Arrays.asList("ROLE_USER", "ROLE_DATA_ACCESS")));
+
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, userWithRoles, "::1", "", DownloadType.RECORDS_INDEX);
+        testService.add(dd);
+        Thread.sleep(5000);
+
+        // Verify email was sent
+        verify(testService.emailService, times(1)).sendEmail(any(), any(), any());
+
+        // Verify user context was passed to the search layer
+        DownloadDetailsDTO capturedDD = ddCaptor.getValue();
+        assertThat("User should be passed to search layer", capturedDD.getAlaUser(), notNullValue());
+        assertThat("User ID should match", capturedDD.getAlaUser().getUserId(), equalTo("TestUserWithRoles"));
+        assertThat("User roles should be passed", capturedDD.getAlaUser().getRoles(),
+                containsInAnyOrder("ROLE_USER", "ROLE_DATA_ACCESS"));
+    }
+
+    /**
+     * Test that offline download works correctly when user has no roles (anonymous download).
+     */
+    @Test
+    public final void testOfflineDownloadWithNullUser() throws Exception {
+
+        testService = createDownloadServiceForOfflineTest();
+
+        mockStatic(FileUtils.class);
+        given(FileUtils.readFileToString(any(), eq(StandardCharsets.UTF_8))).willReturn("");
+        given(FileUtils.openOutputStream(any())).willCallRealMethod();
+        given(FileUtils.openOutputStream(any(), anyBoolean())).willCallRealMethod();
+
+        when(testService.searchDAO.writeResultsFromIndexToStream(any(), any(), any(), any(), anyBoolean(), any()))
+                .thenReturn(new DownloadHeaders(new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}, new String[] {}));
+        when(testService.dataQualityService.convertDataQualityParameters(any(), any())).thenAnswer(returnsFirstArg());
+
+        testService.support = "support@ala.org.au";
+        testService.myDownloadsUrl = "https://dev.ala.org.au/myDownloads";
+        testService.biocacheDownloadUrl = "http://dev.ala.org.au/biocache-download";
+        testService.biocacheDownloadEmailTemplate = "/tmp/download-email.html";
+        testService.biocacheDownloadReadmeTemplate = "/tmp/readme.txt";
+
+        testService.init();
+        Thread.sleep(500);
+
+        DownloadRequestDTO requestParams = new DownloadRequestDTO();
+        requestParams.setDisplayString("[all records]");
+
+        // Null user (anonymous download)
+        DownloadDetailsDTO dd = new DownloadDetailsDTO(requestParams, null, "::1", "", DownloadType.RECORDS_INDEX);
+        testService.add(dd);
+        Thread.sleep(5000);
+
+        // Should complete without errors (no NPE from null user)
+        verify(testService.emailService, times(1)).sendEmail(any(), any(), any());
+    }
+
+    /**
+     * Helper method to create a test user with specified roles.
+     */
+    private AlaUserProfile createTestUserWithRoles(String userId, String email, Set<String> roles) {
+        return new AlaUserProfile() {
+            @Override
+            public String getId() { return userId; }
+            @Override
+            public void setId(String id) { }
+            @Override
+            public String getTypedId() { return null; }
+            @Override
+            public String getUsername() { return userId; }
+            @Override
+            public Object getAttribute(String name) { return null; }
+            @Override
+            public Map<String, Object> getAttributes() { return null; }
+            @Override
+            public boolean containsAttribute(String name) { return false; }
+            @Override
+            public void addAttribute(String key, Object value) { }
+            @Override
+            public void removeAttribute(String key) { }
+            @Override
+            public void addAuthenticationAttribute(String key, Object value) { }
+            @Override
+            public void removeAuthenticationAttribute(String key) { }
+            @Override
+            public void addRole(String role) { }
+            @Override
+            public void addRoles(Collection<String> rolesArg) { }
+            @Override
+            public Set<String> getRoles() { return roles; }
+            @Override
+            public void addPermission(String permission) { }
+            @Override
+            public void addPermissions(Collection<String> permissions) { }
+            @Override
+            public Set<String> getPermissions() { return Collections.emptySet(); }
+            @Override
+            public boolean isRemembered() { return false; }
+            @Override
+            public void setRemembered(boolean rme) { }
+            @Override
+            public String getClientName() { return null; }
+            @Override
+            public void setClientName(String clientName) { }
+            @Override
+            public String getLinkedId() { return null; }
+            @Override
+            public void setLinkedId(String linkedId) { }
+            @Override
+            public boolean isExpired() { return false; }
+            @Override
+            public Principal asPrincipal() { return null; }
+            @Override
+            public String getName() { return userId; }
+            @Override
+            public String getUserId() { return userId; }
+            @Override
+            public String getEmail() { return email; }
+            @Override
+            public String getGivenName() { return "Test"; }
+            @Override
+            public String getFamilyName() { return "User"; }
+        };
+    }
+
     @Test
     public final void testDataQualityResourceTemplate() throws Exception {
         List<QualityFilterDTO> qualityFilters = new ArrayList<>();
