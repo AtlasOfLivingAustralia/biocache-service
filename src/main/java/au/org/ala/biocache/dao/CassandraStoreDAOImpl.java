@@ -15,6 +15,7 @@
 package au.org.ala.biocache.dao;
 
 import com.datastax.driver.core.*;
+import com.datastax.driver.core.policies.DefaultRetryPolicy;
 import com.datastax.driver.core.policies.ExponentialReconnectionPolicy;
 import com.datastax.driver.extras.codecs.MappingCodec;
 import com.fasterxml.jackson.core.JsonParser;
@@ -29,13 +30,13 @@ import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import software.aws.mcs.auth.SigV4AuthProvider;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Cassandra 3 based implementation of a persistence manager.
@@ -60,6 +61,15 @@ public class CassandraStoreDAOImpl implements StoreDAO {
     @Value("${cassandra.keyspace:biocache}")
     String keyspace;
 
+    @Value("${cassandra.useSsl:false}")
+    boolean useSsl;
+    @Value("${cassandra.useSigv4Auth:false}")
+    boolean useSigv4Auth;
+    @Value("${cassandra.username:#{null}}")
+    String username;
+    @Value("${cassandra.password:#{null}}")
+    String password;
+
     /**
      * Cassandra schema sql.
      */
@@ -76,13 +86,24 @@ public class CassandraStoreDAOImpl implements StoreDAO {
                 Cluster.builder()
                         .withoutJMXReporting() // Workaround for conflict with SOLR 8
                         .withReconnectionPolicy(new ExponentialReconnectionPolicy(10000, 60000))
+                        .withRetryPolicy(DefaultRetryPolicy.INSTANCE)
                         .withCodecRegistry(
                                 CodecRegistry.DEFAULT_INSTANCE.register(
                                         new TimestampAsStringCodec(TypeCodec.timestamp(), String.class)));
 
-        List<String> hosts = Arrays.stream(host.split(",")).map(h -> h.trim()).collect(Collectors.toList());
-        for (String hostString: hosts) {
-            String[] host_port = hostString.split(":");
+        if (useSsl) {
+            builder = builder.withSSL();
+        }
+        if (useSigv4Auth) {
+            builder = builder
+                    .withAuthProvider(new SigV4AuthProvider())
+                    .withQueryOptions(new QueryOptions().setConsistencyLevel(ConsistencyLevel.LOCAL_QUORUM));
+        } else if (username != null && !username.isEmpty() && password != null && !password.isEmpty()) {
+            builder = builder.withAuthProvider(new PlainTextAuthProvider(username, password));
+        }
+
+        for (String hostString : host.split(",")) {
+            String[] host_port = hostString.trim().split(":");
             if (host_port.length > 1) {
                 builder.withPort(Integer.parseInt(host_port[1])).addContactPoint(host_port[0]);
             } else {
@@ -100,7 +121,7 @@ public class CassandraStoreDAOImpl implements StoreDAO {
         session = cluster.connect(keyspace);
     }
 
-    class TimestampAsStringCodec extends MappingCodec<String, Date> {
+    static class TimestampAsStringCodec extends MappingCodec<String, Date> {
         public TimestampAsStringCodec(TypeCodec<Date> innerCodec, Class<String> javaType) {
             super(innerCodec, javaType);
         }
@@ -188,7 +209,7 @@ public class CassandraStoreDAOImpl implements StoreDAO {
         String className = data.getClass().getSimpleName();
         try {
             BoundStatement boundStatement = createPutStatement(key, className, value);
-            executeWithRetries(session, boundStatement);
+            session.execute(boundStatement);
         } catch (Exception e) {
             logger.error(
                     "Problem persisting the following to "
@@ -202,38 +223,6 @@ public class CassandraStoreDAOImpl implements StoreDAO {
                     e);
             throw e;
         }
-    }
-
-    private ResultSet executeWithRetries(Session session, Statement statement) {
-        int MAX_QUERY_RETRIES = 10;
-        int retryCount = 0;
-        boolean needToRetry = true;
-        ResultSet resultSet = null;
-        while (retryCount < MAX_QUERY_RETRIES && needToRetry) {
-            try {
-                resultSet = session.execute(statement);
-                needToRetry = false;
-                retryCount = 0; // reset
-            } catch (Exception e) {
-                logger.error("Exception thrown during paging. Retry count $retryCount - " + e.getMessage());
-                retryCount++;
-                needToRetry = true;
-
-                try {
-
-                    if (retryCount > 5) {
-                        logger.error("Backing off for 10 minutes. Retry count " + retryCount + ", " + e.getMessage());
-                        Thread.sleep(600000);
-                    } else {
-                        logger.error("Backing off for 5 minutes. Retry count " + retryCount + ", " + e.getMessage());
-                        Thread.sleep(300000);
-                    }
-                } catch (InterruptedException interruptedException) {
-                    logger.error("Failed to sleep. " + interruptedException.getMessage());
-                }
-            }
-        }
-        return resultSet;
     }
 
     @Override
@@ -262,7 +251,7 @@ public class CassandraStoreDAOImpl implements StoreDAO {
 
             try {
                 PreparedStatement preparedStatement = preparedStatementCache.get(cql);
-                if (preparedStatement == null){
+                if (preparedStatement == null) {
                     preparedStatement = session.prepare(cql);
                     preparedStatementCache.put(cql, preparedStatement);
                 }
@@ -273,7 +262,7 @@ public class CassandraStoreDAOImpl implements StoreDAO {
                     session.execute("CREATE TABLE " + table + "( key text PRIMARY KEY, value text );");
                     tryQuery = true;
                 } catch (Exception ex) {
-                    logger.error("Failed to create table " + table);
+                    logger.error("Failed to create table " + table + ": " , ex);
                 }
             }
         }
