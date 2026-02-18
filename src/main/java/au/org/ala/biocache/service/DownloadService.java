@@ -48,6 +48,10 @@ import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.core.io.Resource;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
@@ -1138,6 +1142,12 @@ public class DownloadService implements ApplicationListener<ContextClosedEvent> 
 
             boolean shuttingDown = false;
             boolean doRetry = false;
+
+            // Ensure the Thread creating the download is running in the correct security-context
+            var user = currentDownload.getAlaUser();
+            var authorities = user.getRoles().stream().map(SimpleGrantedAuthority::new).collect(toList());
+            var auth = new PreAuthenticatedAuthenticationToken(user, List.of(), authorities);
+            SecurityContextHolder.getContext().setAuthentication(auth);
 
             try (FileOutputStream fos = FileUtils.openOutputStream(new File(currentDownload.getFileLocation()));) {
                 List<CreateDoiResponse> doiResponseList = null;

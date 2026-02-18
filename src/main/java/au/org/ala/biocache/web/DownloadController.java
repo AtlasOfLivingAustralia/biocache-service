@@ -75,7 +75,7 @@ import static java.util.stream.Collectors.*;
 @Slf4j
 public class DownloadController extends AbstractSecureController {
 
-    final private static Logger logger = Logger.getLogger(ScatterplotController.class);
+    final private static Logger logger = Logger.getLogger(DownloadController.class);
 
     /** Fulltext search DAO */
     @Inject

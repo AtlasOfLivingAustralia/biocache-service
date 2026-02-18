@@ -751,4 +751,8 @@
        as not to throw an error. No data will be added to this field.  -->
   <field name="null" type="string" docValues="true" indexed="true" stored="true"/>
 
+  <!-- INBO RBAC fields -->
+  <field name="rbac"  type="boolean" docValues="false" indexed="true"/>
+  <field name="rbac_allowed"  type="string" docValues="false" multiValued="true" indexed="true"/>
+
 </schema>

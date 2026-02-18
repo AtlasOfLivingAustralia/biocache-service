@@ -186,6 +186,12 @@ public class SolrIndexDAOImpl implements IndexDAO {
     @Value("${solr.home:}")
     protected String solrHome;
 
+    @Value("${rbac.enabled:false}")
+    private boolean rbacEnabled;
+
+    @Value("${rbac.rolePrefix:}")
+    private String rolePrefix;
+
     // CoreContainer cc;
     SolrClient solrClient;
     CloseableHttpClient httpClient;
@@ -300,6 +306,10 @@ public class SolrIndexDAOImpl implements IndexDAO {
     @Override
     public QueryResponse query(SolrParams query) throws Exception {
         int retry = 0;
+
+        if (rbacEnabled) {
+            query = addRbacFilter(query);
+        }
 
         QueryResponse qr = null;
         while (retry < maxRetries && qr == null) {
@@ -1230,6 +1240,10 @@ public class SolrIndexDAOImpl implements IndexDAO {
         }
         solrParams.set("qt", qt);
 
+        if (rbacEnabled) {
+            return addRbacFilter(solrParams);
+        }
+
         return solrParams;
     }
 
@@ -1333,5 +1347,33 @@ public class SolrIndexDAOImpl implements IndexDAO {
 
     private String escapeDoubleQuote(String input) {
         return input.replaceAll("\"", "\\\\\"");
+    }
+
+    private ModifiableSolrParams addRbacFilter(SolrParams query) {
+        var newParams = new ModifiableSolrParams(query);
+
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        var roles = "";
+        if (auth != null) {
+            roles = auth.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .filter(role -> role.startsWith(rolePrefix))
+                    .map(role -> role.substring(rolePrefix.length()))
+                    .collect(Collectors.joining(" "));
+            if (!roles.isEmpty()) {
+                newParams.add("fq",
+                        "(*:* NOT dynamicProperties_rbac:*) " +
+                                "OR (dynamicProperties_rbac:true AND dynamicProperties_rbac_allowed:(" + roles + ")) " +
+                                "OR (dynamicProperties_rbac:false AND !dynamicProperties_rbac_allowed:(" + roles + "))"
+                );
+                return newParams;
+            }
+        }
+
+        newParams.add("fq",
+                "(*:* NOT dynamicProperties_rbac:*) OR dynamicProperties_rbac:false"
+        );
+
+        return newParams;
     }
 }
