@@ -71,8 +71,6 @@ dependencies {
     implementation 'org.apache.httpcomponents:httpclient-cache:4.5.13'
     implementation 'org.hibernate.validator:hibernate-validator:6.2.0.Final'
     implementation 'org.apache.solr:solr-solrj:8.11.2'
-    implementation 'com.datastax.cassandra:cassandra-driver-core:3.11.0'
-    implementation 'com.datastax.cassandra:cassandra-driver-extras:3.11.0'
     implementation 'com.fasterxml.jackson.core:jackson-core:2.13.0'
     implementation 'com.fasterxml.jackson.core:jackson-annotations:2.13.0'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.0'
@@ -127,6 +125,10 @@ dependencies {
     implementation 'org.apache.commons:commons-compress:1.21'
     implementation 'com.google.code.findbugs:jsr305:3.0.2'
     implementation 'org.springframework.boot:spring-boot-autoconfigure:2.7.0'
+
+    implementation "com.datastax.cassandra:cassandra-driver-core:${cassandraVersion}"
+    implementation "com.datastax.cassandra:cassandra-driver-extras:${cassandraVersion}"
+    implementation "software.aws.mcs:aws-sigv4-auth-cassandra-java-driver-plugin_3:3.0.3"
 
     if (inplace) {
         implementation project(':ala-ws-spring-security')
