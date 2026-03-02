@@ -938,7 +938,7 @@ public class OccurrenceController extends AbstractSecureController {
                 if (oi.getImages() != null) {
                     for (int i = 0; i < oi.getImages().length; i++) {
                         Map<String, Object> imageMetadata = imageMap.get(oi.getImages()[i]);
-                        if (oi != null) {
+                        if (imageMetadata != null) {
                             List<Map<String, Object>> md = oi.getImageMetadata();
                             if (md == null) {
                                 md = new ArrayList<>();
@@ -2354,6 +2354,8 @@ public class OccurrenceController extends AbstractSecureController {
         addField(sd, event, "startYear", getFieldName);
         addField(sd, event, "endYear", getFieldName);
         addField(sd, event, "datePrecision", getFieldName);
+        addField(sd, event, "sampleSizeValue", getFieldName);
+        addField(sd, event, "sampleSizeUnit", getFieldName);
 
         // au.org.ala.biocache.model.Attribution
         Map attribution = new HashMap();

@@ -3,6 +3,7 @@ package au.org.ala.biocache.dao;
 import au.org.ala.biocache.dto.AssertionStatus;
 import au.org.ala.biocache.dto.IndexFieldDTO;
 import au.org.ala.biocache.dto.OccurrenceIndex;
+import au.org.ala.biocache.dto.SensitiveFields;
 import au.org.ala.biocache.service.LayersService;
 import au.org.ala.biocache.service.RestartDataService;
 import au.org.ala.biocache.stream.ProcessInterface;
@@ -526,6 +527,16 @@ public class SolrIndexDAOImpl implements IndexDAO {
             // add the full field with description when it appears in the index
             if (indexFieldMap.containsKey(item.getKey())) {
                 indexFieldMap.put(item.getKey(), field);
+            }
+        }
+
+        // add hasSensitiveVersion for each applicable indexFieldMap fields
+        for (Map.Entry<String, IndexFieldDTO> entry : indexFieldMap.entrySet()) {
+            String fieldName = entry.getKey();
+            String sensitiveField = SensitiveFields.get(fieldName);
+            if (sensitiveField != null) {
+                IndexFieldDTO indexFieldDTO = entry.getValue();
+                indexFieldDTO.setSensitiveField(sensitiveField);
             }
         }
 

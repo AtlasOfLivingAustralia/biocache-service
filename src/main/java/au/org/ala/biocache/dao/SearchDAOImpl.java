@@ -288,8 +288,6 @@ public class SearchDAOImpl implements SearchDAO {
 
         getMaxBooleanClauses();
 
-        initSensitiveFieldMapping();
-
         countDownLatch.countDown();
     }
 
@@ -679,53 +677,6 @@ public class SearchDAOImpl implements SearchDAO {
         return new DownloadCallable(queries, indexDao, procDownload);
     }
 
-
-    Map<String, String[]> sensitiveFieldMapping = new HashMap();
-
-    private void initSensitiveFieldMapping() {
-
-        sensitiveFieldMapping.put("longitude", new String[]{"sensitive_decimalLongitude"});
-        sensitiveFieldMapping.put("decimalLongitude", new String[]{"sensitive_decimalLongitude"});
-        sensitiveFieldMapping.put("latitude", new String[]{"sensitive_decimalLatitude"});
-        sensitiveFieldMapping.put("decimalLatitude", new String[]{"sensitive_decimalLatitude"});
-
-        sensitiveFieldMapping.put("locality", new String[]{"sensitive_locality"});
-
-        sensitiveFieldMapping.put("footprint_wkt", new String[]{"sensitive_footprintWKT"});
-        sensitiveFieldMapping.put("footprintWKT", new String[]{"sensitive_footprintWKT"});
-
-        sensitiveFieldMapping.put("location_remarks", new String[]{"sensitive_locationRemarks"});
-        sensitiveFieldMapping.put("locationRemarks", new String[]{"sensitive_locationRemarks"});
-
-        sensitiveFieldMapping.put("verbatim_coordinates", new String[]{"sensitive_verbatimCoordinates"});
-        sensitiveFieldMapping.put("verbatimCoordinates", new String[]{"sensitive_verbatimCoordinates"});
-
-        sensitiveFieldMapping.put("verbatim_latitude", new String[]{"sensitive_verbatimLatitude"});
-        sensitiveFieldMapping.put("verbatimLatitude", new String[]{"sensitive_verbatimLatitude"});
-
-        sensitiveFieldMapping.put("verbatim_locality", new String[]{"sensitive_verbatimLocality"});
-        sensitiveFieldMapping.put("verbatimLocality", new String[]{"sensitive_verbatimLocality"});
-
-        sensitiveFieldMapping.put("verbatim_longitude", new String[]{"sensitive_verbatimLongitude"});
-        sensitiveFieldMapping.put("verbatimLongitude", new String[]{"sensitive_verbatimLongitude"});
-
-        sensitiveFieldMapping.put("day", new String[]{"sensitive_day"});
-
-        sensitiveFieldMapping.put("occurrence_date", new String[]{"sensitive_eventDate"});
-        sensitiveFieldMapping.put("eventDate", new String[]{"sensitive_eventDate"});
-
-        sensitiveFieldMapping.put("event_id", new String[]{"sensitive_eventID"});
-        sensitiveFieldMapping.put("eventID", new String[]{"sensitive_eventID"});
-
-        sensitiveFieldMapping.put("event_time", new String[]{"sensitive_eventTime"});
-        sensitiveFieldMapping.put("eventTime", new String[]{"sensitive_eventTime"});
-
-        sensitiveFieldMapping.put("month", new String[]{"sensitive_month"});
-
-        sensitiveFieldMapping.put("verbatim_event_date", new String[]{"sensitive_verbatimEventDate"});
-        sensitiveFieldMapping.put("verbatimEventDate", new String[]{"sensitive_verbatimEventDate"});
-    }
-
     /**
      * insert sensitive versions of requested fields
      *
@@ -740,10 +691,11 @@ public class SearchDAOImpl implements SearchDAO {
             // put back the original field
             fieldsWithSensitive.add(field);
             // if this filed has a sensitive mapping
-            if (sensitiveFieldMapping.containsKey(field)) {
-                // make sure sensitive fields only added once
-                fieldsWithSensitive.addAll(Arrays.stream(sensitiveFieldMapping.get(field)).filter(it -> !fieldsWithSensitiveSet.contains(it)).collect(Collectors.toList()));
-                fieldsWithSensitiveSet.addAll(Arrays.stream(sensitiveFieldMapping.get(field)).filter(it -> !fieldsWithSensitiveSet.contains(it)).collect(Collectors.toList()));
+            String sensitiveField = SensitiveFields.get(field);
+            // make sure sensitive fields only added once
+            if (sensitiveField != null && !fieldsWithSensitiveSet.contains(sensitiveField)) {
+                fieldsWithSensitive.add(sensitiveField);
+                fieldsWithSensitiveSet.add(sensitiveField);
             }
         }
 
@@ -1080,6 +1032,11 @@ public class SearchDAOImpl implements SearchDAO {
                 }
             }
             trDTO.setTaxa(fDTOs);
+        }
+        if (trDTO == null && qr.getFacetFields() != null && qr.getFacetFields().size() > 0) {
+            trDTO = new TaxaRankCountDTO(qr.getFacetFields().get(0).getName());
+        } else if (trDTO == null) {
+            trDTO = new TaxaRankCountDTO(""); // empty facet
         }
         return trDTO;
     }

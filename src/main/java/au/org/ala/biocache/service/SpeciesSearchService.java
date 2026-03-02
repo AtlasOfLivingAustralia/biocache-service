@@ -32,9 +32,10 @@ public interface SpeciesSearchService {
      * @param includeSynonyms can include matched synonyms (or resolve to their parents)
      * @param includeAll do not limit remove matches with 0 matches
      * @param counts include occurrence counts in the output
+*    * @param simplified return a simplified result set that omits fields for performance
      * @return
      */
-    Map search(String query, String [] filterQuery, int max, boolean includeSynonyms, boolean includeAll, boolean counts);
+    Map search(String query, String [] filterQuery, int max, boolean includeSynonyms, boolean includeAll, boolean counts, boolean simplified);
 
 
 }

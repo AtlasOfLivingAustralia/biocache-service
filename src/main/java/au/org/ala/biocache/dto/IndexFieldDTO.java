@@ -1,12 +1,12 @@
 /**************************************************************************
  *  Copyright (C) 2013 Atlas of Living Australia
  *  All Rights Reserved.
- * 
+ *
  *  The contents of this file are subject to the Mozilla Public
  *  License Version 1.1 (the "License"); you may not use this file
  *  except in compliance with the License. You may obtain a copy of
  *  the License at http://www.mozilla.org/MPL/
- * 
+ *
  *  Software distributed under the License is distributed on an "AS
  *  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  *  implied. See the License for the specific language governing
@@ -22,9 +22,9 @@ import java.util.Collection;
 
 /**
  * DTO for the fields that belong to the index.
- * 
- * A field is available for faceting if indexed=true 
- * 
+ *
+ * A field is available for faceting if indexed=true
+ *
  * @author "Natasha Carter <Natasha.Carter@csiro.au>"
  */
 @Schema(name = "IndexField", description = "Details of an index field")
@@ -71,6 +71,9 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
     private String newFieldName;
 
     private Collection<String> sourceFields;
+
+    /** the field name of the associated sensitive field **/
+    private String sensitiveField;
 
     @Override
     public boolean equals(Object obj){
@@ -308,5 +311,13 @@ public class IndexFieldDTO implements Comparable<IndexFieldDTO> {
 
     public void setSourceFields(Collection<String> sourceFields) {
         this.sourceFields = sourceFields;
+    }
+
+    public String getSensitiveField() {
+        return sensitiveField;
+    }
+
+    public void setSensitiveField(String sensitiveField) {
+        this.sensitiveField = sensitiveField;
     }
 }
