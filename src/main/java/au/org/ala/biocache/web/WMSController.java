@@ -2041,7 +2041,7 @@ public class WMSController extends AbstractSecureController {
 
         // render layers remainder
         for (List<List<Integer>> rows : layers) {
-            if (heatmapDTO.legend != null && heatmapDTO.legend.get(layerIdx) != null && heatmapDTO.legend.get(layerIdx).isRemainder()) {
+            if (heatmapDTO.legend != null && heatmapDTO.legend.size() > layerIdx && heatmapDTO.legend.get(layerIdx) != null && heatmapDTO.legend.get(layerIdx).isRemainder()) {
                 renderLayer(heatmapDTO,
                         vars,
                         pointWidth,
@@ -2061,7 +2061,7 @@ public class WMSController extends AbstractSecureController {
 
         // render layers
         for (List<List<Integer>> rows : layers) {
-            if (heatmapDTO.legend == null || heatmapDTO.legend.get(layerIdx) == null || !heatmapDTO.legend.get(layerIdx).isRemainder()) {
+            if (heatmapDTO.legend == null || heatmapDTO.legend.size() <= layerIdx || heatmapDTO.legend.get(layerIdx) == null || !heatmapDTO.legend.get(layerIdx).isRemainder()) {
                 renderLayer(heatmapDTO,
                         vars,
                         pointWidth,
@@ -2440,7 +2440,7 @@ public class WMSController extends AbstractSecureController {
                     }
 
                     // make coordinates to match target SRS
-                    GeneralDirectPosition sourceCoords = new GeneralDirectPosition(lng, lat);
+                    GeneralDirectPosition sourceCoords = new GeneralDirectPosition(lng, Math.max(Math.min(lat, 89.9), -89.9));
                     DirectPosition targetCoords = transformFrom4326.getMathTransform().transform(sourceCoords, null);
                     int px = scaleLongitudeForImage(targetCoords.getOrdinate(0), tilebbox[0], tilebbox[2], (int) tileWidthInPx);
                     int py = scaleLatitudeForImage(targetCoords.getOrdinate(1), tilebbox[3], tilebbox[1], (int) tileHeightInPx);
